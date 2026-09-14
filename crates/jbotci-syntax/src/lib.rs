@@ -1229,6 +1229,20 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
+    parser_construct_metadata!("Zantufa standalone atom", "tanru unit"),
+    parser_construct_metadata!("Zantufa FA tanru unit", "tanru unit"),
+    parser_construct_metadata!("Zantufa FA continuation", "Zantufa FA tanru unit"),
+    parser_construct_metadata!("Zantufa atom GEK", "Zantufa standalone atom"),
+    parser_construct_metadata!("Zantufa atom GEK body", "Zantufa atom GEK"),
+    parser_construct_metadata!("Zantufa atom GA opener", "Zantufa atom GEK body"),
+    parser_construct_metadata!("Zantufa atom initial GI", "Zantufa atom GEK body"),
+    parser_construct_metadata!("Zantufa atom final GI", "Zantufa atom GEK body"),
+    parser_construct_metadata!("Zantufa atom GEK payload", "Zantufa atom GEK body"),
+    parser_construct_metadata!("Zantufa atom GI branch", "Zantufa standalone atom"),
+    parser_construct_metadata!("Zantufa atom JOIK", "Zantufa atom GEK payload"),
+    parser_construct_metadata!("Zantufa atom tag", "Zantufa atom GEK payload"),
+    parser_construct_metadata!("Zantufa atom tag continuation", "Zantufa atom tag"),
+    parser_construct_metadata!("Zantufa grouped sumti", "sumti"),
     SyntaxConstructMetadata {
         name: "abstraction",
         parent: Some("tanru unit"),
@@ -3022,6 +3036,9 @@ pub enum ExperimentalConstruct {
     /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
+    ExperimentalZantufaFaTanruUnit,
+    ExperimentalZantufaForethoughtTanruUnit,
+    ExperimentalZantufaGroupedSumti,
     ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
@@ -3128,6 +3145,15 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
             Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
+            Self::ExperimentalZantufaFaTanruUnit => {
+                "syntax.warning.experimental-zantufa-fa-tanru-unit"
+            }
+            Self::ExperimentalZantufaForethoughtTanruUnit => {
+                "syntax.warning.experimental-zantufa-forethought-tanru-unit"
+            }
+            Self::ExperimentalZantufaGroupedSumti => {
+                "syntax.warning.experimental-zantufa-grouped-sumti"
+            }
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
             }
@@ -3316,6 +3342,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
+            Self::ExperimentalZantufaFaTanruUnit => "Zantufa FA-prefixed tanru unit",
+            Self::ExperimentalZantufaForethoughtTanruUnit => "Zantufa forethought tanru unit",
+            Self::ExperimentalZantufaGroupedSumti => "Zantufa KE-grouped sumti",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {

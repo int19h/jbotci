@@ -130,7 +130,10 @@ pub mod generated_model {
         zantufa_priority_raw_mekso_quantifier_candidate: ZantufaPriorityRawMeksoQuantifierSyntax;
         zantufa_priority_raw_mekso_quantifier_with_relatives_candidate: ZantufaPriorityRawMeksoQuantifierWithRelativesSyntax;
         zantufa_raw_mekso_quantifier_with_relatives_candidate: ZantufaRawMeksoQuantifierWithRelativesSyntax;
-        selbri: SelbriSyntax;
+        zantufa_selbri_entry: SelbriSyntax;
+        zantufa_atom_priority_selbri: SelbriSyntax;
+        zantufa_simple_bridi_tail_entry: SimpleBridiTailSyntax;
+        zantufa_simple_bridi_tail_without_tail_terms_entry: SimpleBridiTailWithoutTailTermsSyntax;
         selbri_without_terminal_relative: SelbriWithoutTerminalRelativeSyntax;
         description_relative_full_selbri: SelbriSyntax;
         co_selbri: CoSelbriSyntax;
@@ -145,7 +148,9 @@ pub mod generated_model {
         cei_free_plain_bo_selbri: PlainBoSelbriSyntax;
         tanru_unit: TanruUnitSyntax;
         cei_free_tanru_unit: TanruUnitSyntax;
-        tanru_unit_atom: TanruUnitAtomSyntax;
+        zantufa_tanru_unit_atom_entry: TanruUnitAtomSyntax;
+        zantufa_forethought_tanru_unit_candidate: ZantufaForethoughtTanruUnitSyntax;
+        zantufa_fa_tanru_unit_candidate: ZantufaFaTanruUnitSyntax;
         // The BE/BEI linked-argument ladder is the term ladder's shape at the link site, and it
         // belongs here for the same reason: `linkargs` -> `linked_term` -> `bound_linked_term` ->
         // `bound_linked_term_operand` nest, and each level had two reference sites, so leaving
@@ -183,6 +188,15 @@ pub mod generated_model {
         letter_string: LetterStringSyntax;
         letter_tokens: LetterTokensSyntax;
         free_modifier: FreeModifierSyntax;
+        zantufa_boundary_term: ();
+        zantufa_boundary_term_1: ();
+        zantufa_boundary_term_2: ();
+        zantufa_boundary_gek_term: ();
+        zantufa_boundary_bridi_tail: ();
+        zantufa_boundary_bridi_tail_1: ();
+        zantufa_boundary_bridi_tail_2: ();
+        zantufa_boundary_bridi_tail_3: ();
+        zantufa_boundary_gek_bridi_tail: ();
     }
 
     /// A UI/CAI indicator together with its optional attached NAI word.
@@ -194,7 +208,7 @@ pub mod generated_model {
     }
 
     /// Top-level text syntax, distinguishing XAUhA…KUhAU framing from ordinary text.
-    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Text introduced by XAUhA and closed by KUhAU; the payload retains the framed paragraphs.
         explicit_xauha_lohoi_text,
         /// Ordinary text, retaining its leading material and optional paragraph tree.
@@ -215,7 +229,7 @@ pub mod generated_model {
     }
 
     /// Ordinary text with source-ordered leading material and an optional paragraph tree.
-    rule "text" regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "text" regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// NAI words that precede the first formal text construct.
         field leading_nai <- [zero_or_more cmavo(Nai)];
         /// CMEVLA words accepted before the first formal text construct.
@@ -226,7 +240,7 @@ pub mod generated_model {
         field leading_free_modifiers <- [zero_or_more free_modifier];
         /// A text-leading connective when it is not the start of a modal forethought connective.
         field leading_connective <- opt(
-            modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
+            modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci)
                 .not()
                 .ignore_then(text_leading_connective),
         );
@@ -356,7 +370,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `i_statement_connection`, `preposed_i_statement_connection`, and `statement_base` forms.
-    rule "statement" statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "statement" statement(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `i_statement_connection` product form, whose payload preserves `leading_statement` and `continuations`.
         i_statement_connection,
         /// Uses the `preposed_i_statement_connection` product form, whose payload preserves `leading_statement`, `connective`, `i`, and `trailing_statement`.
@@ -366,7 +380,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `prenex_statement`, `forethought_statement`, `bridi_statement`, and `text_group_statement` forms.
-    rule "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "statement" statement_base(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.
         prenex_statement,
         /// Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.
@@ -378,7 +392,7 @@ pub mod generated_model {
     }
 
     /// Sum node for paragraph statement; selects among the `zantufa_statement_terms_statement`, `statement_or_fragment_statement`, and `fragment_statement` forms.
-    rule "paragraph statement" statement_or_fragment(statement, statement_relative_clause, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term, quantifier) -> enum {
+    rule "paragraph statement" statement_or_fragment(statement, statement_relative_clause, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term, quantifier) -> enum {
         /// Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.
         when feature(ZantufaTerms) zantufa_statement_terms_statement,
         /// Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.
@@ -425,7 +439,7 @@ pub mod generated_model {
     }
 
     /// Sum node for fragment; selects among 12 forms including `prenex_fragment`, `selbri_fragment`, and `ek_fragment`.
-    rule "fragment" fragment_statement(statement, statement_relative_clause, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term, quantifier) -> enum {
+    rule "fragment" fragment_statement(statement, statement_relative_clause, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term, quantifier) -> enum {
         /// Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.
         prenex_fragment,
         /// Uses the `selbri_fragment` product form, whose payload preserves `selbri`.
@@ -453,7 +467,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `forethought_statement`, `bridi_statement`, and `text_group_statement` forms.
-    rule "statement" statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "statement" statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.
         when feature(ZantufaConnectives) forethought_statement,
         /// Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.
@@ -493,12 +507,12 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `leading_statement` and `continuations` in source order.
-    rule "statement connection" i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "statement connection" i_statement_connection(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci));
+        field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci));
         /// Non-empty ordered sequence of continuations components.
         #[recovery_boundary]
-        field continuations <- [one_or_more i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more i_statement_connection_tail(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for statement connective; preserves `i` and `connective` in source order.
@@ -511,7 +525,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement connection; selects among the `chained_i_connective_statement_tail` and `simple_i_connective_statement_tail` forms.
-    rule "statement connection" i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "statement connection" i_statement_connection_tail(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `chained_i_connective_statement_tail` product form, whose payload preserves `pending`, `i`, `connective`, and `trailing_statement`.
         chained_i_connective_statement_tail,
         /// Uses the `simple_i_connective_statement_tail` product form, whose payload preserves `i`, `connective`, and `trailing_statement`.
@@ -519,7 +533,7 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `pending`, `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "statement connection" chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// Non-empty ordered sequence of pending components.
         field pending <- [one_or_more pending_i_connective];
         /// The `I` cmavo marker.
@@ -527,29 +541,29 @@ pub mod generated_model {
         /// The `i_statement_connective` connective joining the adjacent constituents of the `chained_i_connective_statement_tail` production.
         field connective <- i_statement_connective(tense_modal);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci));
     }
 
     /// Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "statement connection" simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, tense_modal, text, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The `i_statement_connective` connective joining the adjacent constituents of the `simple_i_connective_statement_tail` production.
         field connective <- i_statement_connective(tense_modal);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci));
     }
 
     /// Product node for statement connection; preserves `leading_statement`, `connective`, `i`, and `trailing_statement` in source order.
-    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci));
+        field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, zantufa_selbri_entry, mekso, text, tense_modal, letter_tokens, zantufa_mex, zantufa_tcita_selci));
         /// The `statement_connective` connective joining the adjacent constituents of the `preposed_i_statement_connection` production.
         field connective <- statement_connective;
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci));
     }
 
     /// Product node for text group; preserves `tense_modal`, `tuhe`, `text`, and `tuhu` in source order.
@@ -585,9 +599,9 @@ pub mod generated_model {
     }
 
     /// Product node for statement; preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi` in source order.
-    rule "statement" forethought_statement(statement, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "statement" forethought_statement(statement, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The forethought connective that opens the statement and determines how its branches combine.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The first statement branch, which appears immediately after the opening forethought connective.
         field first <- arc(statement);
         /// The first GIK connective together with the statement branch that follows it.
@@ -762,10 +776,10 @@ pub mod generated_model {
     ).recursive_output(description_relative_zantufa_relative_statement_base);
 
     /// Transparent product node for selbri; preserves the `selbri` component.
-    rule "selbri" selbri_fragment(selbri) -> struct {
+    rule "selbri" selbri_fragment(zantufa_selbri_entry) -> struct {
         #[tree_child(primary)]
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
     }
 
     /// Product node for terms; preserves `terms` and `vau` in source order.
@@ -970,8 +984,8 @@ pub mod generated_model {
 
     alias "selbri" description_relative_full_selbri(
         selbri_without_terminal_relative,
-        selbri,
-    ) = selbri_without_terminal_relative.map_to(selbri);
+        zantufa_selbri_entry,
+    ) = selbri_without_terminal_relative.map_to(zantufa_selbri_entry);
 
     // The restricted leading/inner operand of the description and quantifier sites (epoch 9,
     // #552 / #837 SUM-02).  camxes spells both sites with `sumti_6`, while jbotci's `sumti_base`
@@ -1023,7 +1037,7 @@ pub mod generated_model {
     /// (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
     /// second outer group jbotci used to model here as `bridi_with_post_cu_terms` /
     /// `bare_cu_terms_bridi` over a shared `cu_terms_bridi_tail` is now the tail's own prefix.
-    rule "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> enum {
+    rule "bridi" bridi(term, zantufa_selbri_entry, subbridi, tense_modal, bridi_tail) -> enum {
         /// Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.
         bridi_with_leading_terms,
         /// Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.
@@ -1065,7 +1079,7 @@ pub mod generated_model {
     /// Sum node for bridi tail; selects among the Zantufa continuation priority wrappers, the
     /// `zantufa_grouped_bridi_tail`, `bridi_tail_with_possible_tail_terms`, and
     /// `bridi_tail_without_tail_terms` forms.
-    rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+    rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> enum {
         /// Rolling Zantufa's unbound top continuation, filtered by the completed-candidate
         /// baseline classifier. It must precede the ordinary forms because its own operand is
         /// the flat level those forms start from, so a shorter successful flat parse would
@@ -1086,21 +1100,21 @@ pub mod generated_model {
     /// (zantufa-1.9999.peg:20). The arm is deliberately extension-first, so the completed
     /// candidate is filtered by [`crate::grammar::baseline_bridi_tail`], which returns every
     /// extent the baseline flat chain or the adopted camxes-exp CU arms can also cover.
-    rule "bridi tail" zantufa_priority_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" zantufa_priority_continued_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         #[tree_child(primary)]
         /// The completed continuation candidate after baseline-ownership filtering.
         field bridi_tail <- arc(
-            zantufa_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal)
+            zantufa_continued_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal)
                 .reject_output(crate::grammar::baseline_bridi_tail::BaselineTailContinuationRejection)
         );
     }
 
     /// The tail-terms-free mirror of [`zantufa_priority_continued_bridi_tail`].
-    rule "bridi tail" zantufa_priority_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" zantufa_priority_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         #[tree_child(primary)]
         /// The completed continuation candidate after baseline-ownership filtering.
         field bridi_tail <- arc(
-            zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal)
+            zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal)
                 .reject_output(crate::grammar::baseline_bridi_tail::BaselineTailContinuationWithoutTailTermsRejection)
         );
     }
@@ -1108,26 +1122,26 @@ pub mod generated_model {
     /// Product node for bridi tail; rolling Zantufa's `bridi_tail <- bridi_tail_1 (joik_gihek
     /// tag? CU_elidible bridi_tail_1)*` (zantufa-1.9999.peg:20). The continuation list is
     /// non-empty so that the arm is structurally distinct from a bare flat tail.
-    rule "bridi tail" zantufa_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" zantufa_continued_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The leading flat-level tail the continuations extend.
-        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// Non-empty ordered sequence of unbound top-level continuations.
-        field continuations <- [one_or_more zantufa_tail_continuation(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal)];
+        field continuations <- [one_or_more zantufa_tail_continuation(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal)];
     }
 
     /// The tail-terms-free mirror of [`zantufa_continued_bridi_tail`].
-    rule "bridi tail" zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The leading flat-level tail the continuations extend.
-        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// Non-empty ordered sequence of unbound top-level continuations.
-        field continuations <- [one_or_more zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal)];
+        field continuations <- [one_or_more zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal)];
     }
 
     /// Product node for bridi tail connective; one element of rolling Zantufa's unbound top
     /// continuation. The construct owns no token that is its alone -- its connective is the
     /// shared GIhA/JOI/JA spelling and both the tag and the CU are optional -- so the warning is
     /// attached post-parse by the standing visitor, anchored at the connective that opens it.
-    rule "bridi tail connective" zantufa_tail_continuation(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail connective" zantufa_tail_continuation(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The `joik_gihek` connective opening this continuation, the shared tail connective
         /// whose Zantufa arms this dialect turns on.
         field connective <- bridi_tail_connective;
@@ -1136,11 +1150,11 @@ pub mod generated_model {
         /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
         /// The flat-level tail this continuation governs.
-        field bridi_tail <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+        field bridi_tail <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal));
     }
 
     /// The tail-terms-free mirror of [`zantufa_tail_continuation`].
-    rule "bridi tail connective" zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail connective" zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The `joik_gihek` connective opening this continuation, the shared tail connective
         /// whose Zantufa arms this dialect turns on.
         field connective <- bridi_tail_connective;
@@ -1149,7 +1163,7 @@ pub mod generated_model {
         /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
         /// The flat-level tail this continuation governs.
-        field bridi_tail <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field bridi_tail <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal));
     }
 
     /// Priority wrapper for rolling Zantufa's KE-led bridi tail. Zantufa spells the ownership
@@ -1181,23 +1195,23 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
-    rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// The optional ke continuation component.
         field ke_continuation <- opt(arc(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
-    rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// The optional ke continuation component.
         field ke_continuation <- opt(arc(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
-    rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail_without_tail_terms` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail_without_tail_terms),
@@ -1208,7 +1222,7 @@ pub mod generated_model {
     }
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
-    rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail),
@@ -1219,23 +1233,23 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
-    rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// camxes-exp's leading `CU_elidible? free*` at this level (camxes-exp.peg:107).
         field cu <- opt(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
         /// The shared first child syntax node.
-        field first <- arc(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field first <- arc(zantufa_simple_bridi_tail_without_tail_terms_entry(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// The optional bo continuation component.
         field bo_continuation <- opt(arc(bridi_tail_bo_joint_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
-    rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> struct {
+    rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal) -> struct {
         /// camxes-exp's leading `CU_elidible? free*` at this level (camxes-exp.peg:107). The
         /// sourced joints carry no CU of their own, so every adopted CU after a tail connective
         /// is this one, on the operand, which is where camxes-exp puts it.
         field cu <- opt(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
         /// The shared first child syntax node.
-        field first <- arc(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
+        field first <- arc(zantufa_simple_bridi_tail_entry(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal));
         /// The optional bo continuation component.
         field bo_continuation <- opt(arc(bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal)));
     }
@@ -1291,8 +1305,21 @@ pub mod generated_model {
         field bridi_tail <- arc(bo_grouped_bridi_tail_without_tail_terms);
     }
 
-    /// Sum node for bridi tail; selects among the `forethought_simple_bridi_tail_without_tail_terms` and `selbri_simple_bridi_tail_without_tail_terms` forms.
-    rule "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+    // Keep the priority aliases tree-transparent over the existing tail products.
+    alias "bridi tail" zantufa_simple_bridi_tail_without_tail_terms_entry(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) = choice((
+        selbri_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail_without_tail_terms),
+        simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal),
+    )).recursive_output(zantufa_simple_bridi_tail_without_tail_terms_entry);
+
+    // The approved complete atom priority crosses this enclosing choice; the
+    // ordinary forethought/selbri order below remains the rejection fallback.
+    alias "bridi tail" zantufa_simple_bridi_tail_entry(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal) = choice((
+        selbri_simple_bridi_tail(zantufa_selbri_entry, term).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail),
+        simple_bridi_tail(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal),
+    )).recursive_output(zantufa_simple_bridi_tail_entry);
+
+    /// Sum node for bridi tail without tail terms, with the ordinary fallback order.
+    rule "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) -> enum {
         /// Uses the `forethought_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `connection`.
         forethought_simple_bridi_tail_without_tail_terms,
         /// Uses the `selbri_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `selbri` and `vau`.
@@ -1310,7 +1337,7 @@ pub mod generated_model {
     /// arms is decided the sourced way: `gi'e pu brode` is a tagged selbri, which the selbri arm
     /// reaches first over the identical extent, and only `gi'e pu cu brode` -- where no tagged
     /// selbri can be built -- falls through to the prefix.
-    rule "bridi tail" simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> enum {
+    rule "bridi tail" simple_bridi_tail(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal) -> enum {
         /// Uses the `forethought_simple_bridi_tail` product form, whose payload preserves `connection`.
         forethought_simple_bridi_tail,
         /// Uses the `selbri_simple_bridi_tail` product form, whose payload preserves `selbri`, `terms`, and `vau`.
@@ -1332,19 +1359,19 @@ pub mod generated_model {
     /// selbri tail (camxes-exp.peg:108). Requiring a group is what makes the arm structurally
     /// distinct from the sourced one; the construct is diagnosed post-parse by the standing
     /// visitor, once for the whole run of groups, because the run is one node and one decision.
-    rule "bridi tail" exp_prefixed_simple_bridi_tail(selbri, term) -> struct {
+    rule "bridi tail" exp_prefixed_simple_bridi_tail(zantufa_selbri_entry, term) -> struct {
         /// Non-empty ordered sequence of the leading term groups.
         field prefixes <- [one_or_more exp_tail_terms_prefix(term)];
         /// The selbri tail the groups lead.
-        field tail <- arc(selbri_simple_bridi_tail(selbri, term));
+        field tail <- arc(selbri_simple_bridi_tail(zantufa_selbri_entry, term));
     }
 
     /// The tail-terms-free mirror of [`exp_prefixed_simple_bridi_tail`].
-    rule "bridi tail" exp_prefixed_simple_bridi_tail_without_tail_terms(selbri, term) -> struct {
+    rule "bridi tail" exp_prefixed_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry, term) -> struct {
         /// Non-empty ordered sequence of the leading term groups.
         field prefixes <- [one_or_more exp_tail_terms_prefix(term)];
         /// The selbri tail the groups lead.
-        field tail <- arc(selbri_simple_bridi_tail_without_tail_terms(selbri));
+        field tail <- arc(selbri_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry));
     }
 
     /// Transparent product node for forethought bridi connection; preserves the `connection` component.
@@ -1360,17 +1387,17 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail; preserves `selbri` and `vau` in source order.
-    rule "bridi tail" selbri_simple_bridi_tail_without_tail_terms(selbri) -> struct {
+    rule "bridi tail" selbri_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry) -> struct {
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail; preserves `selbri`, `terms`, and `vau` in source order.
-    rule "bridi tail" selbri_simple_bridi_tail(selbri, term) -> struct {
+    rule "bridi tail" selbri_simple_bridi_tail(zantufa_selbri_entry, term) -> struct {
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// Ordered sequence of zero or more terms components.
         field terms <- [zero_or_more term];
         /// The optional `Vau` cmavo marker.
@@ -1378,7 +1405,7 @@ pub mod generated_model {
     }
 
     /// Sum node for forethought bridi connection; selects among the `direct_forethought_bridi_connection`, `grouped_forethought_bridi_connection`, and `negated_forethought_bridi_connection` forms.
-    rule "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Uses the `grouped_forethought_bridi_connection` product form, whose payload preserves `tense_modals`, `ke`, `inner`, and `kehe`.
         grouped_forethought_bridi_connection,
         /// Uses the `direct_forethought_bridi_connection` product form, whose payload preserves `gek`, `first`, `first_branch`, and 4 other fields.
@@ -1388,7 +1415,7 @@ pub mod generated_model {
     }
 
     /// Sum node for forethought bridi connection; selects among the `direct_forethought_bridi_connection_without_tail_terms`, `grouped_forethought_bridi_connection_without_tail_terms`, and `negated_forethought_bridi_connection_without_tail_terms` forms.
-    rule "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Uses the `grouped_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `tense_modals`, `ke`, `inner`, and `kehe`.
         grouped_forethought_bridi_connection_without_tail_terms,
         /// Uses the `direct_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `gek`, `first`, `first_branch`, and 3 other fields.
@@ -1398,9 +1425,9 @@ pub mod generated_model {
     }
 
     /// Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 4 other fields in source order.
-    rule "forethought bridi connection" direct_forethought_bridi_connection(subbridi, term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought bridi connection" direct_forethought_bridi_connection(subbridi, term, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the subbridi branches are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The first subbridi branch, which follows the opening connective without an intervening GIK.
         field first <- arc(subbridi);
         /// The first GIK-led subbridi branch paired with the opening connective.
@@ -1416,9 +1443,9 @@ pub mod generated_model {
     }
 
     /// Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 3 other fields in source order.
-    rule "forethought bridi connection" direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought bridi connection" direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the subbridi branches are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The first subbridi branch, which follows the opening connective without an intervening GIK.
         field first <- arc(subbridi);
         /// The first GIK-led subbridi branch paired with the opening connective.
@@ -1594,14 +1621,14 @@ pub mod generated_model {
     // The reservation is keyed to ARM ENGAGEMENT rather than to a dialect feature: the loose tier
     // is a default-enabled diagnosed extension, so the guard must hold wherever a loose
     // continuation is offered, in every profile and at every consumer.
-    alias "term connection" term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection) = (
+    alias "term connection" term_loose_connection_guard(tense_modal, zantufa_selbri_entry, forethought_bridi_connection) = (
         (
             term_afterthought_connective,
             arc(tense_modal),
             choice((cmavo(Bo), cmavo(Ke))).wf(),
             opt(cmavo(Cu).wf()),
             choice((
-                arc(selbri).ignored(),
+                arc(zantufa_selbri_entry).ignored(),
                 arc(forethought_bridi_connection).ignored(),
             )),
         ).not(),
@@ -1616,7 +1643,7 @@ pub mod generated_model {
     /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps every level's leaf inventory synchronized with
     /// `simple_term`.
-    rule "term" term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1668,7 +1695,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1719,7 +1746,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1774,7 +1801,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1821,16 +1848,16 @@ pub mod generated_model {
     }
 
     /// Product node for termset connection; preserves `leading_term` and `continuations` in source order.
-    rule "termset connection" pehe_termset_connection(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset connection" pehe_termset_connection(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
         field leading_term <- arc(cehe_term);
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for termset connection continuation; preserves `pehe`, `connective`, and `trailing_term` in source order.
-    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `Pehe` cmavo marker.
         field pehe <- cmavo(Pehe).wf();
         /// The PEhE connective. camxes-standard spells the PEhE level `joik_jek` (camxes.peg:114),
@@ -1842,7 +1869,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
@@ -1889,7 +1916,7 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1940,12 +1967,12 @@ pub mod generated_model {
     /// diagnosed. The operands intentionally remain `simple_term`: sumti greediness must continue
     /// to own chains whose trailing operand is a bare sumti, rather than silently changing their
     /// term-level grouping.
-    rule "term connection" stag_bound_term_connection(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection" stag_bound_term_connection(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The first simple term at the BO-bound precedence level.
         field leading_term <- arc(simple_term);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// The two BO continuation shapes at the absorption-safe term level.
@@ -1956,7 +1983,7 @@ pub mod generated_model {
     /// neither. The connector-absent continuation is therefore an alternative of its own
     /// rather than a relaxation of the sourced one, and a single connection node may mix the
     /// two exactly as Zantufa's own flat continuation list does.
-    rule "term connection continuation" bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term connection continuation" bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.
         stag_bound_term_continuation,
         /// Uses rolling Zantufa's connectorless `zantufa_bound_term_continuation` product form.
@@ -1969,7 +1996,7 @@ pub mod generated_model {
     /// Zantufa has one term ladder rather than two, and its `term_2` leaf inventory writes the
     /// absorption guard into `tag_term` itself (zantufa-1.9999.peg:31), so the guarded leaves
     /// are the faithful operand here.
-    rule "term connection continuation" zantufa_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection continuation" zantufa_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert feature(ZantufaTerms);
         /// The `Bo` cmavo marker, which owns the experimental warning for the continuation.
         field bo <- cmavo(Bo).warn(ExperimentalZantufaConnectorlessBo).wf();
@@ -1981,7 +2008,7 @@ pub mod generated_model {
     }
 
     /// One mandatory-stag BO continuation at the absorption-safe term level.
-    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The connective joining the adjacent simple terms.
         field connective <- term_afterthought_connective;
         /// The mandatory camxes-exp `stag` before BO.
@@ -2007,17 +2034,17 @@ pub mod generated_model {
     }
 
     /// Product node for term connection; preserves `leading_term` and `continuations` in source order.
-    rule "term connection" connected_term(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection" connected_term(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
         field leading_term <- arc(bound_term);
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for term connection continuation; preserves `connective` and `trailing_term` in source order.
-    rule "term connection continuation" connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
-        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+    rule "term connection continuation" connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_loose_connection_guard(tense_modal, zantufa_selbri_entry, forethought_bridi_connection);
         assert zantufa_na_led_term_joik_guard();
         /// The `term_afterthought_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
         field connective <- term_afterthought_connective;
@@ -2062,7 +2089,7 @@ pub mod generated_model {
     /// other ladder level does it (mechanism E): a nested branch would add a public wrapper
     /// variant to Debug and serde output. The binding-schema drift guard keeps this inventory
     /// synchronized with `simple_term`.
-    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
         /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -2109,17 +2136,17 @@ pub mod generated_model {
     }
 
     /// The normal-flavour loose connection with one or more continuations.
-    rule "term connection" connected_normal_term(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection" connected_normal_term(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The first normal-flavour term at the loose precedence level.
         field leading_term <- arc(bound_normal_term);
         /// The nonempty source-ordered loose continuation sequence.
-        field continuations <- [one_or_more connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// One normal-flavour loose continuation.
-    rule "term connection continuation" connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
-        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+    rule "term connection continuation" connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_loose_connection_guard(tense_modal, zantufa_selbri_entry, forethought_bridi_connection);
         assert zantufa_na_led_term_joik_guard();
         /// The connective joining the adjacent normal-flavour terms.
         field connective <- term_afterthought_connective;
@@ -2128,7 +2155,7 @@ pub mod generated_model {
     }
 
     /// The optional-stag BO-bound level of the normal-flavour term constituent.
-    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -2178,12 +2205,12 @@ pub mod generated_model {
     /// the mandatory-stag twin `stag_bound_term_connection` is. Unlike that twin the operands are
     /// the unguarded leaves, because camxes-exp's normal `term_2 <- term_3 (joik_ek stag?
     /// BO_clause term_3)*` (camxes-exp.peg:143) takes the unguarded `tag_term` on both sides.
-    rule "term connection" bound_normal_term_connection(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection" bound_normal_term_connection(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The first unguarded leaf at the BO-bound precedence level.
         field leading_term <- arc(normal_term_atom);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// The two BO continuation shapes at the normal-flavour term level.
@@ -2193,7 +2220,7 @@ pub mod generated_model {
     /// the B3 ownership boundary: `ko'a goi ba ko'e .e bo vi ko'i broda` carries the
     /// connective and stays the sourced arm's, while `ko'a goi pu ko'e bo ca ko'i broda`
     /// carries none and is Zantufa's alone (camxes-exp rejects it).
-    rule "term connection continuation" normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term connection continuation" normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the sourced optional-stag `bound_normal_term_continuation` product form.
         bound_normal_term_continuation,
         /// Uses rolling Zantufa's connectorless `zantufa_bound_normal_term_continuation`
@@ -2202,7 +2229,7 @@ pub mod generated_model {
     }
 
     /// One connectorless BO continuation at the normal-flavour term level.
-    rule "term connection continuation" zantufa_bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection continuation" zantufa_bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert feature(ZantufaTerms);
         /// The `Bo` cmavo marker, which owns the experimental warning for the continuation.
         field bo <- cmavo(Bo).warn(ExperimentalZantufaConnectorlessBo).wf();
@@ -2213,7 +2240,7 @@ pub mod generated_model {
     }
 
     /// One optional-stag BO continuation at the normal-flavour term level.
-    rule "term connection continuation" bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection continuation" bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The connective joining the adjacent normal-flavour terms.
         field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike the absorption-safe tier, the normal flavour
@@ -2230,7 +2257,7 @@ pub mod generated_model {
     /// This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
     /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
     /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
-    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
@@ -2277,16 +2304,16 @@ pub mod generated_model {
     /// This is the CEhE level. Its leading operand is the full loose/BO term level, while each
     /// continuation takes the unguarded `nonabs` flavour, exactly as camxes.peg:116 pairs `term`
     /// with `nonabs_term`.
-    rule "termset" termset_group(statement, sumti, loose_term, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset" termset_group(statement, sumti, loose_term, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
         field leading_term <- arc(loose_term);
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for termset continuation; preserves `cehe` and `trailing_term` in source order.
-    rule "termset continuation" termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset continuation" termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `Cehe` cmavo marker.
         field cehe <- cmavo(Cehe).wf();
         /// The shared trailing term child syntax node.
@@ -2304,11 +2331,11 @@ pub mod generated_model {
     /// the NUhI-less one.
     ///
     /// Product node for termset; preserves `nuhi`, `gek`, `terms`, and 2 other fields in source order.
-    rule "termset" forethought_termset(term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" forethought_termset(term, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The mandatory NUhI marker introducing the forethought termset before its connective.
         field nuhi <- cmavo(Nuhi).wf();
         /// The opening forethought connective that determines how the term sequences are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The initial nonempty term sequence following the opening connective.
         field terms <- [one_or_more arc(term)];
         /// The optional elidable NUhU terminator closing the initial term sequence.
@@ -2342,22 +2369,22 @@ pub mod generated_model {
     /// first branch nevertheless spells its connective the shared `gik_connective`: the surface is
     /// accepted by Zantufa either way, so this is a reading difference rather than a widening, and
     /// jbotci reads NAI as NAI everywhere else a GIK appears. The 6b ledger carries the row.
-    rule "termset" zantufa_gek_termset(term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" zantufa_gek_termset(term, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         assert feature(ZantufaConnectives);
         #[tree_child(primary)]
         /// The completed candidate, retained only when the GEK sumti connection — which Zantufa
         /// spells n-ary as `sumti_3 <- gek sumti (gik sumti)+ GIhI?` (zantufa-1.9999.peg:36) — does
         /// not own its identical extent.
         field termset <- arc(
-            zantufa_gek_termset_candidate(term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
+            zantufa_gek_termset_candidate(term, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci)
                 .reject_output(crate::grammar::baseline_termset::ZantufaBaselineGekSumtiRejection)
         );
     }
 
     /// The classified body of rolling Zantufa's NUhI-less termset.
-    rule "termset" zantufa_gek_termset_candidate(term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" zantufa_gek_termset_candidate(term, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the term sequences are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The initial nonempty term sequence following the opening connective.
         field terms <- [one_or_more arc(term)];
         /// The first GIK-led term-sequence branch paired with the opening connective.
@@ -2397,20 +2424,20 @@ pub mod generated_model {
     /// `ge ko'a gi ko'e broda` at `sumti_4` in camxes-standard and camxes-exp alike. Arm order
     /// alone cannot settle that, because a locally failing outer parse would let this arm reclaim
     /// the extent on backtracking, so the completed candidate is classified instead.
-    rule "termset" gek_termset(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" gek_termset(balanced_termset_operands, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         #[tree_child(primary)]
         /// The completed NUhI-less candidate, retained only when the baseline GEK sumti connection
         /// does not own its identical extent.
         field termset <- arc(
-            gek_termset_candidate(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
+            gek_termset_candidate(balanced_termset_operands, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci)
                 .reject_output(crate::grammar::baseline_termset::BaselineGekSumtiRejection)
         );
     }
 
     /// The classified body of the NUhI-less forethought termset.
-    rule "termset" gek_termset_candidate(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" gek_termset_candidate(balanced_termset_operands, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the operands are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The balanced operand tree. Unlike the NUhI-present arm, the operand sequence is not a
         /// `terms` run: each level contributes exactly one leading and one trailing operand.
         field operands <- arc(balanced_termset_operands);
@@ -2463,8 +2490,8 @@ pub mod generated_model {
     }
 
     /// Product node for termset; preserves `ke`, `termset`, and `kehe` in source order.
-    rule "termset" ke_termset(term, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
-        assert !grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored();
+    rule "termset" ke_termset(term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        assert !grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored();
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
         /// Non-empty ordered sequence of termset components.
@@ -2475,7 +2502,7 @@ pub mod generated_model {
 
     /// Lookahead shape that reserves KE tag+ KE forethought bridi groups from
     /// the overlapping experimental KE termset owner.
-    rule "forethought bridi connection" grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought bridi connection" grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The outer grouping KE.
         field outer_ke <- cmavo(Ke).wf();
         /// One or more source-ordered tags that make the ownership collision possible.
@@ -2483,14 +2510,14 @@ pub mod generated_model {
         /// The inner grouping KE following the tags.
         field inner_ke <- cmavo(Ke).wf();
         /// The forethought connective beginning inside the inner group.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
     }
 
     alias "tag" standard_forethought_tense_modal(baseline_term_tense_modal, tense_modal) =
         baseline_term_tense_modal.map_to(tense_modal);
 
     /// Sum node for NOIhA adverbial; selects among the `noiha_variable_adverbial_term` and `noiha_relative_adverbial_term` forms.
-    rule "NOIhA adverbial" noiha_adverbial_term(free_modifier, selbri) -> enum {
+    rule "NOIhA adverbial" noiha_adverbial_term(free_modifier, zantufa_selbri_entry) -> enum {
         /// Uses the `noiha_variable_adverbial_term` product form, whose payload preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku`.
         noiha_variable_adverbial_term,
         /// Uses the `noiha_relative_adverbial_term` product form, whose payload preserves `noiha`, `selbri`, and `fehu`.
@@ -2498,23 +2525,23 @@ pub mod generated_model {
     }
 
     /// Product node for NOIhA adverbial; preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku` in source order.
-    rule "NOIhA adverbial" noiha_variable_adverbial_term(free_modifier, selbri) -> struct {
+    rule "NOIhA adverbial" noiha_variable_adverbial_term(free_modifier, zantufa_selbri_entry) -> struct {
         /// A word from selmaho `Noiha`.
         field poiha <- selmaho(Noiha).wf();
         /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The `Ku` cmavo marker.
         field brigahi_ku <- cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
     }
 
     /// Product node for NOIhA adverbial; preserves `noiha`, `selbri`, and `fehu` in source order.
-    rule "NOIhA adverbial" noiha_relative_adverbial_term(selbri) -> struct {
+    rule "NOIhA adverbial" noiha_relative_adverbial_term(zantufa_selbri_entry) -> struct {
         /// A word from selmaho `Noiha`.
         field noiha <- selmaho(Noiha).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Fehu` cmavo marker.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
@@ -2641,13 +2668,13 @@ pub mod generated_model {
     /// it is asserted here for the same reason the JAI term asserts it: with the payload
     /// elidable, `fa je fe broda` would otherwise take the chain, elide its KU and leave the
     /// selbri to be found again.
-    rule "place tag" zantufa_joik_chained_place_tag_term(sumti, normal_term, tanru_unit_atom) -> struct {
+    rule "place tag" zantufa_joik_chained_place_tag_term(sumti, normal_term, zantufa_tanru_unit_atom_entry) -> struct {
         assert feature(ZantufaTags);
         /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
         /// The nonempty source-ordered JOIK-led FA continuation sequence.
         field continuations <- [one_or_more zantufa_joik_chained_place_tag_continuation()];
-        assert !tanru_unit_atom;
+        assert !zantufa_tanru_unit_atom_entry;
         /// The shared sumti child syntax node, overt or KU-terminated.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
@@ -2674,14 +2701,14 @@ pub mod generated_model {
     }
 
     /// Transparent product node for NA term; preserves the `na` component.
-    rule "NA term" bare_na_term(selbri, tense_modal, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "NA term" bare_na_term(zantufa_selbri_entry, tense_modal, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
         assert !choice((
-            selbri
+            zantufa_selbri_entry
                 .reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection)
                 .ignored(),
-            modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored(),
+            modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored(),
             selmaho(Ja).ignored(),
             (
                 opt(selmaho(Se)),
@@ -2695,12 +2722,12 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `tense_modal` component.
-    rule "tag" tagged_sumti_before_tag_term(tense_modal, baseline_term_tense_modal, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci) -> struct {
-        assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+    rule "tag" tagged_sumti_before_tag_term(tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert !modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(
             baseline_term_tense_modal.map_to(tense_modal),
-            selbri,
+            zantufa_selbri_entry,
             letter_tokens,
             letter_string,
         ));
@@ -2708,16 +2735,16 @@ pub mod generated_model {
     }
 
     /// Product node for tag; preserves `tense_modal` and `sumti` in source order.
-    rule "tag" tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
-        assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+    rule "tag" tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, zantufa_selbri_entry, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
+        assert !modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(
             baseline_term_tense_modal.map_to(tense_modal),
-            selbri,
+            zantufa_selbri_entry,
             letter_tokens,
             letter_string,
         ));
-        assert !selbri;
+        assert !zantufa_selbri_entry;
         assert zantufa_tag_bo_joint_reservation();
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
@@ -2756,12 +2783,12 @@ pub mod generated_model {
     /// `!(!tag selbri)`, so a tag with an elided KU may stand directly before the selbri. The
     /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion, and the
     /// binding-schema drift guard keeps the flavoured leaf inventories aligned.
-    rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
-        assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+    rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, zantufa_selbri_entry, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
+        assert !modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(
             baseline_term_tense_modal.map_to(tense_modal),
-            selbri,
+            zantufa_selbri_entry,
             letter_tokens,
             letter_string,
         ));
@@ -2796,19 +2823,19 @@ pub mod generated_model {
     /// class — because the boundary it draws is exactly where a tanru unit may begin.
     ///
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
-    rule "tag" jai_tagged_sumti_term(tense_modal, sumti, tanru_unit_atom, normal_term) -> struct {
+    rule "tag" jai_tagged_sumti_term(tense_modal, sumti, zantufa_tanru_unit_atom_entry, normal_term) -> struct {
         assert feature(ZantufaTags);
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
         /// The optional tag component.
         field tag <- opt(arc(tense_modal));
-        assert !tanru_unit_atom;
+        assert !zantufa_tanru_unit_atom_entry;
         /// The shared sumti child syntax node, overt or KU-terminated.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Sum node for tag; selects among 8 forms including `pu_before_nahe_leading_term_tag_tense`, `pu_distance_before_tag_leading_term_tag_tense`, and `zi_before_zi_leading_term_tag_tense`.
-    rule "tag" leading_term_tag_tense_modal(tense_modal, selbri, letter_tokens, letter_string) -> enum {
+    rule "tag" leading_term_tag_tense_modal(tense_modal, zantufa_selbri_entry, letter_tokens, letter_string) -> enum {
         /// Uses the `pu_before_nahe_leading_term_tag_tense` product form, whose payload preserves `pu` and `nai`.
         pu_before_nahe_leading_term_tag_tense,
         /// Uses the `pu_distance_before_tag_leading_term_tag_tense` product form, whose payload preserves `pu`, `nai`, and `distance`.
@@ -2881,7 +2908,7 @@ pub mod generated_model {
     }
 
     /// Transparent product node for interval property; preserves the `property` component.
-    rule "interval property" interval_property_leading_term_tag_tense(selbri, letter_tokens, letter_string) -> struct {
+    rule "interval property" interval_property_leading_term_tag_tense(zantufa_selbri_entry, letter_tokens, letter_string) -> struct {
         /// The shared property child syntax node.
         field property: std::sync::Arc<IntervalPropertyTenseSyntax> <- arc(interval_property_tense(letter_tokens, letter_string).followed_by(choice((
             selmaho(Pu).ignored(),
@@ -2892,7 +2919,7 @@ pub mod generated_model {
                 selmaho(Caha),
             ).ignored(),
             modal_tense().ignored(),
-            fiho_tense(selbri).ignored(),
+            fiho_tense(zantufa_selbri_entry).ignored(),
         )).lookahead()));
     }
 
@@ -2968,7 +2995,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
-    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, selbri, letter_tokens, free_modifier, statement, statement_relative_clause, zantufa_mex, zantufa_tcita_selci, normal_term, quantifier) -> enum {
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, zantufa_selbri_entry, letter_tokens, free_modifier, statement, statement_relative_clause, zantufa_mex, zantufa_tcita_selci, normal_term, quantifier) -> enum {
         /// Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.
         forethought_sumti,
         /// Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.
@@ -2976,9 +3003,9 @@ pub mod generated_model {
     }
 
     /// Product node for forethought sumti connection; preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi` in source order.
-    rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal, statement, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal, statement, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the sumti branches are combined.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The first sumti branch, which follows the opening connective without an intervening GIK.
         field leading_sumti <- arc(sumti);
         /// The first GIK-led sumti branch paired with the opening connective.
@@ -3126,7 +3153,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> enum {
+    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -3391,7 +3418,7 @@ pub mod generated_model {
     }
 
     /// Sum node for operator_1; selects forethought, experimental BO-bound, or operator_2 forms.
-    rule "inner operator" inner_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, selbri, tense_modal) -> enum {
+    rule "inner operator" inner_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, zantufa_selbri_entry, tense_modal) -> enum {
         /// Uses the forethought operator form.
         forethought_mekso_operator,
         /// Uses the camxes-exp BO-bound operator form.
@@ -3401,7 +3428,7 @@ pub mod generated_model {
     }
 
     /// Product node for operator; preserves `left_operator`, `connective`, `bo`, and `right_operator` in source order.
-    rule "operator" bound_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, selbri, tense_modal) -> struct {
+    rule "operator" bound_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, zantufa_selbri_entry, tense_modal) -> struct {
         assert feature(ZantufaMex).not();
         /// The operator_2-width left operator.
         field left_operator <- arc(simple_mekso_operator(atomic_mekso_operator, mekso_operator));
@@ -3424,7 +3451,7 @@ pub mod generated_model {
     }
 
     /// Sum node for an atomic operator.
-    rule "atomic operator" atomic_mekso_operator(atomic_mekso_operator, mekso, sumti, selbri) -> enum {
+    rule "atomic operator" atomic_mekso_operator(atomic_mekso_operator, mekso, sumti, zantufa_selbri_entry) -> enum {
         /// Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.
         converted_mekso_operator,
         /// Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.
@@ -3488,11 +3515,11 @@ pub mod generated_model {
     }
 
     /// Product node for selbri-to-operator; preserves `nahu`, `selbri`, and `tehu` in source order.
-    rule "selbri-to-operator" selbri_mekso_operator(selbri) -> struct {
+    rule "selbri-to-operator" selbri_mekso_operator(zantufa_selbri_entry) -> struct {
         /// The `Nahu` cmavo marker.
         field nahu <- cmavo(Nahu).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
@@ -3508,11 +3535,11 @@ pub mod generated_model {
     }
 
     /// Product node for selbri-to-operator; preserves `maho`, `selbri`, and `tehu` in source order.
-    rule "selbri-to-operator" zantufa_maho_selbri_mekso_operator(selbri) -> struct {
+    rule "selbri-to-operator" zantufa_maho_selbri_mekso_operator(zantufa_selbri_entry) -> struct {
         /// The `Maho` cmavo marker.
         field maho <- cmavo(Maho).warn(ExperimentalZantufaMex).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
@@ -3543,7 +3570,7 @@ pub mod generated_model {
     }
 
     /// Product node for operand; preserves `connected_expression` and `grouped_continuation` in source order.
-    rule "operand" mekso_operand(mekso, mekso_operand, bound_or_simple_mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+    rule "operand" mekso_operand(mekso, mekso_operand, bound_or_simple_mekso_operand, simple_mekso_operand, sumti, zantufa_selbri_entry, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
         /// The operand_1-width connected expression at the start of the operand.
         field connected_expression <- arc(afterthought_mekso_operand(bound_or_simple_mekso_operand));
         /// The optional joik/EK plus KE-grouped continuation at operand_0 width.
@@ -3605,7 +3632,7 @@ pub mod generated_model {
     }
 
     /// Sum node for operand; selects among 12 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `scalar_negated_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-    rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, zantufa_selbri_entry, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.
         forethought_mekso_operand,
         /// Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.
@@ -3665,9 +3692,9 @@ pub mod generated_model {
     }
 
     /// Product node for forethought mex; preserves `gek`, `left_expression`, `gik`, and `right_expression` in source order.
-    rule "forethought mex" forethought_mekso_operand(mekso_operand, simple_mekso_operand, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought mex" forethought_mekso_operand(mekso_operand, simple_mekso_operand, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The `modal_forethought_connective` forethought connective opening the paired branches of the `forethought_mekso_operand` production.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared left expression child syntax node.
         field left_expression <- arc(mekso_operand);
         /// The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operand` production.
@@ -3687,21 +3714,21 @@ pub mod generated_model {
     }
 
     /// Product node for selbri operand; preserves `mohe`, `selbri`, and `tehu` in source order.
-    rule "selbri operand" zantufa_selbri_mohe_mekso_operand(selbri) -> struct {
+    rule "selbri operand" zantufa_selbri_mohe_mekso_operand(zantufa_selbri_entry) -> struct {
         /// The `Mohe` cmavo marker.
         field mohe <- cmavo(Mohe).warn(ExperimentalZantufaMex).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for selbri operand; preserves `nihe`, `selbri`, and `tehu` in source order.
-    rule "selbri operand" selbri_mekso_operand(selbri) -> struct {
+    rule "selbri operand" selbri_mekso_operand(zantufa_selbri_entry) -> struct {
         /// The `Nihe` cmavo marker.
         field nihe <- cmavo(Nihe).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
@@ -3844,7 +3871,7 @@ pub mod generated_model {
     }
 
     /// Sum node for a standard mex base.
-    rule "mex" mekso_base(mekso, mekso_base, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
+    rule "mex" mekso_base(mekso, mekso_base, mekso_operand, sumti, zantufa_selbri_entry, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
         /// Uses the nested `mekso_operand` sum form and preserves its selected alternative.
         mekso_operand,
         /// Uses the `forethought_call_mekso` product form, whose payload preserves `peho`, `operator`, `operands`, and `kuhe`.
@@ -4002,7 +4029,7 @@ pub mod generated_model {
     }
 
     /// Sum node for Zantufa mex_2.
-    rule "Zantufa mex atom" zantufa_mex_2(zantufa_mex, zantufa_mex_2, zantufa_operand, zantufa_operator, zantufa_forethought_mekso, sumti, selbri, letter_string, letter_tokens, free_modifier) -> enum {
+    rule "Zantufa mex atom" zantufa_mex_2(zantufa_mex, zantufa_mex_2, zantufa_operand, zantufa_operator, zantufa_forethought_mekso, sumti, zantufa_selbri_entry, letter_string, letter_tokens, free_modifier) -> enum {
         /// A Zantufa operand.
         zantufa_operand,
         /// A Zantufa reverse-Polish expression.
@@ -4049,7 +4076,7 @@ pub mod generated_model {
     }
 
     /// Sum node for the exact Zantufa operand inventory.
-    rule "Zantufa operand" zantufa_operand(zantufa_mex, zantufa_operand, sumti, selbri, letter_string, letter_tokens, free_modifier) -> enum {
+    rule "Zantufa operand" zantufa_operand(zantufa_mex, zantufa_operand, sumti, zantufa_selbri_entry, letter_string, letter_tokens, free_modifier) -> enum {
         /// A number with its BOI boundary.
         number_mekso,
         /// A lerfu string with its BOI boundary.
@@ -4119,7 +4146,7 @@ pub mod generated_model {
     }
 
     /// Sum node for the exact Zantufa operator inventory.
-    rule "Zantufa operator" zantufa_operator(zantufa_mex, zantufa_operator, sumti, selbri) -> enum {
+    rule "Zantufa operator" zantufa_operator(zantufa_mex, zantufa_operator, sumti, zantufa_selbri_entry) -> enum {
         /// Recursive SE conversion.
         zantufa_converted_mekso_operator,
         /// Recursive NAhE scalar negation.
@@ -4350,38 +4377,38 @@ pub mod generated_model {
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_gadri_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description" descriptor_with_gadri_sumti(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_gadri_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_gadri_sumti` production.
-        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
+        field tail <- description_tail(sumti, description_leading_operand, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_outer_quantifier_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The `quantifier` grammar result in the `outer_quantifier` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field outer_quantifier <- quantifier;
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_outer_quantifier_sumti` production.
-        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
+        field tail <- description_tail(sumti, description_leading_operand, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `quantifier`, `selbri`, `ku`, and `relative_clauses` in source order.
-    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `descriptor_without_gadri_sumti` production.
         field quantifier <- quantifier;
         assert !selmaho(Roi);
         #[tree_child(primary)]
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
-            feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
-            selbri.followed_by(cmavo(Ku).lookahead()),
-            selbri_without_terminal_relative.map_recovered_to(selbri),
+            feature(ZantufaSelbriReinterpretation).ignore_then(zantufa_selbri_entry),
+            zantufa_selbri_entry.followed_by(cmavo(Ku).lookahead()),
+            selbri_without_terminal_relative.map_recovered_to(zantufa_selbri_entry),
         )));
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
@@ -4423,20 +4450,20 @@ pub mod generated_model {
     // table and the reference rows are in `docs/grammar-parity-epoch-09-descriptions.md`.
 
     /// Product node for description tail; preserves `leading_sumti` and `tail` in source order.
-    rule "description tail" exp_full_sumti_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description tail" exp_full_sumti_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         assert !quantifier;
         /// The full leading sumti this camxes-exp arm admits where the baseline admits a sumti_6.
         field leading_sumti <- arc(sumti);
         /// The shared tail child syntax node.
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
+        field tail <- arc(description_tail_body(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" exp_descriptor_with_leading_sumti_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description" exp_descriptor_with_leading_sumti_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The shared description head child syntax node.
         field description <- arc(description_head());
         /// The camxes-exp full-sumti leading tail, refused wherever the baseline route owns the extent.
-        field tail <- exp_full_sumti_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier)
+        field tail <- exp_full_sumti_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier)
             .reject_output(crate::grammar::description_leading::ExpDescriptionLeadingSumtiRejection);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
@@ -4455,37 +4482,37 @@ pub mod generated_model {
     // later change to the arm order.
 
     /// Product node for description tail; preserves `relative_clauses`, `leading_sumti`, and `tail` in source order.
-    rule "description tail" zantufa_relatives_first_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description tail" zantufa_relatives_first_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The leading relative clauses rolling Zantufa places before the leading sumti.
         field relative_clauses <- bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term);
         assert !quantifier;
         /// The full leading sumti, which rolling Zantufa admits after the relatives.
         field leading_sumti <- arc(sumti);
         /// The shared tail child syntax node.
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
+        field tail <- arc(description_tail_body(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" zantufa_descriptor_with_relatives_first_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description" zantufa_descriptor_with_relatives_first_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         assert feature(ZantufaDescriptions);
         /// The shared description head child syntax node.
         field description <- arc(description_head());
         /// The rolling-Zantufa relatives-first leading tail.
-        field tail <- zantufa_relatives_first_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
+        field tail <- zantufa_relatives_first_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.
-    rule "description tail" description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description tail" description_tail(sumti, description_leading_operand, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The `leading_description_tail_elements` grammar result in the `leading_tail_elements` structural role of the `description_tail` production.
-        field leading_tail_elements <- leading_description_tail_elements(sumti, description_leading_operand, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
+        field leading_tail_elements <- leading_description_tail_elements(sumti, description_leading_operand, subbridi, zantufa_selbri_entry, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
         /// The shared tail child syntax node.
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
+        field tail <- arc(description_tail_body(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier));
     }
 
     /// Sum node for description tail; selects among the `quantifier_relation_description_tail`, `quantifier_sumti_description_tail`, and `relation_description_tail` forms.
-    rule "description tail" description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> enum {
+    rule "description tail" description_tail_body(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> enum {
         /// Uses the `quantifier_relation_description_tail` product form, whose payload preserves `quantifier`, `selbri`, and `relative_clauses`.
         quantifier_relation_description_tail,
         /// Uses the `quantifier_sumti_description_tail` product form, whose payload preserves `quantifier` and `sumti`.
@@ -4495,7 +4522,7 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `tail_sumti` and `relative_clauses` in source order.
-    rule "description tail" leading_description_tail_elements(sumti, description_leading_operand, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description tail" leading_description_tail_elements(sumti, description_leading_operand, subbridi, zantufa_selbri_entry, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The optional tail sumti component.
         field tail_sumti <- opt(description_tail_sumti(description_leading_operand));
         /// The optional relative clauses component.
@@ -4515,25 +4542,25 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `selbri` and `relative_clauses` in source order.
-    rule "description tail" relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description tail" relation_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
-            feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
-            selbri_without_terminal_relative.map_recovered_to(selbri),
+            feature(ZantufaSelbriReinterpretation).ignore_then(zantufa_selbri_entry),
+            selbri_without_terminal_relative.map_recovered_to(zantufa_selbri_entry),
         )));
         /// The optional relative clauses component.
         field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term));
     }
 
     /// Product node for description tail; preserves `quantifier`, `selbri`, and `relative_clauses` in source order.
-    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
+    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_relation_description_tail` production.
         field quantifier <- quantifier;
         assert !selmaho(Roi);
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
-            feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
-            selbri_without_terminal_relative.map_recovered_to(selbri),
+            feature(ZantufaSelbriReinterpretation).ignore_then(zantufa_selbri_entry),
+            selbri_without_terminal_relative.map_recovered_to(zantufa_selbri_entry),
         )));
         /// The optional relative clauses component.
         field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term));
@@ -4614,14 +4641,14 @@ pub mod generated_model {
     }
 
     /// Product node for vocative phrase; preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses` in source order.
-    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The optional leading relative clauses component.
         field leading_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term));
         #[tree_child(primary)]
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
-            feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
-            selbri_without_terminal_relative.map_recovered_to(selbri),
+            feature(ZantufaSelbriReinterpretation).ignore_then(zantufa_selbri_entry),
+            selbri_without_terminal_relative.map_recovered_to(zantufa_selbri_entry),
         )));
         /// The optional trailing relative clauses component.
         field trailing_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term));
@@ -4638,7 +4665,7 @@ pub mod generated_model {
     }
 
     /// Sum node for vocative phrase; selects among the `selbri_vocative_sumti`, `cmevla_vocative_sumti`, and `sumti` forms.
-    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
+    rule "vocative phrase" vocative_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
         /// Uses the `selbri_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses`.
         selbri_vocative_sumti,
         /// Uses the `cmevla_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses`.
@@ -4682,7 +4709,7 @@ pub mod generated_model {
     }
 
     /// Sum node for free modifier; selects among 9 forms including `text_replacement_free_modifier`, `zantufa_sei_statement_free_modifier`, and `sei_free_modifier`.
-    rule "free modifier" free_modifier(sumti, subbridi, exp_subsentence, selbri, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, exp_subsentence, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
         /// Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.
         text_replacement_free_modifier,
         /// Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.
@@ -4704,11 +4731,11 @@ pub mod generated_model {
     }
 
     /// Product node for vocative phrase; preserves `vocative_markers`, `sumti`, and `dohu` in source order.
-    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The `vocative_marker_words` grammar result in the `vocative_markers` structural role of the `vocative_free_modifier` production.
         field vocative_markers <- vocative_marker_words().wf_when(UnrestrictedFree);
         /// The optional sumti component.
-        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term)));
+        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term)));
         /// The optional `Dohu` cmavo marker.
         field dohu <- opt(cmavo(Dohu).prohibited_wf()).elidable_terminator(Dohu);
     }
@@ -4724,7 +4751,7 @@ pub mod generated_model {
     }
 
     /// Product node for metalinguistic comment; preserves `sei`, `terms`, `cu`, `selbri`, and `sehu` in source order.
-    rule "metalinguistic comment" sei_free_modifier(term, selbri) -> struct {
+    rule "metalinguistic comment" sei_free_modifier(term, zantufa_selbri_entry) -> struct {
         /// A word from selmaho `Sei`.
         field sei <- selmaho(Sei).wf();
         /// Ordered sequence of zero or more terms components.
@@ -4732,7 +4759,7 @@ pub mod generated_model {
         /// The optional `Cu` cmavo marker.
         field cu <- opt(cmavo(Cu).wf());
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).prohibited_wf()).elidable_terminator(Sehu);
     }
@@ -5066,7 +5093,7 @@ pub mod generated_model {
     // omits them: jbotci handles that recovery at the `#[recovery_boundary]` layer instead.
 
     /// Sum node for selbri relative clauses; selects among the `exp_forethought_selbri_relative_clauses` and `exp_afterthought_selbri_relative_clauses` forms.
-    rule "selbri relative clauses" exp_selbri_relative_clauses(exp_selbri_relative_clauses, exp_subsentence, zantufa_relative_statement, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "selbri relative clauses" exp_selbri_relative_clauses(exp_selbri_relative_clauses, exp_subsentence, zantufa_relative_statement, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Uses the `exp_forethought_selbri_relative_clauses` product form, whose payload preserves `gek`, `first`, `gik`, and `second`.
         exp_forethought_selbri_relative_clauses,
         /// Uses the `exp_afterthought_selbri_relative_clauses` product form, whose payload preserves `first` and `additional`.
@@ -5074,9 +5101,9 @@ pub mod generated_model {
     }
 
     /// Product node for selbri relative clauses; preserves `gek`, `first`, `gik`, and `second` in source order.
-    rule "selbri relative clauses" exp_forethought_selbri_relative_clauses(exp_selbri_relative_clauses, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "selbri relative clauses" exp_forethought_selbri_relative_clauses(exp_selbri_relative_clauses, tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The forethought connective that opens the pair.
-        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        field gek <- modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The first relative-clause chain.
         field first <- arc(exp_selbri_relative_clauses);
         /// The GI-family connective separating the branches.
@@ -5616,7 +5643,7 @@ pub mod generated_model {
     }
 
     /// Forethought connective family with baseline and structurally disjoint Zantufa BO arms.
-    rule "forethought connective" modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "forethought connective" modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// Zantufa GA form with required BO and no structural NAI.
         when feature(ZantufaConnectives) zantufa_ga_bo_forethought_connective,
         /// Uses the `ga_forethought_connective` product form, whose payload preserves `se`, `ga`, and `nai`.
@@ -5669,11 +5696,11 @@ pub mod generated_model {
     }
 
     /// Zantufa GI-first opening with a typed whole-tag tail.
-    rule "forethought connective" zantufa_initial_gi_tag_forethought_connective(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "forethought connective" zantufa_initial_gi_tag_forethought_connective(zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// GI marker owning the Zantufa connective warning.
         field gi <- cmavo(Gi).warn(ExperimentalZantufaGek).wf();
         /// Whole rolling-Zantufa tag, not the cross-profile shared tag node.
-        field tag <- arc(zantufa_tag(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci));
+        field tag <- arc(zantufa_tag(zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci));
         /// Optional BO suffix immediately after the connective cluster.
         field bo <- opt(cmavo(Bo).wf());
     }
@@ -5743,7 +5770,7 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `body` component.
-    rule "tag" tense_modal(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> struct {
+    rule "tag" tense_modal(zantufa_selbri_entry, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> struct {
         assert choice((
             cmavo(Fiho),
             selmaho(Bai),
@@ -5774,11 +5801,11 @@ pub mod generated_model {
         ));
         #[tree_child(primary)]
         /// The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.
-        field body <- tense_modal_body(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string);
+        field body <- tense_modal_body(zantufa_selbri_entry, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string);
     }
 
     /// Sum node for tag; selects among baseline/experimental arms and the whole Zantufa tag form.
-    rule "tag" tense_modal_body(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> enum {
+    rule "tag" tense_modal_body(zantufa_selbri_entry, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> enum {
         /// Uses the `connected_tense_modal` product form, whose payload preserves `first` and `continuations`.
         connected_tense_modal,
         /// Uses the nested `tense_modal_atom` sum form and preserves its selected alternative.
@@ -5788,7 +5815,7 @@ pub mod generated_model {
     }
 
     /// Baseline-only tag body used at term entry, where extension tags are not in the source grammar.
-    rule "baseline term tag" baseline_term_tense_modal(selbri, letter_tokens, letter_string) -> enum {
+    rule "baseline term tag" baseline_term_tense_modal(zantufa_selbri_entry, letter_tokens, letter_string) -> enum {
         /// A baseline connected tag.
         baseline_term_connected_tense_modal,
         /// A single baseline tag atom.
@@ -5796,23 +5823,23 @@ pub mod generated_model {
     }
 
     /// Baseline-only connected tag used at term entry.
-    rule "baseline term connected tag" baseline_term_connected_tense_modal(selbri, letter_tokens, letter_string) -> struct {
+    rule "baseline term connected tag" baseline_term_connected_tense_modal(zantufa_selbri_entry, letter_tokens, letter_string) -> struct {
         /// The first baseline atom.
-        field first <- arc(baseline_term_tense_modal_atom(selbri, letter_tokens, letter_string));
+        field first <- arc(baseline_term_tense_modal_atom(zantufa_selbri_entry, letter_tokens, letter_string));
         /// Non-empty source-ordered baseline continuations.
-        field continuations <- [one_or_more baseline_term_connected_tense_modal_continuation(selbri, letter_tokens, letter_string)];
+        field continuations <- [one_or_more baseline_term_connected_tense_modal_continuation(zantufa_selbri_entry, letter_tokens, letter_string)];
     }
 
     /// One continuation in a baseline-only connected term tag.
-    rule "baseline term connected tag continuation" baseline_term_connected_tense_modal_continuation(selbri, letter_tokens, letter_string) -> struct {
+    rule "baseline term connected tag continuation" baseline_term_connected_tense_modal_continuation(zantufa_selbri_entry, letter_tokens, letter_string) -> struct {
         /// The connective between adjacent baseline atoms.
         field connective <- tense_modal_connective;
         /// The following baseline atom.
-        field tense_modal <- arc(baseline_term_tense_modal_atom(selbri, letter_tokens, letter_string));
+        field tense_modal <- arc(baseline_term_tense_modal_atom(zantufa_selbri_entry, letter_tokens, letter_string));
     }
 
     /// Exact baseline atom inventory accepted at term entry.
-    rule "baseline term tag atom" baseline_term_tense_modal_atom(selbri, letter_tokens, letter_string) -> enum {
+    rule "baseline term tag atom" baseline_term_tense_modal_atom(zantufa_selbri_entry, letter_tokens, letter_string) -> enum {
         /// A baseline composite tense.
         composite_tense,
         /// A baseline FIhO modal.
@@ -5824,19 +5851,19 @@ pub mod generated_model {
     }
 
     /// Product node for connected tag; preserves `first` and `continuations` in source order.
-    rule "connected tag" connected_tense_modal(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+    rule "connected tag" connected_tense_modal(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
+        field first <- arc(tense_modal_atom(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string));
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more connected_tense_modal_continuation(selbri, sumti, mekso, letter_tokens, letter_string)];
+        field continuations <- [one_or_more connected_tense_modal_continuation(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string)];
     }
 
     /// Product node for connected tag continuation; preserves `connective` and `tense_modal` in source order.
-    rule "connected tag continuation" connected_tense_modal_continuation(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+    rule "connected tag continuation" connected_tense_modal_continuation(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string) -> struct {
         /// The `tense_modal_connective` connective joining the adjacent constituents of the `connected_tense_modal_continuation` production.
         field connective <- tense_modal_connective;
         /// The shared tense modal child syntax node.
-        field tense_modal <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
+        field tense_modal <- arc(tense_modal_atom(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string));
     }
 
     /// Sum node for tag connective; selects among the `joik_connective` and `jek_connective` forms.
@@ -5848,7 +5875,7 @@ pub mod generated_model {
     }
 
     /// Sum node for one connective arm of a tag.
-    rule "tag" tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
+    rule "tag" tense_modal_atom(zantufa_selbri_entry, sumti, mekso, letter_tokens, letter_string) -> enum {
         /// Uses one complete corrected camxes-exp atom run when it is not a baseline tag.
         exp_tag_atom_run,
         /// Uses the nested `composite_tense` sum form and preserves its selected alternative.
@@ -5862,35 +5889,35 @@ pub mod generated_model {
     }
 
     /// Product node for FIhO modal; preserves `fiho`, `selbri`, and `fehu` in source order.
-    rule "FIhO modal" fiho_tense(selbri) -> struct {
+    rule "FIhO modal" fiho_tense(zantufa_selbri_entry) -> struct {
         /// The `Fiho` cmavo marker.
         field fiho <- cmavo(Fiho).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional `Fehu` cmavo marker.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
 
     /// Transparent ownership-filtered wrapper for one corrected camxes-exp tense-modal.
-    rule "experimental tag atom run" exp_tag_atom_run(selbri, sumti, mekso) -> struct {
+    rule "experimental tag atom run" exp_tag_atom_run(zantufa_selbri_entry, sumti, mekso) -> struct {
         /// The complete run, retained only when the baseline grammar does not own its extent.
         #[tree_child(primary)]
         field run <- arc(
-            exp_tag_atom_run_body(selbri, sumti, mekso)
+            exp_tag_atom_run_body(zantufa_selbri_entry, sumti, mekso)
                 .reject_output(crate::grammar::baseline_tag::BaselineTagRejection)
         );
     }
 
     /// One corrected camxes-exp tense-modal: a nonempty run of uniformly prefixed atoms.
-    rule "experimental tag atom run body" exp_tag_atom_run_body(selbri, sumti, mekso) -> struct {
+    rule "experimental tag atom run body" exp_tag_atom_run_body(zantufa_selbri_entry, sumti, mekso) -> struct {
         /// The first source-ordered atom.
-        field first <- arc(exp_prefixed_tag_atom(selbri, sumti, mekso));
+        field first <- arc(exp_prefixed_tag_atom(zantufa_selbri_entry, sumti, mekso));
         /// Remaining source-ordered atoms in this same tense-modal arm.
-        field additional <- [zero_or_more arc(exp_prefixed_tag_atom(selbri, sumti, mekso))];
+        field additional <- [zero_or_more arc(exp_prefixed_tag_atom(zantufa_selbri_entry, sumti, mekso))];
     }
 
     /// One corrected camxes-exp atom with the uniform optional NAhE/SE prefix domain.
-    rule "experimental prefixed tag atom" exp_prefixed_tag_atom(selbri, sumti, mekso) -> struct {
+    rule "experimental prefixed tag atom" exp_prefixed_tag_atom(zantufa_selbri_entry, sumti, mekso) -> struct {
         /// Optional scalar-negation prefix. A free modifier here remains parse-preserving
         /// through the preceding boundary, but camxes-exp does not source it on NAhE itself.
         field nahe <- opt(selmaho(Nahe).prohibited_wf());
@@ -5898,11 +5925,11 @@ pub mod generated_model {
         /// its atom; the explicitly unrestricted policy is the only widening route.
         field se <- opt(selmaho(Se).wf_when(UnrestrictedFree));
         /// The exact P08 atom, followed by the atom-local free-modifier boundary.
-        field atom <- arc(exp_tag_atom(selbri, sumti, mekso)).wf();
+        field atom <- arc(exp_tag_atom(zantufa_selbri_entry, sumti, mekso)).wf();
     }
 
     /// Exact corrected camxes-exp tag-atom inventory.
-    rule "experimental tag atom" exp_tag_atom(selbri, sumti, mekso) -> enum {
+    rule "experimental tag atom" exp_tag_atom(zantufa_selbri_entry, sumti, mekso) -> enum {
         /// A BAI-family modal atom.
         exp_bai_tag_atom,
         /// A CAhA actuality atom.
@@ -6006,17 +6033,17 @@ pub mod generated_model {
     }
 
     /// One ROI atom with its exact corrected camxes-exp interval payload.
-    rule "experimental ROI tag atom" exp_roi_tag_atom(selbri, sumti, mekso) -> struct {
+    rule "experimental ROI tag atom" exp_roi_tag_atom(zantufa_selbri_entry, sumti, mekso) -> struct {
         /// Optional FEhE spatial-aspect prefix.
         field fehe <- opt(cmavo(Fehe));
         /// The numeric or parenthesized-mex interval payload.
-        field interval <- exp_roi_interval(selbri, sumti, mekso);
+        field interval <- exp_roi_interval(zantufa_selbri_entry, sumti, mekso);
         /// The ROI interval-property marker.
         field roi <- selmaho(Roi);
     }
 
     /// The corrected camxes-exp payload alternatives accepted before ROI.
-    rule "experimental ROI interval" exp_roi_interval(selbri, sumti, mekso) -> enum {
+    rule "experimental ROI interval" exp_roi_interval(zantufa_selbri_entry, sumti, mekso) -> enum {
         /// A VEI-delimited full mex.
         exp_parenthesized_roi_interval,
         /// The exact camxes-exp number language.
@@ -6034,15 +6061,15 @@ pub mod generated_model {
     }
 
     /// The exact nonempty corrected camxes-exp number language used before ROI.
-    rule "experimental number" exp_number(selbri, sumti) -> struct {
+    rule "experimental number" exp_number(zantufa_selbri_entry, sumti) -> struct {
         /// The first number element.
-        field first <- arc(exp_number_atom(selbri, sumti));
+        field first <- arc(exp_number_atom(zantufa_selbri_entry, sumti));
         /// Remaining source-ordered number elements.
-        field additional <- [zero_or_more arc(exp_number_atom(selbri, sumti))];
+        field additional <- [zero_or_more arc(exp_number_atom(zantufa_selbri_entry, sumti))];
     }
 
     /// One element of the exact corrected camxes-exp number language.
-    rule "experimental number atom" exp_number_atom(selbri, sumti) -> enum {
+    rule "experimental number atom" exp_number_atom(zantufa_selbri_entry, sumti) -> enum {
         /// One PA-family digit or number word.
         exp_pa_number_atom,
         /// One NIhE/selbri/TEhU number element.
@@ -6058,11 +6085,11 @@ pub mod generated_model {
     }
 
     /// One NIhE selbri-derived element of a corrected camxes-exp number.
-    rule "experimental NIhE number atom" exp_nihe_number_atom(selbri) -> struct {
+    rule "experimental NIhE number atom" exp_nihe_number_atom(zantufa_selbri_entry) -> struct {
         /// The NIhE conversion marker.
         field nihe <- cmavo(Nihe).wf();
         /// The converted selbri.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional elidable TEhU terminator.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
@@ -6094,11 +6121,11 @@ pub mod generated_model {
     }
 
     /// One FIhO ad-hoc modal atom with its selbri payload.
-    rule "experimental FIhO tag atom" exp_fiho_tag_atom(selbri) -> struct {
+    rule "experimental FIhO tag atom" exp_fiho_tag_atom(zantufa_selbri_entry) -> struct {
         /// The FIhO marker and its sourced following free-modifier boundary.
         field fiho <- cmavo(Fiho).wf();
         /// The ad-hoc modal selbri.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// The optional elidable FEhU terminator.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
@@ -6110,7 +6137,7 @@ pub mod generated_model {
     }
 
     /// Whole rolling-Zantufa tag: a nonempty tcita run with zero or more JOIK-linked runs.
-    rule "Zantufa tag" zantufa_tag(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "Zantufa tag" zantufa_tag(zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The first nonempty tcita-selci run.
         field first_run <- [one_or_more arc(zantufa_tcita_selci)];
         /// Source-ordered JOIK-linked continuation runs.
@@ -6126,7 +6153,7 @@ pub mod generated_model {
     }
 
     /// Exact recursive rolling-Zantufa tcita-selci.
-    rule "Zantufa tag atom" zantufa_tcita_selci(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "Zantufa tag atom" zantufa_tcita_selci(zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
         /// A recursive NAhE/SE-prefixed tcita-selci.
         zantufa_prefixed_tcita_selci,
         /// A member of the audited rolling BAI inventory supported by jbotci morphology.
@@ -6193,11 +6220,11 @@ pub mod generated_model {
     }
 
     /// Rolling-Zantufa FIhO tcita-selci.
-    rule "Zantufa FIhO tag atom" zantufa_fiho_tcita_selci(selbri) -> struct {
+    rule "Zantufa FIhO tag atom" zantufa_fiho_tcita_selci(zantufa_selbri_entry) -> struct {
         /// FIhO marker followed by rolling grammar's `post_clause` boundary.
         field fiho <- cmavo(Fiho).wf();
         /// Ad-hoc modal selbri.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
         /// Optional elidable FEhU terminator, with its own rolling `post_clause` boundary.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
@@ -6604,9 +6631,19 @@ pub mod generated_model {
         field ki <- cmavo(Ki).wf();
     }
 
-    /// Sum node for selbri; gives the full-operand Zantufa CEI owner first
-    /// refusal before the standard tagged and untagged owners.
-    rule "selbri" selbri(selbri, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier) -> enum {
+    // Complete atom priority precedes the existing relative/CEI and ordinary
+    // selbri alternatives without adding a priority-only model variant.
+    alias "Zantufa atom priority selbri" zantufa_atom_priority_selbri(co_selbri) =
+        co_selbri.reject_output(crate::grammar::zantufa_atoms::PriorityAtomRejection)
+            .map_recovered_to(selbri).recursive_output(zantufa_atom_priority_selbri);
+
+    alias "selbri" zantufa_selbri_entry(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_atom_priority_selbri) = choice((
+        zantufa_atom_priority_selbri,
+        selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier),
+    )).recursive_output(zantufa_selbri_entry);
+
+    /// Sum node for selbri; preserves the existing relative/CEI and ordinary owners.
+    rule "selbri" selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier) -> enum {
         /// Faithful full-selbri CEI ownership selected by the meaning-changing flag.
         when feature(ZantufaSelbriReinterpretation) reinterpret_zantufa_assigned_selbri,
         /// Rolling-Zantufa selbri-level relative attachment, a retained gated omission.
@@ -6621,11 +6658,11 @@ pub mod generated_model {
 
     /// Transparent priority wrapper that bypasses the baseline classifier only
     /// under the explicit meaning-changing reinterpretation flag.
-    rule "Zantufa reinterpreted assigned selbri" reinterpret_zantufa_assigned_selbri(selbri, cei_free_co_selbri) -> struct {
+    rule "Zantufa reinterpreted assigned selbri" reinterpret_zantufa_assigned_selbri(zantufa_selbri_entry, cei_free_co_selbri) -> struct {
         assert feature(ZantufaTerms);
         #[tree_child(primary)]
         /// The faithful rolling-Zantufa assignment candidate.
-        field selbri <- arc(zantufa_assigned_selbri(selbri, cei_free_co_selbri));
+        field selbri <- arc(zantufa_assigned_selbri(zantufa_selbri_entry, cei_free_co_selbri));
     }
 
     /// Rolling-Zantufa relative attachment at selbri level, before any CEI
@@ -6646,23 +6683,23 @@ pub mod generated_model {
     /// It runs ahead of the selbri ladder, so its list carries the S3 ownership classifier: a
     /// list every one of whose clauses camxes-exp's tanru-unit relative could form belongs to
     /// that route, and reaches it by failing here.
-    rule "Zantufa relative selbri" zantufa_relative_selbri(selbri, cei_free_co_selbri, selbri_relative_clause_list) -> struct {
+    rule "Zantufa relative selbri" zantufa_relative_selbri(zantufa_selbri_entry, cei_free_co_selbri, selbri_relative_clause_list) -> struct {
         assert feature(ZantufaTerms);
         /// The level-2 selbri receiving the relative clause list.
         field leading_selbri <- arc(cei_free_co_selbri);
         /// The warning-bearing selbri-level relative clause list.
         field relative_clauses <- arc(selbri_relative_clause_list);
         /// Zero or more following full-selbri CEI assignments.
-        field assignments <- [zero_or_more zantufa_selbri_assignment(selbri)];
+        field assignments <- [zero_or_more zantufa_selbri_assignment(zantufa_selbri_entry)];
     }
 
     /// Transparent priority wrapper that returns completed shared surfaces to
     /// the standard selbri owner.
-    rule "Zantufa priority assigned selbri" zantufa_priority_assigned_selbri(selbri, cei_free_co_selbri) -> struct {
+    rule "Zantufa priority assigned selbri" zantufa_priority_assigned_selbri(zantufa_selbri_entry, cei_free_co_selbri) -> struct {
         #[tree_child(primary)]
         /// The completed assignment candidate after baseline-ownership filtering.
         field selbri <- arc(
-            zantufa_assigned_selbri(selbri, cei_free_co_selbri)
+            zantufa_assigned_selbri(zantufa_selbri_entry, cei_free_co_selbri)
                 .reject_output(crate::grammar::baseline_selbri::BaselineSelbriAssignmentRejection)
         );
     }
@@ -6670,27 +6707,27 @@ pub mod generated_model {
     /// Zantufa selbri-level pro-bridi assignment. This arm is deliberately
     /// extension-first: the completed candidate classifier returns shared
     /// same-extent surfaces to the standard CEI owner.
-    rule "Zantufa assigned selbri" zantufa_assigned_selbri(selbri, cei_free_co_selbri) -> struct {
+    rule "Zantufa assigned selbri" zantufa_assigned_selbri(zantufa_selbri_entry, cei_free_co_selbri) -> struct {
         /// The level-2 selbri to which the assignments apply.
         field leading_selbri <- arc(cei_free_co_selbri);
         /// One or more source-ordered full-selbri assignments.
-        field assignments <- [one_or_more zantufa_selbri_assignment(selbri)];
+        field assignments <- [one_or_more zantufa_selbri_assignment(zantufa_selbri_entry)];
     }
 
     /// Description-boundary CEI chain. Earlier operands are full selbri; the
     /// final operand retains the no-terminal-relative boundary recursively.
-    rule "Zantufa assigned selbri without terminal relative" zantufa_assigned_selbri_without_terminal_relative(selbri, selbri_without_terminal_relative, cei_free_co_selbri) -> struct {
+    rule "Zantufa assigned selbri without terminal relative" zantufa_assigned_selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, cei_free_co_selbri) -> struct {
         /// The level-2 selbri to which the assignments apply.
         field leading_selbri <- arc(cei_free_co_selbri);
         /// Full operands before the final assignment remain unrestricted.
-        field preceding_assignments <- [zero_or_more zantufa_selbri_assignment(selbri).followed_by(cmavo(Cei).lookahead())];
+        field preceding_assignments <- [zero_or_more zantufa_selbri_assignment(zantufa_selbri_entry).followed_by(cmavo(Cei).lookahead())];
         /// The final assignment follows the restricted right spine.
         field final_assignment <- zantufa_selbri_assignment_without_terminal_relative(selbri_without_terminal_relative);
     }
 
     /// Consumer-specific selbri entry that preserves CEI repetition while
     /// making terminal selbri-relative attachment unavailable at this boundary.
-    rule "selbri without terminal relative" selbri_without_terminal_relative(selbri, selbri_without_terminal_relative, co_selbri, cei_free_co_selbri, tense_modal, statement, free_modifier) -> enum {
+    rule "selbri without terminal relative" selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, cei_free_co_selbri, tense_modal, statement, free_modifier) -> enum {
         /// A filtered full-selbri CEI chain whose final operand stays restricted.
         when feature(ZantufaTerms) zantufa_priority_assigned_selbri_without_terminal_relative,
         /// A tagged selbri whose recursive right edge stays restricted.
@@ -6700,12 +6737,12 @@ pub mod generated_model {
     }
 
     /// Priority wrapper for a description-boundary CEI chain.
-    rule "Zantufa priority assigned selbri without terminal relative" zantufa_priority_assigned_selbri_without_terminal_relative(selbri, selbri_without_terminal_relative, cei_free_co_selbri) -> struct {
+    rule "Zantufa priority assigned selbri without terminal relative" zantufa_priority_assigned_selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, cei_free_co_selbri) -> struct {
         #[tree_child(primary)]
         /// The completed candidate after baseline-ownership filtering.
         field selbri <- arc(
             zantufa_assigned_selbri_without_terminal_relative(
-                selbri,
+                zantufa_selbri_entry,
                 selbri_without_terminal_relative,
                 cei_free_co_selbri,
             ).reject_output(crate::grammar::baseline_selbri::RestrictedBaselineSelbriAssignmentRejection)
@@ -6737,12 +6774,12 @@ pub mod generated_model {
     }
 
     /// One full-selbri Zantufa CEI assignment.
-    rule "Zantufa selbri assignment" zantufa_selbri_assignment(selbri) -> struct {
+    rule "Zantufa selbri assignment" zantufa_selbri_assignment(zantufa_selbri_entry) -> struct {
         assert feature(ZantufaTerms);
         /// The warning-bearing CEI marker.
         field cei <- cmavo(Cei).warn(ExperimentalZantufaSelbriAssignment).wf();
         /// The full following selbri operand.
-        field selbri <- arc(selbri);
+        field selbri <- arc(zantufa_selbri_entry);
     }
 
     /// One Zantufa CEI assignment whose operand retains the description boundary.
@@ -6755,7 +6792,7 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 1; selects between the recursive NA arm and level 2.
-    rule "selbri" untagged_selbri(selbri, co_selbri, statement, free_modifier) -> enum {
+    rule "selbri" untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier) -> enum {
         /// Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.
         negated_selbri,
         /// Uses the level-2 `co_selbri` product form.
@@ -6763,15 +6800,15 @@ pub mod generated_model {
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
-    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal, statement, free_modifier) -> struct {
+    rule "tagged selbri" tagged_selbri(zantufa_selbri_entry, co_selbri, tense_modal, statement, free_modifier) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(untagged_selbri(selbri, co_selbri, statement, free_modifier));
+        field inner_selbri <- arc(untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier));
     }
 
     /// Product node for negated selbri; preserves `na` and `inner_selbri` in source order.
-    rule "negated selbri" negated_selbri(selbri) -> struct {
+    rule "negated selbri" negated_selbri(zantufa_selbri_entry) -> struct {
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).not_next_selmaho(Ku).wf();
         /// The shared inner selbri child syntax node.
@@ -6779,13 +6816,13 @@ pub mod generated_model {
         // can otherwise steal a successful baseline reading in which NA and following
         // tag atoms are separate terms. Filtering the completed recursive result is the
         // recursive equivalent of the D2b baseline-parser mapping at term entry.
-        field inner_selbri <- arc(selbri.reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection));
+        field inner_selbri <- arc(zantufa_selbri_entry.reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection));
     }
 
     // The rolling-Zantufa CEI owner sits outside selbri level 2. Its leading
     // operand therefore uses the standard rebuilt ladder with only the legacy
     // tanru-unit CEI repetition removed. Nested explicit groups still use the
-    // ordinary grammar supplied by tanru_unit_atom; only CEI at this ladder's
+    // ordinary grammar supplied by zantufa_tanru_unit_atom_entry; only CEI at this ladder's
     // own unit boundary is left for zantufa_assigned_selbri.
     alias "selbri" cei_free_co_selbri(cei_free_co_selbri, cei_free_tanru_selbri, statement, free_modifier) =
         memo_scope(
@@ -6823,25 +6860,25 @@ pub mod generated_model {
     alias "plain BO selbri" cei_free_plain_bo_selbri(
         cei_free_plain_bo_selbri,
         cei_free_tanru_unit,
-        selbri,
+        zantufa_selbri_entry,
         cei_free_co_selbri,
         free_modifier,
         exp_selbri_relative_clauses,
     ) = plain_bo_selbri(
         cei_free_plain_bo_selbri,
         cei_free_tanru_unit,
-        selbri,
+        zantufa_selbri_entry,
         cei_free_co_selbri,
         free_modifier,
         exp_selbri_relative_clauses,
     ).recursive_output(cei_free_plain_bo_selbri);
 
     alias "tanru unit" cei_free_tanru_unit(
-        tanru_unit_atom,
+        zantufa_tanru_unit_atom_entry,
         tanru_unit,
         linkargs,
     ) = linked_tanru_unit(
-        tanru_unit_atom,
+        zantufa_tanru_unit_atom_entry,
         linkargs,
     ).map_to(tanru_unit);
 
@@ -6930,7 +6967,7 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 6.
-    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri, co_selbri, free_modifier, exp_selbri_relative_clauses) -> enum {
+    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, zantufa_selbri_entry, co_selbri, free_modifier, exp_selbri_relative_clauses) -> enum {
         /// A CEI-capable tanru unit carrying camxes-exp's tanru-unit relative clauses.
         exp_relative_tanru_unit,
         /// A CEI-capable tanru unit with an optional plain BO continuation.
@@ -7072,7 +7109,7 @@ pub mod generated_model {
 
     /// Sum node separating the standard binary owner from the two structurally
     /// disjoint Zantufa shapes.
-    rule "forethought selbri connection" forethought_selbri_connection(selbri, plain_bo_selbri, co_selbri, free_modifier) -> enum {
+    rule "forethought selbri connection" forethought_selbri_connection(zantufa_selbri_entry, plain_bo_selbri, co_selbri, free_modifier) -> enum {
         /// A Zantufa forethought with at least two GI branches.
         zantufa_nary_forethought_selbri_connection,
         /// A Zantufa forethought whose explicit GIhI is its disjointness marker.
@@ -7082,7 +7119,7 @@ pub mod generated_model {
     }
 
     /// Product node for the standard binary forethought selbri owner at L6.
-    rule "forethought selbri connection" standard_forethought_selbri_connection(selbri, plain_bo_selbri, free_modifier) -> struct {
+    rule "forethought selbri connection" standard_forethought_selbri_connection(zantufa_selbri_entry, plain_bo_selbri, free_modifier) -> struct {
         /// Optional NAhE preceding the independent free-modifier slot.
         field nahe <- opt(selmaho(Nahe));
         /// Free modifiers between NAhE (when present) and GUhA.
@@ -7090,7 +7127,7 @@ pub mod generated_model {
         /// The forethought connective opener without NAhE.
         field guhek <- guhek_connective;
         /// The full left selbri operand.
-        field leading_selbri <- arc(selbri);
+        field leading_selbri <- arc(zantufa_selbri_entry);
         /// The single tight L6 GI branch.
         field first_branch <- forethought_selbri_branch(plain_bo_selbri);
     }
@@ -7156,41 +7193,625 @@ pub mod generated_model {
         field gihi <- selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi).wf();
     }
 
+    // Source-boundary parsers return only ignored recognizer outputs. Their
+    // bridi-tail dependencies mirror source :20-25, not the shared union's
+    // wider bridi/term grammar. Shared full operands remain shared; no public
+    // term model or alternate text grammar is introduced. These declarations
+    // are disconnected until their extent/rollback checks pass.
+    // Ignored source recognizer: zantufa-1.9999.peg:66.
+    alias "Zantufa source boundary ek" zantufa_boundary_ek =
+        (
+            opt(selmaho(Na).wf()),
+            opt(selmaho(Se).wf()),
+            choice((cmavo(A), cmavo(E), cmavo(O), cmavo(U))).wf(),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:67.
+    alias "Zantufa source boundary gihek" zantufa_boundary_gihek =
+        (
+            opt(selmaho(Na).wf()),
+            opt(selmaho(Se).wf()),
+            choice((cmavo(Giha), cmavo(Gihe), cmavo(Giho), cmavo(Gihu))).wf(),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:69.
+    alias "Zantufa source boundary joik ek" zantufa_boundary_joik_ek =
+        choice((zantufa_atom_joik.ignored(), zantufa_boundary_ek)).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:70.
+    alias "Zantufa source boundary joik gihek" zantufa_boundary_joik_gihek =
+        choice((zantufa_atom_joik.ignored(), zantufa_boundary_gihek)).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:71.
+    alias "Zantufa source boundary gek" zantufa_boundary_gek(zantufa_tcita_selci) =
+        (
+            choice(
+                (
+                    zantufa_atom_ga_opener.ignored(),
+                    (zantufa_atom_gi.wf(), zantufa_atom_gek_payload(zantufa_tcita_selci)).ignored(),
+                    (zantufa_atom_gek_payload(zantufa_tcita_selci), zantufa_atom_gi.wf()).ignored(),
+                ),
+            ),
+            opt(cmavo(Bo).wf()),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:27.
+    alias "Zantufa source boundary term" zantufa_boundary_term(
+        zantufa_boundary_term_1,
+        zantufa_tcita_selci,
+    ) =
+        (
+            feature(ZantufaSelbri),
+            zantufa_boundary_term_1,
+            zantufa_boundary_term_continuations(zantufa_boundary_term_1, zantufa_tcita_selci),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:27.
+    alias "Zantufa source boundary term continuations" zantufa_boundary_term_continuations(
+        zantufa_boundary_term_1,
+        zantufa_tcita_selci,
+    ) =
+        [zero_or_more zantufa_boundary_term_continuation(zantufa_boundary_term_1, zantufa_tcita_selci)];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:27.
+    alias "Zantufa source boundary term continuation" zantufa_boundary_term_continuation(
+        zantufa_boundary_term_1,
+        zantufa_tcita_selci,
+    ) =
+        (
+            (zantufa_atom_joik, zantufa_atom_tag(zantufa_tcita_selci), opt(cmavo(Bo).wf()), cmavo(Cu)).not(),
+            zantufa_boundary_joik_ek,
+            zantufa_boundary_term_1,
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:28.
+    alias "Zantufa source boundary term 1" zantufa_boundary_term_1(zantufa_boundary_term_2) =
+        (zantufa_boundary_term_2, zantufa_boundary_bound_terms(zantufa_boundary_term_2)).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:28.
+    alias "Zantufa source boundary bound terms" zantufa_boundary_bound_terms(zantufa_boundary_term_2) =
+        [zero_or_more zantufa_boundary_bound_term(zantufa_boundary_term_2)];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:28.
+    alias "Zantufa source boundary bound term" zantufa_boundary_bound_term(zantufa_boundary_term_2) =
+        (opt(zantufa_boundary_joik_ek), cmavo(Bo).wf(), zantufa_boundary_term_2).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:29.
+    alias "Zantufa source boundary term 2" zantufa_boundary_term_2(
+        free_modifier,
+        zantufa_selbri_entry,
+        statement,
+        sumti,
+        zantufa_tanru_unit_atom_entry,
+        zantufa_boundary_bridi_tail,
+        zantufa_boundary_gek_bridi_tail,
+        zantufa_boundary_gek_term,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        choice(
+            (
+                (choice((cmavo(Xoi), cmavo(Fihoi))).wf(), statement, opt(cmavo(Sehu).wf())).ignored(),
+                (
+                    cmavo(Ke).wf(),
+                    (sumti, cmavo(Kehe)).not(),
+                    zantufa_boundary_terms(zantufa_boundary_term),
+                    opt(cmavo(Kehe).wf()),
+                ).ignored(),
+                zantufa_boundary_tag_term(
+                    zantufa_selbri_entry,
+                    sumti,
+                    zantufa_tanru_unit_atom_entry,
+                    zantufa_boundary_gek_bridi_tail,
+                    zantufa_tcita_selci,
+                ),
+                (zantufa_atom_tag(zantufa_tcita_selci).not(), sumti).ignored(),
+                zantufa_boundary_brigahi(free_modifier, zantufa_selbri_entry, zantufa_boundary_bridi_tail),
+                zantufa_boundary_gek_term,
+            ),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:26.
+    alias "Zantufa source boundary terms" zantufa_boundary_terms(zantufa_boundary_term) =
+        [one_or_more zantufa_boundary_term];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:25.
+    alias "Zantufa source boundary optional terms" zantufa_boundary_optional_terms(zantufa_boundary_term) =
+        [zero_or_more zantufa_boundary_term];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:30.
+    alias "Zantufa source boundary brigahi" zantufa_boundary_brigahi(
+        free_modifier,
+        zantufa_selbri_entry,
+        zantufa_boundary_bridi_tail,
+    ) =
+        (
+            choice(
+                (
+                    (selmaho(Noiha).wf(), zantufa_boundary_free(free_modifier), zantufa_selbri_entry).ignored(),
+                    (
+                        selmaho(Na).wf(),
+                        zantufa_boundary_bridi_tail.not(),
+                        zantufa_boundary_joik_gihek.not(),
+                    ).ignored(),
+                ),
+            ),
+            opt(cmavo(Ku).wf()),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:30.
+    alias "Zantufa source boundary free" zantufa_boundary_free(free_modifier) =
+        [zero_or_more free_modifier];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:31.
+    alias "Zantufa source boundary tag term" zantufa_boundary_tag_term(
+        zantufa_selbri_entry,
+        sumti,
+        zantufa_tanru_unit_atom_entry,
+        zantufa_boundary_gek_bridi_tail,
+        zantufa_tcita_selci,
+    ) =
+        (
+            zantufa_boundary_gek(zantufa_tcita_selci).not(),
+            choice(
+                (
+                    (
+                        zantufa_atom_tag(zantufa_tcita_selci),
+                        (zantufa_atom_tag(zantufa_tcita_selci).not(), zantufa_selbri_entry).not(),
+                        zantufa_boundary_gek_bridi_tail.not(),
+                        cmavo(Bo).not(),
+                    ).ignored(),
+                    (
+                        choice(
+                            (
+                                (selmaho(Fa).wf(), zantufa_boundary_fa_links).ignored(),
+                                (cmavo(Jai).wf(), opt(zantufa_atom_tag(zantufa_tcita_selci))).ignored(),
+                            ),
+                        ),
+                        zantufa_tanru_unit_atom_entry.not(),
+                    ).ignored(),
+                ),
+            ),
+            choice((sumti.ignored(), opt(cmavo(Ku).wf()).ignored())),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:31.
+    alias "Zantufa source boundary fa links" zantufa_boundary_fa_links =
+        [zero_or_more (zantufa_atom_joik, selmaho(Fa).wf()).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:32.
+    alias "Zantufa source boundary gek term" zantufa_boundary_gek_term(
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        (
+            zantufa_boundary_gek(zantufa_tcita_selci),
+            zantufa_boundary_terms(zantufa_boundary_term),
+            zantufa_boundary_gek_term_branches(zantufa_boundary_term),
+            opt(cmavo(Gihi).wf()),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:32.
+    alias "Zantufa source boundary gek term branches" zantufa_boundary_gek_term_branches(
+        zantufa_boundary_term,
+    ) =
+        [one_or_more (zantufa_atom_gi.wf(), zantufa_boundary_terms(zantufa_boundary_term)).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:20.
+    alias "Zantufa source boundary bridi tail" zantufa_boundary_bridi_tail(
+        zantufa_boundary_bridi_tail_1,
+        zantufa_tcita_selci,
+    ) =
+        (
+            zantufa_boundary_bridi_tail_1,
+            zantufa_boundary_bridi_tail_links(zantufa_boundary_bridi_tail_1, zantufa_tcita_selci),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:20.
+    alias "Zantufa source boundary bridi tail links" zantufa_boundary_bridi_tail_links(
+        zantufa_boundary_bridi_tail_1,
+        zantufa_tcita_selci,
+    ) =
+        [zero_or_more (
+            zantufa_boundary_joik_gihek,
+            opt(zantufa_atom_tag(zantufa_tcita_selci)),
+            opt(cmavo(Cu).wf()),
+            zantufa_boundary_bridi_tail_1,
+        ).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:21.
+    alias "Zantufa source boundary bridi tail 1" zantufa_boundary_bridi_tail_1(
+        zantufa_boundary_bridi_tail_2,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        (
+            zantufa_boundary_bridi_tail_2,
+            zantufa_boundary_bridi_tail_1_links(
+                zantufa_boundary_bridi_tail_2,
+                zantufa_boundary_term,
+                zantufa_tcita_selci,
+            ),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:21.
+    alias "Zantufa source boundary bridi tail 1 links" zantufa_boundary_bridi_tail_1_links(
+        zantufa_boundary_bridi_tail_2,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        [zero_or_more (
+            zantufa_boundary_joik_gihek,
+            (opt(zantufa_atom_tag(zantufa_tcita_selci)), cmavo(Bo).wf()).not(),
+            (opt(zantufa_atom_tag(zantufa_tcita_selci)), cmavo(Ke).wf()).not(),
+            opt(cmavo(Cu).wf()),
+            zantufa_boundary_bridi_tail_2,
+            zantufa_boundary_tail_terms(zantufa_boundary_term),
+        ).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:22.
+    alias "Zantufa source boundary bridi tail 2" zantufa_boundary_bridi_tail_2(
+        zantufa_boundary_bridi_tail_3,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        (
+            zantufa_boundary_bridi_tail_3,
+            zantufa_boundary_bridi_tail_2_links(
+                zantufa_boundary_bridi_tail_3,
+                zantufa_boundary_term,
+                zantufa_tcita_selci,
+            ),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:22.
+    alias "Zantufa source boundary bridi tail 2 links" zantufa_boundary_bridi_tail_2_links(
+        zantufa_boundary_bridi_tail_3,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        [zero_or_more (
+            choice(
+                (
+                    zantufa_atom_tag(zantufa_tcita_selci).ignored(),
+                    (zantufa_boundary_joik_gihek, opt(zantufa_atom_tag(zantufa_tcita_selci))).ignored(),
+                ),
+            ),
+            cmavo(Bo).wf(),
+            opt(cmavo(Cu).wf()),
+            zantufa_boundary_bridi_tail_3,
+            zantufa_boundary_tail_terms(zantufa_boundary_term),
+        ).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:23.
+    alias "Zantufa source boundary bridi tail 3" zantufa_boundary_bridi_tail_3(
+        co_selbri,
+        zantufa_selbri_entry,
+        zantufa_boundary_bridi_tail,
+        zantufa_boundary_gek_bridi_tail,
+        zantufa_boundary_term,
+    ) =
+        choice(
+            (
+                (
+                    cmavo(Ke).wf(),
+                    (co_selbri, cmavo(Kehe)).not(),
+                    zantufa_boundary_bridi_tail,
+                    opt(cmavo(Kehe).wf()),
+                    zantufa_boundary_tail_terms(zantufa_boundary_term),
+                ).ignored(),
+                (zantufa_selbri_entry, zantufa_boundary_tail_terms(zantufa_boundary_term)).ignored(),
+                zantufa_boundary_gek_bridi_tail,
+            ),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:24.
+    alias "Zantufa source boundary gek bridi tail" zantufa_boundary_gek_bridi_tail(
+        zantufa_boundary_bridi_tail,
+        zantufa_boundary_gek_bridi_tail,
+        zantufa_boundary_term,
+        zantufa_tcita_selci,
+    ) =
+        choice(
+            (
+                (
+                    zantufa_boundary_gek(zantufa_tcita_selci),
+                    zantufa_boundary_bridi_tail,
+                    zantufa_boundary_gek_bridi_branches(zantufa_boundary_bridi_tail),
+                    (zantufa_atom_gi.wf(), choice((zantufa_boundary_term, cmavo(Cu).ignored()))).not(),
+                    opt(cmavo(Gihi).wf()),
+                    zantufa_boundary_tail_terms(zantufa_boundary_term),
+                ).ignored(),
+                (
+                    zantufa_boundary_tags(zantufa_tcita_selci),
+                    cmavo(Ke).wf(),
+                    zantufa_boundary_gek_bridi_tail,
+                    opt(cmavo(Kehe).wf()),
+                ).ignored(),
+                (selmaho(Na).wf(), zantufa_boundary_gek_bridi_tail).ignored(),
+            ),
+        ).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:24.
+    alias "Zantufa source boundary gek bridi branches" zantufa_boundary_gek_bridi_branches(
+        zantufa_boundary_bridi_tail,
+    ) =
+        [one_or_more (zantufa_atom_gi.wf(), zantufa_boundary_bridi_tail).ignored()];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:24.
+    alias "Zantufa source boundary tags" zantufa_boundary_tags(zantufa_tcita_selci) =
+        [zero_or_more zantufa_atom_tag(zantufa_tcita_selci)];
+
+    // Ignored source recognizer: zantufa-1.9999.peg:25.
+    alias "Zantufa source boundary tail terms" zantufa_boundary_tail_terms(zantufa_boundary_term) =
+        (zantufa_boundary_optional_terms(zantufa_boundary_term), opt(cmavo(Vau).wf())).ignored();
+
+    // Ignored source recognizer: zantufa-1.9999.peg:52.
+    alias "Zantufa source boundary atom end" zantufa_boundary_atom_end(zantufa_boundary_term) =
+        (opt(zantufa_atom_gi.wf()), choice((zantufa_boundary_term, cmavo(Cu).ignored()))).not();
+
+    /// Source-shaped FA product (zantufa-1.9999.peg:51-52).
+    ///
+    /// The recursive operand is an atom, not a linked unit: postposed BE belongs
+    /// to the ordinary linked_tanru_unit around the completed FA atom.
+    /// These C-e products are declared before their public routes so all three
+    /// parser flavors and Python can be checked against the new model first.
+    rule "Zantufa FA tanru unit" zantufa_fa_tanru_unit(zantufa_tanru_unit_atom_entry) -> struct {
+        assert feature(ZantufaSelbri);
+        /// First place marker and the warning anchor for the atom.
+        field fa <- selmaho(Fa).warn(ExperimentalZantufaFaTanruUnit).wf();
+        /// Ordered source JOIK-plus-FA continuations.
+        field continuations <- [zero_or_more zantufa_fa_tanru_unit_continuation];
+        /// The complete shared atom; no empty link wrapper is introduced.
+        field inner_unit <- arc(zantufa_tanru_unit_atom_entry);
+    }
+
+    alias "Zantufa FA tanru unit" zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry) =
+        zantufa_fa_tanru_unit(zantufa_tanru_unit_atom_entry)
+            .reject_output(crate::grammar::zantufa_atoms::FaAtomRejection)
+            .recursive_output(zantufa_fa_tanru_unit_candidate);
+
+    /// One source continuation from the FA prefix at zantufa-1.9999.peg:52.
+    rule "Zantufa FA continuation" zantufa_fa_tanru_unit_continuation -> struct {
+        /// Source JOIK, with neither structural NAI nor an unrelated feature gate.
+        field connective <- zantufa_atom_joik;
+        /// The next place marker.
+        field fa <- selmaho(Fa).wf();
+    }
+
+    /// Exact structural JOIK at zantufa-1.9999.peg:68.
+    ///
+    /// Keep the adopted lexical projection used by the existing connective
+    /// families: JOI/JA/BIhI, not source-only spellings lexed into other classes.
+    /// In particular the existing documented ji-as-A gap is not widened here.
+    rule "Zantufa atom JOIK" zantufa_atom_joik -> struct {
+        assert feature(ZantufaSelbri);
+        /// Independently optional left endpoint.
+        field left_gaho <- opt(selmaho(Gaho).wf());
+        /// Optional negation before member reversal.
+        field na <- opt(selmaho(Na).wf());
+        /// Optional member reversal.
+        field se <- opt(selmaho(Se).wf());
+        /// The representable adopted source JOI inventory.
+        field head <- choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi))).wf();
+        /// Independently optional right endpoint.
+        field right_gaho <- opt(selmaho(Gaho).wf());
+    }
+
+    /// Source GEK product, zantufa-1.9999.peg:52; both identities share this type.
+    ///
+    /// This unconnected construction declaration is not yet an eligible route.
+    /// The source negative boundary is checked before the optional terminator;
+    /// complete-output identities must still be installed before any consumer
+    /// is connected.
+    rule "Zantufa forethought tanru unit" zantufa_forethought_tanru_unit(co_selbri, zantufa_tcita_selci, zantufa_boundary_term) -> struct {
+        assert feature(ZantufaSelbri);
+        /// Optional scalar negation owned by this GEK, not an outer conversion.
+        field nahe <- opt(selmaho(Nahe).wf());
+        /// The source-ordered opener; its selected token arm owns one warning.
+        field gek <- zantufa_atom_gek(zantufa_tcita_selci);
+        /// Source level-2 first operand.
+        field leading_selbri <- arc(co_selbri);
+        /// At least one exact GI and level-2 operand.
+        field branches <- [one_or_more zantufa_atom_gek_branch(co_selbri)];
+        assert zantufa_boundary_atom_end(zantufa_boundary_term);
+        /// Optional source terminator, without the outer-connection warning.
+        field gihi <- opt(cmavo(Gihi).wf()).elidable_terminator(Gihi);
+    }
+
+    /// Exact GI branch at zantufa-1.9999.peg:52,72, not the NAI-bearing GIK.
+    rule "Zantufa atom GI branch" zantufa_atom_gek_branch(co_selbri) -> struct {
+        /// Exact, unwarned source GI clause.
+        field gi <- zantufa_atom_gi.wf();
+        /// Full source CoSelbri, not the baseline tight right L6 operand.
+        field selbri <- arc(co_selbri);
+    }
+
+    // The exact branch/opening GI alias, directly gated by the atom family.
+    alias "Zantufa atom GI" zantufa_atom_gi =
+        feature(ZantufaSelbri).ignore_then(cmavo(Gi));
+
+    /// Source opener at zantufa-1.9999.peg:71; BO follows the whole alternative.
+    rule "Zantufa atom GEK" zantufa_atom_gek(zantufa_tcita_selci) -> struct {
+        assert feature(ZantufaSelbri);
+        /// Typed GA-family or GI-before/after JOIK/tag form.
+        field body <- zantufa_atom_gek_body(zantufa_tcita_selci);
+        /// Structural evidence only; no BO-specific semantic propagation claim.
+        field bo <- opt(cmavo(Bo).wf());
+    }
+
+    /// Ordered source alternatives; GUhA remains in the mapped GA family.
+    rule "Zantufa atom GEK body" zantufa_atom_gek_body(zantufa_tcita_selci) -> enum {
+        /// Optional opener-SE followed by a mapped GA or GUhA head.
+        warned_zantufa_atom_ga_opener,
+        /// Exact GI preceding a source JOIK or tag.
+        zantufa_atom_initial_gi_opener,
+        /// Source JOIK or tag followed by exact GI.
+        warned_zantufa_atom_final_gi_opener,
+    }
+
+    /// Source GA includes ordinary GA and GUhA (zantufa-1.9999.peg:544).
+    rule "Zantufa atom GA opener" zantufa_atom_ga_opener -> struct {
+        /// Opener reversal, distinct from an outer atom conversion.
+        field se <- opt(selmaho(Se).wf());
+        /// Typed head used by the baseline-ownership partition.
+        field head <- choice((selmaho(Ga), selmaho(Guha))).wf();
+    }
+
+    // The optional SE is split only in parsing, not in the public product.
+    // PM anchor ruling: SE-present warns SE, SE-absent warns the head.
+    // Both arms preserve exactly the same optional-SE/head model shape.
+    alias "Zantufa atom GA opener" warned_zantufa_atom_ga_opener = choice((
+        (
+            selmaho(Se).warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+            choice((selmaho(Ga), selmaho(Guha))).wf(),
+        ).map_to(zantufa_atom_ga_opener),
+        choice((selmaho(Ga), selmaho(Guha)))
+            .warn(ExperimentalZantufaForethoughtTanruUnit)
+            .wf()
+            .map_to(zantufa_atom_ga_opener),
+    ));
+
+    /// GI before its complete source JOIK or tag payload.
+    rule "Zantufa atom initial GI" zantufa_atom_initial_gi_opener(zantufa_tcita_selci) -> struct {
+        /// The leading exact GI clause.
+        field gi <- zantufa_atom_gi.warn(ExperimentalZantufaForethoughtTanruUnit).wf();
+        /// Source JOIK or tag following GI.
+        field payload <- zantufa_atom_gek_payload(zantufa_tcita_selci);
+    }
+
+    /// GI after its complete source JOIK or tag payload.
+    rule "Zantufa atom final GI" zantufa_atom_final_gi_opener(zantufa_tcita_selci) -> struct {
+        /// Source JOIK or tag preceding GI.
+        field payload <- zantufa_atom_gek_payload(zantufa_tcita_selci);
+        /// Exact trailing GI; the contextual alias selects its warning anchor.
+        field gi <- zantufa_atom_gi.wf();
+    }
+
+    // Contextual only: boundary recognizers and FA continuations continue to
+    // use the unwarned JOIK product. Each split moves into that same shape.
+    alias "Zantufa atom warned JOIK" warned_zantufa_atom_joik = choice((
+        (
+            selmaho(Gaho).warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+            opt(selmaho(Na).wf()), opt(selmaho(Se).wf()),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi))).wf(),
+            opt(selmaho(Gaho).wf()),
+        ).map_to(zantufa_atom_joik),
+        (
+            selmaho(Na).warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+            opt(selmaho(Se).wf()),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi))).wf(),
+            opt(selmaho(Gaho).wf()),
+        ).map_to(zantufa_atom_joik),
+        (
+            selmaho(Se).warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi))).wf(),
+            opt(selmaho(Gaho).wf()),
+        ).map_to(zantufa_atom_joik),
+        (
+            choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi)))
+                .warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+            opt(selmaho(Gaho).wf()),
+        ).map_to(zantufa_atom_joik),
+    ));
+
+    // Narrow JOIK has a fixed first-field decomposition. Only the shared tag
+    // payload retains the final-GI discriminator fallback.
+    alias "Zantufa atom final GI" warned_zantufa_atom_final_gi_opener(zantufa_tcita_selci) = choice((
+        (warned_zantufa_atom_joik, zantufa_atom_gi.wf()).map_to(zantufa_atom_final_gi_opener),
+        (
+            zantufa_atom_tag(zantufa_tcita_selci),
+            zantufa_atom_gi.warn(ExperimentalZantufaForethoughtTanruUnit).wf(),
+        ).map_to(zantufa_atom_final_gi_opener),
+    ));
+
+    /// Source-ordered JOIK/tag choice, not the shared union's wider connective.
+    rule "Zantufa atom GEK payload" zantufa_atom_gek_payload(zantufa_tcita_selci) -> enum {
+        /// The exact source JOIK structural product.
+        zantufa_atom_joik,
+        /// A complete source tag with shared recursive tcita operands.
+        zantufa_atom_tag,
+    }
+
+    /// Source tag shape (zantufa-1.9999.peg:73) with the directly gated JOIK.
+    rule "Zantufa atom tag" zantufa_atom_tag(zantufa_tcita_selci) -> struct {
+        /// The first nonempty tcita run.
+        field first_run <- [one_or_more arc(zantufa_tcita_selci)];
+        /// Source-ordered JOIK-linked continuation runs.
+        field continuations <- [zero_or_more zantufa_atom_tag_continuation(zantufa_tcita_selci)];
+    }
+
+    /// One source JOIK-connected tcita run; recursive tcita operands stay shared.
+    rule "Zantufa atom tag continuation" zantufa_atom_tag_continuation(zantufa_tcita_selci) -> struct {
+        /// The exact source JOIK joining the runs.
+        field connective <- zantufa_atom_joik;
+        /// The following nonempty tcita run.
+        field run <- [one_or_more arc(zantufa_tcita_selci)];
+    }
+
+    /// Source KE sumti (zantufa-1.9999.peg:36), not a KE termset.
+    /// Its term-position routing separately preserves the explicit/elided split.
+    rule "Zantufa grouped sumti" zantufa_grouped_sumti(sumti) -> struct {
+        assert feature(ZantufaTerms);
+        /// KE opener and the grouped-sumti warning anchor.
+        field ke <- cmavo(Ke).warn(ExperimentalZantufaGroupedSumti).wf();
+        /// The complete shared inner sumti.
+        field sumti <- arc(sumti);
+        /// Optional elidable grouping closer.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+    }
+
     /// Product node for a complete tanru unit: an atom with optional linkargs,
     /// followed by zero or more CEI assignments.
-    rule "tanru unit" tanru_unit(tanru_unit_atom, linkargs) -> struct {
+    rule "tanru unit" tanru_unit(zantufa_tanru_unit_atom_entry, linkargs) -> struct {
         /// The first linked atom.
-        field base <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
+        field base <- arc(linked_tanru_unit(zantufa_tanru_unit_atom_entry, linkargs));
         /// Source-ordered CEI assignments.
-        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, linkargs)];
+        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(zantufa_tanru_unit_atom_entry, linkargs)];
     }
 
     /// Product node for one CEI assignment.
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, linkargs) -> struct {
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(zantufa_tanru_unit_atom_entry, linkargs) -> struct {
         /// The CEI marker.
         field cei <- cmavo(Cei).wf();
         /// The following linked atom.
-        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
+        field tanru_unit <- arc(linked_tanru_unit(zantufa_tanru_unit_atom_entry, linkargs));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
-    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, linkargs) -> struct {
+    rule "tanru unit" linked_tanru_unit(zantufa_tanru_unit_atom_entry, linkargs) -> struct {
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom);
+        field base <- arc(zantufa_tanru_unit_atom_entry);
         /// The optional linkargs component.
         field linkargs <- opt(linkargs);
     }
 
+    // A complete product is refined using the actual parse dialect before
+    // any caller can install it as a standalone atom.
+    alias "Zantufa standalone atom" zantufa_forethought_tanru_unit_candidate(co_selbri, zantufa_tcita_selci, zantufa_boundary_term) =
+        zantufa_forethought_tanru_unit(co_selbri, zantufa_tcita_selci, zantufa_boundary_term)
+            .reject_output(crate::grammar::zantufa_atoms::StandaloneAtomRejection)
+            .recursive_output(zantufa_forethought_tanru_unit_candidate);
+
+    // G1: retry the complete standalone identity at each actual SE boundary.
+    // No greedy conversion-product fallback is reachable through this entry.
+    alias "tanru unit" zantufa_tanru_unit_atom_entry(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate) = choice((
+        zantufa_forethought_tanru_unit_candidate.map_recovered_to(tanru_unit_atom),
+        (selmaho(Se).wf(), zantufa_tanru_unit_atom_entry).map_recovered_to(tanru_unit_atom),
+        tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate).map_recovered_to(tanru_unit_atom),
+    )).recursive_output(zantufa_tanru_unit_atom_entry);
+
+
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
+    rule "tanru unit" tanru_unit_atom(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
+        field base <- arc(tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate));
     }
 
     /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -7199,6 +7820,11 @@ pub mod generated_model {
         preposed_linkargs_tanru_unit,
         /// Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.
         jai_modal_tanru_unit,
+        /// A fully proven source FA prefix over a shared inner atom.
+        zantufa_fa_tanru_unit_candidate,
+        /// The same completed, guarded GEK identity used by the shared entry.
+        /// Earlier entry rejection cannot be bypassed through this model arm.
+        zantufa_forethought_tanru_unit_candidate,
         /// Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.
         scalar_negated_tanru_unit,
         /// Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.
@@ -7264,35 +7890,35 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
-    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit_atom, linkargs) -> struct {
+    rule "linked arguments" preposed_linkargs_tanru_unit(zantufa_tanru_unit_atom_entry, linkargs) -> struct {
         /// The complete exp-sourced linkargs; the strict construct visitor warns at its BE.
         field linkargs <- linkargs;
         /// The following linked atom; CEI assignments remain at the outer tanru-unit level.
-        field base <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
+        field base <- arc(linked_tanru_unit(zantufa_tanru_unit_atom_entry, linkargs));
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, normal_term) -> struct {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(zantufa_tanru_unit_atom_entry, normal_term) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner unit child syntax node.
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, normal_term));
+        field inner_unit <- arc(scalar_negated_tanru_inner_unit(zantufa_tanru_unit_atom_entry, normal_term));
     }
 
     /// The standard scalar-negation operand, restricted to exactly one tanru-unit atom.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, normal_term) -> enum {
-        /// Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.
-        tanru_unit_atom,
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(zantufa_tanru_unit_atom_entry, normal_term) -> enum {
+        /// Uses the `zantufa_tanru_unit_atom_entry` product form, whose payload preserves `conversions` and `base`.
+        zantufa_tanru_unit_atom_entry,
     }
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
-    rule "modal conversion" jai_modal_tanru_unit(tanru_unit_atom, tense_modal) -> struct {
+    rule "modal conversion" jai_modal_tanru_unit(zantufa_tanru_unit_atom_entry, tense_modal) -> struct {
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).wf();
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The same recursive atom used outside JAI, including SE, NAhE, NU and KE.
-        field inner_unit <- arc(tanru_unit_atom);
+        field inner_unit <- arc(zantufa_tanru_unit_atom_entry);
     }
 
     /// Direct stage-0 fu'ivla atom. Morphology already owns the one-word payload;
@@ -7478,7 +8104,7 @@ pub mod generated_model {
     ///
     /// These leaves are listed directly so ordinary links retain their established Debug and
     /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand, full_linked_term_candidate) -> enum {
+    rule "linked arguments" linked_term(sumti, tense_modal, zantufa_selbri_entry, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand, full_linked_term_candidate) -> enum {
         /// Try the complete new-width payload before a legacy owner can consume its prefix.
         /// The rejection guard rewinds complete legacy and unproven candidates (#793).
         full_linked_term_candidate,
@@ -7508,16 +8134,16 @@ pub mod generated_model {
             .recursive_output(full_linked_term_candidate);
 
     /// A hierarchy-only loose connection over linked terms with one or more continuations.
-    rule "linked arguments" connected_linked_term(tense_modal, selbri, forethought_bridi_connection, bound_linked_term) -> struct {
+    rule "linked arguments" connected_linked_term(tense_modal, zantufa_selbri_entry, forethought_bridi_connection, bound_linked_term) -> struct {
         /// The first BO-bound linked term at the loose precedence level.
         field leading_link <- arc(bound_linked_term);
         /// The nonempty source-ordered loose continuation sequence.
-        field continuations <- [one_or_more connected_linked_term_continuation(tense_modal, selbri, forethought_bridi_connection, bound_linked_term)];
+        field continuations <- [one_or_more connected_linked_term_continuation(tense_modal, zantufa_selbri_entry, forethought_bridi_connection, bound_linked_term)];
     }
 
     /// One loose linked-term continuation.
-    rule "linked arguments" connected_linked_term_continuation(tense_modal, selbri, forethought_bridi_connection, bound_linked_term) -> struct {
-        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+    rule "linked arguments" connected_linked_term_continuation(tense_modal, zantufa_selbri_entry, forethought_bridi_connection, bound_linked_term) -> struct {
+        assert term_loose_connection_guard(tense_modal, zantufa_selbri_entry, forethought_bridi_connection);
         /// The connective joining the adjacent linked terms.
         field connective <- term_afterthought_connective;
         /// The BO-bound linked term following the connective.

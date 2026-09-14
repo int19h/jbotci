@@ -63,14 +63,12 @@ where
 {
     custom::<_, _>(move |input| {
         let before = input.save();
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         match input.parse(&parser) {
             Ok(jbotci_tree::Recovered::Valid(value)) => Ok(*value),
             Ok(jbotci_tree::Recovered::Error(_) | jbotci_tree::Recovered::Prefix(_)) => {
                 input.rewind(before);
-                input
-                    .state()
-                    .restore_diagnostic_candidates(diagnostic_snapshot);
+                input.state().restore_diagnostics(diagnostic_snapshot);
                 Err(expected_found_named_at_current(input, expected.to_owned()))
             }
             Err(error) => {
@@ -151,6 +149,10 @@ pub(crate) struct SyntaxGrammarDialect {
     pub zantufa_descriptions_enabled: bool,
     pub zantufa_mex_enabled: bool,
     pub zantufa_mex_reinterpretation_enabled: bool,
+    pub zantufa_selbri_enabled: bool,
+    /// Raw selbri-family opt-in. The older reinterpretation field below retains
+    /// its Terms dependency for its existing consumers.
+    pub zantufa_selbri_atom_reinterpretation_enabled: bool,
     pub zantufa_selbri_reinterpretation_enabled: bool,
     pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
@@ -159,7 +161,9 @@ pub(crate) struct SyntaxGrammarDialect {
 
 impl SyntaxGrammarDialect {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.zantufa_selbri_enabled == options.dialect.features.contains(&DialectFeature::ZantufaSelbri))]
+    #[ensures(ret.zantufa_selbri_atom_reinterpretation_enabled == (options.dialect.features.contains(&DialectFeature::ZantufaSelbri) && options.dialect.features.contains(&DialectFeature::ZantufaSelbriReinterpretation)))]
+    #[ensures(ret.zantufa_selbri_reinterpretation_enabled == (options.dialect.features.contains(&DialectFeature::ZantufaTerms) && options.dialect.features.contains(&DialectFeature::ZantufaSelbriReinterpretation)))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
@@ -174,6 +178,10 @@ impl SyntaxGrammarDialect {
             zantufa_selbri_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaSelbriReinterpretation)
                 && features.contains(&DialectFeature::ZantufaTerms),
+            zantufa_selbri_enabled: features.contains(&DialectFeature::ZantufaSelbri),
+            zantufa_selbri_atom_reinterpretation_enabled: features
+                .contains(&DialectFeature::ZantufaSelbri)
+                && features.contains(&DialectFeature::ZantufaSelbriReinterpretation),
             zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
             zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
@@ -192,6 +200,8 @@ pub(crate) enum SyntaxGrammarFeature {
     ZantufaDescriptions,
     ZantufaMex,
     ZantufaMexReinterpretation,
+    ZantufaSelbri,
+    ZantufaSelbriAtomReinterpretation,
     ZantufaSelbriReinterpretation,
     ZantufaQuotes,
     ZantufaTags,
@@ -210,6 +220,10 @@ impl SyntaxGrammarFeature {
             Self::ZantufaDescriptions => dialect.zantufa_descriptions_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
             Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
+            Self::ZantufaSelbri => dialect.zantufa_selbri_enabled,
+            Self::ZantufaSelbriAtomReinterpretation => {
+                dialect.zantufa_selbri_atom_reinterpretation_enabled
+            }
             Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
             Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
@@ -228,6 +242,10 @@ impl SyntaxGrammarFeature {
             Self::ZantufaDescriptions => "ZANTUFA-DESCRIPTIONS feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
             Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
+            Self::ZantufaSelbri => "ZANTUFA-SELBRI feature",
+            Self::ZantufaSelbriAtomReinterpretation => {
+                "Zantufa selbri family and raw reinterpretation features"
+            }
             Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
             Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
@@ -2020,7 +2038,7 @@ where
         let before = input.save();
         let start_location = ParserInput::cursor_location(before.cursor().inner());
         let start_byte = input.state().byte_offset_for_location(start_location);
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         match input.parse(&inner) {
             Ok(value) => {
                 let after_inner = input.save();
@@ -2031,9 +2049,7 @@ where
                     Ok(value)
                 } else {
                     input.rewind(before);
-                    input
-                        .state()
-                        .restore_diagnostic_candidates(diagnostic_snapshot);
+                    input.state().restore_diagnostics(diagnostic_snapshot);
                     Err(expected_found_at_current(input, expected))
                 }
             }
@@ -2041,10 +2057,7 @@ where
                 input.rewind(before);
                 input
                     .state()
-                    .restore_diagnostic_candidates_preserving_start(
-                        diagnostic_snapshot,
-                        start_byte,
-                    );
+                    .restore_diagnostics_preserving_start(diagnostic_snapshot, start_byte);
                 if error.span().start == start_byte {
                     Err(error)
                 } else {
@@ -2163,6 +2176,14 @@ pub(crate) trait OutputRejection<O> {
     #[requires(true)]
     #[ensures(true)]
     fn rejects(&self, value: &O) -> bool;
+
+    /// Refine against the actual parse axis when ownership depends on dialect.
+    /// Existing structural refinements remain independent of that context.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_in_dialect(&self, value: &O, _dialect: SyntaxGrammarDialect) -> bool {
+        self.rejects(value)
+    }
 }
 
 /// Rejects a completed typed match and rewinds all state to the route's start.
@@ -2176,7 +2197,7 @@ where
 {
     custom::<_, _>(move |input| {
         let before = input.save();
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         let value = match input.parse(&inner) {
             Ok(value) => value,
             Err(error) => {
@@ -2191,13 +2212,12 @@ where
         if classifier_site_tracing_enabled() {
             publish_output_rejection_site(input.state().active_syntax_rules());
         }
-        if !rejection.rejects(&value) {
+        let dialect = input.state().syntax_grammar_env().dialect;
+        if !rejection.rejects_in_dialect(&value, dialect) {
             return Ok(value);
         }
         input.rewind(before);
-        input
-            .state()
-            .restore_diagnostic_candidates(diagnostic_snapshot);
+        input.state().restore_diagnostics(diagnostic_snapshot);
         Err(expected_found_named_at_current(
             input,
             format!("not {}", rejection.rejected_name()),

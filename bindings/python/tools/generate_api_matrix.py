@@ -383,6 +383,11 @@ def validate_disposition(item: InventoryItem, disposition: Disposition) -> None:
 def classify_generated(item: InventoryItem) -> Disposition:
     """Classify generator-owned strict/recovered syntax declarations."""
     path = item.rust_path
+    if "ZantufaFaTanruUnit" in path or "zantufa_fa_tanru_unit" in path:
+        return rust_only(
+            "generated-ownership-adapter",
+            "FA is represented by the concrete ZantufaFaTanruUnitSyntax Python node; generated enum/field/walker adapters do not add a distinct public Python concept.",
+        )
     if item.kind == "generator-source":
         return rust_only(
             "implementation-representation",

@@ -80,6 +80,7 @@ define_dialect_features! {
     ZantufaDescriptions => "zantufa-descriptions",
     ZantufaMex => "zantufa-mex",
     ZantufaMexReinterpretation => "zantufa-mex-reinterpretation",
+    ZantufaSelbri => "zantufa-selbri",
     ZantufaSelbriReinterpretation => "zantufa-selbri-reinterpretation",
     ZantufaMorphology => "zantufa-morphology",
     ZantufaQuotes => "zantufa-quotes",
@@ -1488,7 +1489,7 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("term-hierarchy", "()"),
         (
             "zantufa",
-            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY)",
+            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY +ZANTUFA-SELBRI)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
@@ -1829,6 +1830,12 @@ mod tests {
                 .contains(&DialectFeature::ZantufaMorphology)
         );
         assert!(zantufa.features.contains(&DialectFeature::ZantufaMex));
+        assert!(zantufa.features.contains(&DialectFeature::ZantufaSelbri));
+        assert!(
+            !zantufa
+                .features
+                .contains(&DialectFeature::ZantufaSelbriReinterpretation)
+        );
         assert!(
             !builtin_dialect_names()
                 .into_iter()

@@ -8,6 +8,42 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityTailRejection",
+        "stateless completed-tail eligibility refinement; no invalid unit value or persistent parser state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:FaAtomRejection",
+        "stateless rejection policy has exactly one valid state; parsed candidate evidence determines eligibility",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:NestedGekCount",
+        "every count is a valid intermediate state of the test-only generated-tree traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityAtomEvidence",
+        "independent immutable dialect and three-state accumulated entry evidence; every answer is valid on every dialect during a partial generated traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityAtomRejection",
+        "stateless complete-output refinement; the unit value has no invalid state and only proven admitted atom evidence can grant priority",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomWalker",
+        "single callback over typed borrowed GEK components; every callback value is a valid generated traversal adapter and no frame IDs or cross-field relationships are stored",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:StandaloneAtomRejection",
+        "stateless typed ownership refinement; the actual parse dialect is supplied by the rejection combinator and the unit value has no invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:JoikOwnershipKey",
+        "all combinations of typed JOIK head, GI order and proven field presences represent valid source-shaped cells; completeness and modifier-free domain are checked before key construction",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:RequiredSubtreeEvidence",
+        "independent observations of parsed tokens and uncertainty in a selected required subtree; all four combinations are valid traversal states, including an error before any token",
+    ),
+    (
         "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
         "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
     ),
@@ -1408,8 +1444,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
-        "nonzero trial and frame components make every identity pair structurally valid",
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticCheckpoint",
+        "saved report candidates, journal length and optional frame mark describe transaction snapshots; restoration checks compatibility with live state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
