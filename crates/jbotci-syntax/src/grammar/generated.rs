@@ -7800,6 +7800,11 @@ pub mod generated_model {
             .reject_output(crate::grammar::zantufa_atoms::EnclosedAtomRejection)
             .recursive_output(zantufa_enclosed_gek_candidate);
 
+    alias "modal conversion" jai_modal_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, tense_modal, zantufa_enclosed_gek_candidate) = choice((
+        (cmavo(Jai).wf(), tense_modal, zantufa_tanru_unit_atom_entry).map_to(jai_modal_tanru_unit),
+        (cmavo(Jai).wf(), choice((zantufa_enclosed_gek_candidate.map_recovered_to(tanru_unit_atom), zantufa_tanru_unit_atom_entry))).map_to(jai_modal_tanru_unit),
+    ));
+
     // G1: retry the complete standalone identity at each actual SE boundary.
     // No greedy conversion-product fallback is reachable through this entry.
     alias "tanru unit" zantufa_tanru_unit_atom_entry(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate, zantufa_fa_tanru_unit_candidate) = choice((
@@ -7826,7 +7831,7 @@ pub mod generated_model {
         /// Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.
         preposed_linkargs_tanru_unit,
         /// Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.
-        jai_modal_tanru_unit,
+        jai_modal_tanru_unit_candidate,
         /// A fully proven source FA prefix over a shared inner atom.
         zantufa_fa_tanru_unit_candidate,
         /// The same completed, guarded GEK identity used by the shared entry.
@@ -7919,14 +7924,16 @@ pub mod generated_model {
     }
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
-    rule "modal conversion" jai_modal_tanru_unit(zantufa_tanru_unit_atom_entry, tense_modal, zantufa_enclosed_gek_candidate) -> struct {
+    rule "modal conversion" jai_modal_tanru_unit(zantufa_tanru_unit_atom_entry, tense_modal) -> struct {
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).wf();
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The same recursive atom used outside JAI, including SE, NAhE, NU and KE.
-        field inner_unit <- arc(choice((zantufa_enclosed_gek_candidate.map_recovered_to(tanru_unit_atom), zantufa_tanru_unit_atom_entry)));
+        /// The standalone recursive atom; enclosed GEK is selected only by the
+        /// dedicated candidate alias below, never by a tagged JAI arm.
+        field inner_unit <- arc(zantufa_tanru_unit_atom_entry);
     }
+
 
     /// Direct stage-0 fu'ivla atom. Morphology already owns the one-word payload;
     /// syntax must not inspect its spelling or treat it as delimited text.

@@ -1545,6 +1545,65 @@ impl From<recovered::WithFreeModifiers<recovered::Recovered<Token>>>
 }
 
 type RecoveredTokenClause = recovered::WithFreeModifiers<recovered::Recovered<Token>>;
+
+impl From<((TokenClause, model::TenseModalSyntax), model::TanruUnitAtomSyntax)>
+    for model::JaiModalTanruUnitSyntax
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(
+        value: ((TokenClause, model::TenseModalSyntax), model::TanruUnitAtomSyntax),
+    ) -> Self {
+        let ((jai, tense_modal), inner_unit) = value;
+        Self {
+            jai,
+            tense_modal: Some(std::sync::Arc::new(tense_modal)),
+            inner_unit: std::sync::Arc::new(inner_unit),
+        }
+    }
+}
+
+impl From<(TokenClause, model::TanruUnitAtomSyntax)> for model::JaiModalTanruUnitSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: (TokenClause, model::TanruUnitAtomSyntax)) -> Self {
+        let (jai, inner_unit) = value;
+        Self {
+            jai,
+            tense_modal: None,
+            inner_unit: std::sync::Arc::new(inner_unit),
+        }
+    }
+}
+
+impl From<((RecoveredTokenClause, recovered::Recovered<recovered::TenseModalSyntax>), recovered::Recovered<recovered::TanruUnitAtomSyntax>)>
+    for recovered::JaiModalTanruUnitSyntax
+{
+    fn from(
+        value: ((RecoveredTokenClause, recovered::Recovered<recovered::TenseModalSyntax>), recovered::Recovered<recovered::TanruUnitAtomSyntax>),
+    ) -> Self {
+        let ((jai, tense_modal), inner_unit) = value;
+        recovered::JaiModalTanruUnitSyntax {
+            jai,
+            tense_modal: Some(std::sync::Arc::new(tense_modal)),
+            inner_unit: std::sync::Arc::new(inner_unit),
+        }
+    }
+}
+
+impl From<(RecoveredTokenClause, recovered::Recovered<recovered::TanruUnitAtomSyntax>)>
+    for recovered::JaiModalTanruUnitSyntax
+{
+    fn from(value: (RecoveredTokenClause, recovered::Recovered<recovered::TanruUnitAtomSyntax>)) -> Self {
+        let (jai, inner_unit) = value;
+        recovered::JaiModalTanruUnitSyntax {
+            jai,
+            tense_modal: None,
+            inner_unit: std::sync::Arc::new(inner_unit),
+        }
+    }
+}
+
 // Parser sequences are left-associated pairs, not flat tuples. Each split
 // moves every source field unchanged into the shared product.
 
