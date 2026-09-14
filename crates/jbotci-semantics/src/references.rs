@@ -9525,17 +9525,28 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn routed_fa_keeps_outer_frame_opaque_with_postposed_link() {
-        let input = "mi fa broda be le gerku be'o";
+        let input = "mi cu fa broda be ko'a be'o";
         let syntax = parse_generated_zantufa_syntax(input);
+        let analysis = analyze_generated_references(&syntax).expect("FA route analyzes");
+        let index = &analysis.syntax_index;
+        let (fa, linked) = (0..index.node_count()).fold((None, None), |(fa, linked), raw| {
+            match index.node(RawSyntaxNodeId(raw)) {
+                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) =>
+                    (Some(value), linked),
+                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) =>
+                    (fa, Some(value)),
+                _ => (fa, linked),
+            }
+        });
+        let fa = fa.expect("one routed FA node");
+        let linked = linked.expect("enclosing linked unit");
+        assert!(linked.linkargs.is_some(), "FA owns the closed outer link");
         let projection = analyze_generated_references(&syntax)
             .expect("FA route with postposed link analyzes")
             .fixture_projection();
-        let fa_start = input.find("broda").expect("FA atom body");
-        let fa_frame = projection
-            .frames
-            .iter()
-            .find(|frame| frame.node.offset == fa_start)
-            .expect("FA outer frame is present");
+        let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
+        assert_eq!(fixture_span_key_for_generated_node(index, fa_raw).unwrap(), span_key(6, 8));
+        let fa_frame = projection.frames.iter().find(|frame| frame.node == span_key(6, 8)).expect("FA outer frame is present");
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
         assert_eq!(fa_frame.selbri, None);
         assert!(matches!(
@@ -9543,12 +9554,10 @@ mod tests {
             FixturePlaceFramePropagation::None
         ));
         assert!(
-            projection
-                .frames
-                .iter()
-                .any(|frame| frame.node.offset > fa_start && frame.node.offset < input.len()),
-            "postposed-link traversal retains an inner frame"
+            projection.frames.iter().any(|frame| frame.node == span_key(9, 5)),
+            "FA traversal retains the exact inner word frame"
         );
+        let _ = fa_raw;
     }
 
     #[test]
