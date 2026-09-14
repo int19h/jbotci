@@ -9755,6 +9755,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn grouped_scoped_vuho_child_is_distinct_and_traversed() {
+        let input = "mi viska la'e lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u";
+        let syntax = parse_generated_zantufa_syntax(input);
+        let debug = format!("{syntax:?}");
+        assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
+        let projection = analyze_generated_references(&syntax)
+            .expect("scoped VUhO route analyzes")
+            .fixture_projection();
+        let forwarding: Vec<_> = projection
+            .frames
+            .iter()
+            .filter(|frame| frame.kind == PlaceFrameKind::Forwarding)
+            .collect();
+        assert!(!forwarding.is_empty(), "scoped child forwarding is retained");
+        assert!(forwarding.iter().all(|frame| matches!(
+            frame.propagation,
+            FixturePlaceFramePropagation::Forward { inner: _ }
+        )));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_zantufa_numeric_xi_route_preserves_koha_index() {
         let syntax = parse_generated_zantufa_syntax("ko'a xi na'e pa cu broda");
         let index = GeneratedSyntaxIndex::new(&syntax).expect("syntax index");
