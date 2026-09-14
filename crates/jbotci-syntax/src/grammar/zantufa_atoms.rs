@@ -630,7 +630,6 @@ impl JoikOwnershipKey {
 #[requires(true)]
 #[ensures(ret.is_some() == (token.is_selmaho(jbotci_morphology::Selmaho::Joi) || token.is_selmaho(jbotci_morphology::Selmaho::Ja) || token.is_selmaho(jbotci_morphology::Selmaho::Bihi)))]
 fn joik_head(token: &Token) -> Option<JoikHead> {
-    use jbotci_morphology::Selmaho;
     if token.is_selmaho(Selmaho::Joi) {
         Some(JoikHead::Joi)
     } else if token.is_selmaho(Selmaho::Ja) {
@@ -846,6 +845,74 @@ pub(crate) enum ZantufaTanruAtomPresence {
     Unproven,
 }
 
+/// Structural facts established by a complete strict GA-family product.
+/// Keeping these facts separate from the standalone policy prevents callers
+/// from treating a final verdict as if it were parser evidence.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct StrictGekFacts {
+    pub head_is_ga: bool,
+    pub head_is_guha: bool,
+    pub has_nahe: bool,
+    pub has_bo: bool,
+    pub branch_count: usize,
+    pub has_gihi: bool,
+    pub opener_se_free_modifiers: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RecoveredGekFacts {
+    pub uncertain: bool,
+    pub has_nahe: bool,
+    pub has_bo: bool,
+    pub branch_count: usize,
+    pub has_gihi: bool,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_gek_facts(
+    candidate: &recovered::ZantufaForethoughtTanruUnitSyntax,
+) -> RecoveredGekFacts {
+    let mut evidence = RequiredSubtreeEvidence::default();
+    recovered::TreeNode::visit_in_order(candidate, &mut evidence);
+    RecoveredGekFacts {
+        uncertain: evidence.uncertainty,
+        has_nahe: candidate.nahe.is_some(),
+        has_bo: parsed_value(&candidate.gek).is_some_and(|gek| gek.bo.is_some()),
+        branch_count: candidate.branches.len(),
+        has_gihi: candidate.gihi.is_some(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strict_gek_facts(
+    candidate: &model::ZantufaForethoughtTanruUnitSyntax,
+) -> StrictGekFacts {
+    let model::ZantufaForethoughtTanruUnitSyntax { nahe, gek, branches, gihi, .. } = candidate;
+    let model::ZantufaAtomGekSyntax { body, bo } = gek;
+    let (head_is_ga, head_is_guha, opener_se_free_modifiers) = match body {
+        model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => (
+            opener.head.value.is_selmaho(jbotci_morphology::Selmaho::Ga),
+            opener.head.value.is_selmaho(jbotci_morphology::Selmaho::Guha),
+            opener.se.as_ref().is_some_and(|se| !se.free_modifiers.is_empty()),
+        ),
+        model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
+        | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => (false, false, false),
+    };
+    StrictGekFacts {
+        head_is_ga,
+        head_is_guha,
+        has_nahe: nahe.is_some(),
+        has_bo: bo.is_some(),
+        branch_count: branches.len(),
+        has_gihi: gihi.is_some(),
+        opener_se_free_modifiers,
+    }
+}
+
 impl ZantufaTanruAtomPresence {
     #[requires(true)]
     #[ensures((ret == Self::Unproven) == (self == Self::Unproven || other == Self::Unproven))]
@@ -882,6 +949,7 @@ fn strict_standalone_presence(
     if !dialect.zantufa_selbri_enabled {
         return Absent;
     }
+    let facts = strict_gek_facts(candidate);
     let model::ZantufaForethoughtTanruUnitSyntax {
         nahe,
         gek,
@@ -890,8 +958,8 @@ fn strict_standalone_presence(
         gihi,
     } = candidate;
     let model::ZantufaAtomGekSyntax { body, bo } = gek;
-    let opener = match body {
-        model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => opener,
+    match body {
+        model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(_) => {}
         model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
         | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => {
             if nahe.is_some() || branches.len() != 1 || gihi.is_some() {
@@ -916,16 +984,12 @@ fn strict_standalone_presence(
     // its reservation, not from a semantic claim about the parenthetical.
     // Strict parsing proves this field's contents; the recovered twin must
     // separately prove every modifier and must never use Vec occupancy alone.
-    if opener
-        .se
-        .as_ref()
-        .is_some_and(|se| !se.free_modifiers.is_empty())
-    {
+    if facts.opener_se_free_modifiers {
         return Present;
     }
     // Strict products prove all parsed fields. Opener-SE and left width do
     // not distinguish GUhA ownership; they must not enter M1's projection.
-    if opener.head.value.is_selmaho(Selmaho::Guha) {
+    if facts.head_is_guha {
         if bo.is_some() {
             // Section 9's measured, adjudicated source-only class. This is
             // GUhA+BO specifically, not a universal BO additivity shortcut.
@@ -946,7 +1010,7 @@ fn strict_standalone_presence(
             Absent
         };
     }
-    if !opener.head.value.is_selmaho(Selmaho::Ga) {
+    if !facts.head_is_ga {
         return Unproven;
     }
     if branches.len() > 1 || nahe.is_some() || gihi.is_some() {
@@ -960,6 +1024,53 @@ fn strict_standalone_presence(
         Present
     } else {
         Absent
+    }
+}
+
+/// Shared GA-family projection entry point for context-specific ownership
+/// policies. The standalone policy remains the compatibility implementation;
+/// enclosed JAI will apply its narrower policy to this same projection.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn strict_gek_projection(
+    candidate: &model::ZantufaForethoughtTanruUnitSyntax,
+    dialect: &super::generated_runtime::SyntaxGrammarDialect,
+) -> ZantufaTanruAtomPresence {
+    let facts = strict_gek_facts(candidate);
+    if !dialect.zantufa_selbri_enabled {
+        return ZantufaTanruAtomPresence::Absent;
+    }
+    if facts.opener_se_free_modifiers {
+        return ZantufaTanruAtomPresence::Present;
+    }
+    if !facts.head_is_ga && !facts.head_is_guha {
+        return ZantufaTanruAtomPresence::Unproven;
+    }
+    if facts.head_is_guha {
+        if facts.has_bo {
+            return ZantufaTanruAtomPresence::Present;
+        }
+        return if facts.branch_count > 1 || facts.has_gihi {
+            if dialect.zantufa_connectives_enabled {
+                ZantufaTanruAtomPresence::Absent
+            } else {
+                ZantufaTanruAtomPresence::Present
+            }
+        } else if dialect.zantufa_selbri_atom_reinterpretation_enabled {
+            ZantufaTanruAtomPresence::Present
+        } else {
+            ZantufaTanruAtomPresence::Absent
+        };
+    }
+    if facts.branch_count > 1 || facts.has_nahe || facts.has_gihi {
+        return ZantufaTanruAtomPresence::Present;
+    }
+    if dialect.zantufa_selbri_atom_reinterpretation_enabled
+        || (facts.has_bo && !dialect.zantufa_connectives_enabled)
+    {
+        ZantufaTanruAtomPresence::Present
+    } else {
+        ZantufaTanruAtomPresence::Absent
     }
 }
 
@@ -979,6 +1090,7 @@ fn recovered_standalone_presence(
     if !dialect.zantufa_selbri_enabled {
         return Absent;
     }
+    let facts = recovered_gek_facts(candidate);
     let recovered::ZantufaForethoughtTanruUnitSyntax {
         nahe,
         gek,
@@ -998,7 +1110,7 @@ fn recovered_standalone_presence(
     // positive ownership from a token elsewhere in the candidate.
     let mut uncertainty = RequiredSubtreeEvidence::default();
     recovered::TreeNode::visit_in_order(candidate, &mut uncertainty);
-    if uncertainty.uncertainty {
+    if facts.uncertain || uncertainty.uncertainty {
         return Unproven;
     }
     if nahe.as_ref().is_some_and(|clause| {
@@ -1094,6 +1206,15 @@ fn recovered_standalone_presence(
     } else {
         Absent
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_gek_projection(
+    candidate: &recovered::ZantufaForethoughtTanruUnitSyntax,
+    dialect: &super::generated_runtime::SyntaxGrammarDialect,
+) -> ZantufaTanruAtomPresence {
+    recovered_standalone_presence(candidate, dialect)
 }
 
 /// A selected marker and its own modifiers must be parsed, not synthesized.
