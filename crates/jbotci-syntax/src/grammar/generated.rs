@@ -2826,11 +2826,14 @@ pub mod generated_model {
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
     rule "tag" jai_tagged_sumti_term(tense_modal, sumti, zantufa_tanru_unit_atom_entry, normal_term) -> struct {
         assert feature(ZantufaTags);
+        // Reserve the whole JAI tanru-unit candidate at the term-start cursor.
+        // Checking after consuming JAI lets `jai ga ...` steal the enclosed
+        // selbri as a tag-term plus gek-sumti.
+        assert !zantufa_tanru_unit_atom_entry;
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
         /// The optional tag component.
         field tag <- opt(arc(tense_modal));
-        assert !zantufa_tanru_unit_atom_entry;
         /// The shared sumti child syntax node, overt or KU-terminated.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }

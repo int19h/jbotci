@@ -118,7 +118,6 @@ fn mehoi_is_a_one_word_atom_in_both_runtime_dialects() {
 }
 
 #[test]
-#[ignore = "diagnostic: public no-tag enclosed JAI route currently does not win"]
 #[requires(true)]
 #[ensures(true)]
 fn jai_enclosed_public_route_regression() {
@@ -130,7 +129,19 @@ fn jai_enclosed_public_route_regression() {
         .expect("public route parses");
     let mut visitor = PlacementVisitor::default();
     model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
-    assert_eq!(visitor.jai.len(), 1, "expected no-tag enclosed JAI owner; tree={:?}; warnings={:?}", parsed.parse_tree, parsed.warnings);
+    assert_eq!(visitor.jai.len(), 1, "expected no-tag enclosed JAI owner");
+    assert!(matches!(
+        visitor.jai[0].inner_unit.base.as_ref(),
+        model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
+    ));
+    for source in ["mi jai pu ga broda gi brode", "mi jai ko'a"] {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let parsed = parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect("control parses");
+        let mut visitor = PlacementVisitor::default();
+        model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
+        assert!(visitor.jai.is_empty(), "tag/sumti control must remain tag-term: {source}");
+    }
 }
 
 #[invariant(true)]

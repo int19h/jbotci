@@ -9563,6 +9563,43 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn routed_fa_preserves_nested_local_links_without_crossing_owner() {
+        let input = "mi cu fa ke broda be ko'e be'o ke'e be ko'a be'o";
+        let syntax = parse_generated_zantufa_syntax(input);
+        let analysis = analyze_generated_references(&syntax).expect("nested FA analyzes");
+        let projection = analysis.fixture_projection();
+        let outer = projection
+            .frames
+            .iter()
+            .find(|frame| frame.node == span_key(6, 29))
+            .expect("outer FA frame");
+        let inner = projection
+            .frames
+            .iter()
+            .find(|frame| frame.node == span_key(12, 5))
+            .expect("inner broda frame");
+        assert_ne!(outer.index, inner.index);
+        assert!(projection.assignments.iter().any(|assignment| {
+            assignment.frame == inner.index
+                && assignment.sumti == span_key(21, 4)
+                && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
+                && assignment.term.is_none()
+        }));
+        assert!(projection.assignments.iter().any(|assignment| {
+            assignment.frame == outer.index
+                && assignment.sumti == span_key(39, 4)
+                && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
+                && assignment.term.is_none()
+        }));
+        assert!(!projection.assignments.iter().any(|assignment| {
+            assignment.frame == inner.index
+                && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn routed_grouped_and_enclosed_jai_consumers_preserve_frames() {
         for input in ["mi ke broda brode ke'e", "mi jai pu ko'a broda"] {
             let syntax = parse_generated_zantufa_syntax(input);
