@@ -6242,10 +6242,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                                 argument_id,
                                 &attachment.relative_clauses,
                             );
-                            self.visit_sumti_grouped(
-                                argument_id,
-                                &attachment.sumti_connection.sumti.base_sumti,
-                            );
+                            // A connected scoped child is a distinct argument node.  Unlike
+                            // the immediately enclosed grouped parent, it owns its identity and
+                            // must receive the full argument traversal (including attachments
+                            // and letter antecedents).
+                            self.visit_argument(&attachment.sumti_connection.sumti);
                         }
                         generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
                             _,
@@ -9730,13 +9731,15 @@ mod tests {
                 "route retains its enclosing bridi frame: {input}"
             );
             if input.starts_with("mi ke ") {
-                assert!(projection.frames.iter().any(|frame| {
+                let forwarding: Vec<_> = projection.frames.iter().filter(|frame| {
                     frame.kind == PlaceFrameKind::Forwarding
                         && matches!(
                             frame.propagation,
                             FixturePlaceFramePropagation::Forward { .. }
                         )
-                }));
+                }).collect();
+                assert!(!forwarding.is_empty());
+                assert!(forwarding.iter().map(|frame| frame.index).collect::<std::collections::HashSet<_>>().len() == forwarding.len());
             } else {
                 assert!(
                     projection
