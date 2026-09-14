@@ -9756,8 +9756,35 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn grouped_scoped_vuho_child_is_distinct_and_traversed() {
-        let input = "mi viska la'e lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u";
+        #[invariant(true)]
+        #[derive(Default)]
+        struct WitnessCollector<'tree> {
+            hits: Vec<(&'tree generated::SumtiSyntax, &'tree generated::SumtiSyntax, &'tree generated::SumtiSyntax)>,
+        }
+        impl<'tree> generated::TreeWalker<'tree> for WitnessCollector<'tree> {
+            #[requires(true)]
+            #[ensures(true)]
+            fn walk_sumti(&mut self, node: &'tree generated::SumtiSyntax) {
+                if let Some(simple) = generated_simple_sumti_from_sumti(node)
+                    && let generated::SumtiAtomSyntax::SumtiBase(base) = simple.base_sumti.as_ref()
+                    && let generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) = base
+                    && let Some(generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(attachment)) = &grouped.sumti.vuho_attachment
+                {
+                    self.hits.push((node, grouped.sumti.as_ref(), attachment.sumti_connection.sumti.as_ref()));
+                }
+                generated::walk::sumti(self, node);
+            }
+        }
+        let input = "mi viska la'e ke lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u";
         let syntax = parse_generated_zantufa_syntax(input);
+        let mut collector = WitnessCollector::default();
+        GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut collector);
+        assert_eq!(collector.hits.len(), 1, "exact grouped scoped-VUhO witness");
+        let index = GeneratedSyntaxIndex::new(&syntax).expect("syntax index");
+        let (parent, _enclosed, child) = collector.hits[0];
+        let parent_id = SumtiNodeId(index.id_for_tree_node(parent).expect("parent id"));
+        let child_id = SumtiNodeId(index.id_for_tree_node(child).expect("child id"));
+        assert_ne!(parent_id, child_id);
         let debug = format!("{syntax:?}");
         assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
         let projection = analyze_generated_references(&syntax)
