@@ -29,7 +29,6 @@ use jbotci_syntax::generated_model::{
     TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseModalSyntax,
     TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
     ZantufaJoikChainedPlaceTagTermSyntax, ZantufaXoiAdverbialTermSyntax,
-    ZantufaGroupedSumtiSyntax,
 };
 
 /// A borrowed tag-led term leaf.
@@ -281,7 +280,6 @@ pub(crate) fn bound_term_continuation_operand(
 #[invariant(::ForethoughtTermset(_) => true)]
 #[invariant(::NuhiTermset(_) => true)]
 #[invariant(::KeTermset(_) => true)]
-#[invariant(::ZantufaGroupedSumti(_) => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     PlaceTaggedSumtiTerm(&'syntax PlaceTaggedSumtiTermSyntax),
@@ -302,7 +300,6 @@ pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     ForethoughtTermset(&'syntax ForethoughtTermsetSyntax),
     NuhiTermset(&'syntax NuhiTermsetSyntax),
     KeTermset(&'syntax KeTermsetSyntax),
-    ZantufaGroupedSumti(&'syntax ZantufaGroupedSumtiSyntax),
 }
 
 impl<'syntax> GeneratedSimpleTermRef<'syntax> {
@@ -337,7 +334,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             SimpleTermSyntax::ForethoughtTermset(term) => Self::ForethoughtTermset(term),
             SimpleTermSyntax::NuhiTermset(term) => Self::NuhiTermset(term),
             SimpleTermSyntax::KeTermset(term) => Self::KeTermset(term),
-            SimpleTermSyntax::ZantufaGroupedSumti(term) => Self::ZantufaGroupedSumti(term),
         }
     }
 
@@ -413,7 +409,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             TermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             TermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             TermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
-            TermSyntax::ZantufaGroupedSumti(term) => Some(Self::ZantufaGroupedSumti(term)),
         }
     }
 
@@ -625,8 +620,7 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             | GeneratedSimpleTermRef::ZantufaGekTermset(_)
             | GeneratedSimpleTermRef::ForethoughtTermset(_)
             | GeneratedSimpleTermRef::NuhiTermset(_)
-            | GeneratedSimpleTermRef::KeTermset(_)
-            | GeneratedSimpleTermRef::ZantufaGroupedSumti(_) => None,
+            | GeneratedSimpleTermRef::KeTermset(_) => None,
         }
     }
 

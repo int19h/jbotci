@@ -110,6 +110,7 @@ pub mod generated_model {
         sumti_bound: SumtiBoundSyntax;
         sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiBaseSyntax;
+        zantufa_grouped_sumti: ZantufaGroupedSumtiSyntax;
         // The description/quantifier operand tier boundary (epoch 9, #552 / #837 SUM-02).
         // `description_leading_operand` is `sumti_base` restricted to the camxes `sumti_6`
         // tier.  It is declared here, rather than being written inline at its two consuming
@@ -1690,8 +1691,6 @@ pub mod generated_model {
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
         nuhi_termset,
-        /// Uses rolling Zantufa's explicit `ke ... ke'e` grouped-sumti product at term position.
-        when feature(ZantufaTerms) zantufa_grouped_sumti,
         /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
         ke_termset,
     }
@@ -1910,8 +1909,6 @@ pub mod generated_model {
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
         nuhi_termset,
-        /// Uses explicit rolling Zantufa `ke ... ke'e` grouped sumti.
-        when feature(ZantufaTerms) zantufa_grouped_sumti,
         /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
         ke_termset,
     }
@@ -2633,7 +2630,7 @@ pub mod generated_model {
     /// Transparent product node for term; preserves the `sumti` component.
     rule "term" sumti_term(sumti) -> struct {
         /// The shared sumti child syntax node.
-        field sumti <- arc(sumti);
+        field sumti <- arc(sumti.reject_output(crate::grammar::baseline_termset::ZantufaGroupedSumtiTermRejection));
     }
 
     /// Product node for place tag; preserves `fa` and `sumti` in source order.
@@ -3161,7 +3158,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier) -> enum {
+    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier, zantufa_grouped_sumti) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -3196,6 +3193,8 @@ pub mod generated_model {
         quoted_sumti,
         /// Uses the `pro_sumti` product form, whose payload preserves `koha`.
         pro_sumti,
+        /// Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.
+        when feature(ZantufaTerms) zantufa_grouped_sumti,
     }
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
@@ -7767,7 +7766,7 @@ pub mod generated_model {
         /// The complete shared inner sumti.
         field sumti <- arc(sumti);
         /// Optional elidable grouping closer.
-        field kehe <- cmavo(Kehe).wf();
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,

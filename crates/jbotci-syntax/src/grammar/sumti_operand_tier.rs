@@ -77,7 +77,8 @@ pub(crate) fn sumti_base_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
         | SumtiBaseSyntax::NumberSumti(_)
         | SumtiBaseSyntax::LerfuStringSumti(_)
         | SumtiBaseSyntax::QuotedSumti(_)
-        | SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
+        | SumtiBaseSyntax::ProSumti(_)
+        | SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
@@ -104,7 +105,8 @@ pub(crate) fn recovered_sumti_base_tier(
         | recovered::SumtiBaseSyntax::NumberSumti(_)
         | recovered::SumtiBaseSyntax::LerfuStringSumti(_)
         | recovered::SumtiBaseSyntax::QuotedSumti(_)
-        | recovered::SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
+        | recovered::SumtiBaseSyntax::ProSumti(_)
+        | recovered::SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 

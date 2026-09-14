@@ -31,7 +31,7 @@ use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
     BalancedTermsetOperandsSyntax, GekTermsetCandidateSyntax, GikPairedTermsetOperandsSyntax,
-    NormalTermSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
+    NormalTermSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiForethoughtSyntax, SumtiSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
     ZantufaForethoughtTermsetFirstBranchSyntax, ZantufaGekTermsetCandidateSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
@@ -53,6 +53,44 @@ pub(crate) struct BaselineGekSumtiRejection;
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZantufaBaselineGekSumtiRejection;
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ZantufaGroupedSumtiTermRejection;
+
+#[contract_trait]
+impl OutputRejection<SumtiSyntax> for ZantufaGroupedSumtiTermRejection {
+    fn rejected_name(&self) -> &'static str {
+        "elided Zantufa grouped-sumti closer at term position"
+    }
+
+    fn rejects(&self, output: &SumtiSyntax) -> bool {
+        let base = &output.base_sumti;
+        let leading = &base.leading_sumti;
+        let bound = &leading.leading_sumti;
+        let forethought = &bound.leading_sumti;
+        let simple = match forethought.as_ref() {
+            SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
+            SumtiForethoughtSyntax::ForethoughtSumti(_) => return false,
+        };
+        matches!(simple.base_sumti.as_ref(), SumtiAtomSyntax::SumtiBase(base) if matches!(base, SumtiBaseSyntax::ZantufaGroupedSumti(grouped) if grouped.kehe.is_none()))
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::SumtiSyntax>>
+    for ZantufaGroupedSumtiTermRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "elided Zantufa grouped-sumti closer at term position"
+    }
+
+    fn rejects(&self, output: &recovered::Recovered<recovered::SumtiSyntax>) -> bool {
+        // Recovery cannot prove the mandatory closer and therefore fails closed.
+        let _ = output;
+        true
+    }
+}
 
 
 #[requires(true)]
@@ -180,8 +218,7 @@ fn is_bare_sumti_term(term: &TermSyntax) -> bool {
         | TermSyntax::ZantufaGekTermset(_)
         | TermSyntax::ForethoughtTermset(_)
         | TermSyntax::NuhiTermset(_)
-        | TermSyntax::KeTermset(_)
-        | TermSyntax::ZantufaGroupedSumti(_) => false,
+        | TermSyntax::KeTermset(_) => false,
     }
 }
 
@@ -242,8 +279,7 @@ fn recovered_is_bare_sumti_term(term: &recovered::TermSyntax) -> bool {
         | recovered::TermSyntax::ZantufaGekTermset(_)
         | recovered::TermSyntax::ForethoughtTermset(_)
         | recovered::TermSyntax::NuhiTermset(_)
-        | recovered::TermSyntax::KeTermset(_)
-        | recovered::TermSyntax::ZantufaGroupedSumti(_) => false,
+        | recovered::TermSyntax::KeTermset(_) => false,
     }
 }
 
