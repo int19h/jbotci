@@ -9545,12 +9545,24 @@ mod tests {
                 && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value, fa))
         }).expect("typed enclosing linked unit");
         let linked_raw = index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap();
-        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).count(), 1);
+        let linked_matches: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).collect();
+        assert_eq!(linked_matches.len(), 1);
+        let linked_semantic = linked_matches[0];
         assert_eq!(fixture_span_key_for_generated_node(index, index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap()).unwrap(), span_key(6, 21));
         let projection = analysis.fixture_projection();
         let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
         assert_eq!(fixture_span_key_for_generated_node(index, fa_raw).unwrap(), span_key(6, 8));
-        let fa_frame = projection.frames.iter().find(|frame| frame.node == span_key(6, 8)).expect("FA outer frame is present");
+        let fa_candidates: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == fa_raw).collect();
+        assert_eq!(fa_candidates.len(), 1, "FA raw candidates: {:?}", fa_candidates);
+        let fa_frame = fa_candidates[0];
+        assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
+        let inner_candidates: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node != fa_raw).collect();
+        let inner_word = inner_candidates.first().expect("FA inner word semantic frame");
+        assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
+        assert_ne!(inner_word.node, fa_raw);
+        assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id));
+        assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
+        let fa_frame = projection.frames.iter().find(|frame| frame.index == fa_frame.id.0).expect("FA outer frame projection");
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
         assert_eq!(fa_frame.selbri, None);
         assert!(matches!(
@@ -9587,6 +9599,16 @@ mod tests {
         let fa = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
             Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => Some(value), _ => None,
         }).expect("typed FA owner");
+        let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
+        let linked_owner = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
+            Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value))
+                if value.linkargs.is_some()
+                    && matches!(value.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(inner) if std::ptr::eq(inner, fa)) => Some(value),
+            _ => None,
+        }).expect("typed enclosing linked owner");
+        let linked_raw = index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked_owner)).unwrap();
+        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit).count(), 1);
+        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).count(), 1);
         let mut inner_ids = InnerIds { index, ids: HashSet::new() };
         generated::TreeNode::visit_in_order(fa.inner_unit.as_ref(), &mut inner_ids);
         let inner_frame_ids: HashSet<_> = analysis.place_analysis.frames().iter().filter(|frame| inner_ids.ids.contains(&frame.node)).map(|frame| frame.id.0).collect();
@@ -9597,6 +9619,7 @@ mod tests {
         assert_eq!(inners.len(), 1);
         let outer = outers[0];
         let inner = inners[0];
+        assert!(inner_frame_ids.contains(&inner.index), "actual inner KE/word frame is in generated inner subtree");
         assert_ne!(outer.index, inner.index);
         assert!(matches!(outer.propagation, FixturePlaceFramePropagation::None));
         let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
