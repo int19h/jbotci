@@ -479,6 +479,45 @@ priority_tail_mapping!(
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StandaloneAtomRejection;
 
+/// Enclosed JAI has a narrower ownership policy than the standalone entry.
+/// The parser must still fail closed for every uncertain or tagged product;
+/// this marker keeps that policy explicit at the generated alias boundary.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct EnclosedAtomRejection;
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUnitSyntax>
+    for EnclosedAtomRejection
+{
+    fn rejected_name(&self) -> &'static str { "unowned enclosed Zantufa atom" }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &model::ZantufaForethoughtTanruUnitSyntax) -> bool { true }
+    fn rejects_in_dialect(
+        &self,
+        value: &model::ZantufaForethoughtTanruUnitSyntax,
+        dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        strict_gek_projection(value, &dialect) != ZantufaTanruAtomPresence::Present
+    }
+}
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<recovered::ZantufaForethoughtTanruUnitSyntax>
+    for EnclosedAtomRejection
+{
+    fn rejected_name(&self) -> &'static str { "unproven enclosed Zantufa atom" }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &recovered::ZantufaForethoughtTanruUnitSyntax) -> bool { true }
+    fn rejects_in_dialect(
+        &self,
+        value: &recovered::ZantufaForethoughtTanruUnitSyntax,
+        dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        recovered_gek_projection(value, &dialect) != ZantufaTanruAtomPresence::Present
+    }
+}
+
 #[bityzba::contract_trait]
 impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUnitSyntax>
     for StandaloneAtomRejection
@@ -2188,6 +2227,7 @@ mod tests {
             assert!(PriorityTailRejection.rejects_in_dialect(&nested, flags));
         }
     }
+
 
     #[test]
     #[requires(true)]
