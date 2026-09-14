@@ -264,6 +264,24 @@ def test_warnings_diagnostics_displays_and_syntax_traces_remain_typed() -> None:
     assert "👉" in display.context
 
 
+def test_fa_generated_union_is_present_on_strict_and_recovered_parse_surfaces() -> None:
+    """The FA arm must be constructible and traversable in both projections."""
+
+    strict_name = "TanruUnitAtomBaseSyntaxZantufaFaTanruUnit"
+    recovered_name = strict_name
+    assert hasattr(syntax.strict, strict_name)
+    assert hasattr(syntax.recovered, recovered_name)
+    strict_source = native._syntax_STRICT_SOURCE
+    recovered_source = native._syntax_RECOVERED_SOURCE
+    assert strict_name in strict_source
+    assert recovered_name in recovered_source
+
+    parsed = jbotci.parse("fa mi")
+    assert parsed.parse_tree is not None
+    recovered = jbotci.parse_recovered("fa mi")
+    assert recovered.parse_tree is not None
+
+
 def test_strict_failure_exception_matches_non_raising_attempt() -> None:
     text = "mi tavla vau vau do"
     words = morphology.segment(text)
