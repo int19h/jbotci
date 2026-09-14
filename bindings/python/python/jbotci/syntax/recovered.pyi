@@ -17784,7 +17784,7 @@ class ZantufaAtomJoikSyntax:
 
 @final
 class ZantufaForethoughtTanruUnitSyntax:
-    'Source GEK product, zantufa-1.9999.peg:52; both identities share this type.\n\nThis unconnected construction declaration is not yet an eligible route.\nThe source negative boundary is checked before the optional terminator;\ncomplete-output identities must still be installed before any consumer\nis connected.'
+    'Source GEK product, zantufa-1.9999.peg:52; both identities share this type.\n\nThis construction is routed through the shared atom entry and participates in\nthe guarded C-e classifier; its public consumers remain feature-gated.\nThe source negative boundary is checked before the optional terminator;\ncomplete-output identities must still be installed before any consumer\nis connected.'
     __match_args__: ClassVar[tuple[Literal['nahe'], Literal['gek'], Literal['leading_selbri'], Literal['branches'], Literal['gihi']]]
     def __new__(
         cls,
@@ -18177,6 +18177,20 @@ class TanruUnitAtomBaseSyntaxJaiModalTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class TanruUnitAtomBaseSyntaxZantufaFaTanruUnit:
+    'A fully proven source FA prefix over a shared inner atom.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_fa_tanru_unit_candidate']]]
+    def __new__(cls, zantufa_fa_tanru_unit_candidate: RecoveredField[ZantufaFaTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxZantufaFaTanruUnit: ...
+    @property
+    def zantufa_fa_tanru_unit_candidate(self) -> RecoveredField[ZantufaFaTanruUnitSyntax]:
+        'A fully proven source FA prefix over a shared inner atom.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit:
     'The same completed, guarded GEK identity used by the shared entry.\nEarlier entry rejection cannot be bypassed through this model arm.'
     __match_args__: ClassVar[tuple[Literal['zantufa_forethought_tanru_unit_candidate']]]
@@ -18415,7 +18429,7 @@ class TanruUnitAtomBaseSyntaxGroupedTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxMehoiTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
+TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxZantufaFaTanruUnit | TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxMehoiTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
 
 @final
 class ZantufaKeCoGroupedTanruUnitSyntax:
