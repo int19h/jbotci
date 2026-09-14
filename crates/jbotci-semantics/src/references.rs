@@ -9788,10 +9788,14 @@ mod tests {
         let places = PlaceAnalysis::analyze_generated(&index, &syntax);
         let mut builder = GeneratedDiscourseReferenceBuilder::new(&index, &places);
         GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut builder);
-        assert_eq!(builder.sumti_mentions.iter().filter(|mention| mention.target == child_id).count(), 1);
+        assert_eq!(builder.sumti_mentions.iter().filter(|mention| mention.source == child_id && mention.target == child_id).count(), 1);
         let child_keys = generated_argument_letter_keys(child);
         assert!(!child_keys.is_empty());
-        assert!(child_keys.iter().all(|key| builder.letter_sumti_mentions.get(key).is_some_and(|mentions| mentions.iter().any(|mention| mention.target == child_id))));
+        for key in child_keys {
+            let mentions = builder.letter_sumti_mentions.get(&key).expect("child antecedent registered");
+            assert_eq!(mentions.iter().filter(|mention| mention.source == child_id && mention.target == child_id).count(), 1);
+            assert!(!mentions.iter().any(|mention| mention.source == child_id && mention.target == parent_id));
+        }
         let debug = format!("{syntax:?}");
         assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
         let projection = analyze_generated_references(&syntax)
