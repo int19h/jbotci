@@ -9556,15 +9556,11 @@ mod tests {
         assert_eq!(fa_candidates.len(), 1, "FA raw candidates: {:?}", fa_candidates);
         let fa_frame = fa_candidates[0];
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
-        let word = match fa.inner_unit.base.as_ref() {
-            generated::TanruUnitAtomBaseSyntax::WordTanruUnit(word) => word,
-            _ => panic!("expected FA inner word"),
-        };
-        let word_raw = index.id_of(GeneratedSyntaxNodeRef::WordTanruUnitSyntax(word)).unwrap();
-        let word_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.kind == PlaceFrameKind::TanruUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(9, 5))).collect();
+        let inner_base_raw = index.id_for_tree_node(fa.inner_unit.base.as_ref()).unwrap();
+        let word_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == inner_base_raw && frame.kind == PlaceFrameKind::TanruUnit).collect();
         assert_eq!(word_frames.len(), 1);
         let inner_word = word_frames[0];
-        assert_eq!(fixture_span_key_for_generated_node(index, word_raw).unwrap(), span_key(9, 5));
+        assert_eq!(fixture_span_key_for_generated_node(index, inner_base_raw).unwrap(), span_key(9, 5));
         assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
         assert_ne!(inner_word.node, fa_raw);
         assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id));
