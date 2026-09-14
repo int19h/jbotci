@@ -150,6 +150,7 @@ pub mod generated_model {
         cei_free_tanru_unit: TanruUnitSyntax;
         zantufa_tanru_unit_atom_entry: TanruUnitAtomSyntax;
         zantufa_forethought_tanru_unit_candidate: ZantufaForethoughtTanruUnitSyntax;
+        zantufa_enclosed_gek_candidate: ZantufaForethoughtTanruUnitSyntax;
         zantufa_fa_tanru_unit_candidate: ZantufaFaTanruUnitSyntax;
         // The BE/BEI linked-argument ladder is the term ladder's shape at the link site, and it
         // belongs here for the same reason: `linkargs` -> `linked_term` -> `bound_linked_term` ->
@@ -7793,6 +7794,11 @@ pub mod generated_model {
         zantufa_forethought_tanru_unit(co_selbri, zantufa_tcita_selci, zantufa_boundary_term)
             .reject_output(crate::grammar::zantufa_atoms::StandaloneAtomRejection)
             .recursive_output(zantufa_forethought_tanru_unit_candidate);
+
+    alias "Zantufa enclosed atom" zantufa_enclosed_gek_candidate(co_selbri, zantufa_tcita_selci, zantufa_boundary_term) =
+        zantufa_forethought_tanru_unit(co_selbri, zantufa_tcita_selci, zantufa_boundary_term)
+            .reject_output(crate::grammar::zantufa_atoms::EnclosedAtomRejection)
+            .recursive_output(zantufa_enclosed_gek_candidate);
 
     // G1: retry the complete standalone identity at each actual SE boundary.
     // No greedy conversion-product fallback is reachable through this entry.

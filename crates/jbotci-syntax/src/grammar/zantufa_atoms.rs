@@ -498,7 +498,7 @@ impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUni
         value: &model::ZantufaForethoughtTanruUnitSyntax,
         dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        strict_gek_projection(value, &dialect) != ZantufaTanruAtomPresence::Present
+        enclosed_presence_from_strict_facts(strict_gek_facts(value)) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -514,7 +514,26 @@ impl super::generated_runtime::OutputRejection<recovered::ZantufaForethoughtTanr
         value: &recovered::ZantufaForethoughtTanruUnitSyntax,
         dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        recovered_gek_projection(value, &dialect) != ZantufaTanruAtomPresence::Present
+        enclosed_presence_from_recovered_facts(recovered_gek_facts(value)) != ZantufaTanruAtomPresence::Present
+    }
+}
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>>
+    for EnclosedAtomRejection
+{
+    fn rejected_name(&self) -> &'static str { "unproven enclosed Zantufa atom" }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>) -> bool { true }
+    fn rejects_in_dialect(
+        &self,
+        value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
+        dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        match value {
+            recovered::Recovered::Valid(value) => enclosed_presence_from_recovered_facts(recovered_gek_facts(value)) != ZantufaTanruAtomPresence::Present,
+            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
+        }
     }
 }
 
@@ -903,6 +922,8 @@ pub(crate) struct StrictGekFacts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RecoveredGekFacts {
     pub uncertain: bool,
+    pub head_is_ga: bool,
+    pub head_is_guha: bool,
     pub has_nahe: bool,
     pub has_bo: bool,
     pub branch_count: usize,
@@ -916,12 +937,48 @@ fn recovered_gek_facts(
 ) -> RecoveredGekFacts {
     let mut evidence = RequiredSubtreeEvidence::default();
     recovered::TreeNode::visit_in_order(candidate, &mut evidence);
+    let (head_is_ga, head_is_guha) = parsed_value(&candidate.gek)
+        .and_then(|gek| parsed_value(&gek.body))
+        .and_then(|body| match body {
+            recovered::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => {
+                parsed_value(opener).map(|opener| (
+                    parsed_value(&opener.head.value).is_some_and(|token| token.is_selmaho(jbotci_morphology::Selmaho::Ga)),
+                    parsed_value(&opener.head.value).is_some_and(|token| token.is_selmaho(jbotci_morphology::Selmaho::Guha)),
+                ))
+            }
+            _ => Some((false, false)),
+        })
+        .unwrap_or((false, false));
     RecoveredGekFacts {
         uncertain: evidence.uncertainty,
+        head_is_ga,
+        head_is_guha,
         has_nahe: candidate.nahe.is_some(),
         has_bo: parsed_value(&candidate.gek).is_some_and(|gek| gek.bo.is_some()),
         branch_count: candidate.branches.len(),
         has_gihi: candidate.gihi.is_some(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn enclosed_presence_from_strict_facts(facts: StrictGekFacts) -> ZantufaTanruAtomPresence {
+    if facts.head_is_ga || facts.head_is_guha {
+        ZantufaTanruAtomPresence::Present
+    } else {
+        ZantufaTanruAtomPresence::Unproven
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn enclosed_presence_from_recovered_facts(facts: RecoveredGekFacts) -> ZantufaTanruAtomPresence {
+    if facts.uncertain {
+        ZantufaTanruAtomPresence::Unproven
+    } else if facts.head_is_ga || facts.head_is_guha {
+        ZantufaTanruAtomPresence::Present
+    } else {
+        ZantufaTanruAtomPresence::Unproven
     }
 }
 
@@ -2226,6 +2283,37 @@ mod tests {
             nested.selbri = std::sync::Arc::new(recovered::Recovered::error(error));
             assert!(PriorityTailRejection.rejects_in_dialect(&nested, flags));
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn enclosed_rejection_preserves_recovered_uncertainty_boundary() {
+        use generated_runtime::OutputRejection;
+        let dialect = parse_dialect_definition("(+ZANTUFA-SELBRI)").unwrap();
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let words = syntax_tokens(&segment_words_with_modifiers("ga broda gi brode").unwrap(), &options);
+        let spanned = tokens::spanned_tokens(&words);
+        let eoi = spanned.last().unwrap().span.end;
+        let mut state = ParserState::new(&words, &options);
+        let parsed = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
+            generated_model::recovered_generated_co_selbri_parser(),
+            generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+            generated_model::recovered_generated_zantufa_boundary_term_parser(),
+            generated_model::recovered_generated_free_modifier_parser(),
+        )
+        .parse_with_state(
+            spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+            &mut state,
+        )
+        .into_result()
+        .expect("complete recovered candidate")
+        .into_shared();
+        let flags = generated_runtime::SyntaxGrammarDialect::from_options(&options);
+        let value = parsed.as_ref();
+        // A completed GA-family product is eligible in the enclosed route;
+        // uncertainty remains fail-closed through the recovered adapter.
+        assert!(!EnclosedAtomRejection.rejects_in_dialect(value, flags));
     }
 
 
