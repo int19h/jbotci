@@ -117,6 +117,22 @@ fn mehoi_is_a_one_word_atom_in_both_runtime_dialects() {
     }
 }
 
+#[test]
+#[ignore = "diagnostic: public no-tag enclosed JAI route currently does not win"]
+#[requires(true)]
+#[ensures(true)]
+fn jai_enclosed_public_route_regression() {
+    let source = "mi jai ga broda gi brode";
+    let definition = parse_dialect_definition("(zantufa)").expect("valid dialect");
+    let options = ParseOptions::default().with_dialect_definition(&definition);
+    let words = segment_words_with_modifiers(source).expect("valid morphology");
+    let parsed = parse_syntax_tree_with_source_and_options(&words, source, &options)
+        .expect("public route parses");
+    let mut visitor = PlacementVisitor::default();
+    model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
+    assert_eq!(visitor.jai.len(), 1, "expected no-tag enclosed JAI owner; tree={:?}; warnings={:?}", parsed.parse_tree, parsed.warnings);
+}
+
 #[invariant(true)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Placement {
