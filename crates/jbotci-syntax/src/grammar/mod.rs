@@ -1778,6 +1778,10 @@ impl<'tokens> ParserState<'tokens> {
         if !self.mark_syntax_diagnostic_observation_applied(observations.id) {
             return;
         }
+        // Replay is deliberately report-only: continuation candidates are
+        // branch-local state tied to the fresh continuation sentinel. A memo
+        // hit may reproduce the diagnostic DAG and ordinary candidates, but
+        // must not manufacture continuation expectations from an old frame.
         let mut pending = observations.observations.iter().rev().collect::<Vec<_>>();
         while let Some(observation) = pending.pop() {
             match observation.as_data() {
@@ -6047,6 +6051,27 @@ mod tests {
             }));
             assert!(result.is_err(), "mismatch {mismatch} must fail closed");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_restore_empty_checkpoint_clears_frame_and_replay_state() {
+        let mut state = ParserState::new(&[], &ParseOptions::default());
+        let checkpoint = state.diagnostic_checkpoint();
+        state.begin_syntax_memo_rule_frame();
+        state.observe_syntax_rule("empty-restore", 0);
+        state.record_diagnostic_candidate(SyntaxParseError::custom(
+            (0..0).into(),
+            "transient diagnostic".to_owned(),
+        ));
+        state.finish_syntax_memo_rule_frame();
+        assert!(!state.diagnostic_candidates.is_empty());
+        state.restore_diagnostics(checkpoint);
+        assert!(state.diagnostic_candidates.is_empty());
+        assert!(state.applied_syntax_diagnostic_log.is_empty());
+        assert!(state.replayed_syntax_diagnostic_observations.is_empty());
+        assert!(state.syntax_memo_rule_frames.is_empty());
     }
 
     #[test]
