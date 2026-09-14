@@ -7802,23 +7802,23 @@ pub mod generated_model {
 
     // G1: retry the complete standalone identity at each actual SE boundary.
     // No greedy conversion-product fallback is reachable through this entry.
-    alias "tanru unit" zantufa_tanru_unit_atom_entry(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_fa_tanru_unit_candidate) = choice((
+    alias "tanru unit" zantufa_tanru_unit_atom_entry(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate, zantufa_fa_tanru_unit_candidate) = choice((
         zantufa_forethought_tanru_unit_candidate.map_recovered_to(tanru_unit_atom),
         (selmaho(Se).wf(), zantufa_tanru_unit_atom_entry).map_recovered_to(tanru_unit_atom),
-        tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, free_modifier)).map_recovered_to(tanru_unit_atom),
+        tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate, zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, free_modifier)).map_recovered_to(tanru_unit_atom),
     )).recursive_output(zantufa_tanru_unit_atom_entry);
 
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate) -> struct {
+    rule "tanru unit" tanru_unit_atom(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, free_modifier)));
+        field base <- arc(tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate, zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, free_modifier)));
     }
 
     /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-    rule "tanru unit" tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_fa_tanru_unit_candidate) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(zantufa_tanru_unit_atom_entry, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, zantufa_selbri_entry, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs, zantufa_forethought_tanru_unit_candidate, zantufa_enclosed_gek_candidate, zantufa_fa_tanru_unit_candidate) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -7919,13 +7919,13 @@ pub mod generated_model {
     }
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
-    rule "modal conversion" jai_modal_tanru_unit(zantufa_tanru_unit_atom_entry, tense_modal) -> struct {
+    rule "modal conversion" jai_modal_tanru_unit(zantufa_tanru_unit_atom_entry, tense_modal, zantufa_enclosed_gek_candidate) -> struct {
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).wf();
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The same recursive atom used outside JAI, including SE, NAhE, NU and KE.
-        field inner_unit <- arc(zantufa_tanru_unit_atom_entry);
+        field inner_unit <- arc(choice((zantufa_enclosed_gek_candidate.map_recovered_to(tanru_unit_atom), zantufa_tanru_unit_atom_entry)));
     }
 
     /// Direct stage-0 fu'ivla atom. Morphology already owns the one-word payload;
