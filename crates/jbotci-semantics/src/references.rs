@@ -9572,6 +9572,20 @@ mod tests {
         let input = "mi cu fa ke broda be ko'e be'o ke'e be ko'a be'o";
         let syntax = parse_generated_zantufa_syntax(input);
         let analysis = analyze_generated_references(&syntax).expect("nested FA analyzes");
+        #[invariant(true)]
+        struct InnerIds<'a> { index: &'a GeneratedSyntaxIndex<'a>, ids: HashSet<RawSyntaxNodeId> }
+        impl<'tree, 'a> TreeVisitor<'tree> for InnerIds<'a> {
+            type Node = GeneratedSyntaxNodeRef<'tree>;
+            type Atom = GeneratedSyntaxAtomRef<'tree>;
+            fn enter_node(&mut self, node: Self::Node) { if let Some(id) = self.index.id_of(node) { self.ids.insert(id); } }
+        }
+        let index = &analysis.syntax_index;
+        let fa = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
+            Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => Some(value), _ => None,
+        }).expect("typed FA owner");
+        let mut inner_ids = InnerIds { index, ids: HashSet::new() };
+        generated::TreeNode::visit_in_order(fa.inner_unit.as_ref(), &mut inner_ids);
+        let inner_frame_ids: HashSet<_> = analysis.place_analysis.frames().iter().filter(|frame| inner_ids.ids.contains(&frame.node)).map(|frame| frame.id.0).collect();
         let projection = analysis.fixture_projection();
         let outers: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(6, 29)).collect();
         let inners: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(12, 5)).collect();
@@ -9608,6 +9622,10 @@ mod tests {
         }));
         assert!(!projection.assignments.iter().any(|assignment| {
             assignment.frame == outer.index && assignment.sumti == span_key(21, 4)
+        }));
+        assert!(!projection.assignments.iter().any(|assignment| {
+            inner_frame_ids.contains(&assignment.frame)
+                && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
         }));
     }
 
