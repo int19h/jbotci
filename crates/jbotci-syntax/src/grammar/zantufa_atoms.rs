@@ -868,7 +868,8 @@ impl ZantufaTanruAtomPresence {
 /// The GA-family partition implements design M1 and the adjudicated GUhA+BO
 /// class. Modifier-free JOIK BINARY uses its separately adjudicated table;
 /// other JOIK shapes and tag payloads remain Unproven. Warning splits and
-/// remaining proofs must be completed before any public route is connected.
+/// remaining winning-recovery proofs govern fixture acceptance; the guarded parser
+/// route is connected and remains fail-closed for unproven evidence.
 #[requires(true)]
 #[ensures(!dialect.zantufa_selbri_enabled -> ret == ZantufaTanruAtomPresence::Absent)]
 fn strict_standalone_presence(

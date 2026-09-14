@@ -7600,7 +7600,8 @@ pub mod generated_model {
 
     /// Source GEK product, zantufa-1.9999.peg:52; both identities share this type.
     ///
-    /// This unconnected construction declaration is not yet an eligible route.
+    /// This construction is routed through the shared atom entry and participates in
+    /// the guarded C-e classifier; its public consumers remain feature-gated.
     /// The source negative boundary is checked before the optional terminator;
     /// complete-output identities must still be installed before any consumer
     /// is connected.
