@@ -9785,6 +9785,13 @@ mod tests {
         let parent_id = SumtiNodeId(index.id_for_tree_node(parent).expect("parent id"));
         let child_id = SumtiNodeId(index.id_for_tree_node(child).expect("child id"));
         assert_ne!(parent_id, child_id);
+        let places = PlaceAnalysis::analyze_generated(&index, &syntax);
+        let mut builder = GeneratedDiscourseReferenceBuilder::new(&index, &places);
+        GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut builder);
+        assert_eq!(builder.sumti_mentions.iter().filter(|mention| mention.target == child_id).count(), 1);
+        let child_keys = generated_argument_letter_keys(child);
+        assert!(!child_keys.is_empty());
+        assert!(child_keys.iter().all(|key| builder.letter_sumti_mentions.get(key).is_some_and(|mentions| mentions.iter().any(|mention| mention.target == child_id))));
         let debug = format!("{syntax:?}");
         assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
         let projection = analyze_generated_references(&syntax)
