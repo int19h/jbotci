@@ -9622,12 +9622,18 @@ mod tests {
         assert_eq!(inners.len(), 1);
         let outer = outers[0];
         let inner = inners[0];
-        let inner_ke_frame = analysis.place_analysis.frames().iter().find(|frame| inner_frame_ids.contains(&frame.id.0) && frame.id.0 != inner.index).expect("actual inner KE semantic frame");
-        assert!(inner_frame_ids.contains(&inner_ke_frame.id.0), "actual inner KE frame participates in isolation set");
+        let group_raw = match fa.inner_unit.base.as_ref() {
+            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(group) => index.id_for_tree_node(group).unwrap(),
+            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(group) => index.id_for_tree_node(group).unwrap(),
+            _ => panic!("expected grouped KE inner unit"),
+        };
+        let inner_ke_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == group_raw && frame.kind == PlaceFrameKind::Forwarding).collect();
+        assert_eq!(inner_ke_frames.len(), 1);
+        assert!(inner_frame_ids.contains(&inner_ke_frames[0].id.0), "actual inner KE frame participates in isolation set");
         assert!(inner_frame_ids.contains(&inner.index), "actual inner KE/word frame is in generated inner subtree");
         let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
-        let outer_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.kind == PlaceFrameKind::TanruUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(6, 29))).expect("typed outer FA semantic frame");
-        let linked_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.kind == PlaceFrameKind::LinkedUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(6, 42))).expect("typed linked semantic frame");
+        let outer_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit).expect("typed outer FA semantic frame");
+        let linked_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).expect("typed linked semantic frame");
         assert_eq!(outer.index, outer_semantic.id.0);
         assert_eq!(linked.index, linked_semantic.id.0);
         assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == outer_semantic.id));
