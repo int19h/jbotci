@@ -173,6 +173,13 @@ fn jai_enclosed_public_route_regression() {
         model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
         assert!(visitor.jai.is_empty(), "tag/sumti control must remain tag-term: {source}");
     }
+    let wrapped = "mi jai se se ga broda gi brode";
+    let wrapped_words = segment_words_with_modifiers(wrapped).expect("valid wrapped-SE morphology");
+    if let Ok(wrapped_parsed) = parse_syntax_tree_with_source_and_options(&wrapped_words, wrapped, &options) {
+        let mut wrapped_visitor = PlacementVisitor::default();
+        model::TreeNode::visit_in_order(wrapped_parsed.parse_tree.as_ref(), &mut wrapped_visitor);
+        assert!(wrapped_visitor.jai.is_empty(), "wrapped-SE must not win the immediate enclosed JAI exception");
+    }
 }
 
 #[test]
