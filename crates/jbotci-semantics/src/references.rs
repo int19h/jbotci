@@ -9571,17 +9571,16 @@ mod tests {
         let syntax = parse_generated_zantufa_syntax(input);
         let analysis = analyze_generated_references(&syntax).expect("nested FA analyzes");
         let projection = analysis.fixture_projection();
-        let outer = projection
-            .frames
-            .iter()
-            .find(|frame| frame.node == span_key(6, 29))
-            .expect("outer FA frame");
-        let inner = projection
-            .frames
-            .iter()
-            .find(|frame| frame.node == span_key(12, 5))
-            .expect("inner broda frame");
+        let outers: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(6, 29)).collect();
+        let inners: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(12, 5)).collect();
+        assert_eq!(outers.len(), 1);
+        assert_eq!(inners.len(), 1);
+        let outer = outers[0];
+        let inner = inners[0];
         assert_ne!(outer.index, inner.index);
+        assert!(matches!(outer.propagation, FixturePlaceFramePropagation::None));
+        let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
+        assert!(matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index));
         assert!(projection.assignments.iter().any(|assignment| {
             assignment.frame == inner.index
                 && assignment.sumti == span_key(21, 4)
@@ -9596,9 +9595,17 @@ mod tests {
                 && assignment.term.is_none()
                 && assignment.source == AssignmentSource::LinkedSumti
         }));
+        assert!(projection.assignments.iter().any(|assignment| {
+            assignment.frame == outer.index
+                && assignment.sumti == span_key(39, 4)
+                && assignment.source == AssignmentSource::LinkedSumti
+        }));
         assert!(!projection.assignments.iter().any(|assignment| {
             assignment.frame == inner.index
                 && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
+        }));
+        assert!(!projection.assignments.iter().any(|assignment| {
+            assignment.frame == outer.index && assignment.sumti == span_key(21, 4)
         }));
     }
 
