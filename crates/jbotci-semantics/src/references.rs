@@ -9572,7 +9572,8 @@ mod tests {
             fa_frame.propagation,
             FixturePlaceFramePropagation::None
         ));
-        let inner = projection.frames.iter().find(|frame| frame.node == span_key(9, 5)).expect("FA traversal retains inner word frame");
+        let inner = projection.frames.iter().find(|frame| frame.index == inner_word.id.0).expect("FA traversal retains inner word frame");
+        assert_eq!(inner.node, span_key(9, 5));
         assert_ne!(inner.index, fa_frame.index);
         assert_eq!(fa_frame.tanru_unit, Some(span_key(6, 8)));
         let local_x2: Vec<_> = projection.assignments.iter().filter(|a| a.frame == fa_frame.index && a.sumti == span_key(18, 4) && a.slot == FixturePlaceSlot::Numbered { place: 2 } && a.term.is_none() && a.source == AssignmentSource::LinkedSumti).collect();
