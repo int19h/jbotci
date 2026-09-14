@@ -6225,6 +6225,34 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 // self-mention or split relative-clause attachment onto a fresh node.
                 let inner = &grouped.sumti;
                 let handled = self.visit_sumti_grouped(argument_id, &inner.base_sumti);
+                if let Some(attachment) = &inner.vuho_attachment {
+                    match attachment {
+                        generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
+                            attachment,
+                        ) => self.visit_relative_clause_list(
+                            argument_id,
+                            argument_id,
+                            &attachment.relative_clauses,
+                        ),
+                        generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
+                            attachment,
+                        ) => {
+                            self.visit_relative_clause_list(
+                                argument_id,
+                                argument_id,
+                                &attachment.relative_clauses,
+                            );
+                            self.visit_sumti_grouped(
+                                argument_id,
+                                &attachment.sumti_connection.sumti.base_sumti,
+                            );
+                        }
+                        generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
+                            _,
+                        ) => {}
+                    }
+                }
+                self.note_letter_sumti_antecedent(argument_id, inner);
                 handled
             }
         }
