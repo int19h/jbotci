@@ -1206,6 +1206,35 @@ pub(super) struct ParserState<'tokens> {
     _tokens: PhantomData<&'tokens ()>,
 }
 
+/// Owned parser-local state suspended while a strict observational probe runs.
+/// Probes must not publish memo, recovery, diagnostic, or continuation effects
+/// into their parent parse; moving these stores is both cheaper and safer than
+/// cloning corpus-sized maps.
+#[invariant(true)]
+struct StrictObserveJournal<'tokens> {
+    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
+    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
+    syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
+    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
+    recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
+    syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
+    replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
+    applied_syntax_diagnostic_log: Vec<SyntaxDiagnosticObservationId>,
+    next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
+    diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
+    diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
+    continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
+    warnings: Vec<SyntaxWarning>,
+    consumed_recovery_directives: usize,
+    effective_fail_token_indices: Vec<usize>,
+    active_recovery_directive: Option<ActiveRecoveryDirective>,
+    abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
+    completed_recovery_boundary_location: Option<usize>,
+    recovery_checkpoint_collection: Option<RecoveryCheckpointCollection>,
+    continuation_sentinel_index: Option<usize>,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
+}
+
 #[invariant(
     self.syntax_location_byte_offsets.is_empty()
         || self.syntax_location_byte_offsets.len() == self.anchor_token_identities.len() + 1,
@@ -1225,6 +1254,79 @@ pub(super) struct ParserState<'tokens> {
     "abandoned recovery ranges are ordered and disjoint"
 )]
 impl<'tokens> ParserState<'tokens> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn begin_strict_observe(&mut self) -> StrictObserveJournal<'tokens> {
+        StrictObserveJournal {
+            syntax_memo: std::mem::take(&mut self.syntax_memo),
+            syntax_failure_memo: std::mem::take(&mut self.syntax_failure_memo),
+            syntax_memo_in_progress: std::mem::take(&mut self.syntax_memo_in_progress),
+            syntax_recovery_memo_in_progress: std::mem::take(
+                &mut self.syntax_recovery_memo_in_progress,
+            ),
+            recovery_memo_trial: self.recovery_memo_trial.take(),
+            syntax_memo_rule_frames: std::mem::take(&mut self.syntax_memo_rule_frames),
+            replayed_syntax_diagnostic_observations: std::mem::take(
+                &mut self.replayed_syntax_diagnostic_observations,
+            ),
+            applied_syntax_diagnostic_log: std::mem::take(
+                &mut self.applied_syntax_diagnostic_log,
+            ),
+            next_syntax_diagnostic_observation_frame_id: std::mem::replace(
+                &mut self.next_syntax_diagnostic_observation_frame_id,
+                NonZeroUsize::MIN,
+            ),
+            diagnostic_candidates: std::mem::take(&mut self.diagnostic_candidates),
+            diagnostic_candidate_hash_buckets: std::mem::take(
+                &mut self.diagnostic_candidate_hash_buckets,
+            ),
+            continuation_diagnostic_candidates: std::mem::take(&mut self.continuation_diagnostic_candidates),
+            warnings: std::mem::take(&mut self.warnings),
+            consumed_recovery_directives: std::mem::replace(
+                &mut self.consumed_recovery_directives,
+                0,
+            ),
+            effective_fail_token_indices: std::mem::take(&mut self.effective_fail_token_indices),
+            active_recovery_directive: self.active_recovery_directive.take(),
+            abandoned_recovery_ranges: std::mem::take(&mut self.abandoned_recovery_ranges),
+            completed_recovery_boundary_location: self
+                .completed_recovery_boundary_location
+                .take(),
+            recovery_checkpoint_collection: self.recovery_checkpoint_collection.take(),
+            continuation_sentinel_index: self.continuation_sentinel_index.take(),
+            continuation_time_limit: self.continuation_time_limit.take(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn end_strict_observe(&mut self, journal: StrictObserveJournal<'tokens>) {
+        self.syntax_memo = journal.syntax_memo;
+        self.syntax_failure_memo = journal.syntax_failure_memo;
+        self.syntax_memo_in_progress = journal.syntax_memo_in_progress;
+        self.syntax_recovery_memo_in_progress = journal.syntax_recovery_memo_in_progress;
+        self.recovery_memo_trial = journal.recovery_memo_trial;
+        self.syntax_memo_rule_frames = journal.syntax_memo_rule_frames;
+        self.replayed_syntax_diagnostic_observations =
+            journal.replayed_syntax_diagnostic_observations;
+        self.applied_syntax_diagnostic_log = journal.applied_syntax_diagnostic_log;
+        self.next_syntax_diagnostic_observation_frame_id =
+            journal.next_syntax_diagnostic_observation_frame_id;
+        self.diagnostic_candidates = journal.diagnostic_candidates;
+        self.diagnostic_candidate_hash_buckets = journal.diagnostic_candidate_hash_buckets;
+        self.continuation_diagnostic_candidates = journal.continuation_diagnostic_candidates;
+        self.warnings = journal.warnings;
+        self.consumed_recovery_directives = journal.consumed_recovery_directives;
+        self.effective_fail_token_indices = journal.effective_fail_token_indices;
+        self.active_recovery_directive = journal.active_recovery_directive;
+        self.abandoned_recovery_ranges = journal.abandoned_recovery_ranges;
+        self.completed_recovery_boundary_location =
+            journal.completed_recovery_boundary_location;
+        self.recovery_checkpoint_collection = journal.recovery_checkpoint_collection;
+        self.continuation_sentinel_index = journal.continuation_sentinel_index;
+        self.continuation_time_limit = journal.continuation_time_limit;
+    }
+
     #[requires(true)]
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
@@ -5856,6 +5958,86 @@ mod tests {
 
         let deadline = Some(ContinuationTimeLimit::new(Duration::from_secs(1)));
         assert!(!recovery_reachability_filter_enabled(&ordinary, deadline));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_observe_child_state_is_nested_and_parent_state_is_restored() {
+        let (mut state, _store) = boundary_recovery_test_state();
+        state.syntax_memo_scope = SyntaxMemoScope::DescriptionRelative;
+        state
+            .syntax_memo_in_progress
+            .insert(("parent", 0, SyntaxMemoScope::Ordinary));
+        state.syntax_recovery_memo_in_progress.insert((
+            "parent-recovery",
+            1,
+            SyntaxMemoScope::Ordinary,
+            0,
+        ));
+        let parent_consumed_recovery_directives = state.consumed_recovery_directives;
+        let parent_effective_fail_token_indices = state.effective_fail_token_indices.clone();
+        state.continuation_sentinel_index = Some(3);
+        let parent_frame_id = state.next_syntax_diagnostic_observation_frame_id;
+
+        let outer = state.begin_strict_observe();
+        assert!(state.recovery_memo_trial.is_none());
+        assert!(state.syntax_memo_in_progress.is_empty());
+        assert!(state.syntax_recovery_memo_in_progress.is_empty());
+        assert_eq!(state.consumed_recovery_directives, 0);
+        assert!(state.effective_fail_token_indices.is_empty());
+        assert!(state.continuation_sentinel_index.is_none());
+        assert_eq!(state.syntax_memo_scope, SyntaxMemoScope::DescriptionRelative);
+
+        state
+            .syntax_memo_in_progress
+            .insert(("outer-child", 4, SyntaxMemoScope::Ordinary));
+        state.consumed_recovery_directives = 1;
+        state.effective_fail_token_indices.push(4);
+        let inner = state.begin_strict_observe();
+        assert!(state.syntax_memo_in_progress.is_empty());
+        state
+            .syntax_memo_in_progress
+            .insert(("inner-child", 5, SyntaxMemoScope::Ordinary));
+        state.consumed_recovery_directives = 1;
+        state.effective_fail_token_indices.push(5);
+        state.end_strict_observe(inner);
+        assert_eq!(state.syntax_memo_in_progress.len(), 1);
+        assert!(state.syntax_memo_in_progress.contains(&(
+            "outer-child",
+            4,
+            SyntaxMemoScope::Ordinary
+        )));
+        assert_eq!(state.consumed_recovery_directives, 1);
+        assert_eq!(state.effective_fail_token_indices, [4]);
+
+        state.end_strict_observe(outer);
+        assert!(state.recovery_memo_trial.is_some());
+        assert!(state.syntax_memo_in_progress.contains(&(
+            "parent",
+            0,
+            SyntaxMemoScope::Ordinary
+        )));
+        assert!(state.syntax_recovery_memo_in_progress.contains(&(
+            "parent-recovery",
+            1,
+            SyntaxMemoScope::Ordinary,
+            0
+        )));
+        assert_eq!(
+            state.consumed_recovery_directives,
+            parent_consumed_recovery_directives
+        );
+        assert_eq!(
+            state.effective_fail_token_indices,
+            parent_effective_fail_token_indices
+        );
+        assert_eq!(state.continuation_sentinel_index, Some(3));
+        assert_eq!(
+            state.next_syntax_diagnostic_observation_frame_id,
+            parent_frame_id
+        );
+        assert_eq!(state.syntax_memo_scope, SyntaxMemoScope::DescriptionRelative);
     }
 
     #[requires(true)]

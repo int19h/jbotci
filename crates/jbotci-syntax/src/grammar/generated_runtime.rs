@@ -104,6 +104,27 @@ where
     .boxed()
 }
 
+/// Run a parser as an observational strict probe.  Cursor movement and every
+/// parser-local memo/recovery/diagnostic side effect are discarded regardless
+/// of success, while the probe's success or failure is retained.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn strict_observe<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let before = input.save();
+        let journal = input.state().begin_strict_observe();
+        let result = input.parse(&parser).map(|_| ());
+        input.rewind(before);
+        input.state().end_strict_observe(journal);
+        result
+    })
+    .boxed()
+}
+
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct VocativeMarkerWordsSyntax {

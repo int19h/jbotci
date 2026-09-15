@@ -5955,6 +5955,15 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )
+    } else if method.method == "strict_observe" && method.args.is_empty() {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(generated_runtime::strict_observe(#inner)))
     } else if method.method == "warn" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
