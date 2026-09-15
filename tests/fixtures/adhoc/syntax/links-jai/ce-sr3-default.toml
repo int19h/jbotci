@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr3-default"
+lojban = "ko'a ke ko'e ce'e ko'i ke'e broda ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR3"
+description = "SR3 pins a top-level Valid complete CEhE termset body, which is not a single sumti, so the grouped candidate is Absent and the KE-termset owner keeps the extent. Pairs with ce-sr1a, whose single-sumti body does move. Default control: byte-identical outcome, since nothing about this body was ever eligible to move."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [34, 36], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "8cd5f3e5e9cf7591e1e679e09438dda51d43faffb55e973638b61ca3f0ac8555" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [34, 36], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ko'e", "ce'e", "ko'i", "ke'e", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[34, 36]] }] }

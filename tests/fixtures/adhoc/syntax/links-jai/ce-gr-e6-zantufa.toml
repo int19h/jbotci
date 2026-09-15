@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e6-zantufa"
+lojban = "mi jai ga broda gi brode be ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E6"
+description = "GR-E6 pins a top-level Valid enclosed candidate with an occupied opener but an unproven branch child: the branch operand carries a BE whose mandatory linked term is synthesized. Trace: candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch. The damaged enclosed candidate rejects fail-closed and the actual surviving owner is the pre-existing JAI-tagged sumti term, with its own warning."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "22fe9010da127b6925ce91c393f105749c3b37951d72f1f195fc8202cbc07bef" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "bróde", "be"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[28, 30]] }, { kind = "missing", error-index = 0, byte-spans = [[28, 28]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s1-default"
+lojban = "mi na'e ga broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S1"
+description = "GR-S1 pins a top-level Valid standalone GEK candidate proving an additive shape, a mapped opener, one exact GI branch and a complete source boundary. Trace: candidate=standalone-gek wrapper=valid answer=Present decision=accept at zantufa_tanru_unit_atom_entry. NAhE is what makes the extent baseline-unowned, so this row needs no raw pair. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "34942e4e1fd7d9b21fa7eb6876cf8610f46b9244ac53c4b7dc3ff8e35fe9ab8e" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 7], [8, 10], [11, 16], [17, 19], [20, 25], [26, 28]] }] }

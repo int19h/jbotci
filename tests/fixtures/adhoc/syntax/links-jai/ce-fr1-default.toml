@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr1-default"
+lojban = "lo broda fa je fa brode cu brodi ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR1"
+description = "FR1 pins a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Attributed with JBOTCI_TRACE_ZANTUFA_ATOMS as candidate=fa wrapper=valid answer=Present decision=accept at tanru_unit_atom_base. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "2ff44f17827e1f6b813586da987f38d1d1a5c4e22e419e7e9fcb0f28ecf08220" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 8], [9, 11], [12, 14], [15, 17], [18, 23], [24, 26], [27, 32], [33, 35]] }] }

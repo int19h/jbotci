@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr5-selbri"
+lojban = "lo broda fa je fa me cu brodi"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR5"
+description = "FR5 pins a top-level Valid outer with an occupied, complete FA wrapper whose nested inner atom is unproven: the inner is a bare me whose mandatory sumti is a synthesized MissingRequiredField. Trace: candidate=fa wrapper=valid answer=Unproven decision=reject. The uncertainty is nested under a complete outer candidate, not damage to the FA or JOIK discriminators themselves. ZantufaSelbri alone does not enable the FA-as-tag term route that the built-in axis falls back to, so after the same fail-closed rejection recovery skips the whole FA region rather than re-owning it. The withdrawal is pinned as it actually happens, not as an assumed return to an earlier owner."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "cu", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "e3c2a018489d14d84ed35ee88f8e7399379e9e36cf41db546fbc9fc09bef8b36" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "cu", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lo", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 20], [21, 23], [24, 29]] }] }

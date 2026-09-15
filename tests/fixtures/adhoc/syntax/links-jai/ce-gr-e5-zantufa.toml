@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e5-zantufa"
+lojban = "mi jai na'e ga broda gi brode ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E5"
+description = "GR-E5 pins a top-level Valid enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace: candidate=enclosed-gek wrapper=valid answer=Present decision=accept. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not through a second route. The enclosed candidate feeds the JAI owner and the atom warning is reported once."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "aa3465b081069e3a66ea34322ec7c7eaeac15c886e191aeffd79aaa5f8e3cd96" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [12, 14], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 3 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "na'e", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32]] }] }

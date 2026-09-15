@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr5-default"
+lojban = "lo broda fa je fa me cu brodi"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR5"
+description = "FR5 pins a top-level Valid outer with an occupied, complete FA wrapper whose nested inner atom is unproven: the inner is a bare me whose mandatory sumti is a synthesized MissingRequiredField. Trace: candidate=fa wrapper=valid answer=Unproven decision=reject. The uncertainty is nested under a complete outer candidate, not damage to the FA or JOIK discriminators themselves. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "me", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "3f2e2feab40020c6ca6b1b622840fcff1e197a33d4d36a96d323bcb60d6581da" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "me", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 8], [9, 11], [12, 14], [15, 17], [18, 20], [21, 23], [24, 29]] }] }

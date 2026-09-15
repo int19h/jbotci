@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e5-default"
+lojban = "mi jai na'e ga broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E5"
+description = "GR-E5 pins a top-level Valid enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace: candidate=enclosed-gek wrapper=valid answer=Present decision=accept. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not through a second route. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "29369ef8cb6c5b59ced181e42de5c4a27fb92b76a2c5c0fcf356efed3ad28b61" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 11], [12, 14], [15, 20], [21, 23], [24, 29], [30, 32]] }] }
