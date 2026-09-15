@@ -9571,7 +9571,9 @@ mod tests {
         for raw in 0..index.node_count() {
             match index.node(RawSyntaxNodeId(raw)) {
                 Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => fas.push(value),
-                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) => linked_units.push(value),
+                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) => {
+                    linked_units.push(value)
+                }
                 _ => {}
             }
         }
@@ -9581,43 +9583,115 @@ mod tests {
             linked.linkargs.is_some()
                 && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value, fa))
         }).expect("typed enclosing linked unit");
-        let linked_raw = index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap();
-        let linked_matches: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).collect();
+        let linked_raw = index
+            .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked))
+            .unwrap();
+        let linked_matches: Vec<_> = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit)
+            .collect();
         assert_eq!(linked_matches.len(), 1);
         let linked_semantic = linked_matches[0];
-        assert_eq!(fixture_span_key_for_generated_node(index, index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap()).unwrap(), span_key(6, 21));
+        assert_eq!(
+            fixture_span_key_for_generated_node(
+                index,
+                index
+                    .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked))
+                    .unwrap()
+            )
+            .unwrap(),
+            span_key(6, 21)
+        );
         let projection = analysis.fixture_projection();
-        let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
-        assert_eq!(fixture_span_key_for_generated_node(index, fa_raw).unwrap(), span_key(6, 8));
-        let fa_candidates: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == fa_raw).collect();
-        assert_eq!(fa_candidates.len(), 1, "FA raw candidates: {:?}", fa_candidates);
+        let fa_raw = index
+            .id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa))
+            .unwrap();
+        assert_eq!(
+            fixture_span_key_for_generated_node(index, fa_raw).unwrap(),
+            span_key(6, 8)
+        );
+        let fa_candidates: Vec<_> = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .filter(|frame| frame.node == fa_raw)
+            .collect();
+        assert_eq!(
+            fa_candidates.len(),
+            1,
+            "FA raw candidates: {:?}",
+            fa_candidates
+        );
         let fa_frame = fa_candidates[0];
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
         let inner_base_raw = index.id_for_tree_node(fa.inner_unit.base.as_ref()).unwrap();
-        let word_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == inner_base_raw && frame.kind == PlaceFrameKind::TanruUnit).collect();
+        let word_frames: Vec<_> = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .filter(|frame| frame.node == inner_base_raw && frame.kind == PlaceFrameKind::TanruUnit)
+            .collect();
         assert_eq!(word_frames.len(), 1);
         let inner_word = word_frames[0];
-        assert_eq!(fixture_span_key_for_generated_node(index, inner_base_raw).unwrap(), span_key(9, 5));
+        assert_eq!(
+            fixture_span_key_for_generated_node(index, inner_base_raw).unwrap(),
+            span_key(9, 5)
+        );
         assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
         assert_ne!(inner_word.node, fa_raw);
-        assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id));
+        assert!(
+            matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id)
+        );
         assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
-        let fa_frame = projection.frames.iter().find(|frame| frame.index == fa_frame.id.0).expect("FA outer frame projection");
+        let fa_frame = projection
+            .frames
+            .iter()
+            .find(|frame| frame.index == fa_frame.id.0)
+            .expect("FA outer frame projection");
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
         assert_eq!(fa_frame.selbri, None);
         assert!(matches!(
             fa_frame.propagation,
             FixturePlaceFramePropagation::None
         ));
-        let inner = projection.frames.iter().find(|frame| frame.index == inner_word.id.0).expect("FA traversal retains inner word frame");
+        let inner = projection
+            .frames
+            .iter()
+            .find(|frame| frame.index == inner_word.id.0)
+            .expect("FA traversal retains inner word frame");
         assert_eq!(inner.node, span_key(9, 5));
         assert_ne!(inner.index, fa_frame.index);
         assert_eq!(fa_frame.tanru_unit, Some(span_key(6, 8)));
-        let local_x2: Vec<_> = projection.assignments.iter().filter(|a| a.frame == fa_frame.index && a.sumti == span_key(18, 4) && a.slot == FixturePlaceSlot::Numbered { place: 2 } && a.term.is_none() && a.source == AssignmentSource::LinkedSumti).collect();
+        let local_x2: Vec<_> = projection
+            .assignments
+            .iter()
+            .filter(|a| {
+                a.frame == fa_frame.index
+                    && a.sumti == span_key(18, 4)
+                    && a.slot == FixturePlaceSlot::Numbered { place: 2 }
+                    && a.term.is_none()
+                    && a.source == AssignmentSource::LinkedSumti
+            })
+            .collect();
         assert_eq!(local_x2.len(), 1);
-        let outer_x1: Vec<_> = projection.assignments.iter().filter(|a| a.sumti == span_key(0, 2) && a.frame == fa_frame.index && a.slot == FixturePlaceSlot::Numbered { place: 1 }).collect();
+        let outer_x1: Vec<_> = projection
+            .assignments
+            .iter()
+            .filter(|a| {
+                a.sumti == span_key(0, 2)
+                    && a.frame == fa_frame.index
+                    && a.slot == FixturePlaceSlot::Numbered { place: 1 }
+            })
+            .collect();
         assert_eq!(outer_x1.len(), 1);
-        assert!(!projection.assignments.iter().any(|a| a.frame == inner.index));
+        assert!(
+            !projection
+                .assignments
+                .iter()
+                .any(|a| a.frame == inner.index)
+        );
     }
 
     #[test]
@@ -9628,71 +9702,154 @@ mod tests {
         let syntax = parse_generated_zantufa_syntax(input);
         let analysis = analyze_generated_references(&syntax).expect("nested FA analyzes");
         #[invariant(true)]
-        struct InnerIds<'a> { index: &'a GeneratedSyntaxIndex<'a>, ids: HashSet<RawSyntaxNodeId> }
+        struct InnerIds<'a> {
+            index: &'a GeneratedSyntaxIndex<'a>,
+            ids: HashSet<RawSyntaxNodeId>,
+        }
         impl<'tree, 'a> TreeVisitor<'tree> for InnerIds<'a> {
             type Node = GeneratedSyntaxNodeRef<'tree>;
             type Atom = GeneratedSyntaxAtomRef<'tree>;
             #[requires(true)]
             #[ensures(true)]
-            fn enter_node(&mut self, node: Self::Node) { if let Some(id) = self.index.id_of(node) { self.ids.insert(id); } }
+            fn enter_node(&mut self, node: Self::Node) {
+                if let Some(id) = self.index.id_of(node) {
+                    self.ids.insert(id);
+                }
+            }
         }
         let index = &analysis.syntax_index;
-        let fa = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
-            Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => Some(value), _ => None,
-        }).expect("typed FA owner");
-        let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
+        let fa = (0..index.node_count())
+            .find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
+                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => Some(value),
+                _ => None,
+            })
+            .expect("typed FA owner");
+        let fa_raw = index
+            .id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa))
+            .unwrap();
         let linked_owner = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
             Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value))
                 if value.linkargs.is_some()
                     && matches!(value.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(inner) if std::ptr::eq(inner, fa)) => Some(value),
             _ => None,
         }).expect("typed enclosing linked owner");
-        let linked_raw = index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked_owner)).unwrap();
-        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit).count(), 1);
+        let linked_raw = index
+            .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked_owner))
+            .unwrap();
+        assert_eq!(
+            analysis
+                .place_analysis
+                .frames()
+                .iter()
+                .filter(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit)
+                .count(),
+            1
+        );
         assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).count(), 1);
-        let mut inner_ids = InnerIds { index, ids: HashSet::new() };
+        let mut inner_ids = InnerIds {
+            index,
+            ids: HashSet::new(),
+        };
         generated::TreeNode::visit_in_order(fa.inner_unit.as_ref(), &mut inner_ids);
-        let inner_frame_ids: HashSet<_> = analysis.place_analysis.frames().iter().filter(|frame| inner_ids.ids.contains(&frame.node)).map(|frame| frame.id.0).collect();
+        let inner_frame_ids: HashSet<_> = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .filter(|frame| inner_ids.ids.contains(&frame.node))
+            .map(|frame| frame.id.0)
+            .collect();
         let projection = analysis.fixture_projection();
-        let outers: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(6, 29)).collect();
-        let inners: Vec<_> = projection.frames.iter().filter(|frame| frame.node == span_key(12, 5)).collect();
+        let outers: Vec<_> = projection
+            .frames
+            .iter()
+            .filter(|frame| frame.node == span_key(6, 29))
+            .collect();
+        let inners: Vec<_> = projection
+            .frames
+            .iter()
+            .filter(|frame| frame.node == span_key(12, 5))
+            .collect();
         assert_eq!(outers.len(), 1);
         assert_eq!(inners.len(), 1);
         let outer = outers[0];
         let inner = inners[0];
         let group_raw = match fa.inner_unit.base.as_ref() {
-            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(group) => index.id_for_tree_node(group).unwrap(),
-            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(group) => index.id_for_tree_node(group).unwrap(),
+            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(group) => {
+                index.id_for_tree_node(group).unwrap()
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(group) => {
+                index.id_for_tree_node(group).unwrap()
+            }
             _ => panic!("expected grouped KE inner unit"),
         };
-        let inner_ke_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.node == group_raw && frame.kind == PlaceFrameKind::Forwarding).collect();
+        let inner_ke_frames: Vec<_> = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .filter(|frame| frame.node == group_raw && frame.kind == PlaceFrameKind::Forwarding)
+            .collect();
         assert_eq!(inner_ke_frames.len(), 1);
-        assert!(inner_frame_ids.contains(&inner_ke_frames[0].id.0), "actual inner KE frame participates in isolation set");
-        assert!(inner_frame_ids.contains(&inner.index), "actual inner KE/word frame is in generated inner subtree");
-        let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
-        let outer_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit).expect("typed outer FA semantic frame");
-        let linked_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).expect("typed linked semantic frame");
+        assert!(
+            inner_frame_ids.contains(&inner_ke_frames[0].id.0),
+            "actual inner KE frame participates in isolation set"
+        );
+        assert!(
+            inner_frame_ids.contains(&inner.index),
+            "actual inner KE/word frame is in generated inner subtree"
+        );
+        let linked = projection
+            .frames
+            .iter()
+            .find(|frame| frame.node == span_key(6, 42))
+            .expect("outer linked owner");
+        let outer_semantic = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .find(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit)
+            .expect("typed outer FA semantic frame");
+        let linked_semantic = analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .find(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit)
+            .expect("typed linked semantic frame");
         assert_eq!(outer.index, outer_semantic.id.0);
         assert_eq!(linked.index, linked_semantic.id.0);
-        assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == outer_semantic.id));
+        assert!(
+            matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == outer_semantic.id)
+        );
         assert_ne!(outer.index, inner.index);
-        assert!(matches!(outer.propagation, FixturePlaceFramePropagation::None));
-        assert!(matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index));
-        let inner_x2: Vec<_> = projection.assignments.iter().filter(|assignment| {
-            assignment.frame == inner.index
-                && assignment.sumti == span_key(21, 4)
-                && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
-                && assignment.term.is_none()
-                && assignment.source == AssignmentSource::LinkedSumti
-        }).collect();
+        assert!(matches!(
+            outer.propagation,
+            FixturePlaceFramePropagation::None
+        ));
+        assert!(
+            matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index)
+        );
+        let inner_x2: Vec<_> = projection
+            .assignments
+            .iter()
+            .filter(|assignment| {
+                assignment.frame == inner.index
+                    && assignment.sumti == span_key(21, 4)
+                    && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
+                    && assignment.term.is_none()
+                    && assignment.source == AssignmentSource::LinkedSumti
+            })
+            .collect();
         assert_eq!(inner_x2.len(), 1);
-        let outer_x2: Vec<_> = projection.assignments.iter().filter(|assignment| {
-            assignment.frame == outer.index
-                && assignment.sumti == span_key(39, 4)
-                && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
-                && assignment.term.is_none()
-                && assignment.source == AssignmentSource::LinkedSumti
-        }).collect();
+        let outer_x2: Vec<_> = projection
+            .assignments
+            .iter()
+            .filter(|assignment| {
+                assignment.frame == outer.index
+                    && assignment.sumti == span_key(39, 4)
+                    && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
+                    && assignment.term.is_none()
+                    && assignment.source == AssignmentSource::LinkedSumti
+            })
+            .collect();
         assert_eq!(outer_x2.len(), 1);
         assert!(!projection.assignments.iter().any(|assignment| {
             assignment.frame == inner.index
@@ -9731,15 +9888,26 @@ mod tests {
                 "route retains its enclosing bridi frame: {input}"
             );
             if input.starts_with("mi ke ") {
-                let forwarding: Vec<_> = projection.frames.iter().filter(|frame| {
-                    frame.kind == PlaceFrameKind::Forwarding
-                        && matches!(
-                            frame.propagation,
-                            FixturePlaceFramePropagation::Forward { .. }
-                        )
-                }).collect();
+                let forwarding: Vec<_> = projection
+                    .frames
+                    .iter()
+                    .filter(|frame| {
+                        frame.kind == PlaceFrameKind::Forwarding
+                            && matches!(
+                                frame.propagation,
+                                FixturePlaceFramePropagation::Forward { .. }
+                            )
+                    })
+                    .collect();
                 assert!(!forwarding.is_empty());
-                assert!(forwarding.iter().map(|frame| frame.index).collect::<std::collections::HashSet<_>>().len() == forwarding.len());
+                assert!(
+                    forwarding
+                        .iter()
+                        .map(|frame| frame.index)
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        == forwarding.len()
+                );
             } else {
                 assert!(
                     projection
@@ -9759,7 +9927,11 @@ mod tests {
         #[invariant(true)]
         #[derive(Default)]
         struct WitnessCollector<'tree> {
-            hits: Vec<(&'tree generated::SumtiSyntax, &'tree generated::SumtiSyntax, &'tree generated::SumtiSyntax)>,
+            hits: Vec<(
+                &'tree generated::SumtiSyntax,
+                &'tree generated::SumtiSyntax,
+                &'tree generated::SumtiSyntax,
+            )>,
         }
         impl<'tree> generated::TreeWalker<'tree> for WitnessCollector<'tree> {
             #[requires(true)]
@@ -9788,13 +9960,33 @@ mod tests {
         let places = PlaceAnalysis::analyze_generated(&index, &syntax);
         let mut builder = GeneratedDiscourseReferenceBuilder::new(&index, &places);
         GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut builder);
-        assert_eq!(builder.sumti_mentions.iter().filter(|mention| mention.source == child_id && mention.target == child_id).count(), 1);
+        assert_eq!(
+            builder
+                .sumti_mentions
+                .iter()
+                .filter(|mention| mention.source == child_id && mention.target == child_id)
+                .count(),
+            1
+        );
         let child_keys = generated_argument_letter_keys(child);
         assert!(!child_keys.is_empty());
         for key in child_keys {
-            let mentions = builder.letter_sumti_mentions.get(&key).expect("child antecedent registered");
-            assert_eq!(mentions.iter().filter(|mention| mention.source == child_id && mention.target == child_id).count(), 1);
-            assert!(!mentions.iter().any(|mention| mention.source == child_id && mention.target == parent_id));
+            let mentions = builder
+                .letter_sumti_mentions
+                .get(&key)
+                .expect("child antecedent registered");
+            assert_eq!(
+                mentions
+                    .iter()
+                    .filter(|mention| mention.source == child_id && mention.target == child_id)
+                    .count(),
+                1
+            );
+            assert!(
+                !mentions
+                    .iter()
+                    .any(|mention| mention.source == child_id && mention.target == parent_id)
+            );
         }
         let debug = format!("{syntax:?}");
         assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
@@ -9806,7 +9998,10 @@ mod tests {
             .iter()
             .filter(|frame| frame.kind == PlaceFrameKind::Forwarding)
             .collect();
-        assert!(!forwarding.is_empty(), "scoped child forwarding is retained");
+        assert!(
+            !forwarding.is_empty(),
+            "scoped child forwarding is retained"
+        );
         assert!(forwarding.iter().all(|frame| matches!(
             frame.propagation,
             FixturePlaceFramePropagation::Forward { inner: _ }
