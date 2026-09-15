@@ -1187,6 +1187,7 @@ pub(super) struct ParserState<'tokens> {
     recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
     syntax_rule_observation_latest_recovery_target_indices:
         RefCell<FxHashMap<usize, Option<usize>>>,
+    strict_observing: bool,
     consumed_recovery_directives: usize,
     // This is a consumption stack parallel to `recovery_directives`; each
     // entry records where its directive actually fired. Checkpoint rewind can
@@ -1232,7 +1233,14 @@ struct StrictObserveJournal<'tokens> {
     completed_recovery_boundary_location: Option<usize>,
     recovery_checkpoint_collection: Option<RecoveryCheckpointCollection>,
     continuation_sentinel_index: Option<usize>,
-    continuation_time_limit: Option<ContinuationTimeLimit>,
+    recovery_directives: Vec<RecoveryDirective>,
+    recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
+    recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
+    syntax_rule_observation_latest_recovery_target_indices: FxHashMap<usize, Option<usize>>,
+    recovery_tokens: Vec<Token>,
+    recovery_source: Option<Arc<str>>,
+    track_recovery_branches: bool,
+    strict_observing: bool,
 }
 
 #[invariant(
@@ -1269,9 +1277,7 @@ impl<'tokens> ParserState<'tokens> {
             replayed_syntax_diagnostic_observations: std::mem::take(
                 &mut self.replayed_syntax_diagnostic_observations,
             ),
-            applied_syntax_diagnostic_log: std::mem::take(
-                &mut self.applied_syntax_diagnostic_log,
-            ),
+            applied_syntax_diagnostic_log: std::mem::take(&mut self.applied_syntax_diagnostic_log),
             next_syntax_diagnostic_observation_frame_id: std::mem::replace(
                 &mut self.next_syntax_diagnostic_observation_frame_id,
                 NonZeroUsize::MIN,
@@ -1280,7 +1286,9 @@ impl<'tokens> ParserState<'tokens> {
             diagnostic_candidate_hash_buckets: std::mem::take(
                 &mut self.diagnostic_candidate_hash_buckets,
             ),
-            continuation_diagnostic_candidates: std::mem::take(&mut self.continuation_diagnostic_candidates),
+            continuation_diagnostic_candidates: std::mem::take(
+                &mut self.continuation_diagnostic_candidates,
+            ),
             warnings: std::mem::take(&mut self.warnings),
             consumed_recovery_directives: std::mem::replace(
                 &mut self.consumed_recovery_directives,
@@ -1289,12 +1297,24 @@ impl<'tokens> ParserState<'tokens> {
             effective_fail_token_indices: std::mem::take(&mut self.effective_fail_token_indices),
             active_recovery_directive: self.active_recovery_directive.take(),
             abandoned_recovery_ranges: std::mem::take(&mut self.abandoned_recovery_ranges),
-            completed_recovery_boundary_location: self
-                .completed_recovery_boundary_location
-                .take(),
+            completed_recovery_boundary_location: self.completed_recovery_boundary_location.take(),
             recovery_checkpoint_collection: self.recovery_checkpoint_collection.take(),
-            continuation_sentinel_index: self.continuation_sentinel_index.take(),
-            continuation_time_limit: self.continuation_time_limit.take(),
+            // The sentinel and time limit are ambient parse policy, not child
+            // outputs. Keep them in force while the strict probe runs.
+            continuation_sentinel_index: self.continuation_sentinel_index,
+            recovery_directives: std::mem::take(&mut self.recovery_directives),
+            recovery_rule_parser_targets: std::mem::take(&mut self.recovery_rule_parser_targets),
+            recovery_rule_target_last_indices: std::mem::take(
+                &mut self.recovery_rule_target_last_indices,
+            ),
+            syntax_rule_observation_latest_recovery_target_indices: std::mem::take(
+                self.syntax_rule_observation_latest_recovery_target_indices
+                    .get_mut(),
+            ),
+            recovery_tokens: std::mem::take(&mut self.recovery_tokens),
+            recovery_source: self.recovery_source.take(),
+            track_recovery_branches: std::mem::replace(&mut self.track_recovery_branches, false),
+            strict_observing: std::mem::replace(&mut self.strict_observing, true),
         }
     }
 
@@ -1320,11 +1340,19 @@ impl<'tokens> ParserState<'tokens> {
         self.effective_fail_token_indices = journal.effective_fail_token_indices;
         self.active_recovery_directive = journal.active_recovery_directive;
         self.abandoned_recovery_ranges = journal.abandoned_recovery_ranges;
-        self.completed_recovery_boundary_location =
-            journal.completed_recovery_boundary_location;
+        self.completed_recovery_boundary_location = journal.completed_recovery_boundary_location;
         self.recovery_checkpoint_collection = journal.recovery_checkpoint_collection;
         self.continuation_sentinel_index = journal.continuation_sentinel_index;
-        self.continuation_time_limit = journal.continuation_time_limit;
+        self.recovery_directives = journal.recovery_directives;
+        self.recovery_rule_parser_targets = journal.recovery_rule_parser_targets;
+        self.recovery_rule_target_last_indices = journal.recovery_rule_target_last_indices;
+        *self
+            .syntax_rule_observation_latest_recovery_target_indices
+            .get_mut() = journal.syntax_rule_observation_latest_recovery_target_indices;
+        self.recovery_tokens = journal.recovery_tokens;
+        self.recovery_source = journal.recovery_source;
+        self.track_recovery_branches = journal.track_recovery_branches;
+        self.strict_observing = journal.strict_observing;
     }
 
     #[requires(true)]
@@ -1360,6 +1388,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_rule_observation_latest_recovery_target_indices: RefCell::new(
                 FxHashMap::default(),
             ),
+            strict_observing: false,
             consumed_recovery_directives: 0,
             effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
@@ -1464,18 +1493,21 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == !self.recovery_directives.is_empty())]
+    #[ensures(ret == (!self.strict_observing && !self.recovery_directives.is_empty()))]
     pub(super) fn recovery_enabled(&self) -> bool {
-        !self.recovery_directives.is_empty()
+        !self.strict_observing && !self.recovery_directives.is_empty()
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(ret == (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start)))]
+    #[ensures(ret == (!self.strict_observing && (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start))))]
     pub(super) fn recovery_rule_parser_enabled(
         &mut self,
         rule: &'static str,
         instance_byte_start: usize,
     ) -> bool {
+        if self.strict_observing {
+            return false;
+        }
         if !self
             .recovery_rule_parser_targets
             .contains(&(rule, instance_byte_start))
@@ -1497,9 +1529,15 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.track_recovery_branches)]
+    #[ensures(ret == (!self.strict_observing && self.track_recovery_branches))]
     pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
-        self.track_recovery_branches
+        !self.strict_observing && self.track_recovery_branches
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.strict_observing)]
+    pub(super) fn is_strict_observing(&self) -> bool {
+        self.strict_observing
     }
 
     #[requires(true)]
@@ -5986,8 +6024,14 @@ mod tests {
         assert!(state.syntax_recovery_memo_in_progress.is_empty());
         assert_eq!(state.consumed_recovery_directives, 0);
         assert!(state.effective_fail_token_indices.is_empty());
-        assert!(state.continuation_sentinel_index.is_none());
-        assert_eq!(state.syntax_memo_scope, SyntaxMemoScope::DescriptionRelative);
+        assert_eq!(state.continuation_sentinel_index, Some(3));
+        assert!(state.is_strict_observing());
+        assert!(!state.recovery_enabled());
+        assert!(!state.recovery_branch_tracking_enabled());
+        assert_eq!(
+            state.syntax_memo_scope,
+            SyntaxMemoScope::DescriptionRelative
+        );
 
         state
             .syntax_memo_in_progress
@@ -6012,12 +6056,13 @@ mod tests {
         assert_eq!(state.effective_fail_token_indices, [4]);
 
         state.end_strict_observe(outer);
+        assert!(!state.is_strict_observing());
         assert!(state.recovery_memo_trial.is_some());
-        assert!(state.syntax_memo_in_progress.contains(&(
-            "parent",
-            0,
-            SyntaxMemoScope::Ordinary
-        )));
+        assert!(
+            state
+                .syntax_memo_in_progress
+                .contains(&("parent", 0, SyntaxMemoScope::Ordinary))
+        );
         assert!(state.syntax_recovery_memo_in_progress.contains(&(
             "parent-recovery",
             1,
@@ -6037,7 +6082,10 @@ mod tests {
             state.next_syntax_diagnostic_observation_frame_id,
             parent_frame_id
         );
-        assert_eq!(state.syntax_memo_scope, SyntaxMemoScope::DescriptionRelative);
+        assert_eq!(
+            state.syntax_memo_scope,
+            SyntaxMemoScope::DescriptionRelative
+        );
     }
 
     #[requires(true)]
@@ -6063,23 +6111,22 @@ mod tests {
 
         for fail_probe in [false, true] {
             let mut state = ParserState::new(&tokens, &ParseOptions::default());
-            let probe = generated_runtime::strict_observe(parser_core::custom(
-                move |input| {
-                    assert!(input.next().is_some());
-                    input
-                        .state()
-                        .syntax_memo_in_progress
-                        .insert(("probe", 0, SyntaxMemoScope::Ordinary));
-                    if fail_probe {
-                        Err(SyntaxParseError::custom(
-                            (0..0).into(),
-                            "strict observe probe failure".to_owned(),
-                        ))
-                    } else {
-                        Ok(())
-                    }
-                },
-            ));
+            let probe = generated_runtime::strict_observe(parser_core::custom(move |input| {
+                assert!(input.next().is_some());
+                input.state().syntax_memo_in_progress.insert((
+                    "probe",
+                    0,
+                    SyntaxMemoScope::Ordinary,
+                ));
+                if fail_probe {
+                    Err(SyntaxParseError::custom(
+                        (0..0).into(),
+                        "strict observe probe failure".to_owned(),
+                    ))
+                } else {
+                    Ok(())
+                }
+            }));
             let parser = parser_core::custom(move |input| {
                 let result = input.parse(probe.clone());
                 assert_eq!(result.is_err(), fail_probe);
@@ -6090,7 +6137,10 @@ mod tests {
                 );
                 assert!(input.state().syntax_memo_in_progress.is_empty());
                 assert!(input.next().is_some(), "caller still owns the first token");
-                assert!(input.next().is_some(), "caller can continue after the probe");
+                assert!(
+                    input.next().is_some(),
+                    "caller can continue after the probe"
+                );
                 Ok(())
             });
 
@@ -6098,6 +6148,130 @@ mod tests {
             assert!(result.into_result().is_ok());
             assert!(state.syntax_memo_in_progress.is_empty());
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_observe_rule_entry_is_isolated_from_populated_recovery_state() {
+        use parser_core::{Input as _, Parser as _};
+
+        let source = "mi zo'u do .i mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, inner)| Spanned {
+                inner,
+                span: SimpleSpan::from(index..index + 1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned
+            .as_slice()
+            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
+
+        for fail_probe in [false, true] {
+            let directive =
+                RecoveryDirective::new("owner", 0, 3, 3, 2, 0, SyntaxError::NotImplemented)
+                    .into_boundary_resync(0);
+            let mut session = SyntaxRecoveryMemoSession::new();
+            let trial = session.begin_trial();
+            let mut state = ParserState::new_with_recovery(
+                &tokens,
+                Some(source),
+                &ParseOptions::default(),
+                &[directive],
+                trial,
+                None,
+                None,
+            );
+            state.consumed_recovery_directives = 1;
+            state.effective_fail_token_indices.push(1);
+            let parent_directives = state.recovery_directives.clone();
+            let parent_targets = state.recovery_rule_parser_targets.clone();
+            let parent_latest_targets = state
+                .syntax_rule_observation_latest_recovery_target_indices
+                .borrow()
+                .clone();
+            let parent_trial = state.recovery_memo_trial.as_ref().unwrap().trial_id;
+
+            let rule = generated_runtime::rule_wrapper(
+                "strict-observed-rule",
+                None,
+                parser_core::custom(move |input| {
+                    assert!(!input.state().recovery_enabled());
+                    assert!(!input.state().recovery_branch_tracking_enabled());
+                    assert_eq!(input.state().syntax_memo_context().recovery_trial_id, None);
+                    assert!(input.next().is_some());
+                    if fail_probe {
+                        Err(SyntaxParseError::custom(
+                            (0..0).into(),
+                            "strict observed rule failure".to_owned(),
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                }),
+            );
+            let probe = generated_runtime::strict_observe(rule);
+            let parser = parser_core::custom(move |input| {
+                assert_eq!(input.parse(probe.clone()).is_err(), fail_probe);
+                assert_eq!(ParserInput::cursor_location(input.cursor().inner()), 0);
+                while input.next().is_some() {}
+                Ok(())
+            });
+            let result = parser.parse_with_state(input, &mut state);
+            assert!(result.into_result().is_ok());
+            assert!(!state.is_strict_observing());
+            assert!(state.recovery_enabled());
+            assert!(state.recovery_branch_tracking_enabled());
+            assert_eq!(state.consumed_recovery_directives, 1);
+            assert_eq!(state.effective_fail_token_indices, [1]);
+            assert_eq!(state.recovery_directives, parent_directives);
+            assert_eq!(state.recovery_rule_parser_targets, parent_targets);
+            assert_eq!(
+                *state
+                    .syntax_rule_observation_latest_recovery_target_indices
+                    .borrow(),
+                parent_latest_targets
+            );
+            assert_eq!(
+                state.recovery_memo_trial.as_ref().unwrap().trial_id,
+                parent_trial
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_observe_keeps_the_completion_cut_unmatchable_and_preserves_time_limit() {
+        use parser_core::{Input as _, Parser as _};
+
+        let sentinel = expected_continuation_sentinel(0);
+        let tokens = vec![sentinel];
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .map(|inner| Spanned {
+                inner,
+                span: SimpleSpan::from(0..1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned.as_slice().split_spanned(SimpleSpan::from(1..1));
+        let time_limit = ContinuationTimeLimit::new(Duration::from_secs(30));
+        let options = ParseOptions::default();
+        let mut state =
+            ParserState::new_for_expected_continuations(&tokens, &options, 0, Some(time_limit));
+
+        let probe = generated_runtime::strict_observe(tokens::cmavo(Cmavo::Faho));
+        let result = probe.parse_with_state(input, &mut state);
+        assert!(result.into_result().is_err());
+        assert_eq!(state.continuation_sentinel_index, Some(0));
+        assert_eq!(state.continuation_time_limit, Some(time_limit));
+        assert!(!state.is_strict_observing());
     }
 
     #[requires(true)]
@@ -9981,9 +10155,35 @@ mod tests {
         let explicit_debug = format!("{:?}", explicit.parse_tree);
         assert!(explicit_debug.matches("ZantufaGroupedSumti").count() >= 1);
 
+        let explicit_source = "mi ke ko'a ke'e cu klama";
+        let explicit_words =
+            segment_words_with_modifiers(explicit_source).expect("valid morphology");
+        let explicit_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &explicit_words,
+            explicit_source,
+            &enabled,
+        );
+        assert!(explicit_recovered.errors.is_empty());
+        assert!(format!("{:?}", explicit_recovered.parse_tree).contains("ZantufaGroupedSumti"));
+        assert!(explicit_recovered.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        }));
+
         let elided = parse_source("mi ke ko'a cu klama", &enabled);
         assert!(!format!("{:?}", elided.parse_tree).contains("ZantufaGroupedSumti"));
         assert!(format!("{:?}", elided.parse_tree).contains("KeTermset"));
+
+        let elided_source = "mi ke ko'a cu klama";
+        let elided_words = segment_words_with_modifiers(elided_source).expect("valid morphology");
+        let elided_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &elided_words,
+            elided_source,
+            &enabled,
+        );
+        assert!(elided_recovered.errors.is_empty());
+        let elided_recovered_debug = format!("{:?}", elided_recovered.parse_tree);
+        assert!(!elided_recovered_debug.contains("ZantufaGroupedSumti"));
+        assert!(elided_recovered_debug.contains("KeTermset"));
 
         // A malformed/recovered closer must not reserve the grouped route.  The parser still
         // produces a normal recovered result, but no grouped warning is emitted.
@@ -9992,6 +10192,18 @@ mod tests {
             &malformed,
             ExperimentalConstruct::ExperimentalZantufaGroupedSumti
         ));
+
+        let malformed_source = "mi ke ko'a ke cu klama";
+        let malformed_words =
+            segment_words_with_modifiers(malformed_source).expect("valid morphology");
+        let malformed_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &malformed_words,
+            malformed_source,
+            &enabled,
+        );
+        assert!(!malformed_recovered.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        }));
     }
 
     #[test]

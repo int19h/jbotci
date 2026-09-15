@@ -31,8 +31,9 @@ use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
     BalancedTermsetOperandsSyntax, GekTermsetCandidateSyntax, GikPairedTermsetOperandsSyntax,
-    NormalTermSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiForethoughtSyntax, SumtiSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
-    ZantufaForethoughtTermsetFirstBranchSyntax, ZantufaGekTermsetCandidateSyntax, recovered,
+    NormalTermSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiForethoughtSyntax, SumtiSyntax,
+    TermSyntax, ZantufaForethoughtTermsetBranchSyntax, ZantufaForethoughtTermsetFirstBranchSyntax,
+    ZantufaGekTermsetCandidateSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -86,23 +87,40 @@ impl OutputRejection<recovered::Recovered<recovered::SumtiSyntax>>
     }
 
     fn rejects(&self, output: &recovered::Recovered<recovered::SumtiSyntax>) -> bool {
-        let Some(sumti) = valid(output) else { return false };
-        let Some(grouped) = valid(&sumti.base_sumti) else { return false };
-        let Some(afterthought) = valid(&grouped.leading_sumti) else { return false };
-        let Some(bound) = valid(&afterthought.leading_sumti) else { return false };
-        let Some(forethought) = valid(&bound.leading_sumti) else { return false };
+        let Some(sumti) = valid(output) else {
+            return false;
+        };
+        let Some(grouped) = valid(&sumti.base_sumti) else {
+            return false;
+        };
+        let Some(afterthought) = valid(&grouped.leading_sumti) else {
+            return false;
+        };
+        let Some(bound) = valid(&afterthought.leading_sumti) else {
+            return false;
+        };
+        let Some(forethought) = valid(&bound.leading_sumti) else {
+            return false;
+        };
         let recovered::SumtiForethoughtSyntax::SimpleSumti(simple) = forethought else {
             return false;
         };
-        let Some(simple) = valid(simple) else { return false };
-        let Some(atom) = valid(&simple.base_sumti) else { return false };
-        let recovered::SumtiAtomSyntax::SumtiBase(base) = atom else { return false };
-        let Some(base) = valid(base) else { return false };
+        let Some(simple) = valid(simple) else {
+            return false;
+        };
+        let Some(atom) = valid(&simple.base_sumti) else {
+            return false;
+        };
+        let recovered::SumtiAtomSyntax::SumtiBase(base) = atom else {
+            return false;
+        };
+        let Some(base) = valid(base) else {
+            return false;
+        };
         matches!(base, recovered::SumtiBaseSyntax::ZantufaGroupedSumti(grouped)
             if valid(grouped).is_some_and(|grouped| grouped.kehe.is_none()))
     }
 }
-
 
 #[requires(true)]
 #[ensures(true)]

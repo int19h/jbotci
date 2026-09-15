@@ -104,9 +104,11 @@ where
     .boxed()
 }
 
-/// Run a parser as an observational strict probe.  Cursor movement and every
-/// parser-local memo/recovery/diagnostic side effect are discarded regardless
-/// of success, while the probe's success or failure is retained.
+/// Run a parser as an observational strict probe. Cursor movement and every
+/// parser-produced memo, recovery, checkpoint, and diagnostic effect are
+/// discarded regardless of success. Ambient parse policy, including dialect,
+/// grammar scope, completion sentinel, and continuation time limit, remains in
+/// force while the probe's success or failure is retained.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn strict_observe<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
@@ -115,8 +117,11 @@ where
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(move |input| {
-        let before = input.save();
         let journal = input.state().begin_strict_observe();
+        // Save after the child recovery state is installed. ParserState's
+        // checkpoint inspector must describe the stores that will be rewound,
+        // not the parent collections that `journal` has suspended.
+        let before = input.save();
         let result = input.parse(&parser).map(|_| ());
         input.rewind(before);
         input.state().end_strict_observe(journal);
@@ -400,6 +405,9 @@ fn mark_recovered_rule_path_cold() {}
 // static dispatch into the selected parser body.
 #[inline(never)]
 fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static str) -> bool {
+    if input.state().is_strict_observing() {
+        return false;
+    }
     if let Some(frame) = input
         .state()
         .active_syntax_rules()

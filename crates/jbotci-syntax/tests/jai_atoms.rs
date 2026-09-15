@@ -8,8 +8,7 @@ use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_syntax::{
     ExperimentalConstruct, ParseOptions, generated_model as model,
     generated_model::recovered as recovered_model,
-    parse_syntax_tree_with_source_and_options,
-    parse_syntax_tree_recovered_with_source_and_options,
+    parse_syntax_tree_recovered_with_source_and_options, parse_syntax_tree_with_source_and_options,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -37,7 +36,9 @@ impl<'tree> TreeVisitor<'tree> for RecoveredJaiVisitor<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
-        if let recovered_model::NodeRef::JaiModalTanruUnitSyntax(jai) = node { self.jai.push(jai); }
+        if let recovered_model::NodeRef::JaiModalTanruUnitSyntax(jai) = node {
+            self.jai.push(jai);
+        }
     }
 }
 
@@ -153,36 +154,58 @@ fn jai_enclosed_public_route_regression() {
         model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
     ));
     let nested_source = "mi jai jai ga broda gi brode";
-    let nested_words = segment_words_with_modifiers(nested_source).expect("valid nested morphology");
+    let nested_words =
+        segment_words_with_modifiers(nested_source).expect("valid nested morphology");
     let nested = parse_syntax_tree_with_source_and_options(&nested_words, nested_source, &options)
         .expect("nested no-tag enclosed JAI parses");
     let mut nested_visitor = PlacementVisitor::default();
     model::TreeNode::visit_in_order(nested.parse_tree.as_ref(), &mut nested_visitor);
-    assert_eq!(nested_visitor.jai.len(), 2, "nested JAI owners are retained");
-    assert!(matches!(nested_visitor.jai[0].inner_unit.base.as_ref(), model::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(_)));
+    assert_eq!(
+        nested_visitor.jai.len(),
+        2,
+        "nested JAI owners are retained"
+    );
+    assert!(matches!(
+        nested_visitor.jai[0].inner_unit.base.as_ref(),
+        model::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(_)
+    ));
     let nested_inner = match nested_visitor.jai[0].inner_unit.base.as_ref() {
         model::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(inner) => &inner.inner_unit,
         _ => unreachable!(),
     };
-    assert!(matches!(nested_inner.base.as_ref(), model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)));
+    assert!(matches!(
+        nested_inner.base.as_ref(),
+        model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
+    ));
     for source in ["mi jai pu ga broda gi brode", "mi jai ko'a"] {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         let parsed = parse_syntax_tree_with_source_and_options(&words, source, &options)
             .expect("control parses");
         let mut visitor = PlacementVisitor::default();
         model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
-        assert!(visitor.jai.is_empty(), "tag/sumti control must remain tag-term: {source}");
+        assert!(
+            visitor.jai.is_empty(),
+            "tag/sumti control must remain tag-term: {source}"
+        );
     }
     let wrapped = "mi jai se se ga broda gi brode";
     let wrapped_words = segment_words_with_modifiers(wrapped).expect("valid wrapped-SE morphology");
-    if let Ok(wrapped_parsed) = parse_syntax_tree_with_source_and_options(&wrapped_words, wrapped, &options) {
+    if let Ok(wrapped_parsed) =
+        parse_syntax_tree_with_source_and_options(&wrapped_words, wrapped, &options)
+    {
         let mut wrapped_visitor = PlacementVisitor::default();
         model::TreeNode::visit_in_order(wrapped_parsed.parse_tree.as_ref(), &mut wrapped_visitor);
-        assert!(wrapped_visitor.jai.iter().all(|jai| {
-            !(jai.tense_modal.is_none()
-                && jai.inner_unit.conversions.is_empty()
-                && matches!(jai.inner_unit.base.as_ref(), model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)))
-        }), "wrapped-SE must not win the immediate enclosed JAI exception");
+        assert!(
+            wrapped_visitor.jai.iter().all(|jai| {
+                !(jai.tense_modal.is_none()
+                    && jai.inner_unit.conversions.is_empty()
+                    && matches!(
+                        jai.inner_unit.base.as_ref(),
+                        model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
+                    ))
+            }),
+            "wrapped-SE must not win the immediate enclosed JAI exception"
+        );
     }
 }
 
@@ -197,16 +220,27 @@ fn jai_enclosed_recovered_public_route_regression() {
     let recovered = parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
     let mut visitor = RecoveredJaiVisitor::default();
     recovered_model::TreeNode::visit_in_order(recovered.parse_tree.as_ref(), &mut visitor);
-    assert_eq!(visitor.jai.len(), 1, "recovered public twin retains one JAI owner");
+    assert_eq!(
+        visitor.jai.len(),
+        1,
+        "recovered public twin retains one JAI owner"
+    );
     let inner = match visitor.jai[0].inner_unit.as_ref() {
         jbotci_tree::Recovered::Valid(inner) => inner,
-        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => panic!("recovered JAI inner must be Valid"),
+        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => {
+            panic!("recovered JAI inner must be Valid")
+        }
     };
     let base = match inner.base.as_ref() {
         jbotci_tree::Recovered::Valid(base) => base,
-        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => panic!("recovered JAI base must be Valid"),
+        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => {
+            panic!("recovered JAI base must be Valid")
+        }
     };
-    assert!(matches!(base.as_ref(), recovered_model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)));
+    assert!(matches!(
+        base.as_ref(),
+        recovered_model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
+    ));
 }
 
 #[invariant(true)]

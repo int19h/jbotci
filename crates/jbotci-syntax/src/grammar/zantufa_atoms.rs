@@ -490,15 +490,20 @@ pub(crate) struct EnclosedAtomRejection;
 impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUnitSyntax>
     for EnclosedAtomRejection
 {
-    fn rejected_name(&self) -> &'static str { "unowned enclosed Zantufa atom" }
+    fn rejected_name(&self) -> &'static str {
+        "unowned enclosed Zantufa atom"
+    }
     #[ensures(ret)]
-    fn rejects(&self, _value: &model::ZantufaForethoughtTanruUnitSyntax) -> bool { true }
+    fn rejects(&self, _value: &model::ZantufaForethoughtTanruUnitSyntax) -> bool {
+        true
+    }
     fn rejects_in_dialect(
         &self,
         value: &model::ZantufaForethoughtTanruUnitSyntax,
-        dialect: super::generated_runtime::SyntaxGrammarDialect,
+        _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        enclosed_presence_from_strict_facts(strict_gek_facts(value)) != ZantufaTanruAtomPresence::Present
+        enclosed_presence_from_strict_facts(strict_gek_facts(value))
+            != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -506,32 +511,49 @@ impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUni
 impl super::generated_runtime::OutputRejection<recovered::ZantufaForethoughtTanruUnitSyntax>
     for EnclosedAtomRejection
 {
-    fn rejected_name(&self) -> &'static str { "unproven enclosed Zantufa atom" }
+    fn rejected_name(&self) -> &'static str {
+        "unproven enclosed Zantufa atom"
+    }
     #[ensures(ret)]
-    fn rejects(&self, _value: &recovered::ZantufaForethoughtTanruUnitSyntax) -> bool { true }
+    fn rejects(&self, _value: &recovered::ZantufaForethoughtTanruUnitSyntax) -> bool {
+        true
+    }
     fn rejects_in_dialect(
         &self,
         value: &recovered::ZantufaForethoughtTanruUnitSyntax,
-        dialect: super::generated_runtime::SyntaxGrammarDialect,
+        _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        enclosed_presence_from_recovered_facts(recovered_gek_facts(value)) != ZantufaTanruAtomPresence::Present
+        enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
+            != ZantufaTanruAtomPresence::Present
     }
 }
 
 #[bityzba::contract_trait]
-impl super::generated_runtime::OutputRejection<recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>>
-    for EnclosedAtomRejection
+impl
+    super::generated_runtime::OutputRejection<
+        recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
+    > for EnclosedAtomRejection
 {
-    fn rejected_name(&self) -> &'static str { "unproven enclosed Zantufa atom" }
+    fn rejected_name(&self) -> &'static str {
+        "unproven enclosed Zantufa atom"
+    }
     #[ensures(ret)]
-    fn rejects(&self, _value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>) -> bool { true }
+    fn rejects(
+        &self,
+        _value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
+    ) -> bool {
+        true
+    }
     fn rejects_in_dialect(
         &self,
         value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
-        dialect: super::generated_runtime::SyntaxGrammarDialect,
+        _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
         match value {
-            recovered::Recovered::Valid(value) => enclosed_presence_from_recovered_facts(recovered_gek_facts(value)) != ZantufaTanruAtomPresence::Present,
+            recovered::Recovered::Valid(value) => {
+                enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
+                    != ZantufaTanruAtomPresence::Present
+            }
             recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
         }
     }
@@ -941,10 +963,15 @@ fn recovered_gek_facts(
         .and_then(|gek| parsed_value(&gek.body))
         .and_then(|body| match body {
             recovered::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => {
-                parsed_value(opener).map(|opener| (
-                    parsed_value(&opener.head.value).is_some_and(|token| token.is_selmaho(jbotci_morphology::Selmaho::Ga)),
-                    parsed_value(&opener.head.value).is_some_and(|token| token.is_selmaho(jbotci_morphology::Selmaho::Guha)),
-                ))
+                parsed_value(opener).map(|opener| {
+                    (
+                        parsed_value(&opener.head.value)
+                            .is_some_and(|token| token.is_selmaho(jbotci_morphology::Selmaho::Ga)),
+                        parsed_value(&opener.head.value).is_some_and(|token| {
+                            token.is_selmaho(jbotci_morphology::Selmaho::Guha)
+                        }),
+                    )
+                })
             }
             _ => Some((false, false)),
         })
@@ -984,16 +1011,26 @@ fn enclosed_presence_from_recovered_facts(facts: RecoveredGekFacts) -> ZantufaTa
 
 #[requires(true)]
 #[ensures(true)]
-fn strict_gek_facts(
-    candidate: &model::ZantufaForethoughtTanruUnitSyntax,
-) -> StrictGekFacts {
-    let model::ZantufaForethoughtTanruUnitSyntax { nahe, gek, branches, gihi, .. } = candidate;
+fn strict_gek_facts(candidate: &model::ZantufaForethoughtTanruUnitSyntax) -> StrictGekFacts {
+    let model::ZantufaForethoughtTanruUnitSyntax {
+        nahe,
+        gek,
+        branches,
+        gihi,
+        ..
+    } = candidate;
     let model::ZantufaAtomGekSyntax { body, bo } = gek;
     let (head_is_ga, head_is_guha, opener_se_free_modifiers) = match body {
         model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => (
             opener.head.value.is_selmaho(jbotci_morphology::Selmaho::Ga),
-            opener.head.value.is_selmaho(jbotci_morphology::Selmaho::Guha),
-            opener.se.as_ref().is_some_and(|se| !se.free_modifiers.is_empty()),
+            opener
+                .head
+                .value
+                .is_selmaho(jbotci_morphology::Selmaho::Guha),
+            opener
+                .se
+                .as_ref()
+                .is_some_and(|se| !se.free_modifiers.is_empty()),
         ),
         model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
         | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => (false, false, false),
@@ -1040,7 +1077,6 @@ fn strict_standalone_presence(
     dialect: &super::generated_runtime::SyntaxGrammarDialect,
 ) -> ZantufaTanruAtomPresence {
     use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
-    use jbotci_morphology::Selmaho;
 
     if !dialect.zantufa_selbri_enabled {
         return Absent;
@@ -1546,13 +1582,19 @@ impl From<recovered::WithFreeModifiers<recovered::Recovered<Token>>>
 
 type RecoveredTokenClause = recovered::WithFreeModifiers<recovered::Recovered<Token>>;
 
-impl From<((TokenClause, model::TenseModalSyntax), model::TanruUnitAtomSyntax)>
-    for model::JaiModalTanruUnitSyntax
+impl
+    From<(
+        (TokenClause, model::TenseModalSyntax),
+        model::TanruUnitAtomSyntax,
+    )> for model::JaiModalTanruUnitSyntax
 {
     #[requires(true)]
     #[ensures(true)]
     fn from(
-        value: ((TokenClause, model::TenseModalSyntax), model::TanruUnitAtomSyntax),
+        value: (
+            (TokenClause, model::TenseModalSyntax),
+            model::TanruUnitAtomSyntax,
+        ),
     ) -> Self {
         let ((jai, tense_modal), inner_unit) = value;
         Self {
@@ -1576,11 +1618,23 @@ impl From<(TokenClause, model::TanruUnitAtomSyntax)> for model::JaiModalTanruUni
     }
 }
 
-impl From<((RecoveredTokenClause, recovered::Recovered<recovered::TenseModalSyntax>), recovered::Recovered<recovered::TanruUnitAtomSyntax>)>
-    for recovered::JaiModalTanruUnitSyntax
+impl
+    From<(
+        (
+            RecoveredTokenClause,
+            recovered::Recovered<recovered::TenseModalSyntax>,
+        ),
+        recovered::Recovered<recovered::TanruUnitAtomSyntax>,
+    )> for recovered::JaiModalTanruUnitSyntax
 {
     fn from(
-        value: ((RecoveredTokenClause, recovered::Recovered<recovered::TenseModalSyntax>), recovered::Recovered<recovered::TanruUnitAtomSyntax>),
+        value: (
+            (
+                RecoveredTokenClause,
+                recovered::Recovered<recovered::TenseModalSyntax>,
+            ),
+            recovered::Recovered<recovered::TanruUnitAtomSyntax>,
+        ),
     ) -> Self {
         let ((jai, tense_modal), inner_unit) = value;
         recovered::JaiModalTanruUnitSyntax {
@@ -1591,10 +1645,18 @@ impl From<((RecoveredTokenClause, recovered::Recovered<recovered::TenseModalSynt
     }
 }
 
-impl From<(RecoveredTokenClause, recovered::Recovered<recovered::TanruUnitAtomSyntax>)>
-    for recovered::JaiModalTanruUnitSyntax
+impl
+    From<(
+        RecoveredTokenClause,
+        recovered::Recovered<recovered::TanruUnitAtomSyntax>,
+    )> for recovered::JaiModalTanruUnitSyntax
 {
-    fn from(value: (RecoveredTokenClause, recovered::Recovered<recovered::TanruUnitAtomSyntax>)) -> Self {
+    fn from(
+        value: (
+            RecoveredTokenClause,
+            recovered::Recovered<recovered::TanruUnitAtomSyntax>,
+        ),
+    ) -> Self {
         let (jai, inner_unit) = value;
         recovered::JaiModalTanruUnitSyntax {
             jai,
@@ -2003,6 +2065,56 @@ mod tests {
     use crate::grammar::{ParserState, generated_model, generated_runtime, syntax_tokens, tokens};
     use crate::{ExperimentalConstruct, ParseOptions};
 
+    macro_rules! recovered_fa_tanru_unit_parser {
+        () => {
+            generated_model::recovered_zantufa_fa_tanru_unit_parser(
+                generated_model::recovered_generated_zantufa_tanru_unit_atom_entry_parser(),
+                generated_model::strict_generated_zantufa_tanru_unit_atom_entry_parser(),
+                generated_model::recovered_generated_free_modifier_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
+            )
+        };
+    }
+
+    macro_rules! recovered_forethought_tanru_unit_parser {
+        () => {
+            generated_model::recovered_zantufa_forethought_tanru_unit_parser(
+                generated_model::recovered_generated_co_selbri_parser(),
+                generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+                generated_model::recovered_generated_zantufa_boundary_term_parser(),
+                generated_model::strict_generated_co_selbri_parser(),
+                generated_model::strict_generated_zantufa_tcita_selci_parser(),
+                generated_model::strict_generated_zantufa_boundary_term_parser(),
+                generated_model::recovered_generated_free_modifier_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
+            )
+        };
+    }
+
+    macro_rules! recovered_atom_gek_parser {
+        () => {
+            generated_model::recovered_zantufa_atom_gek_parser(
+                generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+                generated_model::strict_generated_zantufa_tcita_selci_parser(),
+                generated_model::recovered_generated_free_modifier_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
+            )
+        };
+    }
+
+    macro_rules! recovered_selbri_simple_bridi_tail_parser {
+        () => {
+            generated_model::recovered_selbri_simple_bridi_tail_parser(
+                generated_model::recovered_generated_zantufa_selbri_entry_parser(),
+                generated_model::recovered_generated_term_parser(),
+                generated_model::strict_generated_zantufa_selbri_entry_parser(),
+                generated_model::strict_generated_term_parser(),
+                generated_model::recovered_generated_free_modifier_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
+            )
+        };
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2037,14 +2149,11 @@ mod tests {
                 "{source}"
             );
             let mut state = ParserState::new(&words, &options);
-            let parsed = generated_model::recovered_zantufa_fa_tanru_unit_parser(
-                generated_model::recovered_generated_zantufa_tanru_unit_atom_entry_parser(),
-                generated_model::recovered_generated_free_modifier_parser(),
-            )
-            .parse_with_state(input, &mut state)
-            .into_result()
-            .expect("complete recovered FA")
-            .into_owned();
+            let parsed = recovered_fa_tanru_unit_parser!()
+                .parse_with_state(input, &mut state)
+                .into_result()
+                .expect("complete recovered FA")
+                .into_owned();
             assert_eq!(
                 recovered_fa_presence(&parsed),
                 ZantufaTanruAtomPresence::Present,
@@ -2151,19 +2260,14 @@ mod tests {
         let spanned = tokens::spanned_tokens(&words);
         let eoi = spanned.last().unwrap().span.end;
         let mut state = ParserState::new(&words, &options);
-        let product = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-            generated_model::recovered_generated_co_selbri_parser(),
-            generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-            generated_model::recovered_generated_zantufa_boundary_term_parser(),
-            generated_model::recovered_generated_free_modifier_parser(),
-        )
-        .parse_with_state(
-            spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
-            &mut state,
-        )
-        .into_result()
-        .expect("real complete GEK product")
-        .into_owned();
+        let product = recovered_forethought_tanru_unit_parser!()
+            .parse_with_state(
+                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                &mut state,
+            )
+            .into_result()
+            .expect("real complete GEK product")
+            .into_owned();
         let error = new!(crate::tree::SyntaxRecoveryItem::SkippedTokens {
             error_index: 91,
             tokens: vec1::Vec1::new(words[0].clone()),
@@ -2305,18 +2409,14 @@ mod tests {
             let spanned = tokens::spanned_tokens(&words);
             let eoi = spanned.last().unwrap().span.end;
             let mut state = ParserState::new(&words, &options);
-            let parsed = generated_model::recovered_selbri_simple_bridi_tail_parser(
-                generated_model::recovered_generated_zantufa_selbri_entry_parser(),
-                generated_model::recovered_generated_term_parser(),
-                generated_model::recovered_generated_free_modifier_parser(),
-            )
-            .parse_with_state(
-                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
-                &mut state,
-            )
-            .into_result()
-            .expect("complete recovered tail")
-            .into_shared();
+            let parsed = recovered_selbri_simple_bridi_tail_parser!()
+                .parse_with_state(
+                    spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                    &mut state,
+                )
+                .into_result()
+                .expect("complete recovered tail")
+                .into_shared();
             let tail = parsed.as_ref();
             assert_eq!(
                 PriorityTailRejection.rejects_in_dialect(parsed.as_ref(), flags),
@@ -2351,30 +2451,27 @@ mod tests {
         use generated_runtime::OutputRejection;
         let dialect = parse_dialect_definition("(+ZANTUFA-SELBRI)").unwrap();
         let options = ParseOptions::default().with_dialect_definition(&dialect);
-        let words = syntax_tokens(&segment_words_with_modifiers("ga broda gi brode").unwrap(), &options);
+        let words = syntax_tokens(
+            &segment_words_with_modifiers("ga broda gi brode").unwrap(),
+            &options,
+        );
         let spanned = tokens::spanned_tokens(&words);
         let eoi = spanned.last().unwrap().span.end;
         let mut state = ParserState::new(&words, &options);
-        let parsed = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-            generated_model::recovered_generated_co_selbri_parser(),
-            generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-            generated_model::recovered_generated_zantufa_boundary_term_parser(),
-            generated_model::recovered_generated_free_modifier_parser(),
-        )
-        .parse_with_state(
-            spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
-            &mut state,
-        )
-        .into_result()
-        .expect("complete recovered candidate")
-        .into_shared();
+        let parsed = recovered_forethought_tanru_unit_parser!()
+            .parse_with_state(
+                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                &mut state,
+            )
+            .into_result()
+            .expect("complete recovered candidate")
+            .into_shared();
         let flags = generated_runtime::SyntaxGrammarDialect::from_options(&options);
         let value = parsed.as_ref();
         // A completed GA-family product is eligible in the enclosed route;
         // uncertainty remains fail-closed through the recovered adapter.
         assert!(!EnclosedAtomRejection.rejects_in_dialect(value, flags));
     }
-
 
     #[test]
     #[requires(true)]
@@ -2546,15 +2643,13 @@ mod tests {
                                     "strict {source}"
                                 );
                                 let mut state = ParserState::new(&words, &options);
-                                let recovered = generated_model::recovered_zantufa_atom_gek_parser(
-                                    generated_model::recovered_generated_zantufa_tcita_selci_parser(
-                                    ),
-                                    generated_model::recovered_generated_free_modifier_parser(),
-                                )
-                                .parse_with_state(input, &mut state)
-                                .into_result()
-                                .unwrap_or_else(|errors| panic!("recovered {source}: {errors:?}"))
-                                .into_shared();
+                                let recovered = recovered_atom_gek_parser!()
+                                    .parse_with_state(input, &mut state)
+                                    .into_result()
+                                    .unwrap_or_else(|errors| {
+                                        panic!("recovered {source}: {errors:?}")
+                                    })
+                                    .into_shared();
                                 assert_eq!(
                                     recovered_gek_joik_key(&recovered, connectives),
                                     Some(key),
@@ -2579,13 +2674,13 @@ mod tests {
                                 ).parse_with_state(full_input, &mut state).into_result()
                                     .unwrap_or_else(|errors| panic!("{full_source}: {errors:?}")).into_shared();
                                 let mut state = ParserState::new(&full_words, &options);
-                                let recovered_product = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                                    generated_model::recovered_generated_co_selbri_parser(),
-                                    generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                                    generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                                    generated_model::recovered_generated_free_modifier_parser(),
-                                ).parse_with_state(full_input, &mut state).into_result()
-                                    .unwrap_or_else(|errors| panic!("recovered {full_source}: {errors:?}")).into_shared();
+                                let recovered_product = recovered_forethought_tanru_unit_parser!()
+                                    .parse_with_state(full_input, &mut state)
+                                    .into_result()
+                                    .unwrap_or_else(|errors| {
+                                        panic!("recovered {full_source}: {errors:?}")
+                                    })
+                                    .into_shared();
                                 for pair in [false, true] {
                                     // This is the pure ownership gate, not a
                                     // second parse under a different dialect.
@@ -2637,17 +2732,14 @@ mod tests {
         let spanned = tokens::spanned_tokens(&words);
         let eoi = spanned.last().expect("nonempty opener").span.end;
         let mut state = ParserState::new(&words, &options);
-        let original = generated_model::recovered_zantufa_atom_gek_parser(
-            generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-            generated_model::recovered_generated_free_modifier_parser(),
-        )
-        .parse_with_state(
-            spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
-            &mut state,
-        )
-        .into_result()
-        .expect("complete full-field opener")
-        .into_owned();
+        let original = recovered_atom_gek_parser!()
+            .parse_with_state(
+                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                &mut state,
+            )
+            .into_result()
+            .expect("complete full-field opener")
+            .into_owned();
         assert!(recovered_gek_joik_key(&original, false).is_some());
         for field in ["left_gaho", "na", "se", "head", "right_gaho", "gi", "bo"] {
             for prefix in [false, true] {
@@ -2746,16 +2838,11 @@ mod tests {
                 "{source}"
             );
             let mut state = ParserState::new(&words, &options);
-            let recovered = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                generated_model::recovered_generated_co_selbri_parser(),
-                generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                generated_model::recovered_generated_free_modifier_parser(),
-            )
-            .parse_with_state(input, &mut state)
-            .into_result()
-            .unwrap_or_else(|errors| panic!("recovered {source}: {errors:?}"))
-            .into_shared();
+            let recovered = recovered_forethought_tanru_unit_parser!()
+                .parse_with_state(input, &mut state)
+                .into_result()
+                .unwrap_or_else(|errors| panic!("recovered {source}: {errors:?}"))
+                .into_shared();
             assert_eq!(
                 recovered_standalone_presence(&recovered, &flags),
                 ZantufaTanruAtomPresence::Unproven,
@@ -2804,13 +2891,8 @@ mod tests {
                 assert_eq!(state.warnings.len(), usize::from(admitted));
             }
             {
-                let candidate = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                    generated_model::recovered_generated_co_selbri_parser(),
-                    generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                    generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                    generated_model::recovered_generated_free_modifier_parser(),
-                )
-                .map(|value| value.into_owned());
+                let candidate =
+                    recovered_forethought_tanru_unit_parser!().map(|value| value.into_owned());
                 let mut state = ParserState::new(&words, &options);
                 let result = generated_runtime::reject_output(candidate, StandaloneAtomRejection)
                     .parse_with_state(input, &mut state)
@@ -2843,13 +2925,7 @@ mod tests {
                 let mut state = ParserState::new(&words, &options);
                 let parser = if recovered_mode {
                     let candidate =
-                        generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                            generated_model::recovered_generated_co_selbri_parser(),
-                            generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                            generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                            generated_model::recovered_generated_free_modifier_parser(),
-                        )
-                        .map(|value| value.into_owned());
+                        recovered_forethought_tanru_unit_parser!().map(|value| value.into_owned());
                     generated_runtime::reject_output(candidate, StandaloneAtomRejection)
                         .map(|_| true)
                         .or(generated_model::recovered_generated_co_selbri_parser().map(|_| false))
@@ -2982,13 +3058,8 @@ mod tests {
                     .parse_with_state(input, &mut baseline_state)
                     .into_result()
                     .unwrap_or_else(|errors| panic!("recovered baseline {source}: {errors:?}"));
-                let candidate = generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                    generated_model::recovered_generated_co_selbri_parser(),
-                    generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                    generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                    generated_model::recovered_generated_free_modifier_parser(),
-                )
-                .map(|value| value.into_owned());
+                let candidate =
+                    recovered_forethought_tanru_unit_parser!().map(|value| value.into_owned());
                 // Prove this is a completed candidate rejected by the actual
                 // classifier, rather than a failing parser bypassing rejection.
                 let mut candidate_state = ParserState::new(&words, &options);
@@ -3298,6 +3369,7 @@ mod tests {
             let mut state = ParserState::new(&words, &options);
             let product = generated_model::recovered_zantufa_atom_ga_opener_parser(
                 generated_model::recovered_generated_free_modifier_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
             )
             .parse_with_state(
                 spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
@@ -3419,13 +3491,7 @@ mod tests {
                     "{source}, {definition}",
                 );
                 let mut state = ParserState::new(&words, &options);
-                let recovered_product =
-                    generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                        generated_model::recovered_generated_co_selbri_parser(),
-                        generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                        generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                        generated_model::recovered_generated_free_modifier_parser(),
-                    )
+                let recovered_product = recovered_forethought_tanru_unit_parser!()
                     .parse_with_state(
                         spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
                         &mut state,
@@ -3508,14 +3574,15 @@ mod tests {
                         generated_model::recovery_checkpoint_strict_generated_co_selbri_parser(),
                         generated_model::recovery_checkpoint_strict_generated_zantufa_tcita_selci_parser(),
                         generated_model::recovery_checkpoint_strict_generated_zantufa_boundary_term_parser(),
+                        generated_model::strict_generated_co_selbri_parser(),
+                        generated_model::strict_generated_zantufa_tcita_selci_parser(),
+                        generated_model::strict_generated_zantufa_boundary_term_parser(),
                         generated_model::recovery_checkpoint_strict_generated_free_modifier_parser(),
+                        generated_model::strict_generated_free_modifier_parser(),
                     ).map(|_| ()).boxed(),
-                    "recovered" => generated_model::recovered_zantufa_forethought_tanru_unit_parser(
-                        generated_model::recovered_generated_co_selbri_parser(),
-                        generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                        generated_model::recovered_generated_zantufa_boundary_term_parser(),
-                        generated_model::recovered_generated_free_modifier_parser(),
-                    ).map(|_| ()).boxed(),
+                    "recovered" => recovered_forethought_tanru_unit_parser!()
+                        .map(|_| ())
+                        .boxed(),
                     _ => unreachable!("the test enumerates all three parser flavors"),
                 };
                 let result = with_consumed_extent(parser)
@@ -3737,14 +3804,18 @@ mod tests {
                 let parser = if warned {
                     generated_model::recovered_warned_zantufa_atom_final_gi_opener_parser(
                         generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+                        generated_model::strict_generated_zantufa_tcita_selci_parser(),
                         generated_model::recovered_generated_free_modifier_parser(),
+                        generated_model::strict_generated_free_modifier_parser(),
                     )
                     .map(|value| value.into_owned())
                     .boxed()
                 } else {
                     generated_model::recovered_zantufa_atom_final_gi_opener_parser(
                         generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+                        generated_model::strict_generated_zantufa_tcita_selci_parser(),
                         generated_model::recovered_generated_free_modifier_parser(),
+                        generated_model::strict_generated_free_modifier_parser(),
                     )
                     .map(|value| value.into_owned())
                     .boxed()
@@ -3866,11 +3937,15 @@ mod tests {
                         ).map(|_| ()).boxed(),
                         1 => generated_model::recovery_checkpoint_strict_warned_zantufa_atom_final_gi_opener_parser(
                             generated_model::recovery_checkpoint_strict_generated_zantufa_tcita_selci_parser(),
+                            generated_model::strict_generated_zantufa_tcita_selci_parser(),
                             generated_model::recovery_checkpoint_strict_generated_free_modifier_parser(),
+                            generated_model::strict_generated_free_modifier_parser(),
                         ).map(|_| ()).boxed(),
                         _ => generated_model::recovered_warned_zantufa_atom_final_gi_opener_parser(
                             generated_model::recovered_generated_zantufa_tcita_selci_parser(),
+                            generated_model::strict_generated_zantufa_tcita_selci_parser(),
                             generated_model::recovered_generated_free_modifier_parser(),
+                            generated_model::strict_generated_free_modifier_parser(),
                         ).map(|_| ()).boxed(),
                     };
                     let parser = match speculation {
@@ -4039,13 +4114,19 @@ mod tests {
                 let mut state = ParserState::new(&words, &options);
                 let free = generated_model::recovered_generated_free_modifier_parser();
                 let parser = if warned {
-                    generated_model::recovered_warned_zantufa_atom_ga_opener_parser(free)
-                        .map(|value| value.into_owned())
-                        .boxed()
+                    generated_model::recovered_warned_zantufa_atom_ga_opener_parser(
+                        free,
+                        generated_model::strict_generated_free_modifier_parser(),
+                    )
+                    .map(|value| value.into_owned())
+                    .boxed()
                 } else {
-                    generated_model::recovered_zantufa_atom_ga_opener_parser(free)
-                        .map(|value| value.into_owned())
-                        .boxed()
+                    generated_model::recovered_zantufa_atom_ga_opener_parser(
+                        free,
+                        generated_model::strict_generated_free_modifier_parser(),
+                    )
+                    .map(|value| value.into_owned())
+                    .boxed()
                 };
                 recovered_outputs.push(
                     parser
@@ -4090,12 +4171,7 @@ mod tests {
             for recovered_mode in [false, true] {
                 let mut state = ParserState::new(&words, &options);
                 let parser = if recovered_mode {
-                    generated_model::recovered_zantufa_atom_gek_parser(
-                        generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                        generated_model::recovered_generated_free_modifier_parser(),
-                    )
-                    .map(|_| ())
-                    .boxed()
+                    recovered_atom_gek_parser!().map(|_| ()).boxed()
                 } else {
                     generated_model::strict_zantufa_atom_gek_parser(
                         generated_model::strict_generated_zantufa_tcita_selci_parser(),
@@ -4172,12 +4248,7 @@ mod tests {
                     for recovered_mode in [false, true] {
                         let mut state = ParserState::new(&words, &options);
                         let parser = if recovered_mode {
-                            generated_model::recovered_zantufa_atom_gek_parser(
-                                generated_model::recovered_generated_zantufa_tcita_selci_parser(),
-                                generated_model::recovered_generated_free_modifier_parser(),
-                            )
-                            .map(|_| ())
-                            .boxed()
+                            recovered_atom_gek_parser!().map(|_| ()).boxed()
                         } else {
                             generated_model::strict_zantufa_atom_gek_parser(
                                 generated_model::strict_generated_zantufa_tcita_selci_parser(),
@@ -4251,7 +4322,10 @@ mod tests {
                             let parser = if recovery_mode == 0 {
                                 generated_model::strict_warned_zantufa_atom_ga_opener_parser(free)
                             } else {
-                                generated_model::recovery_checkpoint_strict_warned_zantufa_atom_ga_opener_parser(free)
+                                generated_model::recovery_checkpoint_strict_warned_zantufa_atom_ga_opener_parser(
+                                    free,
+                                    generated_runtime::strict_empty_free_modifier_parser(),
+                                )
                             };
                             parser.map(move |value| {
                                 let value = value.into_owned();
@@ -4266,6 +4340,7 @@ mod tests {
                         }
                         _ => generated_model::recovered_warned_zantufa_atom_ga_opener_parser(
                             generated_runtime::recovered_empty_free_modifier_parser(),
+                            generated_runtime::strict_empty_free_modifier_parser(),
                         ).map(move |value| {
                             let value = value.into_owned();
                             assert_eq!(value.se.is_some(), has_se);

@@ -2492,10 +2492,11 @@ pub mod generated_model {
     }
 
     /// Product node for termset; preserves `ke`, `termset`, and `kehe` in source order.
-    rule "termset" ke_termset(term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" ke_termset(sumti, term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         assert !grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored();
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
+        assert !(feature(ZantufaTerms), strict_observe((sumti, cmavo(Kehe))));
         /// Non-empty ordered sequence of termset components.
         field termset <- [one_or_more arc(term)];
         /// The optional `Kehe` cmavo marker.
@@ -2628,7 +2629,8 @@ pub mod generated_model {
     }
 
     /// Transparent product node for term; preserves the `sumti` component.
-    rule "term" sumti_term(sumti) -> struct {
+    rule "term" sumti_term(sumti, term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        assert !(feature(ZantufaTerms), strict_observe(ke_termset(sumti, term, tense_modal, baseline_term_tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci)));
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti.reject_output(crate::grammar::baseline_termset::ZantufaGroupedSumtiTermRejection));
     }
