@@ -1927,7 +1927,7 @@ pub(super) fn build_commit_info() -> Option<BuildCommitInfo> {
     };
     Some(new!(BuildCommitInfo {
         short: short_commit.to_owned(),
-        href: format!("https://codeberg.org/int_19h/jbotci/commit/{full_commit}"),
+        href: format!("https://github.com/int19h/jbotci/commit/{full_commit}"),
     }))
 }
 
