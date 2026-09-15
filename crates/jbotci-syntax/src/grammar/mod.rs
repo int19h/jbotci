@@ -6041,6 +6041,66 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_observe_parser_rewinds_and_discards_child_state_on_success_and_failure() {
+        use parser_core::{Input as _, Parser as _};
+
+        let words = segment_words_with_modifiers("mi do").expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, inner)| Spanned {
+                inner,
+                span: SimpleSpan::from(index..index + 1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned
+            .as_slice()
+            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
+
+        for fail_probe in [false, true] {
+            let mut state = ParserState::new(&tokens, &ParseOptions::default());
+            let probe = generated_runtime::strict_observe(parser_core::custom(
+                move |input| {
+                    assert!(input.next().is_some());
+                    input
+                        .state()
+                        .syntax_memo_in_progress
+                        .insert(("probe", 0, SyntaxMemoScope::Ordinary));
+                    if fail_probe {
+                        Err(SyntaxParseError::custom(
+                            (0..0).into(),
+                            "strict observe probe failure".to_owned(),
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+            ));
+            let parser = parser_core::custom(move |input| {
+                let result = input.parse(probe.clone());
+                assert_eq!(result.is_err(), fail_probe);
+                assert_eq!(
+                    ParserInput::cursor_location(input.cursor().inner()),
+                    0,
+                    "strict observation must restore the caller cursor"
+                );
+                assert!(input.state().syntax_memo_in_progress.is_empty());
+                assert!(input.next().is_some(), "caller still owns the first token");
+                assert!(input.next().is_some(), "caller can continue after the probe");
+                Ok(())
+            });
+
+            let result = parser.parse_with_state(input, &mut state);
+            assert!(result.into_result().is_ok());
+            assert!(state.syntax_memo_in_progress.is_empty());
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.0.recovery_directives.len() == 1)]
     fn boundary_recovery_test_state() -> (
         ParserState<'static>,
