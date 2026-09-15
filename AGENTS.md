@@ -6,7 +6,7 @@ Always keep in mind: our primary goals are correctness and code quality. If some
 
 jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a single self-contained binary. Thus we want to compile it as a static no-deps binary for Linux, and as close as we can get to that for macOS and Windows (the old repo has that for Haskell, you can use it as a baseline but bear in mind that some things are the way they are because of Haskell toolchain limitations that may not apply to Rust so always think about how idiomatic Rust would approach the same problem first). We will eventually use Dioxus for the web part but the initial goal is to get CLI fully functional.
 
-The project is hosted at GitHub (https://github.com/int19h/jbotci) with a mirror on Codeberg (https://codeberg.org/int_19h/jbotci). Issues and PRs should be created on GitHub. If Codeberg access is required, use token in ~/git/.codeberg/jbotci.token to access it using forjego-cli to browse or create issues.
+The project is hosted at GitHub (https://github.com/int19h/jbotci). Issues and PRs should be created on GitHub.
 
 
 # Herdr Collab coordination
@@ -173,7 +173,7 @@ Commit periodically in well-defined logical units while working, not only at the
 
 Before reverting any commit, always inspect it carefully (`git show` + surrounding history), verify the commit message and nature of changes, and only revert after explicit reasoning confirms the revert is correct.
 
-When working on a Codeberg work item, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the work item in such a way that it is automatically closed.
+When working on a GitHub issue, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the issue in such a way that it is automatically closed.
 
 When intended behavior is unclear or a semantic question is in doubt, use jbotci cukta MCP to consult the CLL and clarify the intended reading before deciding on a fix or expectation change.
 
