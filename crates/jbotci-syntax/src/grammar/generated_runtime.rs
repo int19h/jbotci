@@ -2174,6 +2174,68 @@ fn classifier_site_tracing_enabled() -> bool {
     crate::grammar::sumti_operand_tier::trace_enabled()
         || crate::grammar::description_leading::trace_enabled()
         || crate::grammar::zantufa_quantifier_relatives::trace_enabled()
+        || crate::grammar::zantufa_atoms::trace_enabled()
+}
+
+/// Collects the source extent a recovered candidate covers, recovery items included.
+///
+/// The endpoints are one field rather than two so that "seen nothing yet" cannot be spelled
+/// half-way; every combination of the single field is a valid state.
+#[invariant(true)]
+struct RecoveredSourceExtentProbe {
+    extent: Option<(usize, usize)>,
+}
+
+impl RecoveredSourceExtentProbe {
+    #[requires(byte_start <= byte_end)]
+    #[ensures(self.extent.is_some())]
+    fn observe(&mut self, byte_start: usize, byte_end: usize) {
+        self.extent = Some(self.extent.map_or((byte_start, byte_end), |(start, end)| {
+            (start.min(byte_start), end.max(byte_end))
+        }));
+    }
+}
+
+impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSourceExtentProbe {
+    type Node = super::generated_model::recovered::NodeRef<'tree>;
+    type Atom = super::generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        let super::generated_model::recovered::AtomRef::Token(token) = atom;
+        for span in token.source_spans() {
+            self.observe(span.byte_start, span.byte_end);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
+        &mut self,
+        item: &'tree E,
+    ) {
+        let mut observed = Vec::new();
+        item.visit_source_spans(&mut |span| observed.push((span.byte_start, span.byte_end)));
+        for (byte_start, byte_end) in observed {
+            self.observe(byte_start, byte_end);
+        }
+    }
+}
+
+/// The source extent a recovered candidate covers, recovery items included.
+///
+/// Trace support for the classifier traces in this crate: a rejected candidate is rewound and
+/// leaves no trace of the input it covered, so the extent has to be read off the candidate while
+/// the classifier still holds it.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(start, end)| start <= end))]
+pub(crate) fn recovered_source_extent(
+    node: &impl super::generated_model::recovered::TreeNode,
+) -> Option<(usize, usize)> {
+    let mut probe = RecoveredSourceExtentProbe { extent: None };
+    super::generated_model::recovered::TreeNode::visit_in_order(node, &mut probe);
+    probe.extent
 }
 
 #[requires(true)]

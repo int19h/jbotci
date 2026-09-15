@@ -1340,7 +1340,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a single accumulating flag whose every value is a valid state of the traversal",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveredSourceExtentProbe",
         "one optional endpoint pair, so a half-set extent cannot be spelled at all",
     ),
     (

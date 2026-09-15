@@ -3,38 +3,215 @@
 //! Parser alternatives may differ to put a diagnostic on a statically known
 //! token, but those alternatives do not create public warning-only variants.
 
+use std::sync::OnceLock;
+
 use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::Selmaho;
 
 use super::generated_model::{
     self as model, FreeModifierSyntax, ZantufaAtomGaOpenerSyntax, recovered,
 };
+use super::generated_runtime::output_rejection_site;
 use crate::Token;
 use crate::tree::WithFreeModifiers;
 
 type TokenClause = WithFreeModifiers<Token, FreeModifierSyntax>;
 
+/// Whether the Zantufa atom-ownership classifier trace is switched on.
+///
+/// # `JBOTCI_TRACE_ZANTUFA_ATOMS`
+///
+/// Set the environment variable to any non-empty value to print one line to stderr for every
+/// RECOVERED ownership classification the C-e atom family performs:
+///
+/// ```text
+/// zantufa-atom site=tanru_unit_atom_base candidate=fa wrapper=valid bytes=9..23 answer=Present decision=accept
+/// ```
+///
+/// - `site` is the enclosing generated rule that consumed the candidate, read from the parser's
+///   active rule stack, which the classifier cannot otherwise see;
+/// - `candidate` is which of the five C-e ownership questions ran: `fa`, `standalone-gek`,
+///   `enclosed-gek`, `priority-selbri` or `priority-tail`;
+/// - `wrapper` is the recovered wrapper the classifier was handed -- `valid` / `prefix` / `error`,
+///   or `unwrapped` where the generated route hands over the bare product;
+/// - `bytes` is the source extent the classified candidate covers, `empty` when it covers none;
+/// - `answer` is the three-valued presence answer and `decision` is what the route does with it.
+///
+/// Use it when attributing a recovered ownership row: a rejected candidate leaves nothing at all
+/// in the rendered tree, so "rejected as Absent", "rejected as Unproven" and "never reached" are
+/// indistinguishable without this trace. That attribution is exactly what the epoch's frozen
+/// winning-recovery rows record per row.
+///
+/// The strict spine is deliberately not traced: a strict candidate that is admitted is visible in
+/// the resulting tree, and strict classification has no recovery uncertainty to attribute.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn trace_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var_os("JBOTCI_TRACE_ZANTUFA_ATOMS").is_some_and(|value| !value.is_empty())
+    })
+}
+
+/// Which of the C-e ownership questions a traced classification answered.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TracedCandidate {
+    Fa,
+    StandaloneGek,
+    EnclosedGek,
+    PrioritySelbri,
+    PriorityTail,
+}
+
+impl TracedCandidate {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn name(self) -> &'static str {
+        match self {
+            Self::Fa => "fa",
+            Self::StandaloneGek => "standalone-gek",
+            Self::EnclosedGek => "enclosed-gek",
+            Self::PrioritySelbri => "priority-selbri",
+            Self::PriorityTail => "priority-tail",
+        }
+    }
+}
+
+/// The recovered wrapper a classifier was handed, including the unwrapped generated route.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+enum TracedWrapper {
+    Unwrapped,
+    Valid,
+    Prefix,
+    Error,
+}
+
+impl TracedWrapper {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn name(self) -> &'static str {
+        match self {
+            Self::Unwrapped => "unwrapped",
+            Self::Valid => "valid",
+            Self::Prefix => "prefix",
+            Self::Error => "error",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn of<T>(value: &recovered::Recovered<T>) -> Self {
+        match value {
+            recovered::Recovered::Valid(_) => Self::Valid,
+            recovered::Recovered::Prefix(_) => Self::Prefix,
+            recovered::Recovered::Error(_) => Self::Error,
+        }
+    }
+}
+
+/// One trace line for a recovered classification, with the consumer that asked for it.
+#[requires(true)]
+#[ensures(true)]
+fn trace_recovered_classification(
+    candidate: TracedCandidate,
+    wrapper: TracedWrapper,
+    node: &impl recovered::TreeNode,
+    answer: ZantufaTanruAtomPresence,
+) {
+    // The alias carrying the refinement is itself a rule and sits on top of the stack; the
+    // consumer that asked the ownership question is the innermost frame below all of them.
+    let site = output_rejection_site(|frames| {
+        frames
+            .iter()
+            .rev()
+            .find(|rule| !rule.ends_with("_candidate"))
+            .copied()
+            .unwrap_or("<unknown>")
+    });
+    let bytes = super::generated_runtime::recovered_source_extent(node).map_or_else(
+        || "empty".to_owned(),
+        |(start, end)| format!("{start}..{end}"),
+    );
+    let decision = if answer == ZantufaTanruAtomPresence::Present {
+        "accept"
+    } else {
+        "reject"
+    };
+    let candidate = candidate.name();
+    let wrapper = wrapper.name();
+    eprintln!(
+        "zantufa-atom site={site} candidate={candidate} wrapper={wrapper} bytes={bytes} answer={answer:?} decision={decision}"
+    );
+}
+
+/// Classify a wrapped recovered candidate, tracing the answer when the trace is on.
+///
+/// An incomplete wrapper is fail-closed `Unproven` by construction: a candidate that did not
+/// complete cannot have proven any discriminator, so the inner classifier is not consulted.
+#[requires(true)]
+#[ensures(ret == ZantufaTanruAtomPresence::Present -> matches!(value, recovered::Recovered::Valid(_)))]
+fn classify_recovered_wrapper<T: recovered::TreeNode>(
+    candidate: TracedCandidate,
+    value: &recovered::Recovered<T>,
+    classify: impl FnOnce(&T) -> ZantufaTanruAtomPresence,
+) -> ZantufaTanruAtomPresence {
+    let answer = match value {
+        recovered::Recovered::Valid(value) => classify(value.as_ref()),
+        recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => {
+            ZantufaTanruAtomPresence::Unproven
+        }
+    };
+    if trace_enabled() {
+        trace_recovered_classification(candidate, TracedWrapper::of(value), value, answer);
+    }
+    answer
+}
+
+/// Classify an unwrapped recovered candidate, tracing the answer when the trace is on.
+#[requires(true)]
+#[ensures(true)]
+fn classify_recovered_product<T: recovered::TreeNode>(
+    candidate: TracedCandidate,
+    value: &T,
+    classify: impl FnOnce(&T) -> ZantufaTanruAtomPresence,
+) -> ZantufaTanruAtomPresence {
+    let answer = classify(value);
+    if trace_enabled() {
+        trace_recovered_classification(candidate, TracedWrapper::Unwrapped, value, answer);
+    }
+    answer
+}
+
 #[invariant(true)]
 #[derive(Clone, Copy)]
 pub(crate) struct FaAtomRejection;
 
-macro_rules! fa_atom_rejection {
-    ($model:ident, $classify:ident) => {
-        #[bityzba::contract_trait]
-        impl super::generated_runtime::OutputRejection<$model::ZantufaFaTanruUnitSyntax>
-            for FaAtomRejection
-        {
-            fn rejected_name(&self) -> &'static str {
-                "unproven source FA atom"
-            }
-            fn rejects(&self, value: &$model::ZantufaFaTanruUnitSyntax) -> bool {
-                $classify(value) != ZantufaTanruAtomPresence::Present
-            }
-        }
-    };
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<model::ZantufaFaTanruUnitSyntax>
+    for FaAtomRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unproven source FA atom"
+    }
+    fn rejects(&self, value: &model::ZantufaFaTanruUnitSyntax) -> bool {
+        strict_fa_presence(value) != ZantufaTanruAtomPresence::Present
+    }
 }
-fa_atom_rejection!(model, strict_fa_presence);
-fa_atom_rejection!(recovered, recovered_fa_presence);
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<recovered::ZantufaFaTanruUnitSyntax>
+    for FaAtomRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unproven source FA atom"
+    }
+    fn rejects(&self, value: &recovered::ZantufaFaTanruUnitSyntax) -> bool {
+        classify_recovered_product(TracedCandidate::Fa, value, recovered_fa_presence)
+            != ZantufaTanruAtomPresence::Present
+    }
+}
 
 #[bityzba::contract_trait]
 impl
@@ -54,12 +231,8 @@ impl
         value: &recovered::Recovered<recovered::ZantufaFaTanruUnitSyntax>,
         _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        match value {
-            recovered::Recovered::Valid(value) => {
-                recovered_fa_presence(value.as_ref()) != ZantufaTanruAtomPresence::Present
-            }
-            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
-        }
+        classify_recovered_wrapper(TracedCandidate::Fa, value, recovered_fa_presence)
+            != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -215,49 +388,82 @@ priority_domain_walker!(
 #[derive(Clone, Copy)]
 pub(crate) struct PriorityAtomRejection;
 
-macro_rules! priority_rejection {
-    ($model:ident, $uncertainty:block) => {
-        #[bityzba::contract_trait]
-        impl super::generated_runtime::OutputRejection<$model::CoSelbriSyntax>
-            for PriorityAtomRejection
-        {
-            fn rejected_name(&self) -> &'static str {
-                "unproven Zantufa atom priority"
+/// The priority-atom ownership answer for a complete co-selbri on this parse axis.
+///
+/// The feature being off is `Absent` rather than `Unproven`: there is nothing left to establish,
+/// the priority owner simply does not exist on that axis.
+macro_rules! priority_answer {
+    ($model:ident, $name:ident, $uncertainty:block) => {
+        #[requires(true)]
+        #[ensures(true)]
+        fn $name(
+            value: &$model::CoSelbriSyntax,
+            dialect: super::generated_runtime::SyntaxGrammarDialect,
+        ) -> ZantufaTanruAtomPresence {
+            if !dialect.zantufa_selbri_enabled {
+                return ZantufaTanruAtomPresence::Absent;
             }
-            #[ensures(ret)]
-            fn rejects(&self, _value: &$model::CoSelbriSyntax) -> bool {
-                true
+            let uncertain: fn(&$model::CoSelbriSyntax) -> bool = $uncertainty;
+            if uncertain(value) {
+                return ZantufaTanruAtomPresence::Unproven;
             }
-            fn rejects_in_dialect(
-                &self,
-                value: &$model::CoSelbriSyntax,
-                dialect: super::generated_runtime::SyntaxGrammarDialect,
-            ) -> bool {
-                if !dialect.zantufa_selbri_enabled {
-                    return true;
-                }
-                let uncertain: fn(&$model::CoSelbriSyntax) -> bool = $uncertainty;
-                if uncertain(value) {
-                    return true;
-                }
-                let mut walker = PriorityAtomEvidence {
-                    dialect,
-                    answer: ZantufaTanruAtomPresence::Absent,
-                };
-                $model::TreeWalkable::walk_with(value, &mut walker);
-                walker.answer != ZantufaTanruAtomPresence::Present
-            }
+            let mut walker = PriorityAtomEvidence {
+                dialect,
+                answer: ZantufaTanruAtomPresence::Absent,
+            };
+            $model::TreeWalkable::walk_with(value, &mut walker);
+            walker.answer
         }
     };
 }
-priority_rejection!(model, { |_| false });
-priority_rejection!(recovered, {
+priority_answer!(model, strict_priority_presence, { |_| false });
+priority_answer!(recovered, recovered_priority_presence, {
     |value| {
         let mut evidence = RequiredSubtreeEvidence::default();
         recovered::TreeNode::visit_in_order(value, &mut evidence);
         evidence.uncertainty || !evidence.parsed_token
     }
 });
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<model::CoSelbriSyntax> for PriorityAtomRejection {
+    fn rejected_name(&self) -> &'static str {
+        "unproven Zantufa atom priority"
+    }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &model::CoSelbriSyntax) -> bool {
+        true
+    }
+    fn rejects_in_dialect(
+        &self,
+        value: &model::CoSelbriSyntax,
+        dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        strict_priority_presence(value, dialect) != ZantufaTanruAtomPresence::Present
+    }
+}
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<recovered::CoSelbriSyntax>
+    for PriorityAtomRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unproven Zantufa atom priority"
+    }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &recovered::CoSelbriSyntax) -> bool {
+        true
+    }
+    fn rejects_in_dialect(
+        &self,
+        value: &recovered::CoSelbriSyntax,
+        dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        classify_recovered_product(TracedCandidate::PrioritySelbri, value, |value| {
+            recovered_priority_presence(value, dialect)
+        }) != ZantufaTanruAtomPresence::Present
+    }
+}
 
 #[bityzba::contract_trait]
 impl super::generated_runtime::OutputRejection<recovered::Recovered<recovered::CoSelbriSyntax>>
@@ -275,16 +481,9 @@ impl super::generated_runtime::OutputRejection<recovered::Recovered<recovered::C
         value: &recovered::Recovered<recovered::CoSelbriSyntax>,
         dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        match value {
-            recovered::Recovered::Valid(value) => {
-                super::generated_runtime::OutputRejection::rejects_in_dialect(
-                    self,
-                    value.as_ref(),
-                    dialect,
-                )
-            }
-            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
-        }
+        classify_recovered_wrapper(TracedCandidate::PrioritySelbri, value, |value| {
+            recovered_priority_presence(value, dialect)
+        }) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -373,6 +572,33 @@ fn recovered_priority_tail_selbri(
     }
 }
 
+/// The atom-owned-tail answer for a complete recovered tail payload on this parse axis.
+///
+/// Uncertainty anywhere in the payload is `Unproven`: the tail is refined as a whole, so an
+/// incompletely recovered child leaves the ownership question unanswered rather than answered
+/// negatively. A complete payload whose selbri is simply not atom-owned is `Absent`.
+#[requires(true)]
+#[ensures(ret == ZantufaTanruAtomPresence::Present -> parsed_value(selbri).is_some())]
+fn recovered_priority_tail_presence(
+    selbri: &recovered::Recovered<recovered::SelbriSyntax>,
+    payload: &impl recovered::TreeNode,
+    dialect: super::generated_runtime::SyntaxGrammarDialect,
+) -> ZantufaTanruAtomPresence {
+    let mut evidence = RequiredSubtreeEvidence::default();
+    recovered::TreeNode::visit_in_order(payload, &mut evidence);
+    if evidence.uncertainty {
+        return ZantufaTanruAtomPresence::Unproven;
+    }
+    let Some(selbri) = parsed_value(selbri) else {
+        return ZantufaTanruAtomPresence::Unproven;
+    };
+    if recovered_priority_tail_selbri(selbri, dialect) {
+        ZantufaTanruAtomPresence::Present
+    } else {
+        ZantufaTanruAtomPresence::Absent
+    }
+}
+
 macro_rules! priority_tail_mapping {
     ($payload:ident, $target:ident, $variant:ident) => {
         #[bityzba::contract_trait]
@@ -408,13 +634,9 @@ macro_rules! priority_tail_mapping {
                 value: &recovered::$payload,
                 dialect: super::generated_runtime::SyntaxGrammarDialect,
             ) -> bool {
-                let mut evidence = RequiredSubtreeEvidence::default();
-                recovered::TreeNode::visit_in_order(value, &mut evidence);
-                if evidence.uncertainty {
-                    return true;
-                }
-                !parsed_value(&value.selbri)
-                    .is_some_and(|selbri| recovered_priority_tail_selbri(selbri, dialect))
+                classify_recovered_product(TracedCandidate::PriorityTail, value, |value| {
+                    recovered_priority_tail_presence(&value.selbri, value, dialect)
+                }) != ZantufaTanruAtomPresence::Present
             }
         }
         #[bityzba::contract_trait]
@@ -433,16 +655,9 @@ macro_rules! priority_tail_mapping {
                 value: &recovered::Recovered<recovered::$payload>,
                 dialect: super::generated_runtime::SyntaxGrammarDialect,
             ) -> bool {
-                match value {
-                    recovered::Recovered::Valid(value) => {
-                        super::generated_runtime::OutputRejection::rejects_in_dialect(
-                            self,
-                            value.as_ref(),
-                            dialect,
-                        )
-                    }
-                    recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
-                }
+                classify_recovered_wrapper(TracedCandidate::PriorityTail, value, |value| {
+                    recovered_priority_tail_presence(&value.selbri, value, dialect)
+                }) != ZantufaTanruAtomPresence::Present
             }
         }
         impl From<model::$payload> for model::$target {
@@ -523,8 +738,9 @@ impl super::generated_runtime::OutputRejection<recovered::ZantufaForethoughtTanr
         value: &recovered::ZantufaForethoughtTanruUnitSyntax,
         _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
-            != ZantufaTanruAtomPresence::Present
+        classify_recovered_product(TracedCandidate::EnclosedGek, value, |value| {
+            enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
+        }) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -549,13 +765,9 @@ impl
         value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
         _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        match value {
-            recovered::Recovered::Valid(value) => {
-                enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
-                    != ZantufaTanruAtomPresence::Present
-            }
-            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
-        }
+        classify_recovered_wrapper(TracedCandidate::EnclosedGek, value, |value| {
+            enclosed_presence_from_recovered_facts(recovered_gek_facts(value))
+        }) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -599,7 +811,9 @@ impl super::generated_runtime::OutputRejection<recovered::ZantufaForethoughtTanr
         value: &recovered::ZantufaForethoughtTanruUnitSyntax,
         dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        recovered_standalone_presence(value, &dialect) != ZantufaTanruAtomPresence::Present
+        classify_recovered_product(TracedCandidate::StandaloneGek, value, |value| {
+            recovered_standalone_presence(value, &dialect)
+        }) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -624,12 +838,9 @@ impl
         value: &recovered::Recovered<recovered::ZantufaForethoughtTanruUnitSyntax>,
         dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        match value {
-            recovered::Recovered::Valid(value) => {
-                recovered_standalone_presence(value, &dialect) != ZantufaTanruAtomPresence::Present
-            }
-            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => true,
-        }
+        classify_recovered_wrapper(TracedCandidate::StandaloneGek, value, |value| {
+            recovered_standalone_presence(value, &dialect)
+        }) != ZantufaTanruAtomPresence::Present
     }
 }
 
