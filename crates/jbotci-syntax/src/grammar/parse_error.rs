@@ -1127,10 +1127,24 @@ fn select_parser_error<'tokens>(
         std::cmp::Ordering::Less => left,
         std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
         std::cmp::Ordering::Equal => {
-            match parser_error_context_depth(&right).cmp(&parser_error_context_depth(&left)) {
-                std::cmp::Ordering::Greater => right,
-                _ => left,
-            }
+            // Both alternatives really were available at this position, so the one that loses the
+            // primary-report selection still contributes what it would have accepted. Selecting
+            // and then discarding the loser's expectations silently drops truthful information:
+            // a construct that is genuinely offered here stops being reported merely because a
+            // sibling alternative was recorded first. Only the expectation groups are merged --
+            // the found value, context paths, recovery provenance and preferred-context ordering
+            // all stay with the selected error.
+            let (mut selected, mut other) =
+                match parser_error_context_depth(&right).cmp(&parser_error_context_depth(&left)) {
+                    std::cmp::Ordering::Greater => (right, left),
+                    _ => (left, right),
+                };
+            // Move the groups out of the loser rather than cloning the handle: it is dropped
+            // here, and leaving it empty keeps the shared vector uniquely owned so the append
+            // does not copy it.
+            let groups = std::mem::take(&mut other.expected_groups);
+            append_unique_groups(&mut selected.expected_groups, groups);
+            selected
         }
     }
 }
@@ -1610,6 +1624,118 @@ mod tests {
                 .map(|context| context.construct.clone()),
             Some("sumti".to_owned())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_unions_expectations_of_equal_position_alternatives() {
+        let mut first = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        label_with(&mut first, "sumti");
+        let mut second = SyntaxParseError::expected(Span::from(4..6), vec![named_token("broda")]);
+        label_with(&mut second, "selbri");
+
+        let merged = first.merge_for_parser(second);
+        let constructs = merged
+            .expectations()
+            .iter()
+            .filter_map(|expectation| match expectation.reason.as_data() {
+                data!(SyntaxExpectationReason::StartNested { construct }) => {
+                    Some(construct.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        // Neither alternative is dropped: both were genuinely available at this position.
+        assert_eq!(constructs, vec!["sumti".to_owned(), "selbri".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_keeps_primary_selection_in_both_context_directions_and_ties() {
+        let deeper = || {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+            in_context(&mut error, "sumti");
+            error
+        };
+        let shallower = || {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+            in_context(&mut error, "text");
+            error
+        };
+        let construct = |error: &SyntaxParseError<'_>| {
+            error
+                .preferred_context()
+                .map(|context| context.construct.clone())
+        };
+
+        // The deeper context wins from either side, and the union never changes that.
+        assert_eq!(
+            construct(&shallower().merge_for_parser(deeper())),
+            Some("sumti".to_owned())
+        );
+        assert_eq!(
+            construct(&deeper().merge_for_parser(shallower())),
+            Some("sumti".to_owned())
+        );
+        // A tie keeps the first-recorded error as the primary report.
+        let mut tie_left = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        in_context(&mut tie_left, "sumti");
+        let mut tie_right = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+        in_context(&mut tie_right, "sumti");
+        let merged = tie_left.merge_for_parser(tie_right);
+        assert_eq!(construct(&merged), Some("sumti".to_owned()));
+        assert_eq!(merged.expectations().len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_union_is_ordered_and_deduplicated() {
+        let build = |token: &'static str, construct: &'static str| {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token(token)]);
+            label_with(&mut error, construct);
+            error
+        };
+
+        // An alternative repeated across merges contributes once, in first-seen order.
+        let merged = build("lo", "sumti")
+            .merge_for_parser(build("broda", "selbri"))
+            .merge_for_parser(build("lo", "sumti"));
+        let constructs = merged
+            .expectations()
+            .iter()
+            .filter_map(|expectation| match expectation.reason.as_data() {
+                data!(SyntaxExpectationReason::StartNested { construct }) => {
+                    Some(construct.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(constructs, vec!["sumti".to_owned(), "selbri".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_at_unequal_positions_still_takes_the_furthest_alone() {
+        let mut near = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        label_with(&mut near, "sumti");
+        let mut far = SyntaxParseError::expected(Span::from(8..10), vec![named_token("broda")]);
+        label_with(&mut far, "selbri");
+
+        // Unequal positions are unchanged: the furthest error wins outright and does NOT absorb
+        // the nearer one's expectations, which describe a different place in the input.
+        let merged = near.clone().merge_for_parser(far.clone());
+        assert_eq!(merged.span.start, 8);
+        assert_eq!(merged.expectations().len(), 1);
+
+        let merged = far.merge_for_parser(near);
+        assert_eq!(merged.span.start, 8);
+        assert_eq!(merged.expectations().len(), 1);
     }
 
     #[test]
