@@ -8,12 +8,17 @@ kind = "other"
 name = "Epoch 10 C-a all-legacy connection recovery"
 description = "Complete BAI/time-tag connection is legacy width. The full candidate must reject as LegacyLinked; final containing-field state and exact old owner are independent observations."
 
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e disposition of the stale trailing-ku recovery"
+description = "Individually dispositioned as a stale expectation, not a regression. The trailing `.i mi ku` of this input ends in a `ku` that has nothing to terminate: CLL 20.1 gives `ku` as the elidable terminator for LE and some LA descriptions, after a tense or modal to show no sumti follows, and in NA+KU, and a bare `mi` is none of those. The old expectation kept that `ku` as a valid token by synthesizing a zero-width missing required field, which is the parser inventing a description the grammar does not license; the current output skips it as invalid input instead, which is the fail-closed reading the epoch requires. Diagnostics are unchanged; only the valid-token list and that one recovery item move. This fixture was already red at the accepted head 75afada918 and was never re-measured after the C-e routing work, so the delta predates the grouped-sumti classifier."
+
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [41, 43], "source-text" = "ku", "message" = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [41, 43], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { "sha256" = "0bb7890f74aa14105af325eae437174282855076a181f34c429b19b5f14b0412" }
-diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [41, 43], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [55, 57], "source-text" = "ku", "message" = "unexpected cmavo" }]
-tree = { "valid-tokens" = ["mi", "bróda", "be", "ko'i", "beĭ", "baŭ", "ko'a", "e", "pu", "ko'e", "be'o", "i", "mi", "ku", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[41, 43]] }, { "kind" = "missing", "error-index" = 1, "byte-spans" = [[55, 55]] }] }
+raw = { sha256 = "010ff5d973a5745608c00ed894c59eea0c3bbd1635de35508b19a41a5e2e0a01" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [41, 43], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [55, 57], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "be", "ko'i", "beĭ", "baŭ", "ko'a", "e", "pu", "ko'e", "be'o", "i", "mi", "i", "do", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[41, 43]] }, { kind = "invalid", error-index = 1, byte-spans = [[55, 57]] }] }
