@@ -6,7 +6,7 @@ tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row SR2"
-description = "SR2 asks for a KE body with no parsed value to leave the grouped candidate Unproven and rejecting fail-closed. This fixture pins what the parser actually does, which does not satisfy that on every axis: grouped sumti is the one C-e product with no recovered evidence classifier of its own -- ownership is decided by the two strict_observe guards and the termset rejection -- so nothing refuses a grouped product whose mandatory body is a synthesized Error. Reported to the PM as an open fail-closed gap; the fixture is here so that a fix shows up as an expectation change rather than passing unnoticed. Built-in axis, where the region is skipped and no grouped sumti is claimed."
+description = "SR2: no parsed value proves KE body ownership, so the grouped candidate answers Unproven and rejects fail-closed. Trace candidate=grouped-sumti wrapper=valid answer=Unproven decision=reject. This row previously pinned a real fail-open gap: grouped sumti was the one C-e product with no recovered evidence classifier of its own, so `ke ke'e` claimed the construct and reported its warning while its mandatory sumti was a synthesized Error covering no input. The classifier added alongside this fixture closes that, and the row now witnesses the behaviour the frozen table asks for. Built-in axis, where the region is skipped outright and nothing claims it."
 
 [expectations.syntax]
 status = "failure"

@@ -110,7 +110,7 @@ pub mod generated_model {
         sumti_bound: SumtiBoundSyntax;
         sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiBaseSyntax;
-        zantufa_grouped_sumti: ZantufaGroupedSumtiSyntax;
+        zantufa_grouped_sumti_candidate: ZantufaGroupedSumtiSyntax;
         // The description/quantifier operand tier boundary (epoch 9, #552 / #837 SUM-02).
         // `description_leading_operand` is `sumti_base` restricted to the camxes `sumti_6`
         // tier.  It is declared here, rather than being written inline at its two consuming
@@ -3160,7 +3160,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier, zantufa_grouped_sumti) -> enum {
+    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, zantufa_selbri_entry, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term, quantifier, zantufa_grouped_sumti_candidate) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -3196,7 +3196,7 @@ pub mod generated_model {
         /// Uses the `pro_sumti` product form, whose payload preserves `koha`.
         pro_sumti,
         /// Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.
-        when feature(ZantufaTerms) zantufa_grouped_sumti,
+        when feature(ZantufaTerms) zantufa_grouped_sumti_candidate,
     }
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
@@ -7770,6 +7770,15 @@ pub mod generated_model {
         /// Optional elidable grouping closer.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
+
+    // The grouped owner proves its own body before it can win, so recovery cannot hand the
+    // construct a synthesized sumti and still claim the extent. Same guarded-candidate shape the
+    // FA and GEK atoms already use, and like them only the candidate is a declared family member;
+    // the model variant stays the product's own, so parser/model remains 1:1.
+    alias "Zantufa grouped sumti" zantufa_grouped_sumti_candidate(sumti) =
+        zantufa_grouped_sumti(sumti)
+            .reject_output(crate::grammar::zantufa_atoms::GroupedSumtiRejection)
+            .recursive_output(zantufa_grouped_sumti_candidate);
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,
     /// followed by zero or more CEI assignments.

@@ -2355,6 +2355,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "crates/jbotci-syntax/tests/jai_atoms.rs:RecoveredJaiVisitor",
         "test-local traversal accumulator: one growing list of visited JAI nodes, and every list state is a valid stage of the walk",
     ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:GroupedSumtiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
 ];
 
 #[test]

@@ -60,6 +60,7 @@ pub(crate) enum TracedCandidate {
     Fa,
     StandaloneGek,
     EnclosedGek,
+    GroupedSumti,
     PrioritySelbri,
     PriorityTail,
 }
@@ -72,6 +73,7 @@ impl TracedCandidate {
             Self::Fa => "fa",
             Self::StandaloneGek => "standalone-gek",
             Self::EnclosedGek => "enclosed-gek",
+            Self::GroupedSumti => "grouped-sumti",
             Self::PrioritySelbri => "priority-selbri",
             Self::PriorityTail => "priority-tail",
         }
@@ -313,6 +315,112 @@ fn recovered_fa_presence(value: &recovered::ZantufaFaTanruUnitSyntax) -> Zantufa
         }
     }
     Present
+}
+
+/// The grouped-sumti owner has to prove its own body, exactly as the atom family does.
+///
+/// Without this the grouped product is the one C-e owner that could win on no evidence at all: a
+/// recovered `KE` with a synthesized body still completes, so `ke ke'e` alone would claim the
+/// construct and report its warning while owning nothing.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GroupedSumtiRejection;
+
+/// A strict grouped sumti parsed its `KE` and a complete body by construction; the marker check
+/// is the same defensive inventory statement the FA classifier makes.
+#[requires(true)]
+#[ensures(ret != ZantufaTanruAtomPresence::Unproven)]
+fn strict_grouped_sumti_presence(
+    value: &model::ZantufaGroupedSumtiSyntax,
+) -> ZantufaTanruAtomPresence {
+    if value.ke.value.is_cmavo(jbotci_morphology::Cmavo::Ke) {
+        ZantufaTanruAtomPresence::Present
+    } else {
+        ZantufaTanruAtomPresence::Absent
+    }
+}
+
+/// Fail closed: a grouped sumti owns its extent only with a proven `KE` and a proven body.
+///
+/// Recovery can synthesize the mandatory body, so an occupied field is not evidence; the body
+/// must carry a parsed value, and any recovery item anywhere under the candidate makes the whole
+/// claim unproven, as in every other C-e classifier.
+#[requires(true)]
+#[ensures(ret == ZantufaTanruAtomPresence::Present -> parsed_value(value.sumti.as_ref()).is_some())]
+fn recovered_grouped_sumti_presence(
+    value: &recovered::ZantufaGroupedSumtiSyntax,
+) -> ZantufaTanruAtomPresence {
+    use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
+
+    let mut evidence = RequiredSubtreeEvidence::default();
+    recovered::TreeNode::visit_in_order(value, &mut evidence);
+    if evidence.uncertainty || !evidence.parsed_token {
+        return Unproven;
+    }
+    let Some(ke) = parsed_value(&value.ke.value) else {
+        return Unproven;
+    };
+    if !ke.is_cmavo(jbotci_morphology::Cmavo::Ke) {
+        return Absent;
+    }
+    if parsed_value(value.sumti.as_ref()).is_none() {
+        return Unproven;
+    }
+    Present
+}
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<model::ZantufaGroupedSumtiSyntax>
+    for GroupedSumtiRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unowned Zantufa grouped sumti"
+    }
+    fn rejects(&self, value: &model::ZantufaGroupedSumtiSyntax) -> bool {
+        strict_grouped_sumti_presence(value) != ZantufaTanruAtomPresence::Present
+    }
+}
+
+#[bityzba::contract_trait]
+impl super::generated_runtime::OutputRejection<recovered::ZantufaGroupedSumtiSyntax>
+    for GroupedSumtiRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unproven Zantufa grouped sumti"
+    }
+    fn rejects(&self, value: &recovered::ZantufaGroupedSumtiSyntax) -> bool {
+        classify_recovered_product(
+            TracedCandidate::GroupedSumti,
+            value,
+            recovered_grouped_sumti_presence,
+        ) != ZantufaTanruAtomPresence::Present
+    }
+}
+
+#[bityzba::contract_trait]
+impl
+    super::generated_runtime::OutputRejection<
+        recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>,
+    > for GroupedSumtiRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "unproven Zantufa grouped sumti"
+    }
+    #[ensures(ret)]
+    fn rejects(&self, _value: &recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>) -> bool {
+        true
+    }
+    fn rejects_in_dialect(
+        &self,
+        value: &recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>,
+        _dialect: super::generated_runtime::SyntaxGrammarDialect,
+    ) -> bool {
+        classify_recovered_wrapper(
+            TracedCandidate::GroupedSumti,
+            value,
+            recovered_grouped_sumti_presence,
+        ) != ZantufaTanruAtomPresence::Present
+    }
 }
 
 /// A complete CoSelbri may take priority only through an admitted atom in its
