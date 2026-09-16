@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-tags-jai-grouped-route-tags"
+lojban = "mi jai ke ko'a ke'e"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: grouped sumti payload"
+description = "Legitimate tags route where the JAI tag term takes a KE-grouped sumti payload, carrying both the JAI tag-term warning and the grouped-sumti warning. This is the #827 payload the C-e guards deliberately keep with the tag term rather than the atom family, so it also witnesses that the JAI reservation fix leaves that split intact. Minimal explicit axis, where ZantufaTerms is off so the grouped sumti does not apply."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [7, 9], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 2 }]
+
+[expectations.syntax.recovered]
+status = "success"
+raw = { sha256 = "c60e000e6c433aac475ba599f2a15e44b288eb5def4d6b795f67c77bf78a33d1" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [7, 9], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 2 }]
+tree = { valid-tokens = ["mi", "jaĭ", "ke", "ko'a", "ke'e"], recovery-items = [] }

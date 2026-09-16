@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-tags-jai-gek-route-zantufa"
+lojban = "mi jai ga broda gi brode"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: enclosed GEK route"
+description = "Legitimate tags route that the JAI term-start reservation exists to protect. The reservation must still run BEFORE the JAI is consumed, or `jai ga ...` steals the enclosed selbri as a tag term plus gek sumti; the fix only adds this rule's own mandatory JAI as a cheap discriminator in front of it, so this ownership is unchanged. Built-in axis: the no-tag JAI owns the enclosed Zantufa forethought tanru unit."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [7, 9], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }]
+
+[expectations.syntax.recovered]
+status = "success"
+raw = { sha256 = "85fe884a9f648206e0c40d167d34a50c190ae128e0a64113a95378cd05d89b5d" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [7, 9], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "bróde"], recovery-items = [] }

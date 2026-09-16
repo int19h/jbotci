@@ -2829,6 +2829,14 @@ pub mod generated_model {
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
     rule "tag" jai_tagged_sumti_term(tense_modal, sumti, zantufa_tanru_unit_atom_entry, normal_term) -> struct {
         assert feature(ZantufaTags);
+        // This rule's own mandatory first token, asserted before the reservation below so the
+        // reservation runs only where the rule could apply at all. Without it the negative
+        // lookahead parses a whole tanru-unit atom at EVERY term-start cursor once ZANTUFA-TAGS
+        // is on, and that speculative parse's deepest failure becomes the furthest recorded
+        // error -- dragging the reported failure, and with it the recovery anchor, past the token
+        // that actually failed, so a valid prefix is discarded. The assertion cannot change the
+        // accepted language: `jai` is required immediately below.
+        assert cmavo(Jai).lookahead();
         // Reserve the whole JAI tanru-unit candidate at the term-start cursor.
         // Checking after consuming JAI lets `jai ga ...` steal the enclosed
         // selbri as a tag-term plus gek-sumti.
