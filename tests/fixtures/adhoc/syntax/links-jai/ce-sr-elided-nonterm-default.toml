@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr-elided-nonterm-default"
+lojban = "lo ke ko'e broda cu brodi ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR elided-closer non-term control"
+description = "Recovered Terms control for the elided grouping closer OUTSIDE term position. At a term position the F2 strict_observe guard pair gives an elided `ke ko'e` to the pre-existing KE termset, as ce-sr1a's siblings show; inside a description there is no termset competing for the extent, so the same elided shape is owned by grouped sumti. Trace candidate=grouped-sumti wrapper=valid answer=Present decision=accept, which also exercises the recovered evidence classifier on a body that really was parsed -- the positive twin of ce-sr2, where a synthesized body is refused. Default control: no grouped sumti exists on this axis and no KE termset claims a non-term position either."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 10], source-text = "ko'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "f2d40afbbb8b5158739ff6dd453cb668068345aa0feea87685d4dc804c0cd53c" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 10], source-text = "ko'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 5], [6, 10], [11, 16], [17, 19], [20, 25], [26, 28]] }] }

@@ -1680,14 +1680,46 @@ mod tests {
             construct(&deeper().merge_for_parser(shallower())),
             Some("sumti".to_owned())
         );
-        // A tie keeps the first-recorded error as the primary report.
+        // A tie keeps the first-recorded error as the primary report, and keeps ALL of its own
+        // provenance: only the loser's expectation groups come across.
         let mut tie_left = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
-        in_context(&mut tie_left, "sumti");
+        in_context_span(&mut tie_left, "sumti", 2..6);
         let mut tie_right = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
-        in_context(&mut tie_right, "sumti");
+        in_context_span(&mut tie_right, "sumti", 0..6);
+        let left_found = tie_left.found.clone();
+        let left_custom = tie_left.custom_kind;
+        let left_contexts = tie_left.active_contexts.len();
+        let left_rule_contexts = tie_left.active_rule_contexts.len();
+        let left_context_span = tie_left
+            .preferred_context()
+            .map(|context| (context.byte_start, context.byte_end));
+
         let merged = tie_left.merge_for_parser(tie_right);
+
         assert_eq!(construct(&merged), Some("sumti".to_owned()));
-        assert_eq!(merged.expectations().len(), 2);
+        assert_eq!(merged.expectations().len(), 2, "both alternatives survive");
+        assert_eq!(
+            (merged.span.start, merged.span.end),
+            (4, 6),
+            "the winner keeps its own span"
+        );
+        assert_eq!(
+            merged.found, left_found,
+            "the winner keeps its own found value"
+        );
+        assert_eq!(
+            merged.custom_kind, left_custom,
+            "the winner keeps its custom kind"
+        );
+        assert_eq!(merged.active_contexts.len(), left_contexts);
+        assert_eq!(merged.active_rule_contexts.len(), left_rule_contexts);
+        assert_eq!(
+            merged
+                .preferred_context()
+                .map(|context| (context.byte_start, context.byte_end)),
+            left_context_span,
+            "the loser's equally deep context does not displace the winner's"
+        );
     }
 
     #[test]

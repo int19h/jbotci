@@ -30,8 +30,10 @@ type TokenClause = WithFreeModifiers<Token, FreeModifierSyntax>;
 ///
 /// - `site` is the enclosing generated rule that consumed the candidate, read from the parser's
 ///   active rule stack, which the classifier cannot otherwise see;
-/// - `candidate` is which of the five C-e ownership questions ran: `fa`, `standalone-gek`,
-///   `enclosed-gek`, `priority-selbri` or `priority-tail`;
+/// - `candidate` is which of the six C-e ownership questions ran: `fa`, `standalone-gek`,
+///   `enclosed-gek`, `grouped-sumti`, `priority-selbri` or `priority-tail`. `grouped-sumti` is
+///   the one whose absence was itself a defect: until it gained a classifier, a recovered `KE`
+///   with a synthesized body could claim the construct on no evidence;
 /// - `wrapper` is the recovered wrapper the classifier was handed -- `valid` / `prefix` / `error`,
 ///   or `unwrapped` where the generated route hands over the bare product;
 /// - `bytes` is the source extent the classified candidate covers, `empty` when it covers none;
