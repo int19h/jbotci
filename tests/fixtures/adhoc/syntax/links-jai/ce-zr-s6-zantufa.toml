@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s6-zantufa"
+lojban = "mi jai ga broda gi me ku ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S6"
+description = "ZR-S6: the same nested-uncertainty priority rejection as ce-zr-s5, with the extra skipped ku conferring a Prefix in the containing structure. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "eda7cdb01fc4d83def80f87c2a74b1dd1b79544387b818ee97033348c84df036" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [25, 27], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "me", "ku"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[25, 27]] }, { kind = "missing", error-index = 0, byte-spans = [[22, 22]] }] }

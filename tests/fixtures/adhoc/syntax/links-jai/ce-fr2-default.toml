@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr2-default"
+lojban = "mi broda fa je fa brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR2"
+description = "FR2: the same fully proven FA candidate, classified Present at an outer-Valid boundary, but the containing selbri field of the winning tree is Prefix, carrying the skipped ku as its ordered recovery evidence. Per the C-a boundary rule the Prefix belongs to the containing field, not to the classifier input; the candidate is outer-Valid by construction. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "440280ed72849dbec4d9716781364419b709a37584257d9400c87400bf6eae79" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 23], [24, 26]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e2-default"
+lojban = "mi jai ga broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E2"
+description = "GR-E2: the same enclosed BINARY candidate, Present at an outer-Valid boundary, feeding the JAI owner under a Prefix containing selbri field that carries the skipped ku. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "9f8d3e988fa965341bc88a61f7e923a4634f940a380a049047981bf430d51b71" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 9], [10, 15], [16, 18], [19, 24], [25, 27]] }] }

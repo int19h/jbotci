@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s10-default"
+lojban = "mi na'e ga broda gi brode be .i ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S10"
+description = "GR-S10: the same occupied-opener, unproven-branch rejection as ce-gr-s7, with the surviving shorter atom under a Prefix containing field. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "66439e2c6adb9357e175775d4fde7efadcd6f4355c07b506ca730b78f6ea953a" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 7], [8, 10], [11, 16], [17, 19], [20, 25], [26, 28]] }, { kind = "invalid", error-index = 1, byte-spans = [[32, 34]] }] }

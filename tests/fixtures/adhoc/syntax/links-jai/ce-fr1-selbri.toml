@@ -1,19 +1,19 @@
 id = "adhoc.syntax.links-jai.ce-fr1-selbri"
-lojban = "lo broda fa je fa brode cu brodi ku"
+lojban = "mi broda fa je fa brode .i mi ku broda"
 dialect = "(+zantufa-selbri)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row FR1"
-description = "FR1 pins a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Attributed with JBOTCI_TRACE_ZANTUFA_ATOMS as candidate=fa wrapper=valid answer=Present decision=accept at tanru_unit_atom_base. Identical to the built-in axis, including the raw tree digest: ZantufaSelbri alone is what admits the FA atom, and no other built-in feature contributes."
+description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Trace candidate=fa wrapper=valid answer=Present decision=accept. The FA atom owns brode and every recovered field enclosing it in the winning tree is Valid; the damage is in the second statement, off the atom's containing chain. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "4ff686a7e7f918540ab5f6e8f038b0ef0af6d50146b07ccac2411569db238545" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["lo", "bróda", "fa", "je", "fa", "bróde", "cu", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[33, 35]] }] }
+raw = { sha256 = "0adeb2c6c2110311e76ce0e6f0166678c78d8188223f6d85a5175e108cf6bb1a" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32], [33, 38]] }, { kind = "missing", error-index = 0, byte-spans = [[30, 30]] }] }

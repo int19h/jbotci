@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr2-default"
+lojban = "ko'a ke ke'e broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR2"
+description = "SR2 asks for a KE body with no parsed value to leave the grouped candidate Unproven and rejecting fail-closed. This fixture pins what the parser actually does, which does not satisfy that on every axis: grouped sumti is the one C-e product with no recovered evidence classifier of its own -- ownership is decided by the two strict_observe guards and the termset rejection -- so nothing refuses a grouped product whose mandatory body is a synthesized Error. Reported to the PM as an open fail-closed gap; the fixture is here so that a fix shows up as an expectation change rather than passing unnoticed. Default control: the region is skipped and no KE termset is claimed either."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "92d65eb4ef97e9e1d8d1604a213ac9a2069f2ea3b7a1d89141d541682510dd7f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ke'e", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }] }

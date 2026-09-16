@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s3-selbri"
+lojban = "mi brodi na'e ga broda gi ku brode"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S3"
+description = "ZR-S3: no parsed value proves the co-selbri decision path, because the atom's branch operand position holds skipped input. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject, fail-closed. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "b4a5ad22ea4f06dc9a1fc88a94bbcb0cc5bd9011ed7fdec9aac5d9be5c433ee5" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13], [14, 16], [17, 22], [23, 25], [26, 28], [29, 34]] }] }

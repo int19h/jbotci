@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e2-selbri"
+lojban = "mi jai ga broda gi brode ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E2"
+description = "GR-E2: the same enclosed BINARY candidate, Present at an outer-Valid boundary, feeding the JAI owner under a Prefix containing selbri field that carries the skipped ku. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [25, 27], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "18bf5a0f1f7164fdccbae0908e43dda56d1bb9c1df7e7cd4c73def013471a2d3" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [7, 9], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [25, 27], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[25, 27]] }] }

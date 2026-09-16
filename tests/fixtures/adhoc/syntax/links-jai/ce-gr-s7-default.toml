@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-gr-s7-default"
-lojban = "mi na'e ga broda gi brode be ku"
+lojban = "mi na'e ga broda gi brode be ku ku"
 dialect = "()"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-S7"
-description = "GR-S7 pins a top-level Valid standalone candidate with an occupied opener but an unproven GI branch child: the branch operand carries a BE whose mandatory linked term is synthesized. Trace: candidate=standalone-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+description = "GR-S7: an occupied standalone opener whose GI branch child is unproven, because the branch operand carries a BE with a synthesized mandatory linked term. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch, and Present at its own shorter extent for the complete atom over broda gi brode that actually survives, under Valid containing fields. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-spa
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "81a841f6b10b9dd583ea227a5364c122450ef2751d846158c78b382e050e6d0c" }
+raw = { sha256 = "4992bfa9a1582f3a913ee7b403d1d2652d964d0f4d7338bcb78dbd732142a714" }
 diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 7], [8, 10], [11, 16], [17, 19], [20, 25], [26, 28], [29, 31]] }] }
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 7], [8, 10], [11, 16], [17, 19], [20, 25], [26, 28], [29, 31], [32, 34]] }] }

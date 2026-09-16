@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-j3-default"
+lojban = "mi jai na'e ku ga broda gi brode"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-J3"
+description = "ZR-J3: no parsed value proves the JAI marker and its immediate inner together, because the inner opener region is skipped input. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject; the pre-existing JAI tag term survives instead. Default control with the same baseline owner as the minimal axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "bdc0c11030f815d8dfc3a379fafefab8fe1b25c60afe1a0a054b82a43b7769a7" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 11], [12, 14]] }] }

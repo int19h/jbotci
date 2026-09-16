@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr5-zantufa"
+lojban = "ko'a ke le broda .i ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR5"
+description = "SR5: the same unproven nested sumti child as ce-sr4 -- a bare le with a synthesized mandatory selbri -- with the surviving KE-termset owner under a Prefix containing field that carries the skipped ku as its ordered recovery evidence. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "3e24647664a0deb279dfbc83ba7e3121c770dc1b53a5b361f73edd9e3681e931" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "le", "bróda", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[20, 22]] }] }

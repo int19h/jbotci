@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e7-selbri"
+lojban = "mi jai ga broda gi me ku ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E7"
+description = "GR-E7: the same occupied-opener, unproven-branch enclosed rejection as ce-gr-e6, with the extra skipped ku conferring a Prefix in the containing structure. Minimal explicit axis, where the same rejection leaves no survivor, as in ce-gr-e6-selbri."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "dc150983b5729caa665357bd3c11ac16efb6e046f373aa025b25272cecc3850f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24], [25, 27]] }] }

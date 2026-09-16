@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s10-selbri"
+lojban = "mi na'e ga broda gi brode be .i ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S10"
+description = "GR-S10: the same occupied-opener, unproven-branch rejection as ce-gr-s7, with the surviving shorter atom under a Prefix containing field. Minimal explicit axis, where the surviving atom's own containing chain stays Valid and the Prefix lands on the paragraph separator instead. The Prefix half of this row is the built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 31], source-text = "i", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "8bf949589948c6e97c3189318a6dfd44cb7775cb6dcad242a5ed3aa33050bdbd" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [8, 10], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 31], source-text = "i", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[26, 28]] }, { kind = "invalid", error-index = 1, byte-spans = [[32, 34]] }] }

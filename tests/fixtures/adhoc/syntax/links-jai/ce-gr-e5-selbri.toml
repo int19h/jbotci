@@ -1,19 +1,19 @@
 id = "adhoc.syntax.links-jai.ce-gr-e5-selbri"
-lojban = "mi jai na'e ga broda gi brode ku"
+lojban = "mi jai na'e ga broda gi brode .i mi ku broda"
 dialect = "(+zantufa-selbri)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-E5"
-description = "GR-E5 pins a top-level Valid enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace: candidate=enclosed-gek wrapper=valid answer=Present decision=accept. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not through a second route. Identical to the built-in axis including the digest."
+description = "GR-E5: an enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace candidate=enclosed-gek wrapper=valid answer=Present decision=accept, feeding the JAI owner under Valid containing fields. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not a second route. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [36, 38], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "aa3465b081069e3a66ea34322ec7c7eaeac15c886e191aeffd79aaa5f8e3cd96" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [12, 14], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 3 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "jaĭ", "na'e", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32]] }] }
+raw = { sha256 = "1d6b425d3794df8420ab6bd3c80ceafaebcc3dfe9b6e25c32ed9ca28db1f5403" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [12, 14], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 3 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [36, 38], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "na'e", "ga", "bróda", "gi", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[36, 38], [39, 44]] }, { kind = "missing", error-index = 0, byte-spans = [[36, 36]] }] }

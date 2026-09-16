@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s8-selbri"
+lojban = "mi ga broda gi brode .i ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S8"
+description = "GR-S8: the same complete BINARY candidate and the same Absent answer as ce-gr-s4, with the baseline owner surviving under a Prefix containing field instead of a Valid one. A Prefix containing field does not make the contained baseline value unproven. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "0fe5c68cb5f11d6be0e06b7b923ec21fed192969c701c493d5c3c650a6f10d27" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "ga", "bróda", "gi", "bróde", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[24, 26]] }] }

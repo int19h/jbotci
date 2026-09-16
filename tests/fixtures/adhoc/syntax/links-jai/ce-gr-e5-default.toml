@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-gr-e5-default"
-lojban = "mi jai na'e ga broda gi brode ku"
+lojban = "mi jai na'e ga broda gi brode .i mi ku broda"
 dialect = "()"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-E5"
-description = "GR-E5 pins a top-level Valid enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace: candidate=enclosed-gek wrapper=valid answer=Present decision=accept. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not through a second route. Default control: the construct does not exist on this axis, the input cannot be parsed at all, and recovery skips the whole statement, so no C-e owner and no C-e warning can appear."
+description = "GR-E5: an enclosed candidate proving an additive NAhE shape and all ownership-bearing children. Trace candidate=enclosed-gek wrapper=valid answer=Present decision=accept, feeding the JAI owner under Valid containing fields. The additive shape reaches the JAI extent through the same single enclosed call site as the BINARY row, not a second route. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "29369ef8cb6c5b59ced181e42de5c4a27fb92b76a2c5c0fcf356efed3ad28b61" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ga", message = "unexpected cmavo" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 11], [12, 14], [15, 20], [21, 23], [24, 29], [30, 32]] }] }
+raw = { sha256 = "306d439c7892f76c2e02c9eb96459904a6fbcd67d1a24fcf6c6b7372cf036c7d" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ga", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [36, 38], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 11], [12, 14], [15, 20], [21, 23], [24, 29]] }, { kind = "invalid", error-index = 1, byte-spans = [[36, 38], [39, 44]] }, { kind = "missing", error-index = 1, byte-spans = [[36, 36]] }] }

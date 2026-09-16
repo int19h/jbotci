@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e3-selbri"
+lojban = "mi jai ga"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E3"
+description = "GR-E3: no parsed value proves the enclosed GEK discriminators at all -- the opener is the last input and neither operand nor branch exists. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject, fail-closed. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-statement", byte-span = [9, 9], source-text = "", message = "incomplete statement" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "432967cece41f080b88c109ac20e27d5807bcffdc1cb221ad510f19d020f7485" }
+diagnostics = [{ severity = "error", code = "syntax.incomplete-statement", byte-span = [9, 9], source-text = "", message = "incomplete statement" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 9]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s9-zantufa"
+lojban = "mi brodi ga broda gi brode ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S9"
+description = "GR-S9: the same warned BINARY candidate as ce-gr-s5, classified Present at an outer-Valid boundary and winning under a Prefix containing selbri field that carries the skipped ku. Control on the built-in axis: Absent, and the atom is absent from the tree."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "gi", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "c1a279e727139f7ebbe7c9d95bba93e1c48d39eb4b2832818215e04b82afddbb" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "gi", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 8], [9, 11], [12, 17], [18, 20], [21, 26], [27, 29]] }] }

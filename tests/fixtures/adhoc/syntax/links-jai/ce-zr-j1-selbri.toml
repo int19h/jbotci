@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-j1-selbri"
+lojban = "mi brodi jai na'e ga broda gi brode .i mi ku broda"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-J1"
+description = "ZR-J1: a no-tag JAI with a proven JAI marker and a recursively proven enclosed-GEK inner, so the priority classifier answers Present and the priority JAI owner wins. Trace candidate=priority-selbri wrapper=valid answer=Present decision=accept alongside candidate=enclosed-gek answer=Present. Containing fields are Valid. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [42, 44], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "5507b21ce09d0ff8e7d7a010d52489887c395da417880e72044da165498515e3" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [18, 20], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 4 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [42, 44], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "jaĭ", "na'e", "ga", "bróda", "gi", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[42, 44], [45, 50]] }, { kind = "missing", error-index = 0, byte-spans = [[42, 42]] }] }

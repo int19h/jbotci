@@ -1,19 +1,19 @@
 id = "adhoc.syntax.links-jai.ce-gr-s1-zantufa"
-lojban = "mi na'e ga broda gi brode ku"
+lojban = "mi na'e ga broda gi brode .i mi ku broda"
 dialect = "(zantufa)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-S1"
-description = "GR-S1 pins a top-level Valid standalone GEK candidate proving an additive shape, a mapped opener, one exact GI branch and a complete source boundary. Trace: candidate=standalone-gek wrapper=valid answer=Present decision=accept at zantufa_tanru_unit_atom_entry. NAhE is what makes the extent baseline-unowned, so this row needs no raw pair. The standalone atom is classified Present and wins the recovered tree with its own warning; the trailing ku is the only damage."
+description = "GR-S1: a top-level Valid standalone GEK candidate proving an additive NAhE shape, a mapped opener, one exact GI branch and a complete source boundary. Trace candidate=standalone-gek wrapper=valid answer=Present decision=accept. Every recovered field enclosing the admitted atom is Valid; the damage is in the second statement. NAhE is what makes the extent baseline-unowned, so no raw pair is needed. Built-in axis."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "b29aa08b78fd3afa43de622bf337702195e098b1654e581c71fe86d32cd2f1d5" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [8, 10], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[26, 28]] }] }
+raw = { sha256 = "1eacde56135f77381ff92af3324818eff5edda9b8584baf6736d8c87510fd8d8" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [8, 10], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[32, 34], [35, 40]] }, { kind = "missing", error-index = 0, byte-spans = [[32, 32]] }] }

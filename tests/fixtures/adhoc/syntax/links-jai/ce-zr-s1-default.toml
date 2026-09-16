@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s1-default"
+lojban = "mi brodi na'e ga broda gi brode .i mi ku broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S1"
+description = "ZR-S1: a complete co-selbri whose eligible GEK atom is recursively proven, so the priority classifier answers Present and the priority selbri route wins. Trace candidate=priority-selbri wrapper=valid answer=Present decision=accept, alongside the standalone atom's own Present. Containing fields are Valid; the damage is in the second statement. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [17, 22], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "4168154d21fcd56974420a2db3239614ff1490fc3d597f44a10f1ad3f7ef403f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [17, 22], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [38, 40], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13], [14, 16], [17, 22], [23, 25], [26, 31]] }, { kind = "invalid", error-index = 1, byte-spans = [[38, 40], [41, 46]] }, { kind = "missing", error-index = 1, byte-spans = [[38, 38]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-j5-zantufa"
+lojban = "mi brodi jai ga broda gi brode be ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-J5"
+description = "ZR-J5: a proven JAI marker whose nested inner child is unproven, the branch operand carrying a BE with a synthesized mandatory linked term. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject for the damaged extent, while the shorter complete JAI plus enclosed GEK survives under Valid containing fields. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [34, 36], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "a29eb6f497078899474053af3ca9b00b3e4abd61788a36b9f232fec02c485ace" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [13, 15], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 3 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [34, 36], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "jaĭ", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[31, 33], [34, 36]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e4-default"
+lojban = "mi jai gi je broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E4"
+description = "GR-E4: an enclosed candidate whose opener is outside the exact Zantufa branch inventory the enclosed identity admits -- a GI-before-JOIK form rather than the GA or GUhA family. It rejects, as the frozen row requires, but the measured answer is Unproven, not Absent: enclosed_presence_from_recovered_facts and its strict twin have no Absent arm at all, so anything outside the admitted family is fail-closed rather than known-not-owner. Both answers reject, and Unproven is the stricter of the two. The JAI tag term survives instead. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "gi", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "8174e1f2f9a8144903b13e9200cd592095e8c0daf8a6d3c67ee29072ad8010af" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "gi", message = "unexpected cmavo" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 9], [10, 12], [13, 18], [19, 21], [22, 27], [28, 30]] }] }

@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-gr-s7-zantufa"
-lojban = "mi na'e ga broda gi brode be ku"
+lojban = "mi na'e ga broda gi brode be ku ku"
 dialect = "(zantufa)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-S7"
-description = "GR-S7 pins a top-level Valid standalone candidate with an occupied opener but an unproven GI branch child: the branch operand carries a BE whose mandatory linked term is synthesized. Trace: candidate=standalone-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch. The damaged wide candidate rejects fail-closed, and the actual surviving owner is the shorter complete standalone atom over broda gi brode, which the trace records separately as Present at its own extent. The rejected trial withdraws to a real owner rather than to an assumed earlier one."
+description = "GR-S7: an occupied standalone opener whose GI branch child is unproven, because the branch operand carries a BE with a synthesized mandatory linked term. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch, and Present at its own shorter extent for the complete atom over broda gi brode that actually survives, under Valid containing fields. Built-in axis."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "dacfba2bb602bfe9cb141bb3dc59a30dacb27361c97c81e9e3acc747b5854271" }
+raw = { sha256 = "aa79b3050cb0c26db37517b5d350216b253ff5a2ecc1ee6446a2fc41679bbecf" }
 diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [8, 10], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 31], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[26, 28], [29, 31]] }] }
+tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[26, 28], [29, 31], [32, 34]] }] }
