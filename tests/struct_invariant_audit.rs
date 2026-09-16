@@ -2323,6 +2323,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask release web server args delegate validation to clap defaults and command code",
     ),
+    (
+        "crates/jbotci-semantics/src/references.rs:InnerIds",
+        "test-local traversal accumulator: a borrowed index plus the set of node ids it has seen, and every set state is a valid stage of the walk",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:WitnessCollector",
+        "test-local traversal accumulator: one growing list of matched node triples, and every list state is a valid stage of the walk",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_termset.rs:ZantufaGroupedSumtiTermRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:StrictObserveJournal",
+        "the suspended parser state taken whole from one parser and restored to it unchanged; the journal never interprets the collections it holds, so any state the parser could be in is a valid state of the journal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:EnclosedAtomRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:RecoveredGekFacts",
+        "independent structural observations of one completed GEK product; the classifier, not the record, decides which combinations mean ownership, and an unobservable combination simply never occurs",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:StrictGekFacts",
+        "independent structural observations of one completed GEK product; the classifier, not the record, decides which combinations mean ownership, and an unobservable combination simply never occurs",
+    ),
+    (
+        "crates/jbotci-syntax/tests/jai_atoms.rs:RecoveredJaiVisitor",
+        "test-local traversal accumulator: one growing list of visited JAI nodes, and every list state is a valid stage of the walk",
+    ),
 ];
 
 #[test]
