@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-zr-s6-default"
-lojban = "mi jai ga broda gi me ku ku"
+lojban = "mi jai ga broda gi me ku .i ku"
 dialect = "()"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row ZR-S6"
-description = "ZR-S6: the same nested-uncertainty priority rejection as ce-zr-s5, with the extra skipped ku conferring a Prefix in the containing structure. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+description = "ZR-S6: the same nested-uncertainty priority rejection as ce-zr-s5, with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Shares its input with ce-gr-e7, which pins the enclosed classifier's own answer on the same parse, exactly as ce-zr-s5 shares with ce-gr-e6; the two rows pin different classifiers, not the same observation twice. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "ecfbeb3253f02538e6749ca58c924e9eb7ef5ec2c91f04aa2032e74c2dbea683" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24], [25, 27]] }] }
+raw = { sha256 = "0886cac88d395d86597c1c34b47f0b2b3b07e281df71312b772087d5b3e6a224" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24]] }, { kind = "invalid", error-index = 1, byte-spans = [[28, 30]] }] }

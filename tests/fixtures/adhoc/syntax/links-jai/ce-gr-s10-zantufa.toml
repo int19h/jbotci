@@ -1,19 +1,19 @@
 id = "adhoc.syntax.links-jai.ce-gr-s10-zantufa"
-lojban = "mi na'e ga broda gi brode be .i ku"
+lojban = "mi na'e ga broda gi me ku .i ku"
 dialect = "(zantufa)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-S10"
-description = "GR-S10: the same occupied-opener, unproven-branch rejection as ce-gr-s7, with the surviving shorter atom under a Prefix containing field. Built-in axis."
+description = "GR-S10: the same occupied-opener, unproven-branch standalone rejection as ce-gr-s7 -- the branch operand is a bare me with a synthesized mandatory sumti -- under a Prefix containing field rather than a Valid one. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject. The row requires the candidate to reject fail-closed, and nothing claims the extent afterwards; the Prefix on the containing paragraph field carries the separately skipped ku as its ordered recovery evidence. Built-in axis."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 31], source-text = "i", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "627c852420d6e9519e511f3d94cd6940060b3284f354f1df5dc5f2256c12880e" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [8, 10], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 31], source-text = "i", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "na'e", "ga", "bróda", "gi", "bróde", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[32, 34]] }, { kind = "invalid", error-index = 0, byte-spans = [[26, 28]] }] }
+raw = { sha256 = "85b2e200b5b78a340187fda80e9f9bed641f8526281579756eed690b202d8cb2" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 31], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[29, 31]] }, { kind = "invalid", error-index = 0, byte-spans = [[3, 7], [8, 10], [11, 16], [17, 19], [20, 22], [23, 25]] }] }
