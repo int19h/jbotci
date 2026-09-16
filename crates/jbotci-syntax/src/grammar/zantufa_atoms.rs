@@ -2383,6 +2383,84 @@ mod tests {
         }
     }
 
+    /// The FA classifier's inventory rejection has no parser route; pin it directly.
+    ///
+    /// `recovered_fa_presence` answers `Absent` when the marker occupying the `fa` slot is not
+    /// FA, or when a continuation's JOIK head is outside the JOI/JA/BIhI inventory. No parse can
+    /// produce either state: the generated rule spells those slots `selmaho(Fa)` and
+    /// `choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi)))`, and the classifier re-tests the same
+    /// adopted identity through `is_selmaho`, so a completed product cannot contradict it. A
+    /// dialect cmavo swap cannot separate the two either, because it rewrites the adopted identity
+    /// that the rule and the classifier both read. A bounded search of 15,596 damaged inputs over
+    /// every axis (96,238 traced classifications) produced `Present` and `Unproven` for this
+    /// classifier and never `Absent`.
+    ///
+    /// The branch is deliberate defense in depth: the classifier states its own inventory rather
+    /// than trusting the route that produced the value. This test is therefore the honest home for
+    /// it -- a direct substitution into a really-parsed product, with its winning-tree
+    /// counterparts pinned end to end by the `ce-fr1-*` (valid inventory admitted) and `ce-fr5-*`
+    /// (incomplete evidence fails closed) fixtures.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fa_inventory_rejection_has_no_parser_route_and_is_pinned_directly() {
+        let dialect = parse_dialect_definition("(+ZANTUFA-SELBRI)").expect("minimal feature");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let words = segment_words_with_modifiers("fa joi fa broda").expect("valid morphology");
+        let words = syntax_tokens(&words, &options);
+        let spanned = tokens::spanned_tokens(&words);
+        let eoi = spanned.last().expect("nonempty FA chain").span.end;
+        let mut state = ParserState::new(&words, &options);
+        let original = recovered_fa_tanru_unit_parser!()
+            .parse_with_state(
+                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                &mut state,
+            )
+            .into_result()
+            .expect("complete recovered FA chain")
+            .into_owned();
+        assert_eq!(
+            recovered_fa_presence(&original),
+            ZantufaTanruAtomPresence::Present
+        );
+
+        // `broda` is the one token in this input that is neither FA nor a source JOIK head.
+        let outsider = words.last().expect("trailing brivla").clone();
+        assert!(!outsider.is_selmaho(Selmaho::Fa));
+
+        let mut wrong_marker = original.clone();
+        wrong_marker.fa.value = recovered::Recovered::valid(outsider.clone());
+        assert_eq!(
+            recovered_fa_presence(&wrong_marker),
+            ZantufaTanruAtomPresence::Absent,
+            "a non-FA marker in the FA slot is a known shape, not missing evidence"
+        );
+
+        let mut wrong_continuation_marker = original.clone();
+        let recovered::Recovered::Valid(part) = &mut wrong_continuation_marker.continuations[0]
+        else {
+            panic!("complete continuation");
+        };
+        part.fa.value = recovered::Recovered::valid(outsider.clone());
+        assert_eq!(
+            recovered_fa_presence(&wrong_continuation_marker),
+            ZantufaTanruAtomPresence::Absent
+        );
+
+        let mut wrong_joik_head = original.clone();
+        let recovered::Recovered::Valid(part) = &mut wrong_joik_head.continuations[0] else {
+            panic!("complete continuation");
+        };
+        let recovered::Recovered::Valid(joik) = &mut part.connective else {
+            panic!("complete JOIK");
+        };
+        joik.head.value = recovered::Recovered::valid(outsider);
+        assert_eq!(
+            recovered_fa_presence(&wrong_joik_head),
+            ZantufaTanruAtomPresence::Absent
+        );
+    }
+
     // All nonnegative counts are valid intermediate traversal states.
     #[invariant(true)]
     #[derive(Default)]
