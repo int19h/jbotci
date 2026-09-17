@@ -155,14 +155,27 @@ export function createWorkerClient(options) {
     }
   }
 
-  function finishRequest(id, outcome) {
+  // A response settles a request only when it comes from the worker that request
+  // was dispatched to. Resolving the owner from the incoming id alone would let a
+  // stale, duplicated or misattributed message settle, or retire, a worker that
+  // has nothing to do with it.
+  function finishRequest(sender, id, outcome) {
     const request = pending.get(id);
-    if (!request) {
+    if (!request || request.workerEntry !== sender) {
       return;
     }
     pending.delete(id);
     removeChannelRequest(request.channel, id);
-    releaseWorker(request.workerEntry);
+    if (outcome.fatal) {
+      // The worker reported that the failure came out of its Wasm compute call,
+      // so its instance is no longer trustworthy. Retire it rather than return it
+      // to the idle pool, and refill the pool so the next request starts clean.
+      // The request still rejects here and is never replayed on the new worker.
+      terminateWorkerEntry(sender, outcome.error);
+      ensureWarmSpare();
+    } else {
+      releaseWorker(sender);
+    }
     if (outcome.ok) {
       request.resolve(options.responseValue?.(outcome.value) ?? outcome.value);
     } else {
@@ -184,9 +197,17 @@ export function createWorkerClient(options) {
       }
       return;
     }
-    finishRequest(message.id, message.ok
-      ? { ok: true, value: message.value }
-      : { ok: false, error: message.error || `${label} worker request failed` });
+    finishRequest(
+      entry,
+      message.id,
+      message.ok
+        ? { ok: true, value: message.value }
+        : {
+            ok: false,
+            fatal: message.fatal === true,
+            error: message.error || `${label} worker request failed`,
+          },
+    );
   }
 
   function workerErrorMessage(event) {
