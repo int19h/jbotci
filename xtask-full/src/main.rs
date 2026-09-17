@@ -77,6 +77,19 @@ const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 // This is accepted risk pending empirical Safari measurement and may be tightened again after a
 // structural stack reduction in the generated recovered parser restores margin.
 const DEFAULT_WASM_STACK_SIZE_KB: usize = 192;
+/// Every case the Wasm stack probe knows, kept in step with the `CASES` table in
+/// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
+/// name, so a drift between the two lists fails the gate rather than silently
+/// skipping a case.
+const WASM_STACK_TEST_CASES: [&str; 7] = [
+    "default-input",
+    "simple-valid",
+    "recovered-input",
+    "natural-stop-recovered-input",
+    "issue-913-reported",
+    "issue-913-default-settings",
+    "nesting-depth-3",
+];
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";
@@ -2054,32 +2067,62 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
     }
     let paths = wasm_stack_test_bundle_paths(args.profile)?;
     let probe = absolute_path(&args.probe)?;
-    let node = args.node.clone();
-    let mut command = ProcessCommand::new(&node);
-    command
-        .arg(format!("--stack-size={}", args.stack_size_kb))
-        .arg(&probe)
-        .arg("--js")
-        .arg(&paths.js)
-        .arg("--wasm")
-        .arg(&paths.wasm)
-        .arg("--ready-js")
-        .arg(&paths.ready_js)
-        .arg("--default-text")
-        .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT);
-    for case in &args.cases {
-        command.arg("--case").arg(case);
+    let cases = if args.cases.is_empty() {
+        WASM_STACK_TEST_CASES
+            .iter()
+            .map(|case| (*case).to_owned())
+            .collect::<Vec<_>>()
+    } else {
+        for case in &args.cases {
+            if !WASM_STACK_TEST_CASES.contains(&case.as_str()) {
+                bail!(
+                    "unknown Wasm stack probe case `{case}`; known cases: {}",
+                    WASM_STACK_TEST_CASES.join(", ")
+                );
+            }
+        }
+        args.cases.clone()
+    };
+    let mut failures = Vec::new();
+    for case in &cases {
+        // One fresh process per case. The budget this gate defends is a
+        // cold-instance property: an engine's first compilation tier uses larger
+        // frames than its optimizing tier, so a case that overflows on a fresh
+        // instance can pass on a warmed one. Sharing a process between cases
+        // would measure the warm path and stop reflecting a user's first click.
+        // It also keeps a case that overflowed from influencing any later case.
+        let status = ProcessCommand::new(&args.node)
+            .arg(format!("--stack-size={}", args.stack_size_kb))
+            .arg(&probe)
+            .arg("--js")
+            .arg(&paths.js)
+            .arg("--wasm")
+            .arg(&paths.wasm)
+            .arg("--ready-js")
+            .arg(&paths.ready_js)
+            .arg("--default-text")
+            .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT)
+            .arg("--case")
+            .arg(case)
+            .status()
+            .with_context(|| {
+                format!(
+                    "failed to run Wasm stack probe case `{case}` with `{}`",
+                    args.node.display()
+                )
+            })?;
+        if !status.success() {
+            failures.push(case.clone());
+        }
     }
-    let description = format!(
-        "{} --stack-size={} {}",
-        node.display(),
+    if failures.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "Wasm stack probe failed at --stack-size={} for: {}",
         args.stack_size_kb,
-        probe.display()
-    );
-    let status = command
-        .status()
-        .with_context(|| format!("failed to run Wasm stack probe with `{}`", node.display()))?;
-    check_status(status, &description)
+        failures.join(", ")
+    )
 }
 
 #[requires(true)]
