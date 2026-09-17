@@ -2067,6 +2067,7 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
     }
     let paths = wasm_stack_test_bundle_paths(args.profile)?;
     let probe = absolute_path(&args.probe)?;
+    verify_wasm_stack_test_cases(&args.node, &probe)?;
     let cases = if args.cases.is_empty() {
         WASM_STACK_TEST_CASES
             .iter()
@@ -2122,6 +2123,42 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
         "Wasm stack probe failed at --stack-size={} for: {}",
         args.stack_size_kb,
         failures.join(", ")
+    )
+}
+
+/// Fails when the runner's case list and the probe's disagree in either
+/// direction. Naming a case the probe does not have would fail on its own, but a
+/// case the probe gained and the runner never asks for would otherwise be
+/// skipped in silence, which is the failure mode a gate must not have.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn verify_wasm_stack_test_cases(node: &Path, probe: &Path) -> Result<()> {
+    let output = ProcessCommand::new(node)
+        .arg(probe)
+        .arg("--list-cases")
+        .output()
+        .with_context(|| format!("failed to list Wasm stack probe cases with `{}`", node.display()))?;
+    check_status(output.status, "node gentufa_compute_stack_probe.mjs --list-cases")?;
+    let listed = String::from_utf8(output.stdout)
+        .context("Wasm stack probe case list is not UTF-8")?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<BTreeSet<_>>();
+    let expected = WASM_STACK_TEST_CASES
+        .iter()
+        .map(|case| (*case).to_owned())
+        .collect::<BTreeSet<_>>();
+    if listed == expected {
+        return Ok(());
+    }
+    let missing_from_probe = expected.difference(&listed).cloned().collect::<Vec<_>>();
+    let missing_from_runner = listed.difference(&expected).cloned().collect::<Vec<_>>();
+    bail!(
+        "Wasm stack probe case lists disagree; probe is missing [{}] and the runner is missing [{}]",
+        missing_from_probe.join(", "),
+        missing_from_runner.join(", ")
     )
 }
 

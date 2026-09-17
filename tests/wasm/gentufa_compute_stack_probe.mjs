@@ -52,6 +52,7 @@ const CASE_NAMES = Array.from(CASES.keys());
 function usage() {
   return [
     "usage: node --stack-size=<kb> tests/wasm/gentufa_compute_stack_probe.mjs --js <path> --wasm <path> --ready-js <path> --default-text <text> --case <name>",
+    "       node tests/wasm/gentufa_compute_stack_probe.mjs --list-cases",
     "",
     "Exactly one case per process: the budget is a cold-instance property.",
     "",
@@ -72,6 +73,12 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
       console.log(usage());
+      process.exit(0);
+    }
+    if (arg === "--list-cases") {
+      // The runner cross-checks this against its own list so a case added on
+      // only one side fails the gate instead of being silently skipped.
+      console.log(CASE_NAMES.join("\n"));
       process.exit(0);
     }
     if (arg === "--js") {
