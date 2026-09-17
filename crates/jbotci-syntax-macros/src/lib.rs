@@ -716,6 +716,15 @@ impl SyntaxGrammar {
                             variant_constructor.clone(),
                             snake_case(&variant_constructor),
                         ));
+                        // A sum rule's variant payload is a generated node held
+                        // inline, so without sharing the enum is as wide as its
+                        // widest variant: this is what made the term family 352
+                        // bytes. Shared, it is a discriminant and a pointer.
+                        let branch_field_ty = if type_env.shares_reference(branch_output) {
+                            parse_quote!(std::sync::Arc<#branch_output>)
+                        } else {
+                            branch_output.clone()
+                        };
                         let field = new!(GeneratedFieldModel {
                             attrs: branch
                                 .attrs
@@ -724,7 +733,7 @@ impl SyntaxGrammar {
                                 .cloned()
                                 .collect(),
                             name: branch.name.clone(),
-                            ty: branch_output.clone(),
+                            ty: branch_field_ty,
                         });
                         push_generated_variant(
                             &mut enums,
@@ -1042,7 +1051,7 @@ fn collect_chain_link_element_fields_for_parser_expr(
                     format!("cannot parse chain link output type: {error}"),
                 )
             })?;
-            let link_ident = simple_type_ident(&link_ty).ok_or_else(|| {
+            let link_ident = simple_type_ident(shared_node_type(&link_ty)).ok_or_else(|| {
                 syn::Error::new_spanned(
                     expr.to_token_stream(),
                     "chain link parser must produce a generated struct type",
@@ -1302,7 +1311,11 @@ fn generated_constructor_name(output: &Ident) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
-    let Some(output) = simple_type_ident(output) else {
+    // Derive from the node, not from the sharing wrapper, so a variant is named
+    // the same whether the caller hands over `N` or `Arc<N>`. Without this the
+    // model and the constructor can disagree, and the mismatch only shows up as
+    // a missing variant much later.
+    let Some(output) = simple_type_ident(shared_node_type(output)) else {
         return pascal_case_ident(&fallback.to_string());
     };
     let output = output.to_string();
@@ -2425,7 +2438,7 @@ impl SyntaxGrammar {
                         if local_recursive_names.contains(&argument_name) {
                             Ok(quote!(#argument.clone().map(
                                 generated_runtime::SharedSyntaxOutput::into_owned
-                            )))
+                            ).map(std::sync::Arc::new)))
                         } else if all_recursive_names.contains(&argument_name) {
                             Ok(quote!(super::#family_function()
                                 .#argument
@@ -2568,7 +2581,7 @@ impl SyntaxGrammar {
                         if local_recursive_names.contains(&argument_name) {
                             Ok(quote!(#argument.clone().map(
                                 generated_runtime::SharedSyntaxOutput::into_owned
-                            )))
+                            ).map(std::sync::Arc::new)))
                         } else if all_recursive_names.contains(&argument_name) {
                             Ok(quote!(super::recovered_generated_parser_family().#argument.map(
                                 generated_runtime::SharedSyntaxOutput::into_owned
@@ -4228,6 +4241,14 @@ struct GrammarTypeEnv {
     rules: BTreeMap<String, Type>,
     rule_arguments: BTreeMap<String, Vec<String>>,
     generated_struct_fields: BTreeMap<String, BTreeMap<String, Type>>,
+    /// Outputs that are generated model nodes, so references to them are shared.
+    ///
+    /// Membership is by the TYPE a reference yields, not by the kind of rule that
+    /// yields it: an alias to a generated node shares like any other reference,
+    /// while an alias to a leaf such as `Token` does not. Sharing a token would
+    /// put an allocation and a refcount on every word without shrinking anything
+    /// that holds one.
+    model_nodes: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4439,6 +4460,13 @@ impl RecoveredParserGeneration<'_> {
 }
 
 impl GrammarTypeEnv {
+    /// Whether a referenced output is a generated node, and so shared.
+    #[requires(true)]
+    #[ensures(true)]
+    fn shares_reference(&self, output: &Type) -> bool {
+        simple_type_ident(output).is_some_and(|ident| self.model_nodes.contains(&ident.to_string()))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn new(recursive: &[RecursiveRule], rules: &[Rule]) -> Self {
@@ -4461,6 +4489,7 @@ impl GrammarTypeEnv {
                 })
                 .collect(),
             generated_struct_fields: BTreeMap::new(),
+            model_nodes: BTreeSet::new(),
         };
 
         for rule in rules {
@@ -4468,6 +4497,11 @@ impl GrammarTypeEnv {
                 type_env
                     .rules
                     .insert(rule.name().to_string(), output.clone());
+                if !matches!(rule, Rule::Alias(_))
+                    && let Some(ident) = simple_type_ident(output)
+                {
+                    type_env.model_nodes.insert(ident.to_string());
+                }
             }
         }
 
@@ -4543,7 +4577,9 @@ impl GrammarTypeEnv {
         field: &Ident,
     ) -> Option<TokenStream2> {
         let ty = syn::parse2::<Type>(struct_ty.clone()).ok()?;
-        let output = simple_type_ident(&ty)?;
+        // The chain's link parser yields a shared node, so look through the
+        // wrapper to find the struct whose field is being named.
+        let output = simple_type_ident(shared_node_type(&ty))?;
         self.generated_struct_fields
             .get(&output.to_string())?
             .get(&field.to_string())
@@ -4596,7 +4632,12 @@ fn strict_parser_argument_tokens(
         let ty = argument_types
             .get(&argument.to_string())
             .expect("argument types are populated from recursive declarations");
+        // A recursive-family argument carries the same shared node a rule
+        // reference yields. The rule's OWN output is not shared: a rule produces
+        // its node, it does not reference it, which is why this wraps here rather
+        // than inside `parser_type_tokens`.
         let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
+        let ty = quote!(std::sync::Arc<#ty>);
         generic_params.push(generic.clone());
         params.push(quote!(#argument: #generic));
         where_predicates.push(quote!(
@@ -6444,16 +6485,13 @@ fn strict_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
-        ("arc", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(#inner.map(std::sync::Arc::new)))
-        }
+        ("arc", 1) => strict_rust_parser_expr_tokens(
+            call.args.first().expect("length checked"),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         ("choice", 1) => {
             let alternatives = call
                 .args
@@ -6642,10 +6680,22 @@ fn strict_rule_call_tokens(
     };
     let free_modifier =
         strict_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
-    quote!(#parser_name(
+    let parser = quote!(#parser_name(
         #(#parser_arguments,)*
         #free_modifier
-    ).map(generated_runtime::SharedSyntaxOutput::into_owned))
+    ).map(generated_runtime::SharedSyntaxOutput::into_owned));
+    // The type and the value have to agree, so this uses the same predicate the
+    // type computation does: a generated node is shared, an alias leaf is not.
+    if generation
+        .type_env
+        .rules
+        .get(function)
+        .is_some_and(|ty| generation.type_env.shares_reference(ty))
+    {
+        quote!(#parser.map(std::sync::Arc::new))
+    } else {
+        parser
+    }
 }
 
 #[requires(!argument.is_empty())]
@@ -7353,16 +7403,13 @@ fn recovered_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
-        ("arc", 1) => {
-            let inner = recovered_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(#inner.map(std::sync::Arc::new)))
-        }
+        ("arc", 1) => recovered_rust_parser_expr_tokens(
+            call.args.first().expect("length checked"),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         ("choice", 1) => {
             let alternatives = call
                 .args
@@ -7623,10 +7670,20 @@ fn recovered_rule_call_tokens(
     };
     let free_modifier =
         recovered_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
+    let shares = generation
+        .type_env
+        .rules
+        .get(function)
+        .is_some_and(|ty| generation.type_env.shares_reference(ty));
     let parser = quote!(#parser_name(
         #(#parser_arguments,)*
         #free_modifier,
     ).map(generated_runtime::SharedSyntaxOutput::into_owned));
+    let parser = if shares {
+        quote!(#parser.map(std::sync::Arc::new))
+    } else {
+        parser
+    };
     if wrap_generated_model_output && generation.rule_is_generated_model(function) {
         let recovered_module = generation.recovered_module;
         quote!(#parser.map(#recovered_module::Recovered::valid))
@@ -7799,13 +7856,25 @@ fn postfix_parser_output_type(
         ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
         ("recursive_output", 1) => {
             let target = required_path_expr_last_segment(&args[0], "recursive parser").ok()?;
-            type_env.recursive.get(&target).map(|ty| quote!(#ty))
+            type_env.recursive.get(&target).map(|ty| {
+                if type_env.shares_reference(ty) {
+                    quote!(std::sync::Arc<#ty>)
+                } else {
+                    quote!(#ty)
+                }
+            })
         }
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
         ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
         ("map_to" | "map_recovered_to", 1) => {
             let target = required_path_expr_last_segment(&args[0], "map_to target").ok()?;
-            type_env.rules.get(&target).map(|ty| quote!(#ty))
+            type_env.rules.get(&target).map(|ty| {
+                if type_env.shares_reference(ty) {
+                    quote!(std::sync::Arc<#ty>)
+                } else {
+                    quote!(#ty)
+                }
+            })
         }
         ("not" | "ignored", 0) => Some(quote!(())),
         ("ignore_then", 1) => {
@@ -8008,14 +8077,26 @@ fn method_rust_parser_output_type(
             "map_to target",
         )
         .ok()?;
-        type_env.rules.get(&target).map(|ty| quote!(#ty))
+        type_env.rules.get(&target).map(|ty| {
+            if type_env.shares_reference(ty) {
+                quote!(std::sync::Arc<#ty>)
+            } else {
+                quote!(#ty)
+            }
+        })
     } else if method.method == "recursive_output" && method.args.len() == 1 {
         let target = required_path_expr_last_segment(
             method.args.first().expect("length checked"),
             "recursive_output target",
         )
         .ok()?;
-        type_env.recursive.get(&target).map(|ty| quote!(#ty))
+        type_env.recursive.get(&target).map(|ty| {
+            if type_env.shares_reference(ty) {
+                quote!(std::sync::Arc<#ty>)
+            } else {
+                quote!(#ty)
+            }
+        })
     } else if method.method == "not" || method.method == "ignored" {
         Some(quote!(()))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
@@ -8046,7 +8127,16 @@ fn call_rust_parser_output_type(
 ) -> Option<TokenStream2> {
     let function = call_name(call)?;
     if let Some(ty) = type_env.rules.get(&function) {
-        return Some(quote!(#ty));
+        // A reference to another generated NODE yields a shared node. Doing this
+        // at the reference, rather than rewriting model field types afterwards,
+        // is what keeps the type and the value in step: `opt`, the sequence
+        // combinators, `wf` and `chain` all build their output from this one, so
+        // they inherit sharing instead of each needing a rule of its own.
+        return Some(if type_env.shares_reference(ty) {
+            quote!(std::sync::Arc<#ty>)
+        } else {
+            quote!(#ty)
+        });
     }
     match (function.as_str(), call.args.len()) {
         ("memo_scope", 2) => rust_parser_output_type(
@@ -8081,14 +8171,14 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(Box<#inner>))
         }
-        ("arc", 1) => {
-            let inner = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(std::sync::Arc<#inner>))
-        }
+        // `arc(...)` predates sharing being the default and is now a no-op
+        // synonym of it, kept so the grammar need not be rewritten in the same
+        // change. It must not wrap a second time.
+        ("arc", 1) => rust_parser_output_type(
+            call.args.first().expect("length checked"),
+            type_env,
+            arguments,
+        ),
         ("feature" | "policy", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
             type_env,
@@ -8235,10 +8325,39 @@ fn path_rust_parser_output_type(
     {
         let name = segment.ident.to_string();
         if let Some(ty) = arguments.get(&name).or_else(|| type_env.rules.get(&name)) {
-            return Some(quote!(#ty));
+            return Some(if type_env.shares_reference(ty) {
+                quote!(std::sync::Arc<#ty>)
+            } else {
+                quote!(#ty)
+            });
         }
     }
     None
+}
+
+/// The node a type names, seeing through the sharing wrapper.
+///
+/// Generated-node references are `Arc<Node>` since sharing became the default,
+/// so callers that ask "which generated type is this" have to look through it.
+#[requires(true)]
+#[ensures(true)]
+fn shared_node_type(output: &Type) -> &Type {
+    let Type::Path(path_ty) = output else {
+        return output;
+    };
+    let Some(segment) = path_ty.path.segments.last() else {
+        return output;
+    };
+    if segment.ident != "Arc" {
+        return output;
+    }
+    let PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+        return output;
+    };
+    match arguments.args.first() {
+        Some(syn::GenericArgument::Type(inner)) => inner,
+        _ => output,
+    }
 }
 
 #[requires(true)]
@@ -10668,9 +10787,63 @@ mod tests {
             .expect("requested generated struct is present")
     }
 
+    #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn an_alias_is_shared_by_what_it_yields_not_by_being_an_alias() {
+        // The exemption is for LEAVES, not for aliases. Sharing is decided by the
+        // type a reference yields, so an alias that yields a generated node shares
+        // like any other reference, while an alias that yields `Token` does not.
+        // The env is built in the shape `GrammarTypeEnv::new` produces: aliases
+        // appear only in `rules`, and `model_nodes` holds the node types that the
+        // non-alias rules declare.
+        let type_env = GrammarTypeEnv {
+            recursive: BTreeMap::new(),
+            rules: [
+                ("selbri".to_owned(), syn::parse_quote!(SelbriSyntax)),
+                ("selbri_alias".to_owned(), syn::parse_quote!(SelbriSyntax)),
+                ("word_alias".to_owned(), syn::parse_quote!(Token)),
+            ]
+            .into_iter()
+            .collect(),
+            rule_arguments: BTreeMap::new(),
+            generated_struct_fields: BTreeMap::new(),
+            model_nodes: ["SelbriSyntax".to_owned()].into_iter().collect(),
+        };
+        assert!(
+            type_env.shares_reference(&type_env.rules["selbri"]),
+            "a node reference shares"
+        );
+        assert!(
+            type_env.shares_reference(&type_env.rules["selbri_alias"]),
+            "an alias that yields a generated node shares too"
+        );
+        assert!(
+            !type_env.shares_reference(&type_env.rules["word_alias"]),
+            "an alias that yields a leaf is exempt"
+        );
+    }
+
     #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_variant_is_named_the_same_shared_or_not() {
+        let fallback: Ident = syn::parse_quote!(some_branch);
+        let bare: Type = syn::parse_quote!(SelbriSyntax);
+        let shared: Type = syn::parse_quote!(std::sync::Arc<SelbriSyntax>);
+        assert_eq!(
+            enum_variant_ident_for_output(&bare, &fallback).to_string(),
+            "Selbri"
+        );
+        assert_eq!(
+            enum_variant_ident_for_output(&shared, &fallback).to_string(),
+            enum_variant_ident_for_output(&bare, &fallback).to_string(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_field_model_accepts_only_outer_attributes() {
         let inner = GeneratedFieldModel::try_from_data(data!(GeneratedFieldModel {
             attrs: vec![syn::parse_quote!(#![doc = "bad"])],

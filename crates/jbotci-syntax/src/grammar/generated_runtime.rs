@@ -35,6 +35,30 @@ pub(crate) trait GrammarMapTo<T>: Sized {
     fn grammar_map_to(self) -> T;
 }
 
+/// Converts a shared node into another shared node.
+///
+/// `T: Clone` is required and the clone is a supported path, not a bug: whether
+/// the incoming `Arc` is unique depends on the call site, and a blanket impl
+/// cannot see its call sites. Two layers are easy to confuse here. The memo in
+/// `rule_wrapper` holds an `Rc` over a rule's own output, which is a different
+/// allocation from the `Arc` a reference mints; whether THAT `Arc` is aliased
+/// when it reaches this conversion is a property of the emitted expression, so
+/// it is answered by reading the generated code rather than asserted here.
+/// What holds either way is that a fresh allocation is unavoidable, since the
+/// source and target types differ. How deep the clone is depends on the node:
+/// child nodes are shared, so those cost a refcount, but a node's non-node data
+/// and any field that opted out of sharing are copied in full.
+#[contract_trait]
+impl<T, U> GrammarMapTo<std::sync::Arc<U>> for std::sync::Arc<T>
+where
+    T: GrammarMapTo<U> + Clone,
+{
+    fn grammar_map_to(self) -> std::sync::Arc<U> {
+        let value = std::sync::Arc::try_unwrap(self).unwrap_or_else(|shared| (*shared).clone());
+        std::sync::Arc::new(value.grammar_map_to())
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn grammar_map_to<T, U>(value: T) -> U
@@ -2163,6 +2187,26 @@ pub(crate) trait OutputRejection<O> {
     #[requires(true)]
     #[ensures(true)]
     fn rejects(&self, value: &O) -> bool;
+}
+
+/// Lets a rejection written against a node also judge that node when it is
+/// shared.
+///
+/// A rejection only inspects its value, so sharing is invisible to it: this
+/// borrows through the pointer and costs nothing. Without it every hand-written
+/// rejection would need a second impl that differs only in a wrapper.
+#[contract_trait]
+impl<O, R> OutputRejection<std::sync::Arc<O>> for R
+where
+    R: OutputRejection<O>,
+{
+    fn rejected_name(&self) -> &'static str {
+        <R as OutputRejection<O>>::rejected_name(self)
+    }
+
+    fn rejects(&self, value: &std::sync::Arc<O>) -> bool {
+        <R as OutputRejection<O>>::rejects(self, value)
+    }
 }
 
 /// Rejects a completed typed match and rewinds all state to the route's start.
