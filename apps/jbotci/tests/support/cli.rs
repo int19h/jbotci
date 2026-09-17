@@ -3958,6 +3958,36 @@ fn vlacku_decompose_lujvo_adds_decomposition_to_exact_lujvo_cards() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_decompose_lujvo_adds_decomposition_to_name_cards() {
+    // A name built from rafsi that need no hyphen between them shows its
+    // parts and the words behind them, the same as a lujvo does (#914).
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--ascii",
+            "--decompose-lujvo",
+            "--valsi",
+            "feklat",
+        ],
+        false,
+    );
+
+    assert_eq!(run.status, CliStatus::ValidMissing);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(run.stdout.contains("1. feklat | cmevla"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("  decomposition: fek~lat"),
+        "{}",
+        run.stdout
+    );
+    assert!(run.stdout.contains("fenki"), "{}", run.stdout);
+    assert!(run.stdout.contains("mlatu"), "{}", run.stdout);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlacku_exact_word_glob_matches_through_valsi() {
     let found = run_cli_capture(
         &["jbotci", "vlacku", "--valsi", "klam@", "--count", "1"],

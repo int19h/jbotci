@@ -436,12 +436,6 @@ impl WordKindTypeKey {
 
     #[requires(true)]
     #[ensures(true)]
-    pub const fn is_lujvo(self) -> bool {
-        matches!(self, Self::Lujvo)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub const fn is_brivla(self) -> bool {
         matches!(self, Self::Gismu | Self::Lujvo | Self::Fuivla)
     }
@@ -1172,18 +1166,6 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
         }
     }
 
-    /// The word type this result will show, without building its card.
-    #[requires(true)]
-    #[ensures(true)]
-    fn word_type_filter(&self) -> Option<WordTypeFilter> {
-        match self.as_data() {
-            data!(VlackuCandidate::Entry { entry, .. }) => {
-                Some(WordTypeFilter::from_word_type(entry.word_type))
-            }
-            data!(VlackuCandidate::Missing { card }) => WordTypeFilter::parse(&card.word_type),
-        }
-    }
-
     #[requires(true)]
     #[ensures(true)]
     fn into_card(self, dictionary: &Dictionary<'dictionary>, decompose_lujvo: bool) -> VlackuCard {
@@ -1424,7 +1406,8 @@ fn missing_exact_output(
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
         Some(classification) => {
-            let decomposition = (options.decompose_lujvo && classification.word_type.is_lujvo())
+            let decomposition = options
+                .decompose_lujvo
                 .then(|| decompose_lujvo_like(dictionary, query))
                 .flatten();
             let cards = cards_with_optional_lujvo_sources(
@@ -1472,14 +1455,11 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
     options: &VlackuSearchOptions,
     admission: SourceAdmission,
 ) -> Vec<VlackuCard> {
-    // The word type is read from the result itself, so nothing is built to
-    // decide whether to look the source words up.
+    // Whether the word has parts is the decomposition's answer to give, so
+    // the only question asked here is whether any result is admitted at all.
     let should_decompose_sources = options.decompose_lujvo
         && candidates.iter().any(|candidate| {
-            (admission == SourceAdmission::Always || candidate.passes(options, false))
-                && candidate
-                    .word_type_filter()
-                    .is_some_and(WordTypeFilter::is_lujvo_like)
+            admission == SourceAdmission::Always || candidate.passes(options, false)
         });
     if should_decompose_sources {
         if let Some(decomposition) = dictionary_lujvo_decomposition_for_query(dictionary, query) {
@@ -1821,15 +1801,17 @@ pub fn dictionary_entry_card(
     entry_card_with_dictionary_decomposition(entry, similarity, decomposition)
 }
 
+/// The parts the dictionary already worked out for this entry, if it has
+/// any. Membership in the precomputed index is the whole test: it holds
+/// every entry whose word decomposes, so a cmevla built from rafsi shows its
+/// parts on the same terms as a lujvo, and a word that does not decompose is
+/// simply absent.
 #[requires(true)]
 #[ensures(ret.is_none_or(|decomposition| !decomposition.segments.is_empty()))]
 fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
     dictionary: &'dictionary Dictionary<'dictionary>,
     entry: &'dictionary DictionaryEntry<'dictionary>,
 ) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
-    if !WordTypeFilter::Lujvo.matches_word_type(entry.word_type) {
-        return None;
-    }
     let index = dictionary.entry_index_for_entry(entry)?;
     dictionary.lujvo_decomposition_for_entry_index(index)
 }
@@ -2356,6 +2338,74 @@ mod tests {
         );
         assert_eq!(words(&missing.cards), vec!["klama", "bajra"]);
         assert_eq!(missing.outcome, VlackuOutcome::ValidMissing);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_name_built_from_rafsi_shows_the_words_it_is_built_from() {
+        // `feklat` is `fek` + `lat`, written with nothing between them to
+        // mark the seam; it is still a name built from two words and is
+        // looked up as one (#914).
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+            decompose_lujvo: true,
+        });
+
+        for request in [
+            VlackuRequest::valsi("feklat".to_owned()),
+            VlackuRequest::lujvo("feklat".to_owned()),
+        ] {
+            let found = run_vlacku_requests(dictionary, std::slice::from_ref(&request), &sources);
+            assert_eq!(
+                words(&found.cards),
+                vec!["feklat", "fenki", "mlatu"],
+                "{request:?}"
+            );
+            assert_eq!(found.outcome, VlackuOutcome::ValidMissing, "{request:?}");
+            assert_eq!(
+                found.cards[0]
+                    .decomposition
+                    .iter()
+                    .map(|piece| (piece.surface.as_str(), piece.source.as_deref()))
+                    .collect::<Vec<_>>(),
+                vec![("fek", Some("fenki")), ("lat", Some("mlatu"))],
+                "{request:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_name_the_dictionary_holds_shows_its_parts_from_the_index() {
+        // The precomputed decomposition is what a dictionary-backed card
+        // shows, and it holds every entry that decomposes rather than only
+        // the ones Lensisku typed as lujvo (#914).
+        let dictionary = jbotci_dictionary_data::english();
+        let entry = dictionary
+            .lookup_word("mumymast")
+            .expect("entry for mumymast");
+        assert!(WordTypeFilter::Cmevla.matches_word_type(entry.word_type));
+
+        let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
+
+        assert_eq!(
+            card.decomposition
+                .iter()
+                .map(|piece| (piece.kind, piece.surface.as_str(), piece.source.as_deref()))
+                .collect::<Vec<_>>(),
+            [
+                (VlackuCompositionKind::Rafsi, "mum", Some("mu")),
+                (VlackuCompositionKind::Hyphen, "y", None),
+                (VlackuCompositionKind::Rafsi, "mast", Some("masti")),
+            ]
+        );
+
+        // Asked not to show parts, the same card shows none.
+        let plain = dictionary_entry_card(dictionary, entry, Some(1.0), false);
+        assert!(plain.decomposition.is_empty());
     }
 
     #[test]

@@ -2838,6 +2838,17 @@ fn cmevla_lujvo_rafsi_texts(chars: &[char], ranges: &[LujvoPartRange]) -> Vec<St
         .collect()
 }
 
+/// Whether the written cmevla spells exactly what bonding its rafsi
+/// produces, so the split is the word's own composition rather than a
+/// phonotactically possible one.
+///
+/// The one licensed difference is the `r`/`n` bonding hyphen a lujvo would
+/// need before an `r`-initial rafsi: a cmevla ends in a consonant, so its
+/// shape already holds the word together and that hyphen may go unwritten.
+/// `bau` and `rok` bond as `bau` + `n` + `rok`, yet the written `baurok` is
+/// still those two rafsi. Everything else — including a plain chain such as
+/// `fek` + `lat` that needs no hyphen at all — must match the bonded
+/// spelling letter for letter.
 #[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
 #[ensures(true)]
 fn cmevla_lujvo_raw_ranges_match_bonded(
@@ -2845,21 +2856,11 @@ fn cmevla_lujvo_raw_ranges_match_bonded(
     ranges: &[LujvoPartRange],
     bonded: &[String],
 ) -> bool {
-    let has_explicit_hyphen = ranges
-        .iter()
-        .any(|range| range.kind == LujvoPartRangeKind::Hyphen);
-    let has_noninitial_r_rafsi = ranges
-        .iter()
-        .filter(|range| range.kind == LujvoPartRangeKind::Rafsi)
-        .skip(1)
-        .any(|range| chars.get(range.start) == Some(&'r'));
-
     let mut range_index = 0;
-    let mut used_cmevla_hyphen_omission = false;
     for bonded_part in bonded {
         if ranges
             .get(range_index)
-            .is_some_and(|range| cmevla_lujvo_range_text(chars, range) == bonded_part.as_str())
+            .is_some_and(|range| cmevla_lujvo_range_text_is(chars, range, bonded_part))
         {
             range_index += 1;
             continue;
@@ -2869,19 +2870,20 @@ fn cmevla_lujvo_raw_ranges_match_bonded(
                 range.kind == LujvoPartRangeKind::Rafsi && chars.get(range.start) == Some(&'r')
             })
         {
-            used_cmevla_hyphen_omission = true;
             continue;
         }
         return false;
     }
     range_index == ranges.len()
-        && (has_explicit_hyphen || used_cmevla_hyphen_omission || has_noninitial_r_rafsi)
 }
 
 #[requires(range.start < range.end && range.end <= chars.len())]
-#[ensures(!ret.is_empty())]
-fn cmevla_lujvo_range_text(chars: &[char], range: &LujvoPartRange) -> String {
-    chars[range.start..range.end].iter().collect()
+#[ensures(true)]
+fn cmevla_lujvo_range_text_is(chars: &[char], range: &LujvoPartRange, text: &str) -> bool {
+    chars[range.start..range.end]
+        .iter()
+        .copied()
+        .eq(text.chars())
 }
 
 #[requires(start < end && end <= chars.len())]

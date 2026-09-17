@@ -5338,6 +5338,87 @@ mod tests {
         );
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_cmevla_rafsi_chain_needs_no_hyphen_to_be_a_candidate() {
+        // `fek` + `lat` and `jet` + `rok` both bond with nothing between
+        // them, so nothing in the spelling marks the seam and the split has
+        // to be found by bonding the rafsi back together. `jetrok` is the
+        // #190 word; `feklat` is #914, and only its second rafsi starting
+        // with something other than `r` ever told them apart.
+        for (source, expected) in [
+            ("feklat", ["rafsi:fek", "rafsi:lat"]),
+            ("jetrok", ["rafsi:jet", "rafsi:rok"]),
+        ] {
+            let candidates = cmevla_lujvo_part_candidate_labels(source);
+            assert!(
+                candidates.contains(&expected.map(str::to_owned).to_vec()),
+                "{source}: {candidates:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_cmevla_may_leave_out_the_hyphen_before_an_r_initial_rafsi() {
+        // `bau` and `rok` bond as `bau` + `n` + `rok`, because a lujvo would
+        // otherwise fall apart at the seam. A cmevla ends in a consonant and
+        // holds together without it, so the written `baurok` is still those
+        // two rafsi.
+        assert!(
+            cmevla_lujvo_part_candidate_labels("baurok")
+                .contains(&vec!["rafsi:bau".to_owned(), "rafsi:rok".to_owned()]),
+            "{:?}",
+            cmevla_lujvo_part_candidate_labels("baurok")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_cmevla_candidate_must_spell_what_bonding_its_rafsi_produces() {
+        // Dropping the hyphen is licensed for the `r`-hyphen alone. `bau`
+        // and `kak` bond as `baurkak`, so the perfectly pronounceable
+        // `baukak` is not those two rafsi written together; neither is
+        // `bakkak`, which `bak` and `kak` bond into as `bakykak`.
+        for rejected in ["baukak", "bakkak"] {
+            assert_eq!(
+                cmevla_lujvo_part_candidate_labels(rejected),
+                Vec::<Vec<String>>::new(),
+                "{rejected}"
+            );
+        }
+        assert!(
+            cmevla_lujvo_part_candidate_labels("baurkak").contains(&vec![
+                "rafsi:bau".to_owned(),
+                "hyphen:r".to_owned(),
+                "rafsi:kak".to_owned(),
+            ]),
+            "{:?}",
+            cmevla_lujvo_part_candidate_labels("baurkak")
+        );
+        assert!(
+            cmevla_lujvo_part_candidate_labels("bakykak").contains(&vec![
+                "rafsi:bak".to_owned(),
+                "hyphen:y".to_owned(),
+                "rafsi:kak".to_owned(),
+            ]),
+            "{:?}",
+            cmevla_lujvo_part_candidate_labels("bakykak")
+        );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.iter().all(|labels| !labels.is_empty()))]
+    fn cmevla_lujvo_part_candidate_labels(source: &str) -> Vec<Vec<String>> {
+        parse_cmevla_lujvo_word_part_candidates(source)
+            .iter()
+            .map(|parts| parts.iter().map(jvopau_label).collect())
+            .collect()
+    }
+
     #[requires(!source.is_empty())]
     #[ensures(ret.iter().all(|label| !label.is_empty()))]
     fn lujvo_part_labels(source: &str) -> Vec<String> {

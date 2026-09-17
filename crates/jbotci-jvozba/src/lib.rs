@@ -1,7 +1,7 @@
 //! Lujvo composition and decomposition.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind,
@@ -317,6 +317,15 @@ pub fn decompose_lujvo_like<'a>(
     .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
     .count()
     >= 2)]
+// Quadratic and validation-only, so it is not worth paying for on every
+// decomposition the dictionary build performs.
+#[expensive_invariant(
+    source_words
+        .iter()
+        .enumerate()
+        .all(|(index, word)| !source_words[..index].contains(word)),
+    "source words name each word once; per-occurrence work reads the segments"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LujvoDecomposition<'a> {
     pub segments: Vec<LujvoSegmentInfo<'a>>,
@@ -337,11 +346,13 @@ fn expand_input(dictionary: &Dictionary<'_>, input: &JvozbaInput) -> Vec<JvozbaI
         JvozbaInput::FixedRafsi(rafsi_text) => {
             vec![JvozbaInput::FixedRafsi(canonicalize_text(rafsi_text))]
         }
+        // A word built from rafsi enters the build as the words it is built
+        // from, one input per rafsi it spells. That is the sequence of its
+        // pieces, not the set of words it names: `latlat` is `lat` + `lat`
+        // and enters as `mlatu` twice, so its `source_words` - which are
+        // deliberately unique - cannot stand in for it here.
         JvozbaInput::Word(word_text) => match decompose_lujvo_like(dictionary, word_text) {
-            Some(decomposition) => decomposition
-                .into_data()
-                .source_words
-                .into_iter()
+            Some(decomposition) => sourced_rafsi_words(&decomposition.segments)
                 .map(|source_word| JvozbaInput::Word(source_word.to_owned()))
                 .collect(),
             None => vec![JvozbaInput::Word(canonicalize_text(word_text))],
@@ -679,19 +690,28 @@ fn decomposition_from_parts<'a>(
         return None;
     }
 
-    let source_words = unique_preserving_order(
-        segments
-            .iter()
-            .filter_map(|segment| match &segment.segment {
-                LujvoPart::Rafsi(_) => segment.source,
-                LujvoPart::Hyphen(_) => None,
-            })
-            .collect::<Vec<_>>(),
-    );
+    let source_words = unique_preserving_order(sourced_rafsi_words(&segments).collect::<Vec<_>>());
     Some(new!(LujvoDecomposition {
         segments: segments,
         source_words: source_words,
     }))
+}
+
+/// The word behind every rafsi the decomposition spells, in order and with
+/// repeats kept, skipping hyphens and any rafsi the dictionary cannot place.
+///
+/// This is the sequence of pieces. `LujvoDecomposition::source_words` is the
+/// set of words those pieces name, which is what a lookup or an index wants;
+/// anything that works piece by piece wants this.
+#[requires(true)]
+#[ensures(true)]
+fn sourced_rafsi_words<'a>(segments: &[LujvoSegmentInfo<'a>]) -> impl Iterator<Item = &'a str> {
+    segments
+        .iter()
+        .filter_map(|segment| match &segment.segment {
+            LujvoPart::Rafsi(_) => segment.source,
+            LujvoPart::Hyphen(_) => None,
+        })
 }
 
 #[requires(true)]
@@ -1110,16 +1130,53 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_missing_dictionary_entries() {
+        // The name has to be one the dictionary does not hold *and* cannot
+        // decompose: a name built from rafsi is expanded into the words it
+        // is built from before it is ever looked up. `feklef` splits as
+        // cleanly as `feklat`, but `lef` is nobody's rafsi, so it reaches the
+        // lookup as itself.
         let error = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
             jbotci_dictionary_data::english(),
             &[
                 JvozbaInput::Word("lojbo".to_owned()),
-                JvozbaInput::Word("notlojban".to_owned()),
+                JvozbaInput::Word("feklef".to_owned()),
             ],
         )
         .expect_err("missing entry");
-        assert_eq!(error.to_string(), "No dictionary entry for `notlojban`.");
+        assert_eq!(error.to_string(), "No dictionary entry for `feklef`.");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_name_built_from_rafsi_enters_a_build_as_the_words_it_is_built_from() {
+        // Naming a compound is naming its parts, which is what a lujvo
+        // input has always done; #914 restores it for a name built from
+        // rafsi. `lojban` is `logji` + `bangu`, so building from it must
+        // reach the same word as building from those two.
+        let dictionary = jbotci_dictionary_data::english();
+        let from_name = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("lojban".to_owned()),
+            ],
+        )
+        .expect("a name built from rafsi expands");
+        let from_parts = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("logji".to_owned()),
+                JvozbaInput::Word("bangu".to_owned()),
+            ],
+        )
+        .expect("the same build from the words themselves");
+
+        assert_eq!(from_name, from_parts);
     }
 
     #[test]
@@ -1235,6 +1292,119 @@ mod tests {
         assert_eq!(surfaces, ["bau", "n", "rok"]);
         assert_eq!(sources, [Some("bangu"), None, Some("rokci")]);
         assert_eq!(decomposition.source_words, ["bangu", "rokci"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_cmevla_lujvo_from_a_plain_rafsi_chain() {
+        // The #914 case: a name built from rafsi that happen to need no
+        // hyphen between them still shows the words it was built from.
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "feklat")
+            .expect("cmevla fallback decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["fek", "lat"]);
+        assert_eq!(sources, [Some("fenki"), Some("mlatu")]);
+        assert_eq!(decomposition.source_words, ["fenki", "mlatu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_name_that_repeats_a_word_keeps_both_occurrences_in_its_segments() {
+        // `latlat` is `lat` + `lat`, and both are `mlatu`.
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "latlat")
+            .expect("cmevla fallback decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["lat", "lat"]);
+        assert_eq!(sources, [Some("mlatu"), Some("mlatu")]);
+        // The source words name each word once on purpose: a lookup or an
+        // index wants the words, not the pieces. Anything that works piece
+        // by piece has to read the segments instead.
+        assert_eq!(decomposition.source_words, ["mlatu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_name_that_repeats_a_word_enters_a_build_once_per_occurrence() {
+        let dictionary = jbotci_dictionary_data::english();
+
+        let from_name = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("latlat".to_owned()),
+            ],
+        )
+        .expect("a repeated rafsi enters once per occurrence");
+        let from_parts = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("lojbo".to_owned()),
+                JvozbaInput::Word("mlatu".to_owned()),
+                JvozbaInput::Word("mlatu".to_owned()),
+            ],
+        )
+        .expect("the same build from the words themselves");
+
+        assert_eq!(from_name, from_parts);
+
+        // On its own the name is already two words, so it builds rather than
+        // failing for want of a second input.
+        let alone = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[JvozbaInput::Word("latlat".to_owned())],
+        )
+        .expect("a name of two rafsi is two inputs");
+        let pair = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("mlatu".to_owned()),
+                JvozbaInput::Word("mlatu".to_owned()),
+            ],
+        )
+        .expect("the same build from the words themselves");
+
+        assert_eq!(alone, pair);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn does_not_decompose_a_cmevla_whose_pieces_are_not_all_rafsi() {
+        // A hyphen-free chain is accepted on the strength of its rafsi, so
+        // the dictionary still has the last word. `feklef` splits as cleanly
+        // as `feklat` does, but `lef` is nobody's rafsi and the name is
+        // therefore not a compound.
+        assert!(
+            decompose_lujvo_like(jbotci_dictionary_data::english(), "feklef").is_none(),
+            "a segment with no source word must not yield a decomposition"
+        );
     }
 
     #[requires(true)]

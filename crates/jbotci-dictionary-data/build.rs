@@ -535,6 +535,14 @@ fn leak_sound_index(entries: &[GeneratedSoundEntry]) -> &'static [DictionarySoun
         .leak()
 }
 
+/// Precompute the rafsi decomposition of every entry that has one.
+///
+/// Whether a word decomposes is a morphological fact about the word plus the
+/// rafsi the dictionary records, which is exactly what `decompose_lujvo_like`
+/// decides; the Lensisku word type is an editorial classification and does
+/// not get a second vote. A cmevla built from rafsi therefore lands in the
+/// index alongside a lujvo, and a word that does not decompose stays out of
+/// it whatever it is classified as.
 #[requires(true)]
 #[ensures(true)]
 fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntry> {
@@ -543,9 +551,6 @@ fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntr
         .par_iter()
         .enumerate()
         .map(|(index, entry)| {
-            if !entry.word_type.is_lujvo_like() {
-                return None;
-            }
             let decomposition = decompose_lujvo_like(dictionary, entry.word)?.into_data();
             Some(GeneratedLujvoEntry {
                 entry_index: EntryIndex(index),

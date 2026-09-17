@@ -1330,12 +1330,6 @@ fn validate_lujvo_index(
                 reason: "entry indexes are not strictly ascending",
             });
         }
-        if !entries[lujvo_entry.entry_index.0].word_type.is_lujvo_like() {
-            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
-                index,
-                reason: "entry is not lujvo-like",
-            });
-        }
         if lujvo_entry.segments.is_empty() {
             return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
                 index,
