@@ -813,6 +813,12 @@ mod shared_containment {
             field optional <- optional_leaf;
             /// Sequence elements are shared.
             field sequence <- [zero_or_more leaf];
+            /// Nonempty sequences use the same containment lowering.
+            field nonempty <- [one_or_more leaf];
+            /// Repetition preserves explicit inline storage.
+            field inline_sequence <- [zero_or_more inline(leaf)];
+            /// Choice preserves a uniform explicit inline policy.
+            field inline_choice <- choice(inline(leaf), inline(leaf));
             /// Nested explicit pointers retain their layers.
             field nested <- arc(opt(leaf));
             /// Box is preserved and its child is shared.
@@ -837,6 +843,9 @@ mod shared_containment {
         let value = ProductSyntax {
             optional: Some(leaf.clone()),
             sequence: vec![leaf.clone()],
+            nonempty: vec1::vec1![leaf.clone()],
+            inline_sequence: vec![LeafSyntax(Token)],
+            inline_choice: LeafSyntax(Token),
             nested: Arc::new(Some(leaf.clone())),
             boxed: Box::new(leaf.clone()),
             inline_optional: Some(LeafSyntax(Token)),

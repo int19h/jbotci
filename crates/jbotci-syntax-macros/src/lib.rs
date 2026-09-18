@@ -3836,7 +3836,7 @@ impl NodeRule {
                 let raw = field.parser_result_field(type_env, argument_types)?;
                 let name = &raw.name;
                 let value = field
-                    .containment(&raw.ty, type_env)
+                    .containment(&raw.ty, type_env)?
                     .lower(quote!(#name), free_modifier_wrapper);
                 Ok(quote!(let #name = #value;))
             })
@@ -4609,7 +4609,7 @@ impl GrammarTypeEnv {
                         let name = field.name.as_ref()?.to_string();
                         let ty = field_type_for_chain_metadata(field, &type_env, &argument_types)?;
                         let ty = if matches!(field.kind, FieldKind::Field | FieldKind::Computed) {
-                            field.containment(&ty, &type_env).stored_type()
+                            field.containment(&ty, &type_env).ok()?.stored_type()
                         } else {
                             ty
                         };
@@ -7896,7 +7896,10 @@ fn chain_parser_output_type(
     // the first parser still returns its declared result. Compare the same
     // containment shape without changing the chain parser's output contract.
     let first_type = syn::parse2::<Type>(first.clone()).ok()?;
-    let stored_first = Containment::new(&first_type, &type_env.model_nodes).stored_type();
+    let stored_first = Containment::new(&first_type, &type_env.model_nodes)
+        .with_parser_policy(&expr.first)
+        .ok()?
+        .stored_type();
     if !type_token_streams_match(&quote!(#stored_first), &element) {
         return None;
     }
@@ -8891,18 +8894,14 @@ impl FieldItem {
         argument_types: &BTreeMap<String, Type>,
     ) -> Result<GeneratedFieldModel> {
         let field = self.parser_result_field(type_env, argument_types)?;
-        let ty = self.containment(&field.ty, type_env).stored_type();
+        let ty = self.containment(&field.ty, type_env)?.stored_type();
         Ok(field.with_data(data! { ty: ty }))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Containment {
-        let plan = Containment::new(ty, &type_env.model_nodes);
-        match &self.parser {
-            ParserExpr::Rust(expr) => plan.with_parser_policy(expr),
-            _ => plan,
-        }
+    fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Result<Containment> {
+        Containment::new(ty, &type_env.model_nodes).with_parser_policy(&self.parser)
     }
 
     #[requires(true)]

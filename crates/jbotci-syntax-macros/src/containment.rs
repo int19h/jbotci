@@ -4,6 +4,7 @@
 
 use std::collections::BTreeSet;
 
+use super::{ParserExpr, VectorItem};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use proc_macro2::TokenStream;
@@ -11,6 +12,7 @@ use quote::{format_ident, quote};
 use syn::{Expr, GenericArgument, PathArguments, Type, parse_quote};
 
 #[invariant(true)]
+#[derive(Clone)]
 pub(super) struct Containment {
     source: Type,
     action: Action,
@@ -20,6 +22,7 @@ pub(super) struct Containment {
 #[invariant(::Tuple => true)]
 #[invariant(::Array => true)]
 #[invariant(::Wrapper => true)]
+#[derive(Clone)]
 enum Action {
     Identity,
     Share,
@@ -135,64 +138,196 @@ impl Containment {
     /// not create a new containment boundary.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn with_parser_policy(mut self, expr: &Expr) -> Self {
-        self.apply_parser_policy(expr);
-        self
+    pub(super) fn with_parser_policy(mut self, expr: &ParserExpr) -> syn::Result<Self> {
+        self.apply_policy(expr)?;
+        Ok(self)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn apply_parser_policy(&mut self, expr: &Expr) {
+    fn apply_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        match expr {
+            ParserExpr::Rust(expr) => self.apply_parser_policy(expr)?,
+            ParserExpr::Vector(vector) => {
+                let mut selected: Option<Self> = None;
+                for item in &vector.items {
+                    let (parser, spread) = match item {
+                        VectorItem::One(p)
+                        | VectorItem::ZeroOrMore(p)
+                        | VectorItem::OneOrMore(p) => (p, false),
+                        VectorItem::Spread(p)
+                        | VectorItem::ZeroOrMoreSpread(p)
+                        | VectorItem::OneOrMoreSpread(p) => (p, true),
+                        VectorItem::Assert { .. } => continue,
+                    };
+                    let mut candidate = self.clone();
+                    if spread {
+                        candidate.apply_policy(parser)?;
+                    } else if let Some(element) = candidate.sequence_element_mut() {
+                        element.apply_policy(parser)?;
+                    }
+                    Self::select_consistent(&mut selected, candidate, &parser.to_token_stream())?;
+                }
+                if let Some(selected) = selected {
+                    *self = selected;
+                }
+            }
+            ParserExpr::Postfix {
+                receiver,
+                method,
+                args,
+            } => {
+                self.apply_method_policy(receiver, method, args)?;
+            }
+            ParserExpr::Chain(chain) => {
+                if let Action::Wrapper {
+                    kind: Wrapper::Chain,
+                    arguments,
+                } = &mut self.action
+                {
+                    arguments[0].apply_policy(&chain.first)?;
+                    if let Some(element) = arguments[1].sequence_element_mut() {
+                        element.apply_policy(&chain.links)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_element_mut(&mut self) -> Option<&mut Self> {
+        match &mut self.action {
+            Action::Wrapper {
+                kind: Wrapper::Vec | Wrapper::Vec1,
+                arguments,
+            } => arguments.first_mut(),
+            Action::Wrapper {
+                kind: Wrapper::SmallVec | Wrapper::SmallVec1,
+                arguments,
+            } => match &mut arguments.first_mut()?.action {
+                Action::Array { element } => Some(element),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    // Every branch producing the same field/sequence element must agree on its
+    // static storage type. Choosing a branch at runtime cannot change that type.
+    #[requires(true)]
+    #[ensures(true)]
+    fn select_consistent(
+        selected: &mut Option<Self>,
+        candidate: Self,
+        at: &TokenStream,
+    ) -> syn::Result<()> {
+        if let Some(previous) = selected {
+            if previous.stored_type() != candidate.stored_type() {
+                return Err(syn::Error::new_spanned(
+                    at,
+                    "conflicting inline storage policies for the same output position",
+                ));
+            }
+        } else {
+            *selected = Some(candidate);
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_method_policy(
+        &mut self,
+        receiver: &ParserExpr,
+        method: &syn::Ident,
+        args: &[Expr],
+    ) -> syn::Result<()> {
+        match method.to_string().as_str() {
+            "wf" | "with_free_modifiers" | "prohibited_wf" | "wf_when" => {
+                if let Action::Wrapper { arguments, .. } = &mut self.action
+                    && let Some(inner) = arguments.first_mut()
+                {
+                    inner.apply_policy(receiver)?;
+                }
+            }
+            "ignore_then" if args.len() == 1 => self.apply_parser_policy(&args[0])?,
+            "elidable_terminator"
+            | "lookahead"
+            | "reject_output"
+            | "warn"
+            | "payload_start"
+            | "then_ignore"
+            | "not_next_selmaho"
+            | "not_next_token"
+            | "not_next_rule"
+            | "followed_by" => self.apply_policy(receiver)?,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_parser_policy(&mut self, expr: &Expr) -> syn::Result<()> {
         match expr {
             Expr::Call(call) => {
                 let name = super::call_name(call);
                 if name.as_deref() == Some("inline") && call.args.len() == 1 {
                     self.action = Action::Identity;
-                    return;
+                    return Ok(());
                 }
                 if matches!(name.as_deref(), Some("opt" | "arc" | "boxed")) && call.args.len() == 1
                 {
                     if let Action::Wrapper { arguments, .. } = &mut self.action
                         && let Some(inner) = arguments.first_mut()
                     {
-                        inner.apply_parser_policy(&call.args[0]);
+                        inner.apply_parser_policy(&call.args[0])?;
                     }
                 } else if matches!(name.as_deref(), Some("feature" | "policy" | "memo_scope"))
                     && call.args.len() == 2
                 {
-                    self.apply_parser_policy(&call.args[1]);
-                }
-            }
-            Expr::MethodCall(method) => match method.method.to_string().as_str() {
-                "wf" | "with_free_modifiers" | "prohibited_wf" | "wf_when" => {
-                    if let Action::Wrapper { arguments, .. } = &mut self.action
-                        && let Some(inner) = arguments.first_mut()
-                    {
-                        inner.apply_parser_policy(&method.receiver);
+                    self.apply_parser_policy(&call.args[1])?;
+                } else if name.as_deref() == Some("choice") {
+                    let alternatives = if call.args.len() == 1 {
+                        super::choice_alternative_exprs(&call.args[0])
+                    } else {
+                        call.args.iter().collect()
+                    };
+                    let mut selected = None;
+                    for alternative in alternatives {
+                        let mut candidate = self.clone();
+                        candidate.apply_parser_policy(alternative)?;
+                        Self::select_consistent(&mut selected, candidate, &quote!(#alternative))?;
+                    }
+                    if let Some(selected) = selected {
+                        *self = selected;
                     }
                 }
-                "ignore_then" if method.args.len() == 1 => {
-                    self.apply_parser_policy(&method.args[0])
+            }
+            Expr::MethodCall(method) => self.apply_method_policy(
+                &ParserExpr::Rust(*method.receiver.clone()),
+                &method.method,
+                &method.args.iter().cloned().collect::<Vec<_>>(),
+            )?,
+            Expr::Paren(paren) => self.apply_parser_policy(&paren.expr)?,
+            Expr::Group(group) => self.apply_parser_policy(&group.expr)?,
+            Expr::Array(array) => {
+                if let Some(vector) = super::array_vector_expr(array) {
+                    self.apply_policy(&ParserExpr::Vector(vector))?;
                 }
-                "elidable_terminator"
-                | "lookahead"
-                | "reject_output"
-                | "warn"
-                | "payload_start"
-                | "then_ignore" => self.apply_parser_policy(&method.receiver),
-                _ => {}
-            },
-            Expr::Paren(paren) => self.apply_parser_policy(&paren.expr),
-            Expr::Group(group) => self.apply_parser_policy(&group.expr),
+            }
             Expr::Tuple(tuple) => {
                 if let Action::Tuple { elements } = &mut self.action {
                     for (plan, expr) in elements.iter_mut().zip(&tuple.elems) {
-                        plan.apply_parser_policy(expr);
+                        plan.apply_parser_policy(expr)?;
                     }
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     #[requires(true)]
@@ -338,6 +473,80 @@ impl Containment {
 mod tests {
     use super::*;
     use quote::ToTokens;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonempty_sequence_lowering_uses_cardinality_preserving_map() {
+        let plan = Containment::new(
+            &parse_quote!(vec1::Vec1<Node>),
+            &BTreeSet::from(["Node".to_owned()]),
+        );
+        assert_eq!(
+            plan.stored_type(),
+            parse_quote!(vec1::Vec1<::std::sync::Arc<Node>>)
+        );
+        assert_eq!(
+            plan.lower(quote!(input), &quote!(WithFreeModifiers))
+                .to_string(),
+            quote!((input).mapped(|__element| ::std::sync::Arc::new(__element))).to_string(),
+        );
+        // Check the collection API's ownership/cardinality guarantee with
+        // non-Clone elements as well as the emitted call and stored type above.
+        let input = vec1::vec1![
+            Box::new(std::sync::Mutex::new(7)),
+            Box::new(std::sync::Mutex::new(8))
+        ];
+        let addresses = input
+            .iter()
+            .map(|value| &**value as *const std::sync::Mutex<i32>)
+            .collect::<Vec<_>>();
+        let result = input.mapped(std::sync::Arc::new);
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result
+                .iter()
+                .map(|value| &***value as *const std::sync::Mutex<i32>)
+                .collect::<Vec<_>>(),
+            addresses
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inline_policy_reaches_sequence_and_choice_elements() {
+        let nodes = BTreeSet::from(["Node".to_owned()]);
+        for (ty, parser, expected) in [
+            ("Vec<Node>", "[zero_or_more inline(node)]", "Vec<Node>"),
+            ("Vec1<Node>", "[one_or_more inline(node)]", "Vec1<Node>"),
+            ("Vec<Node>", "[..inline(nodes)]", "Vec<Node>"),
+            ("Node", "choice(inline(node), inline(node))", "Node"),
+            (
+                "Vec<Node>",
+                "[zero_or_more inline(node)].warn(warning)",
+                "Vec<Node>",
+            ),
+        ] {
+            let plan = Containment::new(&syn::parse_str(ty).unwrap(), &nodes)
+                .with_parser_policy(&syn::parse_str(parser).unwrap())
+                .unwrap();
+            assert_eq!(
+                plan.stored_type(),
+                syn::parse_str::<Type>(expected).unwrap()
+            );
+        }
+        for (ty, parser) in [
+            ("Vec<Node>", "[inline(node); node]"),
+            ("Node", "choice(inline(node), node)"),
+        ] {
+            assert!(
+                Containment::new(&syn::parse_str(ty).unwrap(), &nodes)
+                    .with_parser_policy(&syn::parse_str(parser).unwrap())
+                    .is_err()
+            );
+        }
+    }
 
     /// Compile and execute the actual emitted expressions, including recovered
     /// inputs. Token-string comparisons cannot catch constructor/type drift.
