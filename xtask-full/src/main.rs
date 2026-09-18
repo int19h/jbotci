@@ -71,12 +71,10 @@ const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 // Safari exposes no browser knob for the JS engine stack that also bounds nested wasm calls.
-// The old 168 KiB budget was a historical Safari proxy, not a measured engine limit. By owner
-// decision on 2026-07-12 (issue #334), it is now 192 KiB so token-conserving recovery can ship
-// after becoming the third recovery-driver change to exceed that proxy (#327, #332, and #334).
-// This is accepted risk pending empirical Safari measurement and may be tightened again after a
-// structural stack reduction in the generated recovered parser restores margin.
-const DEFAULT_WASM_STACK_SIZE_KB: usize = 192;
+// Issue #913 tightens the previous 192 KiB Node regression budget to the user-accepted 160 KiB.
+// This is a proxy budget, not a measurement of physical Safari capacity or a guarantee of iOS
+// acceptance. It bounds the host call stack separately from the Wasm linear-memory stack reserve.
+const DEFAULT_WASM_STACK_SIZE_KB: usize = 160;
 /// Every case the Wasm stack probe knows, kept in step with the `CASES` table in
 /// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
 /// name, so a drift between the two lists fails the gate rather than silently
