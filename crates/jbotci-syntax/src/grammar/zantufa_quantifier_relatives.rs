@@ -100,11 +100,11 @@ fn opens_relative_clause_atom(token: &Token) -> bool {
 /// The value of a recovered slot that proved itself valid, or `None`.
 #[requires(true)]
 #[ensures(
-    ret.is_some() == matches!(value, recovered::Recovered::Valid(_)),
+    ret.is_some() == matches!(value.borrow(), recovered::Recovered::Valid(_)),
     "only a `Valid` wrapper carries a value that proved itself"
 )]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -116,14 +116,15 @@ fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
 /// question for itself rather than defaulting either way.
 #[requires(true)]
 #[ensures(
-    ret -> matches!(
+    ret -> (matches!(
         atom,
-        recovered::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(
-            recovered::Recovered::Valid(_)
-        ) | recovered::RelativeClauseAtomSyntax::BridiRelativeClause(
-            recovered::Recovered::Valid(_)
-        )
-    ),
+        recovered::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(value)
+            if matches!(value.as_ref(), recovered::Recovered::Valid(_))
+    ) || matches!(
+        atom,
+        recovered::RelativeClauseAtomSyntax::BridiRelativeClause(value)
+            if matches!(value.as_ref(), recovered::Recovered::Valid(_))
+    )),
     "an opener can only be proven under a clause wrapper that proved itself"
 )]
 // This exhaustive body is the specification; restating it as an equivalence is tautological.
@@ -158,7 +159,7 @@ fn atom_opener_is_parsed(atom: &recovered::RelativeClauseAtomSyntax) -> bool {
 /// Whether a recovered relative list proves that the production was actually entered.
 #[requires(true)]
 #[ensures(
-    ret -> matches!(list.first, recovered::Recovered::Valid(_)),
+    ret -> matches!(list.first.as_ref(), recovered::Recovered::Valid(_)),
     "a started list proved its own first atom"
 )]
 // This body is the specification; restating its single predicate as an equivalence is tautological.
@@ -331,7 +332,7 @@ impl
         >,
     ) -> bool {
         // A candidate that did not prove itself proves nothing about its slot either.
-        let slot = valid(value).map(|candidate| &candidate.relative_clauses);
+        let slot = valid(value).map(|candidate| candidate.relative_clauses.as_ref());
         let rejected = !slot.is_some_and(slot_is_started);
         if trace_enabled() {
             trace_recovered_candidate(slot, !rejected, rejected);
@@ -352,7 +353,7 @@ impl OutputRejection<recovered::Recovered<recovered::ZantufaRawMeksoQuantifierWi
         &self,
         value: &recovered::Recovered<recovered::ZantufaRawMeksoQuantifierWithRelativesSyntax>,
     ) -> bool {
-        let slot = valid(value).map(|candidate| &candidate.relative_clauses);
+        let slot = valid(value).map(|candidate| candidate.relative_clauses.as_ref());
         let rejected = !slot.is_some_and(slot_is_started);
         if trace_enabled() {
             trace_recovered_candidate(slot, !rejected, rejected);
@@ -431,8 +432,8 @@ mod tests {
             recovered::Recovered::Error(missing_field())
         };
         recovered::Recovered::valid(recovered::RelativeClauseAtomSyntax::BridiRelativeClause(
-            recovered::Recovered::valid(
-                recovered::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(
+            Arc::new(recovered::Recovered::valid(
+                recovered::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(Arc::new(
                     recovered::Recovered::valid(recovered::RestrictiveBridiRelativeClauseSyntax {
                         poi: recovered::WithFreeModifiers {
                             value: poi,
@@ -441,8 +442,8 @@ mod tests {
                         subbridi: Arc::new(recovered::Recovered::Error(missing_field())),
                         kuho: None,
                     }),
-                ),
-            ),
+                )),
+            )),
         ))
     }
 
@@ -450,7 +451,7 @@ mod tests {
     #[ensures(true)]
     fn list(opener_parsed: bool) -> recovered::RelativeClauseListSyntax {
         recovered::RelativeClauseListSyntax {
-            first: atom(opener_parsed),
+            first: Arc::new(atom(opener_parsed)),
             additional: Vec::new(),
         }
     }

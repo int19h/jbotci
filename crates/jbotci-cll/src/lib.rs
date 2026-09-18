@@ -3,6 +3,9 @@
 //! that the `cukta` tool answers from. [`cll_edition`] reports which edition a
 //! given build carries.
 
+// Tests inspect generated syntax with shared containment at each node boundary.
+#![recursion_limit = "512"]
+
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 #[cfg(test)]

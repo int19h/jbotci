@@ -1238,7 +1238,8 @@ mod tests {
     #[ensures(ret.path.is_empty())]
     fn linked_sumti_factory() -> SyntaxHandle {
         let empty = jbotci_syntax::generated_model::EmptyLinkedSumtiSyntax {};
-        let linked = jbotci_syntax::generated_model::LinkedSumtiSyntax::EmptyLinkedSumti(empty);
+        let linked =
+            jbotci_syntax::generated_model::LinkedSumtiSyntax::EmptyLinkedSumti(Arc::new(empty));
         let owner = Arc::new(SyntaxOwner {
             root: SyntaxRoot::Strict {
                 value: StrictSyntaxRoot::LinkedSumtiSyntax(Arc::new(linked)),

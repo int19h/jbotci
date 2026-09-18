@@ -224,13 +224,24 @@ impl BindingType {
     fn is_canonical_free_modifier_shape(&self) -> bool {
         match self.as_data() {
             data!(BindingType::ModelReference { name }) => name == "FreeModifierSyntax",
-            data!(BindingType::Repeated { value }) => match value.as_data() {
-                data!(BindingType::RecoveredField { value }) => matches!(
-                    value.as_data(),
-                    data!(BindingType::ModelReference { name }) if name == "FreeModifierSyntax"
-                ),
-                _ => false,
-            },
+            data!(BindingType::Shared { value }) | data!(BindingType::Boxed { value }) => {
+                value.is_canonical_free_modifier_shape()
+            }
+            data!(BindingType::Repeated { value }) => value.is_recovered_free_modifier_shape(),
+            _ => false,
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn is_recovered_free_modifier_shape(&self) -> bool {
+        match self.as_data() {
+            data!(BindingType::Shared { value }) | data!(BindingType::Boxed { value }) => {
+                value.is_recovered_free_modifier_shape()
+            }
+            data!(BindingType::RecoveredField { value }) => {
+                matches!(value.as_data(), data!(BindingType::ModelReference { name }) if name == "FreeModifierSyntax")
+            }
             _ => false,
         }
     }

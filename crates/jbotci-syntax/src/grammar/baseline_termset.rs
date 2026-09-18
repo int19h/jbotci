@@ -91,7 +91,7 @@ fn is_baseline_gek_sumti(candidate: &GekTermsetCandidateSyntax) -> bool {
                 leading_operand,
                 gik: _,
                 trailing_operand,
-            } = pair;
+            } = pair.as_ref();
             is_bare_sumti_operand(leading_operand.as_ref())
                 && is_bare_sumti_operand(trailing_operand.as_ref())
         }
@@ -203,14 +203,14 @@ fn is_zantufa_baseline_gek_sumti(candidate: &ZantufaGekTermsetCandidateSyntax) -
     let ZantufaForethoughtTermsetFirstBranchSyntax {
         gik: _,
         terms: first_branch_terms,
-    } = first_branch;
+    } = first_branch.as_ref();
     is_single_bare_sumti_run(terms)
         && is_single_bare_sumti_run(first_branch_terms)
         && additional_branches.iter().all(|branch| {
             let ZantufaForethoughtTermsetBranchSyntax {
                 gik: _,
                 terms: branch_terms,
-            } = branch;
+            } = branch.as_ref();
             is_single_bare_sumti_run(branch_terms)
         })
 }

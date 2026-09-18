@@ -71,12 +71,23 @@ const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 // Safari exposes no browser knob for the JS engine stack that also bounds nested wasm calls.
-// The old 168 KiB budget was a historical Safari proxy, not a measured engine limit. By owner
-// decision on 2026-07-12 (issue #334), it is now 192 KiB so token-conserving recovery can ship
-// after becoming the third recovery-driver change to exceed that proxy (#327, #332, and #334).
-// This is accepted risk pending empirical Safari measurement and may be tightened again after a
-// structural stack reduction in the generated recovered parser restores margin.
-const DEFAULT_WASM_STACK_SIZE_KB: usize = 192;
+// Issue #913 tightens the previous 192 KiB Node regression budget to the user-accepted 160 KiB.
+// This is a proxy budget, not a measurement of physical Safari capacity or a guarantee of iOS
+// acceptance. It bounds the host call stack separately from the Wasm linear-memory stack reserve.
+const DEFAULT_WASM_STACK_SIZE_KB: usize = 160;
+/// Every case the Wasm stack probe knows, kept in step with the `CASES` table in
+/// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
+/// name, so a drift between the two lists fails the gate rather than silently
+/// skipping a case.
+const WASM_STACK_TEST_CASES: [&str; 7] = [
+    "default-input",
+    "simple-valid",
+    "recovered-input",
+    "natural-stop-recovered-input",
+    "issue-913-reported",
+    "issue-913-default-settings",
+    "nesting-depth-3",
+];
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";
@@ -2054,32 +2065,107 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
     }
     let paths = wasm_stack_test_bundle_paths(args.profile)?;
     let probe = absolute_path(&args.probe)?;
-    let node = args.node.clone();
-    let mut command = ProcessCommand::new(&node);
-    command
-        .arg(format!("--stack-size={}", args.stack_size_kb))
-        .arg(&probe)
-        .arg("--js")
-        .arg(&paths.js)
-        .arg("--wasm")
-        .arg(&paths.wasm)
-        .arg("--ready-js")
-        .arg(&paths.ready_js)
-        .arg("--default-text")
-        .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT);
-    for case in &args.cases {
-        command.arg("--case").arg(case);
+    verify_wasm_stack_test_cases(&args.node, &probe)?;
+    let cases = if args.cases.is_empty() {
+        WASM_STACK_TEST_CASES
+            .iter()
+            .map(|case| (*case).to_owned())
+            .collect::<Vec<_>>()
+    } else {
+        for case in &args.cases {
+            if !WASM_STACK_TEST_CASES.contains(&case.as_str()) {
+                bail!(
+                    "unknown Wasm stack probe case `{case}`; known cases: {}",
+                    WASM_STACK_TEST_CASES.join(", ")
+                );
+            }
+        }
+        args.cases.clone()
+    };
+    let mut failures = Vec::new();
+    for case in &cases {
+        // One fresh process per case. The budget this gate defends is a
+        // cold-instance property: an engine's first compilation tier uses larger
+        // frames than its optimizing tier, so a case that overflows on a fresh
+        // instance can pass on a warmed one. Sharing a process between cases
+        // would measure the warm path and stop reflecting a user's first click.
+        // It also keeps a case that overflowed from influencing any later case.
+        let status = ProcessCommand::new(&args.node)
+            .arg(format!("--stack-size={}", args.stack_size_kb))
+            .arg(&probe)
+            .arg("--js")
+            .arg(&paths.js)
+            .arg("--wasm")
+            .arg(&paths.wasm)
+            .arg("--ready-js")
+            .arg(&paths.ready_js)
+            .arg("--default-text")
+            .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT)
+            .arg("--case")
+            .arg(case)
+            .status()
+            .with_context(|| {
+                format!(
+                    "failed to run Wasm stack probe case `{case}` with `{}`",
+                    args.node.display()
+                )
+            })?;
+        if !status.success() {
+            failures.push(case.clone());
+        }
     }
-    let description = format!(
-        "{} --stack-size={} {}",
-        node.display(),
+    if failures.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "Wasm stack probe failed at --stack-size={} for: {}",
         args.stack_size_kb,
-        probe.display()
-    );
-    let status = command
-        .status()
-        .with_context(|| format!("failed to run Wasm stack probe with `{}`", node.display()))?;
-    check_status(status, &description)
+        failures.join(", ")
+    )
+}
+
+/// Fails when the runner's case list and the probe's disagree in either
+/// direction. Naming a case the probe does not have would fail on its own, but a
+/// case the probe gained and the runner never asks for would otherwise be
+/// skipped in silence, which is the failure mode a gate must not have.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn verify_wasm_stack_test_cases(node: &Path, probe: &Path) -> Result<()> {
+    let output = ProcessCommand::new(node)
+        .arg(probe)
+        .arg("--list-cases")
+        .output()
+        .with_context(|| {
+            format!(
+                "failed to list Wasm stack probe cases with `{}`",
+                node.display()
+            )
+        })?;
+    check_status(
+        output.status,
+        "node gentufa_compute_stack_probe.mjs --list-cases",
+    )?;
+    let listed = String::from_utf8(output.stdout)
+        .context("Wasm stack probe case list is not UTF-8")?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<BTreeSet<_>>();
+    let expected = WASM_STACK_TEST_CASES
+        .iter()
+        .map(|case| (*case).to_owned())
+        .collect::<BTreeSet<_>>();
+    if listed == expected {
+        return Ok(());
+    }
+    let missing_from_probe = expected.difference(&listed).cloned().collect::<Vec<_>>();
+    let missing_from_runner = listed.difference(&expected).cloned().collect::<Vec<_>>();
+    bail!(
+        "Wasm stack probe case lists disagree; probe is missing [{}] and the runner is missing [{}]",
+        missing_from_probe.join(", "),
+        missing_from_runner.join(", ")
+    )
 }
 
 #[requires(true)]

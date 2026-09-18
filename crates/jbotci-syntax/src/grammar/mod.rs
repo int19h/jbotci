@@ -1310,7 +1310,10 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == token.cmavo())]
+    #[ensures(self.cmavo_cache.get(&token.identity()) == Some(&ret))]
+    // Classification normalizes phoneme text and allocates. Recomputing it on
+    // every cache hit defeats the cache and adds host frames at parser depth.
+    #[expensive_ensures(ret == token.cmavo())]
     pub(super) fn token_cmavo(&mut self, token: &Token) -> Option<Cmavo> {
         let key = token.identity();
         if let Some(cmavo) = self.cmavo_cache.get(&key) {
@@ -4980,7 +4983,7 @@ fn recovery_byte_at(tokens: &[Token], index: usize) -> usize {
 #[requires(true)]
 #[ensures(true)]
 fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
-    generated::generated_model::recovered::TextSyntax::RegularText(
+    generated::generated_model::recovered::TextSyntax::RegularText(std::sync::Arc::new(
         generated::generated_model::recovered::Recovered::valid(
             generated::generated_model::recovered::RegularTextSyntax {
                 leading_nai: Vec::new(),
@@ -4992,7 +4995,7 @@ fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
                 paragraphs: None,
             },
         ),
-    )
+    ))
 }
 
 #[requires(true)]
@@ -5021,7 +5024,7 @@ fn regular_text_mut(
 ) -> Option<&mut generated::generated_model::recovered::RegularTextSyntax> {
     match tree {
         generated::generated_model::recovered::TextSyntax::RegularText(regular_text) => {
-            recovered_value_mut(regular_text)
+            recovered_value_mut(std::sync::Arc::make_mut(regular_text))
         }
         generated::generated_model::recovered::TextSyntax::ExplicitXauhaLohoiText(_) => None,
     }
@@ -5720,6 +5723,25 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/recovery-anchor-metadata.snapshot.txt"
     );
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn token_cmavo_caches_both_known_cmavo_and_non_cmavo_results() {
+        let words = segment_words_with_modifiers("mi klama").unwrap();
+        let options = ParseOptions::default();
+        let tokens = syntax_tokens(&words, &options);
+        assert_eq!(tokens.len(), 2);
+        let mut state = ParserState::new(&tokens, &options);
+        for (index, (token, expected)) in tokens.iter().zip([Some(Cmavo::Mi), None]).enumerate() {
+            assert!(!state.cmavo_cache.contains_key(&token.identity()));
+            assert_eq!(state.token_cmavo(token), expected);
+            assert_eq!(state.cmavo_cache.get(&token.identity()), Some(&expected));
+            assert_eq!(state.cmavo_cache.len(), index + 1);
+            assert_eq!(state.token_cmavo(token), expected);
+            assert_eq!(state.cmavo_cache.len(), index + 1);
+        }
+    }
 
     #[test]
     #[requires(true)]
@@ -6523,7 +6545,7 @@ mod tests {
             generated::generated_model::recovered::Recovered::error(skipped_item.clone());
         let missing_paragraphs =
             generated::generated_model::recovered::Recovered::error(missing_item.clone());
-        let tree = generated::generated_model::recovered::TextSyntax::RegularText(
+        let tree = generated::generated_model::recovered::TextSyntax::RegularText(Arc::new(
             generated::generated_model::recovered::Recovered::valid(
                 generated::generated_model::recovered::RegularTextSyntax {
                     leading_nai: vec![skipped_slot],
@@ -6535,7 +6557,7 @@ mod tests {
                     paragraphs: Some(Arc::new(missing_paragraphs)),
                 },
             ),
-        );
+        ));
         (tree, skipped_item, missing_item, missing_span)
     }
 

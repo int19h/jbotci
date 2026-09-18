@@ -1,4 +1,15 @@
 //! Proc macros for syntax grammar declarations.
+//!
+//! Generated model fields and enum payloads share contained nodes through `Arc`,
+//! including nodes inside options, sequences and free-modifier wrappers. Explicit
+//! `Box`/`Arc` layers are preserved. Tokens and scalars retain their value types.
+//! Use `inline(parser)` at a field's containment position (including a tuple or
+//! sequence element), or `inline(rule)` for an enum payload, to opt out. Aliases
+//! abbreviate parser results and do not own storage: write `inline(alias)` at
+//! the field site, rather than placing `inline` inside an alias definition.
+
+mod containment;
+use containment::Containment;
 
 use std::{
     cell::RefCell,
@@ -724,7 +735,7 @@ impl SyntaxGrammar {
                                 .cloned()
                                 .collect(),
                             name: branch.name.clone(),
-                            ty: branch_output.clone(),
+                            ty: branch.containment(branch_output, type_env).stored_type(),
                         });
                         push_generated_variant(
                             &mut enums,
@@ -1460,13 +1471,7 @@ impl GeneratedFieldModel {
 #[invariant(::Shared { .. } => true)]
 #[invariant(::RecoveredField { .. } => true)]
 #[invariant(::WithIndicators { .. } => true)]
-#[invariant(::WithFreeModifiers { free_modifier, .. } => match free_modifier.as_data() {
-    data!(BindingType::Reference { reference }) => matches!(
-        reference.as_data(),
-        data!(BindingReference::Model { name }) if name == "FreeModifierSyntax"
-    ),
-    _ => false,
-})]
+#[invariant(::WithFreeModifiers { free_modifier, .. } => binding_free_modifier_schema_is_canonical(free_modifier))]
 #[invariant(::Chain { .. } => true)]
 #[invariant(::Tuple { .. } => true)]
 #[invariant(::Fixed { .. } => true)]
@@ -1849,7 +1854,7 @@ fn normalize_binding_path(
                 return Err(syn::Error::new_spanned(
                     field,
                     format!(
-                        "unsupported generated model field shape `{}`; the second `WithFreeModifiers` type argument must be `FreeModifierSyntax` because recovered syntax stores `Vec<Recovered<FreeModifierSyntax>>`",
+                        "unsupported generated model field shape `{}`; the second `WithFreeModifiers` type argument must be `FreeModifierSyntax`, optionally behind pointer wrappers",
                         compact_tokens(&Type::Path(syn::TypePath {
                             qself: None,
                             path: path.clone(),
@@ -1865,11 +1870,7 @@ fn normalize_binding_path(
             }
             Ok(new!(BindingType::WithFreeModifiers {
                 value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
-                free_modifier: Box::new(new!(BindingType::Reference {
-                    reference: new!(BindingReference::Model {
-                        name: "FreeModifierSyntax".to_owned(),
-                    }),
-                })),
+                free_modifier: Box::new(normalize_binding_type(args[1], generated_models, field)?),
             }))
         }
         BindingWrapperKind::Chain => {
@@ -1887,6 +1888,16 @@ fn normalize_binding_path(
 #[requires(true)]
 #[ensures(true)]
 fn binding_free_modifier_type_is_canonical(ty: &Type) -> bool {
+    if let Type::Path(path) = ty
+        && matches!(
+            binding_wrapper_kind(&path.path),
+            Some(BindingWrapperKind::Shared | BindingWrapperKind::Boxed)
+        )
+        && let Some(segment) = path.path.segments.last()
+        && let Some(inner) = first_type_argument(&segment.arguments)
+    {
+        return binding_free_modifier_type_is_canonical(inner);
+    }
     let Type::Path(path) = ty else {
         return false;
     };
@@ -1904,6 +1915,20 @@ fn binding_free_modifier_type_is_canonical(ty: &Type) -> bool {
                 &["jbotci_syntax", "tree", "FreeModifierSyntax"],
             ],
         )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn binding_free_modifier_schema_is_canonical(ty: &BindingType) -> bool {
+    match ty.as_data() {
+        data!(BindingType::Shared { value }) | data!(BindingType::Boxed { value }) => {
+            binding_free_modifier_schema_is_canonical(value)
+        }
+        data!(BindingType::Reference { reference }) => {
+            matches!(reference.as_data(), data!(BindingReference::Model { name }) if name == "FreeModifierSyntax")
+        }
+        _ => false,
+    }
 }
 
 #[requires(true)]
@@ -3412,7 +3437,8 @@ impl Parse for AliasRule {
             ));
         }
         input.parse::<Token![=]>()?;
-        let parser = input.parse()?;
+        let parser: ParserExpr = input.parse()?;
+        containment::reject_alias_inline(&parser)?;
         input.parse::<Token![;]>()?;
         Ok(Self {
             name,
@@ -3438,6 +3464,19 @@ struct EnumBranch {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
     name: Ident,
+    inline: bool,
+}
+
+impl EnumBranch {
+    #[requires(true)]
+    #[ensures(true)]
+    fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Containment {
+        if self.inline {
+            Containment::identity(ty)
+        } else {
+            Containment::new(ty, &type_env.model_nodes)
+        }
+    }
 }
 
 impl EnumRule {
@@ -3579,10 +3618,14 @@ impl EnumRule {
                     .fold(branch_parser, |parser, condition| {
                         condition.expand_strict_gate(parser)
                     });
+                let value = if output_is_generated_model(generate_model, model_outputs, &self.output) {
+                    branch.containment(branch_output, type_env)
+                        .lower(quote!(#field), &quote!(WithFreeModifiers))
+                } else { quote!(#field) };
                 let body = if use_model_construction {
-                    quote!(#output_tokens::#variant(#field))
+                    quote!(#output_tokens::#variant(#value))
                 } else {
-                    quote!(bityzba::new!(#output_tokens::#variant { #field }))
+                    quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
                 Ok(quote!(#branch_parser.map(|#field| #body)))
             })
@@ -3710,10 +3753,14 @@ impl EnumRule {
                     .fold(branch_parser, |parser, condition| {
                         condition.expand_strict_gate(parser)
                     });
+                let value = if output_is_generated_model(true, model_outputs, &self.output) {
+                    branch.containment(branch_output, type_env)
+                        .lower(quote!(#field), &quote!(#recovered_module::WithFreeModifiers))
+                } else { quote!(#field) };
                 let body = if use_model_construction {
-                    quote!(#output_tokens::#variant(#field))
+                    quote!(#output_tokens::#variant(#value))
                 } else {
-                    quote!(bityzba::new!(#output_tokens::#variant { #field }))
+                    quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
                 Ok(quote!(#branch_parser.map(|#field| #body)))
             })
@@ -3782,6 +3829,30 @@ struct NodeRule {
 }
 
 impl NodeRule {
+    #[requires(true)]
+    #[ensures(true)]
+    fn containment_bindings(
+        &self,
+        type_env: &GrammarTypeEnv,
+        argument_types: &BTreeMap<String, Type>,
+        free_modifier_wrapper: &TokenStream2,
+    ) -> Result<TokenStream2> {
+        let bindings = self
+            .fields
+            .iter()
+            .filter(|field| matches!(field.kind, FieldKind::Field | FieldKind::Computed))
+            .map(|field| {
+                let raw = field.parser_result_field(type_env, argument_types)?;
+                let name = &raw.name;
+                let value = field
+                    .containment(&raw.ty, type_env)?
+                    .lower(quote!(#name), free_modifier_wrapper);
+                Ok(quote!(let #name = #value;))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(quote!(#(#bindings)*))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn generated_model_fields(
@@ -3953,6 +4024,16 @@ impl NodeRule {
                 (#(#values,)*)
             })
         } else if is_path_type(output) {
+            let containment_bindings =
+                if output_is_generated_model(generate_model, model_outputs, output) {
+                    self.containment_bindings(
+                        type_env,
+                        &argument_types,
+                        &quote!(WithFreeModifiers),
+                    )?
+                } else {
+                    TokenStream2::new()
+                };
             let let_bindings = self.fields.iter().filter_map(|field| {
                 matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
                     let name = field.name.as_ref().expect("let field items have names");
@@ -3976,12 +4057,14 @@ impl NodeRule {
                     let field = constructed_fields[0];
                     quote!({
                         #(#let_bindings)*
+                        #containment_bindings
                         #output_tokens(#field)
                     })
                 } else {
                     let assignments = constructed_fields.iter().map(|name| quote!(#name,));
                     quote!({
                         #(#let_bindings)*
+                        #containment_bindings
                         #output_tokens { #(#assignments)* }
                     })
                 }
@@ -3989,6 +4072,7 @@ impl NodeRule {
                 let assignments = constructed_fields.iter().map(|name| quote!(#name,));
                 quote!({
                     #(#let_bindings)*
+                    #containment_bindings
                     bityzba::new!(#output_tokens { #(#assignments)* })
                 })
             }
@@ -4117,6 +4201,15 @@ impl NodeRule {
                 (#(#values,)*)
             })
         } else if is_path_type(output) {
+            let containment_bindings = if output_is_generated_model(true, model_outputs, output) {
+                self.containment_bindings(
+                    type_env,
+                    &argument_types,
+                    &quote!(#recovered_module::WithFreeModifiers),
+                )?
+            } else {
+                TokenStream2::new()
+            };
             let constructed_fields = self
                 .fields
                 .iter()
@@ -4133,12 +4226,14 @@ impl NodeRule {
                     let field = constructed_fields[0];
                     quote!({
                         #(#let_bindings)*
+                        #containment_bindings
                         #output_tokens(#field)
                     })
                 } else {
                     let assignments = constructed_fields.iter().map(|name| quote!(#name,));
                     quote!({
                         #(#let_bindings)*
+                        #containment_bindings
                         #output_tokens { #(#assignments)* }
                     })
                 }
@@ -4146,6 +4241,7 @@ impl NodeRule {
                 let assignments = constructed_fields.iter().map(|name| quote!(#name,));
                 quote!({
                     #(#let_bindings)*
+                    #containment_bindings
                     bityzba::new!(#output_tokens { #(#assignments)* })
                 })
             }
@@ -4228,6 +4324,7 @@ struct GrammarTypeEnv {
     rules: BTreeMap<String, Type>,
     rule_arguments: BTreeMap<String, Vec<String>>,
     generated_struct_fields: BTreeMap<String, BTreeMap<String, Type>>,
+    model_nodes: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4461,6 +4558,15 @@ impl GrammarTypeEnv {
                 })
                 .collect(),
             generated_struct_fields: BTreeMap::new(),
+            model_nodes: rules
+                .iter()
+                .filter_map(|rule| {
+                    if matches!(rule, Rule::Alias(_)) {
+                        return None;
+                    }
+                    simple_type_ident(rule.declared_output()?).map(ToString::to_string)
+                })
+                .collect(),
         };
 
         for rule in rules {
@@ -4511,6 +4617,11 @@ impl GrammarTypeEnv {
                     .filter_map(|field| {
                         let name = field.name.as_ref()?.to_string();
                         let ty = field_type_for_chain_metadata(field, &type_env, &argument_types)?;
+                        let ty = if matches!(field.kind, FieldKind::Field | FieldKind::Computed) {
+                            field.containment(&ty, &type_env).ok()?.stored_type()
+                        } else {
+                            ty
+                        };
                         Some((name, ty))
                     })
                     .collect::<BTreeMap<_, _>>();
@@ -6444,6 +6555,13 @@ fn strict_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
+        ("inline", 1) => strict_rust_parser_expr_tokens(
+            &call.args[0],
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         ("arc", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -7353,6 +7471,13 @@ fn recovered_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
+        ("inline", 1) => recovered_rust_parser_expr_tokens(
+            &call.args[0],
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         ("arc", 1) => {
             let inner = recovered_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -7776,7 +7901,15 @@ fn chain_parser_output_type(
     let first = parser_output_type(&expr.first, type_env, arguments)?;
     let link = parser_output_type(&expr.links, type_env, arguments)?;
     let element = type_env.generated_struct_field_type(&link, &expr.element)?;
-    if !type_token_streams_match(&first, &element) {
+    // The link is already constructed, so its field has its stored type while
+    // the first parser still returns its declared result. Compare the same
+    // containment shape without changing the chain parser's output contract.
+    let first_type = syn::parse2::<Type>(first.clone()).ok()?;
+    let stored_first = Containment::new(&first_type, &type_env.model_nodes)
+        .with_parser_policy(&expr.first)
+        .ok()?
+        .stored_type();
+    if !type_token_streams_match(&quote!(#stored_first), &element) {
         return None;
     }
     let links = match expr.links_kind {
@@ -8081,6 +8214,7 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(Box<#inner>))
         }
+        ("inline", 1) => rust_parser_output_type(&call.args[0], type_env, arguments),
         ("arc", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -8447,7 +8581,19 @@ fn recovered_wrapper_type_tokens(
         "WithFreeModifiers" => {
             let inner =
                 recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
-            quote!(#recovered_module::WithFreeModifiers<#inner>)
+            let modifier = nth_type_argument(arguments, 1)
+                .map(|modifier| {
+                    recovered_field_type_tokens(
+                        modifier,
+                        model_outputs,
+                        model_path,
+                        recovered_module,
+                    )
+                })
+                .unwrap_or_else(
+                    || quote!(#recovered_module::Recovered<#recovered_module::FreeModifierSyntax>),
+                );
+            quote!(#recovered_module::WithFreeModifiers<#inner, #modifier>)
         }
         "Chain" => {
             let links = nth_type_argument(arguments, 1).unwrap_or(inner);
@@ -8556,11 +8702,21 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
             while content.peek(kw::when) {
                 conditions.push(content.parse()?);
             }
-            let name = content.parse()?;
+            let mut name: Ident = content.parse()?;
+            let inline = name == "inline" && content.peek(syn::token::Paren);
+            if inline {
+                let argument;
+                parenthesized!(argument in content);
+                name = argument.parse()?;
+                if !argument.is_empty() {
+                    return Err(argument.error("inline enum branches require one rule name"));
+                }
+            }
             branches.push(EnumBranch {
                 attrs,
                 conditions,
                 name,
+                inline,
             });
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
@@ -8742,6 +8898,24 @@ impl FieldItem {
     #[requires(true)]
     #[ensures(true)]
     fn generated_model_field(
+        &self,
+        type_env: &GrammarTypeEnv,
+        argument_types: &BTreeMap<String, Type>,
+    ) -> Result<GeneratedFieldModel> {
+        let field = self.parser_result_field(type_env, argument_types)?;
+        let ty = self.containment(&field.ty, type_env)?.stored_type();
+        Ok(field.with_data(data! { ty: ty }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Result<Containment> {
+        Containment::new(ty, &type_env.model_nodes).with_parser_policy(&self.parser)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_result_field(
         &self,
         type_env: &GrammarTypeEnv,
         argument_types: &BTreeMap<String, Type>,
@@ -9519,6 +9693,7 @@ fn classify_call_recovery_expr(
             arguments,
             type_env,
         )?)),
+        ("inline", 1) => classify_recovery_expr(&call.args[0], arguments, type_env)?,
         ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(
             &call.args[0],
             arguments,
@@ -11068,7 +11243,7 @@ mod tests {
             "enum branch should wrap the parser argument: {expanded}"
         );
         assert!(
-            expanded.contains("WrapperSyntax :: Item (item)"),
+            expanded.contains("WrapperSyntax :: Item (:: std :: sync :: Arc :: new (item))"),
             "enum branch should construct the wrapper from the parser argument: {expanded}"
         );
     }
@@ -11199,6 +11374,53 @@ mod tests {
                 && expanded.contains("unsupported parser method in strict parser generation"),
             "unknown strict parser methods should be reported: {expanded}"
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn then_is_not_a_supported_field_parser_combinator() {
+        // Sequencing in the DSL uses tuple expressions. `.then` appears in
+        // emitted chumsky code, but is not an accepted DSL method.
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+            rule "item" item -> struct {
+                field pair: (Token, Token) <- inline(cmavo(Be)).then(cmavo(Be));
+            }
+        })
+        .unwrap();
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("unsupported parser method in strict parser generation"),
+            "{expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn aliases_reject_inline_without_a_containment_site() {
+        for parser in [
+            quote!(inline(leaf)),
+            quote!(opt(inline(leaf))),
+            quote!([zero_or_more inline(leaf)]),
+            quote!(chain(first: leaf, zero_or_more: inline(link), element: leaf)),
+            quote!([leaf].ignore_then(inline(leaf))),
+        ] {
+            let result = syn::parse2::<SyntaxGrammar>(quote! {
+                alias "abbreviation" abbreviation = #parser;
+            });
+            let error = match result {
+                Ok(_) => panic!("alias-local inline was accepted"),
+                Err(error) => error,
+            };
+            assert!(
+                error
+                    .to_string()
+                    .contains("inline is a containment annotation")
+            );
+        }
     }
 
     #[requires(true)]

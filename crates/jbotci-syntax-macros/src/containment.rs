@@ -1,0 +1,1033 @@
+//! Storage lowering for generated model fields. Parser results retain their
+//! declared types; this plan changes both the stored type and its constructor
+//! value together, without changing rule calls or recovery checkpoints.
+
+use std::collections::BTreeSet;
+
+use super::{ParserExpr, VectorItem};
+#[allow(unused_imports)]
+use bityzba::{data, ensures, invariant, requires};
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+use syn::{Expr, GenericArgument, PathArguments, Type, parse_quote};
+
+/// An alias has no stored containment site. Reject the annotation rather than
+/// accepting a marker that cannot affect the alias's parser result type.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn reject_alias_inline(parser: &ParserExpr) -> syn::Result<()> {
+    use syn::visit::Visit;
+    #[invariant(true)]
+    struct AliasPolicyVisitor {
+        error: Option<syn::Error>,
+    }
+    impl<'ast> Visit<'ast> for AliasPolicyVisitor {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            if super::call_name(call).as_deref() == Some("inline") {
+                self.error = Some(syn::Error::new_spanned(
+                    call,
+                    "inline is a containment annotation; use inline(alias) at a field or enum branch, not inside an alias definition",
+                ));
+            } else {
+                syn::visit::visit_expr_call(self, call);
+            }
+        }
+    }
+    let mut visitor = AliasPolicyVisitor { error: None };
+    match parser {
+        ParserExpr::Rust(expr) => visitor.visit_expr(expr),
+        ParserExpr::Vector(vector) => {
+            for item in &vector.items {
+                let parser = match item {
+                    VectorItem::One(parser)
+                    | VectorItem::Spread(parser)
+                    | VectorItem::ZeroOrMore(parser)
+                    | VectorItem::ZeroOrMoreSpread(parser)
+                    | VectorItem::OneOrMore(parser)
+                    | VectorItem::OneOrMoreSpread(parser)
+                    | VectorItem::Assert { parser, .. } => parser,
+                };
+                reject_alias_inline(parser)?;
+            }
+        }
+        ParserExpr::Chain(chain) => {
+            reject_alias_inline(&chain.first)?;
+            reject_alias_inline(&chain.links)?;
+        }
+        ParserExpr::Postfix { receiver, args, .. } => {
+            reject_alias_inline(receiver)?;
+            for arg in args {
+                visitor.visit_expr(arg);
+            }
+        }
+    }
+    visitor.error.map_or(Ok(()), Err)
+}
+
+#[invariant(action.accepts_source(source), "lowering action must match the source type and child positions")]
+#[derive(Clone)]
+pub(super) struct Containment {
+    source: Type,
+    action: Action,
+}
+
+#[invariant(true)]
+#[invariant(::Tuple => true)]
+#[invariant(::Array => true)]
+#[invariant(::Unary => true)]
+#[invariant(::Binary => true)]
+#[invariant(::SmallVector => true)]
+#[derive(Clone)]
+enum Action {
+    Identity,
+    Share,
+    Tuple {
+        elements: Vec<Containment>,
+    },
+    Array {
+        element: Box<Containment>,
+    },
+    Unary {
+        kind: UnaryWrapper,
+        inner: Box<Containment>,
+    },
+    Binary {
+        kind: BinaryWrapper,
+        first: Box<Containment>,
+        second: Box<Containment>,
+    },
+    SmallVector {
+        nonempty: bool,
+        element: Box<Containment>,
+        capacity: Expr,
+    },
+}
+
+#[invariant(true)]
+#[derive(Clone, Copy)]
+enum UnaryWrapper {
+    Arc,
+    Box,
+    Option,
+    Vec,
+    Vec1,
+}
+
+#[invariant(true)]
+#[derive(Clone, Copy)]
+enum BinaryWrapper {
+    Chain,
+    WithFreeModifiers,
+}
+
+impl Action {
+    // The complete relation is structural: child plans retain the corresponding
+    // parser-result types even when their storage policy changes. Keeping this
+    // check at the validated plan boundary also protects constructor lowering.
+    #[requires(true)]
+    #[ensures(true)]
+    fn accepts_source(&self, source: &Type) -> bool {
+        match (self, source) {
+            (Self::Identity | Self::Share, _) => true,
+            (Self::Tuple { elements }, Type::Tuple(tuple)) => {
+                elements.len() == tuple.elems.len()
+                    && elements
+                        .iter()
+                        .zip(&tuple.elems)
+                        .all(|(plan, ty)| plan.source == *ungroup_type(ty))
+            }
+            (Self::Array { element }, Type::Array(array)) => {
+                element.source == *ungroup_type(&array.elem)
+            }
+            (Self::Unary { kind, inner }, Type::Path(path)) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let expected = match kind {
+                    UnaryWrapper::Arc => "Arc",
+                    UnaryWrapper::Box => "Box",
+                    UnaryWrapper::Option => "Option",
+                    UnaryWrapper::Vec => "Vec",
+                    UnaryWrapper::Vec1 => "Vec1",
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                segment.ident == expected
+                    && args.args.len() == 1
+                    && matches!(&args.args[0], GenericArgument::Type(ty) if inner.source == *ungroup_type(ty))
+            }
+            (
+                Self::Binary {
+                    kind,
+                    first,
+                    second,
+                },
+                Type::Path(path),
+            ) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let expected = match kind {
+                    BinaryWrapper::Chain => "Chain",
+                    BinaryWrapper::WithFreeModifiers => "WithFreeModifiers",
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                if segment.ident != expected || !(1..=2).contains(&args.args.len()) {
+                    return false;
+                }
+                let first_matches = matches!(&args.args[0], GenericArgument::Type(ty) if first.source == *ungroup_type(ty));
+                let second_matches = if args.args.len() == 2 {
+                    matches!(&args.args[1], GenericArgument::Type(ty) if second.source == *ungroup_type(ty))
+                } else {
+                    matches!(kind, BinaryWrapper::WithFreeModifiers)
+                        && super::simple_type_ident(&second.source)
+                            .is_some_and(|name| name == "FreeModifierSyntax")
+                };
+                first_matches && second_matches
+            }
+            (
+                Self::SmallVector {
+                    nonempty,
+                    element,
+                    capacity,
+                },
+                Type::Path(path),
+            ) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                segment.ident == if *nonempty { "SmallVec1" } else { "SmallVec" }
+                    && args.args.len() == 1
+                    && matches!(&args.args[0], GenericArgument::Type(Type::Array(array)) if element.source == *ungroup_type(&array.elem) && *capacity == array.len)
+            }
+            _ => false,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!matches!(ret, Type::Paren(_) | Type::Group(_)))]
+fn ungroup_type(mut ty: &Type) -> &Type {
+    loop {
+        match ty {
+            Type::Paren(paren) => ty = &paren.elem,
+            Type::Group(group) => ty = &group.elem,
+            _ => return ty,
+        }
+    }
+}
+
+impl Containment {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn new(source: &Type, nodes: &BTreeSet<String>) -> Self {
+        // Parentheses/grouping do not introduce a storage boundary. Normalize
+        // them before planning so they cannot hide a generated node.
+        match source {
+            Type::Paren(paren) => return Self::new(&paren.elem, nodes),
+            Type::Group(group) => return Self::new(&group.elem, nodes),
+            _ => {}
+        }
+        let action = if super::simple_type_ident(source)
+            .is_some_and(|name| nodes.contains(&name.to_string()))
+        {
+            Action::Share
+        } else {
+            match source {
+                Type::Tuple(tuple) => Action::Tuple {
+                    elements: tuple.elems.iter().map(|ty| Self::new(ty, nodes)).collect(),
+                },
+                Type::Array(array) => Action::Array {
+                    element: Box::new(Self::new(&array.elem, nodes)),
+                },
+                Type::Path(path) if path.qself.is_none() => {
+                    match path.path.segments.last().and_then(|segment| {
+                        let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                            return None;
+                        };
+                        let mut args = args.args.iter();
+                        let GenericArgument::Type(first) = args.next()? else {
+                            return None;
+                        };
+                        let name = segment.ident.to_string();
+                        let kind = match name.as_str() {
+                            "Arc" => Some(UnaryWrapper::Arc),
+                            "Box" => Some(UnaryWrapper::Box),
+                            "Option" => Some(UnaryWrapper::Option),
+                            "Vec" => Some(UnaryWrapper::Vec),
+                            "Vec1" => Some(UnaryWrapper::Vec1),
+                            _ => None,
+                        };
+                        if let Some(kind) = kind {
+                            if args.next().is_some() {
+                                return None;
+                            }
+                            let mut inner = Self::new(first, nodes);
+                            // A direct Arc already shares its node; deeper
+                            // containers still need their own node lowering.
+                            if matches!(kind, UnaryWrapper::Arc)
+                                && matches!(inner.action, Action::Share)
+                            {
+                                inner = inner.with_data(data! { action: Action::Identity });
+                            }
+                            return Some(Action::Unary {
+                                kind,
+                                inner: Box::new(inner),
+                            });
+                        }
+                        if matches!(name.as_str(), "SmallVec" | "SmallVec1") {
+                            let Type::Array(array) = first else {
+                                return None;
+                            };
+                            if args.next().is_some() {
+                                return None;
+                            }
+                            return Some(Action::SmallVector {
+                                nonempty: name == "SmallVec1",
+                                element: Box::new(Self::new(&array.elem, nodes)),
+                                capacity: array.len.clone(),
+                            });
+                        }
+                        let kind = match name.as_str() {
+                            "Chain" => BinaryWrapper::Chain,
+                            "WithFreeModifiers" => BinaryWrapper::WithFreeModifiers,
+                            _ => return None,
+                        };
+                        let second = match args.next() {
+                            Some(GenericArgument::Type(second)) => Self::new(second, nodes),
+                            None if matches!(kind, BinaryWrapper::WithFreeModifiers) => {
+                                Self::new(&parse_quote!(FreeModifierSyntax), nodes)
+                            }
+                            _ => return None,
+                        };
+                        if args.next().is_some() {
+                            return None;
+                        }
+                        Some(Action::Binary {
+                            kind,
+                            first: Box::new(Self::new(first, nodes)),
+                            second: Box::new(second),
+                        })
+                    }) {
+                        Some(action) => action,
+                        None => Action::Identity,
+                    }
+                }
+                _ => Action::Identity,
+            }
+        };
+        Self::from_data(data!(Containment {
+            source: source.clone(),
+            action,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.changes())]
+    pub(super) fn identity(source: &Type) -> Self {
+        Self::from_data(data!(Containment {
+            source: source.clone(),
+            action: Action::Identity,
+        }))
+    }
+
+    /// Apply an explicit storage opt-out to its output position, preserving the
+    /// enclosing option/pointer/wrapper. Parser predicates and annotations do
+    /// not create a new containment boundary.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn with_parser_policy(self, expr: &ParserExpr) -> syn::Result<Self> {
+        let mut plan = self.into_data();
+        plan.apply_policy(expr)?;
+        Ok(Self::from_data(plan))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn update_policy(
+        &mut self,
+        update: impl FnOnce(&mut ContainmentData) -> syn::Result<()>,
+    ) -> syn::Result<()> {
+        // Move the plan while maintaining a valid value in the borrowed slot.
+        // An error discards this compilation plan; no partially changed plan escapes.
+        let mut plan = std::mem::replace(self, Self::identity(&parse_quote!(()))).into_data();
+        update(&mut plan)?;
+        *self = Self::from_data(plan);
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        self.update_policy(|plan| plan.apply_policy(expr))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_parser_policy(&mut self, expr: &Expr) -> syn::Result<()> {
+        self.update_policy(|plan| plan.apply_parser_policy(expr))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_sequence_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        self.update_policy(|plan| {
+            if let Some(element) = plan.sequence_element_mut() {
+                element.apply_policy(expr)?;
+            }
+            Ok(())
+        })
+    }
+}
+
+// Mutation is confined to an owned data view and revalidated by the public plan
+// wrapper. Children remain validated plans throughout these transformations.
+impl ContainmentData {
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        match expr {
+            ParserExpr::Rust(expr) => self.apply_parser_policy(expr)?,
+            ParserExpr::Vector(vector) => {
+                let mut selected: Option<Self> = None;
+                for item in &vector.items {
+                    let (parser, spread) = match item {
+                        VectorItem::One(p)
+                        | VectorItem::ZeroOrMore(p)
+                        | VectorItem::OneOrMore(p) => (p, false),
+                        VectorItem::Spread(p)
+                        | VectorItem::ZeroOrMoreSpread(p)
+                        | VectorItem::OneOrMoreSpread(p) => (p, true),
+                        VectorItem::Assert { .. } => continue,
+                    };
+                    let mut candidate = self.clone();
+                    if spread {
+                        candidate.apply_policy(parser)?;
+                    } else if let Some(element) = candidate.sequence_element_mut() {
+                        element.apply_policy(parser)?;
+                    }
+                    Self::select_consistent(&mut selected, candidate, &parser.to_token_stream())?;
+                }
+                if let Some(selected) = selected {
+                    *self = selected;
+                }
+            }
+            ParserExpr::Postfix {
+                receiver,
+                method,
+                args,
+            } => {
+                self.apply_method_policy(receiver, method, args)?;
+            }
+            ParserExpr::Chain(chain) => {
+                if let Action::Binary {
+                    kind: BinaryWrapper::Chain,
+                    first,
+                    second,
+                } = &mut self.action
+                {
+                    first.apply_policy(&chain.first)?;
+                    second.apply_sequence_policy(&chain.links)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_element_mut(&mut self) -> Option<&mut Containment> {
+        match &mut self.action {
+            Action::Unary {
+                kind: UnaryWrapper::Vec | UnaryWrapper::Vec1,
+                inner,
+            } => Some(inner),
+            Action::SmallVector { element, .. } => Some(element),
+            _ => None,
+        }
+    }
+
+    // Every branch producing the same field/sequence element must agree on its
+    // static storage type. Choosing a branch at runtime cannot change that type.
+    #[requires(true)]
+    #[ensures(true)]
+    fn select_consistent(
+        selected: &mut Option<Self>,
+        candidate: Self,
+        at: &TokenStream,
+    ) -> syn::Result<()> {
+        if let Some(previous) = selected {
+            if previous.stored_type() != candidate.stored_type() {
+                return Err(syn::Error::new_spanned(
+                    at,
+                    "conflicting inline storage policies for the same output position",
+                ));
+            }
+        } else {
+            *selected = Some(candidate);
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_method_policy(
+        &mut self,
+        receiver: &ParserExpr,
+        method: &syn::Ident,
+        args: &[Expr],
+    ) -> syn::Result<()> {
+        match method.to_string().as_str() {
+            "wf" | "with_free_modifiers" | "prohibited_wf" | "wf_when" => {
+                if let Action::Binary {
+                    kind: BinaryWrapper::WithFreeModifiers,
+                    first,
+                    ..
+                } = &mut self.action
+                {
+                    first.apply_policy(receiver)?;
+                }
+            }
+            "ignore_then" if args.len() == 1 => self.apply_parser_policy(&args[0])?,
+            "elidable_terminator"
+            | "lookahead"
+            | "reject_output"
+            | "warn"
+            | "payload_start"
+            | "then_ignore"
+            | "not_next_selmaho"
+            | "not_next_token"
+            | "not_next_rule"
+            | "followed_by" => self.apply_policy(receiver)?,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_parser_policy(&mut self, expr: &Expr) -> syn::Result<()> {
+        match expr {
+            Expr::Call(call) => {
+                let name = super::call_name(call);
+                if name.as_deref() == Some("inline") && call.args.len() == 1 {
+                    self.action = Action::Identity;
+                    return Ok(());
+                }
+                if matches!(name.as_deref(), Some("opt" | "arc" | "boxed")) && call.args.len() == 1
+                {
+                    if let Action::Unary { inner, .. } = &mut self.action {
+                        inner.apply_parser_policy(&call.args[0])?;
+                    }
+                } else if matches!(name.as_deref(), Some("feature" | "policy" | "memo_scope"))
+                    && call.args.len() == 2
+                {
+                    self.apply_parser_policy(&call.args[1])?;
+                } else if name.as_deref() == Some("choice") {
+                    let alternatives = if call.args.len() == 1 {
+                        super::choice_alternative_exprs(&call.args[0])
+                    } else {
+                        call.args.iter().collect()
+                    };
+                    let mut selected = None;
+                    for alternative in alternatives {
+                        let mut candidate = self.clone();
+                        candidate.apply_parser_policy(alternative)?;
+                        Self::select_consistent(&mut selected, candidate, &quote!(#alternative))?;
+                    }
+                    if let Some(selected) = selected {
+                        *self = selected;
+                    }
+                }
+            }
+            Expr::MethodCall(method) => self.apply_method_policy(
+                &ParserExpr::Rust(*method.receiver.clone()),
+                &method.method,
+                &method.args.iter().cloned().collect::<Vec<_>>(),
+            )?,
+            Expr::Paren(paren) => self.apply_parser_policy(&paren.expr)?,
+            Expr::Group(group) => self.apply_parser_policy(&group.expr)?,
+            Expr::Array(array) => {
+                if let Some(vector) = super::array_vector_expr(array) {
+                    self.apply_policy(&ParserExpr::Vector(vector))?;
+                }
+            }
+            Expr::Tuple(tuple) => {
+                if let Action::Tuple { elements } = &mut self.action {
+                    for (plan, expr) in elements.iter_mut().zip(&tuple.elems) {
+                        plan.apply_parser_policy(expr)?;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn changes(&self) -> bool {
+        match &self.action {
+            Action::Identity => false,
+            Action::Share => true,
+            Action::Tuple { elements } => elements.iter().any(|element| element.changes()),
+            Action::Array { element } => element.changes(),
+            Action::Unary { inner, .. } => inner.changes(),
+            Action::Binary { first, second, .. } => first.changes() || second.changes(),
+            Action::SmallVector { element, .. } => element.changes(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn stored_type(&self) -> Type {
+        let mut ty = self.source.clone();
+        match (&self.action, &mut ty) {
+            (Action::Share, _) => parse_quote!(::std::sync::Arc<#ty>),
+            (Action::Tuple { elements }, Type::Tuple(tuple)) => {
+                tuple.elems = elements
+                    .iter()
+                    .map(|element| element.stored_type())
+                    .collect();
+                ty
+            }
+            (Action::Array { element }, Type::Array(array)) => {
+                array.elem = Box::new(element.stored_type());
+                ty
+            }
+            (Action::Unary { inner, .. }, Type::Path(path)) => {
+                let inner = inner.stored_type();
+                path.path
+                    .segments
+                    .last_mut()
+                    .expect("wrapper path")
+                    .arguments = PathArguments::AngleBracketed(parse_quote!(<#inner>));
+                ty
+            }
+            (Action::Binary { first, second, .. }, Type::Path(path)) => {
+                let first = first.stored_type();
+                let second = second.stored_type();
+                path.path
+                    .segments
+                    .last_mut()
+                    .expect("wrapper path")
+                    .arguments = PathArguments::AngleBracketed(parse_quote!(<#first, #second>));
+                ty
+            }
+            (
+                Action::SmallVector {
+                    element, capacity, ..
+                },
+                Type::Path(path),
+            ) => {
+                let element = element.stored_type();
+                path.path
+                    .segments
+                    .last_mut()
+                    .expect("wrapper path")
+                    .arguments =
+                    PathArguments::AngleBracketed(parse_quote!(<[#element; #capacity]>));
+                ty
+            }
+            _ => ty,
+        }
+    }
+
+    /// `free_modifier_wrapper` names the strict or recovered wrapper constructor.
+    /// Recovery has already happened; sharing a recovered node therefore wraps
+    /// the entire Recovered value, including its prefix/error information.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn lower(
+        &self,
+        value: TokenStream,
+        free_modifier_wrapper: &TokenStream,
+    ) -> TokenStream {
+        if !self.changes() {
+            return value;
+        }
+        match &self.action {
+            Action::Identity => value,
+            Action::Share => quote!(::std::sync::Arc::new(#value)),
+            Action::Tuple { elements } => {
+                let names = (0..elements.len())
+                    .map(|i| format_ident!("__contained_{i}"))
+                    .collect::<Vec<_>>();
+                let values = elements
+                    .iter()
+                    .zip(&names)
+                    .map(|(plan, name)| plan.lower(quote!(#name), free_modifier_wrapper));
+                quote!({ let (#(#names,)*) = #value; (#(#values,)*) })
+            }
+            Action::Array { element } => {
+                let mapped = element.lower(quote!(__element), free_modifier_wrapper);
+                quote!((#value).map(|__element| #mapped))
+            }
+            Action::Unary { kind, inner } => {
+                let mapped = inner.lower(quote!(__element), free_modifier_wrapper);
+                match kind {
+                    UnaryWrapper::Arc => quote!({
+                        let __element = ::std::sync::Arc::unwrap_or_clone(#value);
+                        ::std::sync::Arc::new(#mapped)
+                    }),
+                    UnaryWrapper::Box => quote!({ let __element = *(#value); Box::new(#mapped) }),
+                    UnaryWrapper::Option => quote!((#value).map(|__element| #mapped)),
+                    UnaryWrapper::Vec => {
+                        quote!((#value).into_iter().map(|__element| #mapped).collect::<Vec<_>>())
+                    }
+                    UnaryWrapper::Vec1 => quote!((#value).mapped(|__element| #mapped)),
+                }
+            }
+            Action::SmallVector {
+                nonempty, element, ..
+            } => {
+                let mapped = element.lower(quote!(__element), free_modifier_wrapper);
+                if *nonempty {
+                    quote!(::vec1::smallvec_v1::SmallVec1::try_from_vec(
+                        (#value).into_vec().into_iter().map(|__element| #mapped).collect()
+                    ).expect("containment lowering preserves nonempty sequences"))
+                } else {
+                    quote!((#value).into_iter().map(|__element| #mapped).collect::<::smallvec::SmallVec<_>>())
+                }
+            }
+            Action::Binary {
+                kind,
+                first,
+                second,
+            } => match kind {
+                BinaryWrapper::Chain => {
+                    let first = first.lower(quote!(__first), free_modifier_wrapper);
+                    let links = second.lower(quote!(__links), free_modifier_wrapper);
+                    quote!({
+                        let ::jbotci_tree::Chain { first: __first, links: __links } = #value;
+                        ::jbotci_tree::Chain { first: #first, links: #links }
+                    })
+                }
+                BinaryWrapper::WithFreeModifiers => {
+                    let inner = first.lower(quote!(__value), free_modifier_wrapper);
+                    let modifier = second.lower(quote!(__modifier), free_modifier_wrapper);
+                    quote!({
+                        let #free_modifier_wrapper { value: __value, free_modifiers: __modifiers } = #value;
+                        #free_modifier_wrapper {
+                            value: #inner,
+                            free_modifiers: __modifiers.into_iter().map(|__modifier| #modifier).collect(),
+                        }
+                    })
+                }
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::ToTokens;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn containment_rejects_mismatched_source_and_plan() {
+        for (source, action) in [
+            (
+                parse_quote!(Node),
+                Action::Array {
+                    element: Box::new(Containment::identity(&parse_quote!(Node))),
+                },
+            ),
+            (
+                parse_quote!(Option<Node>),
+                Action::Unary {
+                    kind: UnaryWrapper::Box,
+                    inner: Box::new(Containment::identity(&parse_quote!(Node))),
+                },
+            ),
+            (
+                parse_quote!((Node, Token)),
+                Action::Tuple {
+                    elements: vec![
+                        Containment::identity(&parse_quote!(Token)),
+                        Containment::identity(&parse_quote!(Node)),
+                    ],
+                },
+            ),
+        ] {
+            assert!(Containment::try_from_data(data!(Containment { source, action })).is_err());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonempty_sequence_lowering_uses_cardinality_preserving_map() {
+        let plan = Containment::new(
+            &parse_quote!(vec1::Vec1<Node>),
+            &BTreeSet::from(["Node".to_owned()]),
+        );
+        assert_eq!(
+            plan.stored_type(),
+            parse_quote!(vec1::Vec1<::std::sync::Arc<Node>>)
+        );
+        assert_eq!(
+            plan.lower(quote!(input), &quote!(WithFreeModifiers))
+                .to_string(),
+            quote!((input).mapped(|__element| ::std::sync::Arc::new(__element))).to_string(),
+        );
+        // Check the collection API's ownership/cardinality guarantee with
+        // non-Clone elements as well as the emitted call and stored type above.
+        let input = vec1::vec1![
+            Box::new(std::sync::Mutex::new(7)),
+            Box::new(std::sync::Mutex::new(8))
+        ];
+        let addresses = input
+            .iter()
+            .map(|value| &**value as *const std::sync::Mutex<i32>)
+            .collect::<Vec<_>>();
+        let result = input.mapped(std::sync::Arc::new);
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result
+                .iter()
+                .map(|value| &***value as *const std::sync::Mutex<i32>)
+                .collect::<Vec<_>>(),
+            addresses
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inline_policy_reaches_sequence_and_choice_elements() {
+        let nodes = BTreeSet::from(["Node".to_owned()]);
+        for (ty, parser, expected) in [
+            ("Vec<Node>", "[zero_or_more inline(node)]", "Vec<Node>"),
+            ("Vec1<Node>", "[one_or_more inline(node)]", "Vec1<Node>"),
+            ("Vec<Node>", "[..inline(nodes)]", "Vec<Node>"),
+            ("Node", "choice(inline(node), inline(node))", "Node"),
+            (
+                "(Node, Node)",
+                "(inline(node), node)",
+                "(Node, ::std::sync::Arc<Node>)",
+            ),
+            (
+                "Vec<Node>",
+                "[zero_or_more inline(node)].warn(warning)",
+                "Vec<Node>",
+            ),
+        ] {
+            let plan = Containment::new(&syn::parse_str(ty).unwrap(), &nodes)
+                .with_parser_policy(&syn::parse_str(parser).unwrap())
+                .unwrap();
+            assert_eq!(
+                plan.stored_type(),
+                syn::parse_str::<Type>(expected).unwrap()
+            );
+        }
+        for (ty, parser) in [
+            ("Vec<Node>", "[inline(node); node]"),
+            ("Node", "choice(inline(node), node)"),
+        ] {
+            assert!(
+                Containment::new(&syn::parse_str(ty).unwrap(), &nodes)
+                    .with_parser_policy(&syn::parse_str(parser).unwrap())
+                    .is_err()
+            );
+        }
+    }
+
+    /// Compile and execute the actual emitted expressions, including recovered
+    /// inputs. Token-string comparisons cannot catch constructor/type drift.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lowered_values_compile_and_preserve_contents() {
+        let nodes = BTreeSet::from(["Node".to_owned()]);
+        let mut checks = Vec::new();
+        for (source, input, expected, assertion) in [
+            ("Node", "Node(7)", "Arc<Node>", "assert_eq!(result.0, 7);"),
+            (
+                "Arc<Node>",
+                "Arc::new(Node(7))",
+                "Arc<Node>",
+                "assert_eq!(result.0, 7);",
+            ),
+            (
+                "Box<Node>",
+                "Box::new(Node(7))",
+                "Box<Arc<Node>>",
+                "assert_eq!(result.0, 7);",
+            ),
+            (
+                "Option<Node>",
+                "Some(Node(7))",
+                "Option<Arc<Node>>",
+                "assert_eq!(result.unwrap().0, 7);",
+            ),
+            (
+                "Vec<Node>",
+                "vec![Node(7), Node(8)]",
+                "Vec<Arc<Node>>",
+                "assert_eq!(result.iter().map(|n| n.0).collect::<Vec<_>>(), [7, 8]);",
+            ),
+            (
+                "(u8, Node)",
+                "(1u8, Node(7))",
+                "(u8, Arc<Node>)",
+                "assert_eq!(result.0, 1); assert_eq!(result.1.0, 7);",
+            ),
+            (
+                "[Node; 2]",
+                "[Node(7), Node(8)]",
+                "[Arc<Node>; 2]",
+                "assert_eq!(result.map(|n| n.0), [7, 8]);",
+            ),
+            (
+                "Arc<Option<Node>>",
+                "Arc::new(Some(Node(7)))",
+                "Arc<Option<Arc<Node>>>",
+                "assert_eq!(result.as_ref().as_ref().unwrap().0, 7);",
+            ),
+            (
+                "Arc<Arc<Node>>",
+                "Arc::new(Arc::new(Node(7)))",
+                "Arc<Arc<Node>>",
+                "assert_eq!(result.0, 7);",
+            ),
+            (
+                "WithFreeModifiers<u8, Node>",
+                "WithFreeModifiers { value: 1u8, free_modifiers: vec![Node(7)] }",
+                "WithFreeModifiers<u8, Arc<Node>>",
+                "assert_eq!(result.value, 1); assert_eq!(result.free_modifiers[0].0, 7);",
+            ),
+            (
+                "Node",
+                "Recovered::Prefix(Node(7))",
+                "Arc<Recovered<Node>>",
+                "assert_eq!(*result, Recovered::Prefix(Node(7)));",
+            ),
+            (
+                "Node",
+                "Recovered::<Node>::Error",
+                "Arc<Recovered<Node>>",
+                "assert_eq!(*result, Recovered::Error);",
+            ),
+            (
+                "WithFreeModifiers<u8, Node>",
+                "WithFreeModifiers { value: Recovered::Valid(1u8), free_modifiers: vec![Recovered::Prefix(Node(7))] }",
+                "WithFreeModifiers<Recovered<u8>, Arc<Recovered<Node>>>",
+                "assert_eq!(result.value, Recovered::Valid(1)); assert_eq!(*result.free_modifiers[0], Recovered::Prefix(Node(7)));",
+            ),
+        ] {
+            let source = syn::parse_str(source).unwrap();
+            let input: syn::Expr = syn::parse_str(input).unwrap();
+            let expected: Type = syn::parse_str(expected).unwrap();
+            let assertion: TokenStream = assertion.parse().unwrap();
+            let lowered =
+                Containment::new(&source, &nodes).lower(quote!(input), &quote!(WithFreeModifiers));
+            checks
+                .push(quote!({ let input = #input; let result: #expected = #lowered; #assertion }));
+        }
+        let identity = Containment::new(&parse_quote!(Arc<Node>), &nodes)
+            .lower(quote!(original.clone()), &quote!(WithFreeModifiers));
+        let shared_container = Containment::new(&parse_quote!(Arc<Option<Node>>), &nodes)
+            .lower(quote!(original.clone()), &quote!(WithFreeModifiers));
+        let program = quote! {
+            use std::sync::Arc;
+            #[derive(Clone, Debug, PartialEq)] struct Node(u8);
+            #[derive(Clone, Debug, PartialEq)] enum Recovered<T> { Valid(T), Prefix(T), Error }
+            struct WithFreeModifiers<T, F> { value: T, free_modifiers: Vec<F> }
+            fn main() {
+                #(#checks)*
+                let original = Arc::new(Node(7));
+                let result = #identity;
+                assert!(Arc::ptr_eq(&original, &result));
+                let original = Arc::new(Some(Node(9)));
+                let result = #shared_container;
+                assert_eq!(original.as_ref().as_ref().unwrap().0, 9);
+                assert_eq!(result.as_ref().as_ref().unwrap().0, 9);
+            }
+        };
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "jbotci-containment-{}-{unique}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let source = directory.join("main.rs");
+        let binary = directory.join(format!("lowered{}", std::env::consts::EXE_SUFFIX));
+        std::fs::write(&source, program.to_string()).unwrap();
+        let compilation = std::process::Command::new("rustc")
+            .arg("--edition=2024")
+            .arg("-Cstrip=symbols")
+            .arg(&source)
+            .arg("-o")
+            .arg(&binary)
+            .output()
+            .unwrap();
+        let execution = compilation
+            .status
+            .success()
+            .then(|| std::process::Command::new(&binary).output().unwrap());
+        std::fs::remove_dir_all(&directory).unwrap();
+        assert!(
+            compilation.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compilation.stderr)
+        );
+        let execution = execution.unwrap();
+        assert!(
+            execution.status.success(),
+            "{}",
+            String::from_utf8_lossy(&execution.stderr)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stored_shapes_preserve_wrappers_and_share_each_node() {
+        let nodes = BTreeSet::from(["Node".to_owned()]);
+        for (source, expected) in [
+            ("Node", "::std::sync::Arc<Node>"),
+            ("(Node)", "::std::sync::Arc<Node>"),
+            ("Arc<(Node)>", "Arc<Node>"),
+            ("Option<Node>", "Option<::std::sync::Arc<Node>>"),
+            ("Vec<Node>", "Vec<::std::sync::Arc<Node>>"),
+            ("Box<Node>", "Box<::std::sync::Arc<Node>>"),
+            ("Arc<Node>", "Arc<Node>"),
+            ("Arc<Option<Node>>", "Arc<Option<::std::sync::Arc<Node>>>"),
+            ("Arc<Arc<Node>>", "Arc<Arc<Node>>"),
+            ("(Token, Node)", "(Token, ::std::sync::Arc<Node>)"),
+            ("[Node; 3]", "[::std::sync::Arc<Node>; 3]"),
+            (
+                "SmallVec<[Node; 2]>",
+                "SmallVec<[::std::sync::Arc<Node>; 2]>",
+            ),
+            (
+                "WithFreeModifiers<Token, Node>",
+                "WithFreeModifiers<Token, ::std::sync::Arc<Node>>",
+            ),
+        ] {
+            let source = syn::parse_str(source).unwrap();
+            let expected: Type = syn::parse_str(expected).unwrap();
+            assert_eq!(
+                Containment::new(&source, &nodes)
+                    .stored_type()
+                    .to_token_stream()
+                    .to_string(),
+                expected.to_token_stream().to_string()
+            );
+        }
+    }
+}

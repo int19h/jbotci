@@ -52,23 +52,36 @@ self.onmessage = async (event) => {
       await initCompute(mainModuleUrl);
       self.postMessage({ kind: "ready", ok: true });
     } catch (error) {
-      self.postMessage({
-        kind: "ready",
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      self.postMessage({ kind: "ready", ok: false, error: errorText(error) });
     }
     return;
   }
+  let handle;
   try {
     await initCompute(mainModuleUrl);
-    const value = computeHandle(requestJson || "{}");
-    self.postMessage({ id, ok: true, value });
+    handle = computeHandle;
   } catch (error) {
-    self.postMessage({
-      id,
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    self.postMessage({ id, ok: false, error: errorText(error) });
+    return;
   }
+  let value;
+  try {
+    value = handle(requestJson || "{}");
+  } catch (error) {
+    // Nothing that throws out of the compute export leaves the Wasm instance in
+    // a state this worker can vouch for: a trap, a Rust panic and a host
+    // call-stack overflow all unwind through Wasm frames without running their
+    // epilogues. Ordinary gentufa failures never reach here, because they come
+    // back as a successful JSON response carrying an error result, so the fatal
+    // bit is exact rather than a guess about the error's text. The client uses
+    // it to retire this worker instead of returning it to the idle pool; the
+    // request itself still fails and is never replayed.
+    self.postMessage({ id, ok: false, fatal: true, error: errorText(error) });
+    return;
+  }
+  self.postMessage({ id, ok: true, value });
 };
+
+function errorText(error) {
+  return error instanceof Error ? error.message : String(error);
+}

@@ -34,14 +34,14 @@ fn is_baseline_relative_continuation(value: &ExpRelativeContinuationSyntax) -> b
         connective,
         inner: _,
     } = value;
-    let ExpRelativeClauseConnectiveSyntax { na, se, head, nai } = connective;
+    let ExpRelativeClauseConnectiveSyntax { na, se, head, nai } = connective.as_ref();
     na.is_none() && se.is_none() && head.value.cmavo() == Some(Cmavo::Zihe) && nai.is_none()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -167,7 +167,7 @@ fn is_prohibited_connective_free_modifier(
         connective,
         inner: _,
     } = value;
-    match connective {
+    match connective.as_ref() {
         ExpSelbriRelativeClauseConnectiveSyntax::ZiheSelbriRelativeConnective(_)
         | ExpSelbriRelativeClauseConnectiveSyntax::ClosedIntervalConnective(_) => false,
         ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(connective) => {
@@ -176,12 +176,12 @@ fn is_prohibited_connective_free_modifier(
                 se: _,
                 head,
                 nai,
-            } = connective;
+            } = connective.as_ref();
             connective_free_modifier_placement(head, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Prohibited
         }
         ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(connective) => {
-            let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
+            let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective.as_ref();
             connective_free_modifier_placement(bihi, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Prohibited
         }
@@ -295,10 +295,13 @@ fn recovered_is_prohibited_connective_free_modifier(
 /// neither answer and is `Unproven`.
 #[requires(true)]
 #[ensures(true)]
-fn recovered_connective_free_modifier_placement<T>(
-    head: &recovered::WithFreeModifiers<recovered::Recovered<T>>,
-    nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>>>,
-) -> ConnectiveFreeModifierPlacement {
+fn recovered_connective_free_modifier_placement<T, F>(
+    head: &recovered::WithFreeModifiers<recovered::Recovered<T>, F>,
+    nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>, F>>,
+) -> ConnectiveFreeModifierPlacement
+where
+    F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
+{
     if valid(&head.value).is_none() {
         return ConnectiveFreeModifierPlacement::Unproven;
     }
@@ -399,7 +402,7 @@ fn body_shape(value: &ZantufaRelativeStatementSyntax) -> RelativeBodyShape {
         ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => {
             RelativeBodyShape::StatementWidth
         }
-        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base {
+        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base.as_ref() {
             ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => {
                 RelativeBodyShape::StatementWidth
             }
@@ -482,10 +485,10 @@ fn is_exp_selbri_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
     let RelativeClauseAtomSyntax::BridiRelativeClause(bridi) = value else {
         return false;
     };
-    let BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) = bridi else {
+    let BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) = bridi.as_ref() else {
         return false;
     };
-    match clause {
+    match clause.as_ref() {
         ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(clause) => {
             is_nohoi_marker(clause.poi.value.cmavo())
                 && clause.kuho.is_none()
@@ -535,7 +538,7 @@ fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool
                 se: _,
                 head,
                 nai,
-            } = connective;
+            } = connective.as_ref();
             connective_free_modifier_placement(head, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Permitted
                 && is_exp_selbri_relative_clause(inner)
@@ -552,7 +555,9 @@ fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool
 fn is_exp_selbri_relative_list(value: &RelativeClauseListSyntax) -> bool {
     let RelativeClauseListSyntax { first, additional } = value;
     is_exp_selbri_relative_clause(first)
-        && additional.iter().all(is_exp_selbri_relative_continuation)
+        && additional
+            .iter()
+            .all(|continuation| is_exp_selbri_relative_continuation(continuation))
 }
 
 #[requires(true)]
@@ -795,7 +800,10 @@ fn subsentence_opens_with_leading_sumti(value: &SubbridiSyntax) -> bool {
         SubbridiSyntax::PrenexSubbridi(_) => false,
         SubbridiSyntax::BridiSubbridi(bridi) => match bridi.0.as_ref() {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
-                matches!(bridi.leading_terms.first(), TermSyntax::SumtiTerm(_))
+                matches!(
+                    bridi.leading_terms.first().as_ref(),
+                    TermSyntax::SumtiTerm(_)
+                )
             }
             BridiSyntax::BareCuBridi(_) | BridiSyntax::RelationOnlyBridi(_) => false,
         },
@@ -936,7 +944,7 @@ mod tests {
         let token = one_token(marker);
         recovered::Recovered::valid(
             recovered::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                recovered::Recovered::valid(
+                Arc::new(recovered::Recovered::valid(
                     recovered::ZantufaRestrictiveStatementRelativeClauseSyntax {
                         poi: recovered::WithFreeModifiers {
                             value: recovered::Recovered::valid(token),
@@ -945,7 +953,7 @@ mod tests {
                         statement: Arc::new(statement),
                         kuho: None,
                     },
-                ),
+                )),
             ),
         )
     }
@@ -996,16 +1004,16 @@ mod tests {
         let placeholder = recovery_placeholder();
         assert_eq!(
             recovered_body_shape(
-                &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(
-                    recovered::Recovered::error(placeholder.clone()),
-                )
+                &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(Arc::new(
+                    recovered::Recovered::error(placeholder.clone())
+                ),)
             ),
             RelativeBodyShape::Unproven,
         );
         assert_eq!(
             recovered_body_shape(
                 &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
-                    recovered::Recovered::error(placeholder.clone()),
+                    Arc::new(recovered::Recovered::error(placeholder.clone())),
                 )
             ),
             RelativeBodyShape::Unproven,
@@ -1013,7 +1021,7 @@ mod tests {
         assert_eq!(
             recovered_body_shape(
                 &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
-                    recovered::Recovered::error(placeholder),
+                    Arc::new(recovered::Recovered::error(placeholder)),
                 )
             ),
             RelativeBodyShape::StatementWidth,
@@ -1030,7 +1038,7 @@ mod tests {
         let connected = || {
             recovered::Recovered::valid(
                 recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
-                    recovered::Recovered::error(placeholder.clone()),
+                    Arc::new(recovered::Recovered::error(placeholder.clone())),
                 ),
             )
         };
@@ -1065,9 +1073,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_free_modifier() -> recovered::Recovered<recovered::FreeModifierSyntax> {
-        recovered::Recovered::valid(recovered::FreeModifierSyntax::ParentheticalText(
+        recovered::Recovered::valid(recovered::FreeModifierSyntax::ParentheticalText(Arc::new(
             recovered::Recovered::error(recovery_placeholder()),
-        ))
+        )))
     }
 
     /// A free-modifier slot entry standing in for a free modifier that did not parse.
@@ -1097,10 +1105,13 @@ mod tests {
     fn recovered_head_slot(
         value: recovered::Recovered<crate::tree::Token>,
         free_modifiers: Vec<recovered::Recovered<recovered::FreeModifierSyntax>>,
-    ) -> recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>> {
+    ) -> recovered::WithFreeModifiers<
+        recovered::Recovered<crate::tree::Token>,
+        Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+    > {
         recovered::WithFreeModifiers {
             value,
-            free_modifiers,
+            free_modifiers: free_modifiers.into_iter().map(Arc::new).collect(),
         }
     }
 
@@ -1112,8 +1123,8 @@ mod tests {
         connective: recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax>,
     ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseContinuationSyntax> {
         recovered::Recovered::valid(recovered::ExpSelbriRelativeClauseContinuationSyntax {
-            connective,
-            inner: recovered::Recovered::error(recovery_placeholder()),
+            connective: Arc::new(connective),
+            inner: Arc::new(recovered::Recovered::error(recovery_placeholder())),
         })
     }
 
@@ -1121,17 +1132,27 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_merged_head_connective(
-        head: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
-        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+        head: recovered::WithFreeModifiers<
+            recovered::Recovered<crate::tree::Token>,
+            Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+        >,
+        nai: Option<
+            recovered::WithFreeModifiers<
+                recovered::Recovered<crate::tree::Token>,
+                Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+            >,
+        >,
     ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax> {
         recovered::Recovered::valid(
             recovered::ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(
-                recovered::Recovered::valid(recovered::ExpRelativeClauseConnectiveSyntax {
-                    na: None,
-                    se: None,
-                    head,
-                    nai,
-                }),
+                Arc::new(recovered::Recovered::valid(
+                    recovered::ExpRelativeClauseConnectiveSyntax {
+                        na: None,
+                        se: None,
+                        head,
+                        nai,
+                    },
+                )),
             ),
         )
     }
@@ -1140,17 +1161,25 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_simple_interval_connective(
-        bihi: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
-        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+        bihi: recovered::WithFreeModifiers<
+            recovered::Recovered<crate::tree::Token>,
+            Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+        >,
+        nai: Option<
+            recovered::WithFreeModifiers<
+                recovered::Recovered<crate::tree::Token>,
+                Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+            >,
+        >,
     ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax> {
         recovered::Recovered::valid(
-            recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(
+            recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(Arc::new(
                 recovered::Recovered::valid(recovered::SimpleIntervalConnectiveSyntax {
                     se: None,
                     bihi,
                     nai,
                 }),
-            ),
+            )),
         )
     }
 
@@ -1333,8 +1362,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_exp_connective(
-        head: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
-        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+        head: recovered::WithFreeModifiers<
+            recovered::Recovered<crate::tree::Token>,
+            Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+        >,
+        nai: Option<
+            recovered::WithFreeModifiers<
+                recovered::Recovered<crate::tree::Token>,
+                Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+            >,
+        >,
     ) -> recovered::Recovered<recovered::ExpRelativeClauseConnectiveSyntax> {
         recovered::Recovered::valid(recovered::ExpRelativeClauseConnectiveSyntax {
             na: None,
@@ -1351,20 +1388,20 @@ mod tests {
     fn recovered_exp_formable_clause() -> recovered::Recovered<recovered::RelativeClauseAtomSyntax>
     {
         let body = recovered::Recovered::valid(
-            recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(
+            recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(Arc::new(
                 recovered::Recovered::valid(
                     recovered::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
-                        recovered::Recovered::error(recovery_placeholder()),
+                        Arc::new(recovered::Recovered::error(recovery_placeholder())),
                     ),
                 ),
-            ),
+            )),
         );
         recovered::Recovered::valid(recovered::RelativeClauseAtomSyntax::BridiRelativeClause(
-            recovered::Recovered::valid(
-                recovered::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(
+            Arc::new(recovered::Recovered::valid(
+                recovered::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(Arc::new(
                     recovered_restrictive_clause("po'oi", body),
-                ),
-            ),
+                )),
+            )),
         ))
     }
 
@@ -1376,18 +1413,18 @@ mod tests {
         connective: recovered::Recovered<recovered::ExpRelativeClauseConnectiveSyntax>,
     ) -> recovered::Recovered<recovered::RelativeClauseListSyntax> {
         let continuation = recovered::Recovered::valid(recovered::ExpRelativeContinuationSyntax {
-            connective,
+            connective: Arc::new(connective),
             inner: Arc::new(recovered_exp_formable_clause()),
         });
         recovered::Recovered::valid(recovered::RelativeClauseListSyntax {
-            first: recovered_exp_formable_clause(),
-            additional: vec![recovered::Recovered::valid(
-                recovered::RelativeClauseTailSyntax::RelativeClauseExpContinuation(
+            first: Arc::new(recovered_exp_formable_clause()),
+            additional: vec![Arc::new(recovered::Recovered::valid(
+                recovered::RelativeClauseTailSyntax::RelativeClauseExpContinuation(Arc::new(
                     recovered::Recovered::valid(recovered::RelativeClauseExpContinuationSyntax(
                         Arc::new(continuation),
                     )),
-                ),
-            )],
+                )),
+            ))],
         })
     }
 

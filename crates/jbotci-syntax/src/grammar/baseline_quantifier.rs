@@ -62,7 +62,7 @@ fn single_simple_mekso_operand(expression: &MeksoSyntax) -> Option<&SimpleMeksoO
     let InfixMeksoSyntax {
         first_expression,
         continuations,
-    } = infix;
+    } = infix.as_ref();
     if !continuations.is_empty() {
         return None;
     }
@@ -79,7 +79,7 @@ fn single_simple_mekso_operand(expression: &MeksoSyntax) -> Option<&SimpleMeksoO
     let MeksoOperandSyntax {
         connected_expression,
         grouped_continuation,
-    } = operand;
+    } = operand.as_ref();
     if grouped_continuation.is_some() {
         return None;
     }
@@ -109,7 +109,7 @@ fn is_baseline_quantifier_surface(expression: &MeksoSyntax) -> bool {
             // `number_mekso` wraps the very `pa_run_quantifier` rule the
             // baseline alternative parses, so a field added there changes both
             // surfaces identically and cannot make the extents diverge.
-            let NumberMeksoSyntax(_) = number;
+            let NumberMeksoSyntax(_) = number.as_ref();
             true
         }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
@@ -123,7 +123,7 @@ fn is_baseline_quantifier_surface(expression: &MeksoSyntax) -> bool {
                 vei: _,
                 inner_expression: _,
                 veho: _,
-            } = operand;
+            } = operand.as_ref();
             true
         }
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(_)

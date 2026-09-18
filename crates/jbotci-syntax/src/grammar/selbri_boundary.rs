@@ -51,12 +51,13 @@ fn assigned_into_full(
         preceding_assignments,
         final_assignment,
     } = value;
-    let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei, selbri } = final_assignment;
+    let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei, selbri } =
+        Arc::unwrap_or_clone(final_assignment);
     let mut assignments = preceding_assignments;
-    assignments.push(ZantufaSelbriAssignmentSyntax {
+    assignments.push(Arc::new(ZantufaSelbriAssignmentSyntax {
         cei,
         selbri: Arc::new(Arc::unwrap_or_clone(selbri).into()),
-    });
+    }));
     ZantufaAssignedSelbriSyntax {
         leading_selbri,
         assignments: vec1::Vec1::try_from_vec(assignments)
@@ -72,23 +73,23 @@ impl From<SelbriWithoutTerminalRelativeSyntax> for SelbriSyntax {
             SelbriWithoutTerminalRelativeSyntax::ZantufaPriorityAssignedSelbriWithoutTerminalRelative(
                 value,
             ) => {
-                let value = Arc::unwrap_or_clone(value.0);
-                Self::ZantufaPriorityAssignedSelbri(ZantufaPriorityAssignedSelbriSyntax(Arc::new(
+                let value = Arc::unwrap_or_clone(Arc::unwrap_or_clone(value).0);
+                Self::ZantufaPriorityAssignedSelbri(Arc::new(ZantufaPriorityAssignedSelbriSyntax(Arc::new(
                     assigned_into_full(value),
-                )))
+                ))))
             }
             SelbriWithoutTerminalRelativeSyntax::TaggedSelbriWithoutTerminalRelative(value) => {
                 let TaggedSelbriWithoutTerminalRelativeSyntax {
                     tense_modal,
                     inner_selbri,
-                } = value;
-                Self::TaggedSelbri(TaggedSelbriSyntax {
+                } = Arc::unwrap_or_clone(value);
+                Self::TaggedSelbri(Arc::new(TaggedSelbriSyntax {
                     tense_modal,
                     inner_selbri: Arc::new(Arc::unwrap_or_clone(inner_selbri).into()),
-                })
+                }))
             }
             SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(value) => {
-                Self::UntaggedSelbri(value.into())
+                Self::UntaggedSelbri(Arc::new(Arc::unwrap_or_clone(value).into()))
             }
         }
     }
@@ -102,11 +103,12 @@ impl From<UntaggedSelbriWithoutTerminalRelativeSyntax> for UntaggedSelbriSyntax 
             UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(
                 value,
             ) => {
-                let NegatedSelbriWithoutTerminalRelativeSyntax { na, inner_selbri } = value;
-                Self::NegatedSelbri(NegatedSelbriSyntax {
+                let NegatedSelbriWithoutTerminalRelativeSyntax { na, inner_selbri } =
+                    Arc::unwrap_or_clone(value);
+                Self::NegatedSelbri(Arc::new(NegatedSelbriSyntax {
                     na,
                     inner_selbri: Arc::new(Arc::unwrap_or_clone(inner_selbri).into()),
-                })
+                }))
             }
             UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(value) => Self::CoSelbri(value),
         }
@@ -127,6 +129,15 @@ fn map_recovered<T, U>(
             Box::new(convert(*prefix.value)),
         ),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn map_shared_recovered<T: Clone, U>(
+    value: Arc<recovered::Recovered<T>>,
+    convert: impl FnOnce(T) -> U,
+) -> Arc<recovered::Recovered<U>> {
+    Arc::new(map_recovered(Arc::unwrap_or_clone(value), convert))
 }
 
 #[requires(true)]
@@ -155,7 +166,7 @@ fn recovered_assigned_into_full(
         final_assignment,
     } = value;
     let mut assignments = preceding_assignments;
-    assignments.push(map_recovered(
+    assignments.push(map_shared_recovered(
         final_assignment,
         recovered_restricted_assignment_into_assignment,
     ));
@@ -185,7 +196,7 @@ fn recovered_untagged_into_untagged(
     match value {
         recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(
             value,
-        ) => recovered::UntaggedSelbriSyntax::NegatedSelbri(map_recovered(value, |value| {
+        ) => recovered::UntaggedSelbriSyntax::NegatedSelbri(map_shared_recovered(value, |value| {
             let recovered::NegatedSelbriWithoutTerminalRelativeSyntax { na, inner_selbri } =
                 value;
             recovered::NegatedSelbriSyntax {
@@ -210,13 +221,13 @@ fn recovered_selbri_into_selbri(
     match value {
         recovered::SelbriWithoutTerminalRelativeSyntax::ZantufaPriorityAssignedSelbriWithoutTerminalRelative(
             value,
-        ) => recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(map_recovered(
+        ) => recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(map_shared_recovered(
             value,
             recovered_priority_into_priority,
         )),
         recovered::SelbriWithoutTerminalRelativeSyntax::TaggedSelbriWithoutTerminalRelative(
             value,
-        ) => recovered::SelbriSyntax::TaggedSelbri(map_recovered(value, |value| {
+        ) => recovered::SelbriSyntax::TaggedSelbri(map_shared_recovered(value, |value| {
             let recovered::TaggedSelbriWithoutTerminalRelativeSyntax {
                 tense_modal,
                 inner_selbri,
@@ -231,7 +242,7 @@ fn recovered_selbri_into_selbri(
         })),
         recovered::SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(
             value,
-        ) => recovered::SelbriSyntax::UntaggedSelbri(map_recovered(
+        ) => recovered::SelbriSyntax::UntaggedSelbri(map_shared_recovered(
             value,
             recovered_untagged_into_untagged,
         )),
@@ -274,9 +285,9 @@ impl GrammarMapTo<recovered::SelbriSyntax>
     fn grammar_map_to(self) -> recovered::SelbriSyntax {
         match self {
             recovered::Recovered::Valid(value) => recovered_selbri_into_selbri(*value),
-            recovered::Recovered::Error(error) => {
-                recovered::SelbriSyntax::UntaggedSelbri(recovered::Recovered::error(error))
-            }
+            recovered::Recovered::Error(error) => recovered::SelbriSyntax::UntaggedSelbri(
+                Arc::new(recovered::Recovered::error(error)),
+            ),
             recovered::Recovered::Prefix(prefix) => {
                 let mut value = recovered_selbri_into_selbri(*prefix.value);
                 for error in prefix.errors.into_vec().into_iter().rev() {

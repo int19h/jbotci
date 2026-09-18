@@ -1278,9 +1278,15 @@ impl<'tokens> RecursiveFamily<'tokens> {
 }
 
 /// Type-specific recursive rule node stored in a heterogeneous family owner.
+///
+/// The definition is held as the same shared parser a [`Boxed`] already owns,
+/// rather than as a second `Box<dyn Parser>` around it. Storing it twice would
+/// put two vtable hops on the recursion path -- one into `Boxed`'s forwarding
+/// method and one into the parser it forwards to -- and the parser's cost is
+/// counted in host stack frames, one per hop, at every recursive rule edge.
 #[invariant(true)]
 struct RecursiveNode<'tokens, O> {
-    parser: OnceCell<Box<dyn Parser<'tokens, O> + 'tokens>>,
+    parser: OnceCell<Rc<dyn Parser<'tokens, O> + 'tokens>>,
 }
 
 /// A weak, non-owning recursive backedge.
@@ -1291,18 +1297,16 @@ pub(crate) struct Recursive<'tokens, O> {
 }
 
 impl<'tokens, O: 'tokens> Recursive<'tokens, O> {
+    /// Takes an already-shared parser so the node adds no indirection of its own.
     #[requires(true)]
     #[ensures(self.node.upgrade().is_some_and(|node| node.parser.get().is_some()))]
     #[track_caller]
-    pub(crate) fn define<P>(&mut self, parser: P)
-    where
-        P: Parser<'tokens, O> + 'tokens,
-    {
+    pub(crate) fn define(&mut self, parser: Boxed<'tokens, O>) {
         self.node
             .upgrade()
             .expect("recursive parser family dropped before definition")
             .parser
-            .set(Box::new(parser))
+            .set(parser.inner)
             .unwrap_or_else(|_| panic!("recursive parsers can only be defined once"));
     }
 }
@@ -1395,13 +1399,18 @@ mod tests {
             let family = RecursiveFamily::new();
             let mut first: Recursive<'_, ()> = family.declare();
             let mut second: Recursive<'_, ()> = family.declare();
-            first.define(second.clone().map({
-                let retained_by_definition = Rc::clone(&retained_by_definition);
-                move |()| {
-                    let _retained = &retained_by_definition;
-                }
-            }));
-            second.define(first.clone());
+            first.define(
+                second
+                    .clone()
+                    .map({
+                        let retained_by_definition = Rc::clone(&retained_by_definition);
+                        move |()| {
+                            let _retained = &retained_by_definition;
+                        }
+                    })
+                    .boxed(),
+            );
+            second.define(first.clone().boxed());
             family.own(first).boxed()
         };
         drop(retained_by_definition);

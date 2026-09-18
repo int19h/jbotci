@@ -2152,6 +2152,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vagueness kind owns the payload validity",
     ),
     (
+        "crates/jbotci-syntax-macros/src/containment.rs:Action::Array",
+        "every recursive element plan is a valid array-element lowering action",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/containment.rs:Action::Binary",
+        "binary wrapper kind and two named child plans encode the required arity by construction",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/containment.rs:Action::SmallVector",
+        "element plan and Rust capacity expression encode the fixed-array argument directly; either cardinality mode is valid",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/containment.rs:Action::Tuple",
+        "any ordered list of recursive element plans is a tuple lowering action, including the empty tuple",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/containment.rs:Action::Unary",
+        "unary wrapper kind and one named child plan encode the required arity by construction",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Boxed",
         "boxed schema wrapper validity is fully determined by its validated recursive binding type payload",
     ),
