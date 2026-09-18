@@ -825,6 +825,8 @@ mod shared_containment {
             field boxed <- boxed(leaf);
             /// Inline applies inside its enclosing option.
             field inline_optional <- opt(inline(leaf));
+            /// Alias results can be inlined explicitly at their field site.
+            field inline_alias <- inline(optional_leaf);
             /// Modifier elements are shared.
             field modified <- cmavo(Be).wf();
             /// Tuple element containment.
@@ -849,6 +851,7 @@ mod shared_containment {
             nested: Arc::new(Some(leaf.clone())),
             boxed: Box::new(leaf.clone()),
             inline_optional: Some(LeafSyntax(Token)),
+            inline_alias: Some(LeafSyntax(Token)),
             modified: WithFreeModifiers {
                 value: Token,
                 free_modifiers: vec![Arc::new(FreeModifierSyntax(Token))],

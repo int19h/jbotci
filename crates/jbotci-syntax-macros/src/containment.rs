@@ -11,6 +11,61 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Expr, GenericArgument, PathArguments, Type, parse_quote};
 
+/// An alias has no stored containment site. Reject the annotation rather than
+/// accepting a marker that cannot affect the alias's parser result type.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn reject_alias_inline(parser: &ParserExpr) -> syn::Result<()> {
+    use syn::visit::Visit;
+    #[invariant(true)]
+    struct AliasPolicyVisitor {
+        error: Option<syn::Error>,
+    }
+    impl<'ast> Visit<'ast> for AliasPolicyVisitor {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            if super::call_name(call).as_deref() == Some("inline") {
+                self.error = Some(syn::Error::new_spanned(
+                    call,
+                    "inline is a containment annotation; use inline(alias) at a field or enum branch, not inside an alias definition",
+                ));
+            } else {
+                syn::visit::visit_expr_call(self, call);
+            }
+        }
+    }
+    let mut visitor = AliasPolicyVisitor { error: None };
+    match parser {
+        ParserExpr::Rust(expr) => visitor.visit_expr(expr),
+        ParserExpr::Vector(vector) => {
+            for item in &vector.items {
+                let parser = match item {
+                    VectorItem::One(parser)
+                    | VectorItem::Spread(parser)
+                    | VectorItem::ZeroOrMore(parser)
+                    | VectorItem::ZeroOrMoreSpread(parser)
+                    | VectorItem::OneOrMore(parser)
+                    | VectorItem::OneOrMoreSpread(parser)
+                    | VectorItem::Assert { parser, .. } => parser,
+                };
+                reject_alias_inline(parser)?;
+            }
+        }
+        ParserExpr::Chain(chain) => {
+            reject_alias_inline(&chain.first)?;
+            reject_alias_inline(&chain.links)?;
+        }
+        ParserExpr::Postfix { receiver, args, .. } => {
+            reject_alias_inline(receiver)?;
+            for arg in args {
+                visitor.visit_expr(arg);
+            }
+        }
+    }
+    visitor.error.map_or(Ok(()), Err)
+}
+
 #[invariant(true)]
 #[derive(Clone)]
 pub(super) struct Containment {
@@ -21,7 +76,9 @@ pub(super) struct Containment {
 #[invariant(true)]
 #[invariant(::Tuple => true)]
 #[invariant(::Array => true)]
-#[invariant(::Wrapper => true)]
+#[invariant(::Unary => true)]
+#[invariant(::Binary => true)]
+#[invariant(::SmallVector => true)]
 #[derive(Clone)]
 enum Action {
     Identity,
@@ -32,22 +89,35 @@ enum Action {
     Array {
         element: Box<Containment>,
     },
-    Wrapper {
-        kind: Wrapper,
-        arguments: Vec<Containment>,
+    Unary {
+        kind: UnaryWrapper,
+        inner: Box<Containment>,
+    },
+    Binary {
+        kind: BinaryWrapper,
+        first: Box<Containment>,
+        second: Box<Containment>,
+    },
+    SmallVector {
+        nonempty: bool,
+        element: Box<Containment>,
+        capacity: Expr,
     },
 }
 
 #[invariant(true)]
 #[derive(Clone, Copy)]
-enum Wrapper {
+enum UnaryWrapper {
     Arc,
     Box,
     Option,
     Vec,
     Vec1,
-    SmallVec,
-    SmallVec1,
+}
+
+#[invariant(true)]
+#[derive(Clone, Copy)]
+enum BinaryWrapper {
     Chain,
     WithFreeModifiers,
 }
@@ -56,6 +126,13 @@ impl Containment {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn new(source: &Type, nodes: &BTreeSet<String>) -> Self {
+        // Parentheses/grouping do not introduce a storage boundary. Normalize
+        // them before planning so they cannot hide a generated node.
+        match source {
+            Type::Paren(paren) => return Self::new(&paren.elem, nodes),
+            Type::Group(group) => return Self::new(&group.elem, nodes),
+            _ => {}
+        }
         let action = if super::simple_type_ident(source)
             .is_some_and(|name| nodes.contains(&name.to_string()))
         {
@@ -70,46 +147,72 @@ impl Containment {
                 },
                 Type::Path(path) if path.qself.is_none() => {
                     match path.path.segments.last().and_then(|segment| {
-                        let kind = match segment.ident.to_string().as_str() {
-                            "Arc" => Wrapper::Arc,
-                            "Box" => Wrapper::Box,
-                            "Option" => Wrapper::Option,
-                            "Vec" => Wrapper::Vec,
-                            "Vec1" => Wrapper::Vec1,
-                            "SmallVec" => Wrapper::SmallVec,
-                            "SmallVec1" => Wrapper::SmallVec1,
-                            "Chain" => Wrapper::Chain,
-                            "WithFreeModifiers" => Wrapper::WithFreeModifiers,
-                            _ => return None,
-                        };
                         let PathArguments::AngleBracketed(args) = &segment.arguments else {
                             return None;
                         };
-                        let mut arguments: Vec<_> = args
-                            .args
-                            .iter()
-                            .filter_map(|arg| {
-                                let GenericArgument::Type(ty) = arg else {
-                                    return None;
-                                };
-                                let plan = Self::new(ty, nodes);
-                                // A direct Arc already shares its node. This is not
-                                // an exemption for nodes deeper inside the pointer.
-                                Some(
-                                    if matches!(kind, Wrapper::Arc)
-                                        && matches!(plan.action, Action::Share)
-                                    {
-                                        Self::identity(ty)
-                                    } else {
-                                        plan
-                                    },
-                                )
-                            })
-                            .collect();
-                        if matches!(kind, Wrapper::WithFreeModifiers) && arguments.len() == 1 {
-                            arguments.push(Self::new(&parse_quote!(FreeModifierSyntax), nodes));
+                        let mut args = args.args.iter();
+                        let GenericArgument::Type(first) = args.next()? else {
+                            return None;
+                        };
+                        let name = segment.ident.to_string();
+                        let kind = match name.as_str() {
+                            "Arc" => Some(UnaryWrapper::Arc),
+                            "Box" => Some(UnaryWrapper::Box),
+                            "Option" => Some(UnaryWrapper::Option),
+                            "Vec" => Some(UnaryWrapper::Vec),
+                            "Vec1" => Some(UnaryWrapper::Vec1),
+                            _ => None,
+                        };
+                        if let Some(kind) = kind {
+                            if args.next().is_some() {
+                                return None;
+                            }
+                            let mut inner = Self::new(first, nodes);
+                            // A direct Arc already shares its node; deeper
+                            // containers still need their own node lowering.
+                            if matches!(kind, UnaryWrapper::Arc)
+                                && matches!(inner.action, Action::Share)
+                            {
+                                inner.action = Action::Identity;
+                            }
+                            return Some(Action::Unary {
+                                kind,
+                                inner: Box::new(inner),
+                            });
                         }
-                        Some(Action::Wrapper { kind, arguments })
+                        if matches!(name.as_str(), "SmallVec" | "SmallVec1") {
+                            let Type::Array(array) = first else {
+                                return None;
+                            };
+                            if args.next().is_some() {
+                                return None;
+                            }
+                            return Some(Action::SmallVector {
+                                nonempty: name == "SmallVec1",
+                                element: Box::new(Self::new(&array.elem, nodes)),
+                                capacity: array.len.clone(),
+                            });
+                        }
+                        let kind = match name.as_str() {
+                            "Chain" => BinaryWrapper::Chain,
+                            "WithFreeModifiers" => BinaryWrapper::WithFreeModifiers,
+                            _ => return None,
+                        };
+                        let second = match args.next() {
+                            Some(GenericArgument::Type(second)) => Self::new(second, nodes),
+                            None if matches!(kind, BinaryWrapper::WithFreeModifiers) => {
+                                Self::new(&parse_quote!(FreeModifierSyntax), nodes)
+                            }
+                            _ => return None,
+                        };
+                        if args.next().is_some() {
+                            return None;
+                        }
+                        Some(Action::Binary {
+                            kind,
+                            first: Box::new(Self::new(first, nodes)),
+                            second: Box::new(second),
+                        })
                     }) {
                         Some(action) => action,
                         None => Action::Identity,
@@ -180,13 +283,14 @@ impl Containment {
                 self.apply_method_policy(receiver, method, args)?;
             }
             ParserExpr::Chain(chain) => {
-                if let Action::Wrapper {
-                    kind: Wrapper::Chain,
-                    arguments,
+                if let Action::Binary {
+                    kind: BinaryWrapper::Chain,
+                    first,
+                    second,
                 } = &mut self.action
                 {
-                    arguments[0].apply_policy(&chain.first)?;
-                    if let Some(element) = arguments[1].sequence_element_mut() {
+                    first.apply_policy(&chain.first)?;
+                    if let Some(element) = second.sequence_element_mut() {
                         element.apply_policy(&chain.links)?;
                     }
                 }
@@ -199,17 +303,11 @@ impl Containment {
     #[ensures(true)]
     fn sequence_element_mut(&mut self) -> Option<&mut Self> {
         match &mut self.action {
-            Action::Wrapper {
-                kind: Wrapper::Vec | Wrapper::Vec1,
-                arguments,
-            } => arguments.first_mut(),
-            Action::Wrapper {
-                kind: Wrapper::SmallVec | Wrapper::SmallVec1,
-                arguments,
-            } => match &mut arguments.first_mut()?.action {
-                Action::Array { element } => Some(element),
-                _ => None,
-            },
+            Action::Unary {
+                kind: UnaryWrapper::Vec | UnaryWrapper::Vec1,
+                inner,
+            } => Some(inner),
+            Action::SmallVector { element, .. } => Some(element),
             _ => None,
         }
     }
@@ -246,10 +344,13 @@ impl Containment {
     ) -> syn::Result<()> {
         match method.to_string().as_str() {
             "wf" | "with_free_modifiers" | "prohibited_wf" | "wf_when" => {
-                if let Action::Wrapper { arguments, .. } = &mut self.action
-                    && let Some(inner) = arguments.first_mut()
+                if let Action::Binary {
+                    kind: BinaryWrapper::WithFreeModifiers,
+                    first,
+                    ..
+                } = &mut self.action
                 {
-                    inner.apply_policy(receiver)?;
+                    first.apply_policy(receiver)?;
                 }
             }
             "ignore_then" if args.len() == 1 => self.apply_parser_policy(&args[0])?,
@@ -280,9 +381,7 @@ impl Containment {
                 }
                 if matches!(name.as_deref(), Some("opt" | "arc" | "boxed")) && call.args.len() == 1
                 {
-                    if let Action::Wrapper { arguments, .. } = &mut self.action
-                        && let Some(inner) = arguments.first_mut()
-                    {
+                    if let Action::Unary { inner, .. } = &mut self.action {
                         inner.apply_parser_policy(&call.args[0])?;
                     }
                 } else if matches!(name.as_deref(), Some("feature" | "policy" | "memo_scope"))
@@ -338,7 +437,9 @@ impl Containment {
             Action::Share => true,
             Action::Tuple { elements } => elements.iter().any(Self::changes),
             Action::Array { element } => element.changes(),
-            Action::Wrapper { arguments, .. } => arguments.iter().any(Self::changes),
+            Action::Unary { inner, .. } => inner.changes(),
+            Action::Binary { first, second, .. } => first.changes() || second.changes(),
+            Action::SmallVector { element, .. } => element.changes(),
         }
     }
 
@@ -356,28 +457,38 @@ impl Containment {
                 array.elem = Box::new(element.stored_type());
                 ty
             }
-            (Action::Wrapper { arguments, .. }, Type::Path(path)) => {
-                let PathArguments::AngleBracketed(args) = &mut path
-                    .path
+            (Action::Unary { inner, .. }, Type::Path(path)) => {
+                let inner = inner.stored_type();
+                path.path
                     .segments
                     .last_mut()
-                    .expect("wrapper has a path segment")
-                    .arguments
-                else {
-                    unreachable!()
-                };
-                let mut plans = arguments.iter();
-                for arg in &mut args.args {
-                    if let GenericArgument::Type(ty) = arg {
-                        *ty = plans
-                            .next()
-                            .expect("one plan per type argument")
-                            .stored_type();
-                    }
-                }
-                for plan in plans {
-                    args.args.push(GenericArgument::Type(plan.stored_type()));
-                }
+                    .expect("wrapper path")
+                    .arguments = PathArguments::AngleBracketed(parse_quote!(<#inner>));
+                ty
+            }
+            (Action::Binary { first, second, .. }, Type::Path(path)) => {
+                let first = first.stored_type();
+                let second = second.stored_type();
+                path.path
+                    .segments
+                    .last_mut()
+                    .expect("wrapper path")
+                    .arguments = PathArguments::AngleBracketed(parse_quote!(<#first, #second>));
+                ty
+            }
+            (
+                Action::SmallVector {
+                    element, capacity, ..
+                },
+                Type::Path(path),
+            ) => {
+                let element = element.stored_type();
+                path.path
+                    .segments
+                    .last_mut()
+                    .expect("wrapper path")
+                    .arguments =
+                    PathArguments::AngleBracketed(parse_quote!(<[#element; #capacity]>));
                 ty
             }
             _ => ty,
@@ -414,57 +525,58 @@ impl Containment {
                 let mapped = element.lower(quote!(__element), free_modifier_wrapper);
                 quote!((#value).map(|__element| #mapped))
             }
-            Action::Wrapper { kind, arguments } => {
-                let first = arguments
-                    .first()
-                    .expect("supported wrappers have type arguments");
-                let mapped = first.lower(quote!(__element), free_modifier_wrapper);
+            Action::Unary { kind, inner } => {
+                let mapped = inner.lower(quote!(__element), free_modifier_wrapper);
                 match kind {
-                    Wrapper::Arc => quote!({
+                    UnaryWrapper::Arc => quote!({
                         let __element = ::std::sync::Arc::unwrap_or_clone(#value);
                         ::std::sync::Arc::new(#mapped)
                     }),
-                    Wrapper::Box => quote!({ let __element = *(#value); Box::new(#mapped) }),
-                    Wrapper::Option => quote!((#value).map(|__element| #mapped)),
-                    Wrapper::Vec => {
+                    UnaryWrapper::Box => quote!({ let __element = *(#value); Box::new(#mapped) }),
+                    UnaryWrapper::Option => quote!((#value).map(|__element| #mapped)),
+                    UnaryWrapper::Vec => {
                         quote!((#value).into_iter().map(|__element| #mapped).collect::<Vec<_>>())
                     }
-                    Wrapper::Vec1 => quote!((#value).mapped(|__element| #mapped)),
-                    Wrapper::SmallVec | Wrapper::SmallVec1 => {
-                        let Action::Array { element } = &first.action else {
-                            unreachable!("small-vector storage is a fixed array")
-                        };
-                        let mapped = element.lower(quote!(__element), free_modifier_wrapper);
-                        if matches!(kind, Wrapper::SmallVec) {
-                            quote!((#value).into_iter().map(|__element| #mapped).collect::<::smallvec::SmallVec<_>>())
-                        } else {
-                            quote!(::vec1::smallvec_v1::SmallVec1::try_from_vec(
-                                (#value).into_vec().into_iter().map(|__element| #mapped).collect()
-                            ).expect("containment lowering preserves nonempty sequences"))
-                        }
-                    }
-                    Wrapper::Chain => {
-                        let first = first.lower(quote!(__first), free_modifier_wrapper);
-                        let links = arguments[1].lower(quote!(__links), free_modifier_wrapper);
-                        quote!({
-                            let ::jbotci_tree::Chain { first: __first, links: __links } = #value;
-                            ::jbotci_tree::Chain { first: #first, links: #links }
-                        })
-                    }
-                    Wrapper::WithFreeModifiers => {
-                        let inner = first.lower(quote!(__value), free_modifier_wrapper);
-                        let modifier =
-                            arguments[1].lower(quote!(__modifier), free_modifier_wrapper);
-                        quote!({
-                            let #free_modifier_wrapper { value: __value, free_modifiers: __modifiers } = #value;
-                            #free_modifier_wrapper {
-                                value: #inner,
-                                free_modifiers: __modifiers.into_iter().map(|__modifier| #modifier).collect(),
-                            }
-                        })
-                    }
+                    UnaryWrapper::Vec1 => quote!((#value).mapped(|__element| #mapped)),
                 }
             }
+            Action::SmallVector {
+                nonempty, element, ..
+            } => {
+                let mapped = element.lower(quote!(__element), free_modifier_wrapper);
+                if *nonempty {
+                    quote!(::vec1::smallvec_v1::SmallVec1::try_from_vec(
+                        (#value).into_vec().into_iter().map(|__element| #mapped).collect()
+                    ).expect("containment lowering preserves nonempty sequences"))
+                } else {
+                    quote!((#value).into_iter().map(|__element| #mapped).collect::<::smallvec::SmallVec<_>>())
+                }
+            }
+            Action::Binary {
+                kind,
+                first,
+                second,
+            } => match kind {
+                BinaryWrapper::Chain => {
+                    let first = first.lower(quote!(__first), free_modifier_wrapper);
+                    let links = second.lower(quote!(__links), free_modifier_wrapper);
+                    quote!({
+                        let ::jbotci_tree::Chain { first: __first, links: __links } = #value;
+                        ::jbotci_tree::Chain { first: #first, links: #links }
+                    })
+                }
+                BinaryWrapper::WithFreeModifiers => {
+                    let inner = first.lower(quote!(__value), free_modifier_wrapper);
+                    let modifier = second.lower(quote!(__modifier), free_modifier_wrapper);
+                    quote!({
+                        let #free_modifier_wrapper { value: __value, free_modifiers: __modifiers } = #value;
+                        #free_modifier_wrapper {
+                            value: #inner,
+                            free_modifiers: __modifiers.into_iter().map(|__modifier| #modifier).collect(),
+                        }
+                    })
+                }
+            },
         }
     }
 }
@@ -710,6 +822,8 @@ mod tests {
         let nodes = BTreeSet::from(["Node".to_owned()]);
         for (source, expected) in [
             ("Node", "::std::sync::Arc<Node>"),
+            ("(Node)", "::std::sync::Arc<Node>"),
+            ("Arc<(Node)>", "Arc<Node>"),
             ("Option<Node>", "Option<::std::sync::Arc<Node>>"),
             ("Vec<Node>", "Vec<::std::sync::Arc<Node>>"),
             ("Box<Node>", "Box<::std::sync::Arc<Node>>"),

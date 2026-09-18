@@ -1,4 +1,12 @@
 //! Proc macros for syntax grammar declarations.
+//!
+//! Generated model fields and enum payloads share contained nodes through `Arc`,
+//! including nodes inside options, sequences and free-modifier wrappers. Explicit
+//! `Box`/`Arc` layers are preserved. Tokens and scalars retain their value types.
+//! Use `inline(parser)` at a field's containment position (including a tuple or
+//! sequence element), or `inline(rule)` for an enum payload, to opt out. Aliases
+//! abbreviate parser results and do not own storage: write `inline(alias)` at
+//! the field site, rather than placing `inline` inside an alias definition.
 
 mod containment;
 use containment::Containment;
@@ -3429,7 +3437,8 @@ impl Parse for AliasRule {
             ));
         }
         input.parse::<Token![=]>()?;
-        let parser = input.parse()?;
+        let parser: ParserExpr = input.parse()?;
+        containment::reject_alias_inline(&parser)?;
         input.parse::<Token![;]>()?;
         Ok(Self {
             name,
@@ -11386,6 +11395,32 @@ mod tests {
             expanded.contains("unsupported parser method in strict parser generation"),
             "{expanded}"
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn aliases_reject_inline_without_a_containment_site() {
+        for parser in [
+            quote!(inline(leaf)),
+            quote!(opt(inline(leaf))),
+            quote!([zero_or_more inline(leaf)]),
+            quote!(chain(first: leaf, zero_or_more: inline(link), element: leaf)),
+            quote!([leaf].ignore_then(inline(leaf))),
+        ] {
+            let result = syn::parse2::<SyntaxGrammar>(quote! {
+                alias "abbreviation" abbreviation = #parser;
+            });
+            let error = match result {
+                Ok(_) => panic!("alias-local inline was accepted"),
+                Err(error) => error,
+            };
+            assert!(
+                error
+                    .to_string()
+                    .contains("inline is a containment annotation")
+            );
+        }
     }
 
     #[requires(true)]
