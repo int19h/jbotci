@@ -1352,6 +1352,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "span and value each own their validity",
     ),
     (
+        "crates/jbotci-syntax-macros/src/containment.rs:AliasPolicyVisitor",
+        "diagnostic accumulator stores either no error or any syn error; there is no cross-field constraint",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:AliasRule",
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),

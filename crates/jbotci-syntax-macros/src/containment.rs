@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 use super::{ParserExpr, VectorItem};
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Expr, GenericArgument, PathArguments, Type, parse_quote};
@@ -66,7 +66,7 @@ pub(super) fn reject_alias_inline(parser: &ParserExpr) -> syn::Result<()> {
     visitor.error.map_or(Ok(()), Err)
 }
 
-#[invariant(true)]
+#[invariant(action.accepts_source(source), "lowering action must match the source type and child positions")]
 #[derive(Clone)]
 pub(super) struct Containment {
     source: Type,
@@ -122,6 +122,109 @@ enum BinaryWrapper {
     WithFreeModifiers,
 }
 
+impl Action {
+    // The complete relation is structural: child plans retain the corresponding
+    // parser-result types even when their storage policy changes. Keeping this
+    // check at the validated plan boundary also protects constructor lowering.
+    #[requires(true)]
+    #[ensures(true)]
+    fn accepts_source(&self, source: &Type) -> bool {
+        match (self, source) {
+            (Self::Identity | Self::Share, _) => true,
+            (Self::Tuple { elements }, Type::Tuple(tuple)) => {
+                elements.len() == tuple.elems.len()
+                    && elements
+                        .iter()
+                        .zip(&tuple.elems)
+                        .all(|(plan, ty)| plan.source == *ungroup_type(ty))
+            }
+            (Self::Array { element }, Type::Array(array)) => {
+                element.source == *ungroup_type(&array.elem)
+            }
+            (Self::Unary { kind, inner }, Type::Path(path)) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let expected = match kind {
+                    UnaryWrapper::Arc => "Arc",
+                    UnaryWrapper::Box => "Box",
+                    UnaryWrapper::Option => "Option",
+                    UnaryWrapper::Vec => "Vec",
+                    UnaryWrapper::Vec1 => "Vec1",
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                segment.ident == expected
+                    && args.args.len() == 1
+                    && matches!(&args.args[0], GenericArgument::Type(ty) if inner.source == *ungroup_type(ty))
+            }
+            (
+                Self::Binary {
+                    kind,
+                    first,
+                    second,
+                },
+                Type::Path(path),
+            ) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let expected = match kind {
+                    BinaryWrapper::Chain => "Chain",
+                    BinaryWrapper::WithFreeModifiers => "WithFreeModifiers",
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                if segment.ident != expected || !(1..=2).contains(&args.args.len()) {
+                    return false;
+                }
+                let first_matches = matches!(&args.args[0], GenericArgument::Type(ty) if first.source == *ungroup_type(ty));
+                let second_matches = if args.args.len() == 2 {
+                    matches!(&args.args[1], GenericArgument::Type(ty) if second.source == *ungroup_type(ty))
+                } else {
+                    matches!(kind, BinaryWrapper::WithFreeModifiers)
+                        && super::simple_type_ident(&second.source)
+                            .is_some_and(|name| name == "FreeModifierSyntax")
+                };
+                first_matches && second_matches
+            }
+            (
+                Self::SmallVector {
+                    nonempty,
+                    element,
+                    capacity,
+                },
+                Type::Path(path),
+            ) if path.qself.is_none() => {
+                let Some(segment) = path.path.segments.last() else {
+                    return false;
+                };
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                segment.ident == if *nonempty { "SmallVec1" } else { "SmallVec" }
+                    && args.args.len() == 1
+                    && matches!(&args.args[0], GenericArgument::Type(Type::Array(array)) if element.source == *ungroup_type(&array.elem) && *capacity == array.len)
+            }
+            _ => false,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!matches!(ret, Type::Paren(_) | Type::Group(_)))]
+fn ungroup_type(mut ty: &Type) -> &Type {
+    loop {
+        match ty {
+            Type::Paren(paren) => ty = &paren.elem,
+            Type::Group(group) => ty = &group.elem,
+            _ => return ty,
+        }
+    }
+}
+
 impl Containment {
     #[requires(true)]
     #[ensures(true)]
@@ -173,7 +276,7 @@ impl Containment {
                             if matches!(kind, UnaryWrapper::Arc)
                                 && matches!(inner.action, Action::Share)
                             {
-                                inner.action = Action::Identity;
+                                inner = inner.with_data(data! { action: Action::Identity });
                             }
                             return Some(Action::Unary {
                                 kind,
@@ -221,19 +324,19 @@ impl Containment {
                 _ => Action::Identity,
             }
         };
-        Self {
+        Self::from_data(data!(Containment {
             source: source.clone(),
             action,
-        }
+        }))
     }
 
     #[requires(true)]
     #[ensures(!ret.changes())]
     pub(super) fn identity(source: &Type) -> Self {
-        Self {
+        Self::from_data(data!(Containment {
             source: source.clone(),
             action: Action::Identity,
-        }
+        }))
     }
 
     /// Apply an explicit storage opt-out to its output position, preserving the
@@ -241,11 +344,53 @@ impl Containment {
     /// not create a new containment boundary.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn with_parser_policy(mut self, expr: &ParserExpr) -> syn::Result<Self> {
-        self.apply_policy(expr)?;
-        Ok(self)
+    pub(super) fn with_parser_policy(self, expr: &ParserExpr) -> syn::Result<Self> {
+        let mut plan = self.into_data();
+        plan.apply_policy(expr)?;
+        Ok(Self::from_data(plan))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn update_policy(
+        &mut self,
+        update: impl FnOnce(&mut ContainmentData) -> syn::Result<()>,
+    ) -> syn::Result<()> {
+        // Move the plan while maintaining a valid value in the borrowed slot.
+        // An error discards this compilation plan; no partially changed plan escapes.
+        let mut plan = std::mem::replace(self, Self::identity(&parse_quote!(()))).into_data();
+        update(&mut plan)?;
+        *self = Self::from_data(plan);
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        self.update_policy(|plan| plan.apply_policy(expr))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_parser_policy(&mut self, expr: &Expr) -> syn::Result<()> {
+        self.update_policy(|plan| plan.apply_parser_policy(expr))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn apply_sequence_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
+        self.update_policy(|plan| {
+            if let Some(element) = plan.sequence_element_mut() {
+                element.apply_policy(expr)?;
+            }
+            Ok(())
+        })
+    }
+}
+
+// Mutation is confined to an owned data view and revalidated by the public plan
+// wrapper. Children remain validated plans throughout these transformations.
+impl ContainmentData {
     #[requires(true)]
     #[ensures(true)]
     fn apply_policy(&mut self, expr: &ParserExpr) -> syn::Result<()> {
@@ -290,9 +435,7 @@ impl Containment {
                 } = &mut self.action
                 {
                     first.apply_policy(&chain.first)?;
-                    if let Some(element) = second.sequence_element_mut() {
-                        element.apply_policy(&chain.links)?;
-                    }
+                    second.apply_sequence_policy(&chain.links)?;
                 }
             }
         }
@@ -301,7 +444,7 @@ impl Containment {
 
     #[requires(true)]
     #[ensures(true)]
-    fn sequence_element_mut(&mut self) -> Option<&mut Self> {
+    fn sequence_element_mut(&mut self) -> Option<&mut Containment> {
         match &mut self.action {
             Action::Unary {
                 kind: UnaryWrapper::Vec | UnaryWrapper::Vec1,
@@ -435,7 +578,7 @@ impl Containment {
         match &self.action {
             Action::Identity => false,
             Action::Share => true,
-            Action::Tuple { elements } => elements.iter().any(Self::changes),
+            Action::Tuple { elements } => elements.iter().any(|element| element.changes()),
             Action::Array { element } => element.changes(),
             Action::Unary { inner, .. } => inner.changes(),
             Action::Binary { first, second, .. } => first.changes() || second.changes(),
@@ -450,7 +593,10 @@ impl Containment {
         match (&self.action, &mut ty) {
             (Action::Share, _) => parse_quote!(::std::sync::Arc<#ty>),
             (Action::Tuple { elements }, Type::Tuple(tuple)) => {
-                tuple.elems = elements.iter().map(Self::stored_type).collect();
+                tuple.elems = elements
+                    .iter()
+                    .map(|element| element.stored_type())
+                    .collect();
                 ty
             }
             (Action::Array { element }, Type::Array(array)) => {
@@ -585,6 +731,38 @@ impl Containment {
 mod tests {
     use super::*;
     use quote::ToTokens;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn containment_rejects_mismatched_source_and_plan() {
+        for (source, action) in [
+            (
+                parse_quote!(Node),
+                Action::Array {
+                    element: Box::new(Containment::identity(&parse_quote!(Node))),
+                },
+            ),
+            (
+                parse_quote!(Option<Node>),
+                Action::Unary {
+                    kind: UnaryWrapper::Box,
+                    inner: Box::new(Containment::identity(&parse_quote!(Node))),
+                },
+            ),
+            (
+                parse_quote!((Node, Token)),
+                Action::Tuple {
+                    elements: vec![
+                        Containment::identity(&parse_quote!(Token)),
+                        Containment::identity(&parse_quote!(Node)),
+                    ],
+                },
+            ),
+        ] {
+            assert!(Containment::try_from_data(data!(Containment { source, action })).is_err());
+        }
+    }
 
     #[test]
     #[requires(true)]
