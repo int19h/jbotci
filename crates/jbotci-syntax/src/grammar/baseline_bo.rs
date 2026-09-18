@@ -68,7 +68,7 @@ fn sourced_owner_takes_sumti_extent(operand: &SumtiBoundSyntax) -> bool {
         leading_sumti: _,
         bound_tail,
     } = operand;
-    match bound_tail {
+    match bound_tail.as_deref() {
         None
         | Some(SumtiBoundTailSyntax::BoundSumtiTail(_))
         | Some(SumtiBoundTailSyntax::ZantufaBoundSumtiTail(_)) => false,
@@ -131,8 +131,8 @@ fn sourced_owner_takes_normal_term_extent(operand: &NormalTermAtomSyntax) -> boo
 
 #[requires(true)]
 #[ensures(true)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }

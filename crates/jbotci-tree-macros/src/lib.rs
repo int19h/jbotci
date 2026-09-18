@@ -763,7 +763,17 @@ fn transform_wrapper_type_for_recovery(
                 )
             })?;
         let inner = transform_type_for_recovery(&inner, node_names, aliases)?;
-        segment.arguments = PathArguments::AngleBracketed(parse_quote!(<#inner>));
+        // Carry the modifier argument through the transform as well, so a shared
+        // modifier sequence stays shared in the recovered twin instead of
+        // silently falling back to the default.
+        let modifiers = nth_type_argument(&segment.arguments, 1).cloned();
+        segment.arguments = match modifiers {
+            Some(modifiers) => {
+                let modifiers = transform_type_for_recovery(&modifiers, node_names, aliases)?;
+                PathArguments::AngleBracketed(parse_quote!(<#inner, #modifiers>))
+            }
+            None => PathArguments::AngleBracketed(parse_quote!(<#inner>)),
+        };
         return Ok(ty);
     }
     let PathArguments::AngleBracketed(arguments) = &mut segment.arguments else {
@@ -802,10 +812,16 @@ fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
     quote! {
         // `WithFreeModifiers` and `FreeModifierSyntax` are jbotci syntax-model
         // conventions used by generated recovered syntax trees.
+        //
+        // The modifier type is a parameter rather than fixed, because a free
+        // modifier is a generated node like any other and a grammar that shares
+        // its nodes has to be able to share this sequence too; it is carried by
+        // every word in the tree. The default keeps every existing
+        // single-argument use compiling unchanged.
         #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
-        pub struct WithFreeModifiers<T> {
+        pub struct WithFreeModifiers<T, F = Recovered<FreeModifierSyntax>> {
             pub value: T,
-            pub free_modifiers: Vec<Recovered<FreeModifierSyntax>>,
+            pub free_modifiers: Vec<F>,
         }
     }
 }
@@ -864,9 +880,10 @@ fn recovered_field_state_impls(
     let with_free_modifiers_impl = has_with_free_modifiers.then(|| {
         quote! {
             #[::bityzba::contract_trait]
-            impl<T> ::jbotci_tree::RecoveredFieldState for WithFreeModifiers<T>
+            impl<T, F> ::jbotci_tree::RecoveredFieldState for WithFreeModifiers<T, F>
             where
                 T: ::jbotci_tree::RecoveredFieldState,
+                F: ::jbotci_tree::RecoveredFieldState,
             {
                 #[::bityzba::requires(true)]
                 #[::bityzba::ensures(true)]
@@ -1840,8 +1857,14 @@ fn convert_wrapper_value_for_type(
         }
         "WithFreeModifiers" => {
             let value = convert_value_for_type(inner, quote!(value), node_names, aliases)?;
+            // Convert the modifier sequence as whatever element type the wrapper
+            // actually carries. Assuming a bare `FreeModifierSyntax` here wraps
+            // the wrong element once the sequence is shared.
+            let modifier_ty = nth_type_argument(arguments, 1)
+                .cloned()
+                .unwrap_or_else(|| parse_quote!(FreeModifierSyntax));
             let free_modifiers = convert_vec_value_for_type(
-                &parse_quote!(FreeModifierSyntax),
+                &modifier_ty,
                 quote!(free_modifiers),
                 quote!(Vec::new()),
                 node_names,
@@ -2108,15 +2131,25 @@ fn convert_valid_wrapper_value_for_type(
         }
         "WithFreeModifiers" => {
             let value = convert_valid_value_for_type(inner, quote!(value), node_names, aliases)?;
+            // Convert the modifier sequence by the wrapper's own second argument,
+            // the same way the fallible path does. Hardcoding `FreeModifierSyntax`
+            // here assumes an unshared element, which stops being true as soon as
+            // the grammar shares its free modifiers.
+            let modifier_ty = nth_type_argument(arguments, 1)
+                .cloned()
+                .unwrap_or_else(|| parse_quote!(FreeModifierSyntax));
+            let free_modifiers = convert_valid_vec_value_for_type(
+                &modifier_ty,
+                quote!(free_modifiers),
+                quote!(Vec::new()),
+                node_names,
+                aliases,
+            )?;
             Ok(quote!({
                 let super::WithFreeModifiers { value, free_modifiers } = #expr;
                 WithFreeModifiers {
                     value: #value,
-                    free_modifiers: free_modifiers
-                        .into_iter()
-                        .map(FreeModifierSyntax::from_valid)
-                        .map(Recovered::valid)
-                        .collect(),
+                    free_modifiers: #free_modifiers,
                     }
             }))
         }
@@ -2758,11 +2791,11 @@ fn wrapper_trait_impls(
         }
     });
     let with_free_modifiers_impl = include_with_free_modifiers.then(|| {
-        let impl_header = if include_recovered {
-            quote!(impl<T: TreeNode> TreeNode for WithFreeModifiers<T>)
-        } else {
-            quote!(impl<T: TreeNode, F: TreeNode> TreeNode for WithFreeModifiers<T, F>)
-        };
+        // Both flavours carry the modifier parameter. The recovered wrapper
+        // defaults it, so one-argument uses still resolve, but a grammar that
+        // shares its free modifiers passes a different type and would otherwise
+        // fail to implement this at all.
+        let impl_header = quote!(impl<T: TreeNode, F: TreeNode> TreeNode for WithFreeModifiers<T, F>);
         quote! {
             #impl_header {
                 fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
@@ -3366,13 +3399,14 @@ fn walk_wrapper_functions(
     let with_free_modifiers_function = include_with_free_modifiers.then(|| {
         if include_recovered {
             quote! {
-                pub fn with_free_modifiers<'tree, W, T>(
+                pub fn with_free_modifiers<'tree, W, T, F>(
                     walker: &mut W,
-                    value: &'tree WithFreeModifiers<T>,
+                    value: &'tree WithFreeModifiers<T, F>,
                 )
                 where
                     W: TreeWalker<'tree> + ?Sized,
                     T: TreeWalkable<'tree>,
+                    F: TreeWalkable<'tree>,
                 {
                     TreeWalkable::walk_with(&value.value, walker);
                     TreeWalkable::walk_with(&value.free_modifiers, walker);
@@ -3782,9 +3816,10 @@ fn tree_walkable_wrapper_impls(
     let with_free_modifiers_impl = include_with_free_modifiers.then(|| {
         if include_recovered {
             quote! {
-                impl<'tree, T> TreeWalkable<'tree> for WithFreeModifiers<T>
+                impl<'tree, T, F> TreeWalkable<'tree> for WithFreeModifiers<T, F>
                 where
                     T: TreeWalkable<'tree>,
+                    F: TreeWalkable<'tree>,
                 {
                     fn walk_with<W>(&'tree self, walker: &mut W)
                     where

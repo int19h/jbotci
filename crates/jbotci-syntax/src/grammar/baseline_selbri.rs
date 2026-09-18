@@ -98,7 +98,7 @@ fn operand_starts_with_old_unit(selbri: &SelbriSyntax) -> bool {
         | SelbriSyntax::ZantufaRelativeSelbri(_)
         | SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
         | SelbriSyntax::TaggedSelbri(_) => false,
-        SelbriSyntax::UntaggedSelbri(selbri) => match selbri {
+        SelbriSyntax::UntaggedSelbri(selbri) => match selbri.as_ref() {
             UntaggedSelbriSyntax::NegatedSelbri(_) => false,
             UntaggedSelbriSyntax::CoSelbri(selbri) => !has_c4_node(selbri),
         },
@@ -114,7 +114,7 @@ fn is_baseline_assignment(candidate: &ZantufaAssignedSelbriSyntax) -> bool {
     } = candidate;
     !has_c4_node(leading_selbri.as_ref())
         && assignments.iter().all(|assignment| {
-            let ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment;
+            let ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment.as_ref();
             operand_starts_with_old_unit(selbri.as_ref())
         })
 }
@@ -126,7 +126,7 @@ fn restricted_operand_starts_with_old_unit(selbri: &SelbriWithoutTerminalRelativ
         SelbriWithoutTerminalRelativeSyntax::ZantufaPriorityAssignedSelbriWithoutTerminalRelative(_)
         | SelbriWithoutTerminalRelativeSyntax::TaggedSelbriWithoutTerminalRelative(_) => false,
         SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(selbri) => {
-            match selbri {
+            match selbri.as_ref() {
                 UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(
                     _,
                 ) => false,
@@ -148,10 +148,11 @@ fn is_restricted_baseline_assignment(
         preceding_assignments,
         final_assignment,
     } = candidate;
-    let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei: _, selbri } = final_assignment;
+    let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei: _, selbri } =
+        final_assignment.as_ref();
     !has_c4_node(leading_selbri.as_ref())
         && preceding_assignments.iter().all(|assignment| {
-            let ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment;
+            let ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment.as_ref();
             operand_starts_with_old_unit(selbri.as_ref())
         })
         && restricted_operand_starts_with_old_unit(selbri.as_ref())

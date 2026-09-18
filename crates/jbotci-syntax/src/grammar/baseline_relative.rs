@@ -34,14 +34,14 @@ fn is_baseline_relative_continuation(value: &ExpRelativeContinuationSyntax) -> b
         connective,
         inner: _,
     } = value;
-    let ExpRelativeClauseConnectiveSyntax { na, se, head, nai } = connective;
+    let ExpRelativeClauseConnectiveSyntax { na, se, head, nai } = connective.as_ref();
     na.is_none() && se.is_none() && head.value.cmavo() == Some(Cmavo::Zihe) && nai.is_none()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -167,7 +167,7 @@ fn is_prohibited_connective_free_modifier(
         connective,
         inner: _,
     } = value;
-    match connective {
+    match connective.as_ref() {
         ExpSelbriRelativeClauseConnectiveSyntax::ZiheSelbriRelativeConnective(_)
         | ExpSelbriRelativeClauseConnectiveSyntax::ClosedIntervalConnective(_) => false,
         ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(connective) => {
@@ -176,12 +176,12 @@ fn is_prohibited_connective_free_modifier(
                 se: _,
                 head,
                 nai,
-            } = connective;
+            } = connective.as_ref();
             connective_free_modifier_placement(head, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Prohibited
         }
         ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(connective) => {
-            let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
+            let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective.as_ref();
             connective_free_modifier_placement(bihi, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Prohibited
         }
@@ -295,10 +295,13 @@ fn recovered_is_prohibited_connective_free_modifier(
 /// neither answer and is `Unproven`.
 #[requires(true)]
 #[ensures(true)]
-fn recovered_connective_free_modifier_placement<T>(
-    head: &recovered::WithFreeModifiers<recovered::Recovered<T>>,
-    nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>>>,
-) -> ConnectiveFreeModifierPlacement {
+fn recovered_connective_free_modifier_placement<T, F>(
+    head: &recovered::WithFreeModifiers<recovered::Recovered<T>, F>,
+    nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>, F>>,
+) -> ConnectiveFreeModifierPlacement
+where
+    F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
+{
     if valid(&head.value).is_none() {
         return ConnectiveFreeModifierPlacement::Unproven;
     }
@@ -399,7 +402,7 @@ fn body_shape(value: &ZantufaRelativeStatementSyntax) -> RelativeBodyShape {
         ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => {
             RelativeBodyShape::StatementWidth
         }
-        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base {
+        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base.as_ref() {
             ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => {
                 RelativeBodyShape::StatementWidth
             }
@@ -482,10 +485,10 @@ fn is_exp_selbri_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
     let RelativeClauseAtomSyntax::BridiRelativeClause(bridi) = value else {
         return false;
     };
-    let BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) = bridi else {
+    let BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) = bridi.as_ref() else {
         return false;
     };
-    match clause {
+    match clause.as_ref() {
         ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(clause) => {
             is_nohoi_marker(clause.poi.value.cmavo())
                 && clause.kuho.is_none()
@@ -535,7 +538,7 @@ fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool
                 se: _,
                 head,
                 nai,
-            } = connective;
+            } = connective.as_ref();
             connective_free_modifier_placement(head, nai.as_ref())
                 == ConnectiveFreeModifierPlacement::Permitted
                 && is_exp_selbri_relative_clause(inner)
@@ -552,7 +555,9 @@ fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool
 fn is_exp_selbri_relative_list(value: &RelativeClauseListSyntax) -> bool {
     let RelativeClauseListSyntax { first, additional } = value;
     is_exp_selbri_relative_clause(first)
-        && additional.iter().all(is_exp_selbri_relative_continuation)
+        && additional
+            .iter()
+            .all(|continuation| is_exp_selbri_relative_continuation(continuation))
 }
 
 #[requires(true)]
@@ -795,7 +800,10 @@ fn subsentence_opens_with_leading_sumti(value: &SubbridiSyntax) -> bool {
         SubbridiSyntax::PrenexSubbridi(_) => false,
         SubbridiSyntax::BridiSubbridi(bridi) => match bridi.0.as_ref() {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
-                matches!(bridi.leading_terms.first(), TermSyntax::SumtiTerm(_))
+                matches!(
+                    bridi.leading_terms.first().as_ref(),
+                    TermSyntax::SumtiTerm(_)
+                )
             }
             BridiSyntax::BareCuBridi(_) | BridiSyntax::RelationOnlyBridi(_) => false,
         },

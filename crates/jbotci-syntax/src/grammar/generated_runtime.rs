@@ -1346,7 +1346,7 @@ where
 impl<T, F> RecoveredSyntaxRequiredSlot for WithFreeModifiers<T, F> where T: RecoveredSyntaxSlot {}
 
 #[contract_trait]
-impl<T> RecoveredSyntaxSlot for super::generated_model::recovered::WithFreeModifiers<T>
+impl<T, F> RecoveredSyntaxSlot for super::generated_model::recovered::WithFreeModifiers<T, F>
 where
     T: RecoveredSyntaxSlot,
 {
@@ -1369,8 +1369,10 @@ where
     }
 }
 
-impl<T> RecoveredSyntaxRequiredSlot for super::generated_model::recovered::WithFreeModifiers<T> where
-    T: RecoveredSyntaxSlot
+impl<T, F> RecoveredSyntaxRequiredSlot
+    for super::generated_model::recovered::WithFreeModifiers<T, F>
+where
+    T: RecoveredSyntaxSlot,
 {
 }
 

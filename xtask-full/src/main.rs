@@ -2137,8 +2137,16 @@ fn verify_wasm_stack_test_cases(node: &Path, probe: &Path) -> Result<()> {
         .arg(probe)
         .arg("--list-cases")
         .output()
-        .with_context(|| format!("failed to list Wasm stack probe cases with `{}`", node.display()))?;
-    check_status(output.status, "node gentufa_compute_stack_probe.mjs --list-cases")?;
+        .with_context(|| {
+            format!(
+                "failed to list Wasm stack probe cases with `{}`",
+                node.display()
+            )
+        })?;
+    check_status(
+        output.status,
+        "node gentufa_compute_stack_probe.mjs --list-cases",
+    )?;
     let listed = String::from_utf8(output.stdout)
         .context("Wasm stack probe case list is not UTF-8")?
         .lines()

@@ -117,7 +117,7 @@ fn strict_origin(sumti: &SumtiSyntax) -> ExpLeadingSumtiOrigin {
     let super::generated_model::SimpleSumtiSyntax {
         base_sumti,
         relative_clauses: _,
-    } = simple;
+    } = simple.as_ref();
     match base_sumti.as_ref() {
         // A quantified operand is not baseline-leading-derivable: the operand tier restriction
         // is precisely what removed it from the baseline leading operand.  The rule's own

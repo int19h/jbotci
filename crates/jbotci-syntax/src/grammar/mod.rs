@@ -4980,7 +4980,7 @@ fn recovery_byte_at(tokens: &[Token], index: usize) -> usize {
 #[requires(true)]
 #[ensures(true)]
 fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
-    generated::generated_model::recovered::TextSyntax::RegularText(
+    generated::generated_model::recovered::TextSyntax::RegularText(std::sync::Arc::new(
         generated::generated_model::recovered::Recovered::valid(
             generated::generated_model::recovered::RegularTextSyntax {
                 leading_nai: Vec::new(),
@@ -4992,7 +4992,7 @@ fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
                 paragraphs: None,
             },
         ),
-    )
+    ))
 }
 
 #[requires(true)]
@@ -5021,7 +5021,7 @@ fn regular_text_mut(
 ) -> Option<&mut generated::generated_model::recovered::RegularTextSyntax> {
     match tree {
         generated::generated_model::recovered::TextSyntax::RegularText(regular_text) => {
-            recovered_value_mut(regular_text)
+            recovered_value_mut(std::sync::Arc::make_mut(regular_text))
         }
         generated::generated_model::recovered::TextSyntax::ExplicitXauhaLohoiText(_) => None,
     }

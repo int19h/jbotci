@@ -749,14 +749,123 @@ mod generated_model {
             computed: 0,
             child: Box::new(item.clone()),
         };
-        let first = ChoiceSyntax::ChoiceFirst(ChoiceFirstSyntax(Token));
-        let second = ChoiceSyntax::ChoiceSecond(ChoiceSecondSyntax(Box::new(item)));
+        let first = ChoiceSyntax::ChoiceFirst(std::sync::Arc::new(ChoiceFirstSyntax(Token)));
+        let second =
+            ChoiceSyntax::ChoiceSecond(std::sync::Arc::new(ChoiceSecondSyntax(Box::new(item))));
         let helper = HelperProductSyntax(Token);
 
         assert!(matches!(first, ChoiceSyntax::ChoiceFirst(_)));
         assert!(matches!(second, ChoiceSyntax::ChoiceSecond(_)));
         assert_eq!(helper.0, Token);
         assert_eq!(pair.computed, 0);
+    }
+}
+
+mod shared_containment {
+    use crate::Cmavo;
+    use std::sync::Arc;
+
+    #[bityzba::invariant(true)]
+    #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    pub struct Token;
+
+    type RecoveryTreeItem = ();
+
+    #[bityzba::invariant(true)]
+    #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+    pub struct WithFreeModifiers<T, F> {
+        pub value: T,
+        pub free_modifiers: Vec<F>,
+    }
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {
+            #![tree_recovered]
+            #![tree_with_free_modifiers]
+        }
+        model;
+
+        /// A leaf node used by every containment shape.
+        rule "leaf" leaf -> struct {
+            /// Its token.
+            field token <- cmavo(Be);
+        }
+        /// A modifier node, shared like other nodes.
+        rule "free modifier" free_modifier -> struct {
+            /// Its token.
+            field token <- cmavo(Be);
+        }
+        alias "optional leaf" optional_leaf = opt(leaf);
+
+        /// An enum whose payload is shared by default.
+        rule "sum" sum -> enum {
+            /// Shared leaf.
+            leaf,
+        }
+        /// Explicit inline enum payload.
+        rule "inline sum" inline_sum -> enum {
+            /// Inline leaf.
+            inline(leaf),
+        }
+        /// Nodes in containers use the same storage policy as direct fields.
+        rule "product" product -> struct {
+            /// Alias output is resolved structurally.
+            field optional <- optional_leaf;
+            /// Sequence elements are shared.
+            field sequence <- [zero_or_more leaf];
+            /// Nested explicit pointers retain their layers.
+            field nested <- arc(opt(leaf));
+            /// Box is preserved and its child is shared.
+            field boxed <- boxed(leaf);
+            /// Inline applies inside its enclosing option.
+            field inline_optional <- opt(inline(leaf));
+            /// Modifier elements are shared.
+            field modified <- cmavo(Be).wf();
+            /// Tuple element containment.
+            field pair: (Token, LeafSyntax) = unreachable!();
+            /// Fixed-array element containment.
+            #[tree_child(false)]
+            field array: [LeafSyntax; 2] = unreachable!();
+        }
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn stored_shapes_and_recovered_conversions_round_trip() {
+        let leaf = Arc::new(LeafSyntax(Token));
+        let value = ProductSyntax {
+            optional: Some(leaf.clone()),
+            sequence: vec![leaf.clone()],
+            nested: Arc::new(Some(leaf.clone())),
+            boxed: Box::new(leaf.clone()),
+            inline_optional: Some(LeafSyntax(Token)),
+            modified: WithFreeModifiers {
+                value: Token,
+                free_modifiers: vec![Arc::new(FreeModifierSyntax(Token))],
+            },
+            pair: (Token, leaf.clone()),
+            array: [leaf.clone(), leaf.clone()],
+        };
+        let recovered = recovered::ProductSyntax::from_valid(value.clone());
+        let _: &Option<Arc<recovered::Recovered<recovered::LeafSyntax>>> = &recovered.optional;
+        let _: &Vec<Arc<recovered::Recovered<recovered::FreeModifierSyntax>>> =
+            &recovered.modified.free_modifiers;
+        assert_eq!(recovered.try_into_valid().unwrap(), value);
+        let sum = SumSyntax::Leaf(leaf);
+        assert_eq!(
+            recovered::SumSyntax::from_valid(sum.clone())
+                .try_into_valid()
+                .unwrap(),
+            sum
+        );
+        let inline = InlineSumSyntax::Leaf(LeafSyntax(Token));
+        assert_eq!(
+            recovered::InlineSumSyntax::from_valid(inline.clone())
+                .try_into_valid()
+                .unwrap(),
+            inline
+        );
     }
 }
 
@@ -977,8 +1086,8 @@ mod binding_schema {
         assert_field_shapes(
             &compact,
             "boxed",
-            &format!("boxed({item})"),
-            &format!("boxed({recovered_item})"),
+            &format!("boxed(shared({item}))"),
+            &format!("boxed(shared({recovered_item}))"),
         );
         assert_field_shapes(
             &compact,
@@ -990,9 +1099,9 @@ mod binding_schema {
         assert_field_shapes(
             &compact,
             "with_free_modifiers",
-            &format!("with_free_modifiers(value({token}),free_modifier({free_modifier}))"),
+            &format!("with_free_modifiers(value({token}),free_modifier(shared({free_modifier})))"),
             &format!(
-                "with_free_modifiers(value({recovered_token}),free_modifiers(repeated(recovered_field({free_modifier}))))"
+                "with_free_modifiers(value({recovered_token}),free_modifiers(repeated(shared(recovered_field({free_modifier})))))"
             ),
         );
         let word_like =
@@ -1057,9 +1166,9 @@ mod binding_schema {
         assert_field_shapes(
             &compact,
             "run",
-            &format!("chain(first({item}),links(repeated({chain_link})))"),
+            &format!("chain(first(shared({item})),links(repeated(shared({chain_link}))))"),
             &format!(
-                "chain(first({recovered_item}),links(repeated(recovered_field({chain_link}))))"
+                "chain(first(shared({recovered_item})),links(repeated(shared(recovered_field({chain_link})))))"
             ),
         );
         assert!(
@@ -1291,15 +1400,15 @@ mod new_dsl {
         let external = ExternalSyntax { token: Token };
         let token_list = TokenListSyntax(vec1::Vec1::new(Token));
         let nested_token_list = NestedTokenListSyntax(vec1::Vec1::new(Token));
-        let item_choice = ItemChoiceSyntax::Item(item.clone());
-        let other_choice = ItemChoiceSyntax::OtherItem(other_item);
+        let item_choice = ItemChoiceSyntax::Item(std::sync::Arc::new(item.clone()));
+        let other_choice = ItemChoiceSyntax::OtherItem(std::sync::Arc::new(other_item));
         let external_choice = ExternalItemChoiceSyntax::External(external);
         let chain = ItemChainSyntax(jbotci_tree::Chain::new(
-            item.clone(),
-            vec![ChainLinkSyntax {
+            std::sync::Arc::new(item.clone()),
+            vec![std::sync::Arc::new(ChainLinkSyntax {
                 connector: Token,
-                item: item.clone(),
-            }],
+                item: std::sync::Arc::new(item.clone()),
+            })],
         ));
 
         assert_eq!(item.token, Token);
