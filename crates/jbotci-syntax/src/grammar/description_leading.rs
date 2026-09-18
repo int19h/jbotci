@@ -576,18 +576,19 @@ mod tests {
         let [token] = tokens.as_slice() else {
             panic!("`mi` must be exactly one word");
         };
-        let base = recovered::SumtiBaseSyntax::ProSumti(recovered::Recovered::valid(
+        let base = recovered::SumtiBaseSyntax::ProSumti(Arc::new(recovered::Recovered::valid(
             recovered::ProSumtiSyntax(recovered::WithFreeModifiers {
                 value: recovered::Recovered::valid(token.clone()),
                 free_modifiers: Vec::new(),
             }),
-        ));
-        let atom = recovered::SumtiAtomSyntax::SumtiBase(recovered::Recovered::valid(base));
-        let simple = recovered::SumtiForethoughtSyntax::SimpleSumti(recovered::Recovered::valid(
-            recovered::SimpleSumtiSyntax {
+        )));
+        let atom =
+            recovered::SumtiAtomSyntax::SumtiBase(Arc::new(recovered::Recovered::valid(base)));
+        let simple = recovered::SumtiForethoughtSyntax::SimpleSumti(Arc::new(
+            recovered::Recovered::valid(recovered::SimpleSumtiSyntax {
                 base_sumti: Arc::new(recovered::Recovered::valid(atom)),
                 relative_clauses: None,
-            },
+            }),
         ));
         recovered::SumtiSyntax {
             base_sumti: Arc::new(recovered::Recovered::valid(recovered::SumtiGroupedSyntax {
@@ -642,7 +643,7 @@ mod tests {
         connective_parsed: bool,
     ) -> recovered::Recovered<recovered::SumtiAfterthoughtTailSyntax> {
         let connective = if connective_parsed {
-            recovered::Recovered::valid(recovered::SumtiConnectiveSyntax::EkConnective(
+            recovered::Recovered::valid(recovered::SumtiConnectiveSyntax::EkConnective(Arc::new(
                 recovered::Recovered::valid(recovered::EkConnectiveSyntax {
                     na: None,
                     se: None,
@@ -652,12 +653,12 @@ mod tests {
                     },
                     nai: None,
                 }),
-            ))
+            )))
         } else {
             recovered::Recovered::Error(recovery_placeholder())
         };
         recovered::Recovered::valid(recovered::SumtiAfterthoughtTailSyntax {
-            connective,
+            connective: Arc::new(connective),
             sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
         })
     }
@@ -679,7 +680,7 @@ mod tests {
         };
         let connected = recovered::SumtiAfterthoughtSyntax {
             leading_sumti: afterthought.leading_sumti.clone(),
-            continuations: vec![continuation],
+            continuations: vec![Arc::new(continuation)],
         };
         sumti.base_sumti = Arc::new(recovered::Recovered::valid(recovered::SumtiGroupedSyntax {
             leading_sumti: Arc::new(recovered::Recovered::valid(connected)),
@@ -722,11 +723,11 @@ mod tests {
     #[ensures(true)]
     fn valid_continuation_over_a_synthesized_connective_is_unproven() {
         let continuation = recovered::Recovered::valid(recovered::SumtiAfterthoughtTailSyntax {
-            connective: recovered::Recovered::valid(
-                recovered::SumtiConnectiveSyntax::EkConnective(recovered::Recovered::Error(
-                    recovery_placeholder(),
+            connective: Arc::new(recovered::Recovered::valid(
+                recovered::SumtiConnectiveSyntax::EkConnective(Arc::new(
+                    recovered::Recovered::Error(recovery_placeholder()),
                 )),
-            ),
+            )),
             sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
         });
         let sumti = connected(continuation);
@@ -741,17 +742,17 @@ mod tests {
     #[ensures(true)]
     fn synthesized_quantifier_over_an_operand_is_unproven() {
         let mut sumti = recovered_bare_pro_sumti();
-        let quantified = recovered::SumtiAtomSyntax::QuantifiedSumti(recovered::Recovered::valid(
-            recovered::QuantifiedSumtiSyntax {
-                quantifier: recovered::Recovered::Error(recovery_placeholder()),
+        let quantified = recovered::SumtiAtomSyntax::QuantifiedSumti(Arc::new(
+            recovered::Recovered::valid(recovered::QuantifiedSumtiSyntax {
+                quantifier: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
                 inner_sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
-            },
+            }),
         ));
-        let simple = recovered::SumtiForethoughtSyntax::SimpleSumti(recovered::Recovered::valid(
-            recovered::SimpleSumtiSyntax {
+        let simple = recovered::SumtiForethoughtSyntax::SimpleSumti(Arc::new(
+            recovered::Recovered::valid(recovered::SimpleSumtiSyntax {
                 base_sumti: Arc::new(recovered::Recovered::valid(quantified)),
                 relative_clauses: None,
-            },
+            }),
         ));
         sumti.base_sumti = Arc::new(recovered::Recovered::valid(recovered::SumtiGroupedSyntax {
             leading_sumti: Arc::new(recovered::Recovered::valid(
@@ -793,18 +794,18 @@ mod tests {
     fn parsed_vuho_does_not_prove_an_unproven_core() {
         let attachment =
             recovered::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
-                recovered::Recovered::valid(
+                Arc::new(recovered::Recovered::valid(
                     recovered::ExperimentalBareVuhoSumtiAttachmentTailSyntax(
                         recovered::WithFreeModifiers {
                             value: recovered::Recovered::valid(one_token("vu'o")),
                             free_modifiers: Vec::new(),
                         },
                     ),
-                ),
+                )),
             );
         let sumti = recovered::SumtiSyntax {
             base_sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
-            vuho_attachment: Some(recovered::Recovered::valid(attachment)),
+            vuho_attachment: Some(Arc::new(recovered::Recovered::valid(attachment))),
         };
 
         assert!(!exp_only_discriminator_is_proven(&sumti));

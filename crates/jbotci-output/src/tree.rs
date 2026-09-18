@@ -1,5 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
+use std::sync::Arc;
+
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_morphology::{
@@ -839,7 +841,7 @@ fn generated_regular_text_tree_value(
         leading_connective,
         leading_i_statements,
         paragraphs,
-    } = regular_text;
+    } = regular_text.as_ref();
     let mut entries = Vec::new();
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "leading_nai",
@@ -967,7 +969,7 @@ fn labelled_tree_collection_entry_from_values(
 #[requires(true)]
 #[ensures(true)]
 fn generated_free_modifier_tree_values(
-    free_modifiers: &[generated_model::FreeModifierSyntax],
+    free_modifiers: &[Arc<generated_model::FreeModifierSyntax>],
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<TreeValue> {
@@ -977,7 +979,7 @@ fn generated_free_modifier_tree_values(
 #[requires(true)]
 #[ensures(true)]
 fn generated_free_modifier_tree_values_with_index(
-    free_modifiers: &[generated_model::FreeModifierSyntax],
+    free_modifiers: &[Arc<generated_model::FreeModifierSyntax>],
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
@@ -1874,7 +1876,7 @@ fn generated_token_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn generated_with_free_modifiers_token_tree_value(
-    token: &WithFreeModifiers<Token, generated_model::FreeModifierSyntax>,
+    token: &WithFreeModifiers<Token, Arc<generated_model::FreeModifierSyntax>>,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {

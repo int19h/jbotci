@@ -331,12 +331,12 @@ mod tests {
         let [token] = tokens.as_slice() else {
             panic!("`mi` must be exactly one word");
         };
-        recovered::SumtiBaseSyntax::ProSumti(recovered::Recovered::valid(
+        recovered::SumtiBaseSyntax::ProSumti(Arc::new(recovered::Recovered::valid(
             recovered::ProSumtiSyntax(recovered::WithFreeModifiers {
                 value: recovered::Recovered::valid(token.clone()),
                 free_modifiers: Vec::new(),
             }),
-        ))
+        )))
     }
 
     /// A permitted arm under a `Valid` wrapper is the only shape the restricted sites accept.

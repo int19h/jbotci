@@ -432,8 +432,8 @@ mod tests {
             recovered::Recovered::Error(missing_field())
         };
         recovered::Recovered::valid(recovered::RelativeClauseAtomSyntax::BridiRelativeClause(
-            recovered::Recovered::valid(
-                recovered::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(
+            Arc::new(recovered::Recovered::valid(
+                recovered::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(Arc::new(
                     recovered::Recovered::valid(recovered::RestrictiveBridiRelativeClauseSyntax {
                         poi: recovered::WithFreeModifiers {
                             value: poi,
@@ -442,8 +442,8 @@ mod tests {
                         subbridi: Arc::new(recovered::Recovered::Error(missing_field())),
                         kuho: None,
                     }),
-                ),
-            ),
+                )),
+            )),
         ))
     }
 
@@ -451,7 +451,7 @@ mod tests {
     #[ensures(true)]
     fn list(opener_parsed: bool) -> recovered::RelativeClauseListSyntax {
         recovered::RelativeClauseListSyntax {
-            first: atom(opener_parsed),
+            first: Arc::new(atom(opener_parsed)),
             additional: Vec::new(),
         }
     }

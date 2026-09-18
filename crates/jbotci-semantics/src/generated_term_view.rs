@@ -111,7 +111,7 @@ impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
 pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
     pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
     pub(crate) bridi_tail: &'syntax Arc<BoGroupedBridiTailSyntax>,
-    pub(crate) tail_terms: &'syntax [TermSyntax],
+    pub(crate) tail_terms: &'syntax [Arc<TermSyntax>],
 }
 
 impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
@@ -173,7 +173,7 @@ impl<'syntax> GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedSelbriBridiTailRef<'syntax> {
-    pub(crate) prefixes: &'syntax [ExpTailTermsPrefixSyntax],
+    pub(crate) prefixes: &'syntax [Arc<ExpTailTermsPrefixSyntax>],
     pub(crate) tail: &'syntax SelbriSimpleBridiTailSyntax,
 }
 
@@ -199,7 +199,9 @@ impl<'syntax> GeneratedSelbriBridiTailRef<'syntax> {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn prefix_terms(&self) -> impl Iterator<Item = &'syntax TermSyntax> + use<'syntax> {
-        self.prefixes.iter().flat_map(|prefix| prefix.terms.iter())
+        self.prefixes
+            .iter()
+            .flat_map(|prefix| prefix.terms.iter().map(Arc::as_ref))
     }
 }
 
@@ -207,7 +209,7 @@ impl<'syntax> GeneratedSelbriBridiTailRef<'syntax> {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedSelbriBridiTailWithoutTailTermsRef<'syntax> {
-    pub(crate) prefixes: &'syntax [ExpTailTermsPrefixSyntax],
+    pub(crate) prefixes: &'syntax [Arc<ExpTailTermsPrefixSyntax>],
     pub(crate) tail: &'syntax SelbriSimpleBridiTailWithoutTailTermsSyntax,
 }
 
@@ -241,7 +243,9 @@ impl<'syntax> GeneratedSelbriBridiTailWithoutTailTermsRef<'syntax> {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn prefix_terms(&self) -> impl Iterator<Item = &'syntax TermSyntax> + use<'syntax> {
-        self.prefixes.iter().flat_map(|prefix| prefix.terms.iter())
+        self.prefixes
+            .iter()
+            .flat_map(|prefix| prefix.terms.iter().map(Arc::as_ref))
     }
 }
 

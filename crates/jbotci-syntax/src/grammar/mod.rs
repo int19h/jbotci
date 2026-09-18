@@ -6523,7 +6523,7 @@ mod tests {
             generated::generated_model::recovered::Recovered::error(skipped_item.clone());
         let missing_paragraphs =
             generated::generated_model::recovered::Recovered::error(missing_item.clone());
-        let tree = generated::generated_model::recovered::TextSyntax::RegularText(
+        let tree = generated::generated_model::recovered::TextSyntax::RegularText(Arc::new(
             generated::generated_model::recovered::Recovered::valid(
                 generated::generated_model::recovered::RegularTextSyntax {
                     leading_nai: vec![skipped_slot],
@@ -6535,7 +6535,7 @@ mod tests {
                     paragraphs: Some(Arc::new(missing_paragraphs)),
                 },
             ),
-        );
+        ));
         (tree, skipped_item, missing_item, missing_span)
     }
 

@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_dialect::parse_dialect_definition;
