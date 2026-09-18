@@ -11370,6 +11370,27 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
+    fn then_is_not_a_supported_field_parser_combinator() {
+        // Sequencing in the DSL uses tuple expressions. `.then` appears in
+        // emitted chumsky code, but is not an accepted DSL method.
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+            rule "item" item -> struct {
+                field pair: (Token, Token) <- inline(cmavo(Be)).then(cmavo(Be));
+            }
+        })
+        .unwrap();
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("unsupported parser method in strict parser generation"),
+            "{expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
     fn strict_recursive_root_without_rule_reports_compile_error() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             env generated_runtime::SyntaxGrammarEnv;

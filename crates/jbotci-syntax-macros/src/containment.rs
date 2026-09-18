@@ -523,6 +523,11 @@ mod tests {
             ("Vec<Node>", "[..inline(nodes)]", "Vec<Node>"),
             ("Node", "choice(inline(node), inline(node))", "Node"),
             (
+                "(Node, Node)",
+                "(inline(node), node)",
+                "(Node, ::std::sync::Arc<Node>)",
+            ),
+            (
                 "Vec<Node>",
                 "[zero_or_more inline(node)].warn(warning)",
                 "Vec<Node>",
