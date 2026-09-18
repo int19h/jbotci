@@ -559,7 +559,11 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn add_alternative_error(&mut self, position: CursorInner, error: SyntaxParseError<'tokens>) {
+    pub(crate) fn add_alternative_error(
+        &mut self,
+        position: CursorInner,
+        error: SyntaxParseError<'tokens>,
+    ) {
         self.errors.alternative = Some(match self.errors.alternative.take() {
             Some(alternative) => match alternative.position.index.cmp(&position.index) {
                 Ordering::Equal => LocatedError {
@@ -1368,11 +1372,138 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::rc::Rc;
 
     use bityzba::{invariant, requires};
 
     use super::{Parser, Recursive, RecursiveFamily, SharedSyntaxOutput};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_boundary_preserves_memo_replay_cleanup_and_check_output() {
+        use super::*;
+        use crate::grammar::generated_runtime::rule_wrapper;
+
+        for context in [None, Some("test construct")] {
+            let options = crate::ParseOptions::default();
+            let mut state = ParserState::new(&[], &options);
+            let mut errors = Errors::default();
+            let mut input = InputRef {
+                input: (&[] as &[Spanned<Token>]).split_spanned(SimpleSpan::from(0..0)),
+                cursor: new!(CursorInner {
+                    index: 0,
+                    last_end: None
+                }),
+                errors: &mut errors,
+                state: &mut state,
+            };
+            let calls = Cell::new(0);
+            let payload = Rc::new(17_u8);
+            let parser = rule_wrapper(
+                "success",
+                context,
+                custom(|_| {
+                    calls.set(calls.get() + 1);
+                    Ok(Rc::clone(&payload))
+                }),
+            );
+            let first = parser.drive_emit(&mut input).unwrap();
+            assert_eq!(*first.clone().into_owned(), 17);
+            drop(first);
+            assert_eq!(calls.get(), 1);
+            assert_eq!(input.state.syntax_memo.len(), 1);
+            let retained = Rc::strong_count(&payload);
+            parser.drive_check(&mut input).unwrap();
+            assert_eq!(calls.get(), 1, "check mode replays the memo");
+            assert_eq!(
+                Rc::strong_count(&payload),
+                retained,
+                "check output is dropped"
+            );
+            assert!(input.errors.alternative.is_none());
+            assert!(input.state.syntax_memo_rule_frames.is_empty());
+            assert!(input.state.syntax_memo_in_progress.is_empty());
+            assert!(input.state.active_syntax_contexts.is_empty());
+            assert!(input.state.active_syntax_rules.is_empty());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_boundary_registers_failures_and_left_recursion_at_entry() {
+        use super::*;
+        use crate::grammar::generated_runtime::rule_wrapper;
+
+        for context in [None, Some("test construct")] {
+            let options = crate::ParseOptions::default();
+            let words = jbotci_morphology::segment_words_with_modifiers("mi klama").unwrap();
+            let tokens = crate::grammar::syntax_tokens(&words, &options);
+            let spanned = crate::grammar::tokens::spanned_tokens(&tokens);
+            let mut state = ParserState::new(&tokens, &options);
+            let mut errors = Errors::default();
+            let mut input = InputRef {
+                input: spanned.as_slice().split_spanned(SimpleSpan::from(8..8)),
+                cursor: new!(CursorInner {
+                    index: 0,
+                    last_end: None
+                }),
+                errors: &mut errors,
+                state: &mut state,
+            };
+            let entry = input.cursor;
+            let calls = Cell::new(0);
+            let parser = rule_wrapper(
+                "failure",
+                context,
+                custom(|input| {
+                    calls.set(calls.get() + 1);
+                    let before = input.cursor();
+                    assert!(input.next().is_some());
+                    Err::<(), _>(
+                        <SyntaxParseError as LabelError<RichPattern>>::expected_found(
+                            [RichPattern::Label("test failure".into())],
+                            None,
+                            input.span_since(&before),
+                        ),
+                    )
+                }),
+            );
+            assert!(parser.drive_emit(&mut input).is_err());
+            let first = input.take_alternative().unwrap();
+            assert_eq!(first.position, entry);
+            assert!(parser.drive_emit(&mut input).is_err());
+            let replay = input.take_alternative().unwrap();
+            assert_eq!(replay.position, entry);
+            assert!(first.error.same_report_content(&replay.error));
+            assert_eq!(calls.get(), 1, "memo failure replay skips the parser");
+            let memo_context = input.state.syntax_memo_context();
+            assert!(
+                input
+                    .state
+                    .enter_syntax_memo_rule("recursive", 0, memo_context)
+            );
+            let recursive = rule_wrapper(
+                "recursive",
+                context,
+                custom::<_, ()>(|_| {
+                    panic!("left recursion must be cut off before invoking the body");
+                }),
+            );
+            assert!(recursive.drive_emit(&mut input).is_err());
+            assert_eq!(input.take_alternative().unwrap().position, entry);
+            input
+                .state
+                .exit_syntax_memo_rule("recursive", 0, memo_context);
+            assert_eq!(input.cursor, entry);
+            assert!(input.state.syntax_memo_rule_frames.is_empty());
+            assert!(input.state.syntax_memo_in_progress.is_empty());
+            assert!(input.state.active_syntax_contexts.is_empty());
+            assert!(input.state.active_syntax_rules.is_empty());
+        }
+    }
 
     #[invariant(true)]
     struct DropProbe;
