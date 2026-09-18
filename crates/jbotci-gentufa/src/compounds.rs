@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use bityzba::expensive_requires;
+
 use super::*;
 
 #[invariant(true)]
@@ -139,23 +141,33 @@ struct IndexedLeaf<'a> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(path.len() == old(path.len()))]
 fn index_leaves<'a>(
     node: &'a BlockTreeNode,
     path: &mut Vec<RawSyntaxNodeId>,
     leaves: &mut Vec<IndexedLeaf<'a>>,
 ) {
-    path.push(node.id);
-    for part in &node.leaf_parts {
-        leaves.push(new!(IndexedLeaf {
-            part,
-            path: path.clone()
-        }));
+    // The collected tree can retain hundreds of grammar layers before collapse.
+    // Keep the ancestor iterators on the heap rather than the browser host stack.
+    let mut pending = vec![std::slice::from_ref(node).iter()];
+    while let Some(children) = pending.last_mut() {
+        if let Some(node) = children.next() {
+            path.push(node.id);
+            for part in &node.leaf_parts {
+                leaves.push(new!(IndexedLeaf {
+                    part,
+                    path: path.clone()
+                }));
+            }
+            pending.push(node.children.iter());
+        } else {
+            pending.pop();
+            if pending.is_empty() {
+                break;
+            }
+            path.pop();
+        }
     }
-    for child in &node.children {
-        index_leaves(child, path, leaves);
-    }
-    path.pop();
 }
 
 #[invariant(true)]
@@ -365,17 +377,26 @@ struct RewrittenNode {
     removed_groups: HashSet<usize>,
 }
 
-/// Consume only emptied donor paths. Surviving ancestors retain their own identities.
-#[requires(true)]
-#[ensures(ret.node.is_some() || !ret.removed_groups.is_empty())]
-fn rewrite_node(
+/// A suspended node owns its remaining children and completed child results.
+/// The structural-host flag travels separately until children are restored:
+/// a validated structural host cannot temporarily have no children.
+#[invariant(node.children.is_empty() && !node.keep_structural_host)]
+struct RewriteFrame {
     node: BlockTreeNode,
-    source: &str,
+    remaining_children: std::vec::IntoIter<BlockTreeNode>,
+    rewritten_children: Vec<BlockTreeNode>,
+    touched: HashSet<usize>,
+    keep_structural_host: bool,
+}
+
+#[expensive_requires(owners.values().all(|index| *index < groups.len()))]
+#[ensures(ret.node.id == old(node.id))]
+#[ensures(ret.remaining_children.len() == old(node.children.len()))]
+fn enter_rewrite_node(
+    node: BlockTreeNode,
     owners: &HashMap<RawSyntaxNodeId, usize>,
-    anchors: &HashMap<RawSyntaxNodeId, Vec<usize>>,
     groups: &mut [PreparedCompound<'_>],
-    shared_donors: &mut HashMap<RawSyntaxNodeId, Vec<BlockTreeNode>>,
-) -> RewrittenNode {
+) -> RewriteFrame {
     let mut node = node.into_data();
     let mut touched = HashSet::new();
     node.leaf_parts = node
@@ -391,16 +412,67 @@ fn rewrite_node(
             }
         })
         .collect();
-    let mut children = Vec::with_capacity(node.children.len());
-    for child in node.children {
-        let rewritten =
-            rewrite_node(child, source, owners, anchors, groups, shared_donors).into_data();
-        if let Some(child) = rewritten.node {
-            children.push(child);
+    let children = std::mem::take(&mut node.children);
+    let keep_structural_host = std::mem::take(&mut node.keep_structural_host);
+    new!(RewriteFrame {
+        node: BlockTreeNode::from_data(node),
+        rewritten_children: Vec::with_capacity(children.len()),
+        remaining_children: children.into_iter(),
+        touched,
+        keep_structural_host,
+    })
+}
+
+/// Consume only emptied donor paths. Surviving ancestors retain their own identities.
+#[requires(true)]
+#[ensures(ret.node.is_some() || !ret.removed_groups.is_empty())]
+fn rewrite_node(
+    node: BlockTreeNode,
+    source: &str,
+    owners: &HashMap<RawSyntaxNodeId, usize>,
+    anchors: &HashMap<RawSyntaxNodeId, Vec<usize>>,
+    groups: &mut [PreparedCompound<'_>],
+    shared_donors: &mut HashMap<RawSyntaxNodeId, Vec<BlockTreeNode>>,
+) -> RewrittenNode {
+    // Descend in the original order and finish each child before entering its
+    // next sibling. Both member collection and shared-donor routing depend on
+    // this ordering; a flat reverse-order traversal would change those effects.
+    let mut pending = vec![enter_rewrite_node(node, owners, groups).into_data()];
+    loop {
+        let frame = pending.last_mut().expect("root rewrite is pending");
+        if let Some(child) = frame.remaining_children.next() {
+            pending.push(enter_rewrite_node(child, owners, groups).into_data());
+            continue;
         }
-        touched.extend(rewritten.removed_groups);
+        let frame = RewriteFrame::from_data(pending.pop().expect("finished rewrite frame"));
+        let rewritten = finish_rewrite_node(frame, source, anchors, groups, shared_donors);
+        let Some(parent) = pending.last_mut() else {
+            return rewritten;
+        };
+        let rewritten = rewritten.into_data();
+        if let Some(child) = rewritten.node {
+            parent.rewritten_children.push(child);
+        }
+        parent.touched.extend(rewritten.removed_groups);
     }
-    node.children = children;
+}
+
+#[requires(frame.remaining_children.len() == 0)]
+#[expensive_requires(frame.touched.iter().all(|index| *index < groups.len()))]
+#[expensive_requires(anchors.values().flatten().all(|index| *index < groups.len()))]
+#[ensures(ret.node.is_some() || !ret.removed_groups.is_empty())]
+fn finish_rewrite_node(
+    frame: RewriteFrame,
+    source: &str,
+    anchors: &HashMap<RawSyntaxNodeId, Vec<usize>>,
+    groups: &mut [PreparedCompound<'_>],
+    shared_donors: &mut HashMap<RawSyntaxNodeId, Vec<BlockTreeNode>>,
+) -> RewrittenNode {
+    let frame = frame.into_data();
+    let mut node = frame.node.into_data();
+    let touched = frame.touched;
+    node.children = frame.rewritten_children;
+    node.keep_structural_host = frame.keep_structural_host;
     for &index in anchors.get(&node.id).into_iter().flatten() {
         let group = &mut groups[index];
         group.parts.sort_by_key(|part| part.range.byte_start);
@@ -777,6 +849,95 @@ mod tests {
             lookup_text: "test attestation".to_owned(),
             columns: NonZeroUsize::new(words.len()).unwrap(),
         })
+    }
+
+    #[requires(!children.is_empty() || !parts.is_empty())]
+    #[ensures(ret.id == RawSyntaxNodeId(id))]
+    fn deep_fixture_node(
+        id: usize,
+        children: Vec<BlockTreeNode>,
+        parts: Vec<BlockLeafPart>,
+        source: &str,
+    ) -> BlockTreeNode {
+        generated_block_tree_node_from_parts(
+            RawSyntaxNodeId(id),
+            None,
+            vec![RawSyntaxNodeId(id)],
+            "Fixture".to_owned(),
+            GentufaBlockRole::Normal,
+            None,
+            None,
+            Vec::new(),
+            vec!["Fixture".to_owned()],
+            children,
+            parts,
+            source,
+            None,
+        )
+        .expect("fixture has source coverage")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_compound_rewrite_preserves_order_and_structural_hosts() {
+        const DEPTH: usize = 2048;
+        let source = "ba pu ca";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let spec = cmavo_spec(&words[..2]);
+        let mut parts = words.iter().enumerate().map(|(index, word)| {
+            let word = word.bare_word().unwrap();
+            new!(BlockLeafPart {
+                id: RawSyntaxNodeId(index),
+                range: range_from_span(word.span()),
+                role: GentufaBlockRole::Normal,
+                error_index: None,
+                token_kind: Some(WordKind::Cmavo),
+                raw_text: word.canonical_phonemes(),
+                display_text: word.canonical_phonemes(),
+                origin: new!(BlockLeafOrigin::PlainCmavo {
+                    canonical: word.canonical_phonemes()
+                }),
+                columns: NonZeroUsize::new(1).unwrap(),
+            })
+        });
+        let own_part = parts.next().unwrap();
+        let donor = deep_fixture_node(11, Vec::new(), vec![parts.next().unwrap()], source);
+        let survivor = deep_fixture_node(12, Vec::new(), vec![parts.next().unwrap()], source);
+        let mut root = deep_fixture_node(10, vec![donor, survivor], vec![own_part], source)
+            .with_data(data! { keep_structural_host: true });
+        for depth in 0..DEPTH {
+            root = deep_fixture_node(20 + depth, vec![root], Vec::new(), source)
+                .with_data(data! { keep_structural_host: true });
+        }
+
+        let (mut root, applied, unapplied) = rewrite_compounds(root, source, &[spec]);
+        assert!(unapplied.is_empty());
+        assert_eq!(applied.len(), 1);
+        // Consume the chain iteratively too: recursive Drop must not disguise
+        // whether the traversal itself handles a deeply collected block tree.
+        for depth in (0..DEPTH).rev() {
+            let mut node = root.into_data();
+            assert_eq!(node.id, RawSyntaxNodeId(20 + depth));
+            assert!(node.keep_structural_host);
+            assert!(node.leaf_parts.is_empty());
+            assert_eq!(node.children.len(), 1);
+            root = node.children.pop().unwrap();
+        }
+        let node = root.into_data();
+        assert_eq!(node.id, RawSyntaxNodeId(10));
+        assert!(node.keep_structural_host);
+        assert!(node.leaf_parts.is_empty());
+        assert_eq!(node.children.len(), 2);
+        assert_eq!(node.children[0].id, RawSyntaxNodeId(12));
+        assert_eq!(node.children[0].leaf_parts[0].display_text, "ca");
+        let compound = &node.children[1];
+        assert_eq!(
+            node_compound_kind(compound),
+            Some(GentufaCompoundKind::CmavoSequence)
+        );
+        assert_eq!(compound.leaf_parts[0].display_text, "ba pu");
+        assert!(compound.node_ids.contains(&RawSyntaxNodeId(11)));
     }
 
     #[test]
