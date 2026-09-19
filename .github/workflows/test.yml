@@ -52,7 +52,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3.11-dev zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev libjavascriptcoregtk-4.0-bin pkg-config python3.11-dev zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -65,10 +65,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Show Node.js version
+      - name: Show JavaScript runtime versions
         run: |
           node --version
           npm --version
+          dpkg-query -W libjavascriptcoregtk-4.0-bin
 
       - name: Capture Rust version
         id: rustc
@@ -138,10 +139,10 @@ jobs:
           HOME: ${{ env.DIOXUS_HOME }}
         run: cargo run -r -p xtask-full -- wasm-stack-test --profile debug
 
-      - name: Run wasm stack probe (release)
+      - name: Run Node and JavaScriptCore wasm stack probes (release)
         env:
           HOME: ${{ env.DIOXUS_HOME }}
-        run: cargo run -r -p xtask-full -- wasm-stack-test --profile release
+        run: cargo run -r -p xtask-full -- wasm-stack-test --profile release --javascriptcore /usr/bin/jsc
 
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
