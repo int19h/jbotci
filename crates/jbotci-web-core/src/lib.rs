@@ -3116,8 +3116,7 @@ pub fn web_route_url(base_path: &str, route: &WebRoute) -> String {
     "only cukta metadata carries an image that the route alone can name"
 )]
 #[ensures(
-    matches!(route, WebRoute::Gentufa(state) if ret.title == gentufa_page_meta_title(state))
-        || !matches!(route, WebRoute::Gentufa(_)),
+    !matches!(route, WebRoute::Gentufa(state) if ret.title != gentufa_page_meta_title(state)),
     "the gentufa title restates the submitted text and so is final before any parse"
 )]
 pub fn build_route_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
@@ -3204,6 +3203,7 @@ pub mod blocking {
             .first()
             .and_then(|card| vlacku_definition_metadata_description(&card.definition))
     }
+
     #[requires(true)]
     #[ensures(true)]
     fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
@@ -3225,6 +3225,7 @@ pub mod blocking {
         let result = parse_gentufa_for_web(&request);
         build_gentufa_page_meta_from_result(base_path, &state, &result)
     }
+
     #[requires(true)]
     #[ensures(true)]
     fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
