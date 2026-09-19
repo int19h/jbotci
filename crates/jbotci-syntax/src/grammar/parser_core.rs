@@ -507,6 +507,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn parse<O, P>(&mut self, parser: P) -> Result<O, SyntaxParseError<'tokens>>
     where
         P: Parser<'tokens, O>,
@@ -868,7 +869,7 @@ impl<'tokens, O, F> Parser<'tokens, O> for Custom<F>
 where
     F: Fn(&mut InputRef<'tokens, '_>) -> Result<O, SyntaxParseError<'tokens>>,
 {
-    #[inline]
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.cursor;
         match (self.parser)(input) {

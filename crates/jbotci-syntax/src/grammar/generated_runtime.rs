@@ -386,146 +386,149 @@ where
     O: Clone + 'static,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-        let checkpoint = input.save();
-        let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-        let memo_context = input.state().syntax_memo_context();
-        input.state().begin_syntax_memo_rule_frame();
-        if input.state().trace_enabled() {
-            input.state().mark_syntax_memo_rule_recovery_sensitive();
-        }
-        let replay_hit = input
-            .state()
-            .syntax_memo_success(name, start_location, memo_context);
-        if let Some(hit) = replay_hit
-            && let Ok(value) = hit.value().downcast::<O>()
-        {
-            let replay = input.state().apply_syntax_memo_success(hit);
-            advance_to_location(input, replay.end_location);
-            input
+    custom::<_, _>(
+        #[inline(always)]
+        move |input: &mut InputRef<'tokens, '_>| {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            let memo_context = input.state().syntax_memo_context();
+            input.state().begin_syntax_memo_rule_frame();
+            if input.state().trace_enabled() {
+                input.state().mark_syntax_memo_rule_recovery_sensitive();
+            }
+            let replay_hit = input
                 .state()
-                .replay_syntax_memo_side_effects(&replay.side_effects);
-            input.state().finish_syntax_memo_rule_frame();
-            return Ok(SharedSyntaxOutput::from_shared(value));
-        }
-        let failure = input
-            .state()
-            .syntax_memo_failure(name, start_location, memo_context);
-        if let Some(failure) = failure {
-            input.rewind(checkpoint);
-            input
-                .state()
-                .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
-            input.state().finish_syntax_memo_rule_frame();
-            return Err(failure.into_error());
-        }
-        if !input
-            .state()
-            .enter_syntax_memo_rule(name, start_location, memo_context)
-        {
-            input.rewind(checkpoint);
-            input.state().finish_syntax_memo_rule_frame();
-            return Err(expected_found_named_at_current(input, name.to_owned()));
-        }
-        let warning_start = input.state().warning_count();
-        let start_byte = input.state().byte_offset_for_location(start_location);
-        input.state().observe_syntax_rule(name, start_byte);
-        let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
-        if track_recovery_branches {
-            input.state().push_syntax_rule(name, start_byte);
-        }
-        if let Some(construct) = context {
-            if input
-                .state()
-                .trace_should_record(TraceLevel::Top, construct)
+                .syntax_memo_success(name, start_location, memo_context);
+            if let Some(hit) = replay_hit
+                && let Ok(value) = hit.value().downcast::<O>()
             {
+                let replay = input.state().apply_syntax_memo_success(hit);
+                advance_to_location(input, replay.end_location);
                 input
                     .state()
-                    .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
-            }
-            input.state().push_syntax_context(construct, start_byte);
-        }
-        let failure_span = Cell::new(None);
-        let parse_result = if context.is_some() {
-            let parser = parser
-                .clone()
-                .map_err_with_state(|error, span: Span, _state| {
-                    failure_span.set(Some(span));
-                    error
-                });
-            input.parse(parser)
-        } else {
-            input.parse(&parser)
-        };
-        match parse_result {
-            Ok(output) => {
-                if let Some(construct) = context {
-                    let span = input.span_since(checkpoint.cursor());
-                    trace_rule_exit(input, construct, TraceEventKind::ConstructSuccess, span);
-                    input.state().pop_syntax_context();
-                }
-                let end_location = ParserInput::cursor_location(input.cursor().inner());
-                let warnings = input.state().warnings_since(warning_start);
-                let output = SharedSyntaxOutput::new(output);
-                let memo_value: Rc<dyn Any> = output.clone().into_shared();
-                input.state().store_syntax_memo_success(
-                    name,
-                    start_location,
-                    memo_context,
-                    end_location,
-                    super::SyntaxMemoValue::from_shared(memo_value),
-                    warnings,
-                );
-                if track_recovery_branches {
-                    input.state().pop_syntax_rule();
-                }
-                input
-                    .state()
-                    .exit_syntax_memo_rule(name, start_location, memo_context);
+                    .replay_syntax_memo_side_effects(&replay.side_effects);
                 input.state().finish_syntax_memo_rule_frame();
-                Ok(output)
+                return Ok(SharedSyntaxOutput::from_shared(value));
             }
-            Err(error) => {
-                let failure_location = ParserInput::cursor_location(input.cursor().inner());
-                let error = if let Some(construct) = context {
-                    let span = failure_span.get().unwrap_or(*error.span());
-                    trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
-                    let error = error.with_rule_context_from_progress(
-                        construct,
-                        start_byte,
-                        failure_location > start_location,
-                    );
-                    let error = error
-                        .with_active_contexts(input.state().active_syntax_context_stack())
-                        .with_active_rule_contexts(input.state().active_syntax_rule_stack());
-                    input.state().pop_syntax_context();
-                    error
-                } else {
-                    error
-                };
-                input.state().record_continuation_rule_failure(
-                    start_location,
-                    failure_location,
-                    &error,
-                );
-                if track_recovery_branches {
-                    input.state().pop_syntax_rule();
-                }
+            let failure = input
+                .state()
+                .syntax_memo_failure(name, start_location, memo_context);
+            if let Some(failure) = failure {
                 input.rewind(checkpoint);
-                input.state().store_syntax_memo_failure(
-                    name,
-                    start_location,
-                    memo_context,
-                    error.clone(),
+                input.state().replay_syntax_diagnostic_observations(
+                    failure.diagnostic_observations.as_ref(),
                 );
-                input
-                    .state()
-                    .exit_syntax_memo_rule(name, start_location, memo_context);
                 input.state().finish_syntax_memo_rule_frame();
-                Err(error)
+                return Err(failure.into_error());
             }
-        }
-    })
+            if !input
+                .state()
+                .enter_syntax_memo_rule(name, start_location, memo_context)
+            {
+                input.rewind(checkpoint);
+                input.state().finish_syntax_memo_rule_frame();
+                return Err(expected_found_named_at_current(input, name.to_owned()));
+            }
+            let warning_start = input.state().warning_count();
+            let start_byte = input.state().byte_offset_for_location(start_location);
+            input.state().observe_syntax_rule(name, start_byte);
+            let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
+            if track_recovery_branches {
+                input.state().push_syntax_rule(name, start_byte);
+            }
+            if let Some(construct) = context {
+                if input
+                    .state()
+                    .trace_should_record(TraceLevel::Top, construct)
+                {
+                    input
+                        .state()
+                        .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
+                }
+                input.state().push_syntax_context(construct, start_byte);
+            }
+            let failure_span = Cell::new(None);
+            let parse_result = if context.is_some() {
+                let parser = parser
+                    .clone()
+                    .map_err_with_state(|error, span: Span, _state| {
+                        failure_span.set(Some(span));
+                        error
+                    });
+                input.parse(parser)
+            } else {
+                input.parse(&parser)
+            };
+            match parse_result {
+                Ok(output) => {
+                    if let Some(construct) = context {
+                        let span = input.span_since(checkpoint.cursor());
+                        trace_rule_exit(input, construct, TraceEventKind::ConstructSuccess, span);
+                        input.state().pop_syntax_context();
+                    }
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    let warnings = input.state().warnings_since(warning_start);
+                    let output = SharedSyntaxOutput::new(output);
+                    let memo_value: Rc<dyn Any> = output.clone().into_shared();
+                    input.state().store_syntax_memo_success(
+                        name,
+                        start_location,
+                        memo_context,
+                        end_location,
+                        super::SyntaxMemoValue::from_shared(memo_value),
+                        warnings,
+                    );
+                    if track_recovery_branches {
+                        input.state().pop_syntax_rule();
+                    }
+                    input
+                        .state()
+                        .exit_syntax_memo_rule(name, start_location, memo_context);
+                    input.state().finish_syntax_memo_rule_frame();
+                    Ok(output)
+                }
+                Err(error) => {
+                    let failure_location = ParserInput::cursor_location(input.cursor().inner());
+                    let error = if let Some(construct) = context {
+                        let span = failure_span.get().unwrap_or(*error.span());
+                        trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
+                        let error = error.with_rule_context_from_progress(
+                            construct,
+                            start_byte,
+                            failure_location > start_location,
+                        );
+                        let error = error
+                            .with_active_contexts(input.state().active_syntax_context_stack())
+                            .with_active_rule_contexts(input.state().active_syntax_rule_stack());
+                        input.state().pop_syntax_context();
+                        error
+                    } else {
+                        error
+                    };
+                    input.state().record_continuation_rule_failure(
+                        start_location,
+                        failure_location,
+                        &error,
+                    );
+                    if track_recovery_branches {
+                        input.state().pop_syntax_rule();
+                    }
+                    input.rewind(checkpoint);
+                    input.state().store_syntax_memo_failure(
+                        name,
+                        start_location,
+                        memo_context,
+                        error.clone(),
+                    );
+                    input
+                        .state()
+                        .exit_syntax_memo_rule(name, start_location, memo_context);
+                    input.state().finish_syntax_memo_rule_frame();
+                    Err(error)
+                }
+            }
+        },
+    )
     .boxed()
 }
 
@@ -998,28 +1001,31 @@ pub(crate) fn recovered_greedy_many1_parser<'tokens, O: 'tokens>(
 pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
     alternatives: Vec<BoxedParser<'tokens, O>>,
 ) -> BoxedParser<'tokens, O> {
-    custom::<_, _>(move |input| {
-        let mut abandoned_error = None;
-        for alternative in &alternatives {
-            let checkpoint = input.save();
-            match input.parse(alternative) {
-                Ok(output) => {
-                    if let Some(error) = abandoned_error {
-                        input.state().record_diagnostic_candidate(error);
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let mut abandoned_error = None;
+            for alternative in &alternatives {
+                let checkpoint = input.save();
+                match input.parse(alternative) {
+                    Ok(output) => {
+                        if let Some(error) = abandoned_error {
+                            input.state().record_diagnostic_candidate(error);
+                        }
+                        return Ok(output);
                     }
-                    return Ok(output);
-                }
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    abandoned_error = Some(match abandoned_error {
-                        None => error,
-                        Some(previous) => merge_choice_errors(previous, error),
-                    });
+                    Err(error) => {
+                        input.rewind(checkpoint);
+                        abandoned_error = Some(match abandoned_error {
+                            None => error,
+                            Some(previous) => merge_choice_errors(previous, error),
+                        });
+                    }
                 }
             }
-        }
-        Err(abandoned_error.expect("ordered choice has at least one alternative"))
-    })
+            Err(abandoned_error.expect("ordered choice has at least one alternative"))
+        },
+    )
     .boxed()
 }
 
