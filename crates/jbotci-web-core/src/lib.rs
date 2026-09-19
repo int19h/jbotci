@@ -1654,7 +1654,7 @@ pub fn run_web_compute_request(
         }
         WebComputeRequest::CuktaPage { base_path, state } => {
             let page = build_cukta_web_page(&base_path, &state);
-            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            let meta = build_route_page_meta(&base_path, &WebRoute::Cukta(state));
             Ok(WebComputeResponse::CuktaPage { page, meta })
         }
         WebComputeRequest::CuktaSemanticPage {
@@ -1667,12 +1667,12 @@ pub fn run_web_compute_request(
             let page = build_cukta_semantic_web_page_with_loading(
                 &base_path, &state, &hits, message, loading,
             );
-            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            let meta = build_route_page_meta(&base_path, &WebRoute::Cukta(state));
             Ok(WebComputeResponse::CuktaPage { page, meta })
         }
         WebComputeRequest::VlackuPage { base_path, state } => {
             let result = build_vlacku_web_result(&state);
-            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            let meta = build_vlacku_page_meta_from_result(&base_path, &result);
             Ok(WebComputeResponse::VlackuPage { result, meta })
         }
         WebComputeRequest::VlackuSemanticPage {
@@ -1684,12 +1684,15 @@ pub fn run_web_compute_request(
         } => {
             let result =
                 build_vlacku_semantic_web_result_with_loading(&state, &hits, message, loading);
-            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            let meta = build_vlacku_page_meta_from_result(&base_path, &result);
             Ok(WebComputeResponse::VlackuPage { result, meta })
         }
         WebComputeRequest::GimfihiPage { base_path, state } => {
             let result = build_gimfihi_web_result(&state);
-            let meta = build_page_meta(&base_path, &WebRoute::Gimfihi(state));
+            let meta = match &result.output {
+                Some(output) => build_gimfihi_page_meta_from_output(&base_path, &state, output),
+                None => build_route_page_meta(&base_path, &WebRoute::Gimfihi(state)),
+            };
             Ok(WebComputeResponse::GimfihiPage { result, meta })
         }
         WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
@@ -3092,20 +3095,145 @@ pub fn web_route_url(base_path: &str, route: &WebRoute) -> String {
     }
 }
 
+/// Page metadata that follows from the route alone.
+///
+/// Gentufa metadata is derived from a parse, gimfi'i metadata from a generation
+/// run, and the vlacku description from a dictionary search. None of that work
+/// belongs on a UI thread, and none of it is needed there: the compute worker
+/// returns the finished metadata next to the result it already computed, so the
+/// UI renders this provisional metadata and adopts the worker's once it lands.
+/// Callers that can afford to run the parser, the generator and the search
+/// inline - server-side rendering on a blocking task - use
+/// [`blocking::build_computed_page_meta`] instead.
+///
+/// Cukta metadata is the one route-derived exception that touches embedded
+/// data: resolving a section reference initializes the embedded CLL site, which
+/// the UI thread loads for rendering the page anyway.
 #[requires(true)]
-#[ensures(true)]
-pub fn build_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
+#[ensures(
+    matches!(route, WebRoute::Gentufa(_) | WebRoute::Gimfihi(_) | WebRoute::Vlacku(_))
+        -> ret.image.is_none(),
+    "only cukta metadata carries an image that the route alone can name"
+)]
+#[ensures(
+    !matches!(route, WebRoute::Gentufa(state) if ret.title != gentufa_page_meta_title(state)),
+    "the gentufa title restates the submitted text and so is final before any parse"
+)]
+pub fn build_route_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
     match route {
-        WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
+        WebRoute::Gentufa(state) => build_gentufa_provisional_page_meta(base_path, state),
+        WebRoute::Gimfihi(state) => build_gimfihi_provisional_page_meta(base_path, state),
+        WebRoute::Vlacku(state) => build_vlacku_provisional_page_meta(base_path, state),
         WebRoute::Cukta(state) => build_cukta_page_meta(base_path, state),
-        WebRoute::Vlacku(state) => build_vlacku_page_meta(base_path, state),
-        WebRoute::Gimfihi(state) => build_gimfihi_page_meta(base_path, state),
-        WebRoute::Settings => page_meta(
-            "Settings".to_owned(),
-            "Browser-facing jbotci display and parser preferences.".to_owned(),
-            web_route_url(base_path, route),
-            None,
-        ),
+        WebRoute::Settings => build_settings_page_meta(base_path),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_settings_page_meta(base_path: &str) -> PageMeta {
+    page_meta(
+        "Settings".to_owned(),
+        "Browser-facing jbotci display and parser preferences.".to_owned(),
+        web_route_url(base_path, &WebRoute::Settings),
+        None,
+    )
+}
+
+/// Page metadata builders that run the gentufa parser, the gimfi'i generator
+/// and the dictionary search inline, so that a caller holding nothing but a
+/// route still gets the metadata a result would have produced.
+///
+/// The module is unavailable on wasm32: in the browser this work belongs to the
+/// compute worker, which builds its metadata from the result it already has,
+/// and a UI thread that ran a deep parse here is exactly the stall issue #913
+/// is about. Everything here therefore needs a caller that can block - the
+/// server's metadata task, or a native test.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod blocking {
+    use super::*;
+
+    /// Page metadata including everything only a parse, a generation run or a
+    /// search can supply: the gentufa bracket preview and social image, the
+    /// gimfi'i winning candidate, and the vlacku top match's definition.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn build_computed_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
+        match route {
+            WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
+            WebRoute::Gimfihi(state) => build_gimfihi_page_meta(base_path, state),
+            WebRoute::Vlacku(state) => build_vlacku_exact_page_meta(base_path, state),
+            // Cukta and settings metadata follows from the route alone, so
+            // there is nothing left for a computed pass to add.
+            WebRoute::Cukta(_) | WebRoute::Settings => build_route_page_meta(base_path, route),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.image.is_none())]
+    fn build_vlacku_exact_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+        let state = normalize_vlacku_state(state);
+        let exact_description = vlacku_exact_metadata_description(&state);
+        build_vlacku_page_meta_with_description(base_path, &state, exact_description)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
+        let query = state.query.trim();
+        if query.is_empty() {
+            return None;
+        }
+        let request = match state.mode {
+            VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
+            VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
+            VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
+        };
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[request],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: 1,
+                word_types: vlacku_search_word_type_filters(&state.word_types),
+                decompose_lujvo: true,
+            }),
+        );
+        output
+            .cards
+            .first()
+            .and_then(|card| vlacku_definition_metadata_description(&card.definition))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
+        let state = normalize_gentufa_state(state);
+        let request = GentufaWebRequest {
+            text: state.text.clone(),
+            options: GentufaWebOptions {
+                dialect: state.dialect.clone(),
+                view_mode: state.view_mode,
+                script: GentufaScript::Latin,
+                show_elided: state.show_elided,
+                show_glosses: state.show_glosses,
+                show_compounds: state.show_compounds,
+                show_definitions: false,
+                error_context_depth: 1,
+                phonemes: PhonemeRenderOptions::default(),
+            },
+        };
+        let result = parse_gentufa_for_web(&request);
+        build_gentufa_page_meta_from_result(base_path, &state, &result)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
+        let state = normalize_gimfihi_state(state);
+        match &build_gimfihi_web_result(&state).output {
+            Some(output) => build_gimfihi_page_meta_from_output(base_path, &state, output),
+            None => build_gimfihi_provisional_page_meta(base_path, &state),
+        }
     }
 }
 
@@ -3458,45 +3586,72 @@ fn parse_gentufa_script_query_value(value: &str) -> Option<GentufaScript> {
     }
 }
 
+/// Gentufa metadata for a route whose text has not been parsed yet: the title
+/// is already final, while the description and the social image stay at the
+/// values a blank parse would produce until
+/// [`build_gentufa_page_meta_from_result`] receives a real result.
 #[requires(true)]
-#[ensures(true)]
-fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
+#[ensures(ret.title == gentufa_page_meta_title(state))]
+#[ensures(ret.image.is_none())]
+fn build_gentufa_provisional_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
     let state = normalize_gentufa_state(state);
-    let request = GentufaWebRequest {
-        text: state.text.clone(),
-        options: GentufaWebOptions {
-            dialect: state.dialect.clone(),
-            view_mode: state.view_mode,
-            script: GentufaScript::Latin,
-            show_elided: state.show_elided,
-            show_glosses: state.show_glosses,
-            show_compounds: state.show_compounds,
-            show_definitions: false,
-            error_context_depth: 1,
-            phonemes: PhonemeRenderOptions::default(),
-        },
-    };
-    let result = parse_gentufa_for_web(&request);
-    build_gentufa_page_meta_from_result(base_path, &state, &result)
+    page_meta(
+        gentufa_page_meta_title(&state),
+        GENTUFA_DEFAULT_METADATA_DESCRIPTION.to_owned(),
+        gentufa_web_url(base_path, &state),
+        None,
+    )
 }
 
+/// The gentufa page title restates the submitted text, so it needs no parse and
+/// does not change once one has run.
 #[requires(true)]
-#[ensures(true)]
-fn build_gentufa_page_meta_from_result(
+#[ensures(!ret.is_empty())]
+fn gentufa_page_meta_title(state: &GentufaWebState) -> String {
+    let text = state.text.trim();
+    if text.is_empty() {
+        "jbotci gentufa".to_owned()
+    } else {
+        format!("{text} - jbotci gentufa")
+    }
+}
+
+const GENTUFA_DEFAULT_METADATA_DESCRIPTION: &str =
+    "Parse Lojban text into bracketed blocks, table rows, and reference arrows.";
+
+/// Gentufa metadata carrying what a parse contributes: the bracket preview or
+/// the leading diagnostic as the description, and a social image for a
+/// successful parse.
+///
+/// A result may describe text the route does not carry: the default gentufa
+/// view parses [`DEFAULT_GENTUFA_TEXT`] so the page is not blank, while the URL
+/// stays bare and the route state holds no text at all. Metadata describes the
+/// route, so that sample contributes nothing here - its bracket preview would
+/// describe text no reader submitted, and its social image would be a
+/// `gentufa.png` naming no text, which the export endpoint rejects. An empty
+/// route text therefore yields exactly what a blank parse does.
+#[requires(true)]
+#[ensures(ret.title == gentufa_page_meta_title(state))]
+#[ensures(
+    state.text.trim().is_empty() -> ret.image.is_none(),
+    "a route with no text names no image to export"
+)]
+#[ensures(
+    state.text.trim().is_empty() -> ret.description == GENTUFA_DEFAULT_METADATA_DESCRIPTION,
+    "a route with no text is described by the blank page, not by a parse of other text"
+)]
+pub fn build_gentufa_page_meta_from_result(
     base_path: &str,
     state: &GentufaWebState,
     result: &GentufaWebResult,
 ) -> PageMeta {
     let state = normalize_gentufa_state(state);
-    let title = if state.text.trim().is_empty() {
-        "jbotci gentufa".to_owned()
-    } else {
-        format!("{} - jbotci gentufa", state.text.trim())
-    };
+    if state.text.is_empty() {
+        return build_gentufa_provisional_page_meta(base_path, &state);
+    }
+    let title = gentufa_page_meta_title(&state);
     let description = match result {
-        GentufaWebResult::Blank => {
-            "Parse Lojban text into bracketed blocks, table rows, and reference arrows.".to_owned()
-        }
+        GentufaWebResult::Blank => GENTUFA_DEFAULT_METADATA_DESCRIPTION.to_owned(),
         GentufaWebResult::Success(success) => truncate_preview(&success.brackets_text, 160),
         GentufaWebResult::Error(error) => gentufa_error_metadata_description(error, &state.text),
     };
@@ -3710,9 +3865,50 @@ fn build_cukta_page_meta(base_path: &str, state: &CuktaWebState) -> PageMeta {
     }
 }
 
+/// Vlacku metadata for a route whose search has not run yet. The description
+/// restates the query and the search mode; the leading definition of the top
+/// match, which only a search can supply, arrives with
+/// [`build_vlacku_page_meta_from_result`].
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_vlacku_provisional_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+    build_vlacku_page_meta_with_description(base_path, state, None)
+}
+
+/// Vlacku metadata carrying the leading definition of the top match, taken from
+/// a search the caller has already run.
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+pub fn build_vlacku_page_meta_from_result(base_path: &str, result: &VlackuWebResult) -> PageMeta {
+    build_vlacku_page_meta_with_description(
+        base_path,
+        &result.state,
+        vlacku_result_metadata_description(result),
+    )
+}
+
+/// Only an exact lookup names the one entry the reader asked for: a sound
+/// search ranks approximations and a meaning search carries no dictionary cards
+/// at all, so neither describes its page by a first card.
 #[requires(true)]
 #[ensures(true)]
-fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+fn vlacku_result_metadata_description(result: &VlackuWebResult) -> Option<String> {
+    match result.state.mode {
+        VlackuWebMode::Word | VlackuWebMode::Rafsi => {}
+        VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
+    }
+    vlacku_definition_metadata_description(&result.cards.first()?.definition_source)
+}
+
+/// `exact_description` describes the top match where the caller knows it;
+/// without it the query and the search mode are the whole description.
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_vlacku_page_meta_with_description(
+    base_path: &str,
+    state: &VlackuWebState,
+    exact_description: Option<String>,
+) -> PageMeta {
     let state = normalize_vlacku_state(state);
     let query = state.query.trim();
     page_meta(
@@ -3723,7 +3919,7 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
         },
         if query.is_empty() {
             "Browse the embedded dictionary and Lensisku import metadata.".to_owned()
-        } else if let Some(description) = vlacku_exact_metadata_description(&state) {
+        } else if let Some(description) = exact_description {
             description
         } else {
             match state.mode {
@@ -3738,14 +3934,14 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
     )
 }
 
+/// Gimfi'i metadata for a route whose candidates have not been generated yet.
+/// The winning candidate is what a generation run contributes to the title and
+/// the description, so both stay at their defaults until
+/// [`build_gimfihi_page_meta_from_output`] receives real output.
 #[requires(true)]
-#[ensures(true)]
-fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
+#[ensures(ret.image.is_none())]
+fn build_gimfihi_provisional_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
     let state = normalize_gimfihi_state(state);
-    let result = build_gimfihi_web_result(&state);
-    if let Some(output) = &result.output {
-        return build_gimfihi_page_meta_from_output(base_path, &state, output);
-    }
     page_meta(
         "jbotci gimfi'i".to_owned(),
         gimfihi_default_metadata_description(state.scorer),
@@ -3762,17 +3958,12 @@ pub fn build_gimfihi_page_meta_from_output(
     output: &GimfihiOutput,
 ) -> PageMeta {
     let state = normalize_gimfihi_state(state);
-    if let Some(candidate) = output.highlighted_word.as_ref().or(output.winner.as_ref()) {
-        return page_meta(
-            format!("{candidate} - jbotci gimfi'i"),
-            gimfihi_metadata_description(candidate, &output.resolved_sources, state.scorer),
-            gimfihi_web_url(base_path, &state),
-            None,
-        );
-    }
+    let Some(candidate) = output.highlighted_word.as_ref().or(output.winner.as_ref()) else {
+        return build_gimfihi_provisional_page_meta(base_path, &state);
+    };
     page_meta(
-        "jbotci gimfi'i".to_owned(),
-        gimfihi_default_metadata_description(state.scorer),
+        format!("{candidate} - jbotci gimfi'i"),
+        gimfihi_metadata_description(candidate, &output.resolved_sources, state.scorer),
         gimfihi_web_url(base_path, &state),
         None,
     )
@@ -3816,37 +4007,9 @@ fn gimfihi_default_metadata_description(scorer: GimfihiScorer) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
-    let query = state.query.trim();
-    if query.is_empty() {
-        return None;
-    }
-    let request = match state.mode {
-        VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
-        VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
-        VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
-    };
-    let output = run_vlacku_requests(
-        jbotci_dictionary_data::english(),
-        &[request],
-        &VlackuSearchOptions::default().with_data(data! {
-            count: 1,
-            word_types: vlacku_search_word_type_filters(&state.word_types),
-            decompose_lujvo: true,
-        }),
-    );
-    output
-        .cards
-        .first()
-        .and_then(vlacku_card_metadata_description)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn vlacku_card_metadata_description(card: &VlackuCard) -> Option<String> {
-    let place_map = DefinitionPlaceMap::from_definition(&card.definition);
-    let definition = card
-        .definition
+fn vlacku_definition_metadata_description(definition_source: &str) -> Option<String> {
+    let place_map = DefinitionPlaceMap::from_definition(definition_source);
+    let definition = definition_source
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())?;
@@ -8701,8 +8864,89 @@ mod tests {
             "/jbotci/vlacku"
         );
         assert_eq!(
-            build_page_meta("", &parse_web_route("/", "")).title,
+            blocking::build_computed_page_meta("", &parse_web_route("/", "")).title,
             "jbotci vlacku"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn route_page_meta_defers_parse_and_generation_derived_fields() {
+        // Route metadata is what a UI thread may build; it stops short of the
+        // gentufa parser and the gimfi'i generator, whose results reach the
+        // document through the compute worker instead (issue #913).
+        let gentufa_state = GentufaWebState {
+            text: "mi klama".to_owned(),
+            dialect: None,
+            view_mode: GentufaWebViewMode::Blocks,
+            show_elided: false,
+            show_glosses: false,
+            show_compounds: true,
+        };
+        let gentufa_route = build_route_page_meta("", &WebRoute::Gentufa(gentufa_state.clone()));
+        let gentufa_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Gentufa(gentufa_state.clone()));
+        assert_eq!(gentufa_route.title, gentufa_computed.title);
+        assert_eq!(gentufa_route.canonical_url, gentufa_computed.canonical_url);
+        assert_eq!(
+            gentufa_route.description,
+            GENTUFA_DEFAULT_METADATA_DESCRIPTION
+        );
+        assert_ne!(gentufa_route.description, gentufa_computed.description);
+        assert!(gentufa_route.image.is_none());
+        assert!(gentufa_computed.image.is_some());
+        // Blank metadata is what an unparsed route reports, so the two agree
+        // whenever there is nothing to parse.
+        let blank_state = GentufaWebState::default();
+        assert_eq!(
+            build_route_page_meta("", &WebRoute::Gentufa(blank_state.clone())),
+            blocking::build_computed_page_meta("", &WebRoute::Gentufa(blank_state))
+        );
+
+        let gimfihi_state = gimfihi_sample_state(Some("nanpe"));
+        let gimfihi_route = build_route_page_meta("", &WebRoute::Gimfihi(gimfihi_state.clone()));
+        let gimfihi_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Gimfihi(gimfihi_state));
+        assert_eq!(gimfihi_route.title, "jbotci gimfi'i");
+        assert_eq!(gimfihi_computed.title, "nanpe - jbotci gimfi'i");
+        assert_eq!(gimfihi_route.canonical_url, gimfihi_computed.canonical_url);
+        assert_ne!(gimfihi_route.description, gimfihi_computed.description);
+
+        // The vlacku description names the top match, which takes a dictionary
+        // search; the route reports the query and the mode instead.
+        let vlacku_state = VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "klama".to_owned(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        };
+        let vlacku_route = build_route_page_meta("", &WebRoute::Vlacku(vlacku_state.clone()));
+        let vlacku_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(vlacku_state.clone()));
+        assert_eq!(vlacku_route.title, vlacku_computed.title);
+        assert_eq!(vlacku_route.canonical_url, vlacku_computed.canonical_url);
+        assert_eq!(
+            vlacku_route.description,
+            "Exact lookup for \u{201c}klama\u{201d}."
+        );
+        assert!(
+            vlacku_computed.description.contains("comes/goes"),
+            "{}",
+            vlacku_computed.description
+        );
+        // The result-derived builder reproduces the computed description from a
+        // search the caller already has.
+        assert_eq!(
+            build_vlacku_page_meta_from_result("", &build_vlacku_web_result(&vlacku_state)),
+            vlacku_computed
+        );
+
+        // With nothing to parse, generate or look up, both builders agree.
+        let blank_vlacku = VlackuWebState::default();
+        assert_eq!(
+            build_route_page_meta("", &WebRoute::Vlacku(blank_vlacku.clone())),
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(blank_vlacku))
         );
     }
 
@@ -8711,7 +8955,7 @@ mod tests {
     #[ensures(true)]
     fn gimfihi_metadata_uses_highlighted_candidate_and_sources() {
         let state = gimfihi_sample_state(Some("nanpe"));
-        let meta = build_page_meta("", &WebRoute::Gimfihi(state));
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state));
 
         assert_eq!(meta.title, "nanpe - jbotci gimfi'i");
         assert!(meta.description.starts_with("nanpe = cmn:uan ×347"));
@@ -8781,9 +9025,12 @@ mod tests {
         let mut state = GimfihiWebState::default();
         state.scorer = GimfihiScorer::Phonetic;
 
-        let meta = build_gimfihi_page_meta("", &state);
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state.clone()));
 
         assert!(meta.description.contains("phonetic scoring"));
+        // With no source words there is nothing to generate, so the route
+        // reports the same thing.
+        assert_eq!(meta, build_route_page_meta("", &WebRoute::Gimfihi(state)));
         assert!(meta.canonical_url.contains("scorer=phonetic"));
     }
 
@@ -8792,7 +9039,7 @@ mod tests {
     #[ensures(true)]
     fn gimfihi_metadata_falls_back_to_winner_for_invalid_highlight() {
         let state = gimfihi_sample_state(Some("zzzzz"));
-        let meta = build_page_meta("", &WebRoute::Gimfihi(state));
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state));
 
         assert_eq!(meta.title, "kanpe - jbotci gimfi'i");
         assert!(meta.description.starts_with("kanpe = "));
@@ -9019,7 +9266,7 @@ mod tests {
     fn web_route_and_metadata_follow_v0_page_details() {
         let route = parse_web_route("/vlacku/klama", "");
         assert_eq!(web_route_url("/jbotci", &route), "/jbotci/vlacku/klama");
-        let meta = build_page_meta("/jbotci", &route);
+        let meta = blocking::build_computed_page_meta("/jbotci", &route);
         assert_eq!(meta.title, "klama - jbotci vlacku");
         assert!(
             meta.description.contains("comes/goes"),
@@ -9029,10 +9276,11 @@ mod tests {
         assert_eq!(meta.canonical_url, "/jbotci/vlacku/klama");
         assert!(meta.image.is_none());
 
-        let blank_vlacku = build_page_meta("", &parse_web_route("/vlacku", ""));
+        let blank_vlacku = blocking::build_computed_page_meta("", &parse_web_route("/vlacku", ""));
         assert_eq!(blank_vlacku.title, "jbotci vlacku");
 
-        let rafsi = build_page_meta("", &parse_web_route("/vlacku", "mode=rafsi&q=kla"));
+        let rafsi =
+            blocking::build_computed_page_meta("", &parse_web_route("/vlacku", "mode=rafsi&q=kla"));
         assert_eq!(rafsi.title, "kla - jbotci vlacku");
         assert!(
             rafsi.description.contains("comes/goes"),
@@ -9040,7 +9288,7 @@ mod tests {
             rafsi.description
         );
 
-        let gentufa = build_page_meta(
+        let gentufa = blocking::build_computed_page_meta(
             "",
             &WebRoute::Gentufa(GentufaWebState {
                 text: "mi klama".to_owned(),
@@ -9059,7 +9307,7 @@ mod tests {
         assert!(image.width > 0);
         assert!(image.height > 0);
 
-        let failure = build_page_meta(
+        let failure = blocking::build_computed_page_meta(
             "",
             &WebRoute::Gentufa(GentufaWebState {
                 text: "perhaps".to_owned(),
@@ -9079,14 +9327,16 @@ mod tests {
         assert!(failure.description.contains("\nreason:"));
         assert!(failure.image.is_none());
 
-        let first_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.1", ""));
+        let first_cukta =
+            blocking::build_computed_page_meta("", &parse_web_route("/cukta/section/1.1", ""));
         assert!(
             first_cukta.title.contains("Chapter 1."),
             "{}",
             first_cukta.title
         );
         assert!(first_cukta.image.is_some());
-        let later_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.2", ""));
+        let later_cukta =
+            blocking::build_computed_page_meta("", &parse_web_route("/cukta/section/1.2", ""));
         assert!(
             later_cukta.title.contains("Chapter 1."),
             "{}",
@@ -9099,7 +9349,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn page_head_assets_follow_metadata_canonical_base_path() {
-        let meta = build_page_meta("/jbotci", &parse_web_route("/vlacku/klama", ""));
+        let meta =
+            blocking::build_computed_page_meta("/jbotci", &parse_web_route("/vlacku/klama", ""));
         let head = build_page_head(&meta);
 
         assert_eq!(head.title, "klama - jbotci vlacku");
@@ -9140,6 +9391,45 @@ mod tests {
             block.contains("content=\"https://example.test/jbotci/assets/social/image&quot;.png\"")
         );
         assert!(block.contains(META_BLOCK_END));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_compute_gentufa_metadata_ignores_a_parse_of_text_the_route_lacks() {
+        // The default gentufa view parses a sample so the page is not blank
+        // while its URL stays bare, which is exactly the payload the client
+        // sends: empty route state, non-empty parse request. Metadata describes
+        // the route, so the sample's bracket preview and social image stay out
+        // of it - a gentufa.png naming no text is not even a valid export.
+        let state = GentufaWebState::default();
+        assert!(state.text.is_empty());
+        let request = GentufaWebRequest {
+            text: DEFAULT_GENTUFA_TEXT.to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+
+        let response = run_web_compute_request(WebComputeRequest::GentufaPage {
+            base_path: "/jbotci".to_owned(),
+            state: state.clone(),
+            request,
+        })
+        .expect("gentufa compute succeeds");
+
+        let WebComputeResponse::GentufaPage { result, meta } = response else {
+            panic!("expected gentufa page response");
+        };
+        assert!(
+            matches!(result, GentufaWebResult::Success(_)),
+            "the default sample parses, so only the route keeps its parse out of the metadata"
+        );
+        assert_eq!(
+            meta,
+            build_route_page_meta("/jbotci", &WebRoute::Gentufa(state))
+        );
+        assert_eq!(meta.canonical_url, "/jbotci/gentufa");
+        assert_eq!(meta.description, GENTUFA_DEFAULT_METADATA_DESCRIPTION);
+        assert!(meta.image.is_none());
     }
 
     #[test]
@@ -9193,7 +9483,7 @@ mod tests {
         assert_eq!(page, build_cukta_web_page("", &cukta_state));
         assert_eq!(
             meta,
-            build_page_meta("", &WebRoute::Cukta(cukta_state.clone()))
+            build_route_page_meta("", &WebRoute::Cukta(cukta_state.clone()))
         );
 
         let vlacku_state = VlackuWebState {
@@ -9211,7 +9501,13 @@ mod tests {
             panic!("expected vlacku page response");
         };
         assert_eq!(result, build_vlacku_web_result(&vlacku_state));
-        assert_eq!(meta, build_page_meta("", &WebRoute::Vlacku(vlacku_state)));
+        assert_eq!(meta, build_vlacku_page_meta_from_result("", &result));
+        // The exact description comes out of the search the worker already ran,
+        // so it matches what a blocking caller gets from its own search.
+        assert_eq!(
+            meta,
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(vlacku_state))
+        );
     }
 
     #[test]
@@ -9250,7 +9546,7 @@ mod tests {
             })
             .expect("at least one CLL chapter image");
 
-        let meta = build_page_meta(
+        let meta = blocking::build_computed_page_meta(
             "/jbotci",
             &WebRoute::Cukta(CuktaWebState {
                 view: CuktaWebView::Section {
