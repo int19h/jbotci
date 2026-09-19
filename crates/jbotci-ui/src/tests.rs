@@ -3408,6 +3408,249 @@ fn parse_test_route(base_path: &str, href: &str) -> JbotciRoute {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn cukta_edition_release_fit_is_exact_at_the_boundary() {
+    // Exactly filling the row still fits: the tag is shown whole, with nothing
+    // left over and nothing missing.
+    assert!(cukta_edition_release_fits(268.0, 268.0));
+    assert!(cukta_edition_release_fits(268.5, 268.5));
+    assert!(cukta_edition_release_fits(268.0, 267.99));
+
+    // Any excess at all, however small, means the tag would not fit on the row,
+    // so it is not shown. There is no tolerance to round it back in.
+    assert!(!cukta_edition_release_fits(268.0, 268.01));
+    assert!(!cukta_edition_release_fits(268.0, 268.5));
+    assert!(!cukta_edition_release_fits(268.0, 269.0));
+    assert!(!cukta_edition_release_fits(268.0, 300.0));
+
+    // A row with no room cannot hold a tag that needs any.
+    assert!(!cukta_edition_release_fits(0.0, 1.0));
+
+    // Two zeros satisfy the comparison, but they are never a shown tag: a row
+    // or a probe that measures as nothing has not been laid out yet, and both
+    // measurers refuse that case before the predicate is ever consulted. The
+    // refusal is asserted by
+    // `cukta_edition_release_fit_after_measure_never_reuses_an_old_verdict`,
+    // which owns the policy for an unmeasurable row.
+    assert!(cukta_edition_release_fits(0.0, 0.0));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_never_shows_a_tag_measured_in_another_layout() {
+    let pinned = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let overlay = CuktaEditionLayoutKey {
+        uses_autohide: true,
+        visible: true,
+    };
+
+    let measured = new!(CuktaEditionReleaseFit {
+        key: Some(pinned),
+        fits: true,
+    });
+    assert!(measured.shows_release_tag(pinned));
+
+    // The same verdict says nothing about a row the overlay rules size, so it
+    // must not be honoured there.
+    assert!(!measured.shows_release_tag(overlay));
+
+    // Rendering into that other layout clears it rather than carrying it over,
+    // so the first painted frame of the changed row has no tag in it.
+    let carried = cukta_edition_release_fit_for_layout(measured, overlay);
+    assert_eq!(carried.key, Some(overlay));
+    assert!(!carried.fits);
+    assert!(!carried.shows_release_tag(overlay));
+
+    // Re-rendering the layout it was measured in keeps it.
+    assert_eq!(
+        cukta_edition_release_fit_for_layout(measured, pinned),
+        measured
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_after_measure_never_reuses_an_old_verdict() {
+    let key = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let fitted = new!(CuktaEditionReleaseFit {
+        key: Some(key),
+        fits: true,
+    });
+
+    // A row that cannot be measured is not evidence that the tag still fits.
+    let unmeasurable = cukta_edition_release_fit_after_measure(fitted, None);
+    assert_eq!(unmeasurable.key, Some(key));
+    assert!(!unmeasurable.fits);
+    assert!(!unmeasurable.shows_release_tag(key));
+
+    // Nor is a measurement that says it does not.
+    assert!(!cukta_edition_release_fit_after_measure(fitted, Some(false)).fits);
+
+    // A measurement taken while no layout is current cannot produce a fit, so
+    // a measure racing the page's teardown cannot leave a reusable verdict.
+    let unmounted = cukta_edition_release_fit_unmounted();
+    assert!(unmounted.key.is_none());
+    assert!(!unmounted.fits);
+    assert!(!cukta_edition_release_fit_after_measure(unmounted, Some(true)).fits);
+    assert!(!unmounted.shows_release_tag(key));
+
+    // And a genuine fit in the current layout is recorded.
+    let refitted = cukta_edition_release_fit_after_measure(unmeasurable, Some(true));
+    assert!(refitted.shows_release_tag(key));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_only_the_newest_measurement_may_write() {
+    let key = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let current = new!(CuktaEditionReleaseFit {
+        key: Some(key),
+        fits: false,
+    });
+    let held = CuktaEditionFitClaim::new();
+    let superseded = CuktaEditionFitClaim::new();
+
+    // A claim is the claim it was issued as, however it is carried around.
+    assert_eq!(held, held.clone());
+    // Two claims taken separately are never the same claim, which is what a
+    // measurement's result is judged on.
+    assert_ne!(held, superseded);
+
+    // The measurement the state is waiting for may write.
+    assert!(cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &held,
+        &held
+    ));
+
+    // One that a later measurement has superseded may not, in either direction:
+    // neither an older narrow verdict landing after a newer wide one, nor an
+    // older wide verdict landing after a newer narrow one. The layout key is
+    // identical in both, so the claim is demonstrably what separates them.
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &superseded,
+        &held
+    ));
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &held,
+        &superseded
+    ));
+
+    // Leaving the page takes a claim of its own, so a measurement issued before
+    // it cannot write afterwards even though the layout it measured and the
+    // layout entered again are indistinguishable.
+    let after_unmount = cukta_edition_release_fit_unmounted();
+    let after_abandon = CuktaEditionFitClaim::new();
+    assert!(!cukta_edition_release_fit_accepts_result(
+        after_unmount,
+        Some(key),
+        &held,
+        &after_abandon
+    ));
+    let entered_again = cukta_edition_release_fit_for_layout(after_unmount, key);
+    assert!(!cukta_edition_release_fit_accepts_result(
+        entered_again,
+        Some(key),
+        &held,
+        &after_abandon
+    ));
+
+    // No run of later claims can produce one that an earlier, still-held claim
+    // is mistaken for, so there is no length of session after which a stale
+    // result would start being accepted.
+    let mut latest = held.clone();
+    for _ in 0..1_000 {
+        latest = CuktaEditionFitClaim::new();
+        assert_ne!(held, latest);
+        assert!(!cukta_edition_release_fit_accepts_result(
+            current,
+            Some(key),
+            &held,
+            &latest
+        ));
+    }
+
+    // A result that still holds the state's claim but describes a layout that
+    // has since been left is refused as well, so neither check stands alone.
+    let overlay = CuktaEditionLayoutKey {
+        uses_autohide: true,
+        visible: true,
+    };
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(overlay),
+        &latest,
+        &latest
+    ));
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current, None, &latest, &latest
+    ));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_header_link_points_at_the_vendored_commit() {
+    let edition = jbotci_cll::cll_edition();
+
+    // The header shows the release tag and nothing else, so the link and its
+    // hover text are the only things tying that tag back to the exact vendored
+    // commit and to the edition version the tag does not spell out.
+    assert_eq!(
+        cll_edition_commit_href(edition),
+        format!("{}/commit/{}", edition.upstream_url, edition.commit)
+    );
+
+    let hover = cll_edition_commit_title(edition);
+    for named in [
+        &edition.title,
+        &edition.version,
+        &edition.upstream_url,
+        &edition.release_tag,
+        &edition.commit,
+    ] {
+        assert!(
+            hover.contains(named.as_str()),
+            "edition hover text {hover:?} should name {named:?}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_header_link_tolerates_a_trailing_upstream_slash() {
+    // `upstream_url` is copied verbatim out of `vendor/cll.VENDORED_FROM`, so a
+    // re-vendor may well write it with a trailing slash.
+    let edition = jbotci_cll::cll_edition()
+        .clone()
+        .with_data(data! { upstream_url: "https://example.test/cll/".to_owned() });
+
+    assert_eq!(
+        cll_edition_commit_href(&edition),
+        format!("https://example.test/cll/commit/{}", edition.commit)
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn cukta_toc_hidden_button_opens_overlay_without_pinning() {
     let state = CuktaTocInteractionState {
         pinned: false,

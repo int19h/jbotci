@@ -5377,30 +5377,96 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 /* Which edition of the book the reader is showing. Kept above the section
-   search so it is present on every cukta view. */
+   search so it is present on every cukta view.
+
+   The title and the vendored release tag share one line, the tag pushed to the
+   far end. Whether there is room for the tag is not decided here: the sidebar
+   is resizable and the title comes from the vendored book rather than from
+   this file, so no width written down in CSS could answer it. The hidden fit
+   probe below carries the answer instead, and `cukta.rs` renders the tag only
+   when a measurement says the row can hold it. That is also why the tag is
+   simply absent, rather than hidden in place, when it cannot be shown. This
+   row therefore only ever lays out what already fits, and needs no wrapping or
+   clipping of its own. */
 .cll-page .cll-edition {
-  display: grid;
-  gap: 0.02rem;
+  /* Shared with the fit probe, so the probe measures the same gap the row
+     would lay out. */
+  --cll-edition-gap: 0.5rem;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  column-gap: var(--cll-edition-gap);
   margin-bottom: 0.4rem;
 }
 
 .cll-page .cll-edition-title {
+  /* Sized from its own text while the tag is beside it; alone on the row it
+     shrinks to the sidebar and wraps over as many lines as it needs, as it did
+     when this was a grid. */
+  flex: 0 1 auto;
   color: var(--app-text);
   font-size: 0.76rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
-.cll-page .cll-edition-version {
-  color: var(--app-accent);
-  font-size: 0.68rem;
+.cll-page .cll-edition-release-slot {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
   font-family: var(--code-font);
+  font-size: 0.68rem;
+  line-height: 1.2;
 }
 
-.cll-page .cll-edition-publisher {
-  color: var(--app-muted);
-  font-size: 0.66rem;
-  line-height: 1.25;
+.cll-page .cll-edition-release {
+  color: var(--app-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cll-page .cll-edition-release:hover {
+  text-decoration: underline;
+}
+
+/* Set by the fit observer on the row, in the frame a box change lands, so that
+   a tag the renderer has not yet had the chance to drop cannot be painted in a
+   row that no longer holds it. `display: none` rather than a visual hide: even
+   for that one frame a tag that is not shown must not be announced or tabbed
+   to. The renderer removes the element itself a moment later, and the observer
+   clears the mark again as soon as the row has room.
+
+   The mark is on the row rather than on the slot because the renderer creates
+   and destroys the slot but keeps the row, so a mark on the slot would be
+   erased by the very render that puts an unfit tag back. The child combinator
+   keeps this off the fit probe, whose own slot is a grandchild and must go on
+   measuring what the row would need. */
+.cll-page .cll-edition[data-cukta-edition-fit="unfit"] > .cll-edition-release-slot {
+  display: none;
+}
+
+/* The row's title and release tag laid out on one unbroken line at their own
+   natural widths, so that this box's width is exactly what the row needs in
+   order to show both. `measure_cukta_edition_release_fit` reads it and compares
+   it with the row's content box.
+
+   It is taken out of flow and off the screen so it can never be seen or add
+   height, and `visibility: hidden` together with the element's `aria-hidden`
+   keeps its duplicated text out of the accessibility tree, out of find-in-page,
+   and out of text selection. It contains no link, so there is nothing in it to
+   tab to. */
+.cll-page .cll-edition-fit-probe {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+  display: flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  column-gap: var(--cll-edition-gap);
+  white-space: nowrap;
 }
 
 .cll-page .cll-toc-search {

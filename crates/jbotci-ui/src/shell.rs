@@ -227,6 +227,14 @@ pub(super) fn AppShell() -> Element {
     let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
     let cukta_toc_overlay_visible = use_signal(|| false);
     let cukta_toc_forced_autohide = use_signal(cukta_toc_forced_autohide_active);
+    // The release tag starts with no verdict at all, and a verdict only ever
+    // shows the tag for the exact layout it was measured in, so the tag is
+    // never painted on a row no measurement has vouched for. The claim beside
+    // it decides which of several outstanding measurements may write.
+    let cukta_edition_release_fits = CuktaEditionReleaseFitState {
+        verdict: use_signal(cukta_edition_release_fit_unmounted),
+        claim: use_signal(CuktaEditionFitClaim::new),
+    };
     let initial_vlacku = initial_vlacku_state(&current_route_location);
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
@@ -382,6 +390,7 @@ pub(super) fn AppShell() -> Element {
         topbar_settings_open,
         topbar_nav_layout,
         cukta_toc_forced_autohide,
+        cukta_edition_release_fits,
     );
     let scroll_base_path = base_path.clone();
     let scroll_route_location = current_route_location.clone();
@@ -1121,6 +1130,7 @@ pub(super) fn AppShell() -> Element {
                                     toc_resize: cukta_toc_resize,
                                     toc_overlay_visible: cukta_toc_overlay_visible,
                                     toc_forced_autohide: cukta_toc_forced_autohide,
+                                    edition_release_fits: cukta_edition_release_fits,
                                     pending_cukta_scroll,
                                     base_path: base_path.clone(),
                                     script: settings_value.script,
