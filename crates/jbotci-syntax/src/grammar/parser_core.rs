@@ -507,6 +507,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn parse<O, P>(&mut self, parser: P) -> Result<O, SyntaxParseError<'tokens>>
     where
         P: Parser<'tokens, O>,
