@@ -1483,19 +1483,30 @@ pub(super) fn gimfihi_idle_result_state(state: &GimfihiWebState) -> GimfihiAsync
 #[requires(!message.is_empty())]
 #[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
 pub(super) fn gentufa_async_error_state(
+    base_path: &str,
     state: GentufaWebState,
     request: GentufaWebRequest,
     message: &str,
 ) -> GentufaAsyncPageState {
+    let result = GentufaWebResult::Error(GentufaError {
+        phase: None,
+        message: message.to_owned(),
+        diagnostics: Vec::new(),
+    });
+    // A failed round trip to the compute worker still yields a result - the
+    // failure itself - so the page describes itself the same way a parse error
+    // does rather than falling back to the route's generic description. The
+    // other pages have no such result: their descriptions come from search or
+    // generation output that a failed run never produced, so their error states
+    // leave the route's own metadata standing.
+    let meta = Some(build_gentufa_page_meta_from_result(
+        base_path, &state, &result,
+    ));
     GentufaAsyncPageState {
         state: Some(state),
         request: Some(request),
-        result: GentufaWebResult::Error(GentufaError {
-            phase: None,
-            message: message.to_owned(),
-            diagnostics: Vec::new(),
-        }),
-        meta: None,
+        result,
+        meta,
         loading: false,
         error: Some(message.to_owned()),
     }
@@ -1670,6 +1681,7 @@ pub(super) fn vlacku_semantic_result_is_pending(
 
 #[requires(vlacku_semantic_result_is_pending(state, semantic))]
 #[ensures(page.state.as_ref() == Some(state))]
+#[ensures(page.meta.is_some())]
 #[ensures(page.loading)]
 #[ensures(page.error.is_none())]
 pub(super) fn apply_vlacku_semantic_pending_page(
@@ -1677,10 +1689,12 @@ pub(super) fn apply_vlacku_semantic_pending_page(
     base_path: &str,
     state: &VlackuWebState,
     semantic: &VlackuSemanticResultState,
-) -> PageMeta {
-    let meta = build_page_meta(base_path, &WebRoute::Vlacku(state.clone()));
+) {
     page.state = Some(state.clone());
-    page.meta = Some(meta.clone());
+    page.meta = Some(build_route_page_meta(
+        base_path,
+        &WebRoute::Vlacku(state.clone()),
+    ));
     page.loading = true;
     page.error = None;
     if semantic.state.as_ref() == Some(state)
@@ -1688,7 +1702,6 @@ pub(super) fn apply_vlacku_semantic_pending_page(
     {
         page.result = vlacku_loading_result(state, message);
     }
-    meta
 }
 
 #[requires(true)]
