@@ -75,6 +75,9 @@ const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 // This is a proxy budget, not a measurement of physical Safari capacity or a guarantee of iOS
 // acceptance. It bounds the host call stack separately from the Wasm linear-memory stack reserve.
 const DEFAULT_WASM_STACK_SIZE_KB: usize = 160;
+// Debian Bookworm JSC 2.50.6 on x86_64 fails at 384 KiB and passes at 400 KiB.
+// Keep 48 KiB of headroom over that measured passing boundary in CI.
+const DEFAULT_JAVASCRIPTCORE_STACK_SIZE_KB: usize = 448;
 /// Every case the Wasm stack probe knows, kept in step with the `CASES` table in
 /// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
 /// name, so a drift between the two lists fails the gate rather than silently
@@ -292,6 +295,20 @@ struct WasmStackTestArgs {
     probe: PathBuf,
     #[arg(long = "case")]
     cases: Vec<String>,
+    /// Also probe the release bundle repeatedly with this Linux JSC shell.
+    #[arg(long, value_name = "PATH")]
+    javascriptcore: Option<PathBuf>,
+    /// Release host-stack budget calibrated for Debian Bookworm's amd64 JSC.
+    #[arg(
+        long,
+        default_value_t = DEFAULT_JAVASCRIPTCORE_STACK_SIZE_KB,
+        value_name = "KB"
+    )]
+    javascriptcore_stack_size_kb: usize,
+    #[arg(long, default_value = "tests/wasm/gentufa_compute_stack_probe_jsc.js")]
+    javascriptcore_probe: PathBuf,
+    #[arg(long, default_value_t = 8, value_name = "COUNT")]
+    javascriptcore_iterations: usize,
 }
 
 #[derive(Debug, Args)]
@@ -2058,8 +2075,15 @@ fn read_wasm_u32(bytes: &[u8], cursor: &mut usize, label: &str) -> Result<u32> {
 }
 
 #[requires(args.stack_size_kb > 0)]
+#[requires(args.javascriptcore_stack_size_kb > 0)]
+#[requires(args.javascriptcore_iterations >= 2)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
+    if args.javascriptcore.is_some() && args.profile != WasmStackProfile::Release {
+        bail!(
+            "the JavaScriptCore probe requires --profile release because debug Dioxus bundles retain browser ESM imports"
+        );
+    }
     if !args.no_build {
         build_wasm_stack_test_bundle(args.profile)?;
     }
@@ -2114,14 +2138,45 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
             failures.push(case.clone());
         }
     }
-    if failures.is_empty() {
-        return Ok(());
+    if !failures.is_empty() {
+        bail!(
+            "Wasm stack probe failed at --stack-size={} for: {}",
+            args.stack_size_kb,
+            failures.join(", ")
+        );
     }
-    bail!(
-        "Wasm stack probe failed at --stack-size={} for: {}",
-        args.stack_size_kb,
-        failures.join(", ")
-    )
+    if let Some(javascriptcore) = &args.javascriptcore {
+        let javascriptcore_probe = absolute_path(&args.javascriptcore_probe)?;
+        let stack_size_bytes = args
+            .javascriptcore_stack_size_kb
+            .checked_mul(1024)
+            .context("JavaScriptCore stack size overflows usize")?;
+        let status = ProcessCommand::new(javascriptcore)
+            .arg(format!("--maxPerThreadStackUsage={stack_size_bytes}"))
+            .arg(&javascriptcore_probe)
+            .arg("--")
+            .arg(&paths.js)
+            .arg(&paths.wasm)
+            .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT)
+            .arg(args.javascriptcore_iterations.to_string())
+            .status()
+            .with_context(|| {
+                format!(
+                    "failed to run JavaScriptCore Wasm stack probe with `{}`",
+                    javascriptcore.display()
+                )
+            })?;
+        check_status(
+            status,
+            &format!(
+                "{} --maxPerThreadStackUsage={} {}",
+                javascriptcore.display(),
+                stack_size_bytes,
+                javascriptcore_probe.display()
+            ),
+        )?;
+    }
+    Ok(())
 }
 
 /// Fails when the runner's case list and the probe's disagree in either
