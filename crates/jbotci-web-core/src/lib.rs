@@ -3622,14 +3622,33 @@ const GENTUFA_DEFAULT_METADATA_DESCRIPTION: &str =
 /// Gentufa metadata carrying what a parse contributes: the bracket preview or
 /// the leading diagnostic as the description, and a social image for a
 /// successful parse.
+///
+/// A result may describe text the route does not carry: the default gentufa
+/// view parses [`DEFAULT_GENTUFA_TEXT`] so the page is not blank, while the URL
+/// stays bare and the route state holds no text at all. Metadata describes the
+/// route, so that sample contributes nothing here - its bracket preview would
+/// describe text no reader submitted, and its social image would be a
+/// `gentufa.png` naming no text, which the export endpoint rejects. An empty
+/// route text therefore yields exactly what a blank parse does.
 #[requires(true)]
 #[ensures(ret.title == gentufa_page_meta_title(state))]
+#[ensures(
+    state.text.trim().is_empty() -> ret.image.is_none(),
+    "a route with no text names no image to export"
+)]
+#[ensures(
+    state.text.trim().is_empty() -> ret.description == GENTUFA_DEFAULT_METADATA_DESCRIPTION,
+    "a route with no text is described by the blank page, not by a parse of other text"
+)]
 pub fn build_gentufa_page_meta_from_result(
     base_path: &str,
     state: &GentufaWebState,
     result: &GentufaWebResult,
 ) -> PageMeta {
     let state = normalize_gentufa_state(state);
+    if state.text.is_empty() {
+        return build_gentufa_provisional_page_meta(base_path, &state);
+    }
     let title = gentufa_page_meta_title(&state);
     let description = match result {
         GentufaWebResult::Blank => GENTUFA_DEFAULT_METADATA_DESCRIPTION.to_owned(),
@@ -9372,6 +9391,45 @@ mod tests {
             block.contains("content=\"https://example.test/jbotci/assets/social/image&quot;.png\"")
         );
         assert!(block.contains(META_BLOCK_END));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_compute_gentufa_metadata_ignores_a_parse_of_text_the_route_lacks() {
+        // The default gentufa view parses a sample so the page is not blank
+        // while its URL stays bare, which is exactly the payload the client
+        // sends: empty route state, non-empty parse request. Metadata describes
+        // the route, so the sample's bracket preview and social image stay out
+        // of it - a gentufa.png naming no text is not even a valid export.
+        let state = GentufaWebState::default();
+        assert!(state.text.is_empty());
+        let request = GentufaWebRequest {
+            text: DEFAULT_GENTUFA_TEXT.to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+
+        let response = run_web_compute_request(WebComputeRequest::GentufaPage {
+            base_path: "/jbotci".to_owned(),
+            state: state.clone(),
+            request,
+        })
+        .expect("gentufa compute succeeds");
+
+        let WebComputeResponse::GentufaPage { result, meta } = response else {
+            panic!("expected gentufa page response");
+        };
+        assert!(
+            matches!(result, GentufaWebResult::Success(_)),
+            "the default sample parses, so only the route keeps its parse out of the metadata"
+        );
+        assert_eq!(
+            meta,
+            build_route_page_meta("/jbotci", &WebRoute::Gentufa(state))
+        );
+        assert_eq!(meta.canonical_url, "/jbotci/gentufa");
+        assert_eq!(meta.description, GENTUFA_DEFAULT_METADATA_DESCRIPTION);
+        assert!(meta.image.is_none());
     }
 
     #[test]
