@@ -12,7 +12,7 @@ pub(super) fn App() -> Element {
 #[requires(true)]
 #[ensures(!ret.title.is_empty())]
 pub(super) fn route_document_meta(base_path: &str, route: &JbotciRoute) -> PageMeta {
-    build_page_meta(base_path, &route.web_route)
+    build_route_page_meta(base_path, &route.web_route)
 }
 
 #[requires(true)]
@@ -26,6 +26,51 @@ pub(super) fn document_title_from_meta(meta: &PageMeta) -> String {
 pub(super) fn apply_document_meta(mut document_meta: Signal<PageMeta>, meta: PageMeta) {
     sync_document_head(&meta);
     document_meta.set(meta);
+}
+
+/// The metadata describing the document the browser is currently showing.
+///
+/// A page result carries the metadata its compute run derived from it, and that
+/// metadata describes the document only while the browser is still on the route
+/// it was computed for - which its canonical URL records. Deriving the document
+/// metadata rather than letting whichever effect ran last write it keeps the
+/// title and the social tags independent of effect ordering, so a result served
+/// synchronously from a cache and one awaited from the compute worker land the
+/// same way, and a route change that outruns its result falls back to the
+/// route's own metadata instead of keeping a stale page's.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn document_meta_for_route(
+    base_path: &str,
+    location: &JbotciRoute,
+    page_meta: Option<&PageMeta>,
+) -> PageMeta {
+    let route_meta = route_document_meta(base_path, location);
+    match page_meta {
+        Some(meta) if meta.canonical_url == route_meta.canonical_url => meta.clone(),
+        _ => route_meta,
+    }
+}
+
+/// The metadata of the page result belonging to `route`, if that page has one.
+/// Only the route being displayed can describe the document, so the other
+/// pages' results are not consulted at all.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn active_page_meta(
+    route: AppRoute,
+    gentufa: &GentufaAsyncPageState,
+    cukta: &CuktaAsyncPageState,
+    vlacku: &VlackuAsyncResultState,
+    gimfihi: &GimfihiAsyncResultState,
+) -> Option<PageMeta> {
+    match route {
+        AppRoute::Gentufa => gentufa.meta.clone(),
+        AppRoute::Cukta => cukta.meta.clone(),
+        AppRoute::Vlacku => vlacku.meta.clone(),
+        AppRoute::Gimfihi => gimfihi.meta.clone(),
+        AppRoute::Settings => None,
+    }
 }
 
 #[requires(true)]
@@ -122,8 +167,13 @@ pub(super) fn AppShell() -> Element {
     let current_route_location = use_route::<JbotciRoute>();
     let route = use_signal(|| current_route_location.app_route());
     let base_path = router_base_path();
-    let initial_document_meta = route_document_meta(&base_path, &current_route_location);
-    let document_meta = use_signal(move || initial_document_meta.clone());
+    let initial_meta_base_path = base_path.clone();
+    let initial_meta_location = current_route_location.clone();
+    // `use_signal` runs its initializer on the first render only. Building the
+    // route's metadata inside it keeps that work off every later render, where
+    // the signal already holds what `document_meta_for_route` derived.
+    let document_meta =
+        use_signal(move || route_document_meta(&initial_meta_base_path, &initial_meta_location));
     let app_history = history();
     let settings = use_signal(load_settings);
     let initial_dialect_settings = load_dialect_settings();
@@ -249,6 +299,13 @@ pub(super) fn AppShell() -> Element {
     let vlacku_result_value = vlacku_result.read().clone();
     let gimfihi_committed_state_value = gimfihi_committed_state.read().clone();
     let gimfihi_result_value = gimfihi_result.read().clone();
+    let active_document_page_meta = active_page_meta(
+        current_route_location.app_route(),
+        &gentufa_page_value,
+        &cukta_page_value,
+        &vlacku_result_value,
+        &gimfihi_result_value,
+    );
     let page_find_state_value = page_find_state.read().clone();
     let current_page_find_route_state = page_find_state_value.route_state(route_value).clone();
     let page_find_entries = if current_page_find_route_state.query.is_empty() {
@@ -350,10 +407,12 @@ pub(super) fn AppShell() -> Element {
     let document_meta_route_location = current_route_location.clone();
     let document_meta_base_path = base_path.clone();
     use_effect(use_reactive(
-        (&document_meta_route_location,),
-        move |(location,)| {
-            let meta = route_document_meta(&document_meta_base_path, &location);
-            apply_document_meta(document_meta, meta);
+        (&document_meta_route_location, &active_document_page_meta),
+        move |(location, page_meta)| {
+            apply_document_meta(
+                document_meta,
+                document_meta_for_route(&document_meta_base_path, &location, page_meta.as_ref()),
+            );
         },
     ));
     let sync_route_location = current_route_location.clone();
@@ -520,6 +579,7 @@ pub(super) fn AppShell() -> Element {
             page.error = None;
         });
         let base_path = gentufa_base_path.clone();
+        let error_base_path = gentufa_base_path.clone();
         let mut result_signal = gentufa_page;
         cancel_compute_channel(COMPUTE_CHANNEL_GENTUFA);
         spawn_latest_tracked(
@@ -542,23 +602,28 @@ pub(super) fn AppShell() -> Element {
                             state: Some(state),
                             request: Some(request),
                             result,
-                            meta: Some(meta.clone()),
+                            meta: Some(meta),
                             loading: false,
                             error: None,
                         });
-                        apply_document_meta(document_meta, meta);
                         schedule_gentufa_block_reference_layout();
                         schedule_gentufa_tree_layout();
                     }
                     Ok(_) => {
                         result_signal.set(gentufa_async_error_state(
+                            &error_base_path,
                             state,
                             request,
                             "compute worker returned the wrong gentufa response",
                         ));
                     }
                     Err(error) => {
-                        result_signal.set(gentufa_async_error_state(state, request, &error));
+                        result_signal.set(gentufa_async_error_state(
+                            &error_base_path,
+                            state,
+                            request,
+                            &error,
+                        ));
                     }
                 }
             },
@@ -607,10 +672,9 @@ pub(super) fn AppShell() -> Element {
         if vlacku_semantic_result_is_pending(&state, &semantic) {
             cancel_compute_channel(COMPUTE_CHANNEL_VLACKU);
             cancel_latest_task(vlacku_result_task);
-            let meta = page_signal.with_mut(|page| {
-                apply_vlacku_semantic_pending_page(page, &vlacku_page_base_path, &state, &semantic)
+            page_signal.with_mut(|page| {
+                apply_vlacku_semantic_pending_page(page, &vlacku_page_base_path, &state, &semantic);
             });
-            apply_document_meta(document_meta, meta);
             return;
         }
         let request = vlacku_compute_request(&vlacku_page_base_path, &state, &semantic);
@@ -632,11 +696,10 @@ pub(super) fn AppShell() -> Element {
                         result_signal.set(VlackuAsyncResultState {
                             state: Some(state),
                             result,
-                            meta: Some(meta.clone()),
+                            meta: Some(meta),
                             loading: false,
                             error: None,
                         });
-                        apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
                         result_signal.set(vlacku_async_error_state(
@@ -674,9 +737,6 @@ pub(super) fn AppShell() -> Element {
         {
             cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHI);
             cancel_latest_task(gimfihi_result_task);
-            if let Some(meta) = cached_result.meta.clone() {
-                apply_document_meta(document_meta, meta);
-            }
             let mut cached_result_signal = gimfihi_result;
             cached_result_signal.set(cached_result);
             return;
@@ -705,7 +765,7 @@ pub(super) fn AppShell() -> Element {
                         let next = GimfihiAsyncResultState {
                             state: Some(state),
                             result,
-                            meta: Some(meta.clone()),
+                            meta: Some(meta),
                             loading: false,
                             error: None,
                         };
@@ -726,7 +786,6 @@ pub(super) fn AppShell() -> Element {
                             });
                         }
                         result_signal.set(next);
-                        apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
                         result_signal.set(gimfihi_async_error_state(
@@ -811,11 +870,10 @@ pub(super) fn AppShell() -> Element {
                         result_signal.set(CuktaAsyncPageState {
                             state: Some(state),
                             page,
-                            meta: Some(meta.clone()),
+                            meta: Some(meta),
                             loading: false,
                             error: None,
                         });
-                        apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
                         result_signal.set(cukta_async_error_state(

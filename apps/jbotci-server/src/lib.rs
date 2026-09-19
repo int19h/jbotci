@@ -42,7 +42,7 @@ use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
-    WebRoute, build_page_meta, escape_html_text, parse_gentufa_for_web,
+    WebRoute, blocking::build_computed_page_meta, escape_html_text, parse_gentufa_for_web,
     parse_gentufa_web_export_request, parse_web_route, render_gentufa_state_web_export,
     render_page_head_metadata_block, web_route_url,
 };
@@ -1103,7 +1103,7 @@ async fn gentufa_export_response(format: GentufaExportFormat, query: String) -> 
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
 async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> PageMetaTaskResult {
-    run_page_meta_task(move || build_page_meta(&base_path, &route)).await
+    run_page_meta_task(move || build_computed_page_meta(&base_path, &route)).await
 }
 
 #[requires(base_path.starts_with('/'))]

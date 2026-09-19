@@ -2342,6 +2342,120 @@ fn document_title_uses_route_default_meta() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn route_metadata_defers_gentufa_parse_derived_fields() {
+    // Route metadata is rebuilt on the UI thread for every navigation, so it
+    // stops short of the parser (issue #913). What a parse contributes - the
+    // bracket preview description and the social image - reaches the document
+    // only through the compute worker's result.
+    let route = parse_test_route("", "/gentufa?text=mi+klama");
+    let WebRoute::Gentufa(state) = route.web_route.clone() else {
+        panic!("expected a gentufa route");
+    };
+
+    let meta = route_document_meta("", &route);
+    let parsed =
+        jbotci_web_core::blocking::build_computed_page_meta("", &WebRoute::Gentufa(state.clone()));
+
+    // The title restates the submitted text, so navigation still titles the page
+    // correctly with no parse behind it, and both sides name the same URL.
+    assert_eq!(meta.title, "mi klama - jbotci gentufa");
+    assert_eq!(meta.title, parsed.title);
+    assert_eq!(meta.canonical_url, parsed.canonical_url);
+    // "mi klama" parses, so the parsed metadata carries both parse-derived
+    // fields while the route metadata carries neither.
+    assert!(
+        parsed.image.is_some(),
+        "a successful parse yields a social image"
+    );
+    assert!(meta.image.is_none());
+    assert_eq!(
+        meta.description,
+        "Parse Lojban text into bracketed blocks, table rows, and reference arrows."
+    );
+    assert_ne!(meta.description, parsed.description);
+
+    // With no text to parse there is nothing for a parse to add, and the two
+    // agree exactly.
+    let blank = parse_test_route("", "/gentufa");
+    let WebRoute::Gentufa(blank_state) = blank.web_route.clone() else {
+        panic!("expected a gentufa route");
+    };
+    assert_eq!(
+        route_document_meta("", &blank),
+        jbotci_web_core::blocking::build_computed_page_meta("", &WebRoute::Gentufa(blank_state))
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn document_meta_prefers_the_result_metadata_of_the_displayed_route() {
+    // A gimfi'i candidate click is served from the result cache and only then
+    // pushes the highlight URL. Document metadata is derived from the result
+    // whose canonical URL is the one being displayed, so the location change
+    // that follows adopts the candidate metadata instead of overwriting it with
+    // the route's generic metadata (issue #913).
+    let route = parse_test_route("", "/gimfihi?lang=cmn&word=uan&highlight=nanpe");
+    let route_meta = route_document_meta("", &route);
+    assert_eq!(route_meta.title, "jbotci gimfi'i");
+    let result_meta = new!(PageMeta {
+        title: "nanpe - jbotci gimfi'i".to_owned(),
+        description: "nanpe = cmn:uan \u{d7}1".to_owned(),
+        canonical_url: route_meta.canonical_url.clone(),
+        image: None,
+    });
+
+    assert_eq!(
+        document_meta_for_route("", &route, Some(&result_meta)),
+        result_meta
+    );
+
+    // A result for a route the browser has left no longer describes the
+    // document, so the route it moved to speaks for itself.
+    let elsewhere = parse_test_route("", "/vlacku/klama");
+    assert_eq!(
+        document_meta_for_route("", &elsewhere, Some(&result_meta)),
+        route_document_meta("", &elsewhere)
+    );
+    // The same holds before any result exists.
+    assert_eq!(document_meta_for_route("", &route, None), route_meta);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn active_page_meta_reads_only_the_displayed_page() {
+    let gentufa_meta = new!(PageMeta {
+        title: "coi - jbotci gentufa".to_owned(),
+        description: "Gentufa parse result.".to_owned(),
+        canonical_url: "/gentufa?text=coi".to_owned(),
+        image: None,
+    });
+    let gentufa = GentufaAsyncPageState {
+        meta: Some(gentufa_meta.clone()),
+        ..GentufaAsyncPageState::default()
+    };
+    let cukta = CuktaAsyncPageState::default();
+    let vlacku = VlackuAsyncResultState::default();
+    let gimfihi = GimfihiAsyncResultState::default();
+
+    assert_eq!(
+        active_page_meta(AppRoute::Gentufa, &gentufa, &cukta, &vlacku, &gimfihi),
+        Some(gentufa_meta)
+    );
+    assert_eq!(
+        active_page_meta(AppRoute::Vlacku, &gentufa, &cukta, &vlacku, &gimfihi),
+        None
+    );
+    assert_eq!(
+        active_page_meta(AppRoute::Settings, &gentufa, &cukta, &vlacku, &gimfihi),
+        None
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn document_title_uses_result_meta_when_available() {
     let meta = new!(PageMeta {
         title: "coi - jbotci gentufa".to_owned(),
@@ -3075,7 +3189,7 @@ fn vlacku_semantic_pending_page_preserves_existing_result() {
     };
     let semantic = VlackuSemanticResultState::default();
 
-    let meta = apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
+    apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
 
     assert_eq!(page.state.as_ref(), Some(&state));
     assert!(page.loading);
@@ -3084,7 +3198,10 @@ fn vlacku_semantic_pending_page_preserves_existing_result() {
         page.result.message.as_deref(),
         Some("Previous result remains visible.")
     );
-    assert_eq!(meta.title, "klama! - jbotci vlacku");
+    assert_eq!(
+        page.meta.as_ref().map(|meta| meta.title.as_str()),
+        Some("klama! - jbotci vlacku")
+    );
 }
 
 #[test]
