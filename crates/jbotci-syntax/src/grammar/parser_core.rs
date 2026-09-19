@@ -868,7 +868,7 @@ impl<'tokens, O, F> Parser<'tokens, O> for Custom<F>
 where
     F: Fn(&mut InputRef<'tokens, '_>) -> Result<O, SyntaxParseError<'tokens>>,
 {
-    #[inline]
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.cursor;
         match (self.parser)(input) {
@@ -1132,7 +1132,7 @@ where
     A: Parser<'tokens, O>,
     B: Parser<'tokens, O>,
 {
-    #[inline]
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.save();
         match self.first.drive_emit(input) {
@@ -1144,7 +1144,7 @@ where
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         let before = input.save();
         match self.first.drive_check(input) {
