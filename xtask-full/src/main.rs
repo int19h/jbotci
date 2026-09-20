@@ -7,7 +7,7 @@ use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
 use std::num::NonZeroU16;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -286,6 +286,8 @@ struct WasmStackTestArgs {
     stack_size_kb: usize,
     #[arg(long)]
     no_build: bool,
+    #[arg(long, value_name = "PATH", requires = "no_build")]
+    public_dir: Option<PathBuf>,
     #[arg(long, default_value = "node")]
     node: PathBuf,
     #[arg(long, default_value = "tests/wasm/gentufa_compute_stack_probe.mjs")]
@@ -2060,10 +2062,17 @@ fn read_wasm_u32(bytes: &[u8], cursor: &mut usize, label: &str) -> Result<u32> {
 #[requires(args.stack_size_kb > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
+    if args.public_dir.is_some() && !args.no_build {
+        bail!("--public-dir requires --no-build");
+    }
     if !args.no_build {
         build_wasm_stack_test_bundle(args.profile)?;
     }
-    let paths = wasm_stack_test_bundle_paths(args.profile)?;
+    let paths = if let Some(public_dir) = args.public_dir.as_deref() {
+        wasm_stack_test_public_dir_paths(public_dir)?
+    } else {
+        wasm_stack_test_bundle_paths(args.profile)?
+    };
     let probe = absolute_path(&args.probe)?;
     verify_wasm_stack_test_cases(&args.node, &probe)?;
     let cases = if args.cases.is_empty() {
@@ -2228,6 +2237,92 @@ fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundleP
             Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
         }
     }
+}
+
+#[requires(!public_dir.as_os_str().is_empty())]
+#[ensures(
+    ret.as_ref().err().is_some()
+        || ret.as_ref().is_ok_and(|paths| {
+            paths.js.is_absolute() && paths.wasm.is_absolute() && paths.ready_js.is_absolute()
+        })
+)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn wasm_stack_test_public_dir_paths(public_dir: &Path) -> Result<WasmBundlePaths> {
+    let public_dir = absolute_path(public_dir)?;
+    if !public_dir.is_dir() {
+        bail!(
+            "Wasm stack probe public directory `{}` does not exist",
+            public_dir.display()
+        );
+    }
+    let index_path = public_dir.join("index.html");
+    let index = fs::read_to_string(&index_path)
+        .with_context(|| format!("reading staged web index `{}`", index_path.display()))?;
+    let js_relative = generated_index_asset_path(&index, "generatedJsPath", ".js")?;
+    let wasm_relative = generated_index_asset_path(&index, "generatedWasmPath", ".wasm")?;
+    let js = contained_public_file(&public_dir, &js_relative)?;
+    let wasm = contained_public_file(&public_dir, &wasm_relative)?;
+    let ready_js = contained_public_file(&public_dir, Path::new("assets/app-module-ready.js"))?;
+    Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
+}
+
+#[requires(!binding.is_empty())]
+#[requires(suffix.starts_with('.'))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn generated_index_asset_path(index: &str, binding: &str, suffix: &str) -> Result<PathBuf> {
+    let prefix = format!("const {binding} = \"");
+    let mut values = index.lines().filter_map(|line| {
+        line.trim()
+            .strip_prefix(&prefix)
+            .and_then(|value| value.strip_suffix("\";"))
+    });
+    let value = values
+        .next()
+        .with_context(|| format!("staged web index is missing `{binding}`"))?;
+    if values.next().is_some() {
+        bail!("staged web index contains multiple `{binding}` assignments");
+    }
+    let path = PathBuf::from(value);
+    if value.is_empty()
+        || !value.ends_with(suffix)
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::CurDir | Component::Normal(_)))
+    {
+        bail!("staged web index has invalid `{binding}` path `{value}`");
+    }
+    Ok(path)
+}
+
+#[requires(public_dir.is_absolute())]
+#[requires(public_dir.is_dir())]
+#[requires(!relative.as_os_str().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute() && path.is_file()) || ret.is_err())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn contained_public_file(public_dir: &Path, relative: &Path) -> Result<PathBuf> {
+    if relative
+        .components()
+        .any(|component| !matches!(component, Component::CurDir | Component::Normal(_)))
+    {
+        bail!(
+            "staged web asset path `{}` is not relative",
+            relative.display()
+        );
+    }
+    let canonical_public_dir = fs::canonicalize(public_dir)
+        .with_context(|| format!("resolving public directory `{}`", public_dir.display()))?;
+    let path = public_dir.join(relative);
+    ensure_existing_file(&path)?;
+    let canonical_path = fs::canonicalize(&path)
+        .with_context(|| format!("resolving staged web asset `{}`", path.display()))?;
+    if !canonical_path.starts_with(&canonical_public_dir) {
+        bail!(
+            "staged web asset `{}` escapes public directory `{}`",
+            relative.display(),
+            public_dir.display()
+        );
+    }
+    Ok(canonical_path)
 }
 
 #[requires(!path.as_os_str().is_empty())]
@@ -14508,6 +14603,114 @@ mod tests {
     fn wasm_export_reader_rejects_truncated_sections() {
         let truncated = b"\0asm\x01\0\0\0\x07\x07\x01\x03ru";
         assert!(wasm_export_names(truncated).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_follow_index_instead_of_other_matching_assets() {
+        let public = staged_wasm_bundle_test_dir(
+            r#"const generatedJsPath = "assets/jbotci-app-current.js";
+const generatedWasmPath = "assets/jbotci-app_bg-current.wasm";"#,
+        );
+        for relative in [
+            "assets/jbotci-app-current.js",
+            "assets/jbotci-app_bg-current.wasm",
+            "assets/jbotci-app-stale.js",
+            "assets/jbotci-app_bg-stale.wasm",
+        ] {
+            fs::write(public.join(relative), relative).unwrap();
+        }
+
+        let paths = wasm_stack_test_public_dir_paths(&public).unwrap();
+
+        assert_eq!(
+            paths.js,
+            fs::canonicalize(public.join("assets/jbotci-app-current.js")).unwrap()
+        );
+        assert_eq!(
+            paths.wasm,
+            fs::canonicalize(public.join("assets/jbotci-app_bg-current.wasm")).unwrap()
+        );
+        fs::remove_dir_all(public).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_reject_missing_and_duplicate_index_bindings() {
+        assert!(generated_index_asset_path("", "generatedJsPath", ".js").is_err());
+        let duplicate = r#"const generatedJsPath = "assets/first.js";
+const generatedJsPath = "assets/second.js";"#;
+        assert!(generated_index_asset_path(duplicate, "generatedJsPath", ".js").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_reject_escaping_and_absolute_assets() {
+        for value in ["../outside.js", "/outside.js"] {
+            let index = format!("const generatedJsPath = \"{value}\";");
+            assert!(generated_index_asset_path(&index, "generatedJsPath", ".js").is_err());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wasm_stack_test_cli_requires_no_build_with_public_dir() {
+        assert!(
+            Cli::try_parse_from([
+                "xtask-full",
+                "wasm-stack-test",
+                "--public-dir",
+                "staged-public",
+            ])
+            .is_err()
+        );
+        let cli = Cli::try_parse_from([
+            "xtask-full",
+            "wasm-stack-test",
+            "--no-build",
+            "--public-dir",
+            "staged-public",
+        ])
+        .unwrap();
+        let Command::WasmStackTest(args) = cli.command else {
+            panic!("expected wasm-stack-test command");
+        };
+        assert!(args.no_build);
+        assert_eq!(args.public_dir, Some(PathBuf::from("staged-public")));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_require_every_referenced_asset() {
+        let public = staged_wasm_bundle_test_dir(
+            r#"const generatedJsPath = "assets/missing.js";
+const generatedWasmPath = "assets/missing.wasm";"#,
+        );
+
+        assert!(wasm_stack_test_public_dir_paths(&public).is_err());
+        fs::remove_dir_all(public).unwrap();
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_dir())]
+    fn staged_wasm_bundle_test_dir(index: &str) -> PathBuf {
+        let public = std::env::temp_dir().join(format!(
+            "jbotci-xtask-staged-wasm-bundle-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(public.join("assets")).unwrap();
+        fs::write(public.join("index.html"), index).unwrap();
+        fs::write(public.join("assets/app-module-ready.js"), "ready").unwrap();
+        public
     }
 
     #[test]

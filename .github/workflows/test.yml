@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run release tooling tests
-        run: python3 -m unittest tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
 
   cargo-test:
     name: Cargo tests
@@ -31,12 +31,8 @@ jobs:
     container:
       image: rust:1-bookworm
     env:
-      DIOXUS_CLI_VERSION: 0.7.9
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
-      DIOXUS_HOME: ${{ github.workspace }}/.github-cache/home
-      DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
-      DIOXUS_CLI_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/dioxus-cli-0.7.9
       NODE_VERSION: 24.14.0
       # Serial compilation is required: at exact head d08d0a798f, two-way concurrency exceeded
       # the 16 GB runner twice and exited 137 while compiling `jbotci-syntax`.
@@ -80,20 +76,11 @@ jobs:
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
 
-      - name: Restore Dioxus CLI cache
-        id: dioxus-cli-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
-          key: jbotci-dx-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.rustc.outputs.version }}
-
       - name: Restore test target cache
         id: target-cache
         uses: actions/cache/restore@v5
         with:
-          path: |
-            .github-cache/cargo-target/test
-            .github-cache/home/.dx
+          path: .github-cache/cargo-target/test
           key: jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
             jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
@@ -105,37 +92,8 @@ jobs:
           mode: restore
           target-dir: .github-cache/cargo-target/test
 
-      - name: Install wasm target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Install Dioxus CLI
-        env:
-          HOME: ${{ env.DIOXUS_HOME }}
-        run: |
-          mkdir -p "${DIOXUS_HOME}" "${DIOXUS_CLI_ROOT}" "${DIOXUS_CLI_TARGET_DIR}"
-          if ! "${DIOXUS_CLI_ROOT}/bin/dx" --version | grep -Eq "^dioxus ${DIOXUS_CLI_VERSION}( |$)"; then
-            CARGO_TARGET_DIR="${DIOXUS_CLI_TARGET_DIR}" \
-              cargo install dioxus-cli \
-                --version "${DIOXUS_CLI_VERSION}" \
-                --locked \
-                --root "${DIOXUS_CLI_ROOT}" \
-                --force
-          fi
-          echo "${DIOXUS_CLI_ROOT}/bin" >> "${GITHUB_PATH}"
-          "${DIOXUS_CLI_ROOT}/bin/dx" --version
-
       - name: Run workspace tests with import feature
         run: cargo test -r --workspace --features jbotci-dictionary/import
-
-      - name: Run wasm stack probe (debug)
-        env:
-          HOME: ${{ env.DIOXUS_HOME }}
-        run: cargo run -r -p xtask-full -- wasm-stack-test --profile debug
-
-      - name: Run wasm stack probe (release)
-        env:
-          HOME: ${{ env.DIOXUS_HOME }}
-        run: cargo run -r -p xtask-full -- wasm-stack-test --profile release
 
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
@@ -165,70 +123,9 @@ jobs:
           path: .github-cache/cargo
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
-      - name: Save Dioxus CLI cache
-        if: ${{ github.event_name != 'pull_request' && steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
-        with:
-          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
-          key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
-
       - name: Save test target cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         uses: actions/cache/save@v5
         with:
-          path: |
-            .github-cache/cargo-target/test
-            .github-cache/home/.dx
+          path: .github-cache/cargo-target/test
           key: ${{ steps.target-cache.outputs.cache-primary-key }}
-
-  f2llm-native-lavapipe:
-    name: F2LLM 80m native goldens (lavapipe)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    container:
-      image: rust:1-trixie
-    env:
-      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
-      CARGO_BUILD_JOBS: 4
-      WGPU_BACKEND: vulkan
-      JBOTCI_F2LLM_ARTIFACT_ROOT: ${{ github.workspace }}/.github-cache/f2llm-native-artifacts
-      JBOTCI_F2LLM_GOLDEN_MODE: 80m
-      JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER: 1
-    steps:
-      - name: Install lavapipe
-        shell: bash
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates git mesa-vulkan-drivers python3 time
-          mapfile -t lavapipe_icds < <(dpkg -L mesa-vulkan-drivers | grep -E '/lvp_icd(\.[^.]+)?\.json$')
-          if [ "${#lavapipe_icds[@]}" -ne 1 ]; then
-            echo "Expected exactly one lavapipe Vulkan ICD, found ${#lavapipe_icds[@]}" >&2
-            printf '%s\n' "${lavapipe_icds[@]}" >&2
-            exit 1
-          fi
-          echo "VK_ICD_FILENAMES=${lavapipe_icds[0]}" >> "${GITHUB_ENV}"
-          rm -rf /var/lib/apt/lists/*
-
-      - name: Check out source
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Download verified published 80m WebGPU artifact
-        run: |
-          # Regenerate consciously (copy the digest below and the component pin into
-          # tools/f2llm-oracles/webgpu-artifact-identity-pins.json):
-          # python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-          #   --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
-          #   --print-artifact-identity
-          python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-            --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
-            --expected-artifact-identity 6aa5a067235c8b8a78855e2ebed1d112db5a1a702ae228686bf10eae4b3834aa \
-            --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
-            --out "${JBOTCI_F2LLM_ARTIFACT_ROOT}/f2llm-v2-80m-q4-320"
-
-      - name: Run only the 80m native golden suite
-        run: |
-          /usr/bin/time -f 'lavapipe 80m native goldens wall time: %E' \
-            cargo test -r -p jbotci-f2llm-runtime --features native \
-              --test native_goldens -- --nocapture
