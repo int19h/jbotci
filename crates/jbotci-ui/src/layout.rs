@@ -1,4 +1,5 @@
 use super::*;
+use std::rc::Rc;
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -50,6 +51,652 @@ pub(super) fn update_cukta_toc_forced_autohide(mut forced_autohide: Signal<bool>
     if *forced_autohide.read() != next {
         forced_autohide.set(next);
     }
+}
+
+/// The facts about the cukta sidebar that decide which stylesheet rules size
+/// the edition row, and so which box a fit verdict was measured against.
+///
+/// The dragged sidebar width is deliberately not here. It moves a pixel at a
+/// time, and invalidating on every step would blink the tag out for the whole
+/// of a drag; a box that changes continuously is what the resize observer
+/// answers for, inside the same frame. What this key holds is the state whose
+/// change swaps the rules that size the row at all - pinned column versus
+/// viewport-clamped overlay, shown versus not - where a verdict taken under the
+/// old rules says nothing about the new ones.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct CuktaEditionLayoutKey {
+    pub(super) uses_autohide: bool,
+    pub(super) visible: bool,
+}
+
+/// A release-tag fit verdict that cannot outlive the layout it was taken in.
+///
+/// The renderer shows the tag only for a verdict whose key is the key it is
+/// rendering under, so a verdict can never be reused for a different layout,
+/// and `key: None` - which is what leaving the cukta page leaves behind - can
+/// never show anything at all.
+#[invariant(key.is_some() || !*fits, "a verdict measured in no layout is never a fit")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct CuktaEditionReleaseFit {
+    pub(super) key: Option<CuktaEditionLayoutKey>,
+    pub(super) fits: bool,
+}
+
+impl CuktaEditionReleaseFit {
+    /// Whether a row rendering under `key` may show the release tag.
+    #[requires(true)]
+    #[ensures(ret -> self.fits && self.key == Some(key))]
+    pub(super) fn shows_release_tag(&self, key: CuktaEditionLayoutKey) -> bool {
+        self.fits && self.key == Some(key)
+    }
+}
+
+/// The verdict to carry into a render under `key`.
+///
+/// Reaching a layout no verdict has been taken in clears the verdict rather
+/// than carrying one over, so the first render of a changed row never paints a
+/// tag on the strength of an older row's measurement.
+#[requires(true)]
+#[ensures(ret.key == Some(key))]
+#[ensures(previous.key == Some(key) -> ret.fits == previous.fits)]
+#[ensures(previous.key != Some(key) -> !ret.fits)]
+pub(super) fn cukta_edition_release_fit_for_layout(
+    previous: CuktaEditionReleaseFit,
+    key: CuktaEditionLayoutKey,
+) -> CuktaEditionReleaseFit {
+    new!(CuktaEditionReleaseFit {
+        key: Some(key),
+        fits: previous.key == Some(key) && previous.fits,
+    })
+}
+
+/// The verdict after measuring the row that is laid out right now.
+///
+/// `measured` is `None` when the row could not be measured - no box yet, styles
+/// not applied - and that is not evidence that the tag fits, so it clears the
+/// verdict instead of leaving the previous one in place to be reused.
+#[requires(true)]
+#[ensures(ret.key == previous.key)]
+#[ensures(ret.fits == (measured == Some(true) && previous.key.is_some()))]
+pub(super) fn cukta_edition_release_fit_after_measure(
+    previous: CuktaEditionReleaseFit,
+    measured: Option<bool>,
+) -> CuktaEditionReleaseFit {
+    new!(CuktaEditionReleaseFit {
+        key: previous.key,
+        fits: measured == Some(true) && previous.key.is_some(),
+    })
+}
+
+/// The verdict once the cukta page is gone.
+///
+/// The row it was measured in no longer exists, and while it is gone nothing
+/// can notice the sidebar or the window changing shape, so the verdict must not
+/// survive to be reused when the page is entered again.
+#[requires(true)]
+#[ensures(ret.key.is_none() && !ret.fits)]
+pub(super) fn cukta_edition_release_fit_unmounted() -> CuktaEditionReleaseFit {
+    new!(CuktaEditionReleaseFit {
+        key: None,
+        fits: false,
+    })
+}
+
+/// One measurement's claim on the verdict.
+///
+/// It is an identity rather than a number. The state holds the claim that may
+/// still write, every measurement carries its own, and two claims are the same
+/// claim only when they are the same allocation. A measurement keeps its claim
+/// alive for as long as it is in flight, so the allocation behind a claim that
+/// is still being compared cannot be released and cannot be recycled into a
+/// second claim that would compare equal to the first. There is therefore no
+/// counter to exhaust, no value that can come round again, and no assumption
+/// about how long a document lives.
+#[invariant(true)]
+#[derive(Debug, Clone)]
+pub(super) struct CuktaEditionFitClaim(Rc<()>);
+
+impl CuktaEditionFitClaim {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn new() -> Self {
+        Self(Rc::new(()))
+    }
+}
+
+impl PartialEq for CuktaEditionFitClaim {
+    /// Claims are compared as identities, never as values: every claim wraps
+    /// the same empty value, and it is which allocation it is that carries the
+    /// meaning.
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for CuktaEditionFitClaim {}
+
+/// The verdict the renderer reads, together with the claim that decides which
+/// measurement is still allowed to write it.
+///
+/// Measurements are asked for from several places and, on the desktop webview,
+/// answer over an asynchronous bridge, so two of them can be outstanding at
+/// once and can finish in either order. Each one takes a fresh claim as it is
+/// issued, and only a result whose claim is still the state's may write, so a
+/// slower measurement can never overwrite a faster newer one. Leaving the page
+/// takes a claim too, which is what keeps a measurement issued before an
+/// unmount from writing into the identical layout after a remount.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct CuktaEditionReleaseFitState {
+    pub(super) verdict: Signal<CuktaEditionReleaseFit>,
+    pub(super) claim: Signal<CuktaEditionFitClaim>,
+}
+
+impl CuktaEditionReleaseFitState {
+    /// Take a fresh claim, which invalidates every measurement already in
+    /// flight.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn claim_measurement(&self) -> CuktaEditionFitClaim {
+        let mut held = self.claim;
+        let claimed = CuktaEditionFitClaim::new();
+        held.set(claimed.clone());
+        claimed
+    }
+
+    /// Give up whatever is in flight without issuing a measurement, which is
+    /// what leaving the page does.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn abandon_measurements(&self) {
+        let _ = self.claim_measurement();
+    }
+
+    /// Write the result of the measurement that took `claim`, if that
+    /// measurement is still the one being waited for.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn apply_measurement(
+        &self,
+        measured_for: Option<CuktaEditionLayoutKey>,
+        claim: &CuktaEditionFitClaim,
+        measured: Option<bool>,
+    ) {
+        let mut verdict = self.verdict;
+        let current = *verdict.peek();
+        if !cukta_edition_release_fit_accepts_result(
+            current,
+            measured_for,
+            claim,
+            &self.claim.peek(),
+        ) {
+            return;
+        }
+        let next = cukta_edition_release_fit_after_measure(current, measured);
+        if current != next {
+            verdict.set(next);
+        }
+    }
+}
+
+/// Whether the measurement that took `claim`, for the layout `measured_for`,
+/// may still be written into `current`.
+///
+/// Both halves matter and neither implies the other. The claim rejects a result
+/// that some later measurement has already superseded, including one issued
+/// before an unmount that comes back after a remount into the very same layout,
+/// which a layout comparison alone cannot tell apart. The layout comparison
+/// rejects a result that describes a row sized by rules that are no longer in
+/// force.
+#[requires(true)]
+#[ensures(ret == (claim == held_claim && current.key == measured_for))]
+pub(super) fn cukta_edition_release_fit_accepts_result(
+    current: CuktaEditionReleaseFit,
+    measured_for: Option<CuktaEditionLayoutKey>,
+    claim: &CuktaEditionFitClaim,
+    held_claim: &CuktaEditionFitClaim,
+) -> bool {
+    claim == held_claim && current.key == measured_for
+}
+
+/// Whether the cukta edition row can show the release tag beside the title.
+///
+/// `available_width` is the row's own content box; `required_width` is the
+/// width of the row's hidden fit probe, which lays the same title and the same
+/// tag out on one unbroken line with the row's own column gap. Comparing those
+/// two decides the tag's fit from the boxes the reader actually has, so a
+/// dragged sidebar, a browser zoom, a font that has just finished loading, or a
+/// re-vendored book with a longer title each move the answer by themselves and
+/// no width threshold is written down anywhere.
+///
+/// The comparison is exact rather than tolerant: a row that needs even a
+/// fraction of a pixel more than it has cannot show the tag whole, and showing
+/// it anyway is what a tolerance would do. Both widths are read as the
+/// fractional layout widths the browser computed, so neither side is rounded
+/// before they are compared.
+#[requires(available_width >= 0.0)]
+#[requires(required_width >= 0.0)]
+#[ensures(required_width <= available_width -> ret)]
+#[ensures(required_width > available_width -> !ret)]
+pub(super) fn cukta_edition_release_fits(available_width: f64, required_width: f64) -> bool {
+    required_width <= available_width
+}
+
+/// The attribute the fit observer marks the edition row with, and the value it
+/// marks it with, while the row cannot hold the release tag. The renderer never
+/// writes either, which is what lets the mark outlive a render.
+#[cfg(target_arch = "wasm32")]
+const CUKTA_EDITION_FIT_ATTRIBUTE: &str = "data-cukta-edition-fit";
+#[cfg(target_arch = "wasm32")]
+const CUKTA_EDITION_FIT_UNFIT: &str = "unfit";
+
+/// The edition row of the cukta sidebar header.
+///
+/// Scoped to the header rather than matched document-wide, and everything else
+/// is then looked up inside the row itself, so that a measurement can only ever
+/// pair a row with its own probe.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn cukta_edition_row() -> Option<web_sys::Element> {
+    web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| {
+            document
+                .query_selector(".cll-toc-head .cll-edition")
+                .ok()
+                .flatten()
+        })
+}
+
+/// The width a box has for its own content, with padding and borders removed.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+pub(super) fn element_content_box_width(element: &web_sys::Element) -> f64 {
+    let width = element.get_bounding_client_rect().width();
+    let Some(style) =
+        web_sys::window().and_then(|window| window.get_computed_style(element).ok().flatten())
+    else {
+        return width.max(0.0);
+    };
+    let inset: f64 = [
+        "padding-left",
+        "padding-right",
+        "border-left-width",
+        "border-right-width",
+    ]
+    .iter()
+    .map(|property| {
+        style
+            .get_property_value(property)
+            .ok()
+            .and_then(|value| value.trim_end_matches("px").parse::<f64>().ok())
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(0.0)
+    })
+    .sum();
+    (width - inset).max(0.0)
+}
+
+/// `None` when the row cannot be measured yet, which is not the same answer as
+/// "the tag does not fit": before the stylesheet has applied, or while the
+/// sidebar has no box, both measure as nothing, and the caller must not read
+/// that as a fit.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn measure_cukta_edition_release_fit_in(row: &web_sys::Element) -> Option<bool> {
+    let probe = row
+        .query_selector(":scope > .cll-edition-fit-probe")
+        .ok()
+        .flatten()?;
+    let available_width = element_content_box_width(row);
+    // The probe's own border box rather than `element_layout_width`: the latter
+    // also takes `scrollWidth`, which is an integer, and rounding the
+    // requirement up would drop the tag on a row that has room for it by part
+    // of a pixel. The probe is sized to `max-content` and cannot overflow
+    // itself, so its fractional rect width is the exact requirement.
+    let required_width = probe.get_bounding_client_rect().width();
+    if available_width <= 0.0 || required_width <= 0.0 {
+        return None;
+    }
+    Some(cukta_edition_release_fits(available_width, required_width))
+}
+
+/// Take the tag out of the row being painted, or put it back, to match a
+/// measurement just taken.
+///
+/// Which element exists is the renderer's decision, but the renderer cannot run
+/// before the browser paints a box that changed underneath it: an overlay
+/// clamped to the viewport, a dragged splitter, or a zoom relays the row out
+/// with no render of its own. This runs from the resize observer, inside that
+/// same frame and before the paint, and the render that follows then adds or
+/// removes the element itself. The stylesheet hides the slot from this
+/// attribute with `display: none` rather than a visual hide, because even for
+/// that one frame a tag that is not shown must not be announced or tabbed to.
+///
+/// The mark goes on the row and not on the slot, and is an attribute the
+/// renderer never writes. The slot is the element the renderer creates and
+/// destroys as the verdict moves, so a mark on it is erased by any render that
+/// replaces it, leaving the tag painted in a row that does not fit it until
+/// something else happens to look. The row is rendered unconditionally and kept
+/// across renders, so a mark there survives every slot replacement, and nothing
+/// in the renderer's own attributes can clear it. If the row itself is replaced
+/// the page has been remounted, and the verdict was cleared on the way out, so
+/// there is no tag to guard until a fresh measurement says there is.
+///
+/// It is cleared here as soon as a measurement says the tag fits again, so it
+/// cannot strand a tag that has room for it.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn apply_cukta_edition_release_fit_to_dom(row: &web_sys::Element, fits: bool) {
+    // Only written when it actually changes. This runs from inside a resize
+    // observer, and a write that re-dirties an observed box would have the
+    // browser deliver the observation again for no reason.
+    match (fits, row.has_attribute(CUKTA_EDITION_FIT_ATTRIBUTE)) {
+        (true, true) => {
+            let _ = row.remove_attribute(CUKTA_EDITION_FIT_ATTRIBUTE);
+        }
+        (false, false) => {
+            let _ = row.set_attribute(CUKTA_EDITION_FIT_ATTRIBUTE, CUKTA_EDITION_FIT_UNFIT);
+        }
+        _ => {}
+    }
+}
+
+/// Measure the row as it stands and record what was found, hiding or restoring
+/// the tag in the same breath.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn update_cukta_edition_release_fit_now(
+    fit: CuktaEditionReleaseFitState,
+    claim: &CuktaEditionFitClaim,
+) {
+    let Some(row) = cukta_edition_row() else {
+        // No row means the cukta page is not on screen; its teardown owns the
+        // verdict in that case, and there is nothing here to measure.
+        return;
+    };
+    let measured_for = fit.verdict.peek().key;
+    let measured = measure_cukta_edition_release_fit_in(&row);
+    // The row in front of us is the one being painted, so the guard is applied
+    // whatever the claim says. Only the verdict is subject to ownership.
+    apply_cukta_edition_release_fit_to_dom(&row, measured == Some(true));
+    fit.apply_measurement(measured_for, claim, measured);
+}
+
+/// A resize observer watching the edition row, kept alive for as long as the
+/// cukta page is mounted.
+#[cfg(target_arch = "wasm32")]
+#[invariant(true)]
+pub(super) struct CuktaEditionRowObserver {
+    observer: web_sys::ResizeObserver,
+    /// The row this observer was attached to, kept so that a row the renderer
+    /// has replaced can be recognised rather than silently watched forever.
+    row: web_sys::Element,
+    // Dropping the closure would leave the observer calling into freed memory,
+    // so it is owned here and released with the observer.
+    _callback: Closure<dyn FnMut(js_sys::Array, web_sys::ResizeObserver)>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl CuktaEditionRowObserver {
+    /// Whether this observer is still watching the row that is in the document.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn watches(&self, row: &web_sys::Element) -> bool {
+        self.row.is_same_node(Some(row))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn disconnect(&self) {
+        self.observer.disconnect();
+    }
+}
+
+/// Watch the edition row and its fit probe, and re-decide the fit inside the
+/// frame either of them changes shape.
+///
+/// A resize observer runs after layout and before paint, so the tag is taken
+/// out of a row that has just become too narrow in the very frame that
+/// narrowed it, whatever narrowed it and whether or not anything re-rendered.
+/// The probe is watched as well, because a font arriving or a zoom changes what
+/// the row needs without changing what it has.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn observe_cukta_edition_row(
+    fit: CuktaEditionReleaseFitState,
+) -> Option<CuktaEditionRowObserver> {
+    let row = cukta_edition_row()?;
+    let probe = row
+        .query_selector(":scope > .cll-edition-fit-probe")
+        .ok()
+        .flatten()?;
+    let callback = Closure::<dyn FnMut(js_sys::Array, web_sys::ResizeObserver)>::new(
+        move |_entries: js_sys::Array, _observer: web_sys::ResizeObserver| {
+            // A box change supersedes whatever is already in flight: what is on
+            // screen now is newer than any measurement still being awaited.
+            update_cukta_edition_release_fit_now(fit, &fit.claim_measurement());
+        },
+    );
+    let observer = web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref()).ok()?;
+    observer.observe(&row);
+    observer.observe(&probe);
+    Some(CuktaEditionRowObserver {
+        observer,
+        row,
+        _callback: callback,
+    })
+}
+
+/// What the message the desktop bridge relays for the edition row is called.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+const DESKTOP_EDITION_FIT_MESSAGE: &str = "edition-fit";
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub(super) struct CuktaEditionFitMetrics {
+    pub(super) available_width: f64,
+    pub(super) required_width: f64,
+}
+
+/// Measure the desktop webview's edition row, and make sure that row is being
+/// watched so the tag cannot be painted in a box that has already changed.
+///
+/// The webview has no `web_sys`, so the observer that the browser build installs
+/// from Rust is installed here instead, in the page itself. It is attached
+/// lazily by each measurement: the row element is created afresh every time the
+/// cukta page is mounted, and a measurement is already scheduled on mount, on
+/// every layout-key change, and on every window event, so checking the attach
+/// here is enough to keep it on the current row without watching the document
+/// for mutations.
+///
+/// The observer takes the tag out of the painted row for the frame it is in and
+/// then reports, through the notifier the bridge leaves on `window`, so that the
+/// verdict the renderer reads is brought up to date and the element removed
+/// rather than merely hidden. Hiding alone would not be enough: the renderer
+/// would still believe the tag fits, and the guard is what holds the line only
+/// until that is corrected.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_cukta_edition_release_fit_desktop() -> Option<bool> {
+    let metrics: CuktaEditionFitMetrics = document::eval(
+        r#"
+        const state = window.__jbotciCuktaEditionFit
+            || (window.__jbotciCuktaEditionFit = { observer: null, row: null });
+        const measure = (row) => {
+            const probe = row && row.querySelector(":scope > .cll-edition-fit-probe");
+            if (!row || !probe) {
+                return null;
+            }
+            const style = window.getComputedStyle(row);
+            const inset = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"]
+                .reduce((sum, property) => {
+                    const value = Number.parseFloat(style[property]);
+                    return sum + (Number.isFinite(value) && value >= 0 ? value : 0);
+                }, 0);
+            const availableWidth = row.getBoundingClientRect().width - inset;
+            const requiredWidth = probe.getBoundingClientRect().width;
+            if (!(availableWidth > 0) || !(requiredWidth > 0)) {
+                return null;
+            }
+            return { available_width: availableWidth, required_width: requiredWidth };
+        };
+        // Mirrors `cukta_edition_release_fits`, which stays the authority for the
+        // rendered state: exact, with no tolerance. A row that cannot be measured
+        // is not a fit.
+        const fitsOf = (metrics) => metrics !== null
+            && metrics.required_width <= metrics.available_width;
+        // Marks the row, not the slot: the slot is created and destroyed by the
+        // renderer as the verdict moves, so a mark on it is erased by the next
+        // render that replaces it, while the row is rendered unconditionally and
+        // kept. The renderer never writes this attribute, so nothing it does can
+        // clear the mark.
+        const applyToDom = (row, fits) => {
+            if (!row) {
+                return;
+            }
+            if (fits) {
+                row.removeAttribute("data-cukta-edition-fit");
+            } else {
+                row.setAttribute("data-cukta-edition-fit", "unfit");
+            }
+        };
+        const row = document.querySelector(".cll-toc-head .cll-edition");
+        if (state.row !== row) {
+            if (state.observer) {
+                state.observer.disconnect();
+                state.observer = null;
+            }
+            state.row = row;
+            if (row) {
+                // Runs after layout and before paint, so a row that has just
+                // become too narrow loses the tag in the frame that narrowed it,
+                // whether that was a splitter drag, an overlay clamped to the
+                // viewport, or a zoom.
+                state.observer = new ResizeObserver(() => {
+                    const current = state.row;
+                    if (!current || !current.isConnected) {
+                        return;
+                    }
+                    applyToDom(current, fitsOf(measure(current)));
+                    // Hiding the tag for this frame is only half the job: the
+                    // renderer still believes it fits, so it would go on putting
+                    // the element back, marked row or not. Tell the bridge, so
+                    // the verdict is remeasured and the element removed rather
+                    // than merely hidden.
+                    if (window.__jbotciCuktaEditionFitNotify) {
+                        window.__jbotciCuktaEditionFitNotify();
+                    }
+                });
+                state.observer.observe(row);
+                const probe = row.querySelector(":scope > .cll-edition-fit-probe");
+                if (probe) {
+                    state.observer.observe(probe);
+                }
+            }
+        }
+        if (!row) {
+            return null;
+        }
+        const metrics = measure(row);
+        applyToDom(row, fitsOf(metrics));
+        return metrics;
+        "#,
+    )
+    .join()
+    .await
+    .ok()?;
+    Some(cukta_edition_release_fits(
+        metrics.available_width.max(0.0),
+        metrics.required_width.max(0.0),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn update_cukta_edition_release_fit_scheduled(
+    fit: CuktaEditionReleaseFitState,
+    claim: CuktaEditionFitClaim,
+) {
+    update_cukta_edition_release_fit_now(fit, &claim);
+}
+
+/// Unlike the browser path, this one awaits - retry frames, and then the bridge
+/// round-trip itself - so by the time it has an answer the layout may have
+/// moved on and other measurements may have been issued and even finished. It
+/// carries the claim it was issued with and the layout it set out to measure,
+/// and `apply_measurement` writes only if both still hold, so neither a
+/// superseded measurement nor one that outlived its layout can land.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn update_cukta_edition_release_fit_scheduled(
+    fit: CuktaEditionReleaseFitState,
+    claim: CuktaEditionFitClaim,
+) {
+    let measured_for = fit.verdict.peek().key;
+    // The desktop webview can still report an unlaid-out row on the frame a
+    // resize lands on, so give it the same few frames the topbar probes get.
+    let mut measured = None;
+    for delay_ms in [0, 16, 64] {
+        platform::sleep_ms(delay_ms).await;
+        measured = measure_cukta_edition_release_fit_desktop().await;
+        if measured.is_some() {
+            break;
+        }
+    }
+    fit.apply_measurement(measured_for, &claim, measured);
+}
+
+/// This build has no rendered document to measure - it is the headless target
+/// the crate's own tests and server-side rendering use - so there is nothing to
+/// decide and the verdict is left as it is. Because that verdict starts, and on
+/// leaving the page returns to, "measured in no layout", the tag is simply never
+/// shown here rather than shown on an unmeasured row.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn update_cukta_edition_release_fit_scheduled(
+    fit: CuktaEditionReleaseFitState,
+    claim: CuktaEditionFitClaim,
+) {
+    let _ = (fit, claim);
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_cukta_edition_release_fit_measure(fit: CuktaEditionReleaseFitState) {
+    // The claim is taken here, when the measurement is asked for, rather than
+    // when it eventually runs: that is what makes a later request supersede an
+    // earlier one even though both are still waiting to start.
+    let claim = fit.claim_measurement();
+    platform::schedule_visual_measure_task(move || async move {
+        update_cukta_edition_release_fit_scheduled(fit, claim).await;
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_cukta_edition_release_fit_after_fonts_ready(
+    document: &web_sys::Document,
+    fit: CuktaEditionReleaseFitState,
+) {
+    platform::schedule_after_fonts_ready(document, move || async move {
+        schedule_cukta_edition_release_fit_measure(fit);
+    });
 }
 
 #[requires(true)]
@@ -3017,6 +3664,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
+    cukta_edition_release_fits: CuktaEditionReleaseFitState,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
         if installed.get() {
@@ -3071,12 +3719,14 @@ pub(super) fn install_browser_dom_handlers(
     let resize_nav_layout = topbar_nav_layout;
     let resize_jvozba_available = jvozba_available;
     let resize_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
+    let resize_cukta_edition_release_fits = cukta_edition_release_fits;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(resize_layout, resize_open, resize_nav_layout);
         update_vlacku_jvozba_availability(resize_jvozba_available);
         update_cukta_toc_forced_autohide(resize_cukta_toc_forced_autohide);
+        schedule_cukta_edition_release_fit_measure(resize_cukta_edition_release_fits);
         schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ =
@@ -3088,12 +3738,14 @@ pub(super) fn install_browser_dom_handlers(
     let load_nav_layout = topbar_nav_layout;
     let load_jvozba_available = jvozba_available;
     let load_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
+    let load_cukta_edition_release_fits = cukta_edition_release_fits;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(load_layout, load_open, load_nav_layout);
         update_vlacku_jvozba_availability(load_jvozba_available);
         update_cukta_toc_forced_autohide(load_cukta_toc_forced_autohide);
+        schedule_cukta_edition_release_fit_measure(load_cukta_edition_release_fits);
         schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ = window
@@ -3103,6 +3755,7 @@ pub(super) fn install_browser_dom_handlers(
     let stylesheet_layout = topbar_settings_layout;
     let stylesheet_open = topbar_settings_open;
     let stylesheet_nav_layout = topbar_nav_layout;
+    let stylesheet_cukta_edition_release_fits = cukta_edition_release_fits;
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
@@ -3112,6 +3765,7 @@ pub(super) fn install_browser_dom_handlers(
                 stylesheet_open,
                 stylesheet_nav_layout,
             );
+            schedule_cukta_edition_release_fit_measure(stylesheet_cukta_edition_release_fits);
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
     }) as Box<dyn FnMut(_)>);
@@ -3129,6 +3783,7 @@ pub(super) fn install_browser_dom_handlers(
         topbar_settings_open,
         topbar_nav_layout,
     );
+    schedule_cukta_edition_release_fit_after_fonts_ready(&document, cukta_edition_release_fits);
     schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
     let document_scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
@@ -3159,6 +3814,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
+    cukta_edition_release_fits: CuktaEditionReleaseFitState,
 ) {
     if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
         return;
@@ -3185,6 +3841,18 @@ pub(super) fn install_browser_dom_handlers(
                 } catch (_error) {
                 }
             };
+            // The cukta edition row's resize observer is installed by the
+            // measurement below, which is a separate evaluation with no channel
+            // of its own. This bridge owns the channel, so it leaves a way to
+            // reach it: the observer hides the tag for the frame it is in, and
+            // then calls this so the verdict the renderer reads is brought up to
+            // date and the element itself is removed.
+            window.__jbotciCuktaEditionFitNotify = () => {
+                try {
+                    dioxus.send("edition-fit");
+                } catch (_error) {
+                }
+            };
             const scheduleLayout = () => requestAnimationFrame(sendLayout);
             window.addEventListener("resize", scheduleLayout);
             window.addEventListener("load", sendLayout);
@@ -3198,7 +3866,13 @@ pub(super) fn install_browser_dom_handlers(
             await new Promise(() => {});
             "#,
         );
-        while eval.recv::<String>().await.is_ok() {
+        while let Ok(message) = eval.recv::<String>().await {
+            // The edition row's observer reports only its own finding, so it
+            // does not drag every other measurement along with it.
+            if message == DESKTOP_EDITION_FIT_MESSAGE {
+                schedule_cukta_edition_release_fit_measure(cukta_edition_release_fits);
+                continue;
+            }
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
             schedule_topbar_settings_layout_measure(
@@ -3208,6 +3882,7 @@ pub(super) fn install_browser_dom_handlers(
             );
             update_vlacku_jvozba_availability(jvozba_available);
             update_cukta_toc_forced_autohide(cukta_toc_forced_autohide);
+            schedule_cukta_edition_release_fit_measure(cukta_edition_release_fits);
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
     });
@@ -3222,6 +3897,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
+    cukta_edition_release_fits: CuktaEditionReleaseFitState,
 ) {
     let _ = (
         jvozba_available,
@@ -3229,6 +3905,7 @@ pub(super) fn install_browser_dom_handlers(
         topbar_settings_open,
         topbar_nav_layout,
         cukta_toc_forced_autohide,
+        cukta_edition_release_fits,
     );
 }
 

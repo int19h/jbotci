@@ -1920,6 +1920,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "block reference height updates are transient DOM measurement results applied immediately",
     ),
     (
+        "crates/jbotci-ui/src/layout.rs:CuktaEditionFitClaim",
+        "a measurement's claim on the verdict, meaningful only as an identity; the unit it wraps carries no state to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:CuktaEditionFitMetrics",
+        "cukta edition fit metrics are the two raw widths a desktop webview measurement reports, checked by the caller before they decide anything",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:CuktaEditionLayoutKey",
+        "names which sidebar rules size the edition row; overlay or not and shown or not are independent, so every combination is a layout that exists",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:CuktaEditionReleaseFitState",
+        "pairs the verdict the renderer reads with the token deciding which measurement may write it; the two signals are independent handles and neither constrains the other",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:CuktaEditionRowObserver",
+        "owns a browser resize observer and the closure it calls; the pairing is the whole point and neither half constrains the other",
+    ),
+    (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeAnchorMetrics",
         "desktop tree anchor metrics are direct layout measurements used to derive overlay geometry",
     ),
