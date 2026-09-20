@@ -30,18 +30,29 @@ jobs:
       DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
       DIOXUS_CLI_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/dioxus-cli-0.7.9
       CARGO_BUILD_JOBS: 4
+      NODE_VERSION: 24.14.0
       RUSTUP_HOME: /usr/local/rustup
     steps:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev nodejs npm zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
         uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Show Node.js version
+        run: |
+          node --version
+          npm --version
 
       - name: Capture Rust version
         id: rustc

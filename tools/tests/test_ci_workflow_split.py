@@ -19,13 +19,17 @@ class CiWorkflowSplitTests(unittest.TestCase):
 
     def test_pr_workflow_keeps_regular_tests_without_deployment_gates(self) -> None:
         self.assertIn("CARGO_BUILD_JOBS: 1", self.test_workflow)
+        self.assertIn("NODE_VERSION: 24.14.0", self.test_workflow)
+        self.assertIn("uses: actions/setup-node@v6", self.test_workflow)
+        self.assertIn("node-version: ${{ env.NODE_VERSION }}", self.test_workflow)
+        self.assertIn("node --version", self.test_workflow)
+        self.assertIn("npm --version", self.test_workflow)
         self.assertIn("cargo test -r --workspace", self.test_workflow)
         self.assertIn("fixture-test --profile all", self.test_workflow)
         for removed in (
             "wasm-stack-test",
             "f2llm-native-lavapipe",
             "DIOXUS_CLI_VERSION",
-            "actions/setup-node",
             "rustup target add wasm32-unknown-unknown",
             ".github-cache/home/.dx",
         ):
@@ -40,6 +44,14 @@ class CiWorkflowSplitTests(unittest.TestCase):
         archive = build_bundle.index("tar -C .jbotci-build/render")
         self.assertLess(build, probe)
         self.assertLess(probe, archive)
+        self.assertIn("NODE_VERSION: 24.14.0", build_bundle)
+        self.assertIn("uses: actions/setup-node@v6", build_bundle)
+        self.assertIn("node-version: ${{ env.NODE_VERSION }}", build_bundle)
+        build_dependencies = build_bundle.split(
+            "      - name: Install build dependencies\n", 1
+        )[1].split("      - name: Check out source\n", 1)[0]
+        self.assertNotIn(" nodejs", build_dependencies)
+        self.assertNotIn(" npm", build_dependencies)
         self.assertIn("--no-build", build_bundle)
         self.assertIn("--public-dir .jbotci-build/render/public", build_bundle)
 
