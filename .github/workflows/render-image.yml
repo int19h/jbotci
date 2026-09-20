@@ -117,6 +117,13 @@ jobs:
           test -f .jbotci-build/render/public/index.html
           file .jbotci-build/render/server
 
+      - name: Run release wasm stack probe against deployment bundle
+        run: |
+          cargo run --release -p xtask-full -- wasm-stack-test \
+            --profile release \
+            --no-build \
+            --public-dir .jbotci-build/render/public
+
       - name: Smoke test bundle
         env:
           DIOXUS_ASSET_ROOT: /
@@ -179,10 +186,64 @@ jobs:
             .github-cache/home/.dx
           key: ${{ steps.target-cache.outputs.cache-primary-key }}
 
+  f2llm-native-lavapipe:
+    name: F2LLM 80m native goldens (lavapipe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: rust:1-trixie
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
+      CARGO_BUILD_JOBS: 4
+      WGPU_BACKEND: vulkan
+      JBOTCI_F2LLM_ARTIFACT_ROOT: ${{ github.workspace }}/.github-cache/f2llm-native-artifacts
+      JBOTCI_F2LLM_GOLDEN_MODE: 80m
+      JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER: 1
+    steps:
+      - name: Install lavapipe
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git mesa-vulkan-drivers python3 time
+          mapfile -t lavapipe_icds < <(dpkg -L mesa-vulkan-drivers | grep -E '/lvp_icd(\.[^.]+)?\.json$')
+          if [ "${#lavapipe_icds[@]}" -ne 1 ]; then
+            echo "Expected exactly one lavapipe Vulkan ICD, found ${#lavapipe_icds[@]}" >&2
+            printf '%s\n' "${lavapipe_icds[@]}" >&2
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=${lavapipe_icds[0]}" >> "${GITHUB_ENV}"
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Download verified published 80m WebGPU artifact
+        run: |
+          # Regenerate consciously (copy the digest below and the component pin into
+          # tools/f2llm-oracles/webgpu-artifact-identity-pins.json):
+          # python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+          #   --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
+          #   --print-artifact-identity
+          python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+            --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
+            --expected-artifact-identity 6aa5a067235c8b8a78855e2ebed1d112db5a1a702ae228686bf10eae4b3834aa \
+            --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
+            --out "${JBOTCI_F2LLM_ARTIFACT_ROOT}/f2llm-v2-80m-q4-320"
+
+      - name: Run only the 80m native golden suite
+        run: |
+          /usr/bin/time -f 'lavapipe 80m native goldens wall time: %E' \
+            cargo test -r -p jbotci-f2llm-runtime --features native \
+              --test native_goldens -- --nocapture
+
   publish-image:
     name: Publish GHCR runtime image
     runs-on: ubuntu-latest
-    needs: build-bundle
+    needs:
+      - build-bundle
+      - f2llm-native-lavapipe
     steps:
       - name: Check out source
         uses: actions/checkout@v6

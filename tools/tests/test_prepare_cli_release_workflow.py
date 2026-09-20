@@ -20,7 +20,8 @@ CARGO_COMMAND = (
     "-p jbotci --bin jbotci -- -C target-feature=+crt-static"
 )
 COMBINED_TEST_COMMAND = (
-    "python3 -m unittest tools.tests.test_cli_release "
+    "python3 -m unittest tools.tests.test_ci_workflow_split "
+    "tools.tests.test_cli_release "
     "tools.tests.test_prepare_cli_release_workflow "
     "tools.tests.test_release_draft_script -v"
 )
