@@ -28,6 +28,13 @@ upgrade_code = "5fc2c34f-0231-53b4-af97-bd710d8abad2"
 [web.app]
 title = "jbotci"
 
+[web.wasm_opt]
+level = "z"
+# Binaryen's function sharing adds forwarding calls at each parser nesting level,
+# exhausting Safari/JSC's native stack. Keep the other -Oz passes, but retain
+# complete function bodies instead of introducing those extra frames (#913).
+extra_features = ["--skip-pass", "merge-similar-functions"]
+
 [web.watcher]
 reload_html = true
 watch_path = ["src", "../../crates/jbotci-ui/src", "../../crates/jbotci-ui/assets", "index.html"]
