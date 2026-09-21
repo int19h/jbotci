@@ -719,23 +719,6 @@ pub(super) trait Parser<'tokens, O> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn map_err_with_state<F>(self, mapper: F) -> MapErrWithState<Self, F>
-    where
-        Self: Sized,
-        F: Fn(
-            SyntaxParseError<'tokens>,
-            SimpleSpan,
-            &mut ParserState<'tokens>,
-        ) -> SyntaxParseError<'tokens>,
-    {
-        MapErrWithState {
-            parser: self,
-            mapper,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn then<U, P>(self, other: P) -> Then<Self, P, O, U>
     where
         Self: Sized,
@@ -1010,71 +993,6 @@ where
     #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.parser.drive_check(input)
-    }
-}
-
-/// Primary-error mapping with parser-state access.
-#[invariant(true)]
-#[derive(Clone)]
-pub(crate) struct MapErrWithState<P, F> {
-    parser: P,
-    mapper: F,
-}
-
-impl<P, F> MapErrWithState<P, F> {
-    #[requires(true)]
-    #[ensures(true)]
-    #[inline(always)]
-    fn drive<'tokens, O, R>(
-        &self,
-        input: &mut InputRef<'tokens, '_>,
-        parser: impl FnOnce(&P, &mut InputRef<'tokens, '_>) -> Result<R, ()>,
-    ) -> Result<R, ()>
-    where
-        P: Parser<'tokens, O>,
-        F: Fn(
-            SyntaxParseError<'tokens>,
-            SimpleSpan,
-            &mut ParserState<'tokens>,
-        ) -> SyntaxParseError<'tokens>,
-    {
-        let start = input.cursor();
-        let old_alternative = input.take_alternative();
-        let result = parser(&self.parser, input);
-        let new_alternative = input.take_alternative();
-        input.errors.alternative = old_alternative;
-        if result.is_ok() {
-            if let Some(alternative) = new_alternative {
-                input.add_alternative_error(alternative.position, alternative.error);
-            }
-        } else {
-            let mut alternative = new_alternative.expect("failed parsers register a primary error");
-            let span = input.span_since(&start);
-            alternative.error = (self.mapper)(alternative.error, span, input.state());
-            input.add_alternative_error(alternative.position, alternative.error);
-        }
-        result
-    }
-}
-
-#[contract_trait]
-impl<'tokens, O, P, F> Parser<'tokens, O> for MapErrWithState<P, F>
-where
-    P: Parser<'tokens, O>,
-    F: Fn(
-        SyntaxParseError<'tokens>,
-        SimpleSpan,
-        &mut ParserState<'tokens>,
-    ) -> SyntaxParseError<'tokens>,
-{
-    #[inline(always)]
-    fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
-        self.drive(input, Parser::drive_emit)
-    }
-
-    #[inline(always)]
-    fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
-        self.drive(input, Parser::drive_check)
     }
 }
 

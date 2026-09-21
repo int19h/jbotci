@@ -6,7 +6,6 @@ use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
     rc::Rc,
 };
 
