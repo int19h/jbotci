@@ -48,10 +48,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
     ),
     (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
-        "embedding worker jobs pair a typed request with the response channel for that request",
-    ),
-    (
         "apps/jbotci-server/src/discord/codec.rs:PageControl",
         "a page button carries an instruction only: any revision and any positive page are a question the message answers",
     ),
@@ -1834,10 +1830,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Then",
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
-        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
     ),
     (
         "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
