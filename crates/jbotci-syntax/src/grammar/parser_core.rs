@@ -521,6 +521,24 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
         }
     }
 
+    /// [`Self::parse`] for the check-only driver: the same primary-error routing without
+    /// materializing an output.
+    #[requires(true)]
+    #[ensures(true)]
+    #[inline(always)]
+    pub(crate) fn parse_check<O, P>(&mut self, parser: P) -> Result<(), SyntaxParseError<'tokens>>
+    where
+        P: Parser<'tokens, O>,
+    {
+        match parser.drive_check(self) {
+            Ok(()) => Ok(()),
+            Err(()) => Err(self
+                .take_alternative()
+                .expect("failed parsers register a primary error")
+                .error),
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn add_expected<L, E>(
@@ -946,7 +964,6 @@ impl<'tokens> Parser<'tokens, ()> for End {
 
 /// Output mapping.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct Map<P, O, F> {
     parser: P,
     mapper: F,
@@ -972,7 +989,6 @@ where
 
 /// Output mapping with parser-state access.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct MapWith<P, O, F> {
     parser: P,
     mapper: F,
@@ -1064,7 +1080,6 @@ where
 
 /// Sequential parser composition retaining both outputs.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct Then<A, B, OA, OB> {
     first: A,
     second: B,
@@ -1093,7 +1108,6 @@ where
 
 /// Sequential parser composition discarding the first output.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct IgnoreThen<A, B, OA> {
     first: A,
     second: B,
@@ -1116,6 +1130,56 @@ where
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.first.drive_check(input)?;
         self.second.drive_check(input)
+    }
+}
+
+// Manual `Clone` impls: the derived ones would also require the phantom output type
+// parameters to be `Clone`, which grammar output types need not be.
+impl<P: Clone, O, F: Clone> Clone for Map<P, O, F> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        Map {
+            parser: self.parser.clone(),
+            mapper: self.mapper.clone(),
+            output: PhantomData,
+        }
+    }
+}
+
+impl<P: Clone, O, F: Clone> Clone for MapWith<P, O, F> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        MapWith {
+            parser: self.parser.clone(),
+            mapper: self.mapper.clone(),
+            output: PhantomData,
+        }
+    }
+}
+
+impl<A: Clone, B: Clone, OA, OB> Clone for Then<A, B, OA, OB> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        Then {
+            first: self.first.clone(),
+            second: self.second.clone(),
+            outputs: PhantomData,
+        }
+    }
+}
+
+impl<A: Clone, B: Clone, OA> Clone for IgnoreThen<A, B, OA> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        IgnoreThen {
+            first: self.first.clone(),
+            second: self.second.clone(),
+            ignored: PhantomData,
+        }
     }
 }
 
@@ -1316,28 +1380,58 @@ impl<'tokens, O: 'tokens> Recursive<'tokens, O> {
 impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
     #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
-        stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
-            self.node
+        #[cfg(target_arch = "wasm32")]
+        {
+            let node = self
+                .node
                 .upgrade()
-                .expect("recursive parser family owner is not retained")
+                .expect("recursive parser family owner is not retained");
+            let parser = node
                 .parser
                 .get()
-                .expect("recursive parser used before definition")
-                .drive_emit(input)
-        })
+                .expect("recursive parser used before definition");
+            parser.drive_emit(input)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+                self.node
+                    .upgrade()
+                    .expect("recursive parser family owner is not retained")
+                    .parser
+                    .get()
+                    .expect("recursive parser used before definition")
+                    .drive_emit(input)
+            })
+        }
     }
 
     #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
-        stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
-            self.node
+        #[cfg(target_arch = "wasm32")]
+        {
+            let node = self
+                .node
                 .upgrade()
-                .expect("recursive parser family owner is not retained")
+                .expect("recursive parser family owner is not retained");
+            let parser = node
                 .parser
                 .get()
-                .expect("recursive parser used before definition")
-                .drive_check(input)
-        })
+                .expect("recursive parser used before definition");
+            parser.drive_check(input)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+                self.node
+                    .upgrade()
+                    .expect("recursive parser family owner is not retained")
+                    .parser
+                    .get()
+                    .expect("recursive parser used before definition")
+                    .drive_check(input)
+            })
+        }
     }
 }
 
