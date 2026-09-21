@@ -521,24 +521,6 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
         }
     }
 
-    /// [`Self::parse`] for the check-only driver: the same primary-error routing without
-    /// materializing an output.
-    #[requires(true)]
-    #[ensures(true)]
-    #[inline(always)]
-    pub(crate) fn parse_check<O, P>(&mut self, parser: P) -> Result<(), SyntaxParseError<'tokens>>
-    where
-        P: Parser<'tokens, O>,
-    {
-        match parser.drive_check(self) {
-            Ok(()) => Ok(()),
-            Err(()) => Err(self
-                .take_alternative()
-                .expect("failed parsers register a primary error")
-                .error),
-        }
-    }
-
     #[requires(true)]
     #[ensures(true)]
     fn add_expected<L, E>(

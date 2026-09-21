@@ -1528,10 +1528,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the empty alternative list carries no data",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleRun",
-        "rule bookkeeping snapshots are taken from a consistent parser state and only read back by the exit helpers",
-    ),
-    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),

@@ -385,7 +385,10 @@ fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static
 /// recursion-path frame holds one pointer instead of every field as a separate Wasm local.
 /// Safari's WebAssembly tiers reserve native stack for every local of every frame on the
 /// recursion path, so this keeps the per-rule native frame small (#913).
-#[invariant(true)]
+#[invariant(
+    *start_location == ParserInput::cursor_location(checkpoint.cursor().inner()),
+    "a rule run starts at its checkpoint"
+)]
 struct RuleRun<'tokens, 'parse> {
     checkpoint: Checkpoint<'tokens, 'parse>,
     start_location: usize,
@@ -480,14 +483,14 @@ fn rule_enter<'tokens, 'parse>(
         }
         input.state().push_syntax_context(construct, start_byte);
     }
-    RuleEntry::Run(RuleRun {
+    RuleEntry::Run(new!(RuleRun {
         checkpoint,
         start_location,
         memo_context,
         warning_start,
         start_byte,
         track_recovery_branches,
-    })
+    }))
 }
 
 /// Success bookkeeping shared by every generated rule wrapper; see [`rule_enter`].
@@ -1164,14 +1167,6 @@ pub(crate) trait OrderedChoiceAlternatives<'tokens, O> {
         input: &mut InputRef<'tokens, '_>,
         abandoned: &mut Option<SyntaxParseError<'tokens>>,
     ) -> Result<O, ()>;
-
-    #[requires(true)]
-    #[ensures(ret.is_err() -> abandoned.is_some())]
-    fn drive_check_alternatives(
-        &self,
-        input: &mut InputRef<'tokens, '_>,
-        abandoned: &mut Option<SyntaxParseError<'tokens>>,
-    ) -> Result<(), ()>;
 }
 
 #[contract_trait]
@@ -1182,19 +1177,6 @@ impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
         _input: &mut InputRef<'tokens, '_>,
         abandoned: &mut Option<SyntaxParseError<'tokens>>,
     ) -> Result<O, ()> {
-        debug_assert!(
-            abandoned.is_some(),
-            "ordered choice has at least one alternative"
-        );
-        Err(())
-    }
-
-    #[inline(always)]
-    fn drive_check_alternatives(
-        &self,
-        _input: &mut InputRef<'tokens, '_>,
-        abandoned: &mut Option<SyntaxParseError<'tokens>>,
-    ) -> Result<(), ()> {
         debug_assert!(
             abandoned.is_some(),
             "ordered choice has at least one alternative"
@@ -1225,26 +1207,6 @@ where
                 input.rewind(checkpoint);
                 merge_abandoned_choice_error(abandoned, error);
                 self.rest.drive_emit_alternatives(input, abandoned)
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn drive_check_alternatives(
-        &self,
-        input: &mut InputRef<'tokens, '_>,
-        abandoned: &mut Option<SyntaxParseError<'tokens>>,
-    ) -> Result<(), ()> {
-        let checkpoint = input.save();
-        match input.parse_check(&self.head) {
-            Ok(()) => {
-                record_abandoned_choice_error(input, abandoned);
-                Ok(())
-            }
-            Err(error) => {
-                input.rewind(checkpoint);
-                merge_abandoned_choice_error(abandoned, error);
-                self.rest.drive_check_alternatives(input, abandoned)
             }
         }
     }
@@ -1299,39 +1261,6 @@ where
             }
         },
     )
-}
-
-#[requires(!alternatives.is_empty())]
-#[ensures(true)]
-pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
-    alternatives: Vec<BoxedParser<'tokens, O>>,
-) -> BoxedParser<'tokens, O> {
-    custom::<_, _>(
-        #[inline(always)]
-        move |input| {
-            let mut abandoned_error = None;
-            for alternative in &alternatives {
-                let checkpoint = input.save();
-                match input.parse(alternative) {
-                    Ok(output) => {
-                        if let Some(error) = abandoned_error {
-                            input.state().record_diagnostic_candidate(error);
-                        }
-                        return Ok(output);
-                    }
-                    Err(error) => {
-                        input.rewind(checkpoint);
-                        abandoned_error = Some(match abandoned_error {
-                            None => error,
-                            Some(previous) => merge_choice_errors(previous, error),
-                        });
-                    }
-                }
-            }
-            Err(abandoned_error.expect("ordered choice has at least one alternative"))
-        },
-    )
-    .boxed()
 }
 
 #[requires(true)]

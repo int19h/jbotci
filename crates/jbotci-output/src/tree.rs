@@ -270,56 +270,56 @@ fn generated_root_projection(value: TreeValue) -> TreeValue {
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_singular_text_field_projection(mut value: TreeValue) -> TreeValue {
-    match &mut value {
-        TreeValue::Node(node) => {
+fn generated_singular_text_field_projection(value: TreeValue) -> TreeValue {
+    match value {
+        TreeValue::Node(mut node) => {
             node.entries = std::mem::take(&mut node.entries)
                 .into_iter()
-                .map(|mut entry| {
-                    let inner = std::mem::replace(&mut entry.value, TreeValue::detached_leaf());
-                    let inner = generated_singular_text_field_projection(inner);
-                    entry.value = if entry.label == Some("text") {
-                        generated_singleton_collection_projection(inner)
+                .map(|entry| {
+                    let value = generated_singular_text_field_projection(entry.value);
+                    let value = if entry.label == Some("text") {
+                        generated_singleton_collection_projection(value)
                     } else {
-                        inner
+                        value
                     };
-                    entry
+                    TreeEntry {
+                        label: entry.label,
+                        value,
+                    }
                 })
                 .collect();
+            TreeValue::Node(node)
         }
-        TreeValue::Collection(items) => {
-            *items = std::mem::take(items)
+        TreeValue::Collection(items) => TreeValue::Collection(
+            items
                 .into_iter()
                 .map(generated_singular_text_field_projection)
-                .collect();
-        }
-        TreeValue::Syntax { value: inner, .. } => {
-            let owned = std::mem::replace(inner.as_mut(), TreeValue::detached_leaf());
-            **inner = generated_singular_text_field_projection(owned);
+                .collect(),
+        ),
+        TreeValue::Syntax { syntax_ids, value } => {
+            syntax_value(syntax_ids, generated_singular_text_field_projection(*value))
         }
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
         | TreeValue::Error { .. }
         | TreeValue::Text(..)
-        | TreeValue::Span { .. } => {}
+        | TreeValue::Span { .. } => value,
     }
-    value
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_singleton_collection_projection(mut value: TreeValue) -> TreeValue {
-    match &mut value {
-        TreeValue::Collection(items) if items.len() == 1 => {
-            return items.pop().expect("length checked");
+fn generated_singleton_collection_projection(value: TreeValue) -> TreeValue {
+    match value {
+        TreeValue::Collection(mut items) if items.len() == 1 => {
+            items.pop().expect("length checked")
         }
-        TreeValue::Syntax { value: inner, .. } => {
-            let owned = std::mem::replace(inner.as_mut(), TreeValue::detached_leaf());
-            **inner = generated_singleton_collection_projection(owned);
-        }
-        _ => {}
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            generated_singleton_collection_projection(*value),
+        ),
+        value => value,
     }
-    value
 }
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
