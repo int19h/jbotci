@@ -2428,6 +2428,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Fail",
+        "a memoized rule failure delegates validity to the replayed parse error",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Replay",
+        "a memoized rule value is type-checked against the rule output by rule_enter before it is replayed",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Run",
+        "a rule run delegates validity to its bookkeeping snapshot",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Ref",
         "borrowed parser error tokens delegate validity to the referenced token type",
     ),
