@@ -1245,12 +1245,13 @@ mod tests {
         let na = Token::from_indicators(WithIndicators::bare(words.next().unwrap()));
         let ku = Token::from_indicators(WithIndicators::bare(words.next().unwrap()));
         assert!(words.next().is_none());
-        let term = model::NormalTermSyntax::NaKuTerm(model::NaKuTermSyntax {
+        let term = model::NormalTermSyntax::NaKuTerm(Arc::new(model::NaKuTermSyntax {
             na,
             na_ku: jbotci_syntax::tree::WithFreeModifiers::new(ku, Vec::new()),
-        });
-        let linked =
-            model::LinkedTermSyntax::FullLinkedTerm(model::FullLinkedTermSyntax(Arc::new(term)));
+        }));
+        let linked = model::LinkedTermSyntax::FullLinkedTerm(Arc::new(
+            model::FullLinkedTermSyntax(Arc::new(term)),
+        ));
         let owner = Arc::new(SyntaxOwner {
             root: SyntaxRoot::Strict {
                 value: StrictSyntaxRoot::LinkedTermSyntax(Arc::new(linked)),

@@ -6235,7 +6235,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 let inner = &grouped.sumti;
                 let handled = self.visit_sumti_grouped(argument_id, &inner.base_sumti);
                 if let Some(attachment) = &inner.vuho_attachment {
-                    match attachment {
+                    match attachment.as_ref() {
                         generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
                             attachment,
                         ) => self.visit_relative_clause_list(
@@ -8304,14 +8304,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         _node: &'tree Arc<generated::SingleNaFragmentSyntax>,
     ) {
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_linked_sumti_empty_linked_sumti(
-        &mut self,
-        _node: &'tree Arc<generated::EmptyLinkedSumtiSyntax>,
-    ) {
-    }
 }
 
 #[requires(true)]
@@ -9611,7 +9603,7 @@ mod tests {
         let fa = fas[0];
         let linked = linked_units.into_iter().find(|linked| {
             linked.linkargs.is_some()
-                && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value, fa))
+                && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value.as_ref(), fa))
         }).expect("typed enclosing linked unit");
         let linked_raw = index
             .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked))
@@ -9760,7 +9752,7 @@ mod tests {
         let linked_owner = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
             Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value))
                 if value.linkargs.is_some()
-                    && matches!(value.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(inner) if std::ptr::eq(inner, fa)) => Some(value),
+                    && matches!(value.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(inner) if std::ptr::eq(inner.as_ref(), fa)) => Some(value),
             _ => None,
         }).expect("typed enclosing linked owner");
         let linked_raw = index
@@ -9969,8 +9961,8 @@ mod tests {
             fn walk_sumti(&mut self, node: &'tree generated::SumtiSyntax) {
                 if let Some(simple) = generated_simple_sumti_from_sumti(node)
                     && let generated::SumtiAtomSyntax::SumtiBase(base) = simple.base_sumti.as_ref()
-                    && let generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) = base
-                    && let Some(generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(attachment)) = &grouped.sumti.vuho_attachment
+                    && let generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) = base.as_ref()
+                    && let Some(generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(attachment)) = grouped.sumti.vuho_attachment.as_deref()
                 {
                     self.hits.push((node, grouped.sumti.as_ref(), attachment.sumti_connection.sumti.as_ref()));
                 }

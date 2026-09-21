@@ -50,6 +50,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
         "embedding worker jobs pair a typed request with the response channel for that request",
+    ),
+    (
         "apps/jbotci-server/src/discord/codec.rs:PageControl",
         "a page button carries an instruction only: any revision and any positive page are a question the message answers",
     ),
@@ -1568,6 +1570,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveredSourceExtentProbe",
         "one optional endpoint pair, so a half-set extent cannot be spelled at all",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ChoiceCons",
         "a typed ordered-choice alternative list is valid for every head/rest parser pair",
     ),
