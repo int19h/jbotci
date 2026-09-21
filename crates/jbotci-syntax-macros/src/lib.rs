@@ -6898,14 +6898,11 @@ fn strict_choice_chain(
     if alternatives.len() == 1 {
         return Ok(alternatives.pop().expect("length checked"));
     }
-    let alternatives = alternatives
-        .into_iter()
-        .map(|alternative| quote!(#alternative.boxed()));
-    Ok(quote!(generated_runtime::strict_ordered_choice_parsers(
-        vec![
-            #(#alternatives),*
-        ]
-    )))
+    let list = alternatives.into_iter().rev().fold(
+        quote!(generated_runtime::choice_nil()),
+        |rest, alternative| quote!(generated_runtime::choice_cons(#alternative, #rest)),
+    );
+    Ok(quote!(generated_runtime::strict_ordered_choice(#list)))
 }
 
 #[requires(true)]

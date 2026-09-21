@@ -1520,6 +1520,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a single accumulating flag whose every value is a valid state of the traversal",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ChoiceCons",
+        "a typed ordered-choice alternative list is valid for every head/rest parser pair",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ChoiceNil",
+        "the empty alternative list carries no data",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),
@@ -1689,10 +1697,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Map",
-        "combinator validity is fully expressed by parser and callback bounds on its Parser implementation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/parser_core.rs:MapErrWithState",
         "combinator validity is fully expressed by parser and callback bounds on its Parser implementation",
     ),
     (

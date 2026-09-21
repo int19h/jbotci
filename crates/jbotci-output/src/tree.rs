@@ -103,6 +103,73 @@ pub(crate) enum TreeValue {
         char_end: usize,
     },
 }
+impl TreeValue {
+    /// A leaf that owns no heap data, used to swap nested values out of a tree being torn down.
+    #[requires(true)]
+    #[ensures(true)]
+    fn detached_leaf() -> Self {
+        TreeValue::Span {
+            byte_start: 0,
+            byte_end: 0,
+            char_start: 0,
+            char_end: 0,
+        }
+    }
+
+    /// Moves every directly nested tree value out of `self` onto `pending`, leaving `self`
+    /// shallow. Values in `pending` may themselves still hold nested values.
+    #[requires(true)]
+    #[ensures(true)]
+    fn detach_children_into(&mut self, pending: &mut Vec<TreeValue>) {
+        match self {
+            TreeValue::Node(node) => {
+                pending.extend(
+                    std::mem::take(&mut node.entries)
+                        .into_iter()
+                        .map(|mut entry| {
+                            std::mem::replace(&mut entry.value, Self::detached_leaf())
+                        }),
+                );
+            }
+            TreeValue::Collection(items) => pending.append(items),
+            TreeValue::Syntax { value, .. } => {
+                pending.push(std::mem::replace(value.as_mut(), Self::detached_leaf()));
+            }
+            TreeValue::Word { .. }
+            | TreeValue::Verbatim { .. }
+            | TreeValue::Error { .. }
+            | TreeValue::Text(_)
+            | TreeValue::Span { .. } => {}
+        }
+    }
+}
+
+/// Tears a node's subtree down iteratively.
+///
+/// A rendered tree nests as deeply as the syntax tree it projects, and dropping it with the
+/// compiler-generated recursive glue put several native frames per nesting level on the
+/// stack. Safari's WebAssembly tiers reserve well over half a kilobyte per native frame, so a
+/// deep discarded subtree (for example the entries a custom node rendering replaces) overflowed
+/// the worker stack (#913). Every nested value is emptied of its own nested values before it is
+/// dropped, so the generated glue only ever drops shallow values. `TreeValue` itself stays free
+/// of `Drop` so the renderer can keep destructuring it by value; the unbounded nesting always
+/// passes through a node's entries.
+impl Drop for TreeNode {
+    #[requires(true)]
+    #[ensures(self.entries.is_empty())]
+    fn drop(&mut self) {
+        let mut pending = Vec::new();
+        pending.extend(
+            std::mem::take(&mut self.entries)
+                .into_iter()
+                .map(|mut entry| std::mem::replace(&mut entry.value, TreeValue::detached_leaf())),
+        );
+        while let Some(mut value) = pending.pop() {
+            value.detach_children_into(&mut pending);
+        }
+    }
+}
+
 #[doc(hidden)]
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
@@ -206,8 +273,7 @@ fn generated_root_projection(value: TreeValue) -> TreeValue {
 fn generated_singular_text_field_projection(value: TreeValue) -> TreeValue {
     match value {
         TreeValue::Node(mut node) => {
-            node.entries = node
-                .entries
+            node.entries = std::mem::take(&mut node.entries)
                 .into_iter()
                 .map(|entry| {
                     let value = generated_singular_text_field_projection(entry.value);
@@ -1482,8 +1548,8 @@ fn generated_paragraph_statement_with_marker_value(
 ) -> TreeValue {
     let mut entries = generated_leading_i_statement_entries(marker, source, options, syntax_index);
     match statement {
-        Some(TreeValue::Node(node)) if node.constructor == "ParagraphStatement" => {
-            entries.extend(node.entries);
+        Some(TreeValue::Node(mut node)) if node.constructor == "ParagraphStatement" => {
+            entries.extend(std::mem::take(&mut node.entries));
         }
         Some(TreeValue::Syntax { syntax_ids, value }) => {
             entries.push(TreeEntry {
@@ -2587,10 +2653,12 @@ where
         }
         let value =
             M::custom_node_tree_value(node_ref, self.source, self.options, self.syntax_index)
-                .unwrap_or(TreeValue::Node(TreeNode {
-                    constructor,
-                    entries,
-                }));
+                .unwrap_or_else(|| {
+                    TreeValue::Node(TreeNode {
+                        constructor,
+                        entries,
+                    })
+                });
         self.push_value(match syntax_id {
             Some(id) => syntax_value(vec![id], value),
             None => value,
@@ -2778,7 +2846,7 @@ where
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn split_chain_link_node_tree_value(
-    node: TreeNode,
+    mut node: TreeNode,
     is_element_field: impl Fn(&'static str, &'static str) -> bool,
 ) -> Vec<TreeValue> {
     let constructor = node.constructor;
@@ -2793,7 +2861,7 @@ fn split_chain_link_node_tree_value(
     let mut prefix = Vec::new();
     let mut suffix = Vec::new();
     let mut element = None;
-    for (index, entry) in node.entries.into_iter().enumerate() {
+    for (index, entry) in std::mem::take(&mut node.entries).into_iter().enumerate() {
         if index == element_index {
             element = Some(entry.value);
         } else if index < element_index {
@@ -2923,8 +2991,8 @@ pub(crate) fn collapse_value(value: TreeValue) -> TreeValue {
     loop {
         if let Some(entry) = next.take() {
             match entry.value {
-                TreeValue::Node(node) => {
-                    let mut remaining = node.entries;
+                TreeValue::Node(mut node) => {
+                    let mut remaining = std::mem::take(&mut node.entries);
                     remaining.reverse();
                     frames.push(CollapseFrame {
                         output_label: entry.label,
