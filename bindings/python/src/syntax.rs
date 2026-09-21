@@ -1251,10 +1251,6 @@ mod tests {
         });
         let linked =
             model::LinkedTermSyntax::FullLinkedTerm(model::FullLinkedTermSyntax(Arc::new(term)));
-    fn linked_sumti_factory() -> SyntaxHandle {
-        let empty = jbotci_syntax::generated_model::EmptyLinkedSumtiSyntax {};
-        let linked =
-            jbotci_syntax::generated_model::LinkedSumtiSyntax::EmptyLinkedSumti(Arc::new(empty));
         let owner = Arc::new(SyntaxOwner {
             root: SyntaxRoot::Strict {
                 value: StrictSyntaxRoot::LinkedTermSyntax(Arc::new(linked)),
