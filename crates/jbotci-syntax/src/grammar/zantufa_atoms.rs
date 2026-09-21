@@ -3,7 +3,7 @@
 //! Parser alternatives may differ to put a diagnostic on a statically known
 //! token, but those alternatives do not create public warning-only variants.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::Selmaho;
@@ -15,7 +15,71 @@ use super::generated_runtime::output_rejection_site;
 use crate::Token;
 use crate::tree::WithFreeModifiers;
 
+/// A word clause exactly as a `.wf()` parser alternative yields it.
+///
+/// The generated model stores a *shared* free modifier, so this parser-side
+/// shape and the stored shape are different types; `store_clause` is the only
+/// conversion between them, mirroring the generator's own containment
+/// lowering.
 type TokenClause = WithFreeModifiers<Token, FreeModifierSyntax>;
+
+/// A word clause in the shape the generated model stores.
+type StoredTokenClause = WithFreeModifiers<Token, Arc<FreeModifierSyntax>>;
+
+/// Lower a parser-produced word clause into the stored shape.
+#[requires(true)]
+#[ensures(ret.value == old(clause.value.clone()))]
+#[ensures(ret.free_modifiers.len() == old(clause.free_modifiers.len()))]
+fn store_clause(clause: TokenClause) -> StoredTokenClause {
+    let WithFreeModifiers {
+        value,
+        free_modifiers,
+    } = clause;
+    WithFreeModifiers::new(value, free_modifiers.into_iter().map(Arc::new).collect())
+}
+
+/// Lower an optional parser-produced word clause into the stored shape.
+#[requires(true)]
+#[ensures(ret.is_some() == old(clause.is_some()))]
+fn store_opt_clause(clause: Option<TokenClause>) -> Option<StoredTokenClause> {
+    clause.map(store_clause)
+}
+
+/// A recovered word clause exactly as a `.wf()` parser alternative yields it.
+type RecoveredTokenClause = recovered::WithFreeModifiers<recovered::Recovered<Token>>;
+
+/// A recovered word clause in the shape the generated model stores.
+///
+/// Recovery has already happened when containment shares a node, so the shared
+/// value is the whole `Recovered`, prefix and error information included.
+type StoredRecoveredTokenClause = recovered::WithFreeModifiers<
+    recovered::Recovered<Token>,
+    Arc<recovered::Recovered<recovered::FreeModifierSyntax>>,
+>;
+
+/// Lower a parser-produced recovered word clause into the stored shape.
+#[requires(true)]
+#[ensures(ret.value == old(clause.value.clone()))]
+#[ensures(ret.free_modifiers.len() == old(clause.free_modifiers.len()))]
+fn store_recovered_clause(clause: RecoveredTokenClause) -> StoredRecoveredTokenClause {
+    let recovered::WithFreeModifiers {
+        value,
+        free_modifiers,
+    } = clause;
+    recovered::WithFreeModifiers {
+        value,
+        free_modifiers: free_modifiers.into_iter().map(Arc::new).collect(),
+    }
+}
+
+/// Lower an optional parser-produced recovered word clause into the stored shape.
+#[requires(true)]
+#[ensures(ret.is_some() == old(clause.is_some()))]
+fn store_opt_recovered_clause(
+    clause: Option<RecoveredTokenClause>,
+) -> Option<StoredRecoveredTokenClause> {
+    clause.map(store_recovered_clause)
+}
 
 /// Whether the Zantufa atom-ownership classifier trace is switched on.
 ///
@@ -285,7 +349,7 @@ fn recovered_fa_presence(value: &recovered::ZantufaFaTanruUnitSyntax) -> Zantufa
     if evidence.uncertainty || !evidence.parsed_token {
         return Unproven;
     }
-    let matches = |value: &RecoveredTokenClause, selmaho| {
+    let matches = |value: &StoredRecoveredTokenClause, selmaho| {
         parsed_value(&value.value).is_some_and(|token| token.is_selmaho(selmaho))
     };
     if !matches(&value.fa, Selmaho::Fa) {
@@ -610,9 +674,9 @@ impl super::generated_runtime::GrammarMapTo<recovered::Recovered<recovered::Selb
     for recovered::Recovered<recovered::CoSelbriSyntax>
 {
     fn grammar_map_to(self) -> recovered::Recovered<recovered::SelbriSyntax> {
-        recovered::Recovered::valid(recovered::SelbriSyntax::UntaggedSelbri(
-            recovered::Recovered::valid(recovered::UntaggedSelbriSyntax::CoSelbri(self).into()),
-        ))
+        recovered::Recovered::valid(recovered::SelbriSyntax::UntaggedSelbri(Arc::new(
+            recovered::Recovered::valid(recovered::UntaggedSelbriSyntax::CoSelbri(Arc::new(self))),
+        )))
     }
 }
 
@@ -670,7 +734,7 @@ fn recovered_priority_tail_selbri(
             };
             match value {
                 recovered::UntaggedSelbriSyntax::CoSelbri(value) => {
-                    !PriorityAtomRejection.rejects_in_dialect(value, dialect)
+                    !PriorityAtomRejection.rejects_in_dialect(value.as_ref(), dialect)
                 }
                 recovered::UntaggedSelbriSyntax::NegatedSelbri(_) => false,
             }
@@ -782,7 +846,7 @@ macro_rules! priority_tail_mapping {
             for recovered::Recovered<recovered::$payload>
         {
             fn grammar_map_to(self) -> recovered::Recovered<recovered::$target> {
-                recovered::Recovered::valid(recovered::$target::$variant(self))
+                recovered::Recovered::valid(recovered::$target::$variant(Arc::new(self)))
             }
         }
     };
@@ -1048,8 +1112,8 @@ fn joik_head(token: &Token) -> Option<JoikHead> {
 #[ensures(ret.is_some() -> joik.head.free_modifiers.is_empty() && gi.free_modifiers.is_empty())]
 fn strict_joik_key(
     joik: &model::ZantufaAtomJoikSyntax,
-    gi: &TokenClause,
-    bo: Option<&TokenClause>,
+    gi: &StoredTokenClause,
+    bo: Option<&StoredTokenClause>,
     order: GiOrder,
     connectives: bool,
 ) -> Option<JoikOwnershipKey> {
@@ -1102,8 +1166,8 @@ fn strict_joik_key(
 #[ensures(ret.is_some() -> joik.head.free_modifiers.is_empty() && gi.free_modifiers.is_empty())]
 fn recovered_joik_key(
     joik: &recovered::ZantufaAtomJoikSyntax,
-    gi: &recovered::WithFreeModifiers<recovered::Recovered<Token>>,
-    bo: Option<&recovered::WithFreeModifiers<recovered::Recovered<Token>>>,
+    gi: &StoredRecoveredTokenClause,
+    bo: Option<&StoredRecoveredTokenClause>,
     order: GiOrder,
     connectives: bool,
 ) -> Option<JoikOwnershipKey> {
@@ -1153,12 +1217,12 @@ fn strict_gek_joik_key(
     gek: &model::ZantufaAtomGekSyntax,
     connectives: bool,
 ) -> Option<JoikOwnershipKey> {
-    match &gek.body {
+    match gek.body.as_ref() {
         model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(_) => None,
         model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(opener) => {
-            match &opener.payload {
+            match opener.payload.as_ref() {
                 model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(joik) => strict_joik_key(
-                    joik,
+                    joik.as_ref(),
                     &opener.gi,
                     gek.bo.as_ref(),
                     GiOrder::Initial,
@@ -1168,9 +1232,9 @@ fn strict_gek_joik_key(
             }
         }
         model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(opener) => {
-            match &opener.payload {
+            match opener.payload.as_ref() {
                 model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(joik) => strict_joik_key(
-                    joik,
+                    joik.as_ref(),
                     &opener.gi,
                     gek.bo.as_ref(),
                     GiOrder::Final,
@@ -1185,9 +1249,11 @@ fn strict_gek_joik_key(
 /// A JOIK key wrapper must be Valid. In this specifically adjudicated domain
 /// even a Prefix carrying a parsed value cannot establish a cell key.
 #[requires(true)]
-#[ensures(ret.is_some() == matches!(value, recovered::Recovered::Valid(_)))]
-fn valid_key_value<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+#[ensures(ret.is_some() == matches!(value.borrow(), recovered::Recovered::Valid(_)))]
+fn valid_key_value<T>(
+    value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized),
+) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -1340,8 +1406,8 @@ fn strict_gek_facts(candidate: &model::ZantufaForethoughtTanruUnitSyntax) -> Str
         gihi,
         ..
     } = candidate;
-    let model::ZantufaAtomGekSyntax { body, bo } = gek;
-    let (head_is_ga, head_is_guha, opener_se_free_modifiers) = match body {
+    let model::ZantufaAtomGekSyntax { body, bo } = gek.as_ref();
+    let (head_is_ga, head_is_guha, opener_se_free_modifiers) = match body.as_ref() {
         model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => (
             opener.head.value.is_selmaho(jbotci_morphology::Selmaho::Ga),
             opener
@@ -1410,8 +1476,8 @@ fn strict_standalone_presence(
         branches,
         gihi,
     } = candidate;
-    let model::ZantufaAtomGekSyntax { body, bo } = gek;
-    match body {
+    let model::ZantufaAtomGekSyntax { body, bo } = gek.as_ref();
+    match body.as_ref() {
         model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(_) => {}
         model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
         | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => {
@@ -1674,7 +1740,7 @@ pub(crate) fn recovered_gek_projection(
 #[requires(true)]
 #[ensures(ret -> parsed_value(&clause.value).is_some_and(&expected))]
 fn recovered_clause_is_complete(
-    clause: &recovered::WithFreeModifiers<recovered::Recovered<Token>>,
+    clause: &StoredRecoveredTokenClause,
     expected: impl Fn(&Token) -> bool,
 ) -> bool {
     let mut evidence = RequiredSubtreeEvidence::default();
@@ -1794,9 +1860,11 @@ fn recovered_opener_se_free_presence(
 
 /// A parsed value does not borrow its skipped prefix tokens as entry proof.
 #[requires(true)]
-#[ensures(ret.is_none() == matches!(value, recovered::Recovered::Error(_)))]
-fn parsed_value<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+#[ensures(ret.is_none() == matches!(value.borrow(), recovered::Recovered::Error(_)))]
+fn parsed_value<T>(
+    value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized),
+) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(prefix) => Some(&prefix.value),
         recovered::Recovered::Error(_) => None,
@@ -1851,57 +1919,55 @@ fn recovered_right_operand_extends_past_l6(right: &recovered::CoSelbriSyntax) ->
 impl From<(TokenClause, TokenClause)> for ZantufaAtomGaOpenerSyntax {
     #[requires(true)]
     #[ensures(ret.se.is_some())]
-    #[expensive_ensures(ret.se.as_ref() == Some(&old(value.0.clone())) && ret.head == old(value.1.clone()))]
+    #[expensive_ensures(ret.se == Some(store_clause(old(value.0.clone()))) && ret.head == store_clause(old(value.1.clone())))]
     fn from(value: (TokenClause, TokenClause)) -> Self {
         let (se, head) = value;
-        Self { se: Some(se), head }
+        Self {
+            se: Some(store_clause(se)),
+            head: store_clause(head),
+        }
     }
 }
 
 impl From<TokenClause> for ZantufaAtomGaOpenerSyntax {
     #[requires(true)]
     #[ensures(ret.se.is_none())]
-    #[expensive_ensures(ret.head == old(head.clone()))]
+    #[expensive_ensures(ret.head == store_clause(old(head.clone())))]
     fn from(head: TokenClause) -> Self {
-        Self { se: None, head }
+        Self {
+            se: None,
+            head: store_clause(head),
+        }
     }
 }
 
-impl
-    From<(
-        recovered::WithFreeModifiers<recovered::Recovered<Token>>,
-        recovered::WithFreeModifiers<recovered::Recovered<Token>>,
-    )> for recovered::ZantufaAtomGaOpenerSyntax
-{
+impl From<(RecoveredTokenClause, RecoveredTokenClause)> for recovered::ZantufaAtomGaOpenerSyntax {
     #[requires(true)]
     #[ensures(ret.se.is_some())]
-    #[expensive_ensures(ret.se.as_ref() == Some(&old(value.0.clone())) && ret.head == old(value.1.clone()))]
-    fn from(
-        value: (
-            recovered::WithFreeModifiers<recovered::Recovered<Token>>,
-            recovered::WithFreeModifiers<recovered::Recovered<Token>>,
-        ),
-    ) -> Self {
+    #[expensive_ensures(ret.se == Some(store_recovered_clause(old(value.0.clone()))) && ret.head == store_recovered_clause(old(value.1.clone())))]
+    fn from(value: (RecoveredTokenClause, RecoveredTokenClause)) -> Self {
         let (se, head) = value;
         // Each token's own Valid/Prefix/Error wrapper and every free modifier
         // remain untouched in the completed product's fields.
         // The eligibility walker still has to prove that nested evidence.
-        recovered::ZantufaAtomGaOpenerSyntax { se: Some(se), head }
+        recovered::ZantufaAtomGaOpenerSyntax {
+            se: Some(store_recovered_clause(se)),
+            head: store_recovered_clause(head),
+        }
     }
 }
 
-impl From<recovered::WithFreeModifiers<recovered::Recovered<Token>>>
-    for recovered::ZantufaAtomGaOpenerSyntax
-{
+impl From<RecoveredTokenClause> for recovered::ZantufaAtomGaOpenerSyntax {
     #[requires(true)]
     #[ensures(ret.se.is_none())]
-    #[expensive_ensures(ret.head == old(head.clone()))]
-    fn from(head: recovered::WithFreeModifiers<recovered::Recovered<Token>>) -> Self {
-        recovered::ZantufaAtomGaOpenerSyntax { se: None, head }
+    #[expensive_ensures(ret.head == store_recovered_clause(old(head.clone())))]
+    fn from(head: RecoveredTokenClause) -> Self {
+        recovered::ZantufaAtomGaOpenerSyntax {
+            se: None,
+            head: store_recovered_clause(head),
+        }
     }
 }
-
-type RecoveredTokenClause = recovered::WithFreeModifiers<recovered::Recovered<Token>>;
 
 impl
     From<(
@@ -1919,7 +1985,7 @@ impl
     ) -> Self {
         let ((jai, tense_modal), inner_unit) = value;
         Self {
-            jai,
+            jai: store_clause(jai),
             tense_modal: Some(std::sync::Arc::new(tense_modal)),
             inner_unit: std::sync::Arc::new(inner_unit),
         }
@@ -1932,7 +1998,7 @@ impl From<(TokenClause, model::TanruUnitAtomSyntax)> for model::JaiModalTanruUni
     fn from(value: (TokenClause, model::TanruUnitAtomSyntax)) -> Self {
         let (jai, inner_unit) = value;
         Self {
-            jai,
+            jai: store_clause(jai),
             tense_modal: None,
             inner_unit: std::sync::Arc::new(inner_unit),
         }
@@ -1959,7 +2025,7 @@ impl
     ) -> Self {
         let ((jai, tense_modal), inner_unit) = value;
         recovered::JaiModalTanruUnitSyntax {
-            jai,
+            jai: store_recovered_clause(jai),
             tense_modal: Some(std::sync::Arc::new(tense_modal)),
             inner_unit: std::sync::Arc::new(inner_unit),
         }
@@ -1980,7 +2046,7 @@ impl
     ) -> Self {
         let (jai, inner_unit) = value;
         recovered::JaiModalTanruUnitSyntax {
-            jai,
+            jai: store_recovered_clause(jai),
             tense_modal: None,
             inner_unit: std::sync::Arc::new(inner_unit),
         }
@@ -2000,11 +2066,11 @@ impl
     )> for model::ZantufaAtomJoikSyntax
 {
     #[requires(true)]
-    #[expensive_ensures(ret.left_gaho.as_ref() == Some(&old(value.0.0.0.0.clone())))]
-    #[expensive_ensures(ret.na == old(value.0.0.0.1.clone()))]
-    #[expensive_ensures(ret.se == old(value.0.0.1.clone()))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.left_gaho == Some(store_clause(old(value.0.0.0.0.clone()))))]
+    #[expensive_ensures(ret.na == store_opt_clause(old(value.0.0.0.1.clone())))]
+    #[expensive_ensures(ret.se == store_opt_clause(old(value.0.0.1.clone())))]
+    #[expensive_ensures(ret.head == store_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_clause(old(value.1.clone())))]
     fn from(
         value: (
             (
@@ -2016,11 +2082,11 @@ impl
     ) -> Self {
         let ((((left_gaho, na), se), head), right_gaho) = value;
         Self {
-            left_gaho: Some(left_gaho),
-            na: na,
-            se: se,
-            head: head,
-            right_gaho: right_gaho,
+            left_gaho: Some(store_clause(left_gaho)),
+            na: store_opt_clause(na),
+            se: store_opt_clause(se),
+            head: store_clause(head),
+            right_gaho: store_opt_clause(right_gaho),
         }
     }
 }
@@ -2033,10 +2099,10 @@ impl
 {
     #[requires(true)]
     #[ensures(ret.left_gaho.is_none())]
-    #[expensive_ensures(ret.na.as_ref() == Some(&old(value.0.0.0.clone())))]
-    #[expensive_ensures(ret.se == old(value.0.0.1.clone()))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.na == Some(store_clause(old(value.0.0.0.clone()))))]
+    #[expensive_ensures(ret.se == store_opt_clause(old(value.0.0.1.clone())))]
+    #[expensive_ensures(ret.head == store_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_clause(old(value.1.clone())))]
     fn from(
         value: (
             ((TokenClause, Option<TokenClause>), TokenClause),
@@ -2046,10 +2112,10 @@ impl
         let (((na, se), head), right_gaho) = value;
         Self {
             left_gaho: None,
-            na: Some(na),
-            se: se,
-            head: head,
-            right_gaho: right_gaho,
+            na: Some(store_clause(na)),
+            se: store_opt_clause(se),
+            head: store_clause(head),
+            right_gaho: store_opt_clause(right_gaho),
         }
     }
 }
@@ -2058,17 +2124,17 @@ impl From<((TokenClause, TokenClause), Option<TokenClause>)> for model::ZantufaA
     #[requires(true)]
     #[ensures(ret.left_gaho.is_none())]
     #[ensures(ret.na.is_none())]
-    #[expensive_ensures(ret.se.as_ref() == Some(&old(value.0.0.clone())))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.se == Some(store_clause(old(value.0.0.clone()))))]
+    #[expensive_ensures(ret.head == store_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_clause(old(value.1.clone())))]
     fn from(value: ((TokenClause, TokenClause), Option<TokenClause>)) -> Self {
         let ((se, head), right_gaho) = value;
         Self {
             left_gaho: None,
             na: None,
-            se: Some(se),
-            head: head,
-            right_gaho: right_gaho,
+            se: Some(store_clause(se)),
+            head: store_clause(head),
+            right_gaho: store_opt_clause(right_gaho),
         }
     }
 }
@@ -2078,16 +2144,16 @@ impl From<(TokenClause, Option<TokenClause>)> for model::ZantufaAtomJoikSyntax {
     #[ensures(ret.left_gaho.is_none())]
     #[ensures(ret.na.is_none())]
     #[ensures(ret.se.is_none())]
-    #[expensive_ensures(ret.head == old(value.0.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.head == store_clause(old(value.0.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_clause(old(value.1.clone())))]
     fn from(value: (TokenClause, Option<TokenClause>)) -> Self {
         let (head, right_gaho) = value;
         Self {
             left_gaho: None,
             na: None,
             se: None,
-            head: head,
-            right_gaho: right_gaho,
+            head: store_clause(head),
+            right_gaho: store_opt_clause(right_gaho),
         }
     }
 }
@@ -2105,11 +2171,11 @@ impl
     )> for recovered::ZantufaAtomJoikSyntax
 {
     #[requires(true)]
-    #[expensive_ensures(ret.left_gaho.as_ref() == Some(&old(value.0.0.0.0.clone())))]
-    #[expensive_ensures(ret.na == old(value.0.0.0.1.clone()))]
-    #[expensive_ensures(ret.se == old(value.0.0.1.clone()))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.left_gaho == Some(store_recovered_clause(old(value.0.0.0.0.clone()))))]
+    #[expensive_ensures(ret.na == store_opt_recovered_clause(old(value.0.0.0.1.clone())))]
+    #[expensive_ensures(ret.se == store_opt_recovered_clause(old(value.0.0.1.clone())))]
+    #[expensive_ensures(ret.head == store_recovered_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_recovered_clause(old(value.1.clone())))]
     fn from(
         value: (
             (
@@ -2124,11 +2190,11 @@ impl
     ) -> Self {
         let ((((left_gaho, na), se), head), right_gaho) = value;
         Self {
-            left_gaho: Some(left_gaho),
-            na: na,
-            se: se,
-            head: head,
-            right_gaho: right_gaho,
+            left_gaho: Some(store_recovered_clause(left_gaho)),
+            na: store_opt_recovered_clause(na),
+            se: store_opt_recovered_clause(se),
+            head: store_recovered_clause(head),
+            right_gaho: store_opt_recovered_clause(right_gaho),
         }
     }
 }
@@ -2144,10 +2210,10 @@ impl
 {
     #[requires(true)]
     #[ensures(ret.left_gaho.is_none())]
-    #[expensive_ensures(ret.na.as_ref() == Some(&old(value.0.0.0.clone())))]
-    #[expensive_ensures(ret.se == old(value.0.0.1.clone()))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.na == Some(store_recovered_clause(old(value.0.0.0.clone()))))]
+    #[expensive_ensures(ret.se == store_opt_recovered_clause(old(value.0.0.1.clone())))]
+    #[expensive_ensures(ret.head == store_recovered_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_recovered_clause(old(value.1.clone())))]
     fn from(
         value: (
             (
@@ -2160,10 +2226,10 @@ impl
         let (((na, se), head), right_gaho) = value;
         Self {
             left_gaho: None,
-            na: Some(na),
-            se: se,
-            head: head,
-            right_gaho: right_gaho,
+            na: Some(store_recovered_clause(na)),
+            se: store_opt_recovered_clause(se),
+            head: store_recovered_clause(head),
+            right_gaho: store_opt_recovered_clause(right_gaho),
         }
     }
 }
@@ -2177,9 +2243,9 @@ impl
     #[requires(true)]
     #[ensures(ret.left_gaho.is_none())]
     #[ensures(ret.na.is_none())]
-    #[expensive_ensures(ret.se.as_ref() == Some(&old(value.0.0.clone())))]
-    #[expensive_ensures(ret.head == old(value.0.1.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.se == Some(store_recovered_clause(old(value.0.0.clone()))))]
+    #[expensive_ensures(ret.head == store_recovered_clause(old(value.0.1.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_recovered_clause(old(value.1.clone())))]
     fn from(
         value: (
             (RecoveredTokenClause, RecoveredTokenClause),
@@ -2190,9 +2256,9 @@ impl
         Self {
             left_gaho: None,
             na: None,
-            se: Some(se),
-            head: head,
-            right_gaho: right_gaho,
+            se: Some(store_recovered_clause(se)),
+            head: store_recovered_clause(head),
+            right_gaho: store_opt_recovered_clause(right_gaho),
         }
     }
 }
@@ -2204,42 +2270,46 @@ impl From<(RecoveredTokenClause, Option<RecoveredTokenClause>)>
     #[ensures(ret.left_gaho.is_none())]
     #[ensures(ret.na.is_none())]
     #[ensures(ret.se.is_none())]
-    #[expensive_ensures(ret.head == old(value.0.clone()))]
-    #[expensive_ensures(ret.right_gaho == old(value.1.clone()))]
+    #[expensive_ensures(ret.head == store_recovered_clause(old(value.0.clone())))]
+    #[expensive_ensures(ret.right_gaho == store_opt_recovered_clause(old(value.1.clone())))]
     fn from(value: (RecoveredTokenClause, Option<RecoveredTokenClause>)) -> Self {
         let (head, right_gaho) = value;
         Self {
             left_gaho: None,
             na: None,
             se: None,
-            head: head,
-            right_gaho: right_gaho,
+            head: store_recovered_clause(head),
+            right_gaho: store_opt_recovered_clause(right_gaho),
         }
     }
 }
 
 impl From<(model::ZantufaAtomJoikSyntax, TokenClause)> for model::ZantufaAtomFinalGiOpenerSyntax {
     #[requires(true)]
-    #[expensive_ensures(ret.payload == model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(old(value.0.clone()).into()))]
-    #[expensive_ensures(ret.gi == old(value.1.clone()))]
+    #[expensive_ensures(*ret.payload == model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(old(value.0.clone()).into()))]
+    #[expensive_ensures(ret.gi == store_clause(old(value.1.clone())))]
     fn from(value: (model::ZantufaAtomJoikSyntax, TokenClause)) -> Self {
         let (payload, gi) = value;
         Self {
-            payload: model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(payload.into()),
-            gi,
+            payload: Arc::new(model::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(
+                payload.into(),
+            )),
+            gi: store_clause(gi),
         }
     }
 }
 
 impl From<(model::ZantufaAtomTagSyntax, TokenClause)> for model::ZantufaAtomFinalGiOpenerSyntax {
     #[requires(true)]
-    #[expensive_ensures(ret.payload == model::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(old(value.0.clone()).into()))]
-    #[expensive_ensures(ret.gi == old(value.1.clone()))]
+    #[expensive_ensures(*ret.payload == model::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(old(value.0.clone()).into()))]
+    #[expensive_ensures(ret.gi == store_clause(old(value.1.clone())))]
     fn from(value: (model::ZantufaAtomTagSyntax, TokenClause)) -> Self {
         let (payload, gi) = value;
         Self {
-            payload: model::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(payload.into()),
-            gi,
+            payload: Arc::new(model::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(
+                payload.into(),
+            )),
+            gi: store_clause(gi),
         }
     }
 }
@@ -2251,8 +2321,8 @@ impl
     )> for recovered::ZantufaAtomFinalGiOpenerSyntax
 {
     #[requires(true)]
-    #[expensive_ensures(ret.payload == recovered::Recovered::valid(recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(old(value.0.clone())).into()))]
-    #[expensive_ensures(ret.gi == old(value.1.clone()))]
+    #[expensive_ensures(*ret.payload == recovered::Recovered::valid(recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(Arc::new(old(value.0.clone())))))]
+    #[expensive_ensures(ret.gi == store_recovered_clause(old(value.1.clone())))]
     fn from(
         value: (
             recovered::Recovered<recovered::ZantufaAtomJoikSyntax>,
@@ -2261,10 +2331,10 @@ impl
     ) -> Self {
         let (payload, gi) = value;
         Self {
-            payload: recovered::Recovered::valid(
-                recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(payload).into(),
-            ),
-            gi,
+            payload: Arc::new(recovered::Recovered::valid(
+                recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(Arc::new(payload)),
+            )),
+            gi: store_recovered_clause(gi),
         }
     }
 }
@@ -2276,8 +2346,8 @@ impl
     )> for recovered::ZantufaAtomFinalGiOpenerSyntax
 {
     #[requires(true)]
-    #[expensive_ensures(ret.payload == recovered::Recovered::valid(recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(old(value.0.clone())).into()))]
-    #[expensive_ensures(ret.gi == old(value.1.clone()))]
+    #[expensive_ensures(*ret.payload == recovered::Recovered::valid(recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(Arc::new(old(value.0.clone())))))]
+    #[expensive_ensures(ret.gi == store_recovered_clause(old(value.1.clone())))]
     fn from(
         value: (
             recovered::Recovered<recovered::ZantufaAtomTagSyntax>,
@@ -2286,10 +2356,10 @@ impl
     ) -> Self {
         let (payload, gi) = value;
         Self {
-            payload: recovered::Recovered::valid(
-                recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(payload).into(),
-            ),
-            gi,
+            payload: Arc::new(recovered::Recovered::valid(
+                recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomTag(Arc::new(payload)),
+            )),
+            gi: store_recovered_clause(gi),
         }
     }
 }
@@ -2324,7 +2394,7 @@ impl From<(TokenClause, model::TanruUnitAtomSyntax)> for model::TanruUnitAtomSyn
     #[expensive_ensures(ret.base == old(value.1.base.clone()))]
     fn from(value: (TokenClause, model::TanruUnitAtomSyntax)) -> Self {
         let (se, mut inner) = value;
-        inner.conversions.insert(0, se);
+        inner.conversions.insert(0, store_clause(se));
         inner
     }
 }
@@ -2336,7 +2406,7 @@ impl super::generated_runtime::GrammarMapTo<recovered::Recovered<recovered::Tanr
         recovered::Recovered::valid(recovered::TanruUnitAtomSyntax {
             conversions: Vec::new(),
             base: std::sync::Arc::new(recovered::Recovered::valid(
-                recovered::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(self),
+                recovered::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(Arc::new(self)),
             )),
         })
     }
@@ -2361,6 +2431,7 @@ impl super::generated_runtime::GrammarMapTo<recovered::Recovered<recovered::Tanr
 {
     fn grammar_map_to(self) -> recovered::Recovered<recovered::TanruUnitAtomSyntax> {
         let (se, inner) = self;
+        let se = store_recovered_clause(se);
         match inner {
             recovered::Recovered::Valid(mut inner) => {
                 inner.conversions.insert(0, se);
@@ -2547,7 +2618,8 @@ mod tests {
         );
 
         let mut wrong_continuation_marker = original.clone();
-        let recovered::Recovered::Valid(part) = &mut wrong_continuation_marker.continuations[0]
+        let recovered::Recovered::Valid(part) =
+            Arc::make_mut(&mut wrong_continuation_marker.continuations[0])
         else {
             panic!("complete continuation");
         };
@@ -2558,10 +2630,12 @@ mod tests {
         );
 
         let mut wrong_joik_head = original.clone();
-        let recovered::Recovered::Valid(part) = &mut wrong_joik_head.continuations[0] else {
+        let recovered::Recovered::Valid(part) =
+            Arc::make_mut(&mut wrong_joik_head.continuations[0])
+        else {
             panic!("complete continuation");
         };
-        let recovered::Recovered::Valid(joik) = &mut part.connective else {
+        let recovered::Recovered::Valid(joik) = Arc::make_mut(&mut part.connective) else {
             panic!("complete JOIK");
         };
         joik.head.value = recovered::Recovered::valid(outsider);
@@ -2692,11 +2766,11 @@ mod tests {
             else {
                 panic!("same GEK carrier")
             };
-            assert_eq!(actual, &payload);
+            assert_eq!(actual.as_ref(), &payload);
         }
-        let base = recovered::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(
+        let base = recovered::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(Arc::new(
             recovered::Recovered::valid(product),
-        );
+        ));
         let se_words = segment_words_with_modifiers("se").unwrap();
         let se_words = syntax_tokens(&se_words, &options);
         for base in [
@@ -2726,11 +2800,14 @@ mod tests {
                     };
                     let mapped: recovered::Recovered<recovered::TanruUnitAtomSyntax> =
                         (se.clone(), inner.clone()).grammar_map_to();
+                    let stored_se = store_recovered_clause(se);
                     let mut expected = inner.clone();
                     match &mut expected {
-                        recovered::Recovered::Valid(value) => value.conversions.insert(0, se),
+                        recovered::Recovered::Valid(value) => {
+                            value.conversions.insert(0, stored_se)
+                        }
                         recovered::Recovered::Prefix(prefix) => {
-                            prefix.value.conversions.insert(0, se)
+                            prefix.value.conversions.insert(0, stored_se)
                         }
                         recovered::Recovered::Error(_) => {}
                     }
@@ -3143,22 +3220,27 @@ mod tests {
         for field in ["left_gaho", "na", "se", "head", "right_gaho", "gi", "bo"] {
             for prefix in [false, true] {
                 let mut candidate = original.clone();
-                let recovered::Recovered::Valid(body) = &mut candidate.body else {
+                let recovered::Recovered::Valid(body) = Arc::make_mut(&mut candidate.body) else {
                     panic!("complete body");
                 };
-                let recovered::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(
-                    recovered::Recovered::Valid(opener),
-                ) = body.as_mut()
+                let recovered::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(opener) =
+                    body.as_mut()
                 else {
                     panic!("final-GI opener");
                 };
-                let recovered::Recovered::Valid(payload) = &mut opener.payload else {
+                let recovered::Recovered::Valid(opener) = Arc::make_mut(opener) else {
+                    panic!("final-GI opener");
+                };
+                let recovered::Recovered::Valid(payload) = Arc::make_mut(&mut opener.payload)
+                else {
                     panic!("complete payload");
                 };
-                let recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(
-                    recovered::Recovered::Valid(joik),
-                ) = payload.as_mut()
+                let recovered::ZantufaAtomGekPayloadSyntax::ZantufaAtomJoik(joik) =
+                    payload.as_mut()
                 else {
+                    panic!("complete JOIK");
+                };
+                let recovered::Recovered::Valid(joik) = Arc::make_mut(joik) else {
                     panic!("complete JOIK");
                 };
                 let clause = match field {
@@ -3481,14 +3563,15 @@ mod tests {
                         tokens: vec1::Vec1::new(words[0].clone()),
                     });
                     let uncertain = candidate.clone().map(move |mut value| {
-                        let recovered::Recovered::Valid(opener) = value.gek else {
+                        let recovered::Recovered::Valid(opener) = Arc::unwrap_or_clone(value.gek)
+                        else {
                             panic!("complete parsed opener before mutation");
                         };
-                        value.gek = if prefix {
+                        value.gek = Arc::new(if prefix {
                             recovered::Recovered::prefix_boxed(vec![error.clone()], opener)
                         } else {
                             recovered::Recovered::error(error.clone())
-                        };
+                        });
                         assert_eq!(
                             recovered_standalone_presence(&value, &flags),
                             ZantufaTanruAtomPresence::Unproven
@@ -3807,7 +3890,7 @@ mod tests {
                 .as_mut()
                 .expect("positive has SE")
                 .free_modifiers[0];
-            *modifier = recovered::Recovered::error(error);
+            *modifier = Arc::new(recovered::Recovered::error(error));
             assert_eq!(
                 recovered_opener_se_free_presence(&uncertain_modifier),
                 Unproven
@@ -4143,7 +4226,7 @@ mod tests {
             };
             let absent = recovered::ZantufaAtomGaOpenerSyntax::from(head.clone());
             assert!(absent.se.is_none());
-            assert_eq!(absent.head, head);
+            assert_eq!(absent.head, store_recovered_clause(head.clone()));
             for se in &se_states {
                 let se = recovered::WithFreeModifiers {
                     value: se.clone(),
@@ -4151,8 +4234,8 @@ mod tests {
                 };
                 let present =
                     recovered::ZantufaAtomGaOpenerSyntax::from((se.clone(), head.clone()));
-                assert_eq!(present.se.as_ref(), Some(&se));
-                assert_eq!(present.head, head);
+                assert_eq!(present.se, Some(store_recovered_clause(se)));
+                assert_eq!(present.head, store_recovered_clause(head.clone()));
             }
         }
     }
@@ -4272,18 +4355,26 @@ mod tests {
                             recovered::Recovered::error(skipped.clone()),
                             recovered::Recovered::error(missing.clone()),
                         ] {
+                            // `original` is a stored product, so its shared free
+                            // modifiers unwrap back to the parser-side shape the
+                            // conversion under test actually consumes.
                             let gi = RecoveredTokenClause {
                                 value: gi_state,
-                                free_modifiers: original.gi.free_modifiers.clone(),
+                                free_modifiers: original
+                                    .gi
+                                    .free_modifiers
+                                    .iter()
+                                    .map(|modifier| (**modifier).clone())
+                                    .collect(),
                             };
                             let mapped = recovered::ZantufaAtomFinalGiOpenerSyntax::from((
                                 state.clone(),
                                 gi.clone(),
                             ));
-                            assert_eq!(mapped.gi, gi);
+                            assert_eq!(mapped.gi, store_recovered_clause(gi));
                             assert_eq!(
-                                mapped.payload,
-                                recovered::Recovered::valid($variant(state.clone()).into())
+                                *mapped.payload,
+                                recovered::Recovered::valid($variant(Arc::new(state.clone())))
                             );
                             synthetic_cases += 1;
                         }
@@ -4432,11 +4523,11 @@ mod tests {
                     let mut fields = clauses.clone();
                     fields[slot].value = value;
                     let expected = recovered::ZantufaAtomJoikSyntax {
-                        left_gaho: (first == 0).then(|| fields[0].clone()),
-                        na: (first <= 1).then(|| fields[1].clone()),
-                        se: (first <= 2).then(|| fields[2].clone()),
-                        head: fields[3].clone(),
-                        right_gaho: Some(fields[4].clone()),
+                        left_gaho: (first == 0).then(|| store_recovered_clause(fields[0].clone())),
+                        na: (first <= 1).then(|| store_recovered_clause(fields[1].clone())),
+                        se: (first <= 2).then(|| store_recovered_clause(fields[2].clone())),
+                        head: store_recovered_clause(fields[3].clone()),
+                        right_gaho: Some(store_recovered_clause(fields[4].clone())),
                     };
                     let mapped = match first {
                         0 => recovered::ZantufaAtomJoikSyntax::from((

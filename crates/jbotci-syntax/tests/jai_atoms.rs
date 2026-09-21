@@ -331,7 +331,7 @@ fn preposed_links_warn_once_and_keep_cei_outside_the_linked_atom() {
                     .find(|unit| {
                         matches!(unit.base.base.base.as_ref(),
                     model::TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(preposed)
-                        if std::ptr::eq(preposed, visitor.preposed[0]))
+                        if std::ptr::eq(preposed.as_ref(), visitor.preposed[0]))
                     })
                     .expect("the outer tanru unit owns the preposed atom");
                 assert_eq!(outer.assignments.len(), 1);

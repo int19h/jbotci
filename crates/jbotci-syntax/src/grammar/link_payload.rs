@@ -864,10 +864,10 @@ mod tests {
                     } else {
                         &parent.first_link
                     };
-                    let model::LinkedTermSyntax::FullLinkedTerm(target) = target else {
+                    let model::LinkedTermSyntax::FullLinkedTerm(target) = target.as_ref() else {
                         panic!("wrong parent link owner: {source}");
                     };
-                    assert!(std::ptr::eq(target, full), "{source}");
+                    assert!(std::ptr::eq(target.as_ref(), full), "{source}");
                     let marker = if is_bei { 6..8 } else { 12..14 };
                     assert_eq!(extent(&parent.be), marker);
                     assert_eq!(extent(parent), marker.start..source.len(), "{source}");
@@ -916,7 +916,7 @@ mod tests {
             panic!("two syntax tokens")
         };
         recovered::FullLinkedTermSyntax(Arc::new(recovered::Recovered::valid(
-            recovered::NormalTermSyntax::NaKuTerm(recovered::Recovered::valid(
+            recovered::NormalTermSyntax::NaKuTerm(Arc::new(recovered::Recovered::valid(
                 recovered::NaKuTermSyntax {
                     na: recovered::Recovered::valid(na.clone()),
                     na_ku: recovered::WithFreeModifiers {
@@ -928,7 +928,7 @@ mod tests {
                         free_modifiers: Vec::new(),
                     },
                 },
-            )),
+            ))),
         )))
     }
 

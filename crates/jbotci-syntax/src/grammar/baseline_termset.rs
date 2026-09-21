@@ -74,7 +74,7 @@ impl OutputRejection<SumtiSyntax> for ZantufaGroupedSumtiTermRejection {
             SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
             SumtiForethoughtSyntax::ForethoughtSumti(_) => return false,
         };
-        matches!(simple.base_sumti.as_ref(), SumtiAtomSyntax::SumtiBase(base) if matches!(base, SumtiBaseSyntax::ZantufaGroupedSumti(grouped) if grouped.kehe.is_none()))
+        matches!(simple.base_sumti.as_ref(), SumtiAtomSyntax::SumtiBase(base) if matches!(base.as_ref(), SumtiBaseSyntax::ZantufaGroupedSumti(grouped) if grouped.kehe.is_none()))
     }
 }
 
