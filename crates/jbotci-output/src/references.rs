@@ -1027,7 +1027,7 @@ fn generated_words_for_tense_modal(
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<String> {
-    match &tense.0 {
+    match tense.0.as_ref() {
         generated::TenseModalBodySyntax::TenseModalAtom(atom) => {
             generated_words_for_tense_modal_atom(atom, source, options)
         }

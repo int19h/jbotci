@@ -70,7 +70,7 @@ fn run_semantic_cukta(
         && let Some(service) = context.embedding_search()?
     {
         return service
-            .semantic_cukta_output(chunks, query, count, targets)
+            .semantic_cukta_output(chunks, query, CuktaSearchWindow::first(count), targets)
             .map_err(|error| anyhow!(error.to_string()));
     }
     let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
@@ -80,7 +80,7 @@ fn run_semantic_cukta(
         &mut backend,
         chunks,
         query,
-        count,
+        CuktaSearchWindow::first(count),
         targets,
         &index_root,
         DEFAULT_MODEL_KEY,

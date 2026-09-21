@@ -1,5 +1,6 @@
 //! Semantic search abstractions.
 
+pub mod compounds;
 pub mod vlacku;
 
 use std::fmt;

@@ -9,7 +9,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_diagnostics::Diagnostic;
 use jbotci_source::SourceId;
 use support::fixtures::{
@@ -568,11 +568,29 @@ fn assert_recovery_reachability_equivalent(
             &syntax_options,
         )
     });
-    let filtered_bytes = format!("{filtered:#?}").into_bytes();
-    let unfiltered_bytes = format!("{unfiltered:#?}").into_bytes();
+    // Compare typed contents rather than pretty-printing deeply nested trees.
+    // Exhaustive patterns force this check to cover any future result fields.
+    let data!(jbotci_syntax::RecoveredSyntaxParse {
+        parse_tree: filtered_tree,
+        errors: filtered_errors,
+        warnings: filtered_warnings,
+    }) = filtered.as_data();
+    let data!(jbotci_syntax::RecoveredSyntaxParse {
+        parse_tree: unfiltered_tree,
+        errors: unfiltered_errors,
+        warnings: unfiltered_warnings,
+    }) = unfiltered.as_data();
     assert_eq!(
-        filtered_bytes, unfiltered_bytes,
-        "{id}: filtered and filter-disabled recovered syntax fixtures differ"
+        filtered_tree, unfiltered_tree,
+        "{id}: filtered and filter-disabled recovered parse trees differ"
+    );
+    assert_eq!(
+        filtered_errors, unfiltered_errors,
+        "{id}: filtered and filter-disabled recovered syntax errors differ"
+    );
+    assert_eq!(
+        filtered_warnings, unfiltered_warnings,
+        "{id}: filtered and filter-disabled recovered syntax warnings differ"
     );
     telemetry
 }

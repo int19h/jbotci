@@ -260,47 +260,80 @@ pub fn clamp_cukta_result_count(count: usize) -> usize {
     count.clamp(1, MAX_CUKTA_RESULT_COUNT)
 }
 
+/// The stretch of a result list a caller wants: how many matches to pass over
+/// and how many to take. A caller showing a later page asks for its own
+/// stretch rather than for everything up to it, so the book's text is copied
+/// for the matches that are shown and not for the ones that were skipped.
+/// `skip` is unbounded; only `count`, the size of one answer, is bounded.
+#[invariant(*count >= 1 && *count <= MAX_CUKTA_RESULT_COUNT)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaSearchWindow {
+    pub skip: usize,
+    pub count: usize,
+}
+
+impl CuktaSearchWindow {
+    /// The first `count` matches.
+    #[requires(true)]
+    #[ensures(ret.skip == 0 && ret.count == clamp_cukta_result_count(count))]
+    pub fn first(count: usize) -> Self {
+        Self::after(0, count)
+    }
+
+    /// The `count` matches that follow the first `skip` of them.
+    #[requires(true)]
+    #[ensures(ret.skip == skip && ret.count == clamp_cukta_result_count(count))]
+    pub fn after(skip: usize, count: usize) -> Self {
+        new!(CuktaSearchWindow {
+            skip,
+            count: clamp_cukta_result_count(count),
+        })
+    }
+}
+
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.len() <= window.count)]
 pub fn cukta_word_search_matches(
     site: &CllSite,
     query: &str,
-    count: usize,
+    window: CuktaSearchWindow,
     targets: CuktaTargetFilter,
 ) -> Vec<CllSearchMatch> {
     let terms = parse_word_search_terms(query);
     if terms.is_empty() || !target_filter_has_any(targets) {
         return Vec::new();
     }
-    let selected = site
-        .search_chunks
+    // Deciding whether a chunk matches reads an index it already holds;
+    // copying its text is the expensive half, so the window is applied first
+    // and only what it holds is cloned. Ranks keep counting from the start of
+    // the whole list, so a match names its place in the results rather than
+    // its place on the page.
+    site.search_chunks
         .iter()
         .filter(|chunk| chunk_kind_allowed(chunk.kind, targets))
         .filter(|chunk| terms.iter().all(|term| chunk.tagged_words.contains(term)))
-        .take(clamp_cukta_result_count(count))
-        .cloned()
-        .collect::<Vec<_>>();
-    selected
-        .into_iter()
         .enumerate()
+        .skip(window.skip)
+        .take(window.count)
         .map(|(index, chunk)| CllSearchMatch {
             rank: index + 1,
             similarity: None,
-            chunk,
+            chunk: chunk.clone(),
         })
         .collect()
 }
 
-#[requires(count > 0)]
-#[ensures(ret.count == clamp_cukta_result_count(count))]
+#[requires(true)]
+#[ensures(ret.count == window.count)]
 pub fn cukta_search(
     site: &CllSite,
     mode: CuktaSearchMode,
     query: &str,
-    count: usize,
+    window: CuktaSearchWindow,
     targets: CuktaTargetFilter,
 ) -> CuktaSearchOutput {
-    let count = clamp_cukta_result_count(count);
+    let count = window.count;
     let query = query.trim().to_owned();
     if query.is_empty() {
         return CuktaSearchOutput {
@@ -332,8 +365,9 @@ pub fn cukta_search(
             has_more: false,
         };
     }
-    let fetch_count = count.saturating_add(1).min(MAX_CUKTA_RESULT_COUNT);
-    let mut matches = cukta_word_search_matches(site, &query, fetch_count, targets);
+    // One more than the window is what says whether anything follows it.
+    let probing = CuktaSearchWindow::after(window.skip, count.saturating_add(1));
+    let mut matches = cukta_word_search_matches(site, &query, probing, targets);
     let has_more = matches.len() > count;
     matches.truncate(count);
     let message = if matches.is_empty() {

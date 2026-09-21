@@ -6,6 +6,86 @@ const EMBEDDINGS_JS: &str = include_str!("../assets/embeddings.js");
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn compounds_display_state_round_trips_disabled_and_explicit_empty_routes() {
+    assert!(GentufaDisplayState::default().show_compounds);
+    let current = parse_test_route("", "/gentufa?text=");
+    for show_compounds in [false, true] {
+        let display = GentufaDisplayState {
+            show_compounds,
+            ..GentufaDisplayState::default()
+        };
+        let state = gentufa_state_from_parts("", "", GentufaWebViewMode::Blocks, display, true);
+        let target = gentufa_route_for_committed_state(&state, true);
+        assert!(target.gentufa_text_explicit);
+        assert!(target.to_string().contains("text="));
+        assert_eq!(
+            target.to_string().contains("compounds=false"),
+            !show_compounds
+        );
+        let restored = parse_test_route("", &target.to_string());
+        assert_eq!(restored, target);
+        if !show_compounds {
+            assert_eq!(
+                gentufa_url_history_action(
+                    &current,
+                    &target,
+                    GentufaUrlWriteIntent::ReplaceCurrent
+                ),
+                GentufaUrlHistoryAction::ReplaceCurrent
+            );
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn compounds_page_find_and_client_export_use_the_same_wide_leaf() {
+    let request = GentufaWebRequest {
+        text: "batke zei uidje".to_owned(),
+        options: GentufaWebOptions::default(),
+    };
+    let result = jbotci_web_core::parse_gentufa_for_web(&request);
+    let GentufaWebResult::Success(success) = &result else {
+        panic!("valid ZEI syntax");
+    };
+    let compound = success
+        .blocks_layout
+        .blocks
+        .iter()
+        .find(|block| block.compound_kind.is_some())
+        .unwrap();
+    assert_eq!(compound.col_span, 3);
+    assert_eq!(compound.raw_text, request.text);
+    let mut entries = Vec::new();
+    collect_gentufa_page_find_entries(
+        &mut entries,
+        &result,
+        Some(&request),
+        GentufaWebViewMode::Blocks,
+        GentufaDisplayState {
+            show_glosses: true,
+            ..GentufaDisplayState::default()
+        },
+        GentufaScript::Latin,
+    );
+    assert!(page_find_entry_texts(&entries).contains(&compound.label));
+    let export_request = WebComputeRequest::GentufaBlocksSvg {
+        layout: success.blocks_layout.clone(),
+        show_glosses: true,
+        script: GentufaScript::Latin,
+    };
+    let encoded = serde_json::to_value(export_request).unwrap();
+    let decoded: WebComputeRequest = serde_json::from_value(encoded).unwrap();
+    let WebComputeRequest::GentufaBlocksSvg { layout, .. } = decoded else {
+        unreachable!()
+    };
+    assert_eq!(layout, success.blocks_layout);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn pwa_manifest_uses_root_routes_and_separate_maskable_icons() {
     let manifest: serde_json::Value =
         serde_json::from_str(include_str!("../assets/manifest.webmanifest"))
@@ -701,7 +781,9 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         }],
         blocks_layout: new!(GentufaBlocksLayout {
             blocks: vec![new!(GentufaBlock {
+                compound_kind: None,
                 block_id: "block-1".to_owned(),
+                parent_block_id: None,
                 node_ids: vec![1],
                 label: "block label".to_owned(),
                 is_leaf: true,
@@ -760,6 +842,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -780,6 +863,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -796,6 +880,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -1023,6 +1108,26 @@ fn embedding_worker_stale_pack_regressions_pass() {
     assert!(
         output.status.success(),
         "embedding worker regression tests failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn worker_client_fatal_disposal_regressions_pass() {
+    let test_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/worker-client.test.mjs");
+    let output = std::process::Command::new("node")
+        .args(["--test", test_path.to_str().unwrap()])
+        .output()
+        .expect("Node.js must run the worker client regression tests");
+
+    assert!(
+        output.status.success(),
+        "worker client regression tests failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
     );
@@ -2200,22 +2305,27 @@ fn pending_local_route_writes_consume_duplicate_targets_together() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn pending_local_gentufa_writes_match_router_normalized_routes() {
+fn pending_local_gentufa_writes_survive_the_router_round_trip() {
     let target = JbotciRoute::from_web_route(
         WebRoute::Gentufa(GentufaWebState {
             text: " coi ".to_owned(),
-            dialect: Some(" (cbm) ".to_owned()),
+            dialect: Some(String::new()),
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }),
         true,
     );
-    let reported = parse_test_route("", "/gentufa?text=coi&dialect=%28cbm%29");
+    // The router reports back the URL the app wrote. Route state travels
+    // exactly, so the reported route is the recorded one, down to the input's
+    // surrounding whitespace and an explicitly cleared dialect.
+    let reported = parse_test_route("", &target.to_string());
     let mut pending = PendingLocalRouteWrites::default();
 
     pending.record(&target);
 
+    assert_eq!(reported.web_route, target.web_route);
     assert!(pending.consume(&reported));
 }
 
@@ -2227,6 +2337,120 @@ fn document_title_uses_route_default_meta() {
     let meta = route_document_meta("", &route);
 
     assert_eq!(document_title_from_meta(&meta), "Settings");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn route_metadata_defers_gentufa_parse_derived_fields() {
+    // Route metadata is rebuilt on the UI thread for every navigation, so it
+    // stops short of the parser (issue #913). What a parse contributes - the
+    // bracket preview description and the social image - reaches the document
+    // only through the compute worker's result.
+    let route = parse_test_route("", "/gentufa?text=mi+klama");
+    let WebRoute::Gentufa(state) = route.web_route.clone() else {
+        panic!("expected a gentufa route");
+    };
+
+    let meta = route_document_meta("", &route);
+    let parsed =
+        jbotci_web_core::blocking::build_computed_page_meta("", &WebRoute::Gentufa(state.clone()));
+
+    // The title restates the submitted text, so navigation still titles the page
+    // correctly with no parse behind it, and both sides name the same URL.
+    assert_eq!(meta.title, "mi klama - jbotci gentufa");
+    assert_eq!(meta.title, parsed.title);
+    assert_eq!(meta.canonical_url, parsed.canonical_url);
+    // "mi klama" parses, so the parsed metadata carries both parse-derived
+    // fields while the route metadata carries neither.
+    assert!(
+        parsed.image.is_some(),
+        "a successful parse yields a social image"
+    );
+    assert!(meta.image.is_none());
+    assert_eq!(
+        meta.description,
+        "Parse Lojban text into bracketed blocks, table rows, and reference arrows."
+    );
+    assert_ne!(meta.description, parsed.description);
+
+    // With no text to parse there is nothing for a parse to add, and the two
+    // agree exactly.
+    let blank = parse_test_route("", "/gentufa");
+    let WebRoute::Gentufa(blank_state) = blank.web_route.clone() else {
+        panic!("expected a gentufa route");
+    };
+    assert_eq!(
+        route_document_meta("", &blank),
+        jbotci_web_core::blocking::build_computed_page_meta("", &WebRoute::Gentufa(blank_state))
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn document_meta_prefers_the_result_metadata_of_the_displayed_route() {
+    // A gimfi'i candidate click is served from the result cache and only then
+    // pushes the highlight URL. Document metadata is derived from the result
+    // whose canonical URL is the one being displayed, so the location change
+    // that follows adopts the candidate metadata instead of overwriting it with
+    // the route's generic metadata (issue #913).
+    let route = parse_test_route("", "/gimfihi?lang=cmn&word=uan&highlight=nanpe");
+    let route_meta = route_document_meta("", &route);
+    assert_eq!(route_meta.title, "jbotci gimfi'i");
+    let result_meta = new!(PageMeta {
+        title: "nanpe - jbotci gimfi'i".to_owned(),
+        description: "nanpe = cmn:uan \u{d7}1".to_owned(),
+        canonical_url: route_meta.canonical_url.clone(),
+        image: None,
+    });
+
+    assert_eq!(
+        document_meta_for_route("", &route, Some(&result_meta)),
+        result_meta
+    );
+
+    // A result for a route the browser has left no longer describes the
+    // document, so the route it moved to speaks for itself.
+    let elsewhere = parse_test_route("", "/vlacku/klama");
+    assert_eq!(
+        document_meta_for_route("", &elsewhere, Some(&result_meta)),
+        route_document_meta("", &elsewhere)
+    );
+    // The same holds before any result exists.
+    assert_eq!(document_meta_for_route("", &route, None), route_meta);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn active_page_meta_reads_only_the_displayed_page() {
+    let gentufa_meta = new!(PageMeta {
+        title: "coi - jbotci gentufa".to_owned(),
+        description: "Gentufa parse result.".to_owned(),
+        canonical_url: "/gentufa?text=coi".to_owned(),
+        image: None,
+    });
+    let gentufa = GentufaAsyncPageState {
+        meta: Some(gentufa_meta.clone()),
+        ..GentufaAsyncPageState::default()
+    };
+    let cukta = CuktaAsyncPageState::default();
+    let vlacku = VlackuAsyncResultState::default();
+    let gimfihi = GimfihiAsyncResultState::default();
+
+    assert_eq!(
+        active_page_meta(AppRoute::Gentufa, &gentufa, &cukta, &vlacku, &gimfihi),
+        Some(gentufa_meta)
+    );
+    assert_eq!(
+        active_page_meta(AppRoute::Vlacku, &gentufa, &cukta, &vlacku, &gimfihi),
+        None
+    );
+    assert_eq!(
+        active_page_meta(AppRoute::Settings, &gentufa, &cukta, &vlacku, &gimfihi),
+        None
+    );
 }
 
 #[test]
@@ -2255,6 +2479,7 @@ fn gentufa_url_target_uses_committed_parse_state() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2291,6 +2516,7 @@ fn gentufa_parse_intent_pushes_changed_route() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2314,6 +2540,7 @@ fn gentufa_display_changes_replace_current_route() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2337,6 +2564,7 @@ fn gentufa_matching_route_has_no_url_write() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2961,7 +3189,7 @@ fn vlacku_semantic_pending_page_preserves_existing_result() {
     };
     let semantic = VlackuSemanticResultState::default();
 
-    let meta = apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
+    apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
 
     assert_eq!(page.state.as_ref(), Some(&state));
     assert!(page.loading);
@@ -2970,7 +3198,10 @@ fn vlacku_semantic_pending_page_preserves_existing_result() {
         page.result.message.as_deref(),
         Some("Previous result remains visible.")
     );
-    assert_eq!(meta.title, "klama! - jbotci vlacku");
+    assert_eq!(
+        page.meta.as_ref().map(|meta| meta.title.as_str()),
+        Some("klama! - jbotci vlacku")
+    );
 }
 
 #[test]
@@ -3172,6 +3403,249 @@ fn deployment_root_href_targets_router_prefix_root() {
 #[ensures(true)]
 fn parse_test_route(base_path: &str, href: &str) -> JbotciRoute {
     jbotci_route_from_href(base_path, href).expect("test route should parse")
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_is_exact_at_the_boundary() {
+    // Exactly filling the row still fits: the tag is shown whole, with nothing
+    // left over and nothing missing.
+    assert!(cukta_edition_release_fits(268.0, 268.0));
+    assert!(cukta_edition_release_fits(268.5, 268.5));
+    assert!(cukta_edition_release_fits(268.0, 267.99));
+
+    // Any excess at all, however small, means the tag would not fit on the row,
+    // so it is not shown. There is no tolerance to round it back in.
+    assert!(!cukta_edition_release_fits(268.0, 268.01));
+    assert!(!cukta_edition_release_fits(268.0, 268.5));
+    assert!(!cukta_edition_release_fits(268.0, 269.0));
+    assert!(!cukta_edition_release_fits(268.0, 300.0));
+
+    // A row with no room cannot hold a tag that needs any.
+    assert!(!cukta_edition_release_fits(0.0, 1.0));
+
+    // Two zeros satisfy the comparison, but they are never a shown tag: a row
+    // or a probe that measures as nothing has not been laid out yet, and both
+    // measurers refuse that case before the predicate is ever consulted. The
+    // refusal is asserted by
+    // `cukta_edition_release_fit_after_measure_never_reuses_an_old_verdict`,
+    // which owns the policy for an unmeasurable row.
+    assert!(cukta_edition_release_fits(0.0, 0.0));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_never_shows_a_tag_measured_in_another_layout() {
+    let pinned = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let overlay = CuktaEditionLayoutKey {
+        uses_autohide: true,
+        visible: true,
+    };
+
+    let measured = new!(CuktaEditionReleaseFit {
+        key: Some(pinned),
+        fits: true,
+    });
+    assert!(measured.shows_release_tag(pinned));
+
+    // The same verdict says nothing about a row the overlay rules size, so it
+    // must not be honoured there.
+    assert!(!measured.shows_release_tag(overlay));
+
+    // Rendering into that other layout clears it rather than carrying it over,
+    // so the first painted frame of the changed row has no tag in it.
+    let carried = cukta_edition_release_fit_for_layout(measured, overlay);
+    assert_eq!(carried.key, Some(overlay));
+    assert!(!carried.fits);
+    assert!(!carried.shows_release_tag(overlay));
+
+    // Re-rendering the layout it was measured in keeps it.
+    assert_eq!(
+        cukta_edition_release_fit_for_layout(measured, pinned),
+        measured
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_after_measure_never_reuses_an_old_verdict() {
+    let key = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let fitted = new!(CuktaEditionReleaseFit {
+        key: Some(key),
+        fits: true,
+    });
+
+    // A row that cannot be measured is not evidence that the tag still fits.
+    let unmeasurable = cukta_edition_release_fit_after_measure(fitted, None);
+    assert_eq!(unmeasurable.key, Some(key));
+    assert!(!unmeasurable.fits);
+    assert!(!unmeasurable.shows_release_tag(key));
+
+    // Nor is a measurement that says it does not.
+    assert!(!cukta_edition_release_fit_after_measure(fitted, Some(false)).fits);
+
+    // A measurement taken while no layout is current cannot produce a fit, so
+    // a measure racing the page's teardown cannot leave a reusable verdict.
+    let unmounted = cukta_edition_release_fit_unmounted();
+    assert!(unmounted.key.is_none());
+    assert!(!unmounted.fits);
+    assert!(!cukta_edition_release_fit_after_measure(unmounted, Some(true)).fits);
+    assert!(!unmounted.shows_release_tag(key));
+
+    // And a genuine fit in the current layout is recorded.
+    let refitted = cukta_edition_release_fit_after_measure(unmeasurable, Some(true));
+    assert!(refitted.shows_release_tag(key));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_release_fit_only_the_newest_measurement_may_write() {
+    let key = CuktaEditionLayoutKey {
+        uses_autohide: false,
+        visible: true,
+    };
+    let current = new!(CuktaEditionReleaseFit {
+        key: Some(key),
+        fits: false,
+    });
+    let held = CuktaEditionFitClaim::new();
+    let superseded = CuktaEditionFitClaim::new();
+
+    // A claim is the claim it was issued as, however it is carried around.
+    assert_eq!(held, held.clone());
+    // Two claims taken separately are never the same claim, which is what a
+    // measurement's result is judged on.
+    assert_ne!(held, superseded);
+
+    // The measurement the state is waiting for may write.
+    assert!(cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &held,
+        &held
+    ));
+
+    // One that a later measurement has superseded may not, in either direction:
+    // neither an older narrow verdict landing after a newer wide one, nor an
+    // older wide verdict landing after a newer narrow one. The layout key is
+    // identical in both, so the claim is demonstrably what separates them.
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &superseded,
+        &held
+    ));
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(key),
+        &held,
+        &superseded
+    ));
+
+    // Leaving the page takes a claim of its own, so a measurement issued before
+    // it cannot write afterwards even though the layout it measured and the
+    // layout entered again are indistinguishable.
+    let after_unmount = cukta_edition_release_fit_unmounted();
+    let after_abandon = CuktaEditionFitClaim::new();
+    assert!(!cukta_edition_release_fit_accepts_result(
+        after_unmount,
+        Some(key),
+        &held,
+        &after_abandon
+    ));
+    let entered_again = cukta_edition_release_fit_for_layout(after_unmount, key);
+    assert!(!cukta_edition_release_fit_accepts_result(
+        entered_again,
+        Some(key),
+        &held,
+        &after_abandon
+    ));
+
+    // No run of later claims can produce one that an earlier, still-held claim
+    // is mistaken for, so there is no length of session after which a stale
+    // result would start being accepted.
+    let mut latest = held.clone();
+    for _ in 0..1_000 {
+        latest = CuktaEditionFitClaim::new();
+        assert_ne!(held, latest);
+        assert!(!cukta_edition_release_fit_accepts_result(
+            current,
+            Some(key),
+            &held,
+            &latest
+        ));
+    }
+
+    // A result that still holds the state's claim but describes a layout that
+    // has since been left is refused as well, so neither check stands alone.
+    let overlay = CuktaEditionLayoutKey {
+        uses_autohide: true,
+        visible: true,
+    };
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current,
+        Some(overlay),
+        &latest,
+        &latest
+    ));
+    assert!(!cukta_edition_release_fit_accepts_result(
+        current, None, &latest, &latest
+    ));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_header_link_points_at_the_vendored_commit() {
+    let edition = jbotci_cll::cll_edition();
+
+    // The header shows the release tag and nothing else, so the link and its
+    // hover text are the only things tying that tag back to the exact vendored
+    // commit and to the edition version the tag does not spell out.
+    assert_eq!(
+        cll_edition_commit_href(edition),
+        format!("{}/commit/{}", edition.upstream_url, edition.commit)
+    );
+
+    let hover = cll_edition_commit_title(edition);
+    for named in [
+        &edition.title,
+        &edition.version,
+        &edition.upstream_url,
+        &edition.release_tag,
+        &edition.commit,
+    ] {
+        assert!(
+            hover.contains(named.as_str()),
+            "edition hover text {hover:?} should name {named:?}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_edition_header_link_tolerates_a_trailing_upstream_slash() {
+    // `upstream_url` is copied verbatim out of `vendor/cll.VENDORED_FROM`, so a
+    // re-vendor may well write it with a trailing slash.
+    let edition = jbotci_cll::cll_edition()
+        .clone()
+        .with_data(data! { upstream_url: "https://example.test/cll/".to_owned() });
+
+    assert_eq!(
+        cll_edition_commit_href(&edition),
+        format!("https://example.test/cll/commit/{}", edition.commit)
+    );
 }
 
 #[test]
@@ -3395,7 +3869,9 @@ fn test_gentufa_block(
     marker_roles: &[ReferenceMarkerRole],
 ) -> GentufaBlock {
     new!(GentufaBlock {
+        compound_kind: None,
         block_id: format!("test-{row}"),
+        parent_block_id: None,
         node_ids: Vec::new(),
         label: "test".to_owned(),
         is_leaf: true,

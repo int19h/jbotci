@@ -507,6 +507,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn parse<O, P>(&mut self, parser: P) -> Result<O, SyntaxParseError<'tokens>>
     where
         P: Parser<'tokens, O>,
@@ -700,23 +701,6 @@ pub(super) trait Parser<'tokens, O> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn map_err_with_state<F>(self, mapper: F) -> MapErrWithState<Self, F>
-    where
-        Self: Sized,
-        F: Fn(
-            SyntaxParseError<'tokens>,
-            SimpleSpan,
-            &mut ParserState<'tokens>,
-        ) -> SyntaxParseError<'tokens>,
-    {
-        MapErrWithState {
-            parser: self,
-            mapper,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn then<U, P>(self, other: P) -> Then<Self, P, O, U>
     where
         Self: Sized,
@@ -868,7 +852,7 @@ impl<'tokens, O, F> Parser<'tokens, O> for Custom<F>
 where
     F: Fn(&mut InputRef<'tokens, '_>) -> Result<O, SyntaxParseError<'tokens>>,
 {
-    #[inline]
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.cursor;
         match (self.parser)(input) {
@@ -945,7 +929,6 @@ impl<'tokens> Parser<'tokens, ()> for End {
 
 /// Output mapping.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct Map<P, O, F> {
     parser: P,
     mapper: F,
@@ -971,7 +954,6 @@ where
 
 /// Output mapping with parser-state access.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct MapWith<P, O, F> {
     parser: P,
     mapper: F,
@@ -996,74 +978,8 @@ where
     }
 }
 
-/// Primary-error mapping with parser-state access.
-#[invariant(true)]
-#[derive(Clone)]
-pub(crate) struct MapErrWithState<P, F> {
-    parser: P,
-    mapper: F,
-}
-
-impl<P, F> MapErrWithState<P, F> {
-    #[requires(true)]
-    #[ensures(true)]
-    #[inline(always)]
-    fn drive<'tokens, O, R>(
-        &self,
-        input: &mut InputRef<'tokens, '_>,
-        parser: impl FnOnce(&P, &mut InputRef<'tokens, '_>) -> Result<R, ()>,
-    ) -> Result<R, ()>
-    where
-        P: Parser<'tokens, O>,
-        F: Fn(
-            SyntaxParseError<'tokens>,
-            SimpleSpan,
-            &mut ParserState<'tokens>,
-        ) -> SyntaxParseError<'tokens>,
-    {
-        let start = input.cursor();
-        let old_alternative = input.take_alternative();
-        let result = parser(&self.parser, input);
-        let new_alternative = input.take_alternative();
-        input.errors.alternative = old_alternative;
-        if result.is_ok() {
-            if let Some(alternative) = new_alternative {
-                input.add_alternative_error(alternative.position, alternative.error);
-            }
-        } else {
-            let mut alternative = new_alternative.expect("failed parsers register a primary error");
-            let span = input.span_since(&start);
-            alternative.error = (self.mapper)(alternative.error, span, input.state());
-            input.add_alternative_error(alternative.position, alternative.error);
-        }
-        result
-    }
-}
-
-#[contract_trait]
-impl<'tokens, O, P, F> Parser<'tokens, O> for MapErrWithState<P, F>
-where
-    P: Parser<'tokens, O>,
-    F: Fn(
-        SyntaxParseError<'tokens>,
-        SimpleSpan,
-        &mut ParserState<'tokens>,
-    ) -> SyntaxParseError<'tokens>,
-{
-    #[inline(always)]
-    fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
-        self.drive(input, Parser::drive_emit)
-    }
-
-    #[inline(always)]
-    fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
-        self.drive(input, Parser::drive_check)
-    }
-}
-
 /// Sequential parser composition retaining both outputs.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct Then<A, B, OA, OB> {
     first: A,
     second: B,
@@ -1092,7 +1008,6 @@ where
 
 /// Sequential parser composition discarding the first output.
 #[invariant(true)]
-#[derive(Clone)]
 pub(crate) struct IgnoreThen<A, B, OA> {
     first: A,
     second: B,
@@ -1115,6 +1030,56 @@ where
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.first.drive_check(input)?;
         self.second.drive_check(input)
+    }
+}
+
+// Manual `Clone` impls: the derived ones would also require the phantom output type
+// parameters to be `Clone`, which grammar output types need not be.
+impl<P: Clone, O, F: Clone> Clone for Map<P, O, F> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        Map {
+            parser: self.parser.clone(),
+            mapper: self.mapper.clone(),
+            output: PhantomData,
+        }
+    }
+}
+
+impl<P: Clone, O, F: Clone> Clone for MapWith<P, O, F> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        MapWith {
+            parser: self.parser.clone(),
+            mapper: self.mapper.clone(),
+            output: PhantomData,
+        }
+    }
+}
+
+impl<A: Clone, B: Clone, OA, OB> Clone for Then<A, B, OA, OB> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        Then {
+            first: self.first.clone(),
+            second: self.second.clone(),
+            outputs: PhantomData,
+        }
+    }
+}
+
+impl<A: Clone, B: Clone, OA> Clone for IgnoreThen<A, B, OA> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        IgnoreThen {
+            first: self.first.clone(),
+            second: self.second.clone(),
+            ignored: PhantomData,
+        }
     }
 }
 
@@ -1278,9 +1243,15 @@ impl<'tokens> RecursiveFamily<'tokens> {
 }
 
 /// Type-specific recursive rule node stored in a heterogeneous family owner.
+///
+/// The definition is held as the same shared parser a [`Boxed`] already owns,
+/// rather than as a second `Box<dyn Parser>` around it. Storing it twice would
+/// put two vtable hops on the recursion path -- one into `Boxed`'s forwarding
+/// method and one into the parser it forwards to -- and the parser's cost is
+/// counted in host stack frames, one per hop, at every recursive rule edge.
 #[invariant(true)]
 struct RecursiveNode<'tokens, O> {
-    parser: OnceCell<Box<dyn Parser<'tokens, O> + 'tokens>>,
+    parser: OnceCell<Rc<dyn Parser<'tokens, O> + 'tokens>>,
 }
 
 /// A weak, non-owning recursive backedge.
@@ -1291,18 +1262,16 @@ pub(crate) struct Recursive<'tokens, O> {
 }
 
 impl<'tokens, O: 'tokens> Recursive<'tokens, O> {
+    /// Takes an already-shared parser so the node adds no indirection of its own.
     #[requires(true)]
     #[ensures(self.node.upgrade().is_some_and(|node| node.parser.get().is_some()))]
     #[track_caller]
-    pub(crate) fn define<P>(&mut self, parser: P)
-    where
-        P: Parser<'tokens, O> + 'tokens,
-    {
+    pub(crate) fn define(&mut self, parser: Boxed<'tokens, O>) {
         self.node
             .upgrade()
             .expect("recursive parser family dropped before definition")
             .parser
-            .set(Box::new(parser))
+            .set(parser.inner)
             .unwrap_or_else(|_| panic!("recursive parsers can only be defined once"));
     }
 }
@@ -1311,28 +1280,58 @@ impl<'tokens, O: 'tokens> Recursive<'tokens, O> {
 impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
     #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
-        stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
-            self.node
+        #[cfg(target_arch = "wasm32")]
+        {
+            let node = self
+                .node
                 .upgrade()
-                .expect("recursive parser family owner is not retained")
+                .expect("recursive parser family owner is not retained");
+            let parser = node
                 .parser
                 .get()
-                .expect("recursive parser used before definition")
-                .drive_emit(input)
-        })
+                .expect("recursive parser used before definition");
+            parser.drive_emit(input)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+                self.node
+                    .upgrade()
+                    .expect("recursive parser family owner is not retained")
+                    .parser
+                    .get()
+                    .expect("recursive parser used before definition")
+                    .drive_emit(input)
+            })
+        }
     }
 
     #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
-        stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
-            self.node
+        #[cfg(target_arch = "wasm32")]
+        {
+            let node = self
+                .node
                 .upgrade()
-                .expect("recursive parser family owner is not retained")
+                .expect("recursive parser family owner is not retained");
+            let parser = node
                 .parser
                 .get()
-                .expect("recursive parser used before definition")
-                .drive_check(input)
-        })
+                .expect("recursive parser used before definition");
+            parser.drive_check(input)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+                self.node
+                    .upgrade()
+                    .expect("recursive parser family owner is not retained")
+                    .parser
+                    .get()
+                    .expect("recursive parser used before definition")
+                    .drive_check(input)
+            })
+        }
     }
 }
 
@@ -1395,13 +1394,18 @@ mod tests {
             let family = RecursiveFamily::new();
             let mut first: Recursive<'_, ()> = family.declare();
             let mut second: Recursive<'_, ()> = family.declare();
-            first.define(second.clone().map({
-                let retained_by_definition = Rc::clone(&retained_by_definition);
-                move |()| {
-                    let _retained = &retained_by_definition;
-                }
-            }));
-            second.define(first.clone());
+            first.define(
+                second
+                    .clone()
+                    .map({
+                        let retained_by_definition = Rc::clone(&retained_by_definition);
+                        move |()| {
+                            let _retained = &retained_by_definition;
+                        }
+                    })
+                    .boxed(),
+            );
+            second.define(first.clone().boxed());
             family.own(first).boxed()
         };
         drop(retained_by_definition);

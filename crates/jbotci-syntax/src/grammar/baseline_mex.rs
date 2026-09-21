@@ -45,7 +45,7 @@ fn is_baseline_mex(expression: &ZantufaMexSyntax) -> bool {
             let ZantufaMexContinuationSyntax {
                 operators,
                 right_expression,
-            } = continuation;
+            } = continuation.as_ref();
             operators.len() == 1
                 && baseline_operator(&operators[0])
                 && right_expression.as_deref().is_some_and(baseline_precedence)
@@ -62,7 +62,7 @@ fn baseline_precedence(expression: &ZantufaMex1Syntax) -> bool {
                 bihe: _,
                 operators,
                 right_group,
-            } = tail;
+            } = tail.as_ref();
             operators.len() == 1
                 && baseline_operator(&operators[0])
                 && right_group.as_deref().is_some_and(baseline_group_as_base)
@@ -78,7 +78,7 @@ fn baseline_group_as_base(group: &ZantufaMexGroupSyntax) -> bool {
             let ZantufaBoGroupedMeksoSyntax {
                 first_expression,
                 continuations,
-            } = group;
+            } = group.as_ref();
             continuations.is_empty() && baseline_atom_as_base(first_expression.as_ref())
         }
     }
@@ -99,7 +99,7 @@ fn baseline_atom_as_base(expression: &ZantufaMex2Syntax) -> bool {
 fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
     match expression {
         ZantufaOperandSyntax::NumberMekso(number) => {
-            let super::generated_model::NumberMeksoSyntax(quantifier) = number;
+            let super::generated_model::NumberMeksoSyntax(quantifier) = number.as_ref();
             let _ = quantifier;
             true
         }
@@ -108,7 +108,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
                 letters: _,
                 boi: _,
                 free_modifiers: _,
-            } = letters;
+            } = letters.as_ref();
             true
         }
         ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
@@ -116,7 +116,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
                 vei: _,
                 inner_expression: _,
                 veho: _,
-            } = operand;
+            } = operand.as_ref();
             true
         }
         ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(operand) => {
@@ -124,7 +124,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
                 mohe: _,
                 sumti: _,
                 tehu: _,
-            } = operand;
+            } = operand.as_ref();
             true
         }
         ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
@@ -132,7 +132,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
                 lahe: _,
                 inner_expression,
                 luhu: _,
-            } = operand;
+            } = operand.as_ref();
             baseline_operand_mex(inner_expression.as_ref())
         }
         ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
@@ -141,7 +141,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
                 bo: _,
                 inner_expression,
                 luhu: _,
-            } = operand;
+            } = operand.as_ref();
             baseline_operand_mex(inner_expression.as_ref())
         }
         ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_) => false,
@@ -149,7 +149,7 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
             let super::generated_model::ZantufaScalarNegatedMeksoOperandSyntax {
                 nahe: _,
                 inner_expression: _,
-            } = operand;
+            } = operand.as_ref();
             // The adopted camxes-exp warning route is intentionally not a
             // baseline surface. Keep the Zantufa recursive arm Zantufa-owned.
             false
@@ -172,7 +172,7 @@ fn baseline_operand_mex(expression: &ZantufaMexSyntax) -> bool {
                 let ZantufaMexContinuationSyntax {
                     operators,
                     right_expression,
-                } = continuation;
+                } = continuation.as_ref();
                 operators.len() == 1
                     && baseline_operand_connective(&operators[0])
                     && right_expression.as_deref().is_some_and(|right| {
@@ -199,7 +199,7 @@ fn baseline_operand_group(group: &ZantufaMexGroupSyntax) -> bool {
             let ZantufaBoGroupedMeksoSyntax {
                 first_expression,
                 continuations,
-            } = group;
+            } = group.as_ref();
             continuations.is_empty() && baseline_operand_atom(first_expression)
         }
     }
@@ -219,7 +219,7 @@ fn baseline_grouped_operand_continuation_right(expression: &ZantufaMex1Syntax) -
                 ke: _,
                 expressions,
                 kehe: _,
-            } = group;
+            } = group.as_ref();
             expressions.len() == 1 && baseline_operand_atom(&expressions[0])
         }
     }
@@ -240,7 +240,7 @@ fn baseline_operand_atom(expression: &ZantufaMex2Syntax) -> bool {
 fn baseline_operand_connective(operator: &ZantufaOperatorSyntax) -> bool {
     match operator {
         ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            let super::generated_model::ZantufaConnectiveMeksoOperatorSyntax(_) = operator;
+            let super::generated_model::ZantufaConnectiveMeksoOperatorSyntax(_) = operator.as_ref();
             true
         }
         ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(_)
@@ -265,17 +265,17 @@ fn wide_qualified_head_has_baseline_inner(expression: &ZantufaMex1Syntax) -> boo
     let ZantufaBoGroupedMeksoSyntax {
         first_expression,
         continuations: _,
-    } = group;
+    } = group.as_ref();
     let ZantufaMex2Syntax::ZantufaOperand(operand) = first_expression.as_ref() else {
         return false;
     };
-    let inner = match operand {
+    let inner = match operand.as_ref() {
         ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
             let super::generated_model::ZantufaLaheQualifiedMeksoOperandSyntax {
                 lahe: _,
                 inner_expression,
                 luhu: _,
-            } = operand;
+            } = operand.as_ref();
             inner_expression.as_ref()
         }
         ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
@@ -284,7 +284,7 @@ fn wide_qualified_head_has_baseline_inner(expression: &ZantufaMex1Syntax) -> boo
                 bo: _,
                 inner_expression,
                 luhu: _,
-            } = operand;
+            } = operand.as_ref();
             inner_expression.as_ref()
         }
         ZantufaOperandSyntax::NumberMekso(_)
@@ -296,7 +296,7 @@ fn wide_qualified_head_has_baseline_inner(expression: &ZantufaMex1Syntax) -> boo
             let super::generated_model::ZantufaScalarNegatedMeksoOperandSyntax {
                 nahe: _,
                 inner_expression: _,
-            } = operand;
+            } = operand.as_ref();
             return false;
         }
     };
@@ -337,7 +337,7 @@ fn baseline_root_reverse_polish(expression: &ZantufaMex1Syntax) -> bool {
     let ZantufaBoGroupedMeksoSyntax {
         first_expression,
         continuations,
-    } = group;
+    } = group.as_ref();
     if !continuations.is_empty() {
         return false;
     }
@@ -373,7 +373,8 @@ fn baseline_reverse_polish(expression: &ZantufaReversePolishMeksoSyntax) -> bool
         return false;
     };
     for tail in tails {
-        let super::generated_model::ZantufaReversePolishTailSyntax { operands, operator } = tail;
+        let super::generated_model::ZantufaReversePolishTailSyntax { operands, operator } =
+            tail.as_ref();
         if !operands.iter().all(|operand| match operand.as_ref() {
             ZantufaMex2Syntax::ZantufaOperand(operand) => baseline_operand(operand),
             ZantufaMex2Syntax::ZantufaReversePolishMekso(_)
@@ -395,14 +396,14 @@ fn baseline_operator(operator: &ZantufaOperatorSyntax) -> bool {
             let super::generated_model::ZantufaConvertedMeksoOperatorSyntax {
                 se: _,
                 inner_operator,
-            } = operator;
+            } = operator.as_ref();
             baseline_operator(inner_operator.as_ref())
         }
         ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
             let super::generated_model::ZantufaScalarNegatedMeksoOperatorSyntax {
                 nahe: _,
                 inner_operator,
-            } = operator;
+            } = operator.as_ref();
             baseline_operator(inner_operator.as_ref())
         }
         ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(operator) => {
@@ -410,15 +411,15 @@ fn baseline_operator(operator: &ZantufaOperatorSyntax) -> bool {
                 maho: _,
                 mekso: _,
                 tehu: _,
-            } = operator;
+            } = operator.as_ref();
             true
         }
         ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(operator) => {
-            let super::generated_model::ZantufaPrimitiveMeksoOperatorSyntax(_) = operator;
+            let super::generated_model::ZantufaPrimitiveMeksoOperatorSyntax(_) = operator.as_ref();
             true
         }
         ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            let super::generated_model::ZantufaConnectiveMeksoOperatorSyntax(_) = operator;
+            let super::generated_model::ZantufaConnectiveMeksoOperatorSyntax(_) = operator.as_ref();
             true
         }
         ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
@@ -443,8 +444,8 @@ impl OutputRejection<ZantufaMexSyntax> for BaselineMexRejection {
 
 #[requires(true)]
 #[ensures(true)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -452,7 +453,11 @@ fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
 
 #[requires(true)]
 #[ensures(true)]
-fn valid_wf<T>(value: &recovered::WithFreeModifiers<recovered::Recovered<T>>) -> bool {
+fn valid_wf<T, V, F>(value: &recovered::WithFreeModifiers<V, F>) -> bool
+where
+    V: std::borrow::Borrow<recovered::Recovered<T>>,
+    F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
+{
     valid(&value.value).is_some()
         && value
             .free_modifiers

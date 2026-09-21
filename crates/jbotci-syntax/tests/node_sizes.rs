@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, mem::size_of};
+use std::{cmp::Reverse, mem::size_of, sync::Arc};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
@@ -37,8 +37,8 @@ fn ast_node_sizes_stay_within_stack_budget() {
         ),
         ("Token", size_of::<Token>()),
         (
-            "WithFreeModifiers<Token>",
-            size_of::<WithFreeModifiers<Token, FreeModifierSyntax>>(),
+            "WithFreeModifiers<Token, Arc<FreeModifierSyntax>>",
+            size_of::<WithFreeModifiers<Token, Arc<FreeModifierSyntax>>>(),
         ),
         ("BridiSyntax", size_of::<BridiSyntax>()),
         ("BridiTailSyntax", size_of::<BridiTailSyntax>()),

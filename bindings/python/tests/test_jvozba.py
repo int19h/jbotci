@@ -284,6 +284,7 @@ def test_all_error_values_and_variant_exceptions_remain_distinct() -> None:
         jvozba.FinalConsonant("rok", True),
         jvozba.NoRafsiAvailable("a"),
         jvozba.NoDictionaryEntry("missing"),
+        jvozba.TooMuchWork(jvozba.JvozbaWorkMeasure.PLACEMENTS, 8193, 8192),
         jvozba.CouldNotBuildLujvo(),
         jvozba.CouldNotBuildCompound(),
     )
@@ -294,6 +295,7 @@ def test_all_error_values_and_variant_exceptions_remain_distinct() -> None:
         jvozba.FinalConsonantError,
         jvozba.NoRafsiAvailableError,
         jvozba.NoDictionaryEntryError,
+        jvozba.TooMuchWorkError,
         jvozba.CouldNotBuildLujvoError,
         jvozba.CouldNotBuildCompoundError,
     )
@@ -511,3 +513,41 @@ def test_installed_jvozba_import_works_outside_repository(
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a_refused_search_carries_its_measured_figures() -> None:
+    value = jvozba.TooMuchWork(jvozba.JvozbaWorkMeasure.SPELLING_LETTERS, 300, 256)
+
+    assert value.measure is jvozba.JvozbaWorkMeasure.SPELLING_LETTERS
+    assert (value.amount, value.limit) == (300, 256)
+    assert repr(value) == (
+        "jbotci.jvozba.TooMuchWork("
+        "measure=jbotci.jvozba.JvozbaWorkMeasure.SPELLING_LETTERS, "
+        "amount=300, limit=256)"
+    )
+    assert "300" in str(value) and "256" in str(value)
+
+    match value:
+        case jvozba.TooMuchWork(measure, amount, limit):
+            assert (measure, amount, limit) == (
+                jvozba.JvozbaWorkMeasure.SPELLING_LETTERS,
+                300,
+                256,
+            )
+        case _:  # pragma: no cover - the match above is exhaustive
+            pytest.fail("TooMuchWork did not match its own pattern")
+
+
+def test_a_build_too_large_to_count_is_refused_rather_than_attempted() -> None:
+    # No caller limit still leaves the arithmetic one: eighty ordinary words
+    # offer more spellings than a 64-bit count can hold, and a search whose
+    # size cannot be counted cannot be finished. Python sees that refusal, so
+    # the exception is reachable rather than a formality.
+    with pytest.raises(jvozba.TooMuchWorkError) as caught:
+        jvozba.build([jvozba.Word("klama")] * 80)
+
+    error = caught.value
+    assert error.measure is jvozba.JvozbaWorkMeasure.PLACEMENTS
+    assert error.amount >= error.limit
+    assert isinstance(error.value, jvozba.TooMuchWork)
+    assert error.args == (str(error.value),)

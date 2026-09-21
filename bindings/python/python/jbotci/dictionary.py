@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Final, Sequence, TypeAlias, final
 
 from ._native import (
+    _dictionary_CmavoSequenceIndexMismatchValidationDetail as CmavoSequenceIndexMismatchValidationDetail,
     _dictionary_DefinitionId as DefinitionId,
     _dictionary_Dictionary as Dictionary,
     _dictionary_DictionaryEntries as DictionaryEntries,
@@ -58,6 +59,7 @@ DictionaryValidationDetail: TypeAlias = (
     | RafsiIndexMismatchValidationDetail
     | SelmahoIndexMismatchValidationDetail
     | PatternIndexMismatchValidationDetail
+    | CmavoSequenceIndexMismatchValidationDetail
     | InvalidSoundIndexEntryValidationDetail
     | InvalidLujvoIndexEntryValidationDetail
 )
@@ -133,6 +135,7 @@ def first_gloss_keywords_for_words(
 
 
 __all__: tuple[str, ...] = (
+    "CmavoSequenceIndexMismatchValidationDetail",
     "DefinitionId",
     "Dictionary",
     "DictionaryEntries",

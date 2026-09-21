@@ -23,7 +23,7 @@ name. The columns are:
 ## Subsumed rationale patterns
 
 The `subsumed` rows are generated from the following reviewed patterns. The
-counts describe the current checked-in matrix and sum to its 6,504 subsumed
+counts describe the current checked-in matrix and sum to its 6,506 subsumed
 rows; the generator and drift check derive membership mechanically rather than
 relying on these documentation counts.
 
@@ -31,7 +31,7 @@ relying on these documentation counts.
 | --- | ---: | --- |
 | Generated grammar traversal | 3,249 | A Rust walker callback or descent function is represented by the same immutable typed child fields and structural matching in Python. |
 | Recovered-boundary conversion | 1,365 | Rust ownership conversions between valid and recovered nodes are performed by the public strict-or-recovered parse operation. |
-| Named public concept | 916 | A method, constructor, field, or normalized operation is carried by the named immutable Python class or closed union. |
+| Named public concept | 918 | A method, constructor, field, or normalized operation is carried by the named immutable Python class or closed union. |
 | Borrowed generated node reference | 912 | Rust's borrowed `NodeRef`/`AtomRef` tag becomes the corresponding independently owned typed Python node or token. |
 | `WithIndicators` convenience operation | 16 | Named variants and their typed fields retain the word, indicator, quote-marker, and span information used by the Rust helper. |
 | Token convenience operation | 13 | `Token.core_word` or `Token.source_spans` retains the result of a Rust predicate, constructor, or caller-owned accumulator helper. |

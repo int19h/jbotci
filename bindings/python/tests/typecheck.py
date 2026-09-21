@@ -39,7 +39,7 @@ def exhaustive_jvozba_input(value: jvozba.JvozbaInput) -> str:
 
 
 def exhaustive_jvozba_error(value: jvozba.JvozbaErrorValue) -> str:
-    """Prove all eight structured Rust errors narrow without a fallback."""
+    """Prove all nine structured Rust errors narrow without a fallback."""
 
     if isinstance(value, jvozba.RequiresAtLeastTwoInputs):
         return str(value)
@@ -58,6 +58,11 @@ def exhaustive_jvozba_error(value: jvozba.JvozbaErrorValue) -> str:
     if isinstance(value, jvozba.NoDictionaryEntry):
         assert_type(value.offending, str)
         return value.offending
+    if isinstance(value, jvozba.TooMuchWork):
+        assert_type(value.measure, jvozba.JvozbaWorkMeasure)
+        assert_type(value.amount, int)
+        assert_type(value.limit, int)
+        return value.measure.value
     if isinstance(value, jvozba.CouldNotBuildLujvo):
         return str(value)
     if isinstance(value, jvozba.CouldNotBuildCompound):
@@ -107,6 +112,9 @@ def typed_jvozba_surface() -> jvozba.JvozbaBuildResult:
 
     assert exhaustive_jvozba_input(word)
     assert exhaustive_jvozba_error(jvozba.NoDictionaryEntry("missing"))
+    assert exhaustive_jvozba_error(
+        jvozba.TooMuchWork(jvozba.JvozbaWorkMeasure.PLACEMENTS, 8193, 8192)
+    )
     return result
 
 

@@ -1,9 +1,9 @@
 use dioxus::core::Task;
 use dioxus::prelude::*;
 use jbotci_cll::{
-    CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
-    CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, CllTableCell,
-    cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
+    CllBlock, CllEbnfEntry, CllEbnfToken, CllEdition, CllInline, CllInterlinearRow,
+    CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation,
+    CllTableCell, cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
@@ -46,12 +46,13 @@ use jbotci_web_core::{
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
-    WebFeatureAvailability, WebRoute, all_presets, build_gimfihi_page_meta_from_output,
-    build_page_meta, build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi,
-    dictionary_tooltip_for_word, gentufa_web_url, gimfihi_source_word_preview, gimfihi_web_url,
-    normalize_gimfihi_state, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
-    toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
-    vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
+    WebFeatureAvailability, WebRoute, all_presets, build_gentufa_page_meta_from_result,
+    build_gimfihi_page_meta_from_output, build_route_page_meta, build_vlacku_jvozba_output,
+    dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
+    gimfihi_source_word_preview, gimfihi_web_url, normalize_gimfihi_state, normalize_vlacku_state,
+    parse_web_route, reference_slot_display_text, toggle_cukta_target_selection,
+    toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate, vlacku_web_url,
+    vlacku_word_type_options, web_route_url,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -843,6 +844,7 @@ struct GimfihiAsyncResultState {
 struct GentufaDisplayState {
     show_elided: bool,
     show_glosses: bool,
+    show_compounds: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1037,10 +1039,12 @@ impl Default for GentufaDisplayState {
     #[requires(true)]
     #[ensures(!ret.show_elided)]
     #[ensures(!ret.show_glosses)]
+    #[ensures(ret.show_compounds)]
     fn default() -> Self {
         Self {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }
     }
 }
@@ -1122,3 +1126,6 @@ fn _feature_availability_for_linking() -> WebFeatureAvailability {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod compound_dom_tests;

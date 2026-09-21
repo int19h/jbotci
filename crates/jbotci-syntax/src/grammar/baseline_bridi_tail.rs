@@ -118,7 +118,7 @@ fn continued_tail_has_owner(candidate: &ZantufaContinuedBridiTailSyntax) -> bool
             tense_modal,
             cu: _,
             bridi_tail: _,
-        } = continuation;
+        } = continuation.as_ref();
         continuation_has_owner(connective, tense_modal.is_some())
     })
 }
@@ -138,7 +138,7 @@ fn continued_tail_without_tail_terms_has_owner(
             tense_modal,
             cu: _,
             bridi_tail: _,
-        } = continuation;
+        } = continuation.as_ref();
         continuation_has_owner(connective, tense_modal.is_some())
     })
 }

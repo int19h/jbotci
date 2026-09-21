@@ -92,6 +92,10 @@ jobs:
 
       - name: Build the editable extension
         working-directory: bindings/python
+        env:
+          # Concurrent debug compilations exhausted this runner's memory (#905).
+          # Serial compilation passed the same build and generated-artifact checks.
+          CARGO_BUILD_JOBS: 1
         run: uv run --locked --project . --group dev maturin develop
 
       - name: Check generated syntax models

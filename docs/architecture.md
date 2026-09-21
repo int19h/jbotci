@@ -32,6 +32,11 @@ web app serving path and HTTP-facing integrations such as Discord. Dioxus 0.7
 supports a workspace layout where frontend and backend crates are selected
 explicitly, so the workspace keeps applications separate from reusable crates.
 
+The Discord application lives in `apps/jbotci-server/src/discord`. It calls the
+same shared analyses the CLI and the web app call and presents them as Discord
+messages; see [the Discord application](discord-app.md) for its configuration,
+bounds and registration.
+
 ## Resources
 
 Reference material that is required to build, test, or serve jbotci belongs in

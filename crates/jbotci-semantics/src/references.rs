@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU8;
+use std::sync::Arc;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -1212,7 +1213,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 let tail = tail.0.as_ref();
                 let mut analysis =
                     self.analyze_bridi_tail(&tail.bridi_tail, gek_branch_initial_place);
-                analysis.terms.extend(tail.tail_terms.iter());
+                analysis
+                    .terms
+                    .extend(tail.tail_terms.iter().map(Arc::as_ref));
                 analysis
             }
             generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTail(tail) => {
@@ -1656,7 +1659,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 // The prefix groups' terms fill places ahead of the tail's own, in source order.
                 let mut terms = selbri_tail
                     .prefix_terms()
-                    .chain(selbri_tail.tail.terms.iter())
+                    .chain(selbri_tail.tail.terms.iter().map(Arc::as_ref))
                     .collect::<Vec<_>>();
                 if let Some(seltau_frame) = self.co_seltau_term_frame(relation_frame) {
                     let mut cursors = vec![self.cursor_with_existing_assignments(seltau_frame, 2)];
@@ -2045,7 +2048,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                let branches = match selbri {
+                let branches = match selbri.as_ref() {
                     generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
                         selbri,
                     ) => vec![
@@ -2587,7 +2590,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn assign_terms(
         &mut self,
         cursors: &mut Vec<PlaceCursor>,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
         source: AssignmentSource,
     ) {
         for term in terms {
@@ -4249,7 +4252,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     fn walk_mekso_operator(&mut self, node: &'tree generated::MeksoOperatorSyntax) {
         self.walk_node(&node.leading_operator);
         for continuation in &node.continuations {
-            match continuation {
+            match continuation.as_ref() {
                 generated::MeksoOperatorContinuationSyntax::AfterthoughtMeksoOperatorContinuation(
                     continuation,
                 ) => {
@@ -4380,16 +4383,18 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.walk_node(&free_modifier.text);
             }
-            generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => match free_modifier {
-                generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
-                    self.walk_node(&free_modifier.expression.inner_expression);
+            generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => {
+                match free_modifier.as_ref() {
+                    generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
+                        self.walk_node(&free_modifier.expression.inner_expression);
+                    }
+                    generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
+                        self.walk_node(&free_modifier.expression);
+                    }
+                    generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
+                    | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
-                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
-                    self.walk_node(&free_modifier.expression);
-                }
-                generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
-                | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
-            },
+            }
             generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
                 self.walk_node(&free_modifier.expression);
             }
@@ -4456,7 +4461,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IStandardParagraphStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::IStandardParagraphStatementConnectiveSyntax>,
     ) {
     }
 
@@ -4464,7 +4469,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::ITagBoParagraphStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::ITagBoParagraphStatementConnectiveSyntax>,
     ) {
     }
 
@@ -4472,7 +4477,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_standard_statement_connective(
         &mut self,
-        _node: &'tree generated::IStandardStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::IStandardStatementConnectiveSyntax>,
     ) {
     }
 
@@ -4480,7 +4485,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_tag_bo_statement_connective(
         &mut self,
-        _node: &'tree generated::ITagBoStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::ITagBoStatementConnectiveSyntax>,
     ) {
     }
 
@@ -4488,17 +4493,17 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_tagged_or_elided_sumti_tagged_elided_sumti(
         &mut self,
-        _node: &'tree generated::TaggedElidedSumtiSyntax,
+        _node: &'tree Arc<generated::TaggedElidedSumtiSyntax>,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_pro_sumti(&mut self, _node: &'tree generated::ProSumtiSyntax) {}
+    fn walk_sumti_base_pro_sumti(&mut self, _node: &'tree Arc<generated::ProSumtiSyntax>) {}
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree Arc<generated::NameSumtiSyntax>) {
         generated::walk::name_sumti(self, node);
     }
 
@@ -4506,19 +4511,23 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_sumti_base_lerfu_string_sumti(
         &mut self,
-        _node: &'tree generated::LerfuStringSumtiSyntax,
+        _node: &'tree Arc<generated::LerfuStringSumtiSyntax>,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_fragment_statement_ek_fragment(&mut self, _node: &'tree generated::EkFragmentSyntax) {}
+    fn walk_fragment_statement_ek_fragment(
+        &mut self,
+        _node: &'tree Arc<generated::EkFragmentSyntax>,
+    ) {
+    }
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_fragment_statement_gihek_fragment(
         &mut self,
-        _node: &'tree generated::GihekFragmentSyntax,
+        _node: &'tree Arc<generated::GihekFragmentSyntax>,
     ) {
     }
 
@@ -4526,7 +4535,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_multiple_na_fragment(
         &mut self,
-        _node: &'tree generated::MultipleNaFragmentSyntax,
+        _node: &'tree Arc<generated::MultipleNaFragmentSyntax>,
     ) {
     }
 
@@ -4534,7 +4543,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_single_na_fragment(
         &mut self,
-        _node: &'tree generated::SingleNaFragmentSyntax,
+        _node: &'tree Arc<generated::SingleNaFragmentSyntax>,
     ) {
     }
 }
@@ -5780,7 +5789,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bind_prenex_relation_variables(&mut self, terms: &'tree [generated::TermSyntax]) {
+    fn bind_prenex_relation_variables(&mut self, terms: &'tree [Arc<generated::TermSyntax>]) {
         let mut collector = GeneratedPrenexRelationVariableBindingCollector::new(self.index);
         for term in terms {
             term.visit_in_order(&mut collector);
@@ -5794,7 +5803,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_cei_predicate_targets_for_statement(
         &mut self,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
         statement: &'tree generated::StatementSyntax,
     ) {
         if let Some(bridi) = self.statement_main_predicate_id(statement) {
@@ -5806,7 +5815,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
         &mut self,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
         statement: &'tree generated::ZantufaRelativeStatementSyntax,
     ) {
         if let Some(bridi) = self.zantufa_relative_statement_main_predicate_id(statement) {
@@ -5818,7 +5827,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_cei_predicate_targets_for_subbridi(
         &mut self,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
         subbridi: &'tree generated::SubbridiSyntax,
     ) {
         if let Some(bridi) = self.subbridi_main_predicate_id(subbridi) {
@@ -5830,7 +5839,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_cei_predicate_targets(
         &mut self,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
         bridi: BridiNodeId,
     ) {
         for source in self.prenex_cei_assignment_sources(terms) {
@@ -5891,7 +5900,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             ) => self.zantufa_relative_statement_main_predicate_id(&statement.inner_statement),
             generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => None,
             generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => {
-                match base {
+                match base.as_ref() {
                     generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => None,
                     generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
                         statement,
@@ -5921,7 +5930,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn prenex_cei_assignment_sources(
         &self,
-        terms: &'tree [generated::TermSyntax],
+        terms: &'tree [Arc<generated::TermSyntax>],
     ) -> Vec<CeiAssignmentSource> {
         let mut collector = GeneratedPrenexCeiAssignmentSourceCollector::new(self.index);
         for term in terms {
@@ -5936,7 +5945,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         let argument_id = SumtiNodeId(self.raw_for_node(sumti));
         let handled_mention = self.visit_sumti_grouped(argument_id, &sumti.base_sumti);
         if let Some(attachment) = &sumti.vuho_attachment {
-            match attachment {
+            match attachment.as_ref() {
                 generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
                     attachment,
                 ) => {
@@ -6396,7 +6405,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         self.visit_relative_clause_without_head(&clauses.first);
         for tail in &clauses.additional {
-            match tail {
+            match tail.as_ref() {
                 generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
                     self.visit_relative_clause_without_head(&tail.inner);
                 }
@@ -6420,7 +6429,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         self.visit_relative_clause(assignment_head_id, reference_head_id, &clauses.first);
         for tail in &clauses.additional {
-            match tail {
+            match tail.as_ref() {
                 generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
                     self.visit_relative_clause(assignment_head_id, reference_head_id, &tail.inner);
                 }
@@ -6448,7 +6457,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
                 self.visit_relative_sumti(&clause.sumti);
             }
-            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause {
+            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause
+                .as_ref()
+            {
                 generated::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(clause) => {
                     self.visit_subbridi(&clause.subbridi);
                 }
@@ -6474,7 +6485,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
                 self.visit_sumti_association_relative_clause(assignment_head_id, clause);
             }
-            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause {
+            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause
+                .as_ref()
+            {
                 generated::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(clause) => {
                     self.relative_heads.push(reference_head_id);
                     self.visit_subbridi(&clause.subbridi);
@@ -6854,7 +6867,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                match selbri {
+                match selbri.as_ref() {
                     generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
                         selbri,
                     ) => {
@@ -8140,16 +8153,18 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.walk_node(&free_modifier.text);
             }
-            generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => match free_modifier {
-                generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
-                    self.walk_node(&free_modifier.expression.inner_expression);
+            generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => {
+                match free_modifier.as_ref() {
+                    generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
+                        self.walk_node(&free_modifier.expression.inner_expression);
+                    }
+                    generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
+                        self.walk_node(&free_modifier.expression);
+                    }
+                    generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
+                    | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
-                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
-                    self.walk_node(&free_modifier.expression);
-                }
-                generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
-                | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
-            },
+            }
             generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
                 self.walk_node(&free_modifier.expression);
             }
@@ -8216,7 +8231,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IStandardParagraphStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::IStandardParagraphStatementConnectiveSyntax>,
     ) {
     }
 
@@ -8224,7 +8239,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::ITagBoParagraphStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::ITagBoParagraphStatementConnectiveSyntax>,
     ) {
     }
 
@@ -8232,7 +8247,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_standard_statement_connective(
         &mut self,
-        _node: &'tree generated::IStandardStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::IStandardStatementConnectiveSyntax>,
     ) {
     }
 
@@ -8240,7 +8255,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_tag_bo_statement_connective(
         &mut self,
-        _node: &'tree generated::ITagBoStatementConnectiveSyntax,
+        _node: &'tree Arc<generated::ITagBoStatementConnectiveSyntax>,
     ) {
     }
 
@@ -8248,25 +8263,29 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_tagged_or_elided_sumti_tagged_elided_sumti(
         &mut self,
-        _node: &'tree generated::TaggedElidedSumtiSyntax,
+        _node: &'tree Arc<generated::TaggedElidedSumtiSyntax>,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree Arc<generated::NameSumtiSyntax>) {
         generated::walk::name_sumti(self, node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_fragment_statement_ek_fragment(&mut self, _node: &'tree generated::EkFragmentSyntax) {}
+    fn walk_fragment_statement_ek_fragment(
+        &mut self,
+        _node: &'tree Arc<generated::EkFragmentSyntax>,
+    ) {
+    }
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_fragment_statement_gihek_fragment(
         &mut self,
-        _node: &'tree generated::GihekFragmentSyntax,
+        _node: &'tree Arc<generated::GihekFragmentSyntax>,
     ) {
     }
 
@@ -8274,7 +8293,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_multiple_na_fragment(
         &mut self,
-        _node: &'tree generated::MultipleNaFragmentSyntax,
+        _node: &'tree Arc<generated::MultipleNaFragmentSyntax>,
     ) {
     }
 
@@ -8282,14 +8301,22 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_single_na_fragment(
         &mut self,
-        _node: &'tree generated::SingleNaFragmentSyntax,
+        _node: &'tree Arc<generated::SingleNaFragmentSyntax>,
+    ) {
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_linked_sumti_empty_linked_sumti(
+        &mut self,
+        _node: &'tree Arc<generated::EmptyLinkedSumtiSyntax>,
     ) {
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[generated::TermSyntax] {
+fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[Arc<generated::TermSyntax>] {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.leading_terms,
         generated::BridiSyntax::BareCuBridi(_) | generated::BridiSyntax::RelationOnlyBridi(_) => {
@@ -8343,7 +8370,7 @@ fn generated_abstraction_is_property(abstraction: &generated::AbstractionTanruUn
 
 #[requires(start > 0)]
 #[ensures(ret >= start)]
-fn next_generated_place_after_common_terms(start: u8, terms: &[generated::TermSyntax]) -> u8 {
+fn next_generated_place_after_common_terms(start: u8, terms: &[Arc<generated::TermSyntax>]) -> u8 {
     let mut cursor = PlaceCursor::new_at(SelbriPlaceFrameId(usize::MAX), start);
     for term in terms {
         advance_cursor_for_generated_term_shape(&mut cursor, term);
@@ -8730,20 +8757,23 @@ fn generated_sumti_base_koha_cmavo_with_subscript(
 #[requires(true)]
 #[ensures(true)]
 fn generated_koha_subscript_index(
-    free_modifiers: &[generated::FreeModifierSyntax],
+    free_modifiers: &[Arc<generated::FreeModifierSyntax>],
 ) -> Option<usize> {
     free_modifiers
         .iter()
-        .find_map(|free_modifier| match free_modifier {
-            generated::FreeModifierSyntax::XiFreeModifier(
-                generated::XiFreeModifierSyntax::XiNumberFreeModifier(subscript),
-            ) => generated_number_words_to_usize(&subscript.expression.0.number),
-            generated::FreeModifierSyntax::XiFreeModifier(
-                generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript),
-            ) => generated_math_expression_to_usize(&subscript.expression.inner_expression),
-            generated::FreeModifierSyntax::XiFreeModifier(
-                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript),
-            ) => generated_zantufa_mex_2_to_usize(&subscript.expression),
+        .find_map(|free_modifier| match free_modifier.as_ref() {
+            generated::FreeModifierSyntax::XiFreeModifier(subscript) => match subscript.as_ref() {
+                generated::XiFreeModifierSyntax::XiNumberFreeModifier(subscript) => {
+                    generated_number_words_to_usize(&subscript.expression.0.number)
+                }
+                generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript) => {
+                    generated_math_expression_to_usize(&subscript.expression.inner_expression)
+                }
+                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript) => {
+                    generated_zantufa_mex_2_to_usize(&subscript.expression)
+                }
+                generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => None,
+            },
             _ => None,
         })
 }
@@ -8791,7 +8821,7 @@ fn generated_zantufa_mex_2_to_usize(expression: &generated::ZantufaMex2Syntax) -
     let generated::ZantufaMex2Syntax::ZantufaOperand(operand) = expression else {
         return None;
     };
-    match operand {
+    match operand.as_ref() {
         generated::ZantufaOperandSyntax::NumberMekso(number) => {
             generated_number_words_to_usize(&number.0.number)
         }
@@ -8863,7 +8893,7 @@ fn generated_simple_mekso_operand_to_usize(
 fn generated_number_words_to_usize(words: &generated::NumberWordsSyntax) -> Option<usize> {
     let mut value = cmavo_digit(words.first_number.cmavo())?;
     for continuation in &words.continuations {
-        let digit = match continuation {
+        let digit = match continuation.as_ref() {
             generated::NumberWordContinuationSyntax::NumberWordPaContinuation(continuation) => {
                 cmavo_digit(continuation.0.cmavo())?
             }
@@ -8896,7 +8926,7 @@ fn generated_argument_name_initials(sumti: &generated::SumtiSyntax) -> Option<St
     let generated::SumtiAtomSyntax::SumtiBase(base) = simple.base_sumti.as_ref() else {
         return None;
     };
-    let generated::SumtiBaseSyntax::NameSumti(name) = base else {
+    let generated::SumtiBaseSyntax::NameSumti(name) = base.as_ref() else {
         return None;
     };
     generated_word_run_initial_key(&name.names.value)
@@ -9031,7 +9061,7 @@ fn generated_token_base_letter(token: Option<&Token>) -> Option<String> {
 fn generated_letter_string_tokens(letters: &generated::LetterStringSyntax) -> Vec<Token> {
     let mut tokens = generated_letter_tokens(&letters.first_letter);
     for continuation in &letters.continuations {
-        match continuation {
+        match continuation.as_ref() {
             generated::LetterStringContinuationSyntax::LetterStringPaContinuation(continuation) => {
                 tokens.push(continuation.0.clone());
             }
@@ -10022,27 +10052,36 @@ mod tests {
                 _ => None,
             })
             .expect("ko'a node");
-        let generated::FreeModifierSyntax::XiFreeModifier(
-            generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript),
-        ) = &pro_sumti.0.free_modifiers[0]
+        let generated::FreeModifierSyntax::XiFreeModifier(subscript) =
+            pro_sumti.0.free_modifiers[0].as_ref()
         else {
             panic!("test source must select the exact Zantufa xi route");
         };
-        let generated::ZantufaMex2Syntax::ZantufaOperand(
-            generated::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(negated),
-        ) = subscript.expression.as_ref()
+        let generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript) =
+            subscript.as_ref()
+        else {
+            panic!("test source must select the exact Zantufa xi route");
+        };
+        let generated::ZantufaMex2Syntax::ZantufaOperand(operand) = subscript.expression.as_ref()
+        else {
+            panic!("test source must wrap the numeric operand");
+        };
+        let generated::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(negated) =
+            operand.as_ref()
         else {
             panic!("test source must wrap the numeric operand");
         };
         let direct_subscript = generated::ZantufaMex2XiFreeModifierSyntax {
             xi: subscript.xi.clone(),
             expression: Arc::new(generated::ZantufaMex2Syntax::ZantufaOperand(
-                negated.inner_expression.as_ref().clone(),
+                negated.inner_expression.clone(),
             )),
         };
-        let free_modifiers = [generated::FreeModifierSyntax::XiFreeModifier(
-            generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(direct_subscript),
-        )];
+        let free_modifiers = [Arc::new(generated::FreeModifierSyntax::XiFreeModifier(
+            Arc::new(generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(
+                Arc::new(direct_subscript),
+            )),
+        ))];
 
         assert_eq!(generated_koha_subscript_index(&free_modifiers), Some(1));
     }

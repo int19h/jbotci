@@ -46,6 +46,7 @@ pub(super) fn CuktaPage(
     toc_resize: Signal<Option<CuktaTocResizeState>>,
     toc_overlay_visible: Signal<bool>,
     toc_forced_autohide: Signal<bool>,
+    edition_release_fits: CuktaEditionReleaseFitState,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: String,
     script: GentufaScript,
@@ -61,7 +62,46 @@ pub(super) fn CuktaPage(
             toc_width,
         )
     });
+    // Entering a layout no verdict was taken in clears the verdict before
+    // anything can be rendered from it, and then asks for a fresh measurement.
+    // Leaving the page clears it outright: while the page is gone nothing can
+    // notice the window or the sidebar changing shape, so a verdict kept across
+    // that gap could be reused on a row that has since become too narrow.
+    // The verdict is only ever as fresh as the last render plus the last
+    // measurement, and a box can change with neither. Watching the row itself
+    // is what closes that gap, inside the frame the change lands in.
+    let ensure_edition_row_observer = use_cukta_edition_row_observer(edition_release_fits);
+    use_effect(move || {
+        let key = cukta_edition_layout_key(&snapshot.read());
+        // Re-checked here rather than only at mount, so that a row the renderer
+        // has replaced cannot be left unwatched.
+        ensure_edition_row_observer();
+        let mut verdict = edition_release_fits.verdict;
+        let next = cukta_edition_release_fit_for_layout(*verdict.peek(), key);
+        if *verdict.peek() != next {
+            verdict.set(next);
+        }
+        schedule_cukta_edition_release_fit_measure(edition_release_fits);
+    });
+    // While this page is gone nothing can notice the sidebar or the window
+    // changing shape, so the verdict must not survive to be read again on the
+    // way back in.
+    use_drop(move || {
+        // Abandon first: a measurement already in flight must not be able to
+        // write after this, not even into an identical layout that entering the
+        // page again recreates.
+        edition_release_fits.abandon_measurements();
+        edition_release_fits
+            .verdict
+            .clone()
+            .set(cukta_edition_release_fit_unmounted());
+    });
     let snapshot = snapshot.read().clone();
+    let edition_layout_key = cukta_edition_layout_key(&snapshot);
+    let show_edition_release = edition_release_fits
+        .verdict
+        .read()
+        .shows_release_tag(edition_layout_key);
     render_cukta_page(
         cukta_draft_state,
         cukta_committed_state,
@@ -72,10 +112,121 @@ pub(super) fn CuktaPage(
         toc_width,
         toc_resize,
         toc_overlay_visible,
+        show_edition_release,
         pending_cukta_scroll,
         &base_path,
         script,
         &page_find,
+    )
+}
+
+/// Which layout the edition row is being rendered in.
+///
+/// `visible` is what the sidebar's own visibility rules say, not whether the
+/// sidebar is pinned, because an overlay that is on screen and a pinned column
+/// that is on screen both give the row a box to measure while a hidden one
+/// gives it none.
+#[requires(true)]
+#[ensures(ret.uses_autohide == (snapshot.toc_is_forced_autohide || !snapshot.toc_is_pinned))]
+pub(super) fn cukta_edition_layout_key(snapshot: &CuktaPageSnapshot) -> CuktaEditionLayoutKey {
+    // `#[invariant(true)]` marks this as a plain record with no cross-field
+    // constraint, so it is built directly rather than through `new!`.
+    CuktaEditionLayoutKey {
+        uses_autohide: snapshot.toc_is_forced_autohide || !snapshot.toc_is_pinned,
+        visible: cukta_toc_panel_visible(
+            snapshot.toc_is_pinned,
+            snapshot.toc_is_forced_autohide,
+            snapshot.toc_overlay_is_visible,
+        ),
+    }
+}
+
+/// Hold a resize observer on the edition row for as long as this page is
+/// mounted, and hand back a closure that makes sure it is watching the row that
+/// is actually in the document.
+///
+/// The row is created once per mount and the renderer keeps it across renders,
+/// so attaching once is the normal case. The identity check is what makes that
+/// an observed fact rather than an assumption: whenever the caller runs the
+/// returned closure, an observer left watching a row the renderer has replaced
+/// is disconnected and a new one attached to the row that is there now.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_cukta_edition_row_observer(fit: CuktaEditionReleaseFitState) -> impl Fn() + Copy {
+    let mut observer = use_signal(|| None::<CuktaEditionRowObserver>);
+    use_drop(move || {
+        if let Some(attached) = observer.write().take() {
+            attached.disconnect();
+        }
+    });
+    move || {
+        // `Signal` is `Copy`, so taking a local copy keeps this callable more
+        // than once rather than borrowing the captured handle mutably.
+        let mut observer = observer;
+        let Some(row) = cukta_edition_row() else {
+            return;
+        };
+        if observer
+            .peek()
+            .as_ref()
+            .is_some_and(|attached| attached.watches(&row))
+        {
+            return;
+        }
+        if let Some(previous) = observer.write().take() {
+            previous.disconnect();
+        }
+        if let Some(attached) = observe_cukta_edition_row(fit) {
+            observer.set(Some(attached));
+        }
+    }
+}
+
+/// Off the browser build there is no `web_sys` to observe with, so there is
+/// nothing to hold and nothing to re-attach. The desktop webview gets the same
+/// pre-paint observer, installed in the page by
+/// `measure_cukta_edition_release_fit_desktop` and re-checked by each
+/// measurement it makes. The headless build has no document at all.
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_cukta_edition_row_observer(fit: CuktaEditionReleaseFitState) -> impl Fn() + Copy {
+    let _ = fit;
+    || {}
+}
+
+/// Where the vendored book's pinned commit can be read upstream.
+///
+/// The repository is taken from the edition's own `upstream_url` instead of
+/// being written out here, so that re-vendoring the book from a different
+/// upstream cannot leave the reader pointing at a project it no longer comes
+/// from. `upstream_url` is copied verbatim out of `vendor/cll.VENDORED_FROM`,
+/// which is why a trailing slash has to be tolerated rather than assumed away.
+#[requires(true)]
+#[ensures(ret.starts_with(edition.upstream_url.trim_end_matches('/')))]
+#[ensures(ret.ends_with(&edition.commit))]
+pub(super) fn cll_edition_commit_href(edition: &CllEdition) -> String {
+    format!(
+        "{}/commit/{}",
+        edition.upstream_url.trim_end_matches('/'),
+        edition.commit
+    )
+}
+
+/// The hover text for the release-tag link.
+///
+/// The header shows only the release tag, so the hover text carries the rest
+/// of the pin the tag stands for, including the edition version that the tag
+/// alone does not spell out.
+#[requires(true)]
+#[ensures(ret.contains(&edition.version))]
+#[ensures(ret.contains(&edition.release_tag))]
+#[ensures(ret.contains(&edition.commit))]
+pub(super) fn cll_edition_commit_title(edition: &CllEdition) -> String {
+    format!(
+        "{} {} \u{2014} vendored from {} at {}, commit {}",
+        edition.title, edition.version, edition.upstream_url, edition.release_tag, edition.commit
     )
 }
 
@@ -91,6 +242,7 @@ pub(super) fn render_cukta_page(
     toc_width: Signal<f64>,
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     mut toc_overlay_visible: Signal<bool>,
+    edition_release_fits: bool,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -125,6 +277,8 @@ pub(super) fn render_cukta_page(
     // The reader states which edition of the book it is showing; the sidebar
     // header is the one place present on every cukta view.
     let cll_edition = jbotci_cll::cll_edition();
+    let cll_edition_href = cll_edition_commit_href(cll_edition);
+    let cll_edition_link_title = cll_edition_commit_title(cll_edition);
     let cukta_index_route = JbotciRoute::from_web_route(
         WebRoute::Cukta(CuktaWebState {
             view: CuktaWebView::Index,
@@ -190,8 +344,33 @@ pub(super) fn render_cukta_page(
                                 class: "cll-edition",
                                 title: "Lineage: {cll_edition.lineage()}",
                                 span { class: "cll-edition-title", "{cll_edition.title}" }
-                                span { class: "cll-edition-version", "{cll_edition.version}" }
-                                span { class: "cll-edition-publisher", "{cll_edition.publisher}" }
+                                if edition_release_fits {
+                                    span { class: "cll-edition-release-slot",
+                                        a {
+                                            class: "cll-edition-release",
+                                            href: "{cll_edition_href}",
+                                            title: "{cll_edition_link_title}",
+                                            "{cll_edition.release_tag}"
+                                        }
+                                    }
+                                }
+                                // The fit probe lays this same title and tag out on one
+                                // unbroken line, so its width is exactly what the row
+                                // needs to show both; `measure_cukta_edition_release_fit`
+                                // compares it with the row's content box. It is rendered
+                                // whether or not the tag is, because once the tag is gone
+                                // the probe is the only thing left that can tell us when
+                                // there is room for it again. It holds no link and is
+                                // hidden from the accessibility tree, so nothing in it can
+                                // be seen, read out, tabbed to, or followed.
+                                span {
+                                    class: "cll-edition-fit-probe",
+                                    aria_hidden: "true",
+                                    span { class: "cll-edition-title", "{cll_edition.title}" }
+                                    span { class: "cll-edition-release-slot",
+                                        span { class: "cll-edition-release", "{cll_edition.release_tag}" }
+                                    }
+                                }
                             }
                             label { class: "cll-toc-search",
                                 input {
@@ -2656,6 +2835,7 @@ pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &s
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             },
         ),
         CllLinkKind::Asset => cll_asset_href(base_path, target),

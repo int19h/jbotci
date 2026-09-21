@@ -3,6 +3,9 @@
 //! that the `cukta` tool answers from. [`cll_edition`] reports which edition a
 //! given build carries.
 
+// Tests inspect generated syntax with shared containment at each node boundary.
+#![recursion_limit = "512"]
+
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 #[cfg(test)]
@@ -66,15 +69,20 @@ use search::block_tagged_words;
 pub use search::search_chunk_kind_label;
 pub use search::{
     CllSearchChunk, CllSearchChunkKind, CllSearchMatch, CuktaRequest, CuktaSearchMode,
-    CuktaSearchOutput, CuktaTargetFilter, clamp_cukta_result_count, cll_search_all_chunks,
-    cll_search_section_chunks, collect_tagged_words, cukta_search, cukta_word_search_matches,
-    parse_word_search_terms, truncate_preview,
+    CuktaSearchOutput, CuktaSearchWindow, CuktaTargetFilter, clamp_cukta_result_count,
+    cll_search_all_chunks, cll_search_section_chunks, collect_tagged_words, cukta_search,
+    cukta_word_search_matches, parse_word_search_terms, truncate_preview,
 };
 use search::{build_search_chunks, example_plain_text};
 
 mod render;
+pub use render::{
+    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_inline_code, escape_discord_markdown,
+    escape_discord_markdown_line, status_note_markdown,
+};
 use render::{
-    push_status_note_markdown, render_block_html, render_block_markdown, render_status_note_html,
+    dialect_text, push_status_note_markdown, render_block_html, render_block_markdown,
+    render_example_markdown, render_status_note_html,
 };
 
 mod visitor;
@@ -349,7 +357,13 @@ pub fn render_cukta_request(
                 return Err(CllError::SemanticSearchDisabled);
             }
             Ok(render_search_output(
-                &cukta_search(site, *mode, query, *count, *targets),
+                &cukta_search(
+                    site,
+                    *mode,
+                    query,
+                    CuktaSearchWindow::first(*count),
+                    *targets,
+                ),
                 format,
                 link_mode,
             ))
@@ -357,11 +371,22 @@ pub fn render_cukta_request(
     }
 }
 
+/// The heading level a document title takes: Discord's first level is
+/// oversized for a message, so its titles start one level down.
+#[requires(true)]
+#[ensures(ret.chars().all(|character| character == '#') && !ret.is_empty())]
+fn top_heading(dialect: CllMarkdownDialect) -> &'static str {
+    match dialect {
+        CllMarkdownDialect::GitHub => "#",
+        CllMarkdownDialect::Discord => "##",
+    }
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
-    match format {
-        CllRenderFormat::Html => {
+    match format.markdown_dialect() {
+        None => {
             let edition = &site.metadata.edition;
             let mut output = format!(
                 "<nav class=\"cll-toc-rendered\"><h1>{}</h1><p class=\"cll-edition\">{}</p><p class=\"cll-edition-lineage\">{}</p><h2>Table of Contents</h2><ol>",
@@ -398,19 +423,20 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
             output.push_str("</ol></nav>\n");
             output
         }
-        CllRenderFormat::Markdown | CllRenderFormat::Raw => {
+        Some(dialect) => {
             let edition = &site.metadata.edition;
+            let heading = top_heading(dialect);
             let mut output = format!(
-                "# {}\n\n{} — {}\n\nLineage: {}\n\n## Table of Contents\n\n",
-                edition.title,
-                edition.version,
-                edition.publisher,
-                edition.lineage(),
+                "{heading} {}\n\n{} — {}\n\nLineage: {}\n\n{heading}# Table of Contents\n\n",
+                dialect_text(&edition.title, dialect),
+                dialect_text(&edition.version, dialect),
+                dialect_text(&edition.publisher, dialect),
+                dialect_text(&edition.lineage(), dialect),
             );
             for chapter in &site.chapters {
-                output.push_str(&cll_numbered_title(
-                    chapter.division.chapter_number(),
-                    &chapter.chapter_title,
+                output.push_str(&dialect_text(
+                    &cll_numbered_title(chapter.division.chapter_number(), &chapter.chapter_title),
+                    dialect,
                 ));
                 output.push('\n');
                 for section_id in &chapter.root_section_ids {
@@ -418,7 +444,10 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
                         .sections_by_id
                         .get(section_id)
                         .expect("CllSite invariant guarantees chapter root section ids resolve");
-                    output.push_str(&format!("  - {}\n", format_section_display_title(section)));
+                    output.push_str(&format!(
+                        "  - {}\n",
+                        dialect_text(&format_section_display_title(section), dialect)
+                    ));
                 }
                 output.push('\n');
             }
@@ -434,8 +463,8 @@ pub fn render_index(
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
 ) -> String {
-    match format {
-        CllRenderFormat::Html => {
+    match format.markdown_dialect() {
+        None => {
             let mut output = String::from("<section class=\"cll-index\"><h1>Index</h1>");
             for entry in &site.index_entries {
                 output.push_str("<p><strong>");
@@ -468,8 +497,8 @@ pub fn render_index(
             output.push_str("</section>\n");
             output
         }
-        CllRenderFormat::Markdown | CllRenderFormat::Raw => {
-            let mut output = String::from("# Index\n\n");
+        Some(dialect) => {
+            let mut output = format!("{} Index\n\n", top_heading(dialect));
             for entry in &site.index_entries {
                 let refs = entry
                     .section_ids
@@ -482,7 +511,11 @@ pub fn render_index(
                     .map(cll_section_index_label)
                     .collect::<Vec<_>>()
                     .join(", ");
-                output.push_str(&format!("- **{}**: {refs}\n", entry.key));
+                output.push_str(&format!(
+                    "- **{}**: {}\n",
+                    dialect_text(&entry.key, dialect),
+                    dialect_text(&refs, dialect)
+                ));
             }
             output
         }
@@ -497,8 +530,8 @@ pub fn render_section(
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
 ) -> String {
-    match format {
-        CllRenderFormat::Html => {
+    match format.markdown_dialect() {
+        None => {
             let mut output = String::new();
             output.push_str(
                 "<article class=\"cll-section-content\"><div class=\"cll-section-heading\"><h1>",
@@ -529,18 +562,22 @@ pub fn render_section(
             output.push_str("</article>\n");
             output
         }
-        CllRenderFormat::Markdown | CllRenderFormat::Raw => {
-            let mut output = format!("# {}\n\n", format_section_display_title(section));
+        Some(dialect) => {
+            let mut output = format!(
+                "{} {}\n\n",
+                top_heading(dialect),
+                dialect_text(&format_section_display_title(section), dialect)
+            );
             if link_mode == CllLinkRenderMode::Web
                 && let Some(parse_href) = chrestomathy_section_parse_href(site, section)
             {
                 output.push_str(&format!("[Parse]({parse_href})\n\n"));
             }
             for block in cll_section_prelude_blocks(site, section) {
-                render_block_markdown(site, block, &mut output, 0, link_mode);
+                render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
             }
             for block in &section.blocks {
-                render_block_markdown(site, block, &mut output, 0, link_mode);
+                render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
             }
             output
         }
@@ -555,8 +592,8 @@ pub fn render_example(
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
 ) -> String {
-    match format {
-        CllRenderFormat::Html => {
+    match format.markdown_dialect() {
+        None => {
             let mut output = format!(
                 "<figure id=\"{}\" class=\"cll-example\"><figcaption class=\"cll-example-head\"><span class=\"cll-example-title\">{}</span>",
                 escape_html(&example.anchor_id),
@@ -578,28 +615,9 @@ pub fn render_example(
             output.push_str("</figure>\n");
             output
         }
-        CllRenderFormat::Markdown | CllRenderFormat::Raw => {
-            let mut output = format!("### {}", example.label);
-            if link_mode == CllLinkRenderMode::Web
-                && let Some(parse_href) = &example.parse_href
-            {
-                output.push_str(&format!(" [Parse]({parse_href})"));
-            }
-            output.push_str("\n\n");
-            for block in &example.blocks {
-                render_block_markdown(site, block, &mut output, 0, link_mode);
-            }
-            if example.blocks.is_empty() {
-                for line in &example.lines {
-                    if line.kind == CllExampleLineKind::Text {
-                        output.push_str(&line.text);
-                        output.push('\n');
-                    } else {
-                        output.push_str(&format!("{}: {}\n", line.kind.as_str(), line.text));
-                    }
-                }
-                output.push('\n');
-            }
+        Some(dialect) => {
+            let mut output = String::new();
+            render_example_markdown(site, example, &mut output, link_mode, dialect);
             output
         }
     }
@@ -612,8 +630,8 @@ pub fn render_search_output(
     format: CllRenderFormat,
     _link_mode: CllLinkRenderMode,
 ) -> String {
-    match format {
-        CllRenderFormat::Html => {
+    match format.markdown_dialect() {
+        None => {
             let mut rendered = String::from("<section class=\"cll-search-results\">");
             if let Some(message) = &output.message {
                 rendered.push_str("<p>");
@@ -651,23 +669,36 @@ pub fn render_search_output(
             rendered.push_str("</section>\n");
             rendered
         }
-        CllRenderFormat::Markdown | CllRenderFormat::Raw => {
+        Some(dialect) => {
             let mut rendered = String::new();
             if let Some(message) = &output.message {
-                rendered.push_str(message);
+                rendered.push_str(&dialect_text(message, dialect));
                 rendered.push_str("\n\n");
             }
             for item in &output.matches {
-                rendered.push_str(&format!("### {}. {}\n\n", item.rank, item.chunk.label));
-                rendered.push_str(&format!(
-                    "{} in {}\n\n",
+                let title = format!("{}. {}", item.rank, item.chunk.label);
+                let place = format!(
+                    "{} in {}",
                     search_chunk_kind_label(item.chunk.kind),
                     cll_numbered_title(
                         item.chunk.section_number.as_deref(),
                         &item.chunk.section_title,
                     ),
-                ));
+                );
+                match dialect {
+                    CllMarkdownDialect::GitHub => {
+                        rendered.push_str(&format!("### {title}\n\n{place}\n\n"));
+                    }
+                    CllMarkdownDialect::Discord => {
+                        rendered.push_str(&format!(
+                            "**{}**\n-# {}\n",
+                            dialect_text(&title, dialect),
+                            dialect_text(&place, dialect)
+                        ));
+                    }
+                }
                 let preview = truncate_preview(&item.chunk.text, 420);
+                let preview = dialect_text(&preview, dialect);
                 if item.chunk.is_status_note() {
                     push_status_note_markdown(&mut rendered, &preview);
                 } else {
@@ -1469,7 +1500,14 @@ mod tests {
             .expect("embedded CLL should contain examples");
         let example = cll_lookup_example(site, example_id).expect("example id should resolve");
         let mut block_markdown = String::new();
-        render_block_markdown(site, block, &mut block_markdown, 0, CllLinkRenderMode::Web);
+        render_block_markdown(
+            site,
+            block,
+            &mut block_markdown,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
 
         assert_eq!(
             block_markdown,
@@ -1610,7 +1648,14 @@ mod tests {
                 text: "linked content".to_owned(),
             };
             let mut markdown = String::new();
-            render_block_markdown(site, &block, &mut markdown, 0, CllLinkRenderMode::Plain);
+            render_block_markdown(
+                site,
+                &block,
+                &mut markdown,
+                0,
+                CllLinkRenderMode::Plain,
+                CllMarkdownDialect::GitHub,
+            );
             let html = render_block_html(site, &block, CllLinkRenderMode::Plain);
 
             assert_eq!(markdown.contains("*linked content*"), keeps_content);
@@ -2976,7 +3021,7 @@ mod tests {
         let matches = cukta_word_search_matches(
             site,
             ".lojban.",
-            5,
+            CuktaSearchWindow::first(5),
             CuktaTargetFilter {
                 sections: true,
                 paragraphs: false,
@@ -3004,9 +3049,61 @@ mod tests {
         );
         assert_eq!(normalize_valsis_query("\u{ed86}\u{eda8}"), "coi");
 
-        let non_latin_matches =
-            cukta_word_search_matches(site, "\u{ed86}\u{eda8}", 5, CuktaTargetFilter::default());
+        let non_latin_matches = cukta_word_search_matches(
+            site,
+            "\u{ed86}\u{eda8}",
+            CuktaSearchWindow::first(5),
+            CuktaTargetFilter::default(),
+        );
         assert!(!non_latin_matches.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_into_a_word_search_is_that_stretch_of_the_whole_result() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let whole = cukta_word_search_matches(
+            site,
+            "lojban",
+            CuktaSearchWindow::first(MAX_CUKTA_RESULT_COUNT),
+            CuktaTargetFilter::default(),
+        );
+        assert!(
+            whole.len() > 20,
+            "the fixture needs several pages: {}",
+            whole.len()
+        );
+
+        // The fifth page of the same result list, asked for as itself.
+        let window = cukta_word_search_matches(
+            site,
+            "lojban",
+            CuktaSearchWindow::after(20, 6),
+            CuktaTargetFilter::default(),
+        );
+        assert_eq!(
+            window
+                .iter()
+                .map(|matched| (matched.rank, matched.chunk.anchor_id.as_str()))
+                .collect::<Vec<_>>(),
+            whole[20..26]
+                .iter()
+                .map(|matched| (matched.rank, matched.chunk.anchor_id.as_str()))
+                .collect::<Vec<_>>(),
+            "a windowed match keeps its place in the whole result list"
+        );
+
+        // A window past the end holds nothing rather than the last page over
+        // again, and the count of results is not what was fetched.
+        let past_the_end = cukta_search(
+            site,
+            CuktaSearchMode::Word,
+            "lojban",
+            CuktaSearchWindow::after(whole.len(), 6),
+            CuktaTargetFilter::default(),
+        );
+        assert!(past_the_end.matches.is_empty() && !past_the_end.has_more);
     }
 
     #[requires(true)]
@@ -3246,7 +3343,7 @@ mod tests {
             site,
             CuktaSearchMode::Meaning,
             "lojban",
-            10,
+            CuktaSearchWindow::first(10),
             CuktaTargetFilter::default(),
         );
         assert!(output.matches.is_empty());

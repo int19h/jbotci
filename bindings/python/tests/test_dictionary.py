@@ -20,6 +20,7 @@ import jbotci.morphology as morphology
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_DICTIONARY_EXPORTS = (
+    "CmavoSequenceIndexMismatchValidationDetail",
     "DefinitionId",
     "Dictionary",
     "DictionaryEntries",
@@ -687,6 +688,7 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.RafsiIndexMismatchValidationDetail,
         dictionary.SelmahoIndexMismatchValidationDetail,
         dictionary.PatternIndexMismatchValidationDetail,
+        dictionary.CmavoSequenceIndexMismatchValidationDetail,
         dictionary.InvalidSoundIndexEntryValidationDetail,
         dictionary.InvalidLujvoIndexEntryValidationDetail,
     )
@@ -715,6 +717,7 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.RafsiIndexMismatchValidationDetail,
         dictionary.SelmahoIndexMismatchValidationDetail,
         dictionary.PatternIndexMismatchValidationDetail,
+        dictionary.CmavoSequenceIndexMismatchValidationDetail,
         dictionary.InvalidSoundIndexEntryValidationDetail,
         dictionary.InvalidLujvoIndexEntryValidationDetail,
     )
@@ -971,6 +974,7 @@ def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
         dictionary.RafsiIndexMismatchValidationDetail,
         dictionary.SelmahoIndexMismatchValidationDetail,
         dictionary.PatternIndexMismatchValidationDetail,
+        dictionary.CmavoSequenceIndexMismatchValidationDetail,
         dictionary.InvalidSoundIndexEntryValidationDetail,
         dictionary.InvalidLujvoIndexEntryValidationDetail,
         dictionary.WordType,

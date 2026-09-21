@@ -2,6 +2,15 @@
 
 //! Shared web/API view models and gentufa parser facade.
 
+#[cfg(test)]
+mod compound_tests;
+pub mod morphology_reports;
+
+pub use morphology_reports::{
+    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai, possible_rafsi_for_gismu,
+    vlatai_diagnostics, vlatai_not_single_word_diagnostic,
+};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::OnceLock;
@@ -9,13 +18,13 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
-    DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
-    chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
-    cll_next_section_id, cll_numbered_title, cll_previous_section_id,
-    cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
-    cll_section_chapter_title, cll_section_prelude_blocks, cukta_search, embedded_cll_site,
-    format_section_display_title, truncate_preview,
+    CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaSearchWindow,
+    CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT,
+    MAX_CUKTA_RESULT_COUNT, chrestomathy_section_parse_href, cll_first_section_id,
+    cll_index_entries, cll_lookup_section, cll_next_section_id, cll_numbered_title,
+    cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
+    cll_search_chunk_href, cll_section_chapter_title, cll_section_prelude_blocks, cukta_search,
+    embedded_cll_site, format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
@@ -24,14 +33,17 @@ use jbotci_diagnostics::{
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
+use jbotci_gentufa::{
+    AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundLayout, GentufaCompoundMember,
+    GentufaCompoundSpec, block_annotation_recipients, generated_model_blocks_layout_with_compounds,
+    generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
+    range_from_span as web_range_from_source_span, recovered_generated_model_blocks_layout,
+    recovered_generated_model_blocks_layout_with_compounds, reference_slot_label_from_output,
+};
 pub use jbotci_gentufa::{
     DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaBlockRole,
     GentufaScript, ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource,
     ReferenceMarkerSourceData, ReferenceSlotLabel, WebSourceRange, reference_slot_display_text,
-};
-use jbotci_gentufa::{
-    generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
-    recovered_generated_model_blocks_layout, reference_slot_label_from_output,
 };
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
@@ -54,15 +66,18 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
-    DefinitionPlaceMap, GlyphStyle, TreeRenderOptions, format_definition_line_with_indexed_places,
-    generated_reference_display, generated_reference_slot_name_for_place_slot,
-    indexed_place_spans_for_definition_line, indexed_place_spans_for_notes_line,
-    ipa_morphology_text, phoneme_render_options_for_script,
+    DefinitionPlaceMap, GlyphStyle, OutputError, TreeRenderOptions,
+    format_definition_line_with_indexed_places, generated_reference_display,
+    generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
+    indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
     pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
 };
 use jbotci_phonetic::lojban_text_to_ipa;
+use jbotci_search::compounds::{
+    CompoundBarrier, ParsedCompoundKind, ParsedCompoundMatch, compound_cards, recognize_compounds,
+};
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
@@ -112,6 +127,8 @@ pub struct GentufaWebOptions {
     pub script: GentufaScript,
     pub show_elided: bool,
     pub show_glosses: bool,
+    #[serde(default = "default_true")]
+    pub show_compounds: bool,
     pub show_definitions: bool,
     pub error_context_depth: usize,
     pub phonemes: PhonemeRenderOptions,
@@ -128,6 +145,7 @@ impl Default for GentufaWebOptions {
             script: GentufaScript::Latin,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
             show_definitions: false,
             error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
@@ -144,6 +162,8 @@ pub struct GentufaWebState {
     pub view_mode: GentufaWebViewMode,
     pub show_elided: bool,
     pub show_glosses: bool,
+    #[serde(default = "default_true")]
+    pub show_compounds: bool,
 }
 
 impl Default for GentufaWebState {
@@ -157,8 +177,15 @@ impl Default for GentufaWebState {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret)]
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -682,27 +709,21 @@ fn valid_gentufa_result_for_web(
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let tree_options = TreeRenderOptions {
-        color: false,
-        indent: 2,
-        phonemes: render_options.phonemes,
-        glyphs: GlyphStyle::Unicode,
-        show_spans: true,
-        show_refs: true,
-        decompose_lujvo: false,
-        show_elided: options.show_elided,
+    let projection = match generated_model_gentufa_blocks_projection(
+        &generated_model,
+        source,
+        words,
+        &gentufa_blocks_projection_options(options),
+    ) {
+        Ok(projection) => projection,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            });
+        }
     };
-    let reference_display =
-        match generated_reference_display(&generated_model, source, tree_options) {
-            Ok(display) => display,
-            Err(error) => {
-                return GentufaWebResult::Error(GentufaError {
-                    phase: Some(DiagnosticPhase::Syntax),
-                    message: error.to_string(),
-                    diagnostics,
-                });
-            }
-        };
     let bracket_options = bracket_render_options(&render_options);
     let brackets_text = match pretty_generated_model_brackets_with_options(
         &generated_model,
@@ -732,37 +753,15 @@ fn valid_gentufa_result_for_web(
             });
         }
     };
-    let block_options = gentufa_block_options(options);
-    let mut generated_annotations =
-        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
-    let bare_blocks_layout = generated_syntax_blocks_layout_with_references(
-        &generated_model,
-        source,
-        Some(&reference_display.analysis.syntax_index),
-        Some(&reference_display.references),
-        &generated_annotations,
-        &block_options,
-    );
-    generated_annotations.extend(dictionary_annotations_for_elided_blocks(
-        &bare_blocks_layout.blocks,
-        "",
-    ));
     let bracket_fragments = gentufa_bracket_fragments_from_source(
         &bracket_source_fragments,
-        &bare_blocks_layout,
-        &generated_annotations,
+        &projection.bare,
+        &projection.annotations,
     );
-    let blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
-        bare_blocks_layout,
-        &reference_display.analysis,
-        source,
-        &block_options,
-        "",
-        &generated_annotations,
-    );
-    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
+    let features = web_feature_availability_for_annotations(&projection.annotations);
+    let blocks_layout = projection.into_blocks_layout();
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
-    let features = web_feature_availability_for_annotations(&generated_annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -799,27 +798,19 @@ fn recovered_gentufa_success_for_web(
     let brackets_text =
         pretty_recovered_syntax_brackets_with_options(parse, source, bracket_options)
             .unwrap_or_else(|error| error.to_string());
-    let block_options = gentufa_block_options(options);
-    let mut annotations =
-        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
-    let bare_blocks_layout = recovered_generated_model_blocks_layout(
-        parse.parse_tree.as_ref(),
+    let projection = recovered_gentufa_blocks_projection(
+        parse,
         source,
-        parse.errors.len(),
-        &annotations,
-        &block_options,
+        words,
+        &gentufa_blocks_projection_options(options),
     );
-    annotations.extend(dictionary_annotations_for_elided_blocks(
-        &bare_blocks_layout.blocks,
-        "",
-    ));
     let bracket_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
         parse,
         source,
         bracket_options,
     )
     .map(|fragments| {
-        gentufa_bracket_fragments_from_source(&fragments, &bare_blocks_layout, &annotations)
+        gentufa_bracket_fragments_from_source(&fragments, &projection.bare, &projection.annotations)
     })
     .unwrap_or_else(|_| {
         vec![GentufaBracketFragment::Text {
@@ -827,11 +818,10 @@ fn recovered_gentufa_success_for_web(
             role: GentufaBlockRole::Normal,
         }]
     });
-    let blocks_layout =
-        attach_empty_reference_tooltips_to_blocks_layout(bare_blocks_layout, &annotations);
-    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
+    let features = web_feature_availability_for_annotations(&projection.annotations);
+    let blocks_layout = projection.into_blocks_layout();
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
-    let features = web_feature_availability_for_annotations(&annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -845,6 +835,230 @@ fn recovered_gentufa_success_for_web(
     })
 }
 
+/// Resolved controls for the dictionary-backed blocks projection that every
+/// surface (browser, server export, CLI, MCP, Discord) renders from.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GentufaBlocksProjectionOptions {
+    pub blocks: GentufaBlockOptions,
+    pub show_compounds: bool,
+}
+
+/// One parse projected into annotated block layouts.
+///
+/// `bare` keeps every word as its own leaf and is what tree rows and bracket
+/// fragments derive from. `coalesced` merges dictionary-attested compounds into
+/// single leaves and exists only when compound recognition was requested and at
+/// least one compound was applied, so choosing it over `bare` never re-renders an
+/// identical layout. `annotations` are the ordinary word and elided-terminator
+/// dictionary annotations shared by both layouts.
+#[invariant(
+    bare.blocks.iter().all(|block| block.compound_kind.is_none()),
+    "the bare layout never coalesces compounds"
+)]
+#[invariant(
+    coalesced.as_ref().is_none_or(|layout| layout.blocks.iter().any(|block| block.compound_kind.is_some())),
+    "a coalesced layout exists only when it contains an applied compound leaf"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GentufaBlocksProjection {
+    pub annotations: Vec<GentufaBlockAnnotation<DictionaryTooltipCard>>,
+    pub bare: GentufaBlocksLayout,
+    pub coalesced: Option<GentufaBlocksLayout>,
+}
+
+impl GentufaBlocksProjection {
+    /// The layout to render: the coalesced one when compounds were applied,
+    /// otherwise the bare one.
+    #[requires(true)]
+    #[ensures(ret.blocks.iter().any(|block| block.compound_kind.is_some()) == old(self.coalesced.is_some()))]
+    pub fn into_blocks_layout(self) -> GentufaBlocksLayout {
+        let data!(GentufaBlocksProjection {
+            bare,
+            coalesced,
+            ..
+        }) = self.into_data();
+        coalesced.unwrap_or(bare)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.blocks.script == options.script)]
+#[ensures(ret.show_compounds == options.show_compounds)]
+fn gentufa_blocks_projection_options(
+    options: &GentufaWebOptions,
+) -> GentufaBlocksProjectionOptions {
+    GentufaBlocksProjectionOptions {
+        blocks: GentufaBlockOptions {
+            script: options.script,
+            show_elided: options.show_elided,
+            phonemes: options.phonemes,
+        },
+        show_compounds: options.show_compounds,
+    }
+}
+
+/// Reference tooltips resolve against the word texts the block view shows, so
+/// the reference model is built from the same phoneme and elision settings as
+/// the blocks. `show_spans`, `color`, and `indent` only affect the text renderer
+/// and are fixed here so no surface can drift from another.
+#[requires(true)]
+#[ensures(ret.show_refs && !ret.show_spans && ret.show_elided == options.show_elided)]
+fn gentufa_blocks_reference_options(options: &GentufaBlockOptions) -> TreeRenderOptions {
+    TreeRenderOptions {
+        color: false,
+        indent: 2,
+        phonemes: options.phonemes,
+        glyphs: GlyphStyle::Unicode,
+        show_spans: false,
+        show_refs: true,
+        decompose_lujvo: false,
+        show_elided: options.show_elided,
+    }
+}
+
+/// Dictionary-backed blocks projection of a valid parse. Owns the reference
+/// display (place-structure markers and their tooltips) so every surface derives
+/// it from the resolved options rather than supplying its own.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|projection| options.show_compounds || projection.coalesced.is_none()) || ret.is_err())]
+pub fn generated_model_gentufa_blocks_projection(
+    syntax: &jbotci_syntax::generated_model::TextSyntax,
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+) -> Result<GentufaBlocksProjection, OutputError> {
+    let reference_display = generated_reference_display(
+        syntax,
+        source,
+        gentufa_blocks_reference_options(&options.blocks),
+    )?;
+    let syntax_index = Some(&reference_display.analysis.syntax_index);
+    let references = Some(&reference_display.references);
+    Ok(gentufa_blocks_projection_with(
+        source,
+        words,
+        options,
+        |annotations| {
+            generated_syntax_blocks_layout_with_references(
+                syntax,
+                source,
+                syntax_index,
+                references,
+                annotations,
+                &options.blocks,
+            )
+        },
+        |specs| {
+            generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                syntax,
+                source,
+                syntax_index,
+                references,
+                &[],
+                &options.blocks,
+                specs,
+            )
+        },
+        |layout, annotations| {
+            attach_generated_reference_tooltips_to_blocks_layout(
+                layout,
+                &reference_display.analysis,
+                source,
+                &options.blocks,
+                "",
+                annotations,
+            )
+        },
+    ))
+}
+
+/// Dictionary-backed blocks projection of a recovered parse. Error regions act
+/// as compound barriers and no place-structure references are shown.
+#[requires(!parse.errors.is_empty())]
+#[ensures(options.show_compounds || ret.coalesced.is_none())]
+pub fn recovered_gentufa_blocks_projection(
+    parse: &RecoveredSyntaxParse,
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+) -> GentufaBlocksProjection {
+    gentufa_blocks_projection_with(
+        source,
+        words,
+        options,
+        |annotations| {
+            recovered_generated_model_blocks_layout(
+                parse.parse_tree.as_ref(),
+                source,
+                parse.errors.len(),
+                annotations,
+                &options.blocks,
+            )
+        },
+        |specs| {
+            recovered_generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                parse.parse_tree.as_ref(),
+                source,
+                parse.errors.len(),
+                &[],
+                &options.blocks,
+                specs,
+            )
+        },
+        |layout, annotations| attach_empty_reference_tooltips_to_blocks_layout(layout, annotations),
+    )
+}
+
+/// Shared body of both projections. Only the layout builders and the tooltip
+/// attachment depend on the parse kind; the dictionary side (word and elided
+/// annotations, recovery barriers, exact compound recognition, specs,
+/// coalescing, and suppression of annotations absorbed by an applied compound)
+/// is identical for valid and recovered parses.
+#[requires(true)]
+#[ensures(options.show_compounds || ret.coalesced.is_none())]
+fn gentufa_blocks_projection_with(
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+    bare_layout: impl FnOnce(
+        &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    ) -> BareGentufaBlocksLayout,
+    compound_layout: impl FnOnce(&[GentufaCompoundSpec]) -> GentufaCompoundLayout<DictionaryTooltipCard>,
+    attach_tooltips: impl Fn(
+        BareGentufaBlocksLayout,
+        &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    ) -> GentufaBlocksLayout,
+) -> GentufaBlocksProjection {
+    let mut annotations =
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
+    let bare = bare_layout(&annotations);
+    annotations.extend(dictionary_annotations_for_elided_blocks(&bare.blocks, ""));
+    let coalesced = options
+        .show_compounds
+        .then(|| {
+            let matches = compounds_for_projection(source, words, &bare);
+            if matches.is_empty() {
+                return None;
+            }
+            let specs = compound_specs(&matches, &bare);
+            let projection = compound_layout(&specs).into_data();
+            if projection.applied.is_empty() {
+                return None;
+            }
+            let compound_annotations =
+                compound_projection_annotations(&annotations, &matches, &projection.applied);
+            Some(attach_tooltips(projection.layout, &compound_annotations))
+        })
+        .flatten();
+    let bare = attach_tooltips(bare, &annotations);
+    new!(GentufaBlocksProjection {
+        annotations,
+        bare,
+        coalesced,
+    })
+}
+
 #[requires(true)]
 #[ensures(ret.max_col == old(layout.max_col))]
 #[ensures(ret.blocks.iter().all(|block| block.ref_markers.is_empty()))]
@@ -853,12 +1067,14 @@ fn attach_empty_reference_tooltips_to_blocks_layout(
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
     let layout = layout.into_data();
+    let recipients = block_annotation_recipients(&layout.blocks, dictionary_annotations);
     new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
-            .map(|block| {
-                attach_empty_reference_tooltips_to_block(block, dictionary_annotations)
+            .zip(recipients)
+            .map(|(block, annotation)| {
+                attach_empty_reference_tooltips_to_block(block, annotation)
             })
             .collect(),
         max_col: layout.max_col,
@@ -871,23 +1087,13 @@ fn attach_empty_reference_tooltips_to_blocks_layout(
 #[ensures(ret.role.is_error() -> ret.tooltip.is_none())]
 fn attach_empty_reference_tooltips_to_block(
     block: BareGentufaBlock,
-    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    dictionary_annotation: Option<&GentufaBlockAnnotation<DictionaryTooltipCard>>,
 ) -> GentufaBlock {
     let block = block.into_data();
-    let dictionary_annotation = (!block.role.is_error())
-        .then(|| {
-            annotation_for_range_and_text(
-                dictionary_annotations,
-                block.span,
-                block
-                    .role
-                    .is_elided()
-                    .then_some(block.display_text.as_str()),
-            )
-        })
-        .flatten();
     new!(GentufaBlock {
+        compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -928,45 +1134,53 @@ fn attach_empty_reference_tooltips_to_block(
     })
 }
 
+/// The tree view's rows: one per block, in preorder over the block
+/// hierarchy with siblings in source order. Siblings occupy disjoint column
+/// ranges, so column order is source order; the depth is the number of
+/// ancestors, and `guides` carries one ancestor colour per level.
 #[requires(true)]
 #[ensures(ret.len() == layout.blocks.len())]
 fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<GentufaTreeRow> {
-    let mut blocks = layout.blocks.iter().collect::<Vec<_>>();
-    blocks.sort_by_key(|block| {
-        (
-            block.row,
-            block.col,
-            usize::from(block.is_leaf),
-            &block.block_id,
-        )
-    });
-    let mut rows = Vec::with_capacity(blocks.len());
-    let mut parent_stack: Vec<(usize, String)> = Vec::new();
-    for block in blocks {
+    let mut children: BTreeMap<&str, Vec<&GentufaBlock>> = BTreeMap::new();
+    let mut roots = Vec::new();
+    for block in &layout.blocks {
+        match &block.parent_block_id {
+            Some(parent_id) => children.entry(parent_id.as_str()).or_default().push(block),
+            None => roots.push(block),
+        }
+    }
+    let source_order = |left: &&GentufaBlock, right: &&GentufaBlock| {
+        (left.col, left.block_id.as_str()).cmp(&(right.col, right.block_id.as_str()))
+    };
+    roots.sort_by(source_order);
+    for siblings in children.values_mut() {
+        siblings.sort_by(source_order);
+    }
+    let mut rows = Vec::with_capacity(layout.blocks.len());
+    let mut pending = roots
+        .into_iter()
+        .rev()
+        .map(|block| (block, Vec::new(), None))
+        .collect::<Vec<(&GentufaBlock, Vec<GentufaTreeGuide>, Option<usize>)>>();
+    while let Some((block, guides, parent_id)) = pending.pop() {
         let node_id = block_id_number(&block.block_id);
-        parent_stack.truncate(block.row);
-        let parent_id = block
-            .row
-            .checked_sub(1)
-            .and_then(|parent_depth| parent_stack.get(parent_depth))
-            .map(|(parent_id, _)| *parent_id);
-        let guides = parent_stack
-            .iter()
-            .map(|(_, color)| GentufaTreeGuide {
-                color: color.clone(),
-                line_top: true,
-                line_bottom: true,
-            })
-            .collect::<Vec<_>>();
-        if parent_stack.len() == block.row {
-            parent_stack.push((node_id, block.color.clone()));
-        } else if let Some(slot) = parent_stack.get_mut(block.row) {
-            *slot = (node_id, block.color.clone());
+        let block_children = children
+            .get(block.block_id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let mut child_guides = guides.clone();
+        child_guides.push(GentufaTreeGuide {
+            color: block.color.clone(),
+            line_top: true,
+            line_bottom: true,
+        });
+        for child in block_children.iter().rev() {
+            pending.push((child, child_guides.clone(), Some(node_id)));
         }
         rows.push(GentufaTreeRow {
             node_id,
             parent_id,
-            depth: block.row,
+            depth: guides.len(),
             label: if block.role.is_error() {
                 "Error".to_owned()
             } else {
@@ -974,7 +1188,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             },
             color: block.color.clone(),
             guides,
-            has_children: false,
+            has_children: !block_children.is_empty(),
             cells: vec![GentufaCell {
                 text: block.display_text.clone(),
                 is_word: block.is_leaf,
@@ -989,7 +1203,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             rafsi_breakdown: rafsi_breakdown_for_block(block),
         });
     }
-    annotate_generated_model_tree_row_parent_state(rows)
+    rows
 }
 
 #[requires(block_id.starts_with('n'))]
@@ -999,21 +1213,6 @@ fn block_id_number(block_id: &str) -> usize {
         .strip_prefix('n')
         .and_then(|suffix| suffix.parse::<usize>().ok())
         .unwrap_or(0)
-}
-
-#[requires(true)]
-#[ensures(ret.len() == old(rows.len()))]
-fn annotate_generated_model_tree_row_parent_state(
-    mut rows: Vec<GentufaTreeRow>,
-) -> Vec<GentufaTreeRow> {
-    let parent_ids = rows
-        .iter()
-        .filter_map(|row| row.parent_id)
-        .collect::<BTreeSet<_>>();
-    for row in &mut rows {
-        row.has_children = parent_ids.contains(&row.node_id);
-    }
-    rows
 }
 
 #[requires(true)]
@@ -1043,18 +1242,15 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
     let layout = layout.into_data();
+    let recipients = block_annotation_recipients(&layout.blocks, dictionary_annotations);
     new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
-            .map(|block| {
+            .zip(recipients)
+            .map(|(block, annotation)| {
                 attach_generated_reference_tooltips_to_block(
-                    block,
-                    analysis,
-                    source,
-                    options,
-                    base_path,
-                    dictionary_annotations,
+                    block, analysis, source, options, base_path, annotation,
                 )
             })
             .collect(),
@@ -1071,19 +1267,13 @@ fn attach_generated_reference_tooltips_to_block(
     source: &str,
     options: &GentufaBlockOptions,
     base_path: &str,
-    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    dictionary_annotation: Option<&GentufaBlockAnnotation<DictionaryTooltipCard>>,
 ) -> GentufaBlock {
     let block = block.into_data();
-    let dictionary_annotation = annotation_for_range_and_text(
-        dictionary_annotations,
-        block.span,
-        block
-            .role
-            .is_elided()
-            .then_some(block.display_text.as_str()),
-    );
     new!(GentufaBlock {
+        compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -1300,7 +1490,9 @@ fn source_text_for_metadata(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, GentufaWebError> {
+pub(crate) fn dialect_definition(
+    source: Option<&str>,
+) -> Result<DialectDefinition, GentufaWebError> {
     match source.map(str::trim).filter(|source| !source.is_empty()) {
         Some(source) => parse_dialect_definition(source)
             .map_err(|error| GentufaWebError::Dialect(error.to_string())),
@@ -1346,16 +1538,6 @@ fn gentufa_render_options(options: &GentufaWebOptions) -> GentufaWebOptions {
     GentufaWebOptions {
         phonemes: phoneme_render_options_for_script(options.script, options.phonemes),
         ..options.clone()
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.script == options.script)]
-fn gentufa_block_options(options: &GentufaWebOptions) -> GentufaBlockOptions {
-    GentufaBlockOptions {
-        script: options.script,
-        show_elided: options.show_elided,
-        phonemes: options.phonemes,
     }
 }
 
@@ -1472,7 +1654,7 @@ pub fn run_web_compute_request(
         }
         WebComputeRequest::CuktaPage { base_path, state } => {
             let page = build_cukta_web_page(&base_path, &state);
-            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            let meta = build_route_page_meta(&base_path, &WebRoute::Cukta(state));
             Ok(WebComputeResponse::CuktaPage { page, meta })
         }
         WebComputeRequest::CuktaSemanticPage {
@@ -1485,12 +1667,12 @@ pub fn run_web_compute_request(
             let page = build_cukta_semantic_web_page_with_loading(
                 &base_path, &state, &hits, message, loading,
             );
-            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            let meta = build_route_page_meta(&base_path, &WebRoute::Cukta(state));
             Ok(WebComputeResponse::CuktaPage { page, meta })
         }
         WebComputeRequest::VlackuPage { base_path, state } => {
             let result = build_vlacku_web_result(&state);
-            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            let meta = build_vlacku_page_meta_from_result(&base_path, &result);
             Ok(WebComputeResponse::VlackuPage { result, meta })
         }
         WebComputeRequest::VlackuSemanticPage {
@@ -1502,12 +1684,15 @@ pub fn run_web_compute_request(
         } => {
             let result =
                 build_vlacku_semantic_web_result_with_loading(&state, &hits, message, loading);
-            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            let meta = build_vlacku_page_meta_from_result(&base_path, &result);
             Ok(WebComputeResponse::VlackuPage { result, meta })
         }
         WebComputeRequest::GimfihiPage { base_path, state } => {
             let result = build_gimfihi_web_result(&state);
-            let meta = build_page_meta(&base_path, &WebRoute::Gimfihi(state));
+            let meta = match &result.output {
+                Some(output) => build_gimfihi_page_meta_from_output(&base_path, &state, output),
+                None => build_route_page_meta(&base_path, &WebRoute::Gimfihi(state)),
+            };
             Ok(WebComputeResponse::GimfihiPage { result, meta })
         }
         WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
@@ -2511,6 +2696,7 @@ fn gimfihi_request_from_web_state(state: &GimfihiWebState) -> Result<GimfihiRequ
         check_collisions: state.check_collisions,
         show_collisions: state.show_collisions,
         require_free_short_rafsi: state.require_free_short_rafsi,
+        skip: 0,
         count: state.count.clamp(1, GIMFIHI_WEB_MAX_COUNT),
         highlight: state.highlight.clone(),
     })
@@ -2725,7 +2911,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 site,
                 search_state.mode.into(),
                 &search_state.query,
-                search_state.count,
+                CuktaSearchWindow::first(search_state.count),
                 cukta_target_filter(&search_state.targets),
             );
             let results = output
@@ -2909,20 +3095,145 @@ pub fn web_route_url(base_path: &str, route: &WebRoute) -> String {
     }
 }
 
+/// Page metadata that follows from the route alone.
+///
+/// Gentufa metadata is derived from a parse, gimfi'i metadata from a generation
+/// run, and the vlacku description from a dictionary search. None of that work
+/// belongs on a UI thread, and none of it is needed there: the compute worker
+/// returns the finished metadata next to the result it already computed, so the
+/// UI renders this provisional metadata and adopts the worker's once it lands.
+/// Callers that can afford to run the parser, the generator and the search
+/// inline - server-side rendering on a blocking task - use
+/// [`blocking::build_computed_page_meta`] instead.
+///
+/// Cukta metadata is the one route-derived exception that touches embedded
+/// data: resolving a section reference initializes the embedded CLL site, which
+/// the UI thread loads for rendering the page anyway.
 #[requires(true)]
-#[ensures(true)]
-pub fn build_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
+#[ensures(
+    matches!(route, WebRoute::Gentufa(_) | WebRoute::Gimfihi(_) | WebRoute::Vlacku(_))
+        -> ret.image.is_none(),
+    "only cukta metadata carries an image that the route alone can name"
+)]
+#[ensures(
+    !matches!(route, WebRoute::Gentufa(state) if ret.title != gentufa_page_meta_title(state)),
+    "the gentufa title restates the submitted text and so is final before any parse"
+)]
+pub fn build_route_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
     match route {
-        WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
+        WebRoute::Gentufa(state) => build_gentufa_provisional_page_meta(base_path, state),
+        WebRoute::Gimfihi(state) => build_gimfihi_provisional_page_meta(base_path, state),
+        WebRoute::Vlacku(state) => build_vlacku_provisional_page_meta(base_path, state),
         WebRoute::Cukta(state) => build_cukta_page_meta(base_path, state),
-        WebRoute::Vlacku(state) => build_vlacku_page_meta(base_path, state),
-        WebRoute::Gimfihi(state) => build_gimfihi_page_meta(base_path, state),
-        WebRoute::Settings => page_meta(
-            "Settings".to_owned(),
-            "Browser-facing jbotci display and parser preferences.".to_owned(),
-            web_route_url(base_path, route),
-            None,
-        ),
+        WebRoute::Settings => build_settings_page_meta(base_path),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_settings_page_meta(base_path: &str) -> PageMeta {
+    page_meta(
+        "Settings".to_owned(),
+        "Browser-facing jbotci display and parser preferences.".to_owned(),
+        web_route_url(base_path, &WebRoute::Settings),
+        None,
+    )
+}
+
+/// Page metadata builders that run the gentufa parser, the gimfi'i generator
+/// and the dictionary search inline, so that a caller holding nothing but a
+/// route still gets the metadata a result would have produced.
+///
+/// The module is unavailable on wasm32: in the browser this work belongs to the
+/// compute worker, which builds its metadata from the result it already has,
+/// and a UI thread that ran a deep parse here is exactly the stall issue #913
+/// is about. Everything here therefore needs a caller that can block - the
+/// server's metadata task, or a native test.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod blocking {
+    use super::*;
+
+    /// Page metadata including everything only a parse, a generation run or a
+    /// search can supply: the gentufa bracket preview and social image, the
+    /// gimfi'i winning candidate, and the vlacku top match's definition.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn build_computed_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
+        match route {
+            WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
+            WebRoute::Gimfihi(state) => build_gimfihi_page_meta(base_path, state),
+            WebRoute::Vlacku(state) => build_vlacku_exact_page_meta(base_path, state),
+            // Cukta and settings metadata follows from the route alone, so
+            // there is nothing left for a computed pass to add.
+            WebRoute::Cukta(_) | WebRoute::Settings => build_route_page_meta(base_path, route),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.image.is_none())]
+    fn build_vlacku_exact_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+        let state = normalize_vlacku_state(state);
+        let exact_description = vlacku_exact_metadata_description(&state);
+        build_vlacku_page_meta_with_description(base_path, &state, exact_description)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
+        let query = state.query.trim();
+        if query.is_empty() {
+            return None;
+        }
+        let request = match state.mode {
+            VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
+            VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
+            VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
+        };
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[request],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: 1,
+                word_types: vlacku_search_word_type_filters(&state.word_types),
+                decompose_lujvo: true,
+            }),
+        );
+        output
+            .cards
+            .first()
+            .and_then(|card| vlacku_definition_metadata_description(&card.definition))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
+        let state = normalize_gentufa_state(state);
+        let request = GentufaWebRequest {
+            text: state.text.clone(),
+            options: GentufaWebOptions {
+                dialect: state.dialect.clone(),
+                view_mode: state.view_mode,
+                script: GentufaScript::Latin,
+                show_elided: state.show_elided,
+                show_glosses: state.show_glosses,
+                show_compounds: state.show_compounds,
+                show_definitions: false,
+                error_context_depth: 1,
+                phonemes: PhonemeRenderOptions::default(),
+            },
+        };
+        let result = parse_gentufa_for_web(&request);
+        build_gentufa_page_meta_from_result(base_path, &state, &result)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
+        let state = normalize_gimfihi_state(state);
+        match &build_gimfihi_web_result(&state).output {
+            Some(output) => build_gimfihi_page_meta_from_output(base_path, &state, output),
+            None => build_gimfihi_provisional_page_meta(base_path, &state),
+        }
     }
 }
 
@@ -3131,6 +3442,7 @@ pub fn render_gentufa_state_web_export(
             script,
             show_elided: state.show_elided,
             show_glosses: state.show_glosses,
+            show_compounds: state.show_compounds,
             show_definitions: false,
             error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
@@ -3173,6 +3485,9 @@ pub fn gentufa_export_url(
     }
     if state.show_elided {
         pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    if !state.show_compounds {
+        pairs.push(("compounds".to_owned(), "false".to_owned()));
     }
     if script != GentufaScript::Latin {
         pairs.push((
@@ -3271,44 +3586,72 @@ fn parse_gentufa_script_query_value(value: &str) -> Option<GentufaScript> {
     }
 }
 
+/// Gentufa metadata for a route whose text has not been parsed yet: the title
+/// is already final, while the description and the social image stay at the
+/// values a blank parse would produce until
+/// [`build_gentufa_page_meta_from_result`] receives a real result.
 #[requires(true)]
-#[ensures(true)]
-fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
+#[ensures(ret.title == gentufa_page_meta_title(state))]
+#[ensures(ret.image.is_none())]
+fn build_gentufa_provisional_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
     let state = normalize_gentufa_state(state);
-    let request = GentufaWebRequest {
-        text: state.text.clone(),
-        options: GentufaWebOptions {
-            dialect: state.dialect.clone(),
-            view_mode: state.view_mode,
-            script: GentufaScript::Latin,
-            show_elided: state.show_elided,
-            show_glosses: state.show_glosses,
-            show_definitions: false,
-            error_context_depth: 1,
-            phonemes: PhonemeRenderOptions::default(),
-        },
-    };
-    let result = parse_gentufa_for_web(&request);
-    build_gentufa_page_meta_from_result(base_path, &state, &result)
+    page_meta(
+        gentufa_page_meta_title(&state),
+        GENTUFA_DEFAULT_METADATA_DESCRIPTION.to_owned(),
+        gentufa_web_url(base_path, &state),
+        None,
+    )
 }
 
+/// The gentufa page title restates the submitted text, so it needs no parse and
+/// does not change once one has run.
 #[requires(true)]
-#[ensures(true)]
-fn build_gentufa_page_meta_from_result(
+#[ensures(!ret.is_empty())]
+fn gentufa_page_meta_title(state: &GentufaWebState) -> String {
+    let text = state.text.trim();
+    if text.is_empty() {
+        "jbotci gentufa".to_owned()
+    } else {
+        format!("{text} - jbotci gentufa")
+    }
+}
+
+const GENTUFA_DEFAULT_METADATA_DESCRIPTION: &str =
+    "Parse Lojban text into bracketed blocks, table rows, and reference arrows.";
+
+/// Gentufa metadata carrying what a parse contributes: the bracket preview or
+/// the leading diagnostic as the description, and a social image for a
+/// successful parse.
+///
+/// A result may describe text the route does not carry: the default gentufa
+/// view parses [`DEFAULT_GENTUFA_TEXT`] so the page is not blank, while the URL
+/// stays bare and the route state holds no text at all. Metadata describes the
+/// route, so that sample contributes nothing here - its bracket preview would
+/// describe text no reader submitted, and its social image would be a
+/// `gentufa.png` naming no text, which the export endpoint rejects. An empty
+/// route text therefore yields exactly what a blank parse does.
+#[requires(true)]
+#[ensures(ret.title == gentufa_page_meta_title(state))]
+#[ensures(
+    state.text.trim().is_empty() -> ret.image.is_none(),
+    "a route with no text names no image to export"
+)]
+#[ensures(
+    state.text.trim().is_empty() -> ret.description == GENTUFA_DEFAULT_METADATA_DESCRIPTION,
+    "a route with no text is described by the blank page, not by a parse of other text"
+)]
+pub fn build_gentufa_page_meta_from_result(
     base_path: &str,
     state: &GentufaWebState,
     result: &GentufaWebResult,
 ) -> PageMeta {
     let state = normalize_gentufa_state(state);
-    let title = if state.text.trim().is_empty() {
-        "jbotci gentufa".to_owned()
-    } else {
-        format!("{} - jbotci gentufa", state.text.trim())
-    };
+    if state.text.is_empty() {
+        return build_gentufa_provisional_page_meta(base_path, &state);
+    }
+    let title = gentufa_page_meta_title(&state);
     let description = match result {
-        GentufaWebResult::Blank => {
-            "Parse Lojban text into bracketed blocks, table rows, and reference arrows.".to_owned()
-        }
+        GentufaWebResult::Blank => GENTUFA_DEFAULT_METADATA_DESCRIPTION.to_owned(),
         GentufaWebResult::Success(success) => truncate_preview(&success.brackets_text, 160),
         GentufaWebResult::Error(error) => gentufa_error_metadata_description(error, &state.text),
     };
@@ -3522,9 +3865,50 @@ fn build_cukta_page_meta(base_path: &str, state: &CuktaWebState) -> PageMeta {
     }
 }
 
+/// Vlacku metadata for a route whose search has not run yet. The description
+/// restates the query and the search mode; the leading definition of the top
+/// match, which only a search can supply, arrives with
+/// [`build_vlacku_page_meta_from_result`].
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_vlacku_provisional_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+    build_vlacku_page_meta_with_description(base_path, state, None)
+}
+
+/// Vlacku metadata carrying the leading definition of the top match, taken from
+/// a search the caller has already run.
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+pub fn build_vlacku_page_meta_from_result(base_path: &str, result: &VlackuWebResult) -> PageMeta {
+    build_vlacku_page_meta_with_description(
+        base_path,
+        &result.state,
+        vlacku_result_metadata_description(result),
+    )
+}
+
+/// Only an exact lookup names the one entry the reader asked for: a sound
+/// search ranks approximations and a meaning search carries no dictionary cards
+/// at all, so neither describes its page by a first card.
 #[requires(true)]
 #[ensures(true)]
-fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
+fn vlacku_result_metadata_description(result: &VlackuWebResult) -> Option<String> {
+    match result.state.mode {
+        VlackuWebMode::Word | VlackuWebMode::Rafsi => {}
+        VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
+    }
+    vlacku_definition_metadata_description(&result.cards.first()?.definition_source)
+}
+
+/// `exact_description` describes the top match where the caller knows it;
+/// without it the query and the search mode are the whole description.
+#[requires(true)]
+#[ensures(ret.image.is_none())]
+fn build_vlacku_page_meta_with_description(
+    base_path: &str,
+    state: &VlackuWebState,
+    exact_description: Option<String>,
+) -> PageMeta {
     let state = normalize_vlacku_state(state);
     let query = state.query.trim();
     page_meta(
@@ -3535,7 +3919,7 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
         },
         if query.is_empty() {
             "Browse the embedded dictionary and Lensisku import metadata.".to_owned()
-        } else if let Some(description) = vlacku_exact_metadata_description(&state) {
+        } else if let Some(description) = exact_description {
             description
         } else {
             match state.mode {
@@ -3550,14 +3934,14 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
     )
 }
 
+/// Gimfi'i metadata for a route whose candidates have not been generated yet.
+/// The winning candidate is what a generation run contributes to the title and
+/// the description, so both stay at their defaults until
+/// [`build_gimfihi_page_meta_from_output`] receives real output.
 #[requires(true)]
-#[ensures(true)]
-fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
+#[ensures(ret.image.is_none())]
+fn build_gimfihi_provisional_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta {
     let state = normalize_gimfihi_state(state);
-    let result = build_gimfihi_web_result(&state);
-    if let Some(output) = &result.output {
-        return build_gimfihi_page_meta_from_output(base_path, &state, output);
-    }
     page_meta(
         "jbotci gimfi'i".to_owned(),
         gimfihi_default_metadata_description(state.scorer),
@@ -3574,17 +3958,12 @@ pub fn build_gimfihi_page_meta_from_output(
     output: &GimfihiOutput,
 ) -> PageMeta {
     let state = normalize_gimfihi_state(state);
-    if let Some(candidate) = output.highlighted_word.as_ref().or(output.winner.as_ref()) {
-        return page_meta(
-            format!("{candidate} - jbotci gimfi'i"),
-            gimfihi_metadata_description(candidate, &output.resolved_sources, state.scorer),
-            gimfihi_web_url(base_path, &state),
-            None,
-        );
-    }
+    let Some(candidate) = output.highlighted_word.as_ref().or(output.winner.as_ref()) else {
+        return build_gimfihi_provisional_page_meta(base_path, &state);
+    };
     page_meta(
-        "jbotci gimfi'i".to_owned(),
-        gimfihi_default_metadata_description(state.scorer),
+        format!("{candidate} - jbotci gimfi'i"),
+        gimfihi_metadata_description(candidate, &output.resolved_sources, state.scorer),
         gimfihi_web_url(base_path, &state),
         None,
     )
@@ -3628,37 +4007,9 @@ fn gimfihi_default_metadata_description(scorer: GimfihiScorer) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
-    let query = state.query.trim();
-    if query.is_empty() {
-        return None;
-    }
-    let request = match state.mode {
-        VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
-        VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
-        VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
-    };
-    let output = run_vlacku_requests(
-        jbotci_dictionary_data::english(),
-        &[request],
-        &VlackuSearchOptions::default().with_data(data! {
-            count: 1,
-            word_types: vlacku_search_word_type_filters(&state.word_types),
-            decompose_lujvo: true,
-        }),
-    );
-    output
-        .cards
-        .first()
-        .and_then(vlacku_card_metadata_description)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn vlacku_card_metadata_description(card: &VlackuCard) -> Option<String> {
-    let place_map = DefinitionPlaceMap::from_definition(&card.definition);
-    let definition = card
-        .definition
+fn vlacku_definition_metadata_description(definition_source: &str) -> Option<String> {
+    let place_map = DefinitionPlaceMap::from_definition(definition_source);
+    let definition = definition_source
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())?;
@@ -3830,9 +4181,16 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
         view_mode: state.view_mode,
         show_elided: state.show_elided,
         show_glosses: state.show_glosses,
+        show_compounds: state.show_compounds,
     }
 }
 
+/// Reads the route's state exactly as the URL carries it. Text the reader
+/// typed (source text, dialect) is preserved verbatim, including surrounding
+/// whitespace and an explicitly empty optional field, so a link opens on the
+/// state it was made from. Canonicalizing that text for analysis, search or
+/// page metadata is [`normalize_gentufa_state`]'s job, applied where the
+/// value is used rather than where it is transported.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
@@ -3848,16 +4206,16 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             }
             "glosses" => state.show_glosses = parse_query_bool(&value, false),
             "elided" => state.show_elided = parse_query_bool(&value, false),
+            "compounds" => state.show_compounds = parse_query_bool(&value, true),
             _ => {}
         }
     }
-    normalize_gentufa_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
-    let state = normalize_gentufa_state(state);
     let mut pairs = Vec::new();
     if !state.text.is_empty() {
         pairs.push(("text".to_owned(), state.text.clone()));
@@ -3876,6 +4234,9 @@ pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
     }
     if state.show_elided {
         pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    if !state.show_compounds {
+        pairs.push(("compounds".to_owned(), "false".to_owned()));
     }
     let path = prefixed_web_path(base_path, "/gentufa");
     if pairs.is_empty() {
@@ -3919,6 +4280,9 @@ pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_cukta_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
@@ -3970,16 +4334,22 @@ pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
             }
         }
     }
-    normalize_cukta_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
-    let state = normalize_cukta_state(state);
     let prefix = base_path.trim_end_matches('/');
-    match state.view {
+    match state.view.clone() {
         CuktaWebView::Section { reference } => {
+            // A section route names a section: a state with no reference has
+            // no URL shape of its own and uses the book's entry section.
+            let reference = if reference.trim().is_empty() {
+                DEFAULT_CUKTA_SECTION_ID.to_owned()
+            } else {
+                reference
+            };
             format!("{prefix}/cukta/section/{}", percent_encode(&reference))
         }
         CuktaWebView::Index => format!("{prefix}/cukta/index"),
@@ -4330,6 +4700,9 @@ pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_vlacku_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
@@ -4356,7 +4729,7 @@ pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
             _ => {}
         }
     }
-    normalize_vlacku_state(&state)
+    state
 }
 
 #[requires(true)]
@@ -4367,6 +4740,10 @@ fn is_gimfihi_route_logical(logical: &str) -> bool {
         || matches!(decoded.as_str(), "gimfihi" | "gimfi'i")
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_gimfihi_state`] canonicalizes (including filling a preset's
+/// source rows when none were given).
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
@@ -4388,7 +4765,7 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             "scorer" if value == GimfihiScorer::Classic.as_str() => {
                 state.scorer = GimfihiScorer::Classic;
             }
-            "source" => state.sources.push(parse_gimfihi_web_source(&value)),
+            "source" => state.sources.push(gimfihi_web_source_from_record(&value)),
             "shape" => {
                 if let Ok(shape) = parse_shape(&value) {
                     state.shapes.push(shape);
@@ -4416,28 +4793,35 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             _ => {}
         }
     }
-    normalize_gimfihi_state(&state)
+    state
 }
 
+/// Reads one `LANG[:WEIGHT]:WORD` record into the three values the form
+/// holds, exactly as written. Only the first two colons separate: the word is
+/// whatever follows, so a word containing colons survives the round trip that
+/// [`gimfihi_web_source_query_value`] closes. Trimming, case folding and
+/// weight validation belong to [`normalize_gimfihi_state`] and to source
+/// resolution, not to transport.
 #[requires(true)]
-#[ensures(true)]
-fn parse_gimfihi_web_source(value: &str) -> GimfihiWebSource {
-    let parts = value.split(':').collect::<Vec<_>>();
-    match parts.as_slice() {
-        [language, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: None,
-            word: word.trim().to_ascii_lowercase(),
+#[ensures(ret.word.is_empty() || value.ends_with(&ret.word))]
+pub fn gimfihi_web_source_from_record(value: &str) -> GimfihiWebSource {
+    match value.split_once(':') {
+        Some((language, rest)) => match rest.split_once(':') {
+            Some((weight, word)) => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: (!weight.is_empty()).then(|| weight.to_owned()),
+                word: word.to_owned(),
+            },
+            None => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: None,
+                word: rest.to_owned(),
+            },
         },
-        [language, weight, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: non_empty_string(weight.trim().to_owned()),
-            word: word.trim().to_ascii_lowercase(),
-        },
-        _ => GimfihiWebSource {
+        None => GimfihiWebSource {
             language: String::new(),
             weight: None,
-            word: value.trim().to_ascii_lowercase(),
+            word: value.to_owned(),
         },
     }
 }
@@ -4517,7 +4901,6 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
-    let state = normalize_vlacku_state(state);
     let prefix = base_path.trim_end_matches('/');
     if state.mode == VlackuWebMode::Word
         && !state.query.is_empty()
@@ -4559,7 +4942,6 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
-    let state = normalize_gimfihi_state(state);
     let prefix = base_path.trim_end_matches('/');
     let mut pairs = Vec::new();
     if let Some(preset) = &state.preset {
@@ -4918,6 +5300,167 @@ fn dictionary_annotations_for_words(
         .collect()
 }
 
+/// Missing or recovered terminals are excluded before the global partition so an
+/// inapplicable longer candidate cannot shadow an applicable shorter interval.
+#[requires(true)]
+#[ensures(true)]
+fn compounds_for_projection(
+    source: &str,
+    words: &[WordLike],
+    layout: &BareGentufaBlocksLayout,
+) -> Vec<ParsedCompoundMatch> {
+    let columns = compound_projection_columns(layout);
+    let mut barriers = layout
+        .blocks
+        .iter()
+        .filter(|block| block.role.is_error())
+        .filter_map(|block| block.span)
+        .map(|range| {
+            new!(CompoundBarrier {
+                byte_start: range.byte_start,
+                byte_end: range.byte_end
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut spans = Vec::new();
+    for word in words {
+        spans.clear();
+        word.source_spans_into(&mut spans);
+        for span in &spans {
+            if !columns
+                .get(&(span.byte_start, span.byte_end))
+                .is_some_and(Option::is_some)
+            {
+                barriers.push(new!(CompoundBarrier {
+                    byte_start: span.byte_start,
+                    byte_end: span.byte_end
+                }));
+            }
+        }
+    }
+    recognize_compounds(jbotci_dictionary_data::english(), words, source, &barriers)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compound_projection_columns(
+    layout: &BareGentufaBlocksLayout,
+) -> BTreeMap<(usize, usize), Option<std::num::NonZeroUsize>> {
+    let mut columns = BTreeMap::new();
+    for block in layout
+        .blocks
+        .iter()
+        .filter(|block| block.is_leaf && block.role.is_normal())
+    {
+        if let Some(range) = block.span {
+            columns
+                .entry((range.byte_start, range.byte_end))
+                .and_modify(|column| *column = None)
+                .or_insert(std::num::NonZeroUsize::new(block.col_span));
+        }
+    }
+    columns
+}
+
+#[requires(true)]
+#[ensures(ret.len() == matches.len())]
+fn compound_specs(
+    matches: &[ParsedCompoundMatch],
+    layout: &BareGentufaBlocksLayout,
+) -> Vec<GentufaCompoundSpec> {
+    let columns = compound_projection_columns(layout);
+    matches
+        .iter()
+        .map(|compound| {
+            let kind = match compound.kind {
+                ParsedCompoundKind::CmavoSequence => GentufaCompoundKind::CmavoSequence,
+                ParsedCompoundKind::Zei => GentufaCompoundKind::Zei,
+            };
+            let members: Vec<_> = compound
+                .members
+                .iter()
+                .enumerate()
+                .map(|(index, span)| {
+                    new!(GentufaCompoundMember {
+                        range: web_range_from_source_span(span),
+                        expectation: match kind {
+                            GentufaCompoundKind::CmavoSequence =>
+                                new!(jbotci_gentufa::GentufaCompoundExpectation::Cmavo {
+                                    canonical: compound.components[index].clone()
+                                }),
+                            GentufaCompoundKind::Zei =>
+                                new!(jbotci_gentufa::GentufaCompoundExpectation::ZeiMember),
+                        },
+                    })
+                })
+                .collect();
+            let columns = members
+                .iter()
+                .map(|member| {
+                    columns[&(member.range.byte_start, member.range.byte_end)]
+                        .expect("recognition excluded ambiguous or missing columns")
+                        .get()
+                })
+                .sum::<usize>();
+            new!(GentufaCompoundSpec {
+                kind,
+                range: web_range_from_source_span(&compound.span),
+                members,
+                lookup_text: compound.lookup_text.clone(),
+                columns: std::num::NonZeroUsize::new(columns)
+                    .expect("recognized members have bare source columns")
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compound_projection_annotations(
+    ordinary: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    matches: &[ParsedCompoundMatch],
+    applied: &[AppliedGentufaCompound],
+) -> Vec<GentufaBlockAnnotation<DictionaryTooltipCard>> {
+    let mut annotations: Vec<_> = ordinary
+        .iter()
+        .filter(|annotation| {
+            !applied.iter().any(|item| {
+                item.spec.range == annotation.range()
+                    || item
+                        .spec
+                        .members
+                        .iter()
+                        .any(|member| member.range == annotation.range())
+            })
+        })
+        .cloned()
+        .collect();
+    for applied in applied {
+        let compound = matches
+            .iter()
+            .find(|item| {
+                web_range_from_source_span(&item.span) == applied.spec.range
+                    && item.lookup_text == applied.spec.lookup_text
+            })
+            .expect("applied spec belongs to this recognition result");
+        let card = compound_cards(jbotci_dictionary_data::english(), compound)
+            .into_iter()
+            .next()
+            .expect("attested compound has a real entry");
+        let card = dictionary_tooltip_card_from_search_card("", card);
+        annotations.push(GentufaBlockAnnotation {
+            target: new!(jbotci_gentufa::GentufaAnnotationTarget::Block {
+                block_id: applied.block_id.clone(),
+                range: applied.spec.range
+            }),
+            glosses: card.glosses.clone(),
+            definition: tooltip_definition_text(&card),
+            tooltip: Some(card),
+        });
+    }
+    annotations
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_annotations_for_elided_blocks(
@@ -4931,8 +5474,10 @@ fn dictionary_annotations_for_elided_blocks(
             let range = block.span?;
             let card = dictionary_tooltip_for_word(base_path, &block.display_text)?;
             Some(GentufaBlockAnnotation {
-                range,
-                text: Some(block.display_text.clone()),
+                target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+                    range,
+                    text: Some(block.display_text.clone()),
+                }),
                 glosses: card.glosses.clone(),
                 definition: tooltip_definition_text(&card),
                 tooltip: Some(card),
@@ -4943,7 +5488,7 @@ fn dictionary_annotations_for_elided_blocks(
 
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
-#[ensures(ret.range.byte_start == old(parsed_match.byte_start))]
+#[ensures(ret.range().byte_start == old(parsed_match.byte_start))]
 fn dictionary_annotation_from_match(
     parsed_match: ParsedWordDictionaryMatch,
     base_path: &str,
@@ -4955,13 +5500,15 @@ fn dictionary_annotation_from_match(
         .next()
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card));
     GentufaBlockAnnotation {
-        range: new!(WebSourceRange {
-            byte_start: parsed_match.byte_start,
-            byte_end: parsed_match.byte_end,
-            char_start: parsed_match.char_start,
-            char_end: parsed_match.char_end,
+        target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+            range: new!(WebSourceRange {
+                byte_start: parsed_match.byte_start,
+                byte_end: parsed_match.byte_end,
+                char_start: parsed_match.char_start,
+                char_end: parsed_match.char_end,
+            }),
+            text: Some(parsed_match.lookup_text),
         }),
-        text: Some(parsed_match.lookup_text),
         glosses: first_card
             .as_ref()
             .map(|card| card.glosses.clone())
@@ -5192,7 +5739,7 @@ fn reference_label_with_slot(label: &ReferenceLabel, slot: ReferenceSlotLabel) -
 #[ensures(true)]
 fn gentufa_bracket_fragments_from_source(
     fragments: &[BracketSourceFragment],
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     let mut output = Vec::new();
@@ -5209,7 +5756,7 @@ fn gentufa_bracket_fragments_from_source(
 #[ensures(true)]
 fn append_gentufa_bracket_fragments_from_source(
     fragments: &[BracketSourceFragment],
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
     output: &mut Vec<GentufaBracketFragment>,
 ) {
@@ -5252,7 +5799,7 @@ fn decorated_bracket_fragment(
     children: Vec<GentufaBracketFragment>,
     range: Option<WebSourceRange>,
     text: Option<&str>,
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     if children.is_empty() {
@@ -5296,13 +5843,13 @@ fn annotation_for_range_and_text<'a>(
     let Some(range) = range else {
         let text = text?;
         return dictionary_annotations.iter().find(|annotation| {
-            annotation.range.byte_start == annotation.range.byte_end
-                && annotation.text.as_deref() == Some(text)
+            annotation.range().byte_start == annotation.range().byte_end
+                && annotation.text() == Some(text)
         });
     };
     if let Some(text) = text {
         let exact = dictionary_annotations.iter().find(|annotation| {
-            same_byte_range(annotation.range, range) && annotation.text.as_deref() == Some(text)
+            same_byte_range(annotation.range(), range) && annotation.text() == Some(text)
         });
         if exact.is_some() || range.byte_start == range.byte_end {
             return exact;
@@ -5310,13 +5857,13 @@ fn annotation_for_range_and_text<'a>(
     }
     dictionary_annotations
         .iter()
-        .find(|annotation| same_byte_range(annotation.range, range))
+        .find(|annotation| same_byte_range(annotation.range(), range))
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn bracket_color_for_range_and_text(
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     range: Option<WebSourceRange>,
     text: Option<&str>,
 ) -> Option<String> {
@@ -7259,6 +7806,77 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn tree_rows_follow_the_block_hierarchy_in_preorder() {
+        // `lo zarci ku` is a branch under the description; the elided `vau`
+        // that follows it is a sibling of the description under the bridi
+        // tail, never a parent of the branch before it.
+        let success = parse_success_with_options(
+            "mi klama lo zarci",
+            GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        );
+        let rows = &success.tree_rows;
+        let shape = rows
+            .iter()
+            .map(|row| {
+                let parent = row.parent_id.and_then(|parent_id| {
+                    rows.iter()
+                        .find(|candidate| candidate.node_id == parent_id)
+                        .map(|parent| parent.label.as_str())
+                });
+                (row.label.as_str(), row.depth, parent, row.has_children)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                ("bridi", 0, None, true),
+                ("mi", 1, Some("bridi"), false),
+                ("bridi tail", 1, Some("bridi"), true),
+                ("kláma", 2, Some("bridi tail"), false),
+                ("description", 2, Some("bridi tail"), true),
+                ("lo", 3, Some("description"), false),
+                ("zárci", 3, Some("description"), false),
+                ("ku", 3, Some("description"), false),
+                ("vau", 2, Some("bridi tail"), false),
+            ]
+        );
+        for (index, row) in rows.iter().enumerate() {
+            if let Some(parent_id) = row.parent_id {
+                let parent_index = rows
+                    .iter()
+                    .position(|candidate| candidate.node_id == parent_id)
+                    .expect("parent row exists");
+                assert!(parent_index < index, "parents precede children");
+                assert_eq!(rows[parent_index].depth + 1, row.depth);
+            }
+            assert_eq!(row.guides.len(), row.depth);
+            let block = success
+                .blocks_layout
+                .blocks
+                .iter()
+                .find(|block| block_id_number(&block.block_id) == row.node_id)
+                .expect("row block");
+            assert_eq!(block.row, row.depth, "grid row is the tree depth");
+            assert_eq!(
+                row.has_children,
+                rows.iter()
+                    .any(|candidate| candidate.parent_id == Some(row.node_id))
+            );
+        }
+        let elided = rows
+            .iter()
+            .filter(|row| row.cells.iter().any(|cell| cell.role.is_elided()))
+            .map(|row| (row.label.as_str(), row.has_children))
+            .collect::<Vec<_>>();
+        assert_eq!(elided, vec![("ku", false), ("vau", false)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn tree_rows_place_elided_terminators_after_preceding_source_text() {
         let success = parse_success_with_options(
             "cadga fa lonu mi klama kei",
@@ -8041,8 +8659,11 @@ mod tests {
         assert_eq!(state.mode, VlackuWebMode::Rafsi);
         assert_eq!(state.query, "kla");
         assert_eq!(state.count, 40);
+        // Transport keeps the filter the URL named; grouping it into the
+        // dictionary's word types belongs to the search.
+        assert_eq!(state.word_types, vec!["brivla".to_owned()]);
         assert_eq!(
-            state.word_types,
+            normalize_vlacku_state(&state).word_types,
             vec!["gismu".to_owned(), "lujvo".to_owned(), "fu'ivla".to_owned()]
         );
         assert_eq!(
@@ -8050,26 +8671,34 @@ mod tests {
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
 
+        // A query in another script stays as written; the search folds it,
+        // and the canonical URL is built from that folded state.
         let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic.query, "klama");
-        assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
+        assert_eq!(cyrillic.query, "клама");
+        assert_eq!(normalize_vlacku_state(&cyrillic).query, "klama");
+        assert_eq!(
+            vlacku_web_url("", &normalize_vlacku_state(&cyrillic)),
+            "/vlacku/klama"
+        );
+        assert_eq!(
+            parse_vlacku_web_route(&vlacku_web_url("", &cyrillic), "").query,
+            "клама",
+            "the raw route round trips"
+        );
 
         let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
         assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &cyrillic_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "coi");
 
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna.query, "klama");
-        assert_eq!(vlacku_web_url("", &zbalermorna), "/vlacku/klama");
+        assert_eq!(normalize_vlacku_state(&zbalermorna).query, "klama");
 
         let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &zbalermorna_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&zbalermorna_glide).query, "coi");
     }
 
     #[test]
@@ -8235,8 +8864,89 @@ mod tests {
             "/jbotci/vlacku"
         );
         assert_eq!(
-            build_page_meta("", &parse_web_route("/", "")).title,
+            blocking::build_computed_page_meta("", &parse_web_route("/", "")).title,
             "jbotci vlacku"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn route_page_meta_defers_parse_and_generation_derived_fields() {
+        // Route metadata is what a UI thread may build; it stops short of the
+        // gentufa parser and the gimfi'i generator, whose results reach the
+        // document through the compute worker instead (issue #913).
+        let gentufa_state = GentufaWebState {
+            text: "mi klama".to_owned(),
+            dialect: None,
+            view_mode: GentufaWebViewMode::Blocks,
+            show_elided: false,
+            show_glosses: false,
+            show_compounds: true,
+        };
+        let gentufa_route = build_route_page_meta("", &WebRoute::Gentufa(gentufa_state.clone()));
+        let gentufa_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Gentufa(gentufa_state.clone()));
+        assert_eq!(gentufa_route.title, gentufa_computed.title);
+        assert_eq!(gentufa_route.canonical_url, gentufa_computed.canonical_url);
+        assert_eq!(
+            gentufa_route.description,
+            GENTUFA_DEFAULT_METADATA_DESCRIPTION
+        );
+        assert_ne!(gentufa_route.description, gentufa_computed.description);
+        assert!(gentufa_route.image.is_none());
+        assert!(gentufa_computed.image.is_some());
+        // Blank metadata is what an unparsed route reports, so the two agree
+        // whenever there is nothing to parse.
+        let blank_state = GentufaWebState::default();
+        assert_eq!(
+            build_route_page_meta("", &WebRoute::Gentufa(blank_state.clone())),
+            blocking::build_computed_page_meta("", &WebRoute::Gentufa(blank_state))
+        );
+
+        let gimfihi_state = gimfihi_sample_state(Some("nanpe"));
+        let gimfihi_route = build_route_page_meta("", &WebRoute::Gimfihi(gimfihi_state.clone()));
+        let gimfihi_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Gimfihi(gimfihi_state));
+        assert_eq!(gimfihi_route.title, "jbotci gimfi'i");
+        assert_eq!(gimfihi_computed.title, "nanpe - jbotci gimfi'i");
+        assert_eq!(gimfihi_route.canonical_url, gimfihi_computed.canonical_url);
+        assert_ne!(gimfihi_route.description, gimfihi_computed.description);
+
+        // The vlacku description names the top match, which takes a dictionary
+        // search; the route reports the query and the mode instead.
+        let vlacku_state = VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "klama".to_owned(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        };
+        let vlacku_route = build_route_page_meta("", &WebRoute::Vlacku(vlacku_state.clone()));
+        let vlacku_computed =
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(vlacku_state.clone()));
+        assert_eq!(vlacku_route.title, vlacku_computed.title);
+        assert_eq!(vlacku_route.canonical_url, vlacku_computed.canonical_url);
+        assert_eq!(
+            vlacku_route.description,
+            "Exact lookup for \u{201c}klama\u{201d}."
+        );
+        assert!(
+            vlacku_computed.description.contains("comes/goes"),
+            "{}",
+            vlacku_computed.description
+        );
+        // The result-derived builder reproduces the computed description from a
+        // search the caller already has.
+        assert_eq!(
+            build_vlacku_page_meta_from_result("", &build_vlacku_web_result(&vlacku_state)),
+            vlacku_computed
+        );
+
+        // With nothing to parse, generate or look up, both builders agree.
+        let blank_vlacku = VlackuWebState::default();
+        assert_eq!(
+            build_route_page_meta("", &WebRoute::Vlacku(blank_vlacku.clone())),
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(blank_vlacku))
         );
     }
 
@@ -8245,7 +8955,7 @@ mod tests {
     #[ensures(true)]
     fn gimfihi_metadata_uses_highlighted_candidate_and_sources() {
         let state = gimfihi_sample_state(Some("nanpe"));
-        let meta = build_page_meta("", &WebRoute::Gimfihi(state));
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state));
 
         assert_eq!(meta.title, "nanpe - jbotci gimfi'i");
         assert!(meta.description.starts_with("nanpe = cmn:uan ×347"));
@@ -8315,9 +9025,12 @@ mod tests {
         let mut state = GimfihiWebState::default();
         state.scorer = GimfihiScorer::Phonetic;
 
-        let meta = build_gimfihi_page_meta("", &state);
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state.clone()));
 
         assert!(meta.description.contains("phonetic scoring"));
+        // With no source words there is nothing to generate, so the route
+        // reports the same thing.
+        assert_eq!(meta, build_route_page_meta("", &WebRoute::Gimfihi(state)));
         assert!(meta.canonical_url.contains("scorer=phonetic"));
     }
 
@@ -8326,7 +9039,7 @@ mod tests {
     #[ensures(true)]
     fn gimfihi_metadata_falls_back_to_winner_for_invalid_highlight() {
         let state = gimfihi_sample_state(Some("zzzzz"));
-        let meta = build_page_meta("", &WebRoute::Gimfihi(state));
+        let meta = blocking::build_computed_page_meta("", &WebRoute::Gimfihi(state));
 
         assert_eq!(meta.title, "kanpe - jbotci gimfi'i");
         assert!(meta.description.starts_with("kanpe = "));
@@ -8366,37 +9079,134 @@ mod tests {
             vec![CuktaSearchTarget::Section, CuktaSearchTarget::Example]
         );
 
+        // The query travels as written and is folded where it is searched.
         let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
+        let folded = normalize_cukta_state(&cyrillic);
         let CuktaWebView::Search(search_state) = cyrillic.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
-        assert_eq!(search_state.query, "lojban");
+        assert_eq!(search_state.query, "ложбан");
+        let CuktaWebView::Search(folded_state) = folded.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(folded_state.query, "lojban");
 
-        let cyrillic_glide = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой");
+        let cyrillic_glide =
+            normalize_cukta_state(&parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой"));
         let CuktaWebView::Search(search_state) = cyrillic_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
 
-        let zbalermorna = parse_cukta_web_route(
+        let zbalermorna = normalize_cukta_state(&parse_cukta_web_route(
             "/cukta/search",
             "?mode=valsi&q=\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}",
-        );
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "lojban");
 
-        let zbalermorna_glide =
-            parse_cukta_web_route("/cukta/search", "?mode=valsi&q=\u{ed86}\u{eda8}");
+        let zbalermorna_glide = normalize_cukta_state(&parse_cukta_web_route(
+            "/cukta/search",
+            "?mode=valsi&q=\u{ed86}\u{eda8}",
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn routes_carry_editable_text_exactly() {
+        // A link must open on the state it was made from: surrounding
+        // whitespace, an explicitly emptied optional field, non-Latin script
+        // and URL-reserved characters all survive the round trip untouched.
+        for (text, dialect) in [
+            ("  mi klama  ", Some("  (cbm)  ")),
+            ("mi klama", Some("")),
+            ("ta gerku\n .i mi klama", None),
+            ("zo'e & do = mi + ko #1 100% ¿lo?", Some("(cbm) & (xbm)")),
+            ("клама шой", Some("")),
+            ("\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", None),
+            ("\u{1f600} mi klama", None),
+        ] {
+            let state = GentufaWebState {
+                text: text.to_owned(),
+                dialect: dialect.map(str::to_owned),
+                view_mode: GentufaWebViewMode::Tree,
+                show_elided: true,
+                show_glosses: false,
+                show_compounds: false,
+            };
+            let url = gentufa_web_url("/jbotci", &state);
+            let query = url.split_once('?').map(|(_, query)| query).unwrap_or("");
+            let parsed = parse_gentufa_web_route("/jbotci/gentufa", query);
+            assert_eq!(parsed, state, "{url}");
+            assert_eq!(
+                parsed.dialect.is_some(),
+                dialect.is_some(),
+                "an explicitly empty dialect stays explicit: {url}"
+            );
+        }
+        // Normalization is still available, and is what analysis uses.
+        let padded = GentufaWebState {
+            text: "  mi klama  ".to_owned(),
+            dialect: Some("   ".to_owned()),
+            ..GentufaWebState::default()
+        };
+        let normalized = normalize_gentufa_state(&padded);
+        assert_eq!(normalized.text, "mi klama");
+        assert_eq!(normalized.dialect, None);
+
+        // The same exactness holds for the other linked tools' queries.
+        let vlacku = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "  going & coming  ".to_owned(),
+            count: 40,
+            word_types: vec!["brivla".to_owned()],
+        };
+        let url = vlacku_web_url("", &vlacku);
+        assert_eq!(
+            parse_vlacku_web_route("/vlacku", url.split_once('?').expect("query").1),
+            vlacku,
+            "{url}"
+        );
+        let cukta = CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState {
+                mode: CuktaWebMode::Word,
+                query: "  tanru & ke  ".to_owned(),
+                count: 40,
+                targets: vec![CuktaSearchTarget::Example],
+            }),
+        };
+        let url = cukta_web_url("", &cukta);
+        assert_eq!(
+            parse_cukta_web_route("/cukta/search", url.split_once('?').expect("query").1),
+            cukta,
+            "{url}"
+        );
+        let gimfihi = GimfihiWebState {
+            preset: Some(GimfihiPreset::Ilmen6),
+            sources: vec![GimfihiWebSource {
+                language: "eng".to_owned(),
+                weight: Some("5".to_owned()),
+                word: "go".to_owned(),
+            }],
+            ..GimfihiWebState::default()
+        };
+        let url = gimfihi_web_url("", &gimfihi);
+        assert_eq!(
+            parse_gimfihi_web_route("/gimfihi", url.split_once('?').expect("query").1),
+            gimfihi,
+            "{url}"
+        );
     }
 
     #[test]
@@ -8456,7 +9266,7 @@ mod tests {
     fn web_route_and_metadata_follow_v0_page_details() {
         let route = parse_web_route("/vlacku/klama", "");
         assert_eq!(web_route_url("/jbotci", &route), "/jbotci/vlacku/klama");
-        let meta = build_page_meta("/jbotci", &route);
+        let meta = blocking::build_computed_page_meta("/jbotci", &route);
         assert_eq!(meta.title, "klama - jbotci vlacku");
         assert!(
             meta.description.contains("comes/goes"),
@@ -8466,10 +9276,11 @@ mod tests {
         assert_eq!(meta.canonical_url, "/jbotci/vlacku/klama");
         assert!(meta.image.is_none());
 
-        let blank_vlacku = build_page_meta("", &parse_web_route("/vlacku", ""));
+        let blank_vlacku = blocking::build_computed_page_meta("", &parse_web_route("/vlacku", ""));
         assert_eq!(blank_vlacku.title, "jbotci vlacku");
 
-        let rafsi = build_page_meta("", &parse_web_route("/vlacku", "mode=rafsi&q=kla"));
+        let rafsi =
+            blocking::build_computed_page_meta("", &parse_web_route("/vlacku", "mode=rafsi&q=kla"));
         assert_eq!(rafsi.title, "kla - jbotci vlacku");
         assert!(
             rafsi.description.contains("comes/goes"),
@@ -8477,7 +9288,7 @@ mod tests {
             rafsi.description
         );
 
-        let gentufa = build_page_meta(
+        let gentufa = blocking::build_computed_page_meta(
             "",
             &WebRoute::Gentufa(GentufaWebState {
                 text: "mi klama".to_owned(),
@@ -8485,6 +9296,7 @@ mod tests {
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             }),
         );
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
@@ -8495,7 +9307,7 @@ mod tests {
         assert!(image.width > 0);
         assert!(image.height > 0);
 
-        let failure = build_page_meta(
+        let failure = blocking::build_computed_page_meta(
             "",
             &WebRoute::Gentufa(GentufaWebState {
                 text: "perhaps".to_owned(),
@@ -8503,6 +9315,7 @@ mod tests {
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             }),
         );
         assert!(
@@ -8514,14 +9327,16 @@ mod tests {
         assert!(failure.description.contains("\nreason:"));
         assert!(failure.image.is_none());
 
-        let first_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.1", ""));
+        let first_cukta =
+            blocking::build_computed_page_meta("", &parse_web_route("/cukta/section/1.1", ""));
         assert!(
             first_cukta.title.contains("Chapter 1."),
             "{}",
             first_cukta.title
         );
         assert!(first_cukta.image.is_some());
-        let later_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.2", ""));
+        let later_cukta =
+            blocking::build_computed_page_meta("", &parse_web_route("/cukta/section/1.2", ""));
         assert!(
             later_cukta.title.contains("Chapter 1."),
             "{}",
@@ -8534,7 +9349,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn page_head_assets_follow_metadata_canonical_base_path() {
-        let meta = build_page_meta("/jbotci", &parse_web_route("/vlacku/klama", ""));
+        let meta =
+            blocking::build_computed_page_meta("/jbotci", &parse_web_route("/vlacku/klama", ""));
         let head = build_page_head(&meta);
 
         assert_eq!(head.title, "klama - jbotci vlacku");
@@ -8580,6 +9396,45 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn web_compute_gentufa_metadata_ignores_a_parse_of_text_the_route_lacks() {
+        // The default gentufa view parses a sample so the page is not blank
+        // while its URL stays bare, which is exactly the payload the client
+        // sends: empty route state, non-empty parse request. Metadata describes
+        // the route, so the sample's bracket preview and social image stay out
+        // of it - a gentufa.png naming no text is not even a valid export.
+        let state = GentufaWebState::default();
+        assert!(state.text.is_empty());
+        let request = GentufaWebRequest {
+            text: DEFAULT_GENTUFA_TEXT.to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+
+        let response = run_web_compute_request(WebComputeRequest::GentufaPage {
+            base_path: "/jbotci".to_owned(),
+            state: state.clone(),
+            request,
+        })
+        .expect("gentufa compute succeeds");
+
+        let WebComputeResponse::GentufaPage { result, meta } = response else {
+            panic!("expected gentufa page response");
+        };
+        assert!(
+            matches!(result, GentufaWebResult::Success(_)),
+            "the default sample parses, so only the route keeps its parse out of the metadata"
+        );
+        assert_eq!(
+            meta,
+            build_route_page_meta("/jbotci", &WebRoute::Gentufa(state))
+        );
+        assert_eq!(meta.canonical_url, "/jbotci/gentufa");
+        assert_eq!(meta.description, GENTUFA_DEFAULT_METADATA_DESCRIPTION);
+        assert!(meta.image.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn web_compute_gentufa_matches_direct_builder() {
         let state = GentufaWebState {
             text: "mi klama".to_owned(),
@@ -8587,6 +9442,7 @@ mod tests {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         };
         let request = GentufaWebRequest {
             text: state.text.clone(),
@@ -8627,7 +9483,7 @@ mod tests {
         assert_eq!(page, build_cukta_web_page("", &cukta_state));
         assert_eq!(
             meta,
-            build_page_meta("", &WebRoute::Cukta(cukta_state.clone()))
+            build_route_page_meta("", &WebRoute::Cukta(cukta_state.clone()))
         );
 
         let vlacku_state = VlackuWebState {
@@ -8645,7 +9501,13 @@ mod tests {
             panic!("expected vlacku page response");
         };
         assert_eq!(result, build_vlacku_web_result(&vlacku_state));
-        assert_eq!(meta, build_page_meta("", &WebRoute::Vlacku(vlacku_state)));
+        assert_eq!(meta, build_vlacku_page_meta_from_result("", &result));
+        // The exact description comes out of the search the worker already ran,
+        // so it matches what a blocking caller gets from its own search.
+        assert_eq!(
+            meta,
+            blocking::build_computed_page_meta("", &WebRoute::Vlacku(vlacku_state))
+        );
     }
 
     #[test]
@@ -8684,7 +9546,7 @@ mod tests {
             })
             .expect("at least one CLL chapter image");
 
-        let meta = build_page_meta(
+        let meta = blocking::build_computed_page_meta(
             "/jbotci",
             &WebRoute::Cukta(CuktaWebState {
                 view: CuktaWebView::Section {

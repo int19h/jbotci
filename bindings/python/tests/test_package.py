@@ -163,6 +163,7 @@ NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_jvozba_FinalConsonant": ("offending", "is_fixed_rafsi"),
     "_jvozba_NoRafsiAvailable": ("offending",),
     "_jvozba_NoDictionaryEntry": ("offending",),
+    "_jvozba_TooMuchWork": ("measure", "amount", "limit"),
     "_jvozba_CouldNotBuildLujvo": (),
     "_jvozba_CouldNotBuildCompound": (),
 }

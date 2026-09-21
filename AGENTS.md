@@ -6,16 +6,15 @@ Always keep in mind: our primary goals are correctness and code quality. If some
 
 jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a single self-contained binary. Thus we want to compile it as a static no-deps binary for Linux, and as close as we can get to that for macOS and Windows (the old repo has that for Haskell, you can use it as a baseline but bear in mind that some things are the way they are because of Haskell toolchain limitations that may not apply to Rust so always think about how idiomatic Rust would approach the same problem first). We will eventually use Dioxus for the web part but the initial goal is to get CLI fully functional.
 
-The project is hosted at GitHub (https://github.com/int19h/jbotci) with a mirror on Codeberg (https://codeberg.org/int_19h/jbotci). Issues and PRs should be created on GitHub. If Codeberg access is required, use token in ~/git/.codeberg/jbotci.token to access it using forjego-cli to browse or create issues.
+The project is hosted at GitHub (https://github.com/int19h/jbotci). Issues and PRs should be created on GitHub.
 
 
-# Herdr Collab coordination
+## Herdr Collab
 
-Use Herdr Collab project **`jbotci`** for multi-session work. Select it
-explicitly with `herdr-collab --project jbotci ...` or
-`HERDR_COLLAB_PROJECT=jbotci`; a current directory, repository name, checkout,
-or worktree never selects a collaboration project or mailbox. Every active
-participant uses the immutable session UUID in `HERDR_COLLAB_SESSION`.
+The Herdr Collab project ID for this repository is exactly `jbotci`.
+Coordinate through the `herdr-collab` skill and MCP tools; do not infer the project from the checkout path.
+
+## Coordination conventions
 
 Herdr Collab supplies durable identity and messaging, not a mandatory PM
 hierarchy. Lead, implementation, research, and review are task-tailored duties;
@@ -27,54 +26,6 @@ prompt or durable mail. Use a GitHub issue or PR when the task needs a durable
 public record or belongs in the project backlog; do not create process-only
 issues merely because multiple sessions participate. The task also decides
 whether the primary session implements directly or delegates.
-
-- A session launched with `herdr-collab --project jbotci agent spawn ...` is
-  already registered and receives `HERDR_COLLAB_PROJECT` and the immutable
-  session UUID in `HERDR_COLLAB_SESSION`. It must not run
-  `herdr-collab --project jbotci session join ...` again. A manually launched
-  session chooses a human-facing handle, joins exactly once, and captures the
-  command's returned immutable session UUID:
-
-  ```bash
-  session_id=$(herdr-collab --project jbotci session join --agent-kind KIND HANDLE)
-  export HERDR_COLLAB_PROJECT=jbotci
-  export HERDR_COLLAB_SESSION="$session_id"
-  ```
-
-  The handle is a label, not the session identity used for commands.
-  Confirm uncertain identity with
-  `herdr-collab --project jbotci session list --live` or
-  `herdr-collab --project jbotci session show "$HERDR_COLLAB_SESSION" --live`;
-  never infer it from the worktree. Elsewhere below, `SESSION` means an
-  immutable target session UUID, never a handle.
-- Use `herdr-collab --project jbotci send ...` for assignments, decisions,
-  blockers, questions that need an
-  answer, handoffs, exact commit submissions, review verdicts, and completion
-  notices. Continue the same decision thread with
-  `herdr-collab --project jbotci reply MESSAGE_ID ...`.
-  `herdr-collab --project jbotci show MESSAGE_ID` prints the selected message
-  body, while `herdr-collab --project jbotci --json show MESSAGE_ID` exposes its
-  complete record; follow any referenced message IDs explicitly. Use
-  `herdr-collab --project jbotci ack --disposition DISPOSITION MESSAGE_ID` for
-  messages whose disposition is required. An acknowledgement records receipt/
-  disposition, not agreement. Direct
-  `herdr-collab --project jbotci agent prompt --to SESSION ...` text is transient
-  wake-up/context and must not be the only copy of load-bearing coordination.
-- Check `herdr-collab --project jbotci status` and
-  `herdr-collab --project jbotci inbox` at natural boundaries: after joining,
-  before taking new work, before and after a handoff or review, before merge/
-  release, and before retiring. Use
-  `herdr-collab --project jbotci wait --timeout DURATION` when progress genuinely
-  depends on a later publication; do not busy-poll. Retire a completed identity
-  with
-  `herdr-collab --project jbotci session retire "$HERDR_COLLAB_SESSION"` only
-  after its required replies and acknowledgements are settled.
-- Never edit Herdr Collab state files manually. Use the executable's session,
-  group, messaging, acknowledgement, and retirement commands so validation,
-  immutable history, and recipient accounting remain intact.
-- Never auto-answer trust, permission, approval, or unrelated prompts on behalf
-  of another session or the user. Surface them to the person or session with
-  authority to decide.
 
 Keep coordination proportional to the work. A small change can use a lead, one
 implementation session, and one independent reviewer; a cross-cutting change
@@ -102,20 +53,9 @@ check set (formatting plus fast tests). Do not add evidence-trail scaffolding
 unless explicitly requested; due diligence belongs in the design, code, review,
 and durable task record.
 
-Compact only immediately before an anticipated long pause, while the native
-conversation and prompt cache are still likely available, and only after
-durably sending a status or handoff that names the task and issue if any,
-branch/worktree, exact HEAD, completed and outstanding checks, decisions,
-blockers, and relevant message IDs. After the requested compaction, verify the
-session identity and live state with
-`herdr-collab --project jbotci session show "$HERDR_COLLAB_SESSION" --live`.
-If a later cache-expired dialog
-offers continuation choices, default to continuing the full existing native
-conversation and do not compact then. Durable issues, PRs, reports, and mail are
-recovery sources only if the native context is actually unavailable, not a
-replacement for it. Use
-`herdr-collab --project jbotci agent resume SESSION` for a non-live native
-session and verify its identity before prompting it.
+Before a long pause, durably send a status or handoff that names the task and
+issue if any, branch/worktree, exact HEAD, completed and outstanding checks,
+decisions, blockers, and relevant message IDs.
 
 Merge only the accepted exact commit from a clean worktree. Deployment to a
 test environment, when relevant, must be verified rather than inferred from a
@@ -124,7 +64,6 @@ instruction naming production on every individual occasion. Never infer it from
 an implementation request, merge approval, release language, test-deployment
 permission, or a prior production deployment, and never carry authorization
 forward to another change.
-
 
 # Porting guide
 
@@ -173,7 +112,7 @@ Commit periodically in well-defined logical units while working, not only at the
 
 Before reverting any commit, always inspect it carefully (`git show` + surrounding history), verify the commit message and nature of changes, and only revert after explicit reasoning confirms the revert is correct.
 
-When working on a Codeberg work item, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the work item in such a way that it is automatically closed.
+When working on a GitHub issue, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the issue in such a way that it is automatically closed.
 
 When intended behavior is unclear or a semantic question is in doubt, use jbotci cukta MCP to consult the CLL and clarify the intended reading before deciding on a fix or expectation change.
 

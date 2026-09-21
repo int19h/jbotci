@@ -292,7 +292,40 @@ mod tests {
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
         assert_eq!(english().sound_index().len(), 30_639);
-        assert_eq!(english().lujvo_index().len(), 12_724);
+        assert_eq!(english().lujvo_index().len(), 12_826);
+
+        // The decomposition index is audited by word type and not only in
+        // total, because a shift between the two that left the total alone
+        // would otherwise pass unnoticed. The 12,724 lujvo are exactly the
+        // entries the index held before #914; the 102 cmevla are what #914
+        // restored, and nothing else decomposes.
+        let entries = english().entries();
+        let word_types = english()
+            .lujvo_index()
+            .iter()
+            .map(|entry| entries[entry.entry_index.get()].word_type)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            word_types
+                .iter()
+                .filter(|word_type| **word_type == WordType::Lujvo)
+                .count(),
+            12_724
+        );
+        assert_eq!(
+            word_types
+                .iter()
+                .filter(|word_type| **word_type == WordType::Cmevla)
+                .count(),
+            102
+        );
+        assert!(
+            word_types
+                .iter()
+                .all(|word_type| matches!(word_type, WordType::Lujvo | WordType::Cmevla)),
+            "an unaudited word type entered the decomposition index"
+        );
     }
 
     #[test]
@@ -500,8 +533,10 @@ mod tests {
                 "lujvo index entry order regressed at {:?}",
                 lujvo_entry.entry_index
             );
-            let entry = &entries[lujvo_entry.entry_index.get()];
-            assert!(entry.word_type.is_lujvo_like());
+            // The index holds every entry that decomposes, whatever Lensisku
+            // classified it as, so only the decomposition's own shape is
+            // checked here.
+            assert!(lujvo_entry.entry_index.get() < entries.len());
             assert!(!lujvo_entry.segments.is_empty());
             assert!(
                 lujvo_entry
@@ -527,6 +562,46 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn embedded_lujvo_index_contains_cmevla_decompositions() {
+        // A name built from rafsi decomposes like any other compound, so the
+        // index carries it too rather than stopping at the entries Lensisku
+        // typed as lujvo (#914).
+        let dictionary = english();
+        let entries = dictionary.entries();
+        let cmevla_decompositions = dictionary
+            .lujvo_index()
+            .iter()
+            .filter(|lujvo_entry| {
+                matches!(
+                    entries[lujvo_entry.entry_index.get()].word_type,
+                    WordType::Cmevla | WordType::ObsoleteCmevla
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            !cmevla_decompositions.is_empty(),
+            "no cmevla entry carries a precomputed decomposition"
+        );
+        // The cmevla fallback only accepts a split whose every rafsi names a
+        // word, which is what keeps a name that merely splits cleanly out of
+        // the index.
+        for lujvo_entry in cmevla_decompositions {
+            assert!(
+                lujvo_entry
+                    .segments
+                    .iter()
+                    .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
+                    .all(|segment| segment.source_word.is_some()),
+                "{} has an unsourced rafsi",
+                entries[lujvo_entry.entry_index.get()].word
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn embedded_lujvo_index_contains_known_decomposition() {
         let jbobau = lujvo_entry_for_word("jbobau").expect("lujvo entry for jbobau");
         let segments = jbobau
@@ -543,6 +618,31 @@ mod tests {
             ]
         );
         assert_eq!(jbobau.source_words, ["lojbo", "bangu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedded_lujvo_index_contains_known_cmevla_decomposition() {
+        // `mumymast` is May: `mum` + `mast`, which need the `y` between them
+        // because `mm` is not a permissible pair. Nothing about it is
+        // borderline, and before #914 the index carried it no parts at all.
+        let mumymast = lujvo_entry_for_word("mumymast").expect("lujvo entry for mumymast");
+        let segments = mumymast
+            .segments
+            .iter()
+            .map(|segment| (segment.kind, segment.surface, segment.source_word))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            segments,
+            [
+                (DictionaryLujvoSegmentKind::Rafsi, "mum", Some("mu")),
+                (DictionaryLujvoSegmentKind::Hyphen, "y", None),
+                (DictionaryLujvoSegmentKind::Rafsi, "mast", Some("masti")),
+            ]
+        );
+        assert_eq!(mumymast.source_words, ["mu", "masti"]);
     }
 
     #[test]
@@ -693,5 +793,29 @@ mod tests {
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
             .map(str::to_owned)
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod compound_tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedded_cmavo_sequence_index_has_audited_coverage() {
+        let dictionary = english();
+        assert_eq!(dictionary.cmavo_sequence_index().len(), 715);
+        assert_eq!(dictionary.max_cmavo_sequence_len(), 8);
+        assert!(!dictionary.lookup_cmavo_sequence(&["na", "a"]).is_empty());
+        for headword in ["ma;u", "madagasikara", "fa'onai", "o'ebu", "la dontu'u"] {
+            assert!(
+                dictionary.cmavo_sequence_index().iter().all(|row| row
+                    .targets()
+                    .iter()
+                    .all(|index| dictionary.entry_for_index(*index).unwrap().word != headword)),
+                "{headword}"
+            );
+        }
     }
 }

@@ -103,15 +103,11 @@ impl From<BaselineTermConnectedTenseModalSyntax> for ConnectedTenseModalSyntax {
             first,
             continuations,
         } = value;
-        let continuations = continuations
-            .into_vec()
-            .into_iter()
-            .map(Into::into)
-            .collect();
+        let continuations =
+            continuations.mapped(|value| Arc::new(Arc::unwrap_or_clone(value).into()));
         Self {
             first: Arc::new(Arc::unwrap_or_clone(first).into()),
-            continuations: vec1::Vec1::try_from_vec(continuations)
-                .expect("a mapped non-empty continuation sequence remains non-empty"),
+            continuations,
         }
     }
 }
@@ -120,14 +116,16 @@ impl From<BaselineTermTenseModalSyntax> for TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn from(value: BaselineTermTenseModalSyntax) -> Self {
-        Self(match value {
+        Self(Arc::new(match value {
             BaselineTermTenseModalSyntax::BaselineTermConnectedTenseModal(value) => {
-                TenseModalBodySyntax::ConnectedTenseModal(value.into())
+                TenseModalBodySyntax::ConnectedTenseModal(Arc::new(
+                    Arc::unwrap_or_clone(value).into(),
+                ))
             }
             BaselineTermTenseModalSyntax::BaselineTermTenseModalAtom(value) => {
-                TenseModalBodySyntax::TenseModalAtom(value.into())
+                TenseModalBodySyntax::TenseModalAtom(Arc::new(Arc::unwrap_or_clone(value).into()))
             }
-        })
+        }))
     }
 }
 
@@ -195,18 +193,18 @@ fn recovered_baseline_connected_into_connected(
         first,
         continuations,
     } = value;
-    let continuations = continuations
-        .into_vec()
-        .into_iter()
-        .map(|value| map_recovered(value, recovered_baseline_continuation_into_continuation))
-        .collect();
+    let continuations = continuations.mapped(|value| {
+        Arc::new(map_recovered(
+            Arc::unwrap_or_clone(value),
+            recovered_baseline_continuation_into_continuation,
+        ))
+    });
     recovered::ConnectedTenseModalSyntax {
         first: Arc::new(map_recovered(
             Arc::unwrap_or_clone(first),
             recovered_baseline_atom_into_tense_modal_atom,
         )),
-        continuations: vec1::Vec1::try_from_vec(continuations)
-            .expect("a mapped non-empty recovered continuation sequence remains non-empty"),
+        continuations,
     }
 }
 
@@ -217,16 +215,16 @@ fn recovered_baseline_body_into_body(
 ) -> recovered::TenseModalBodySyntax {
     match value {
         recovered::BaselineTermTenseModalSyntax::BaselineTermConnectedTenseModal(value) => {
-            recovered::TenseModalBodySyntax::ConnectedTenseModal(map_recovered(
-                value,
+            recovered::TenseModalBodySyntax::ConnectedTenseModal(Arc::new(map_recovered(
+                Arc::unwrap_or_clone(value),
                 recovered_baseline_connected_into_connected,
-            ))
+            )))
         }
         recovered::BaselineTermTenseModalSyntax::BaselineTermTenseModalAtom(value) => {
-            recovered::TenseModalBodySyntax::TenseModalAtom(map_recovered(
-                value,
+            recovered::TenseModalBodySyntax::TenseModalAtom(Arc::new(map_recovered(
+                Arc::unwrap_or_clone(value),
                 recovered_baseline_atom_into_tense_modal_atom,
-            ))
+            )))
         }
     }
 }
@@ -237,7 +235,10 @@ impl From<recovered::Recovered<recovered::BaselineTermTenseModalSyntax>>
     #[requires(true)]
     #[ensures(true)]
     fn from(value: recovered::Recovered<recovered::BaselineTermTenseModalSyntax>) -> Self {
-        Self(map_recovered(value, recovered_baseline_body_into_body))
+        Self(Arc::new(map_recovered(
+            value,
+            recovered_baseline_body_into_body,
+        )))
     }
 }
 
@@ -276,7 +277,7 @@ fn exp_number_is_baseline(number: &ExpNumberSyntax) -> bool {
 fn exp_number_atom_is_pa(atom: &ExpNumberAtomSyntax) -> bool {
     match atom {
         ExpNumberAtomSyntax::ExpPaNumberAtom(atom) => {
-            let ExpPaNumberAtomSyntax(_pa) = atom;
+            let ExpPaNumberAtomSyntax(_pa) = atom.as_ref();
             true
         }
         ExpNumberAtomSyntax::ExpNiheNumberAtom(atom) => {
@@ -284,7 +285,7 @@ fn exp_number_atom_is_pa(atom: &ExpNumberAtomSyntax) -> bool {
                 nihe: _,
                 selbri: _,
                 tehu: _,
-            } = atom;
+            } = atom.as_ref();
             false
         }
         ExpNumberAtomSyntax::ExpMoheNumberAtom(atom) => {
@@ -292,7 +293,7 @@ fn exp_number_atom_is_pa(atom: &ExpNumberAtomSyntax) -> bool {
                 mohe: _,
                 sumti: _,
                 tehu: _,
-            } = atom;
+            } = atom.as_ref();
             false
         }
     }
@@ -304,49 +305,49 @@ fn classify_atom(atom: &ExpPrefixedTagAtomSyntax) -> ClassifiedAtom {
     let ExpPrefixedTagAtomSyntax { nahe, se, atom } = atom;
     let kind = match atom.value.as_ref() {
         ExpTagAtomSyntax::ExpBaiTagAtom(atom) => {
-            let ExpBaiTagAtomSyntax(_bai) = atom;
+            let ExpBaiTagAtomSyntax(_bai) = atom.as_ref();
             AtomKind::Bai
         }
         ExpTagAtomSyntax::ExpCahaTagAtom(atom) => {
-            let ExpCahaTagAtomSyntax(_caha) = atom;
+            let ExpCahaTagAtomSyntax(_caha) = atom.as_ref();
             AtomKind::Caha
         }
         ExpTagAtomSyntax::ExpCuheTagAtom(atom) => {
-            let ExpCuheTagAtomSyntax(_cuhe) = atom;
+            let ExpCuheTagAtomSyntax(_cuhe) = atom.as_ref();
             AtomKind::Cuhe
         }
         ExpTagAtomSyntax::ExpKiTagAtom(atom) => {
-            let ExpKiTagAtomSyntax(_ki) = atom;
+            let ExpKiTagAtomSyntax(_ki) = atom.as_ref();
             AtomKind::Ki
         }
         ExpTagAtomSyntax::ExpZiTagAtom(atom) => {
-            let ExpZiTagAtomSyntax(_zi) = atom;
+            let ExpZiTagAtomSyntax(_zi) = atom.as_ref();
             AtomKind::Zi
         }
         ExpTagAtomSyntax::ExpPuTagAtom(atom) => {
-            let ExpPuTagAtomSyntax(_pu) = atom;
+            let ExpPuTagAtomSyntax(_pu) = atom.as_ref();
             AtomKind::Pu
         }
         ExpTagAtomSyntax::ExpVaTagAtom(atom) => {
-            let ExpVaTagAtomSyntax(_va) = atom;
+            let ExpVaTagAtomSyntax(_va) = atom.as_ref();
             AtomKind::Va
         }
         ExpTagAtomSyntax::ExpFahaTagAtom(atom) => {
-            let ExpFahaTagAtomSyntax { mohi, faha: _ } = atom;
+            let ExpFahaTagAtomSyntax { mohi, faha: _ } = atom.as_ref();
             AtomKind::Faha {
                 mohi: mohi.is_some(),
             }
         }
         ExpTagAtomSyntax::ExpZehaTagAtom(atom) => {
-            let ExpZehaTagAtomSyntax(_zeha) = atom;
+            let ExpZehaTagAtomSyntax(_zeha) = atom.as_ref();
             AtomKind::Zeha
         }
         ExpTagAtomSyntax::ExpVehaTagAtom(atom) => {
-            let ExpVehaTagAtomSyntax(_veha) = atom;
+            let ExpVehaTagAtomSyntax(_veha) = atom.as_ref();
             AtomKind::Veha
         }
         ExpTagAtomSyntax::ExpVihaTagAtom(atom) => {
-            let ExpVihaTagAtomSyntax(_viha) = atom;
+            let ExpVihaTagAtomSyntax(_viha) = atom.as_ref();
             AtomKind::Viha
         }
         ExpTagAtomSyntax::ExpRoiTagAtom(atom) => {
@@ -354,14 +355,14 @@ fn classify_atom(atom: &ExpPrefixedTagAtomSyntax) -> ClassifiedAtom {
                 fehe,
                 interval,
                 roi: _,
-            } = atom;
-            let baseline_number = match interval {
+            } = atom.as_ref();
+            let baseline_number = match interval.as_ref() {
                 ExpRoiIntervalSyntax::ExpParenthesizedRoiInterval(interval) => {
                     let ExpParenthesizedRoiIntervalSyntax {
                         vei: _,
                         expression: _,
                         veho: _,
-                    } = interval;
+                    } = interval.as_ref();
                     false
                 }
                 ExpRoiIntervalSyntax::ExpNumber(number) => exp_number_is_baseline(number),
@@ -372,13 +373,13 @@ fn classify_atom(atom: &ExpPrefixedTagAtomSyntax) -> ClassifiedAtom {
             }
         }
         ExpTagAtomSyntax::ExpTaheTagAtom(atom) => {
-            let ExpTaheTagAtomSyntax { fehe, tahe: _ } = atom;
+            let ExpTaheTagAtomSyntax { fehe, tahe: _ } = atom.as_ref();
             AtomKind::Tahe {
                 fehe: fehe.is_some(),
             }
         }
         ExpTagAtomSyntax::ExpZahoTagAtom(atom) => {
-            let ExpZahoTagAtomSyntax { fehe, zaho: _ } = atom;
+            let ExpZahoTagAtomSyntax { fehe, zaho: _ } = atom.as_ref();
             AtomKind::Zaho {
                 fehe: fehe.is_some(),
             }
@@ -388,11 +389,11 @@ fn classify_atom(atom: &ExpPrefixedTagAtomSyntax) -> ClassifiedAtom {
                 fiho: _,
                 selbri: _,
                 fehu: _,
-            } = atom;
+            } = atom.as_ref();
             AtomKind::Fiho
         }
         ExpTagAtomSyntax::ExpFaTagAtom(atom) => {
-            let ExpFaTagAtomSyntax(_fa) = atom;
+            let ExpFaTagAtomSyntax(_fa) = atom.as_ref();
             AtomKind::Fa
         }
     };
@@ -600,10 +601,10 @@ pub(crate) struct PostNaExtensionTagRejection;
 #[requires(true)]
 #[ensures(true)]
 fn is_elided_nahe_fiho_tense_modal(output: &TenseModalSyntax) -> bool {
-    let TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(
-        TenseModalAtomSyntax::ExpTagAtomRun(run),
-    )) = output
-    else {
+    let TenseModalBodySyntax::TenseModalAtom(atom) = output.0.as_ref() else {
+        return false;
+    };
+    let TenseModalAtomSyntax::ExpTagAtomRun(run) = atom.as_ref() else {
         return false;
     };
     let ExpTagAtomRunBodySyntax { first, additional } = &*run.0;
@@ -731,7 +732,7 @@ fn tense_modal_is_extension(output: &TenseModalSyntax) -> bool {
     // baseline ownership without unbounded differing-extent lookahead leaves
     // that post-NA extension class as the documented gap.
     let TenseModalSyntax(body) = output;
-    match body {
+    match body.as_ref() {
         TenseModalBodySyntax::ConnectedTenseModal(connected) => {
             let starts_with_baseline_term = match connected.first.as_ref() {
                 TenseModalAtomSyntax::ExpTagAtomRun(run) => {
@@ -749,7 +750,7 @@ fn tense_modal_is_extension(output: &TenseModalSyntax) -> bool {
                         .iter()
                         .any(|continuation| atom_is_extension(&continuation.tense_modal)))
         }
-        TenseModalBodySyntax::TenseModalAtom(atom) => match atom {
+        TenseModalBodySyntax::TenseModalAtom(atom) => match atom.as_ref() {
             TenseModalAtomSyntax::ExpTagAtomRun(run) => exp_run_starts_with_baseline_term(&run.0),
             TenseModalAtomSyntax::CompositeTense(_)
             | TenseModalAtomSyntax::FihoTense(_)
@@ -889,7 +890,7 @@ impl OutputRejection<TenseModalSyntax> for ZantufaTagRejection {
 
     fn rejects(&self, output: &TenseModalSyntax) -> bool {
         let TenseModalSyntax(body) = output;
-        match body {
+        match body.as_ref() {
             TenseModalBodySyntax::ConnectedTenseModal(_) => false,
             TenseModalBodySyntax::TenseModalAtom(_) => false,
             TenseModalBodySyntax::ZantufaTag(_) => true,
@@ -921,8 +922,8 @@ impl OutputRejection<recovered::Recovered<recovered::TenseModalSyntax>> for Zant
 
 #[requires(true)]
 #[ensures(true)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
+fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
+    match value.borrow() {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
     }
@@ -930,7 +931,11 @@ fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
 
 #[requires(true)]
 #[ensures(true)]
-fn valid_wf<T>(value: &recovered::WithFreeModifiers<recovered::Recovered<T>>) -> bool {
+fn valid_wf<T, V, F>(value: &recovered::WithFreeModifiers<V, F>) -> bool
+where
+    V: std::borrow::Borrow<recovered::Recovered<T>>,
+    F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
+{
     valid(&value.value).is_some()
         && value
             .free_modifiers

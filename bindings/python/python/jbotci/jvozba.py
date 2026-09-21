@@ -14,6 +14,7 @@ JvozbaMode = _rust._jvozba_JvozbaMode
 Word = _rust._jvozba_Word
 FixedRafsi = _rust._jvozba_FixedRafsi
 JvozbaSegmentKind = _rust._jvozba_JvozbaSegmentKind
+JvozbaWorkMeasure = _rust._jvozba_JvozbaWorkMeasure
 JvozbaSegment = _rust._jvozba_JvozbaSegment
 JvozbaBuildResult = _rust._jvozba_JvozbaBuildResult
 LujvoSegmentInfo = _rust._jvozba_LujvoSegmentInfo
@@ -25,6 +26,7 @@ NonFinalUniversalLongRafsi = _rust._jvozba_NonFinalUniversalLongRafsi
 FinalConsonant = _rust._jvozba_FinalConsonant
 NoRafsiAvailable = _rust._jvozba_NoRafsiAvailable
 NoDictionaryEntry = _rust._jvozba_NoDictionaryEntry
+TooMuchWork = _rust._jvozba_TooMuchWork
 CouldNotBuildLujvo = _rust._jvozba_CouldNotBuildLujvo
 CouldNotBuildCompound = _rust._jvozba_CouldNotBuildCompound
 
@@ -36,6 +38,7 @@ JvozbaErrorValue: TypeAlias = (
     | FinalConsonant
     | NoRafsiAvailable
     | NoDictionaryEntry
+    | TooMuchWork
     | CouldNotBuildLujvo
     | CouldNotBuildCompound
 )
@@ -222,6 +225,45 @@ class NoDictionaryEntryError(JvozbaError, _token=_EXCEPTION_SUBCLASS_TOKEN):
 
 
 @final
+class TooMuchWorkError(JvozbaError, _token=_EXCEPTION_SUBCLASS_TOKEN):
+    """A build would search more than this caller allows, or more than can be counted."""
+
+    __slots__ = ()
+
+    def __init__(self, value: TooMuchWork) -> None:
+        if not isinstance(value, TooMuchWork):
+            raise TypeError("value must be TooMuchWork")
+        super().__init__(value)
+
+    @property
+    def value(self) -> TooMuchWork:
+        """Return the exact structured Rust error value."""
+
+        return cast(TooMuchWork, super().value)
+
+    @property
+    def measure(self) -> JvozbaWorkMeasure:
+        """Return which part of the search the refused request measured."""
+
+        return self.value.measure
+
+    @property
+    def amount(self) -> int:
+        """Return how much of that measure the request would need."""
+
+        return self.value.amount
+
+    @property
+    def limit(self) -> int:
+        """Return how much of that measure this build allowed."""
+
+        return self.value.limit
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("TooMuchWorkError is final")
+
+
+@final
 class CouldNotBuildLujvoError(
     JvozbaError, _token=_EXCEPTION_SUBCLASS_TOKEN
 ):
@@ -321,6 +363,7 @@ __all__: tuple[str, ...] = (
     "JvozbaInput",
     "JvozbaSegmentKind",
     "JvozbaSegment",
+    "JvozbaWorkMeasure",
     "JvozbaBuildResult",
     "LujvoSegmentInfo",
     "LujvoDecomposition",
@@ -330,6 +373,7 @@ __all__: tuple[str, ...] = (
     "FinalConsonant",
     "NoRafsiAvailable",
     "NoDictionaryEntry",
+    "TooMuchWork",
     "CouldNotBuildLujvo",
     "CouldNotBuildCompound",
     "JvozbaErrorValue",
@@ -340,6 +384,7 @@ __all__: tuple[str, ...] = (
     "FinalConsonantError",
     "NoRafsiAvailableError",
     "NoDictionaryEntryError",
+    "TooMuchWorkError",
     "CouldNotBuildLujvoError",
     "CouldNotBuildCompoundError",
     "build_best_jvozba_detailed",

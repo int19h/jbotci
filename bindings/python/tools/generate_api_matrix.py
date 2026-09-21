@@ -48,6 +48,14 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
         "implementation-representation",
         "Internal mutable storage for TraceRecorder; Python receives immutable trace events and reports.",
     ),
+    ("jbotci_jvozba", "JvozbaBuildLimits"): (
+        "implementation-representation",
+        "A hosting service's work budget: how much construction a caller that must answer within a deadline will pay for. Python receives the unbounded builder, as the CLI does, and the refusal it can still raise is exposed as TooMuchWorkError.",
+    ),
+    ("jbotci_jvozba", "build_best_jvozba_detailed_within"): (
+        "implementation-representation",
+        "The budgeted form of the builder, for a caller that must answer within a deadline. Python receives build_best_jvozba_detailed, whose refusals it raises with the same typed values.",
+    ),
     ("jbotci_morphology", "StringEnumMetadata"): (
         "implementation-representation",
         "Compile-time metadata used to register exact Python StrEnum classes, not a consumer domain value.",
@@ -501,6 +509,26 @@ def classify_import_build_item(item: InventoryItem) -> Disposition | None:
             "Lensisku snapshot deserialization is repository data-build machinery; packaged Python exposes the validated embedded Dictionary and cannot produce these importer values.",
         )
     _, name = concept(item)
+    if path.startswith("jbotci_dictionary::compounds::"):
+        name = path.split("::")[2]
+    if name == "CmavoSequenceIndexEntry":
+        return rust_only(
+            "serialization-import",
+            "Validated static compound-key row used by generated dictionary data and Rust presentation recognition; Python exposes ordinary exact dictionary lookup.",
+        )
+    if name in {"cmavo_sequence_key", "is_compound_separator"} or (
+        name == "Dictionary" and path.rsplit("::", 1)[-1] in {
+            "cmavo_sequence_index", "max_cmavo_sequence_len", "lookup_cmavo_sequence",
+            "exact_definition_indices",
+        }
+    ):
+        return rust_only(
+            "implementation-representation",
+            "Rust compound presentation attestation and morphology-key machinery shared by Blocks and cursor hover; Python retains exact Dictionary lookup and does not expose a Blocks partition policy.",
+        )
+    if name == "DictionaryEntry" and path.endswith("::has_definition"):
+        return python_api(item, "subsumed", "jbotci.dictionary.DictionaryEntry.definition",
+            rationale="The predicate is exactly nonempty definition text, already exposed by the immutable Python entry.")
     if name == "OwnedDictionaryIndexes" or name.startswith("Owned"):
         return rust_only(
             "serialization-import",

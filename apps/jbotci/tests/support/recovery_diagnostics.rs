@@ -302,6 +302,8 @@ fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_format
             show_spans: false,
             show_refs: Some(false),
             show_elided: false,
+            show_glosses: false,
+            show_compounds: true,
             decompose_lujvo: false,
             indent: (format == ToolGentufaFormat::Raw).then_some(0),
         })
@@ -322,6 +324,8 @@ fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_format
         show_spans: false,
         show_refs: Some(false),
         show_elided: false,
+        show_glosses: false,
+        show_compounds: true,
         decompose_lujvo: false,
         indent: None,
     })
@@ -338,6 +342,8 @@ fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_format
         show_spans: false,
         show_refs: Some(false),
         show_elided: false,
+        show_glosses: false,
+        show_compounds: true,
         decompose_lujvo: false,
         indent: None,
     })

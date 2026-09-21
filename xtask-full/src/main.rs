@@ -7,7 +7,7 @@ use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
 use std::num::NonZeroU16;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -73,12 +73,23 @@ const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 // Safari exposes no browser knob for the JS engine stack that also bounds nested wasm calls.
-// The old 168 KiB budget was a historical Safari proxy, not a measured engine limit. By owner
-// decision on 2026-07-12 (issue #334), it is now 192 KiB so token-conserving recovery can ship
-// after becoming the third recovery-driver change to exceed that proxy (#327, #332, and #334).
-// This is accepted risk pending empirical Safari measurement and may be tightened again after a
-// structural stack reduction in the generated recovered parser restores margin.
-const DEFAULT_WASM_STACK_SIZE_KB: usize = 192;
+// Issue #913 tightens the previous 192 KiB Node regression budget to the user-accepted 160 KiB.
+// This is a proxy budget, not a measurement of physical Safari capacity or a guarantee of iOS
+// acceptance. It bounds the host call stack separately from the Wasm linear-memory stack reserve.
+const DEFAULT_WASM_STACK_SIZE_KB: usize = 160;
+/// Every case the Wasm stack probe knows, kept in step with the `CASES` table in
+/// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
+/// name, so a drift between the two lists fails the gate rather than silently
+/// skipping a case.
+const WASM_STACK_TEST_CASES: [&str; 7] = [
+    "default-input",
+    "simple-valid",
+    "recovered-input",
+    "natural-stop-recovered-input",
+    "issue-913-reported",
+    "issue-913-default-settings",
+    "nesting-depth-3",
+];
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";
@@ -111,7 +122,7 @@ const DEFAULT_WIKI_DELAY_MS: u64 = 1000;
 const DEFAULT_WIKI_TIMEOUT_MS: u64 = 120_000;
 const DEFAULT_WIKI_RETRIES: usize = 8;
 const DEFAULT_WIKI_MAXLAG: usize = 5;
-const WIKI_USER_AGENT: &str = "jbotci-wiki-vendor/0.1 (https://codeberg.org/int_19h/jbotci)";
+const WIKI_USER_AGENT: &str = "jbotci-wiki-vendor/0.1 (https://github.com/int19h/jbotci)";
 const WIKI_HTTP_BODY_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
 const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
@@ -279,6 +290,8 @@ struct WasmStackTestArgs {
     stack_size_kb: usize,
     #[arg(long)]
     no_build: bool,
+    #[arg(long, value_name = "PATH", requires = "no_build")]
+    public_dir: Option<PathBuf>,
     #[arg(long, default_value = "node")]
     node: PathBuf,
     #[arg(long, default_value = "tests/wasm/gentufa_compute_stack_probe.mjs")]
@@ -2054,37 +2067,119 @@ fn read_wasm_u32(bytes: &[u8], cursor: &mut usize, label: &str) -> Result<u32> {
 #[requires(args.stack_size_kb > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
+    if args.public_dir.is_some() && !args.no_build {
+        bail!("--public-dir requires --no-build");
+    }
     if !args.no_build {
         build_wasm_stack_test_bundle(args.profile)?;
     }
-    let paths = wasm_stack_test_bundle_paths(args.profile)?;
+    let paths = if let Some(public_dir) = args.public_dir.as_deref() {
+        wasm_stack_test_public_dir_paths(public_dir)?
+    } else {
+        wasm_stack_test_bundle_paths(args.profile)?
+    };
     let probe = absolute_path(&args.probe)?;
-    let node = args.node.clone();
-    let mut command = ProcessCommand::new(&node);
-    command
-        .arg(format!("--stack-size={}", args.stack_size_kb))
-        .arg(&probe)
-        .arg("--js")
-        .arg(&paths.js)
-        .arg("--wasm")
-        .arg(&paths.wasm)
-        .arg("--ready-js")
-        .arg(&paths.ready_js)
-        .arg("--default-text")
-        .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT);
-    for case in &args.cases {
-        command.arg("--case").arg(case);
+    verify_wasm_stack_test_cases(&args.node, &probe)?;
+    let cases = if args.cases.is_empty() {
+        WASM_STACK_TEST_CASES
+            .iter()
+            .map(|case| (*case).to_owned())
+            .collect::<Vec<_>>()
+    } else {
+        for case in &args.cases {
+            if !WASM_STACK_TEST_CASES.contains(&case.as_str()) {
+                bail!(
+                    "unknown Wasm stack probe case `{case}`; known cases: {}",
+                    WASM_STACK_TEST_CASES.join(", ")
+                );
+            }
+        }
+        args.cases.clone()
+    };
+    let mut failures = Vec::new();
+    for case in &cases {
+        // One fresh process per case. The budget this gate defends is a
+        // cold-instance property: an engine's first compilation tier uses larger
+        // frames than its optimizing tier, so a case that overflows on a fresh
+        // instance can pass on a warmed one. Sharing a process between cases
+        // would measure the warm path and stop reflecting a user's first click.
+        // It also keeps a case that overflowed from influencing any later case.
+        let status = ProcessCommand::new(&args.node)
+            .arg(format!("--stack-size={}", args.stack_size_kb))
+            .arg(&probe)
+            .arg("--js")
+            .arg(&paths.js)
+            .arg("--wasm")
+            .arg(&paths.wasm)
+            .arg("--ready-js")
+            .arg(&paths.ready_js)
+            .arg("--default-text")
+            .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT)
+            .arg("--case")
+            .arg(case)
+            .status()
+            .with_context(|| {
+                format!(
+                    "failed to run Wasm stack probe case `{case}` with `{}`",
+                    args.node.display()
+                )
+            })?;
+        if !status.success() {
+            failures.push(case.clone());
+        }
     }
-    let description = format!(
-        "{} --stack-size={} {}",
-        node.display(),
+    if failures.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "Wasm stack probe failed at --stack-size={} for: {}",
         args.stack_size_kb,
-        probe.display()
-    );
-    let status = command
-        .status()
-        .with_context(|| format!("failed to run Wasm stack probe with `{}`", node.display()))?;
-    check_status(status, &description)
+        failures.join(", ")
+    )
+}
+
+/// Fails when the runner's case list and the probe's disagree in either
+/// direction. Naming a case the probe does not have would fail on its own, but a
+/// case the probe gained and the runner never asks for would otherwise be
+/// skipped in silence, which is the failure mode a gate must not have.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn verify_wasm_stack_test_cases(node: &Path, probe: &Path) -> Result<()> {
+    let output = ProcessCommand::new(node)
+        .arg(probe)
+        .arg("--list-cases")
+        .output()
+        .with_context(|| {
+            format!(
+                "failed to list Wasm stack probe cases with `{}`",
+                node.display()
+            )
+        })?;
+    check_status(
+        output.status,
+        "node gentufa_compute_stack_probe.mjs --list-cases",
+    )?;
+    let listed = String::from_utf8(output.stdout)
+        .context("Wasm stack probe case list is not UTF-8")?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<BTreeSet<_>>();
+    let expected = WASM_STACK_TEST_CASES
+        .iter()
+        .map(|case| (*case).to_owned())
+        .collect::<BTreeSet<_>>();
+    if listed == expected {
+        return Ok(());
+    }
+    let missing_from_probe = expected.difference(&listed).cloned().collect::<Vec<_>>();
+    let missing_from_runner = listed.difference(&expected).cloned().collect::<Vec<_>>();
+    bail!(
+        "Wasm stack probe case lists disagree; probe is missing [{}] and the runner is missing [{}]",
+        missing_from_probe.join(", "),
+        missing_from_runner.join(", ")
+    )
 }
 
 #[requires(true)]
@@ -2147,6 +2242,92 @@ fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundleP
             Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
         }
     }
+}
+
+#[requires(!public_dir.as_os_str().is_empty())]
+#[ensures(
+    ret.as_ref().err().is_some()
+        || ret.as_ref().is_ok_and(|paths| {
+            paths.js.is_absolute() && paths.wasm.is_absolute() && paths.ready_js.is_absolute()
+        })
+)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn wasm_stack_test_public_dir_paths(public_dir: &Path) -> Result<WasmBundlePaths> {
+    let public_dir = absolute_path(public_dir)?;
+    if !public_dir.is_dir() {
+        bail!(
+            "Wasm stack probe public directory `{}` does not exist",
+            public_dir.display()
+        );
+    }
+    let index_path = public_dir.join("index.html");
+    let index = fs::read_to_string(&index_path)
+        .with_context(|| format!("reading staged web index `{}`", index_path.display()))?;
+    let js_relative = generated_index_asset_path(&index, "generatedJsPath", ".js")?;
+    let wasm_relative = generated_index_asset_path(&index, "generatedWasmPath", ".wasm")?;
+    let js = contained_public_file(&public_dir, &js_relative)?;
+    let wasm = contained_public_file(&public_dir, &wasm_relative)?;
+    let ready_js = contained_public_file(&public_dir, Path::new("assets/app-module-ready.js"))?;
+    Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
+}
+
+#[requires(!binding.is_empty())]
+#[requires(suffix.starts_with('.'))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn generated_index_asset_path(index: &str, binding: &str, suffix: &str) -> Result<PathBuf> {
+    let prefix = format!("const {binding} = \"");
+    let mut values = index.lines().filter_map(|line| {
+        line.trim()
+            .strip_prefix(&prefix)
+            .and_then(|value| value.strip_suffix("\";"))
+    });
+    let value = values
+        .next()
+        .with_context(|| format!("staged web index is missing `{binding}`"))?;
+    if values.next().is_some() {
+        bail!("staged web index contains multiple `{binding}` assignments");
+    }
+    let path = PathBuf::from(value);
+    if value.is_empty()
+        || !value.ends_with(suffix)
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::CurDir | Component::Normal(_)))
+    {
+        bail!("staged web index has invalid `{binding}` path `{value}`");
+    }
+    Ok(path)
+}
+
+#[requires(public_dir.is_absolute())]
+#[requires(public_dir.is_dir())]
+#[requires(!relative.as_os_str().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute() && path.is_file()) || ret.is_err())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn contained_public_file(public_dir: &Path, relative: &Path) -> Result<PathBuf> {
+    if relative
+        .components()
+        .any(|component| !matches!(component, Component::CurDir | Component::Normal(_)))
+    {
+        bail!(
+            "staged web asset path `{}` is not relative",
+            relative.display()
+        );
+    }
+    let canonical_public_dir = fs::canonicalize(public_dir)
+        .with_context(|| format!("resolving public directory `{}`", public_dir.display()))?;
+    let path = public_dir.join(relative);
+    ensure_existing_file(&path)?;
+    let canonical_path = fs::canonicalize(&path)
+        .with_context(|| format!("resolving staged web asset `{}`", path.display()))?;
+    if !canonical_path.starts_with(&canonical_public_dir) {
+        bail!(
+            "staged web asset `{}` escapes public directory `{}`",
+            relative.display(),
+            public_dir.display()
+        );
+    }
+    Ok(canonical_path)
 }
 
 #[requires(!path.as_os_str().is_empty())]
@@ -14427,6 +14608,114 @@ mod tests {
     fn wasm_export_reader_rejects_truncated_sections() {
         let truncated = b"\0asm\x01\0\0\0\x07\x07\x01\x03ru";
         assert!(wasm_export_names(truncated).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_follow_index_instead_of_other_matching_assets() {
+        let public = staged_wasm_bundle_test_dir(
+            r#"const generatedJsPath = "assets/jbotci-app-current.js";
+const generatedWasmPath = "assets/jbotci-app_bg-current.wasm";"#,
+        );
+        for relative in [
+            "assets/jbotci-app-current.js",
+            "assets/jbotci-app_bg-current.wasm",
+            "assets/jbotci-app-stale.js",
+            "assets/jbotci-app_bg-stale.wasm",
+        ] {
+            fs::write(public.join(relative), relative).unwrap();
+        }
+
+        let paths = wasm_stack_test_public_dir_paths(&public).unwrap();
+
+        assert_eq!(
+            paths.js,
+            fs::canonicalize(public.join("assets/jbotci-app-current.js")).unwrap()
+        );
+        assert_eq!(
+            paths.wasm,
+            fs::canonicalize(public.join("assets/jbotci-app_bg-current.wasm")).unwrap()
+        );
+        fs::remove_dir_all(public).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_reject_missing_and_duplicate_index_bindings() {
+        assert!(generated_index_asset_path("", "generatedJsPath", ".js").is_err());
+        let duplicate = r#"const generatedJsPath = "assets/first.js";
+const generatedJsPath = "assets/second.js";"#;
+        assert!(generated_index_asset_path(duplicate, "generatedJsPath", ".js").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_reject_escaping_and_absolute_assets() {
+        for value in ["../outside.js", "/outside.js"] {
+            let index = format!("const generatedJsPath = \"{value}\";");
+            assert!(generated_index_asset_path(&index, "generatedJsPath", ".js").is_err());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wasm_stack_test_cli_requires_no_build_with_public_dir() {
+        assert!(
+            Cli::try_parse_from([
+                "xtask-full",
+                "wasm-stack-test",
+                "--public-dir",
+                "staged-public",
+            ])
+            .is_err()
+        );
+        let cli = Cli::try_parse_from([
+            "xtask-full",
+            "wasm-stack-test",
+            "--no-build",
+            "--public-dir",
+            "staged-public",
+        ])
+        .unwrap();
+        let Command::WasmStackTest(args) = cli.command else {
+            panic!("expected wasm-stack-test command");
+        };
+        assert!(args.no_build);
+        assert_eq!(args.public_dir, Some(PathBuf::from("staged-public")));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn staged_wasm_bundle_paths_require_every_referenced_asset() {
+        let public = staged_wasm_bundle_test_dir(
+            r#"const generatedJsPath = "assets/missing.js";
+const generatedWasmPath = "assets/missing.wasm";"#,
+        );
+
+        assert!(wasm_stack_test_public_dir_paths(&public).is_err());
+        fs::remove_dir_all(public).unwrap();
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_dir())]
+    fn staged_wasm_bundle_test_dir(index: &str) -> PathBuf {
+        let public = std::env::temp_dir().join(format!(
+            "jbotci-xtask-staged-wasm-bundle-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(public.join("assets")).unwrap();
+        fs::write(public.join("index.html"), index).unwrap();
+        fs::write(public.join("assets/app-module-ready.js"), "ready").unwrap();
+        public
     }
 
     #[test]

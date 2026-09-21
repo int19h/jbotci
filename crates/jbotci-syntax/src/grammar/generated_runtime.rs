@@ -4,13 +4,18 @@ use bityzba::{contract_trait, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
-use std::{any::Any, cell::Cell, rc::Rc};
+use std::{
+    any::{Any, TypeId},
+    rc::Rc,
+};
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
-    SyntaxMemoScope, SyntaxParseError,
-    parser_core::{InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end},
+    SyntaxMemoContext, SyntaxMemoScope, SyntaxParseError,
+    parser_core::{
+        Checkpoint, InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end,
+    },
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
         is_koha_argument, is_letter_word, is_relation_word, token_matching,
@@ -421,6 +426,208 @@ fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static
     input.state().recovery_rule_parser_enabled(rule, byte_start)
 }
 
+/// Bookkeeping a rule keeps while its body runs.
+///
+/// The exit helpers take it by reference, so it lives in linear memory and the rule's
+/// recursion-path frame holds one pointer instead of every field as a separate Wasm local.
+/// Safari's WebAssembly tiers reserve native stack for every local of every frame on the
+/// recursion path, so this keeps the per-rule native frame small (#913).
+#[invariant(
+    *start_location == ParserInput::cursor_location(checkpoint.cursor().inner()),
+    "a rule run starts at its checkpoint"
+)]
+struct RuleRun<'tokens, 'parse> {
+    checkpoint: Checkpoint<'tokens, 'parse>,
+    start_location: usize,
+    memo_context: SyntaxMemoContext,
+    warning_start: usize,
+    start_byte: usize,
+    track_recovery_branches: bool,
+}
+
+/// Outcome of entering a rule: a memoized replay, a memoized failure, or a body to run.
+#[invariant(::Replay(_) => true)]
+#[invariant(::Fail(_) => true)]
+#[invariant(::Run(_) => true)]
+enum RuleEntry<'tokens, 'parse> {
+    Replay(Rc<dyn Any>),
+    Fail(SyntaxParseError<'tokens>),
+    Run(RuleRun<'tokens, 'parse>),
+}
+
+/// Memo lookup and entry bookkeeping shared by every generated rule wrapper.
+///
+/// `output_type` is the rule's output type; a memoized value of another type is ignored
+/// exactly as the previous generic downcast ignored it. Out of line and non-generic on
+/// purpose: it runs before the rule recurses, so its frame is never on the recursion path,
+/// and sharing one body across all rules keeps Binaryen from inlining it back.
+#[requires(!name.is_empty())]
+#[requires(context.is_none_or(|construct| !construct.is_empty()))]
+#[ensures(true)]
+#[inline(never)]
+fn rule_enter<'tokens, 'parse>(
+    input: &mut InputRef<'tokens, 'parse>,
+    name: &'static str,
+    context: Option<&'static str>,
+    output_type: TypeId,
+) -> RuleEntry<'tokens, 'parse> {
+    let checkpoint = input.save();
+    let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+    let memo_context = input.state().syntax_memo_context();
+    input.state().begin_syntax_memo_rule_frame();
+    if input.state().trace_enabled() {
+        input.state().mark_syntax_memo_rule_recovery_sensitive();
+    }
+    let replay_hit = input
+        .state()
+        .syntax_memo_success(name, start_location, memo_context.clone());
+    if let Some(hit) = replay_hit {
+        let value = hit.value();
+        if (*value).type_id() == output_type {
+            let replay = input.state().apply_syntax_memo_success(hit);
+            advance_to_location(input, replay.end_location);
+            input
+                .state()
+                .replay_syntax_memo_side_effects(&replay.side_effects);
+            input.state().finish_syntax_memo_rule_frame();
+            return RuleEntry::Replay(value);
+        }
+    }
+    let failure = input
+        .state()
+        .syntax_memo_failure(name, start_location, memo_context.clone());
+    if let Some(failure) = failure {
+        input.rewind(checkpoint);
+        input
+            .state()
+            .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
+        input.state().finish_syntax_memo_rule_frame();
+        return RuleEntry::Fail(failure.into_error());
+    }
+    if !input
+        .state()
+        .enter_syntax_memo_rule(name, start_location, memo_context.clone())
+    {
+        input.rewind(checkpoint);
+        input.state().finish_syntax_memo_rule_frame();
+        return RuleEntry::Fail(expected_found_named_at_current(input, name.to_owned()));
+    }
+    let warning_start = input.state().warning_count();
+    let start_byte = input.state().byte_offset_for_location(start_location);
+    input.state().observe_syntax_rule(name, start_byte);
+    let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
+    if track_recovery_branches {
+        input.state().push_syntax_rule(name, start_byte);
+    }
+    if let Some(construct) = context {
+        if input
+            .state()
+            .trace_should_record(TraceLevel::Top, construct)
+        {
+            input
+                .state()
+                .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
+        }
+        input.state().push_syntax_context(construct, start_byte);
+    }
+    RuleEntry::Run(new!(RuleRun {
+        checkpoint,
+        start_location,
+        memo_context,
+        warning_start,
+        start_byte,
+        track_recovery_branches,
+    }))
+}
+
+/// Success bookkeeping shared by every generated rule wrapper; see [`rule_enter`].
+#[requires(!name.is_empty())]
+#[requires(context.is_none_or(|construct| !construct.is_empty()))]
+#[ensures(true)]
+#[inline(never)]
+fn rule_exit_success<'tokens, 'parse>(
+    input: &mut InputRef<'tokens, 'parse>,
+    name: &'static str,
+    context: Option<&'static str>,
+    run: &RuleRun<'tokens, 'parse>,
+    memo_value: Rc<dyn Any>,
+) {
+    if let Some(construct) = context {
+        let span = input.span_since(run.checkpoint.cursor());
+        trace_rule_exit(input, construct, TraceEventKind::ConstructSuccess, span);
+        input.state().pop_syntax_context();
+    }
+    let end_location = ParserInput::cursor_location(input.cursor().inner());
+    let warnings = input.state().warnings_since(run.warning_start);
+    input.state().store_syntax_memo_success(
+        name,
+        run.start_location,
+        run.memo_context.clone(),
+        end_location,
+        super::SyntaxMemoValue::from_shared(memo_value),
+        warnings,
+    );
+    if run.track_recovery_branches {
+        input.state().pop_syntax_rule();
+    }
+    input
+        .state()
+        .exit_syntax_memo_rule(name, run.start_location, run.memo_context.clone());
+    input.state().finish_syntax_memo_rule_frame();
+}
+
+/// Failure bookkeeping shared by every generated rule wrapper; see [`rule_enter`].
+///
+/// The rule's failure span is the input consumed by its body before it failed, measured
+/// before the rewind below, which is what the former per-rule error mapper recorded.
+#[requires(!name.is_empty())]
+#[requires(context.is_none_or(|construct| !construct.is_empty()))]
+#[ensures(true)]
+#[inline(never)]
+fn rule_exit_failure<'tokens, 'parse>(
+    input: &mut InputRef<'tokens, 'parse>,
+    name: &'static str,
+    context: Option<&'static str>,
+    run: &RuleRun<'tokens, 'parse>,
+    error: SyntaxParseError<'tokens>,
+) -> SyntaxParseError<'tokens> {
+    let failure_location = ParserInput::cursor_location(input.cursor().inner());
+    let error = if let Some(construct) = context {
+        let span = input.span_since(run.checkpoint.cursor());
+        trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
+        let error = error.with_rule_context_from_progress(
+            construct,
+            run.start_byte,
+            failure_location > run.start_location,
+        );
+        let error = error
+            .with_active_contexts(input.state().active_syntax_context_stack())
+            .with_active_rule_contexts(input.state().active_syntax_rule_stack());
+        input.state().pop_syntax_context();
+        error
+    } else {
+        error
+    };
+    input
+        .state()
+        .record_continuation_rule_failure(run.start_location, failure_location, &error);
+    if run.track_recovery_branches {
+        input.state().pop_syntax_rule();
+    }
+    input.rewind(run.checkpoint.clone());
+    input.state().store_syntax_memo_failure(
+        name,
+        run.start_location,
+        run.memo_context.clone(),
+        error.clone(),
+    );
+    input
+        .state()
+        .exit_syntax_memo_rule(name, run.start_location, run.memo_context.clone());
+    input.state().finish_syntax_memo_rule_frame();
+    error
+}
+
 #[requires(!name.is_empty())]
 #[requires(context.is_none_or(|construct| !construct.is_empty()))]
 #[ensures(true)]
@@ -433,146 +640,29 @@ where
     O: Clone + 'static,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-        let checkpoint = input.save();
-        let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-        let memo_context = input.state().syntax_memo_context();
-        input.state().begin_syntax_memo_rule_frame();
-        if input.state().trace_enabled() {
-            input.state().mark_syntax_memo_rule_recovery_sensitive();
-        }
-        let replay_hit = input
-            .state()
-            .syntax_memo_success(name, start_location, memo_context);
-        if let Some(hit) = replay_hit
-            && let Ok(value) = hit.value().downcast::<O>()
-        {
-            let replay = input.state().apply_syntax_memo_success(hit);
-            advance_to_location(input, replay.end_location);
-            input
-                .state()
-                .replay_syntax_memo_side_effects(&replay.side_effects);
-            input.state().finish_syntax_memo_rule_frame();
-            return Ok(SharedSyntaxOutput::from_shared(value));
-        }
-        let failure = input
-            .state()
-            .syntax_memo_failure(name, start_location, memo_context);
-        if let Some(failure) = failure {
-            input.rewind(checkpoint);
-            input
-                .state()
-                .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
-            input.state().finish_syntax_memo_rule_frame();
-            return Err(failure.into_error());
-        }
-        if !input
-            .state()
-            .enter_syntax_memo_rule(name, start_location, memo_context)
-        {
-            input.rewind(checkpoint);
-            input.state().finish_syntax_memo_rule_frame();
-            return Err(expected_found_named_at_current(input, name.to_owned()));
-        }
-        let warning_start = input.state().warning_count();
-        let start_byte = input.state().byte_offset_for_location(start_location);
-        input.state().observe_syntax_rule(name, start_byte);
-        let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
-        if track_recovery_branches {
-            input.state().push_syntax_rule(name, start_byte);
-        }
-        if let Some(construct) = context {
-            if input
-                .state()
-                .trace_should_record(TraceLevel::Top, construct)
-            {
-                input
-                    .state()
-                    .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
-            }
-            input.state().push_syntax_context(construct, start_byte);
-        }
-        let failure_span = Cell::new(None);
-        let parse_result = if context.is_some() {
-            let parser = parser
-                .clone()
-                .map_err_with_state(|error, span: Span, _state| {
-                    failure_span.set(Some(span));
-                    error
-                });
-            input.parse(parser)
-        } else {
-            input.parse(&parser)
-        };
-        match parse_result {
-            Ok(output) => {
-                if let Some(construct) = context {
-                    let span = input.span_since(checkpoint.cursor());
-                    trace_rule_exit(input, construct, TraceEventKind::ConstructSuccess, span);
-                    input.state().pop_syntax_context();
+    custom::<_, _>(
+        #[inline(always)]
+        move |input: &mut InputRef<'tokens, '_>| {
+            let run = match rule_enter(input, name, context, TypeId::of::<O>()) {
+                RuleEntry::Replay(value) => {
+                    let value = value
+                        .downcast::<O>()
+                        .unwrap_or_else(|_| unreachable!("rule_enter checked the memo value type"));
+                    return Ok(SharedSyntaxOutput::from_shared(value));
                 }
-                let end_location = ParserInput::cursor_location(input.cursor().inner());
-                let warnings = input.state().warnings_since(warning_start);
-                let output = SharedSyntaxOutput::new(output);
-                let memo_value: Rc<dyn Any> = output.clone().into_shared();
-                input.state().store_syntax_memo_success(
-                    name,
-                    start_location,
-                    memo_context,
-                    end_location,
-                    super::SyntaxMemoValue::from_shared(memo_value),
-                    warnings,
-                );
-                if track_recovery_branches {
-                    input.state().pop_syntax_rule();
+                RuleEntry::Fail(error) => return Err(error),
+                RuleEntry::Run(run) => run,
+            };
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let output = SharedSyntaxOutput::new(output);
+                    rule_exit_success(input, name, context, &run, output.clone().into_shared());
+                    Ok(output)
                 }
-                input
-                    .state()
-                    .exit_syntax_memo_rule(name, start_location, memo_context);
-                input.state().finish_syntax_memo_rule_frame();
-                Ok(output)
+                Err(error) => Err(rule_exit_failure(input, name, context, &run, error)),
             }
-            Err(error) => {
-                let failure_location = ParserInput::cursor_location(input.cursor().inner());
-                let error = if let Some(construct) = context {
-                    let span = failure_span.get().unwrap_or(*error.span());
-                    trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
-                    let error = error.with_rule_context_from_progress(
-                        construct,
-                        start_byte,
-                        failure_location > start_location,
-                    );
-                    let error = error
-                        .with_active_contexts(input.state().active_syntax_context_stack())
-                        .with_active_rule_contexts(input.state().active_syntax_rule_stack());
-                    input.state().pop_syntax_context();
-                    error
-                } else {
-                    error
-                };
-                input.state().record_continuation_rule_failure(
-                    start_location,
-                    failure_location,
-                    &error,
-                );
-                if track_recovery_branches {
-                    input.state().pop_syntax_rule();
-                }
-                input.rewind(checkpoint);
-                input.state().store_syntax_memo_failure(
-                    name,
-                    start_location,
-                    memo_context,
-                    error.clone(),
-                );
-                input
-                    .state()
-                    .exit_syntax_memo_rule(name, start_location, memo_context);
-                input.state().finish_syntax_memo_rule_frame();
-                Err(error)
-            }
-        }
-    })
+        },
+    )
     .boxed()
 }
 
@@ -623,7 +713,7 @@ pub(crate) fn eof<'tokens>() -> BoxedParser<'tokens, ()> {
 pub(crate) fn feature_gate<'tokens, O, P>(
     feature: SyntaxGrammarFeature,
     parser: P,
-) -> BoxedParser<'tokens, O>
+) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
@@ -640,7 +730,7 @@ where
 pub(crate) fn policy_gate<'tokens, O, P>(
     policy: SyntaxGrammarPolicyFlag,
     parser: P,
-) -> BoxedParser<'tokens, O>
+) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
@@ -658,138 +748,162 @@ fn syntax_gate<'tokens, O, P, E>(
     parser: P,
     enabled: E,
     expected: &'static str,
-) -> BoxedParser<'tokens, O>
+) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
     E: Fn(SyntaxGrammarEnv) -> bool + Clone + 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let env = input.state().syntax_grammar_env();
-        if enabled(env) {
-            return input.parse(&parser);
-        }
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let env = input.state().syntax_grammar_env();
+            if enabled(env) {
+                return input.parse(&parser);
+            }
 
-        Err(expected_found_named_at_current(input, expected.to_owned()))
-    })
-    .boxed()
+            Err(expected_found_named_at_current(input, expected.to_owned()))
+        },
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_optional<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, Option<O>>
+pub(crate) fn strict_optional<'tokens, O, P>(parser: P) -> impl Parser<'tokens, Option<O>> + Clone
 where
     O: 'tokens,
-    P: Parser<'tokens, O> + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let checkpoint = input.save();
-        match input.parse(&parser) {
-            Ok(output) => Ok(Some(output)),
-            Err(error) => {
-                input.rewind(checkpoint);
-                input.state().record_diagnostic_candidate(error);
-                Ok(None)
-            }
-        }
-    })
-    .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn strict_greedy_many_parser<'tokens, O: 'tokens>(
-    parser: BoxedParser<'tokens, O>,
-) -> BoxedParser<'tokens, Vec<O>> {
-    custom::<_, _>(move |input| {
-        let mut values = Vec::new();
-        loop {
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
             let checkpoint = input.save();
-            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
             match input.parse(&parser) {
-                Ok(output) => {
-                    let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    if end_location == start_location {
-                        debug_assert!(false, "generated repetition parser accepted empty input");
-                        input.rewind(checkpoint);
-                        break;
-                    }
-                    values.push(output);
-                }
+                Ok(output) => Ok(Some(output)),
                 Err(error) => {
                     input.rewind(checkpoint);
                     input.state().record_diagnostic_candidate(error);
-                    break;
+                    Ok(None)
                 }
             }
-        }
-        Ok(values)
-    })
-    .boxed()
+        },
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn strict_greedy_many_parser_without_diagnostics<'tokens, O: 'tokens>(
-    parser: BoxedParser<'tokens, O>,
-) -> BoxedParser<'tokens, Vec<O>> {
+pub(crate) fn strict_greedy_many_parser<
+    'tokens,
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+>(
+    parser: P,
+) -> impl Parser<'tokens, Vec<O>> + Clone {
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let mut values = Vec::new();
+            loop {
+                let checkpoint = input.save();
+                let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+                match input.parse(&parser) {
+                    Ok(output) => {
+                        let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        if end_location == start_location {
+                            debug_assert!(
+                                false,
+                                "generated repetition parser accepted empty input"
+                            );
+                            input.rewind(checkpoint);
+                            break;
+                        }
+                        values.push(output);
+                    }
+                    Err(error) => {
+                        input.rewind(checkpoint);
+                        input.state().record_diagnostic_candidate(error);
+                        break;
+                    }
+                }
+            }
+            Ok(values)
+        },
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strict_greedy_many_parser_without_diagnostics<
+    'tokens,
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+>(
+    parser: P,
+) -> impl Parser<'tokens, Vec<O>> + Clone {
     strict_greedy_many_parser(parser)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
-    parser: BoxedParser<'tokens, O>,
-) -> BoxedParser<'tokens, Vec<O>> {
-    custom::<_, _>(move |input| {
-        let first_checkpoint = input.save();
-        let first_start_location = ParserInput::cursor_location(first_checkpoint.cursor().inner());
-        let first = match input.parse(&parser) {
-            Ok(output) => {
-                let first_end_location = ParserInput::cursor_location(input.cursor().inner());
-                if first_end_location == first_start_location {
-                    debug_assert!(
-                        false,
-                        "generated non-empty repetition parser accepted empty input"
-                    );
-                    input.rewind(first_checkpoint);
-                    return Ok(Vec::new());
-                }
-                output
-            }
-            Err(error) => {
-                input.rewind(first_checkpoint);
-                return Err(error);
-            }
-        };
-
-        let mut values = vec![first];
-        loop {
-            let checkpoint = input.save();
-            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-            match input.parse(&parser) {
+pub(crate) fn strict_greedy_many1_parser<
+    'tokens,
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+>(
+    parser: P,
+) -> impl Parser<'tokens, Vec<O>> + Clone {
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let first_checkpoint = input.save();
+            let first_start_location =
+                ParserInput::cursor_location(first_checkpoint.cursor().inner());
+            let first = match input.parse(&parser) {
                 Ok(output) => {
-                    let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    if end_location == start_location {
+                    let first_end_location = ParserInput::cursor_location(input.cursor().inner());
+                    if first_end_location == first_start_location {
                         debug_assert!(
                             false,
                             "generated non-empty repetition parser accepted empty input"
                         );
-                        input.rewind(checkpoint);
-                        break;
+                        input.rewind(first_checkpoint);
+                        return Ok(Vec::new());
                     }
-                    values.push(output);
+                    output
                 }
                 Err(error) => {
-                    input.rewind(checkpoint);
-                    input.state().record_diagnostic_candidate(error);
-                    break;
+                    input.rewind(first_checkpoint);
+                    return Err(error);
+                }
+            };
+
+            let mut values = vec![first];
+            loop {
+                let checkpoint = input.save();
+                let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+                match input.parse(&parser) {
+                    Ok(output) => {
+                        let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        if end_location == start_location {
+                            debug_assert!(
+                                false,
+                                "generated non-empty repetition parser accepted empty input"
+                            );
+                            input.rewind(checkpoint);
+                            break;
+                        }
+                        values.push(output);
+                    }
+                    Err(error) => {
+                        input.rewind(checkpoint);
+                        input.state().record_diagnostic_candidate(error);
+                        break;
+                    }
                 }
             }
-        }
-        Ok(values)
-    })
-    .boxed()
+            Ok(values)
+        },
+    )
 }
 
 #[requires(!rule.is_empty())]
@@ -798,35 +912,37 @@ pub(crate) fn recovery_checkpoint_field_parser<'tokens, O, P>(
     rule: &'static str,
     field_index: usize,
     parser: P,
-) -> BoxedParser<'tokens, O>
+) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let start_location = ParserInput::cursor_location(input.cursor().inner());
-        let instance_byte_start = input
-            .state()
-            .recovery_rule_instance_byte_start(rule, start_location);
-        input.state().record_recovery_checkpoint(
-            rule,
-            instance_byte_start,
-            start_location,
-            field_index,
-            RecoveryCheckpointKind::FieldStart,
-        );
-        let value = input.parse(&parser)?;
-        let end_location = ParserInput::cursor_location(input.cursor().inner());
-        input.state().record_recovery_checkpoint(
-            rule,
-            instance_byte_start,
-            end_location,
-            field_index,
-            RecoveryCheckpointKind::Trailing,
-        );
-        Ok(value)
-    })
-    .boxed()
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let start_location = ParserInput::cursor_location(input.cursor().inner());
+            let instance_byte_start = input
+                .state()
+                .recovery_rule_instance_byte_start(rule, start_location);
+            input.state().record_recovery_checkpoint(
+                rule,
+                instance_byte_start,
+                start_location,
+                field_index,
+                RecoveryCheckpointKind::FieldStart,
+            );
+            let value = input.parse(&parser)?;
+            let end_location = ParserInput::cursor_location(input.cursor().inner());
+            input.state().record_recovery_checkpoint(
+                rule,
+                instance_byte_start,
+                end_location,
+                field_index,
+                RecoveryCheckpointKind::Trailing,
+            );
+            Ok(value)
+        },
+    )
 }
 
 #[requires(!rule.is_empty())]
@@ -837,49 +953,54 @@ pub(crate) fn recovery_checkpoint_greedy_many_field_parser<'tokens, O, P>(
     field_index: usize,
     min_count: usize,
     parser: P,
-) -> BoxedParser<'tokens, Vec<O>>
+) -> impl Parser<'tokens, Vec<O>> + Clone
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let mut values = Vec::new();
-        loop {
-            let checkpoint = input.save();
-            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-            let instance_byte_start = input
-                .state()
-                .recovery_rule_instance_byte_start(rule, start_location);
-            input.state().record_recovery_checkpoint(
-                rule,
-                instance_byte_start,
-                start_location,
-                field_index,
-                RecoveryCheckpointKind::FieldStart,
-            );
-            match input.parse(&parser) {
-                Ok(output) => {
-                    let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    if end_location == start_location {
-                        debug_assert!(false, "generated repetition parser accepted empty input");
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let mut values = Vec::new();
+            loop {
+                let checkpoint = input.save();
+                let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+                let instance_byte_start = input
+                    .state()
+                    .recovery_rule_instance_byte_start(rule, start_location);
+                input.state().record_recovery_checkpoint(
+                    rule,
+                    instance_byte_start,
+                    start_location,
+                    field_index,
+                    RecoveryCheckpointKind::FieldStart,
+                );
+                match input.parse(&parser) {
+                    Ok(output) => {
+                        let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        if end_location == start_location {
+                            debug_assert!(
+                                false,
+                                "generated repetition parser accepted empty input"
+                            );
+                            input.rewind(checkpoint);
+                            break;
+                        }
+                        values.push(output);
+                    }
+                    Err(error) => {
                         input.rewind(checkpoint);
+                        if values.len() < min_count {
+                            return Err(error);
+                        }
+                        input.state().record_diagnostic_candidate(error);
                         break;
                     }
-                    values.push(output);
-                }
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    if values.len() < min_count {
-                        return Err(error);
-                    }
-                    input.state().record_diagnostic_candidate(error);
-                    break;
                 }
             }
-        }
-        Ok(values)
-    })
-    .boxed()
+            Ok(values)
+        },
+    )
 }
 
 #[requires(!rule.is_empty())]
@@ -890,57 +1011,59 @@ pub(crate) fn recovery_checkpoint_recovered_greedy_many_field_parser<'tokens, O,
     field_index: usize,
     min_count: usize,
     parser: P,
-) -> BoxedParser<'tokens, Vec<O>>
+) -> impl Parser<'tokens, Vec<O>> + Clone
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let mut values = Vec::new();
-        loop {
-            let checkpoint = input.save();
-            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-            let instance_byte_start = input
-                .state()
-                .recovery_rule_instance_byte_start(rule, start_location);
-            input.state().record_recovery_checkpoint(
-                rule,
-                instance_byte_start,
-                start_location,
-                field_index,
-                RecoveryCheckpointKind::FieldStart,
-            );
-            match input.parse(&parser) {
-                Ok(output) => {
-                    let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    let end_checkpoint = input.save();
-                    if end_location == start_location
-                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
-                    {
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let mut values = Vec::new();
+            loop {
+                let checkpoint = input.save();
+                let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+                let instance_byte_start = input
+                    .state()
+                    .recovery_rule_instance_byte_start(rule, start_location);
+                input.state().record_recovery_checkpoint(
+                    rule,
+                    instance_byte_start,
+                    start_location,
+                    field_index,
+                    RecoveryCheckpointKind::FieldStart,
+                );
+                match input.parse(&parser) {
+                    Ok(output) => {
+                        let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        let end_checkpoint = input.save();
+                        if end_location == start_location
+                            && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                        {
+                            input.rewind(checkpoint);
+                            if values.len() < min_count {
+                                return Err(expected_found_at_current(
+                                    input,
+                                    "non-empty recovered repetition item",
+                                ));
+                            }
+                            break;
+                        }
+                        values.push(output);
+                    }
+                    Err(error) => {
                         input.rewind(checkpoint);
                         if values.len() < min_count {
-                            return Err(expected_found_at_current(
-                                input,
-                                "non-empty recovered repetition item",
-                            ));
+                            return Err(error);
                         }
+                        input.state().record_diagnostic_candidate(error);
                         break;
                     }
-                    values.push(output);
-                }
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    if values.len() < min_count {
-                        return Err(error);
-                    }
-                    input.state().record_diagnostic_candidate(error);
-                    break;
                 }
             }
-        }
-        Ok(values)
-    })
-    .boxed()
+            Ok(values)
+        },
+    )
 }
 
 /// Repeat a recovered parser while either input or recovery-directive state
@@ -985,89 +1108,214 @@ pub(crate) fn recovered_greedy_many_parser<'tokens, O: 'tokens>(
 /// advancement as progress when it produces a zero-width missing item.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn recovered_greedy_many1_parser<'tokens, O: 'tokens>(
-    parser: BoxedParser<'tokens, O>,
-) -> BoxedParser<'tokens, Vec<O>> {
-    custom::<_, _>(move |input| {
-        let first_checkpoint = input.save();
-        let first_start_location = ParserInput::cursor_location(first_checkpoint.cursor().inner());
-        let first = match input.parse(&parser) {
-            Ok(output) => {
-                let first_end_location = ParserInput::cursor_location(input.cursor().inner());
-                let first_end_checkpoint = input.save();
-                if first_end_location == first_start_location
-                    && !first_end_checkpoint.recovery_state_changed_since(&first_checkpoint)
-                {
-                    input.rewind(first_checkpoint);
-                    return Err(expected_found_at_current(
-                        input,
-                        "non-empty recovered repetition item",
-                    ));
-                }
-                output
-            }
-            Err(error) => {
-                input.rewind(first_checkpoint);
-                return Err(error);
-            }
-        };
-
-        let mut values = vec![first];
-        loop {
-            let checkpoint = input.save();
-            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-            match input.parse(&parser) {
+pub(crate) fn recovered_greedy_many1_parser<
+    'tokens,
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+>(
+    parser: P,
+) -> impl Parser<'tokens, Vec<O>> + Clone {
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let first_checkpoint = input.save();
+            let first_start_location =
+                ParserInput::cursor_location(first_checkpoint.cursor().inner());
+            let first = match input.parse(&parser) {
                 Ok(output) => {
-                    let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    let end_checkpoint = input.save();
-                    if end_location == start_location
-                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                    let first_end_location = ParserInput::cursor_location(input.cursor().inner());
+                    let first_end_checkpoint = input.save();
+                    if first_end_location == first_start_location
+                        && !first_end_checkpoint.recovery_state_changed_since(&first_checkpoint)
                     {
+                        input.rewind(first_checkpoint);
+                        return Err(expected_found_at_current(
+                            input,
+                            "non-empty recovered repetition item",
+                        ));
+                    }
+                    output
+                }
+                Err(error) => {
+                    input.rewind(first_checkpoint);
+                    return Err(error);
+                }
+            };
+
+            let mut values = vec![first];
+            loop {
+                let checkpoint = input.save();
+                let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+                match input.parse(&parser) {
+                    Ok(output) => {
+                        let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        let end_checkpoint = input.save();
+                        if end_location == start_location
+                            && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                        {
+                            input.rewind(checkpoint);
+                            break;
+                        }
+                        values.push(output);
+                    }
+                    Err(error) => {
                         input.rewind(checkpoint);
+                        input.state().record_diagnostic_candidate(error);
                         break;
                     }
-                    values.push(output);
-                }
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    input.state().record_diagnostic_candidate(error);
-                    break;
                 }
             }
-        }
-        Ok(values)
-    })
-    .boxed()
+            Ok(values)
+        },
+    )
 }
 
-#[requires(!alternatives.is_empty())]
+/// The empty tail of a typed ordered-choice alternative list.
+#[invariant(true)]
+#[derive(Clone, Copy)]
+pub(crate) struct ChoiceNil;
+
+/// One alternative of a typed ordered choice followed by the remaining alternatives.
+///
+/// Alternatives form a cons list of concrete parser types instead of a `Vec` of boxed
+/// parsers so the whole choice, including each alternative's dispatch, inlines into the
+/// enclosing rule's parser function. Every boxed alternative used to be a separate
+/// vtable target and therefore a separate native frame on the parser's recursion path,
+/// which is what exhausts Safari's WebAssembly stack (#913).
+#[invariant(true)]
+#[derive(Clone)]
+pub(crate) struct ChoiceCons<P, Rest> {
+    head: P,
+    rest: Rest,
+}
+
+#[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
-    alternatives: Vec<BoxedParser<'tokens, O>>,
-) -> BoxedParser<'tokens, O> {
-    custom::<_, _>(move |input| {
-        let mut abandoned_error = None;
-        for alternative in &alternatives {
-            let checkpoint = input.save();
-            match input.parse(alternative) {
-                Ok(output) => {
-                    if let Some(error) = abandoned_error {
-                        input.state().record_diagnostic_candidate(error);
-                    }
-                    return Ok(output);
-                }
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    abandoned_error = Some(match abandoned_error {
-                        None => error,
-                        Some(previous) => merge_choice_errors(previous, error),
-                    });
-                }
+pub(crate) fn choice_nil() -> ChoiceNil {
+    ChoiceNil
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn choice_cons<P, Rest>(head: P, rest: Rest) -> ChoiceCons<P, Rest> {
+    ChoiceCons { head, rest }
+}
+
+/// Ordered-choice driving over a typed alternative list.
+///
+/// `Err(())` means every alternative failed and `abandoned` holds the merged error of
+/// all failed alternatives; the caller turns it into the choice's own error.
+#[contract_trait]
+pub(crate) trait OrderedChoiceAlternatives<'tokens, O> {
+    #[requires(true)]
+    #[ensures(ret.is_err() -> abandoned.is_some())]
+    fn drive_emit_alternatives(
+        &self,
+        input: &mut InputRef<'tokens, '_>,
+        abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    ) -> Result<O, ()>;
+}
+
+/// The empty tail is only driven after a preceding alternative failed, so the abandoned
+/// error is already recorded; [`strict_ordered_choice`] never takes a bare `ChoiceNil`.
+#[contract_trait]
+impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
+    #[inline(always)]
+    fn drive_emit_alternatives(
+        &self,
+        _input: &mut InputRef<'tokens, '_>,
+        abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    ) -> Result<O, ()> {
+        debug_assert!(
+            abandoned.is_some(),
+            "the empty tail follows a failed alternative"
+        );
+        Err(())
+    }
+}
+
+#[contract_trait]
+impl<'tokens, O, P, Rest> OrderedChoiceAlternatives<'tokens, O> for ChoiceCons<P, Rest>
+where
+    P: Parser<'tokens, O>,
+    Rest: OrderedChoiceAlternatives<'tokens, O>,
+{
+    #[inline(always)]
+    fn drive_emit_alternatives(
+        &self,
+        input: &mut InputRef<'tokens, '_>,
+        abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    ) -> Result<O, ()> {
+        let checkpoint = input.save();
+        match input.parse(&self.head) {
+            Ok(output) => {
+                record_abandoned_choice_error(input, abandoned);
+                Ok(output)
+            }
+            Err(error) => {
+                input.rewind(checkpoint);
+                merge_abandoned_choice_error(abandoned, error);
+                self.rest.drive_emit_alternatives(input, abandoned)
             }
         }
-        Err(abandoned_error.expect("ordered choice has at least one alternative"))
-    })
-    .boxed()
+    }
+}
+
+/// Records the errors of the alternatives abandoned before a successful one, as diagnostic
+/// candidates. Kept out of line so the recursion-path frame stays small.
+#[requires(true)]
+#[ensures(abandoned.is_none())]
+#[inline(never)]
+fn record_abandoned_choice_error<'tokens>(
+    input: &mut InputRef<'tokens, '_>,
+    abandoned: &mut Option<SyntaxParseError<'tokens>>,
+) {
+    if let Some(error) = abandoned.take() {
+        input.state().record_diagnostic_candidate(error);
+    }
+}
+
+/// Merges one more failed alternative's error into the abandoned error. Kept out of line so
+/// the recursion-path frame stays small.
+#[requires(true)]
+#[ensures(abandoned.is_some())]
+#[inline(never)]
+fn merge_abandoned_choice_error<'tokens>(
+    abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    error: SyntaxParseError<'tokens>,
+) {
+    *abandoned = Some(match abandoned.take() {
+        None => error,
+        Some(previous) => merge_choice_errors(previous, error),
+    });
+}
+
+/// Ordered choice over a typed alternative list; see [`ChoiceCons`].
+///
+/// Taking the first cons cell makes an empty choice unrepresentable: an empty list would
+/// have no abandoned error to report.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn strict_ordered_choice<'tokens, O, P, Rest>(
+    alternatives: ChoiceCons<P, Rest>,
+) -> impl Parser<'tokens, O> + Clone
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    Rest: OrderedChoiceAlternatives<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let mut abandoned = None;
+            match alternatives.drive_emit_alternatives(input, &mut abandoned) {
+                Ok(output) => Ok(output),
+                Err(()) => {
+                    Err(abandoned.expect("a non-empty ordered choice records the abandoned error"))
+                }
+            }
+        },
+    )
 }
 
 #[requires(true)]
@@ -1086,11 +1334,12 @@ fn merge_choice_errors<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_free_modifier_list_parser<'tokens, F>(
-    free_modifier: BoxedParser<'tokens, F>,
-) -> BoxedParser<'tokens, Vec<F>>
+pub(crate) fn strict_free_modifier_list_parser<'tokens, F, P>(
+    free_modifier: P,
+) -> impl Parser<'tokens, Vec<F>> + Clone
 where
     F: 'tokens,
+    P: Parser<'tokens, F> + Clone + 'tokens,
 {
     strict_greedy_many_parser_without_diagnostics(free_modifier)
 }
@@ -1101,22 +1350,25 @@ where
 /// `WithFreeModifiers` model field while making the corresponding grammar slot absent.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn feature_free_modifier_list_parser<'tokens, F>(
+pub(crate) fn feature_free_modifier_list_parser<'tokens, F, P>(
     feature: SyntaxGrammarFeature,
-    enabled_parser: BoxedParser<'tokens, Vec<F>>,
-) -> BoxedParser<'tokens, Vec<F>>
+    enabled_parser: P,
+) -> impl Parser<'tokens, Vec<F>> + Clone
 where
     F: 'tokens,
+    P: Parser<'tokens, Vec<F>> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let env = input.state().syntax_grammar_env();
-        if feature.enabled(env.dialect) {
-            input.parse(&enabled_parser)
-        } else {
-            Ok(Vec::new())
-        }
-    })
-    .boxed()
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let env = input.state().syntax_grammar_env();
+            if feature.enabled(env.dialect) {
+                input.parse(&enabled_parser)
+            } else {
+                Ok(Vec::new())
+            }
+        },
+    )
 }
 
 #[contract_trait]
@@ -1393,7 +1645,7 @@ where
 impl<T, F> RecoveredSyntaxRequiredSlot for WithFreeModifiers<T, F> where T: RecoveredSyntaxSlot {}
 
 #[contract_trait]
-impl<T> RecoveredSyntaxSlot for super::generated_model::recovered::WithFreeModifiers<T>
+impl<T, F> RecoveredSyntaxSlot for super::generated_model::recovered::WithFreeModifiers<T, F>
 where
     T: RecoveredSyntaxSlot,
 {
@@ -1416,8 +1668,10 @@ where
     }
 }
 
-impl<T> RecoveredSyntaxRequiredSlot for super::generated_model::recovered::WithFreeModifiers<T> where
-    T: RecoveredSyntaxSlot
+impl<T, F> RecoveredSyntaxRequiredSlot
+    for super::generated_model::recovered::WithFreeModifiers<T, F>
+where
+    T: RecoveredSyntaxSlot,
 {
 }
 
@@ -1846,25 +2100,24 @@ pub(crate) trait SyntaxFirstWord {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_cll_prohibited_free_modifier_list_parser<'tokens, F>(
-    free_modifier: BoxedParser<'tokens, F>,
-) -> BoxedParser<'tokens, Vec<F>>
+pub(crate) fn strict_cll_prohibited_free_modifier_list_parser<'tokens, F, P>(
+    free_modifier: P,
+) -> impl Parser<'tokens, Vec<F>> + Clone
 where
     F: SyntaxFirstWord + 'tokens,
+    P: Parser<'tokens, F> + Clone + 'tokens,
 {
-    strict_greedy_many_parser_without_diagnostics(
-        free_modifier
-            .map_with(|free_modifier, extra: &mut MapExtra<'tokens, '_>| {
-                if let Some(anchor) = free_modifier.first_word() {
-                    extra.state().warn(
-                        ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
-                        anchor,
-                    );
-                }
-                free_modifier
-            })
-            .boxed(),
-    )
+    strict_greedy_many_parser_without_diagnostics(free_modifier.map_with(
+        |free_modifier, extra: &mut MapExtra<'tokens, '_>| {
+            if let Some(anchor) = free_modifier.first_word() {
+                extra.state().warn(
+                    ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
+                    anchor,
+                );
+            }
+            free_modifier
+        },
+    ))
 }
 
 #[requires(true)]
@@ -1887,21 +2140,24 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn with_free_modifier_list<'tokens, O, F, P>(
+pub(crate) fn with_free_modifier_list<'tokens, O, F, P, L>(
     inner: P,
-    free_modifier_list: BoxedParser<'tokens, Vec<F>>,
-) -> BoxedParser<'tokens, WithFreeModifiers<O, F>>
+    free_modifier_list: L,
+) -> impl Parser<'tokens, WithFreeModifiers<O, F>> + Clone
 where
     O: 'tokens,
     F: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
+    L: Parser<'tokens, Vec<F>> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let value = input.parse(&inner)?;
-        let free_modifiers = input.parse(&free_modifier_list)?;
-        Ok(WithFreeModifiers::new(value, free_modifiers))
-    })
-    .boxed()
+    custom::<_, _>(
+        #[inline(always)]
+        move |input| {
+            let value = input.parse(&inner)?;
+            let free_modifiers = input.parse(&free_modifier_list)?;
+            Ok(WithFreeModifiers::new(value, free_modifiers))
+        },
+    )
 }
 
 #[requires(true)]
