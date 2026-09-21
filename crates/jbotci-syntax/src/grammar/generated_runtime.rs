@@ -1169,6 +1169,8 @@ pub(crate) trait OrderedChoiceAlternatives<'tokens, O> {
     ) -> Result<O, ()>;
 }
 
+/// The empty tail is only driven after a preceding alternative failed, so the abandoned
+/// error is already recorded; [`strict_ordered_choice`] never takes a bare `ChoiceNil`.
 #[contract_trait]
 impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
     #[inline(always)]
@@ -1179,7 +1181,7 @@ impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
     ) -> Result<O, ()> {
         debug_assert!(
             abandoned.is_some(),
-            "ordered choice has at least one alternative"
+            "the empty tail follows a failed alternative"
         );
         Err(())
     }
@@ -1242,14 +1244,18 @@ fn merge_abandoned_choice_error<'tokens>(
 }
 
 /// Ordered choice over a typed alternative list; see [`ChoiceCons`].
+///
+/// Taking the first cons cell makes an empty choice unrepresentable: an empty list would
+/// have no abandoned error to report.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_ordered_choice<'tokens, O, A>(
-    alternatives: A,
+pub(crate) fn strict_ordered_choice<'tokens, O, P, Rest>(
+    alternatives: ChoiceCons<P, Rest>,
 ) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
-    A: OrderedChoiceAlternatives<'tokens, O> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    Rest: OrderedChoiceAlternatives<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(
         #[inline(always)]
@@ -1257,7 +1263,9 @@ where
             let mut abandoned = None;
             match alternatives.drive_emit_alternatives(input, &mut abandoned) {
                 Ok(output) => Ok(output),
-                Err(()) => Err(abandoned.expect("ordered choice has at least one alternative")),
+                Err(()) => {
+                    Err(abandoned.expect("a non-empty ordered choice records the abandoned error"))
+                }
             }
         },
     )
