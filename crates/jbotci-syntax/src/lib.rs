@@ -4789,7 +4789,7 @@ mod tests {
         let probe = receiver
             .recv_timeout(std::time::Duration::from_secs(10))
             .expect("recovered syntax parse should terminate for quote-contained syntax errors");
-        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.error_byte_starts.len(), 1);
         assert_eq!(
             probe.valid_tokens,
             ["lu", "mi", "i", "do", "li'u", "i", "mi", "kláma"]
@@ -4803,7 +4803,7 @@ mod tests {
     fn recovered_syntax_quote_internal_error_without_inner_anchor_closes_quote() {
         let probe = recovered_syntax_probe("lu mi ku do li'u i mi klama");
 
-        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.error_byte_starts.len(), 1);
         assert_eq!(probe.valid_tokens, ["lu", "mi", "li'u", "i", "mi", "kláma"]);
         assert_eq!(probe.recovery_spans, [(6, 8), (9, 11)]);
     }
@@ -4812,18 +4812,125 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_degraded_fallback_accounts_for_input_tokens() {
-        let probe = recovered_syntax_probe("ge mi ku gi do");
+        // The error is at the first token, so no construct was open before it
+        // and neither selector has anything to claim: degraded text is the
+        // only recovery, and it must still account for every input token.
+        let probe = recovered_syntax_probe("ku gi do");
 
-        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.error_byte_starts, [0]);
         assert!(
             probe.valid_tokens.is_empty(),
-            "FieldFirst-only gi recovery should remain degraded in v1, got {:?}",
+            "an error at the first token leaves nothing to retain, got {:?}",
             probe.valid_tokens
         );
+        assert_eq!(probe.recovery_spans, [(0, 2), (3, 5), (6, 8)]);
+        assert_eq!(probe.missing_count, 0);
+    }
+
+    /// Recovers `source` and checks that the strict parse fails where the
+    /// recovered parse reports its first error, so the recovered tree is
+    /// compared against an unchanged error position.
+    #[requires(true)]
+    #[ensures(ret.error_byte_starts.first() == Some(&strict_error_byte_start))]
+    fn recovered_syntax_probe_at_strict_error(
+        source: &str,
+        strict_error_byte_start: usize,
+    ) -> RecoveredSyntaxProbe {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let strict =
+            parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
+                .expect_err("the strict parse should fail");
+        assert_eq!(syntax_error_byte_start(&strict), strict_error_byte_start);
+        recovered_syntax_probe(source)
+    }
+
+    // The next three inputs each fail at an error whose first-phase recovery
+    // candidates are all tried and rejected. Recovery must then consult the
+    // final candidates, exactly as it does when the first phase offers none,
+    // instead of degrading the whole text: each keeps the valid prefix as
+    // structure and skips only the construct that could not be completed.
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
+        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je fa me ku", 18);
+
+        assert_eq!(probe.error_byte_starts, [18]);
+        assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
         assert_eq!(
             probe.recovery_spans,
-            [(0, 2), (3, 5), (6, 8), (9, 11), (12, 14)]
+            [(9, 11), (12, 14), (15, 17), (18, 20), (21, 23)]
         );
+        assert_eq!(probe.missing_count, 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_rejected_first_phase_retains_forethought_connective() {
+        let probe = recovered_syntax_probe_at_strict_error("mi na'e ga broda gi brode ku", 11);
+
+        assert_eq!(probe.error_byte_starts, [11]);
+        assert_eq!(probe.valid_tokens, ["mi", "na'e", "ga"]);
+        assert_eq!(
+            probe.recovery_spans,
+            [(11, 16), (17, 19), (20, 25), (26, 28), (11, 11), (11, 11)]
+        );
+        assert_eq!(
+            probe.missing_count, 2,
+            "the forethought connection keeps `ga` and marks both missing operands"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_rejected_first_phase_falls_back_at_later_error() {
+        // The first error (`gi`) recovers from the first phase; the fallback
+        // is needed only at the second error (`broda`), so this pins that the
+        // final selector is consulted at every error, not just the first.
+        let probe = recovered_syntax_probe_at_strict_error("mi gi je broda gi brode ku", 3);
+
+        assert_eq!(probe.error_byte_starts, [3, 9]);
+        assert_eq!(probe.valid_tokens, ["mi"]);
+        assert_eq!(
+            probe.recovery_spans,
+            [(3, 5), (6, 8), (9, 14), (15, 17), (18, 23), (24, 26)]
+        );
+        assert_eq!(probe.missing_count, 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_first_phase_success_does_not_consult_final_selector() {
+        // Control: the first phase already recovers these, so the final
+        // candidates must not be tried. Any of them winning instead would
+        // replace the in-place skip with a skip to the end of the text. The
+        // first two recover by exact success; the third makes progress past
+        // its first error, which the final candidates must not preempt either.
+        let probe = recovered_syntax_probe_at_strict_error("mi jai ke ko'a ke'e", 10);
+        assert_eq!(probe.error_byte_starts, [10]);
+        assert_eq!(probe.valid_tokens, ["mi", "jaĭ", "ke", "ke'e"]);
+        assert_eq!(probe.recovery_spans, [(10, 14), (10, 10)]);
+        assert_eq!(probe.missing_count, 1);
+
+        let probe = recovered_syntax_probe_at_strict_error("mi tavla zo broda ku be", 18);
+        assert_eq!(probe.error_byte_starts, [18]);
+        assert_eq!(probe.valid_tokens, ["mi", "távla", "zo-<<gismu:bróda>>"]);
+        assert_eq!(probe.recovery_spans, [(18, 20), (21, 23), (18, 18)]);
+        assert_eq!(probe.missing_count, 1);
+
+        let probe = recovered_syntax_probe_at_strict_error("mi viska lo .i mi klama le", 13);
+        assert_eq!(probe.error_byte_starts, [13, 26]);
+        assert_eq!(
+            probe.valid_tokens,
+            ["mi", "víska", "i", "mi", "kláma", "le"]
+        );
+        assert_eq!(probe.recovery_spans, [(9, 11), (26, 26)]);
+        assert_eq!(probe.missing_count, 1);
     }
 
     #[test]
@@ -4962,7 +5069,7 @@ mod tests {
     fn recovered_syntax_eof_error_preserves_prefix_tree() {
         let probe = recovered_syntax_probe("mi viska lo");
 
-        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.error_byte_starts.len(), 1);
         assert!(
             probe.valid_tokens.iter().any(|token| token == "mi")
                 && probe.valid_tokens.iter().any(|token| token.contains("ska"))
@@ -5017,7 +5124,7 @@ mod tests {
     fn recovered_syntax_literal_run_anchors_keep_tree_content() {
         for source in ["le ku do"] {
             let probe = recovered_syntax_probe(source);
-            assert_eq!(probe.error_count, 1, "{source:?}");
+            assert_eq!(probe.error_byte_starts.len(), 1, "{source:?}");
             assert!(
                 !probe.valid_tokens.is_empty(),
                 "literal-run recovery for {source:?} should not degrade to an empty tree"
@@ -5058,16 +5165,18 @@ mod tests {
     struct RecoveredTokenAndErrorVisitor {
         valid_tokens: Vec<String>,
         recovery_spans: Vec<(usize, usize)>,
+        missing_count: usize,
     }
 
     #[invariant(valid_tokens.iter().all(|token| !token.is_empty()))]
-    #[invariant(*error_count == 0 -> recovery_spans.is_empty())]
+    #[invariant(error_byte_starts.is_empty() -> recovery_spans.is_empty() && *missing_count == 0)]
     #[invariant(recovery_spans.iter().all(|(start, end)| start <= end))]
     #[derive(Debug)]
     struct RecoveredSyntaxProbe {
-        error_count: usize,
+        error_byte_starts: Vec<usize>,
         valid_tokens: Vec<String>,
         recovery_spans: Vec<(usize, usize)>,
+        missing_count: usize,
     }
 
     #[requires(true)]
@@ -5086,9 +5195,14 @@ mod tests {
             &mut visitor,
         );
         new!(RecoveredSyntaxProbe {
-            error_count: recovered.errors.len(),
+            error_byte_starts: recovered
+                .errors
+                .iter()
+                .map(syntax_error_byte_start)
+                .collect(),
             valid_tokens: visitor.valid_tokens,
             recovery_spans: visitor.recovery_spans,
+            missing_count: visitor.missing_count,
         })
     }
 
@@ -5114,6 +5228,9 @@ mod tests {
         where
             E: jbotci_tree::RecoveryItemState + serde::Serialize,
         {
+            if item.recovery_item_kind() == jbotci_tree::RecoveryItemKind::Missing {
+                self.missing_count += 1;
+            }
             item.visit_source_spans(&mut |span| {
                 self.recovery_spans.push((span.byte_start, span.byte_end));
             });
