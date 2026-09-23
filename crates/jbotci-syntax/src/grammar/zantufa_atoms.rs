@@ -2817,6 +2817,98 @@ mod tests {
         }
     }
 
+    /// The same memo-replay equivalence, across a truncation that actually runs.
+    ///
+    /// `strict_tail_memo_replay_preserves_rolled_back_diagnostics` below takes its
+    /// checkpoint before any frame is open, so `checkpoint.frame` is `None` and the
+    /// `if let Some(mark)` branch of `restore_diagnostics` - the one that truncates the
+    /// frame's `diagnostic_observations` - never executes in it. That branch was added
+    /// with the frame mark and has had no test that can observe it. This one enters a
+    /// frame first, so the checkpoint carries a mark and the truncation is exercised.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn frame_scoped_truncation_preserves_memo_replay_equivalence() {
+        let source = "klama le";
+        let options = ParseOptions::default();
+        let words = segment_words_with_modifiers(source).unwrap();
+        let words = syntax_tokens(&words, &options);
+        let spanned = tokens::spanned_tokens(&words);
+        let eoi = spanned.last().unwrap().span.end;
+        let mut state = ParserState::new(&words, &options);
+
+        // The difference from the vacuous test: open a frame BEFORE checkpointing, so
+        // the checkpoint records a frame mark and the truncation branch is live.
+        state.begin_syntax_memo_rule_frame();
+        let checkpoint = state.diagnostic_checkpoint();
+        let marked_len = checkpoint
+            .frame
+            .as_ref()
+            .expect("checkpoint must carry a frame mark or this test cannot observe the truncation")
+            .observation_len;
+
+        let parser = generated_model::strict_selbri_simple_bridi_tail_parser(
+            generated_model::strict_generated_zantufa_selbri_entry_parser(),
+            generated_model::strict_generated_term_parser(),
+            generated_model::strict_generated_free_modifier_parser(),
+        );
+        assert!(
+            parser
+                .clone()
+                .parse_with_state(
+                    spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                    &mut state,
+                )
+                .into_result()
+                .is_err()
+        );
+        let fresh = state.diagnostic_candidates_snapshot();
+        assert!(!fresh.is_empty());
+
+        // The parse must have recorded observations past the mark, or the truncation below
+        // removes nothing and the equivalence assertion is trivially true.
+        let recorded_len = state
+            .syntax_memo_rule_frames
+            .last()
+            .expect("the frame opened above is still open")
+            .diagnostic_observations
+            .len();
+        assert!(
+            recorded_len > marked_len,
+            "the parse must record observations past the mark ({recorded_len} <= {marked_len})"
+        );
+
+        // Roll back through the frame-aware path, which truncates the frame's
+        // observation suffix as well as restoring the candidates.
+        state.restore_diagnostics(checkpoint);
+        assert_eq!(
+            state
+                .syntax_memo_rule_frames
+                .last()
+                .expect("the frame opened above is still open")
+                .diagnostic_observations
+                .len(),
+            marked_len,
+            "restore must truncate the frame's observations back to the mark"
+        );
+        assert!(
+            parser
+                .parse_with_state(
+                    spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                    &mut state,
+                )
+                .into_result()
+                .is_err()
+        );
+        let replayed = state.diagnostic_candidates_snapshot();
+        assert_eq!(
+            replayed.len(),
+            fresh.len(),
+            "truncating the frame's observations must not change what a re-parse reports"
+        );
+        state.finish_syntax_memo_rule_frame();
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
