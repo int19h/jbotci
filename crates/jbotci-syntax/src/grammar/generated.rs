@@ -7785,7 +7785,7 @@ pub mod generated_model {
     // the model variant stays the product's own, so parser/model remains 1:1.
     alias "Zantufa grouped sumti" zantufa_grouped_sumti_candidate(sumti) =
         zantufa_grouped_sumti(sumti)
-            .reject_output(crate::grammar::zantufa_atoms::GroupedSumtiRejection)
+            .reject_recovered_output(crate::grammar::zantufa_atoms::GroupedSumtiRejection)
             .recursive_output(zantufa_grouped_sumti_candidate);
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,

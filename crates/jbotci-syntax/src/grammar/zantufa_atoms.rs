@@ -362,23 +362,12 @@ fn recovered_fa_presence(value: &recovered::ZantufaFaTanruUnitSyntax) -> Zantufa
 /// Without this the grouped product is the one C-e owner that could win on no evidence at all: a
 /// recovered `KE` with a synthesized body still completes, so `ke ke'e` alone would claim the
 /// construct and report its warning while owning nothing.
+///
+/// Recovered-only: a strict grouped sumti has its `cmavo(Ke)` opener and a complete `arc(sumti)`
+/// body by construction, so the grammar applies this through `reject_recovered_output()`.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GroupedSumtiRejection;
-
-/// A strict grouped sumti parsed its `KE` and a complete body by construction; the marker check
-/// is the same defensive inventory statement the FA classifier makes.
-#[requires(true)]
-#[ensures(ret != ZantufaTanruAtomPresence::Unproven)]
-fn strict_grouped_sumti_presence(
-    value: &model::ZantufaGroupedSumtiSyntax,
-) -> ZantufaTanruAtomPresence {
-    if value.ke.value.is_cmavo(jbotci_morphology::Cmavo::Ke) {
-        ZantufaTanruAtomPresence::Present
-    } else {
-        ZantufaTanruAtomPresence::Absent
-    }
-}
 
 /// Fail closed: a grouped sumti owns its extent only with a proven `KE` and a proven body.
 ///
@@ -410,25 +399,13 @@ fn recovered_grouped_sumti_presence(
 }
 
 #[bityzba::contract_trait]
-impl super::generated_runtime::OutputRejection<model::ZantufaGroupedSumtiSyntax>
-    for GroupedSumtiRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "unowned Zantufa grouped sumti"
-    }
-    fn rejects(&self, value: &model::ZantufaGroupedSumtiSyntax) -> bool {
-        strict_grouped_sumti_presence(value) != ZantufaTanruAtomPresence::Present
-    }
-}
-
-#[bityzba::contract_trait]
-impl super::generated_runtime::OutputRejection<recovered::ZantufaGroupedSumtiSyntax>
+impl super::generated_runtime::RecoveredOutputRejection<recovered::ZantufaGroupedSumtiSyntax>
     for GroupedSumtiRejection
 {
     fn rejected_name(&self) -> &'static str {
         "unproven Zantufa grouped sumti"
     }
-    fn rejects(&self, value: &recovered::ZantufaGroupedSumtiSyntax) -> bool {
+    fn rejects_uncertain(&self, value: &recovered::ZantufaGroupedSumtiSyntax) -> bool {
         classify_recovered_product(
             TracedCandidate::GroupedSumti,
             value,
@@ -439,21 +416,16 @@ impl super::generated_runtime::OutputRejection<recovered::ZantufaGroupedSumtiSyn
 
 #[bityzba::contract_trait]
 impl
-    super::generated_runtime::OutputRejection<
+    super::generated_runtime::RecoveredOutputRejection<
         recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>,
     > for GroupedSumtiRejection
 {
     fn rejected_name(&self) -> &'static str {
         "unproven Zantufa grouped sumti"
     }
-    #[ensures(ret)]
-    fn rejects(&self, _value: &recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>) -> bool {
-        true
-    }
-    fn rejects_in_dialect(
+    fn rejects_uncertain(
         &self,
         value: &recovered::Recovered<recovered::ZantufaGroupedSumtiSyntax>,
-        _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
         classify_recovered_wrapper(
             TracedCandidate::GroupedSumti,
