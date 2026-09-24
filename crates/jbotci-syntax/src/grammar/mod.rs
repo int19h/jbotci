@@ -3637,7 +3637,14 @@ fn recover_after_strict_failure(
             );
             candidates.retain(|directive| directive.kind == RecoveryDirectiveKind::BoundaryResync);
         }
-        let candidates = if candidates.is_empty() {
+        // The final selector is the last source of candidates before the
+        // parse degrades. It is consulted here when the first phase offers
+        // nothing, and after the first-phase trials when all of them fail
+        // (see the end of `'recovery_rounds`). An exhausted local cap
+        // withholds it in both cases: its claims are local, not boundary
+        // resyncs.
+        let mut final_selector_pending = !candidates.is_empty() && !local_cap_exhausted;
+        let mut candidates = if candidates.is_empty() {
             if local_cap_exhausted {
                 Vec::new()
             } else {
@@ -3653,240 +3660,262 @@ fn recover_after_strict_failure(
         let mut accepted_progress = None;
         let mut exact_position_success = None;
         let mut rejected_exact_sites = Vec::new();
-        'recovery_phases: for natural_stop_enabled in [false, true] {
-            let trial_limit = if natural_stop_enabled {
-                MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR
-            } else {
-                LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR
-            };
-            let mut trial_count = 0usize;
-            for directive in candidates.iter().cloned() {
-                if directives.iter().any(|existing| {
-                    same_recovery_site(existing, &directive)
-                        || same_boundary_resync_group(existing, &directive)
-                }) {
-                    continue;
-                }
-                if trial_count >= trial_limit {
-                    break;
-                }
-                trial_count += 1;
-                if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                    continuation_time_limit_exhausted = true;
-                    break 'recovery_errors;
-                }
-                let directive = if natural_stop_enabled {
-                    directive.with_natural_stop_enabled()
+        'recovery_rounds: loop {
+            'recovery_phases: for natural_stop_enabled in [false, true] {
+                let trial_limit = if natural_stop_enabled {
+                    MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR
                 } else {
-                    directive
+                    LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR
                 };
-                let mut trial_directives = directives.clone();
-                trial_directives.push(directive.clone());
-
-                if !natural_stop_enabled {
-                    record_recovery_reachability_telemetry(
-                        directive.kind,
-                        RecoveryReachabilityTelemetryEvent::ExactConsidered,
-                        1,
-                    );
-                }
-                let paired_rejected_exact = natural_stop_enabled
-                    && rejected_exact_sites
-                        .iter()
-                        .any(|exact| same_recovery_site(exact, &directive));
-                if !natural_stop_enabled
-                    && reachability_filter_enabled
-                    && !exact_trial_reachable(&failure, &directive)
-                {
-                    record_recovery_reachability_telemetry(
-                        directive.kind,
-                        RecoveryReachabilityTelemetryEvent::ExactSkipped,
-                        1,
-                    );
-                    #[cfg(feature = "expensive_contracts")]
-                    {
-                        let verification = run_recovery_trial(
-                            &tokens,
-                            &parser_tokens,
-                            source,
-                            options,
-                            &trial_directives,
-                            &directive,
-                            &mut recovery_session,
-                            errors.len(),
-                            global_hard_cap,
-                            errors.last().map_or(0, syntax_error_start),
-                        );
-                        if matches!(verification, RecoveryTrialClassification::Rejected { .. }) {
-                            record_recovery_reachability_telemetry(
-                                directive.kind,
-                                RecoveryReachabilityTelemetryEvent::SkipVerifiedRejected,
-                                1,
-                            );
-                        } else {
-                            record_recovery_reachability_telemetry(
-                                directive.kind,
-                                RecoveryReachabilityTelemetryEvent::SkipFalsePositive,
-                                1,
-                            );
-                            let related_checkpoints = failure
-                                .checkpoints
-                                .iter()
-                                .filter(|checkpoint| checkpoint.rule == directive.rule)
-                                .collect::<Vec<_>>();
-                            panic!(
-                                "exact-site reachability skipped a trial accepted by the #533 classifier: {directive:?}; same-rule checkpoints: {related_checkpoints:?}"
-                            );
-                        }
+                let mut trial_count = 0usize;
+                for directive in candidates.iter().cloned() {
+                    if directives.iter().any(|existing| {
+                        same_recovery_site(existing, &directive)
+                            || same_boundary_resync_group(existing, &directive)
+                    }) {
+                        continue;
                     }
-                    rejected_exact_sites.push(directive);
-                    continue;
-                }
-                if !natural_stop_enabled {
-                    record_recovery_reachability_telemetry(
-                        directive.kind,
-                        RecoveryReachabilityTelemetryEvent::ExactRun,
-                        1,
-                    );
-                }
-                let classification = run_recovery_trial(
-                    &tokens,
-                    &parser_tokens,
-                    source,
-                    options,
-                    &trial_directives,
-                    &directive,
-                    &mut recovery_session,
-                    errors.len(),
-                    global_hard_cap,
-                    errors.last().map_or(0, syntax_error_start),
-                );
-                if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                    continuation_time_limit_exhausted = true;
-                    break 'recovery_errors;
-                }
-                match classification {
-                    RecoveryTrialClassification::AcceptedSuccess {
-                        trial,
-                        fired_left_of_declared_failure,
-                    } => {
-                        if natural_stop_enabled {
-                            if paired_rejected_exact {
+                    if trial_count >= trial_limit {
+                        break;
+                    }
+                    trial_count += 1;
+                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                        continuation_time_limit_exhausted = true;
+                        break 'recovery_errors;
+                    }
+                    let directive = if natural_stop_enabled {
+                        directive.with_natural_stop_enabled()
+                    } else {
+                        directive
+                    };
+                    let mut trial_directives = directives.clone();
+                    trial_directives.push(directive.clone());
+
+                    if !natural_stop_enabled {
+                        record_recovery_reachability_telemetry(
+                            directive.kind,
+                            RecoveryReachabilityTelemetryEvent::ExactConsidered,
+                            1,
+                        );
+                    }
+                    let paired_rejected_exact = natural_stop_enabled
+                        && rejected_exact_sites
+                            .iter()
+                            .any(|exact| same_recovery_site(exact, &directive));
+                    if !natural_stop_enabled
+                        && reachability_filter_enabled
+                        && !exact_trial_reachable(&failure, &directive)
+                    {
+                        record_recovery_reachability_telemetry(
+                            directive.kind,
+                            RecoveryReachabilityTelemetryEvent::ExactSkipped,
+                            1,
+                        );
+                        #[cfg(feature = "expensive_contracts")]
+                        {
+                            let verification = run_recovery_trial(
+                                &tokens,
+                                &parser_tokens,
+                                source,
+                                options,
+                                &trial_directives,
+                                &directive,
+                                &mut recovery_session,
+                                errors.len(),
+                                global_hard_cap,
+                                errors.last().map_or(0, syntax_error_start),
+                            );
+                            if matches!(verification, RecoveryTrialClassification::Rejected { .. })
+                            {
                                 record_recovery_reachability_telemetry(
                                     directive.kind,
-                                    RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                    RecoveryReachabilityTelemetryEvent::SkipVerifiedRejected,
+                                    1,
+                                );
+                            } else {
+                                record_recovery_reachability_telemetry(
+                                    directive.kind,
+                                    RecoveryReachabilityTelemetryEvent::SkipFalsePositive,
+                                    1,
+                                );
+                                let related_checkpoints = failure
+                                    .checkpoints
+                                    .iter()
+                                    .filter(|checkpoint| checkpoint.rule == directive.rule)
+                                    .collect::<Vec<_>>();
+                                panic!(
+                                    "exact-site reachability skipped a trial accepted by the #533 classifier: {directive:?}; same-rule checkpoints: {related_checkpoints:?}"
+                                );
+                            }
+                        }
+                        rejected_exact_sites.push(directive);
+                        continue;
+                    }
+                    if !natural_stop_enabled {
+                        record_recovery_reachability_telemetry(
+                            directive.kind,
+                            RecoveryReachabilityTelemetryEvent::ExactRun,
+                            1,
+                        );
+                    }
+                    let classification = run_recovery_trial(
+                        &tokens,
+                        &parser_tokens,
+                        source,
+                        options,
+                        &trial_directives,
+                        &directive,
+                        &mut recovery_session,
+                        errors.len(),
+                        global_hard_cap,
+                        errors.last().map_or(0, syntax_error_start),
+                    );
+                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                        continuation_time_limit_exhausted = true;
+                        break 'recovery_errors;
+                    }
+                    match classification {
+                        RecoveryTrialClassification::AcceptedSuccess {
+                            trial,
+                            fired_left_of_declared_failure,
+                        } => {
+                            if natural_stop_enabled {
+                                if paired_rejected_exact {
+                                    record_recovery_reachability_telemetry(
+                                        directive.kind,
+                                        RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                        1,
+                                    );
+                                }
+                            } else {
+                                record_recovery_reachability_telemetry(
+                                    directive.kind,
+                                    RecoveryReachabilityTelemetryEvent::ExactWins,
                                     1,
                                 );
                             }
-                        } else {
-                            record_recovery_reachability_telemetry(
-                                directive.kind,
-                                RecoveryReachabilityTelemetryEvent::ExactWins,
-                                1,
-                            );
-                        }
-                        let data!(RecoverySuccessTrial {
-                            parsed,
-                            trace: attempt_trace,
-                            directives: applied_directives,
-                            effective_fail_token_indices: applied_effective_fail_token_indices,
-                        }) = trial.into_data();
-                        if !natural_stop_enabled || fired_left_of_declared_failure {
-                            let winning_expectations =
-                                if let Some(sentinel_index) = continuation_sentinel_index {
-                                    let expectations =
-                                        replay_winning_continuation_success_expectations(
-                                            &tokens,
-                                            &parser_tokens,
-                                            source,
-                                            options,
-                                            &applied_directives,
-                                            0,
-                                            &applied_effective_fail_token_indices,
-                                            sentinel_index,
-                                            continuation_time_limit,
-                                        )
-                                        .unwrap_or_default();
-                                    if continuation_time_limit
-                                        .is_some_and(ContinuationTimeLimit::exhausted)
-                                    {
-                                        continuation_time_limit_exhausted = true;
-                                        break 'recovery_errors;
-                                    }
-                                    expectations
-                                } else {
-                                    continuation_expectations
-                                };
-                            recovery_session.clear_memo();
-                            return recovered_success(
-                                parsed,
-                                &errors,
-                                attempt_trace,
-                                winning_expectations,
-                                continuation_sentinel_index.is_some(),
-                            );
-                        }
-                        if !directives.is_empty() && exact_position_success.is_none() {
-                            exact_position_success = Some(new!(RecoverySuccessTrial {
+                            let data!(RecoverySuccessTrial {
                                 parsed,
                                 trace: attempt_trace,
                                 directives: applied_directives,
                                 effective_fail_token_indices: applied_effective_fail_token_indices,
-                            }));
+                            }) = trial.into_data();
+                            if !natural_stop_enabled || fired_left_of_declared_failure {
+                                let winning_expectations =
+                                    if let Some(sentinel_index) = continuation_sentinel_index {
+                                        let expectations =
+                                            replay_winning_continuation_success_expectations(
+                                                &tokens,
+                                                &parser_tokens,
+                                                source,
+                                                options,
+                                                &applied_directives,
+                                                0,
+                                                &applied_effective_fail_token_indices,
+                                                sentinel_index,
+                                                continuation_time_limit,
+                                            )
+                                            .unwrap_or_default();
+                                        if continuation_time_limit
+                                            .is_some_and(ContinuationTimeLimit::exhausted)
+                                        {
+                                            continuation_time_limit_exhausted = true;
+                                            break 'recovery_errors;
+                                        }
+                                        expectations
+                                    } else {
+                                        continuation_expectations
+                                    };
+                                recovery_session.clear_memo();
+                                return recovered_success(
+                                    parsed,
+                                    &errors,
+                                    attempt_trace,
+                                    winning_expectations,
+                                    continuation_sentinel_index.is_some(),
+                                );
+                            }
+                            if !directives.is_empty() && exact_position_success.is_none() {
+                                exact_position_success = Some(new!(RecoverySuccessTrial {
+                                    parsed,
+                                    trace: attempt_trace,
+                                    directives: applied_directives,
+                                    effective_fail_token_indices:
+                                        applied_effective_fail_token_indices,
+                                }));
+                            }
                         }
-                    }
-                    RecoveryTrialClassification::AcceptedProgress { trial } => {
-                        if natural_stop_enabled {
-                            if paired_rejected_exact {
+                        RecoveryTrialClassification::AcceptedProgress { trial } => {
+                            if natural_stop_enabled {
+                                if paired_rejected_exact {
+                                    record_recovery_reachability_telemetry(
+                                        directive.kind,
+                                        RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                        1,
+                                    );
+                                }
+                            } else {
                                 record_recovery_reachability_telemetry(
                                     directive.kind,
-                                    RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                    RecoveryReachabilityTelemetryEvent::ExactWins,
                                     1,
                                 );
                             }
-                        } else {
-                            record_recovery_reachability_telemetry(
-                                directive.kind,
-                                RecoveryReachabilityTelemetryEvent::ExactWins,
-                                1,
-                            );
+                            if accepted_progress.is_none() {
+                                accepted_progress = Some(trial);
+                            }
+                            if !natural_stop_enabled {
+                                break 'recovery_phases;
+                            }
                         }
-                        if accepted_progress.is_none() {
-                            accepted_progress = Some(trial);
-                        }
-                        if !natural_stop_enabled {
-                            break 'recovery_phases;
-                        }
-                    }
-                    RecoveryTrialClassification::Rejected {
-                        trace: attempt_trace,
-                    } => {
-                        if natural_stop_enabled {
-                            if paired_rejected_exact {
+                        RecoveryTrialClassification::Rejected {
+                            trace: attempt_trace,
+                        } => {
+                            if natural_stop_enabled {
+                                if paired_rejected_exact {
+                                    record_recovery_reachability_telemetry(
+                                        directive.kind,
+                                        RecoveryReachabilityTelemetryEvent::BothFail,
+                                        1,
+                                    );
+                                }
+                            } else {
                                 record_recovery_reachability_telemetry(
                                     directive.kind,
-                                    RecoveryReachabilityTelemetryEvent::BothFail,
+                                    RecoveryReachabilityTelemetryEvent::ExactRunRejected,
                                     1,
                                 );
+                                rejected_exact_sites.push(directive);
                             }
-                        } else {
-                            record_recovery_reachability_telemetry(
-                                directive.kind,
-                                RecoveryReachabilityTelemetryEvent::ExactRunRejected,
-                                1,
-                            );
-                            rejected_exact_sites.push(directive);
+                            trace = attempt_trace;
                         }
-                        trace = attempt_trace;
                     }
                 }
             }
+            if accepted_progress.is_some()
+                || exact_position_success.is_some()
+                || !final_selector_pending
+            {
+                break 'recovery_rounds;
+            }
+            // No first-phase trial yielded progress or a usable success.
+            // Consult the final candidates exactly as an empty first-phase
+            // list does: whether the first phase had candidates that all
+            // failed, or had none at all, is not a difference the recovery
+            // outcome may depend on.
+            final_selector_pending = false;
+            candidates = select_final_recovery_directives(&tokens, &failure, errors.len() - 1);
         }
 
         // The wider phase preserves natural-stop recoveries as its first
         // priority. After prior progress, if none fires left of the next
         // declared failure, a late exact-site success is still a complete
         // recovery and is preferable to degrading the entire parse.
+        //
+        // Degraded text is the last resort: past this point the driver stops
+        // only after the final selector has been consulted for the current
+        // error (or withheld by an exhausted local cap), whether the
+        // first-phase list was empty or every trial from it failed.
         if let Some(success) = exact_position_success {
             let data!(RecoverySuccessTrial {
                 parsed,
