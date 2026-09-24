@@ -1403,17 +1403,17 @@ impl ZantufaTanruAtomPresence {
 /// other JOIK shapes and tag payloads remain Unproven. Warning splits and
 /// remaining winning-recovery proofs govern fixture acceptance; the guarded parser
 /// route is connected and remains fail-closed for unproven evidence.
-#[requires(true)]
-#[ensures(!dialect.zantufa_selbri_enabled -> ret == ZantufaTanruAtomPresence::Absent)]
+#[requires(
+    dialect.zantufa_selbri_enabled,
+    "the product rule asserts feature(ZantufaSelbri), so no candidate exists on another axis"
+)]
+#[ensures(true)]
 fn strict_standalone_presence(
     candidate: &model::ZantufaForethoughtTanruUnitSyntax,
     dialect: &super::generated_runtime::SyntaxGrammarDialect,
 ) -> ZantufaTanruAtomPresence {
     use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
 
-    if !dialect.zantufa_selbri_enabled {
-        return Absent;
-    }
     let facts = strict_gek_facts(candidate);
     let model::ZantufaForethoughtTanruUnitSyntax {
         nahe,
@@ -1543,8 +1543,11 @@ pub(crate) fn strict_gek_projection(
 /// The caller retains any outer Prefix wrapper and its ordered errors. Every
 /// required child inside this product must establish its own evidence; a
 /// positive opener discriminator cannot mask an unproven branch or marker.
-#[requires(true)]
-#[ensures(!dialect.zantufa_selbri_enabled -> ret == ZantufaTanruAtomPresence::Absent)]
+#[requires(
+    dialect.zantufa_selbri_enabled,
+    "the product rule asserts feature(ZantufaSelbri), so no candidate exists on another axis"
+)]
+#[ensures(true)]
 fn recovered_standalone_presence(
     candidate: &recovered::ZantufaForethoughtTanruUnitSyntax,
     dialect: &super::generated_runtime::SyntaxGrammarDialect,
@@ -1552,9 +1555,6 @@ fn recovered_standalone_presence(
     use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
     use jbotci_morphology::Selmaho;
 
-    if !dialect.zantufa_selbri_enabled {
-        return Absent;
-    }
     let facts = recovered_gek_facts(candidate);
     let recovered::ZantufaForethoughtTanruUnitSyntax {
         nahe,
