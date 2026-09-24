@@ -17021,6 +17021,20 @@ class TaggedSelbriWithoutTerminalRelativeSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative:
+    'A KEhE-linked level-2 selbri whose tail keeps the description boundary.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_kehe_linked_selbri_without_terminal_relative']]]
+    def __new__(cls, zantufa_kehe_linked_selbri_without_terminal_relative: RecoveredField[ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax]) -> UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative: ...
+    @property
+    def zantufa_kehe_linked_selbri_without_terminal_relative(self) -> RecoveredField[ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax]:
+        'A KEhE-linked level-2 selbri whose tail keeps the description boundary.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative:
     'NA followed by another restricted selbri.'
     __match_args__: ClassVar[tuple[Literal['negated_selbri_without_terminal_relative']]]
@@ -17049,7 +17063,7 @@ class UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Untagged description-boundary selbri.
-UntaggedSelbriWithoutTerminalRelativeSyntax: TypeAlias = UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri
+UntaggedSelbriWithoutTerminalRelativeSyntax: TypeAlias = UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri
 
 @final
 class NegatedSelbriWithoutTerminalRelativeSyntax:
@@ -17063,6 +17077,80 @@ class NegatedSelbriWithoutTerminalRelativeSyntax:
     @property
     def inner_selbri(self) -> RecoveredField[SelbriWithoutTerminalRelativeSyntax]:
         'The recursively restricted inner selbri.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaKeheLinkedSelbriSyntax:
+    'A whole level-2 selbri closed by an unmatched KEhE, whose linked arguments apply to the\nwhole of it (#834; zantufa-1.9999.peg:45,\n`selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)*`).\n\nThe `!KE` guard is the source\'s: a KE-leading selbri keeps the grouped-KE owner, whose\n`ke\'e` closes its own group.'
+    __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['kehe'], Literal['linkargs'], Literal['relative_clauses'], Literal['assignments']]]
+    def __new__(
+        cls,
+        leading_selbri: RecoveredField[CoSelbriSyntax],
+        kehe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        linkargs: RecoveredField[LinkargsSyntax],
+        relative_clauses: RecoveredField[RelativeClauseListSyntax] | None,
+        assignments: Sequence[RecoveredField[ZantufaSelbriAssignmentSyntax]],
+    ) -> ZantufaKeheLinkedSelbriSyntax: ...
+    @property
+    def leading_selbri(self) -> RecoveredField[CoSelbriSyntax]:
+        'The level-2 selbri the linked arguments apply to, CO breadth included.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The unmatched KEhE closing the level-2 selbri, and the warning anchor.'
+        ...
+    @property
+    def linkargs(self) -> RecoveredField[LinkargsSyntax]:
+        'The linked arguments of the whole level-2 selbri.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax] | None:
+        'Optional selbri-level relative clauses after the linked arguments.'
+        ...
+    @property
+    def assignments(self) -> tuple[RecoveredField[ZantufaSelbriAssignmentSyntax], ...]:
+        'Zero or more following full-selbri CEI assignments.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax:
+    'The KEhE-linked selbri at the description boundary: no terminal relative, and a CEI chain\nwhose final operand keeps the boundary, exactly as the other no-terminal-relative forms.'
+    __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['kehe'], Literal['linkargs'], Literal['preceding_assignments'], Literal['final_assignment']]]
+    def __new__(
+        cls,
+        leading_selbri: RecoveredField[CoSelbriSyntax],
+        kehe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        linkargs: RecoveredField[LinkargsSyntax],
+        preceding_assignments: Sequence[RecoveredField[ZantufaSelbriAssignmentSyntax]],
+        final_assignment: RecoveredField[ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax] | None,
+    ) -> ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax: ...
+    @property
+    def leading_selbri(self) -> RecoveredField[CoSelbriSyntax]:
+        'The level-2 selbri the linked arguments apply to, CO breadth included.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The unmatched KEhE closing the level-2 selbri, and the warning anchor.'
+        ...
+    @property
+    def linkargs(self) -> RecoveredField[LinkargsSyntax]:
+        'The linked arguments of the whole level-2 selbri.'
+        ...
+    @property
+    def preceding_assignments(self) -> tuple[RecoveredField[ZantufaSelbriAssignmentSyntax], ...]:
+        'Full operands before the final assignment remain unrestricted.'
+        ...
+    @property
+    def final_assignment(self) -> RecoveredField[ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax] | None:
+        'The final assignment, if any, follows the restricted right spine.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -17106,6 +17194,20 @@ class ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class UntaggedSelbriSyntaxZantufaKeheLinkedSelbri:
+    'A level-2 selbri closed by an unmatched KEhE, with linked arguments for the whole.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_kehe_linked_selbri']]]
+    def __new__(cls, zantufa_kehe_linked_selbri: RecoveredField[ZantufaKeheLinkedSelbriSyntax]) -> UntaggedSelbriSyntaxZantufaKeheLinkedSelbri: ...
+    @property
+    def zantufa_kehe_linked_selbri(self) -> RecoveredField[ZantufaKeheLinkedSelbriSyntax]:
+        'A level-2 selbri closed by an unmatched KEhE, with linked arguments for the whole.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class UntaggedSelbriSyntaxNegatedSelbri:
     'Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.'
     __match_args__: ClassVar[tuple[Literal['negated_selbri']]]
@@ -17134,7 +17236,7 @@ class UntaggedSelbriSyntaxCoSelbri:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for selbri level 1; selects between the recursive NA arm and level 2.
-UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxNegatedSelbri | UntaggedSelbriSyntaxCoSelbri
+UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxZantufaKeheLinkedSelbri | UntaggedSelbriSyntaxNegatedSelbri | UntaggedSelbriSyntaxCoSelbri
 
 @final
 class TaggedSelbriSyntax:

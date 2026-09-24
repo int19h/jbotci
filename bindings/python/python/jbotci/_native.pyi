@@ -1913,6 +1913,7 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_ZANTUFA_FA_TANRU_UNIT = 'experimental-zantufa-fa-tanru-unit'
     EXPERIMENTAL_ZANTUFA_FORETHOUGHT_TANRU_UNIT = 'experimental-zantufa-forethought-tanru-unit'
     EXPERIMENTAL_ZANTUFA_GROUPED_SUMTI = 'experimental-zantufa-grouped-sumti'
+    EXPERIMENTAL_ZANTUFA_KEHE_LINKARGS = 'experimental-zantufa-kehe-linkargs'
     EXPERIMENTAL_LOH_OI_BRIDI_DESCRIPTION = 'experimental-loh-oi-bridi-description'
     EXPERIMENTAL_LOH_AI_REPLACEMENT_FREE = 'experimental-loh-ai-replacement-free'
     EXPERIMENTAL_JACU_PREDICATE_TAIL_CONNECTIVE = 'experimental-jacu-predicate-tail-connective'
