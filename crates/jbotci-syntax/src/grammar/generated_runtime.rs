@@ -649,6 +649,21 @@ fn advance_to_location<'tokens>(input: &mut InputRef<'tokens, '_>, end_location:
     }
 }
 
+/// Carry out a `SkipThrough` field action: move the input over the active directive's claimed
+/// region and return the recovery item for exactly the range covered. The item is never built from
+/// the directive's resume index, so it can only claim tokens this frame consumed.
+#[requires(true)]
+#[ensures(true)]
+fn skip_through<'tokens>(
+    input: &mut InputRef<'tokens, '_>,
+    resume_token_index: usize,
+) -> crate::tree::SyntaxRecoveryItem {
+    let start = ParserInput::cursor_location(input.cursor().inner());
+    advance_to_location(input, resume_token_index);
+    let end = ParserInput::cursor_location(input.cursor().inner());
+    input.state().skipped_item_for_advance(start, end)
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn empty<'tokens>() -> BoxedParser<'tokens, ()> {
@@ -1742,6 +1757,17 @@ where
                     "required abandoned recovery fields carry a recovery item",
                 )));
             }
+            // Only a required field is handed a skipped region: an absent-capable field is abandoned
+            // empty instead, so there is no empty slot to prefer here.
+            Some((super::RecoveryFieldActionKind::SkipThrough, _, Some(resume_token_index))) => {
+                return Ok(O::from_recovery_item(skip_through(
+                    input,
+                    resume_token_index,
+                )));
+            }
+            Some((super::RecoveryFieldActionKind::SkipThrough, _, None)) => {
+                unreachable!("skip-through actions carry a resume token index")
+            }
             Some((super::RecoveryFieldActionKind::BoundaryResync, _, _)) => {
                 unreachable!("boundary resync actions are produced only after a field failure")
             }
@@ -1797,7 +1823,12 @@ where
                     (super::RecoveryFieldActionKind::BoundaryResync, None, _) => {
                         unreachable!("boundary resync of a failed field carries a skipped item")
                     }
-                    (super::RecoveryFieldActionKind::Abandon, _, _) => {
+                    (
+                        super::RecoveryFieldActionKind::Abandon
+                        | super::RecoveryFieldActionKind::SkipThrough,
+                        _,
+                        _,
+                    ) => {
                         unreachable!("failed-field boundary recovery never returns local abandon")
                     }
                     (super::RecoveryFieldActionKind::BoundaryResync, _, None) => {
@@ -1879,6 +1910,19 @@ where
                         break;
                     }
                 }
+                Some((
+                    super::RecoveryFieldActionKind::SkipThrough,
+                    _,
+                    Some(resume_token_index),
+                )) => {
+                    values.push(O::from_recovery_item(skip_through(input, resume_token_index)));
+                    if values.len() >= min_count {
+                        break;
+                    }
+                }
+                Some((super::RecoveryFieldActionKind::SkipThrough, _, None)) => {
+                    unreachable!("skip-through actions carry a resume token index")
+                }
                 Some((super::RecoveryFieldActionKind::BoundaryResync, _, _)) => {
                     unreachable!(
                         "boundary resync actions are produced only after a repetition item failure"
@@ -1958,7 +2002,12 @@ where
                                     "boundary resync of a failed repetition item carries a skipped item"
                                 )
                             }
-                            (super::RecoveryFieldActionKind::Abandon, _, _) => {
+                            (
+                                super::RecoveryFieldActionKind::Abandon
+                                | super::RecoveryFieldActionKind::SkipThrough,
+                                _,
+                                _,
+                            ) => {
                                 unreachable!(
                                     "failed repetition boundary recovery never returns local abandon"
                                 )
@@ -1988,6 +2037,22 @@ where
                             if values.len() >= min_count {
                                 break;
                             }
+                        }
+                        Some((
+                            super::RecoveryFieldActionKind::SkipThrough,
+                            _,
+                            Some(resume_token_index),
+                        )) => {
+                            values.push(O::from_recovery_item(skip_through(
+                                input,
+                                resume_token_index,
+                            )));
+                            if values.len() >= min_count {
+                                break;
+                            }
+                        }
+                        Some((super::RecoveryFieldActionKind::SkipThrough, _, None)) => {
+                            unreachable!("skip-through actions carry a resume token index")
                         }
                         Some((
                             super::RecoveryFieldActionKind::Resume,
