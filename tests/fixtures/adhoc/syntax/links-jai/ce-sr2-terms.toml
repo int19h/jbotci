@@ -6,7 +6,7 @@ tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row SR2"
-description = "SR2: no parsed value proves KE body ownership, so the grouped candidate answers Unproven and rejects fail-closed. Trace candidate=grouped-sumti wrapper=valid answer=Unproven decision=reject. This row previously pinned a real fail-open gap: grouped sumti was the one C-e product with no recovered evidence classifier of its own, so `ke ke'e` claimed the construct and reported its warning while its mandatory sumti was a synthesized Error covering no input. The classifier added alongside this fixture closes that, and the row now witnesses the behaviour the frozen table asks for. Minimal explicit axis, and the axis that previously exhibited the gap: the grouped candidate is now classified Unproven and rejects, so no ZantufaGroupedSumti owner and no grouped-sumti warning appear."
+description = "SR2: no parsed value proves KE body ownership, so the grouped candidate answers Unproven and rejects fail-closed. Trace candidate=grouped-sumti wrapper=valid answer=Unproven decision=reject. This row previously pinned a real fail-open gap: grouped sumti was the one C-e product with no recovered evidence classifier of its own, so `ke ke'e` claimed the construct and reported its warning while its mandatory sumti was a synthesized Error covering no input. The classifier added alongside this fixture closes that, and the row now witnesses the behaviour the frozen table asks for. Minimal explicit axis, and the axis that previously exhibited the gap: the grouped candidate is now classified Unproven and rejects, so no ZantufaGroupedSumti owner and no grouped-sumti warning appear. Recovery on this axis no longer passes through the priority route's rejected attempt, because that route is feature-gated off without ZANTUFA-SELBRI, so `bróda` stays the selbri with the single `ke'e` error, and the grouped-bridi-tail warning that the absent route's failure record used to steer recovery into is gone."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "61f938b3576fd6dfcd839256be82b377292b6bf8405f153c1d9feed1ac6ec20b" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-grouped-bridi-tail", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: Zantufa KE bridi-tail grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [13, 18], source-text = "broda", message = "unexpected brivla" }]
-tree = { valid-tokens = ["ko'a", "ke", "ke'e"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }, { kind = "invalid", error-index = 1, byte-spans = [[13, 18]] }] }
+raw = { sha256 = "92d65eb4ef97e9e1d8d1604a213ac9a2069f2ea3b7a1d89141d541682510dd7f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ke'e", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }] }
