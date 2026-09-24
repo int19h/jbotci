@@ -489,16 +489,31 @@ fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
     Ok(())
 }
 
+/// Rule names must be unique, and so must the syntax type each name denotes. A branch's public
+/// field is named for the rule whose syntax type the branch yields ([`EnumBranch::field_name`]),
+/// which is only well-defined while that mapping is injective: `foo_bar` and `foo__bar` would both
+/// denote `FooBarSyntax`, and the field name would then depend on which rule sorts first.
 #[requires(true)]
 #[ensures(true)]
 fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
     let mut names = BTreeSet::new();
+    let mut syntax_types = BTreeMap::new();
     for rule in rules {
         let name = rule.name();
         if !names.insert(name.to_string()) {
             return Err(syn::Error::new_spanned(
                 name,
                 "duplicate grammar rule declaration",
+            ));
+        }
+        let syntax_type = syntax_type_ident_for_rule(name).to_string();
+        if let Some(previous) = syntax_types.insert(syntax_type.clone(), name.to_string()) {
+            return Err(syn::Error::new_spanned(
+                name,
+                format!(
+                    "grammar rule `{name}` denotes syntax type `{syntax_type}`, as does rule \
+                     `{previous}`; branch fields are named for the one rule of their output type"
+                ),
             ));
         }
     }
@@ -3596,7 +3611,15 @@ impl EnumBranch {
     /// name is a parser-internal identity; the model and its bindings are named for the product
     /// rule whose type the branch yields, so a refactor of the parser route cannot rename a public
     /// field. Only an explicit `as` override, reserved for already-published names, departs from it.
-    #[requires(true)]
+    #[requires(
+        simple_type_ident(output).is_none_or(|output| type_env
+            .rules
+            .keys()
+            .filter(|rule| &syntax_type_ident_for_rule(&format_ident!("{rule}")) == output)
+            .count()
+            <= 1),
+        "at most one rule denotes the branch's output type (see `validate_unique_rules`)"
+    )]
     #[ensures(self.field_override.as_ref().is_none_or(|field| &ret == field))]
     fn field_name(&self, output: &Type, type_env: &GrammarTypeEnv) -> Ident {
         if let Some(field) = &self.field_override {
