@@ -7585,7 +7585,7 @@ pub mod generated_model {
 
     alias "Zantufa FA tanru unit" zantufa_fa_tanru_unit_candidate(zantufa_tanru_unit_atom_entry, free_modifier) =
         zantufa_fa_tanru_unit(zantufa_tanru_unit_atom_entry)
-            .reject_output(crate::grammar::zantufa_atoms::FaAtomRejection)
+            .reject_recovered_output(crate::grammar::zantufa_atoms::FaAtomRejection)
             .recursive_output(zantufa_fa_tanru_unit_candidate);
 
     /// One source continuation from the FA prefix at zantufa-1.9999.peg:52.

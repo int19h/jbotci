@@ -1568,6 +1568,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "one optional endpoint pair, so a half-set extent cannot be spelled at all",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveryUncertaintyProbe",
+        "a single accumulating flag whose every value is a valid state of the traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveredOnlyRejection",
+        "a transparent adapter around one recovered-only rejection; every wrapped value is valid",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ChoiceCons",
         "a typed ordered-choice alternative list is valid for every head/rest parser pair",
     ),

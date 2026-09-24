@@ -252,30 +252,22 @@ fn classify_recovered_product<T: recovered::TreeNode>(
     answer
 }
 
+/// Recovery may not hand the FA atom a claim it did not parse.
+///
+/// Recovered-only: the strict FA product proves its own inventory by construction (see
+/// [`strict_fa_presence`]), so the grammar applies this through `reject_recovered_output()`.
 #[invariant(true)]
 #[derive(Clone, Copy)]
 pub(crate) struct FaAtomRejection;
 
 #[bityzba::contract_trait]
-impl super::generated_runtime::OutputRejection<model::ZantufaFaTanruUnitSyntax>
+impl super::generated_runtime::RecoveredOutputRejection<recovered::ZantufaFaTanruUnitSyntax>
     for FaAtomRejection
 {
     fn rejected_name(&self) -> &'static str {
         "unproven source FA atom"
     }
-    fn rejects(&self, value: &model::ZantufaFaTanruUnitSyntax) -> bool {
-        strict_fa_presence(value) != ZantufaTanruAtomPresence::Present
-    }
-}
-
-#[bityzba::contract_trait]
-impl super::generated_runtime::OutputRejection<recovered::ZantufaFaTanruUnitSyntax>
-    for FaAtomRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "unproven source FA atom"
-    }
-    fn rejects(&self, value: &recovered::ZantufaFaTanruUnitSyntax) -> bool {
+    fn rejects_uncertain(&self, value: &recovered::ZantufaFaTanruUnitSyntax) -> bool {
         classify_recovered_product(TracedCandidate::Fa, value, recovered_fa_presence)
             != ZantufaTanruAtomPresence::Present
     }
@@ -283,61 +275,43 @@ impl super::generated_runtime::OutputRejection<recovered::ZantufaFaTanruUnitSynt
 
 #[bityzba::contract_trait]
 impl
-    super::generated_runtime::OutputRejection<
+    super::generated_runtime::RecoveredOutputRejection<
         recovered::Recovered<recovered::ZantufaFaTanruUnitSyntax>,
     > for FaAtomRejection
 {
     fn rejected_name(&self) -> &'static str {
         "unproven source FA atom"
     }
-    #[ensures(ret)]
-    fn rejects(&self, _value: &recovered::Recovered<recovered::ZantufaFaTanruUnitSyntax>) -> bool {
-        true
-    }
-    fn rejects_in_dialect(
+    fn rejects_uncertain(
         &self,
         value: &recovered::Recovered<recovered::ZantufaFaTanruUnitSyntax>,
-        _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
         classify_recovered_wrapper(TracedCandidate::Fa, value, recovered_fa_presence)
             != ZantufaTanruAtomPresence::Present
     }
 }
 
-/// FA uses the source JOIK inventory, not the narrower modifier-free BINARY
-/// GEK ownership table. Free modifiers do not by themselves disqualify FA.
+/// A strict FA product is present by construction.
+///
+/// `zantufa_fa_tanru_unit` takes its markers from `selmaho(Fa)` and its connectives from
+/// `zantufa_atom_joik`, whose slots are exactly the source JOIK inventory (GAhO, NA, SE and a
+/// JOI/JA/BIhI head), and the parser matches a class through the same `Token::cmavo()` these
+/// predicates read. The inventory is therefore a precondition here, not something to prove.
+/// FA uses the source JOIK inventory, not the narrower modifier-free BINARY GEK ownership table;
+/// free modifiers do not by themselves disqualify FA.
 #[requires(true)]
-#[ensures(ret != ZantufaTanruAtomPresence::Unproven)]
+#[bityzba::expensive_requires(value.fa.value.is_selmaho(Selmaho::Fa) && value.continuations.iter().all(|part| {
+    let joik = &part.connective;
+    part.fa.value.is_selmaho(Selmaho::Fa)
+        && joik.left_gaho.as_ref().is_none_or(|v| v.value.is_selmaho(Selmaho::Gaho))
+        && joik.na.as_ref().is_none_or(|v| v.value.is_selmaho(Selmaho::Na))
+        && joik.se.as_ref().is_none_or(|v| v.value.is_selmaho(Selmaho::Se))
+        && joik.head.value.is_one_of_selmaho(&[Selmaho::Joi, Selmaho::Ja, Selmaho::Bihi])
+        && joik.right_gaho.as_ref().is_none_or(|v| v.value.is_selmaho(Selmaho::Gaho))
+}))]
+#[ensures(ret == ZantufaTanruAtomPresence::Present)]
 fn strict_fa_presence(value: &model::ZantufaFaTanruUnitSyntax) -> ZantufaTanruAtomPresence {
-    let inventory = value.fa.value.is_selmaho(Selmaho::Fa)
-        && value.continuations.iter().all(|part| {
-            let joik = &part.connective;
-            part.fa.value.is_selmaho(Selmaho::Fa)
-                && joik
-                    .left_gaho
-                    .as_ref()
-                    .is_none_or(|v| v.value.is_selmaho(Selmaho::Gaho))
-                && joik
-                    .na
-                    .as_ref()
-                    .is_none_or(|v| v.value.is_selmaho(Selmaho::Na))
-                && joik
-                    .se
-                    .as_ref()
-                    .is_none_or(|v| v.value.is_selmaho(Selmaho::Se))
-                && [Selmaho::Joi, Selmaho::Ja, Selmaho::Bihi]
-                    .iter()
-                    .any(|s| joik.head.value.is_selmaho(*s))
-                && joik
-                    .right_gaho
-                    .as_ref()
-                    .is_none_or(|v| v.value.is_selmaho(Selmaho::Gaho))
-        });
-    if inventory {
-        ZantufaTanruAtomPresence::Present
-    } else {
-        ZantufaTanruAtomPresence::Absent
-    }
+    ZantufaTanruAtomPresence::Present
 }
 
 #[requires(true)]
@@ -2560,6 +2534,59 @@ mod tests {
             assert_eq!(
                 recovered_fa_presence(&uncertain),
                 ZantufaTanruAtomPresence::Unproven
+            );
+        }
+    }
+
+    /// The strict FA rule states the source JOIK inventory itself, so the strict parser needs no
+    /// output rejection: every in-inventory connective slot parses, and a connective outside it
+    /// never yields a strict FA product.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_fa_rule_alone_enforces_the_source_joik_inventory() {
+        let dialect = parse_dialect_definition("(+ZANTUFA-SELBRI)").expect("minimal feature");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let strict_fa = |source: &str| {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let words = syntax_tokens(&words, &options);
+            let spanned = tokens::spanned_tokens(&words);
+            let eoi = spanned.last().expect("nonempty input").span.end;
+            let mut state = ParserState::new(&words, &options);
+            generated_model::strict_zantufa_fa_tanru_unit_parser(
+                generated_model::strict_generated_zantufa_tanru_unit_atom_entry_parser(),
+                generated_model::strict_generated_free_modifier_parser(),
+            )
+            .parse_with_state(
+                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
+                &mut state,
+            )
+            .into_result()
+            .map(|product| product.into_owned())
+            .map_err(|_| ())
+        };
+        for source in [
+            "fa joi fe broda",
+            "fa ja fe broda",
+            "fa bi'i fe broda",
+            "fa ga'o joi ga'o fe broda",
+            "fa na ja fe broda",
+            "fa se joi fe broda",
+            "fa na se bi'i fe broda",
+            "fa joi fe ja fi broda",
+        ] {
+            let product = strict_fa(source).unwrap_or_else(|_| panic!("strict FA for {source}"));
+            assert_eq!(
+                strict_fa_presence(&product),
+                ZantufaTanruAtomPresence::Present,
+                "{source}"
+            );
+        }
+        // An afterthought A, a GIhA and a NAI-bearing JOI are connectives, but not source JOIK.
+        for source in ["fa .e fe broda", "fa gi'e fe broda", "fa joi nai fe broda"] {
+            assert!(
+                strict_fa(source).is_err(),
+                "{source} must not parse as a strict FA atom"
             );
         }
     }

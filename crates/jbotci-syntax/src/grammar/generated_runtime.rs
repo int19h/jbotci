@@ -2573,6 +2573,98 @@ where
     .boxed()
 }
 
+/// Whether a recovered value carries recovery uncertainty: a recovery item -- skipped, invalid
+/// or missing (synthesized) content -- anywhere in its subtree, as the generated in-order
+/// traversal reports it.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn carries_recovery_uncertainty(
+    node: &impl super::generated_model::recovered::TreeNode,
+) -> bool {
+    let mut probe = RecoveryUncertaintyProbe { uncertain: false };
+    super::generated_model::recovered::TreeNode::visit_in_order(node, &mut probe);
+    probe.uncertain
+}
+
+/// Records whether the traversal met any recovery item.
+#[invariant(true)]
+struct RecoveryUncertaintyProbe {
+    uncertain: bool,
+}
+
+impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveryUncertaintyProbe {
+    type Node = super::generated_model::recovered::NodeRef<'tree>;
+    type Atom = super::generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(self.uncertain)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
+        &mut self,
+        _item: &'tree E,
+    ) {
+        self.uncertain = true;
+    }
+}
+
+/// A refinement of RECOVERED output only; the grammar's `reject_recovered_output()`.
+///
+/// It exists for one policy: a recovered alternative whose content is not actually parsed must
+/// not claim the construct. It may therefore reject a value only when that value carries recovery
+/// uncertainty, and the contract enforces it. Rejecting a fully parsed value would be a decision
+/// about the strict language made only in recovery, so a rule that needs one belongs in the
+/// grammar (or in `reject_output()`, which applies to every parser flavour alike). Strict parsers
+/// never consult this trait: in the strict flavour the method lowers to its receiver unchanged.
+#[contract_trait]
+pub(crate) trait RecoveredOutputRejection<O: super::generated_model::recovered::TreeNode> {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn rejected_name(&self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[bityzba::expensive_ensures(!ret || carries_recovery_uncertainty(value))]
+    fn rejects_uncertain(&self, value: &O) -> bool;
+}
+
+/// Adapts a recovered-only refinement to the shared rejection combinator.
+#[invariant(true)]
+#[derive(Clone)]
+struct RecoveredOnlyRejection<R> {
+    rejection: R,
+}
+
+#[contract_trait]
+impl<O, R> OutputRejection<O> for RecoveredOnlyRejection<R>
+where
+    O: super::generated_model::recovered::TreeNode,
+    R: RecoveredOutputRejection<O>,
+{
+    fn rejected_name(&self) -> &'static str {
+        self.rejection.rejected_name()
+    }
+
+    fn rejects(&self, value: &O) -> bool {
+        self.rejection.rejects_uncertain(value)
+    }
+}
+
+/// Rejects a completed RECOVERED match that carries recovery uncertainty; see
+/// [`RecoveredOutputRejection`] for the meaning and its enforcement. Only recovered parser
+/// flavours are lowered to this; strict flavours use the receiver unchanged.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reject_recovered_output<'tokens, O, P, R>(
+    inner: P,
+    rejection: R,
+) -> BoxedParser<'tokens, O>
+where
+    O: super::generated_model::recovered::TreeNode + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    R: RecoveredOutputRejection<O> + Clone + 'tokens,
+{
+    reject_output(inner, RecoveredOnlyRejection { rejection })
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>

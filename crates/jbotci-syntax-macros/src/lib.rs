@@ -5593,6 +5593,11 @@ fn strict_postfix_parser_expr_tokens(
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
         }
+        // A recovered-only refinement: the strict language is untouched by construction.
+        ("reject_recovered_output", 1) => {
+            output_rejection_argument(args.first().expect("length checked"))?;
+            Ok(inner)
+        }
         ("map_to" | "map_recovered_to", 1) => {
             let target = required_path_expr_last_segment(
                 args.first().expect("length checked"),
@@ -5925,6 +5930,10 @@ fn recovered_postfix_parser_expr_tokens(
         ("reject_output", 1) => {
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+        }
+        ("reject_recovered_output", 1) => {
+            let rejection = output_rejection_argument(args.first().expect("length checked"))?;
+            Ok(quote!(generated_runtime::reject_recovered_output(#inner, #rejection)))
         }
         ("map_to", 1) => {
             let target = required_path_expr_last_segment(
@@ -6473,6 +6482,16 @@ fn strict_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "reject_recovered_output" && method.args.len() == 1 {
+        // A recovered-only refinement: the strict language is untouched by construction.
+        output_rejection_argument(method.args.first().expect("length checked"))?;
+        strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )
     } else if (method.method == "map_to" || method.method == "map_recovered_to")
         && method.args.len() == 1
     {
@@ -7427,6 +7446,16 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "reject_recovered_output" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
+        Ok(quote!(generated_runtime::reject_recovered_output(#inner, #rejection)))
     } else if method.method == "map_to" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -8269,7 +8298,9 @@ fn postfix_parser_output_type(
             type_env.recursive.get(&target).map(|ty| quote!(#ty))
         }
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
-        ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
+        ("reject_output" | "reject_recovered_output", 1) => {
+            parser_output_type(receiver, type_env, arguments)
+        }
         ("map_to" | "map_recovered_to", 1) => {
             let target = required_path_expr_last_segment(&args[0], "map_to target").ok()?;
             type_env.rules.get(&target).map(|ty| quote!(#ty))
@@ -8465,6 +8496,7 @@ fn method_rust_parser_output_type(
         || method.method == "followed_by"
         || method.method == "lookahead"
         || method.method == "reject_output"
+        || method.method == "reject_recovered_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
     } else if (method.method == "map_to" || method.method == "map_recovered_to")
@@ -9499,7 +9531,9 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
         Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
             ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
             | ("wf_when", 1)
-            | ("warn" | "reject_output", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
+            | ("warn" | "reject_output" | "reject_recovered_output", 1) => {
+                elidable_terminator_terminal_cmavo(&method.receiver)
+            }
             _ => None,
         },
         Expr::Group(group) => elidable_terminator_terminal_cmavo(&group.expr),
@@ -9843,6 +9877,7 @@ fn classify_postfix_recovery_expr(
         ("warn", 1)
         | ("elidable_terminator", 1)
         | ("reject_output", 1)
+        | ("reject_recovered_output", 1)
         | ("map_to", 1)
         | ("map_recovered_to", 1)
         | ("recursive_output", 1) => classify_parser_expr(receiver, arguments, type_env),
@@ -9932,6 +9967,7 @@ fn classify_method_recovery_expr(
         }),
         ("warn", 1)
         | ("reject_output", 1)
+        | ("reject_recovered_output", 1)
         | ("map_to", 1)
         | ("map_recovered_to", 1)
         | ("recursive_output", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
@@ -10133,14 +10169,14 @@ fn wf_when_anchor_condition(expr: &Expr) -> Result<AnchorCondition> {
     })))
 }
 
-/// The refinement value passed to `reject_output()`.
+/// The refinement value passed to `reject_output()` or `reject_recovered_output()`.
 #[requires(true)]
 #[ensures(true)]
 fn output_rejection_argument(expr: &Expr) -> Result<TokenStream2> {
     let Expr::Path(path) = expr else {
         return Err(syn::Error::new_spanned(
             expr,
-            "reject_output() requires a path to an output rejection value",
+            "reject_output() and reject_recovered_output() require a path to an output rejection value",
         ));
     };
     Ok(quote!(#path))
