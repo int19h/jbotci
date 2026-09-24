@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-double-kehe-default"
+lojban = "mi broda brode ke'e be ko'a be'o ke'e be ko'e be'o"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: a second unmatched ke'e. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 19], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "f22eb4337f084cfc8ddb1f67070570766af15c019edff7737ecca091f78c2e29" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 19], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 37], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.incomplete-selbri", byte-span = [50, 50], source-text = "", message = "incomplete selbri" }]
+tree = { valid-tokens = ["mi", "bróda", "bróde", "be", "ko'e", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[15, 19]] }, { kind = "invalid", error-index = 1, byte-spans = [[20, 22], [23, 27], [28, 32], [33, 37]] }, { kind = "missing", error-index = 2, byte-spans = [[50, 50]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cf-ke-guard-zantufa"
+lojban = "mi ke broda ke'e brode ke'e be ko'a be'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: the source's !KE guard: a KE-leading selbri keeps the grouped-KE owner. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Built-in Zantufa axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 27], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "7be9845799226e0bd1cad3d0fcf08b48170ccf1c0188df3f2cb9ea82756a0cfe" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 27], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.incomplete-selbri", byte-span = [40, 40], source-text = "", message = "incomplete selbri" }]
+tree = { valid-tokens = ["mi", "ke", "bróda", "ke'e", "bróde", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[23, 27]] }, { kind = "missing", error-index = 1, byte-spans = [[40, 40]] }] }

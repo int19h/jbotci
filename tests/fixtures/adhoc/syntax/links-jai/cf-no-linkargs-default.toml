@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-no-linkargs-default"
+lojban = "mi broda ke'e"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: ke'e with no linked arguments. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "7db1a7d78eecb7adcd4c2efd9b8cfd972c458772aa2ce9750629f871b90ec4a4" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13]] }] }

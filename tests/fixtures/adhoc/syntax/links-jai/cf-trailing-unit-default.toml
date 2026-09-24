@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-trailing-unit-default"
+lojban = "mi broda ke'e be ko'a be'o brode"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: a tanru unit after the linked arguments. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "5b6d5e023c3cb94b6272ad2fcaf49bef19da658dce3780055b9f9e9f6b7be5f0" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "be", "ko'a", "be'o", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13]] }] }

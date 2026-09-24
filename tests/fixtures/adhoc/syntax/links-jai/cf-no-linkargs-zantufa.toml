@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cf-no-linkargs-zantufa"
+lojban = "mi broda ke'e"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: ke'e with no linked arguments. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Built-in Zantufa axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-end", byte-span = [13, 13], source-text = "", message = "unexpected end of input" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "84a971f03c6b53709b29d4ce59a2979e9eda916469dec73e503965efd45e8fc1" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-end", byte-span = [13, 13], source-text = "", message = "unexpected end of input" }]
+tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 8], [9, 13]] }] }

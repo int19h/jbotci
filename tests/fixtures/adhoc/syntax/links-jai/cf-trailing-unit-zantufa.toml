@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cf-trailing-unit-zantufa"
+lojban = "mi broda ke'e be ko'a be'o brode"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: a tanru unit after the linked arguments. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Built-in Zantufa axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [27, 32], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "32fef9c32f047d277cc308dde87a429755f32562ee6a92dc38a5dddb4f55f53e" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-kehe-linkargs", byte-span = [9, 13], source-text = "ke'e", message = "experimental syntax: Zantufa selbri closed by an unmatched KEhE before linked arguments", word-index = 2 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [27, 32], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bróda", "ke'e", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[27, 32]] }] }

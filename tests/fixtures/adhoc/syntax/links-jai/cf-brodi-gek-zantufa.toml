@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cf-brodi-gek-zantufa"
+lojban = "mi brodi ga broda gi brode ke'e be ko'a be'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 positive row: an atom-bearing tanru whose GEK unit follows a brivla. Reference: Zantufa 1.9999 accepts through selbri_1's KEhE-linked alternative; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Built-in Zantufa axis. The built-in axis does not carry the reinterpretation flag, so the GEK unit after brodi is not read as a tanru unit (the base form fails the same way)."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "1cdbfffd6cf6081e3a72dc4dddb66b326ca5a5c13d29f91a4fb76363664687e2" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [21, 26], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 17]] }, { kind = "invalid", error-index = 1, byte-spans = [[18, 20], [21, 26], [27, 31], [32, 34], [35, 39], [40, 44]] }] }
