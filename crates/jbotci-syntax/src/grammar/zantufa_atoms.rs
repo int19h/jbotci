@@ -817,6 +817,13 @@ pub(crate) struct StandaloneAtomRejection;
 /// Enclosed JAI has a narrower ownership policy than the standalone entry.
 /// The parser must still fail closed for every uncertain or tagged product;
 /// this marker keeps that policy explicit at the generated alias boundary.
+///
+/// Kept as an output rejection by design: it is a tree-transparent eligibility refinement over a
+/// memoized product shared with another route at the same position. The enclosed and standalone
+/// candidates call the same `zantufa_forethought_tanru_unit` instance, and after `jai` the
+/// enclosed attempt falls back to the standalone entry at the same start, so restating the GA-only
+/// opener as grammar would re-instantiate that product (losing the memo hit) and add recursive
+/// handles on the atom descent path.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct EnclosedAtomRejection;
@@ -837,8 +844,7 @@ impl super::generated_runtime::OutputRejection<model::ZantufaForethoughtTanruUni
         value: &model::ZantufaForethoughtTanruUnitSyntax,
         _dialect: super::generated_runtime::SyntaxGrammarDialect,
     ) -> bool {
-        enclosed_presence_from_strict_facts(strict_gek_facts(value))
-            != ZantufaTanruAtomPresence::Present
+        strict_enclosed_presence(value) != ZantufaTanruAtomPresence::Present
     }
 }
 
@@ -1320,13 +1326,30 @@ fn recovered_gek_facts(
     }
 }
 
+/// A strict enclosed product is owned exactly when its opener is the GA-family variant.
+///
+/// `zantufa_atom_ga_opener` takes its head from `choice((selmaho(Ga), selmaho(Guha)))`, so the
+/// variant already is the GA-or-GUhA fact; the head class is a precondition, not a test.
 #[requires(true)]
-#[ensures(true)]
-fn enclosed_presence_from_strict_facts(facts: StrictGekFacts) -> ZantufaTanruAtomPresence {
-    if facts.head_is_ga || facts.head_is_guha {
-        ZantufaTanruAtomPresence::Present
-    } else {
-        ZantufaTanruAtomPresence::Unproven
+#[bityzba::expensive_requires(match value.gek.body.as_ref() {
+    model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(opener) => {
+        opener.head.value.is_one_of_selmaho(&[Selmaho::Ga, Selmaho::Guha])
+    }
+    model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
+    | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => true,
+})]
+#[ensures((ret == ZantufaTanruAtomPresence::Present) == matches!(value.gek.body.as_ref(), model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(_)))]
+fn strict_enclosed_presence(
+    value: &model::ZantufaForethoughtTanruUnitSyntax,
+) -> ZantufaTanruAtomPresence {
+    match value.gek.body.as_ref() {
+        model::ZantufaAtomGekBodySyntax::ZantufaAtomGaOpener(_) => {
+            ZantufaTanruAtomPresence::Present
+        }
+        model::ZantufaAtomGekBodySyntax::ZantufaAtomInitialGiOpener(_)
+        | model::ZantufaAtomGekBodySyntax::ZantufaAtomFinalGiOpener(_) => {
+            ZantufaTanruAtomPresence::Unproven
+        }
     }
 }
 
