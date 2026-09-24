@@ -7730,8 +7730,22 @@ class SumtiBaseSyntaxProSumti:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+@final
+class SumtiBaseSyntaxZantufaGroupedSumti:
+    'Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_grouped_sumti']]]
+    def __new__(cls, zantufa_grouped_sumti: RecoveredField[ZantufaGroupedSumtiSyntax]) -> SumtiBaseSyntaxZantufaGroupedSumti: ...
+    @property
+    def zantufa_grouped_sumti(self) -> RecoveredField[ZantufaGroupedSumtiSyntax]:
+        'Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
 # Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti | SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti
+SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti | SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti | SumtiBaseSyntaxZantufaGroupedSumti
 
 @final
 class QuantifiedSumtiSyntax:
@@ -17858,10 +17872,10 @@ class ZantufaAtomGekSyntax:
 @final
 class ZantufaAtomGekBodySyntaxZantufaAtomGaOpener:
     'Optional opener-SE followed by a mapped GA or GUhA head.'
-    __match_args__: ClassVar[tuple[Literal['warned_zantufa_atom_ga_opener']]]
-    def __new__(cls, warned_zantufa_atom_ga_opener: RecoveredField[ZantufaAtomGaOpenerSyntax]) -> ZantufaAtomGekBodySyntaxZantufaAtomGaOpener: ...
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_ga_opener']]]
+    def __new__(cls, zantufa_atom_ga_opener: RecoveredField[ZantufaAtomGaOpenerSyntax]) -> ZantufaAtomGekBodySyntaxZantufaAtomGaOpener: ...
     @property
-    def warned_zantufa_atom_ga_opener(self) -> RecoveredField[ZantufaAtomGaOpenerSyntax]:
+    def zantufa_atom_ga_opener(self) -> RecoveredField[ZantufaAtomGaOpenerSyntax]:
         'Optional opener-SE followed by a mapped GA or GUhA head.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -17886,10 +17900,10 @@ class ZantufaAtomGekBodySyntaxZantufaAtomInitialGiOpener:
 @final
 class ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener:
     'Source JOIK or tag followed by exact GI.'
-    __match_args__: ClassVar[tuple[Literal['warned_zantufa_atom_final_gi_opener']]]
-    def __new__(cls, warned_zantufa_atom_final_gi_opener: RecoveredField[ZantufaAtomFinalGiOpenerSyntax]) -> ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener: ...
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_final_gi_opener']]]
+    def __new__(cls, zantufa_atom_final_gi_opener: RecoveredField[ZantufaAtomFinalGiOpenerSyntax]) -> ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener: ...
     @property
-    def warned_zantufa_atom_final_gi_opener(self) -> RecoveredField[ZantufaAtomFinalGiOpenerSyntax]:
+    def zantufa_atom_final_gi_opener(self) -> RecoveredField[ZantufaAtomFinalGiOpenerSyntax]:
         'Source JOIK or tag followed by exact GI.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -18179,10 +18193,10 @@ class TanruUnitAtomBaseSyntaxJaiModalTanruUnit:
 @final
 class TanruUnitAtomBaseSyntaxZantufaFaTanruUnit:
     'A fully proven source FA prefix over a shared inner atom.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_fa_tanru_unit_candidate']]]
-    def __new__(cls, zantufa_fa_tanru_unit_candidate: RecoveredField[ZantufaFaTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxZantufaFaTanruUnit: ...
+    __match_args__: ClassVar[tuple[Literal['zantufa_fa_tanru_unit']]]
+    def __new__(cls, zantufa_fa_tanru_unit: RecoveredField[ZantufaFaTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxZantufaFaTanruUnit: ...
     @property
-    def zantufa_fa_tanru_unit_candidate(self) -> RecoveredField[ZantufaFaTanruUnitSyntax]:
+    def zantufa_fa_tanru_unit(self) -> RecoveredField[ZantufaFaTanruUnitSyntax]:
         'A fully proven source FA prefix over a shared inner atom.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -18193,10 +18207,10 @@ class TanruUnitAtomBaseSyntaxZantufaFaTanruUnit:
 @final
 class TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit:
     'The same completed, guarded GEK identity used by the shared entry.\nEarlier entry rejection cannot be bypassed through this model arm.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_forethought_tanru_unit_candidate']]]
-    def __new__(cls, zantufa_forethought_tanru_unit_candidate: RecoveredField[ZantufaForethoughtTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit: ...
+    __match_args__: ClassVar[tuple[Literal['zantufa_forethought_tanru_unit']]]
+    def __new__(cls, zantufa_forethought_tanru_unit: RecoveredField[ZantufaForethoughtTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit: ...
     @property
-    def zantufa_forethought_tanru_unit_candidate(self) -> RecoveredField[ZantufaForethoughtTanruUnitSyntax]:
+    def zantufa_forethought_tanru_unit(self) -> RecoveredField[ZantufaForethoughtTanruUnitSyntax]:
         'The same completed, guarded GEK identity used by the shared entry.\nEarlier entry rejection cannot be bypassed through this model arm.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -18538,10 +18552,10 @@ class ScalarNegatedTanruUnitSyntax:
 @final
 class ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom:
     'Uses the `zantufa_tanru_unit_atom_entry` product form, whose payload preserves `conversions` and `base`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_tanru_unit_atom_entry']]]
-    def __new__(cls, zantufa_tanru_unit_atom_entry: RecoveredField[TanruUnitAtomSyntax]) -> ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom: ...
+    __match_args__: ClassVar[tuple[Literal['tanru_unit_atom']]]
+    def __new__(cls, tanru_unit_atom: RecoveredField[TanruUnitAtomSyntax]) -> ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom: ...
     @property
-    def zantufa_tanru_unit_atom_entry(self) -> RecoveredField[TanruUnitAtomSyntax]:
+    def tanru_unit_atom(self) -> RecoveredField[TanruUnitAtomSyntax]:
         'Uses the `zantufa_tanru_unit_atom_entry` product form, whose payload preserves `conversions` and `base`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -18572,7 +18586,7 @@ class JaiModalTanruUnitSyntax:
         ...
     @property
     def inner_unit(self) -> RecoveredField[TanruUnitAtomSyntax]:
-        'The same recursive atom used outside JAI, including SE, NAhE, NU and KE.'
+        'The standalone recursive atom; enclosed GEK is selected only by the\ndedicated candidate alias below, never by a tagged JAI arm.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -19037,10 +19051,10 @@ LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedS
 @final
 class LinkedTermSyntaxFullLinkedTerm:
     'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
-    __match_args__: ClassVar[tuple[Literal['full_linked_term_candidate']]]
-    def __new__(cls, full_linked_term_candidate: RecoveredField[FullLinkedTermSyntax]) -> LinkedTermSyntaxFullLinkedTerm: ...
+    __match_args__: ClassVar[tuple[Literal['full_linked_term']]]
+    def __new__(cls, full_linked_term: RecoveredField[FullLinkedTermSyntax]) -> LinkedTermSyntaxFullLinkedTerm: ...
     @property
-    def full_linked_term_candidate(self) -> RecoveredField[FullLinkedTermSyntax]:
+    def full_linked_term(self) -> RecoveredField[FullLinkedTermSyntax]:
         'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
