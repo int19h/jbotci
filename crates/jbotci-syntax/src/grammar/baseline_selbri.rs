@@ -99,7 +99,8 @@ fn operand_starts_with_old_unit(selbri: &SelbriSyntax) -> bool {
         | SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
         | SelbriSyntax::TaggedSelbri(_) => false,
         SelbriSyntax::UntaggedSelbri(selbri) => match selbri.as_ref() {
-            UntaggedSelbriSyntax::NegatedSelbri(_) => false,
+            UntaggedSelbriSyntax::NegatedSelbri(_)
+            | UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(_) => false,
             UntaggedSelbriSyntax::CoSelbri(selbri) => !has_c4_node(selbri),
         },
     }
@@ -128,6 +129,9 @@ fn restricted_operand_starts_with_old_unit(selbri: &SelbriWithoutTerminalRelativ
         SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(selbri) => {
             match selbri.as_ref() {
                 UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(
+                    _,
+                )
+                | UntaggedSelbriWithoutTerminalRelativeSyntax::ZantufaKeheLinkedSelbriWithoutTerminalRelative(
                     _,
                 ) => false,
                 UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(selbri) => {
@@ -209,7 +213,8 @@ fn recovered_operand_starts_with_old_unit(selbri: &recovered::SelbriSyntax) -> b
         | recovered::SelbriSyntax::TaggedSelbri(_) => false,
         recovered::SelbriSyntax::UntaggedSelbri(selbri) => {
             valid(selbri).is_some_and(|selbri| match selbri {
-                recovered::UntaggedSelbriSyntax::NegatedSelbri(_) => false,
+                recovered::UntaggedSelbriSyntax::NegatedSelbri(_)
+                | recovered::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(_) => false,
                 recovered::UntaggedSelbriSyntax::CoSelbri(selbri) => {
                     valid(selbri).is_some_and(|selbri| !recovered_has_c4_node(selbri))
                 }
@@ -245,7 +250,8 @@ fn recovered_restricted_operand_starts_with_old_unit(
         recovered::SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(
             selbri,
         ) => valid(selbri).is_some_and(|selbri| match selbri {
-            recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(_) => false,
+            recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(_)
+            | recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::ZantufaKeheLinkedSelbriWithoutTerminalRelative(_) => false,
             recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(selbri) => {
                 valid(selbri).is_some_and(|selbri| !recovered_has_c4_node(selbri))
             }

@@ -1880,6 +1880,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => self.analyze_co_selbri(selbri),
+            // The linked arguments fill the places of the whole level-2 selbri (#834), which is
+            // the frame its tanru forwards to; relatives and CEI operands are walked as they are
+            // for the other Zantufa selbri-level forms.
+            generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
+                let inner = self.analyze_co_selbri(&selbri.leading_selbri);
+                self.assign_link_arguments(inner, &selbri.linkargs);
+                if let Some(relative_clauses) = &selbri.relative_clauses {
+                    self.walk_node(relative_clauses);
+                }
+                for assignment in &selbri.assignments {
+                    self.walk_node(&assignment.selbri);
+                }
+                self.add_frame(
+                    self.raw_for_node(selbri),
+                    PlaceFrameKind::Forwarding,
+                    Some(SelbriNodeId(self.raw_for_node(selbri))),
+                    None,
+                    propagation_forward(inner),
+                )
+            }
         }
     }
 
@@ -6778,6 +6798,24 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
                 self.visit_co_selbri(selbri);
             }
+            generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
+                self.visit_co_selbri(&selbri.leading_selbri);
+                self.walk_node(&selbri.linkargs);
+                if let Some(relative_clauses) = &selbri.relative_clauses {
+                    self.visit_relative_clause_list_without_head(relative_clauses);
+                }
+                for assignment in &selbri.assignments {
+                    self.visit_relation(&assignment.selbri);
+                    if let Some(predicate_id) = self.current_bridi {
+                        self.add_edge(
+                            ReferenceKind::ProBridiAssignment,
+                            self.raw_for_node(assignment),
+                            target_resolved_node(predicate_id.0),
+                            ReferenceRule::CeiAssignsEnclosingBridi,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -9188,6 +9226,9 @@ fn generated_untagged_relation_first_token(
         }
         generated::UntaggedSelbriSyntax::NegatedSelbri(selbri) => {
             generated_relation_first_token(&selbri.inner_selbri)
+        }
+        generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
+            generated_tanru_selbri_first_token(&selbri.leading_selbri.leading_selbri)
         }
     }
 }

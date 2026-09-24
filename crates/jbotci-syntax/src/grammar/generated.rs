@@ -133,6 +133,11 @@ pub mod generated_model {
         zantufa_raw_mekso_quantifier_with_relatives_candidate: ZantufaRawMeksoQuantifierWithRelativesSyntax;
         zantufa_selbri_entry: SelbriSyntax;
         zantufa_atom_priority_selbri: SelbriSyntax;
+        // The #834 KEhE-linked owner is reached from two sites at each ladder -- first in
+        // `zantufa_selbri_entry`, ahead of the atom priority arm, and as `untagged_selbri`'s
+        // model variant -- so each gets one parser identity and the second reach is a memo hit.
+        zantufa_kehe_linked_selbri_candidate: ZantufaKeheLinkedSelbriSyntax;
+        zantufa_kehe_linked_selbri_without_terminal_relative_candidate: ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax;
         zantufa_simple_bridi_tail_entry: SimpleBridiTailSyntax;
         zantufa_simple_bridi_tail_without_tail_terms_entry: SimpleBridiTailWithoutTailTermsSyntax;
         selbri_without_terminal_relative: SelbriWithoutTerminalRelativeSyntax;
@@ -6664,13 +6669,19 @@ pub mod generated_model {
 
     // The priority arms exist only on the ZantufaSelbri axis; elsewhere the ordinary route is the
     // sole owner, so the grammar skips the attempt rather than completing and rejecting it.
-    alias "selbri" zantufa_selbri_entry(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_atom_priority_selbri) = choice((
+    //
+    // The #834 KEhE-linked owner (zantufa-1.9999.peg:45, the first alternative of `selbri_1`)
+    // comes first of all: the atom priority arm completes an atom-bearing level-2 selbri and
+    // commits, which would leave `ke'e be ...` unparseable, while the owner's own `!KE` guard
+    // and required `ke'e` make it fail fast everywhere else.
+    alias "selbri" zantufa_selbri_entry(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_atom_priority_selbri, zantufa_kehe_linked_selbri_candidate) = choice((
+        feature(ZantufaSelbri).ignore_then(zantufa_kehe_linked_selbri_candidate.map_recovered_to(selbri)),
         feature(ZantufaSelbri).ignore_then(zantufa_atom_priority_selbri),
-        selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier),
+        selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_kehe_linked_selbri_candidate),
     )).recursive_output(zantufa_selbri_entry);
 
     /// Sum node for selbri; preserves the existing relative/CEI and ordinary owners.
-    rule "selbri" selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier) -> enum {
+    rule "selbri" selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_kehe_linked_selbri_candidate) -> enum {
         /// Faithful full-selbri CEI ownership selected by the meaning-changing flag.
         when feature(ZantufaSelbriReinterpretation) reinterpret_zantufa_assigned_selbri,
         /// Rolling-Zantufa selbri-level relative attachment, a retained gated omission.
@@ -6754,7 +6765,7 @@ pub mod generated_model {
 
     /// Consumer-specific selbri entry that preserves CEI repetition while
     /// making terminal selbri-relative attachment unavailable at this boundary.
-    rule "selbri without terminal relative" selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, cei_free_co_selbri, tense_modal, statement, free_modifier) -> enum {
+    rule "selbri without terminal relative" selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, cei_free_co_selbri, tense_modal, statement, free_modifier, zantufa_kehe_linked_selbri_without_terminal_relative_candidate) -> enum {
         /// A filtered full-selbri CEI chain whose final operand stays restricted.
         when feature(ZantufaTerms) zantufa_priority_assigned_selbri_without_terminal_relative,
         /// A tagged selbri whose recursive right edge stays restricted.
@@ -6777,15 +6788,17 @@ pub mod generated_model {
     }
 
     /// Tagged description-boundary selbri.
-    rule "tagged selbri without terminal relative" tagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri, tense_modal) -> struct {
+    rule "tagged selbri without terminal relative" tagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri, tense_modal, zantufa_kehe_linked_selbri_without_terminal_relative_candidate) -> struct {
         /// The leading tense/modal tag.
         field tense_modal <- arc(tense_modal);
         /// The restricted untagged inner selbri.
-        field inner_selbri <- arc(untagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri));
+        field inner_selbri <- arc(untagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri, zantufa_kehe_linked_selbri_without_terminal_relative_candidate));
     }
 
     /// Untagged description-boundary selbri.
-    rule "untagged selbri without terminal relative" untagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri) -> enum {
+    rule "untagged selbri without terminal relative" untagged_selbri_without_terminal_relative(selbri_without_terminal_relative, co_selbri, zantufa_kehe_linked_selbri_without_terminal_relative_candidate) -> enum {
+        /// A KEhE-linked level-2 selbri whose tail keeps the description boundary.
+        when feature(ZantufaSelbri) zantufa_kehe_linked_selbri_without_terminal_relative_candidate,
         /// NA followed by another restricted selbri.
         negated_selbri_without_terminal_relative,
         /// The ordinary level-2 selbri base.
@@ -6799,6 +6812,52 @@ pub mod generated_model {
         /// The recursively restricted inner selbri.
         field inner_selbri <- arc(selbri_without_terminal_relative);
     }
+
+    /// A whole level-2 selbri closed by an unmatched KEhE, whose linked arguments apply to the
+    /// whole of it (#834; zantufa-1.9999.peg:45,
+    /// `selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)*`).
+    ///
+    /// The `!KE` guard is the source's: a KE-leading selbri keeps the grouped-KE owner, whose
+    /// `ke'e` closes its own group.
+    rule "Zantufa KEhE-linked selbri" zantufa_kehe_linked_selbri(zantufa_selbri_entry, co_selbri, linkargs, selbri_relative_clause_list) -> struct {
+        assert feature(ZantufaSelbri);
+        assert !cmavo(Ke);
+        /// The level-2 selbri the linked arguments apply to, CO breadth included.
+        field leading_selbri <- arc(co_selbri);
+        /// The unmatched KEhE closing the level-2 selbri, and the warning anchor.
+        field kehe <- cmavo(Kehe).warn(ExperimentalZantufaKeheLinkargs).wf();
+        /// The linked arguments of the whole level-2 selbri.
+        field linkargs <- arc(linkargs);
+        /// Optional selbri-level relative clauses after the linked arguments.
+        field relative_clauses <- opt(arc(selbri_relative_clause_list));
+        /// Zero or more following full-selbri CEI assignments.
+        field assignments <- [zero_or_more zantufa_selbri_assignment(zantufa_selbri_entry)];
+    }
+
+    alias "Zantufa KEhE-linked selbri" zantufa_kehe_linked_selbri_candidate(zantufa_selbri_entry, co_selbri, linkargs, selbri_relative_clause_list) =
+        zantufa_kehe_linked_selbri(zantufa_selbri_entry, co_selbri, linkargs, selbri_relative_clause_list)
+            .recursive_output(zantufa_kehe_linked_selbri_candidate);
+
+    /// The KEhE-linked selbri at the description boundary: no terminal relative, and a CEI chain
+    /// whose final operand keeps the boundary, exactly as the other no-terminal-relative forms.
+    rule "Zantufa KEhE-linked selbri without terminal relative" zantufa_kehe_linked_selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, linkargs) -> struct {
+        assert feature(ZantufaSelbri);
+        assert !cmavo(Ke);
+        /// The level-2 selbri the linked arguments apply to, CO breadth included.
+        field leading_selbri <- arc(co_selbri);
+        /// The unmatched KEhE closing the level-2 selbri, and the warning anchor.
+        field kehe <- cmavo(Kehe).warn(ExperimentalZantufaKeheLinkargs).wf();
+        /// The linked arguments of the whole level-2 selbri.
+        field linkargs <- arc(linkargs);
+        /// Full operands before the final assignment remain unrestricted.
+        field preceding_assignments <- [zero_or_more zantufa_selbri_assignment(zantufa_selbri_entry).followed_by(cmavo(Cei).lookahead())];
+        /// The final assignment, if any, follows the restricted right spine.
+        field final_assignment <- opt(zantufa_selbri_assignment_without_terminal_relative(selbri_without_terminal_relative));
+    }
+
+    alias "Zantufa KEhE-linked selbri without terminal relative" zantufa_kehe_linked_selbri_without_terminal_relative_candidate(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, linkargs) =
+        zantufa_kehe_linked_selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, linkargs)
+            .recursive_output(zantufa_kehe_linked_selbri_without_terminal_relative_candidate);
 
     /// One full-selbri Zantufa CEI assignment.
     rule "Zantufa selbri assignment" zantufa_selbri_assignment(zantufa_selbri_entry) -> struct {
@@ -6819,7 +6878,9 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 1; selects between the recursive NA arm and level 2.
-    rule "selbri" untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier) -> enum {
+    rule "selbri" untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier, zantufa_kehe_linked_selbri_candidate) -> enum {
+        /// A level-2 selbri closed by an unmatched KEhE, with linked arguments for the whole.
+        when feature(ZantufaSelbri) zantufa_kehe_linked_selbri_candidate,
         /// Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.
         negated_selbri,
         /// Uses the level-2 `co_selbri` product form.
@@ -6827,11 +6888,11 @@ pub mod generated_model {
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
-    rule "tagged selbri" tagged_selbri(zantufa_selbri_entry, co_selbri, tense_modal, statement, free_modifier) -> struct {
+    rule "tagged selbri" tagged_selbri(zantufa_selbri_entry, co_selbri, tense_modal, statement, free_modifier, zantufa_kehe_linked_selbri_candidate) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier));
+        field inner_selbri <- arc(untagged_selbri(zantufa_selbri_entry, co_selbri, statement, free_modifier, zantufa_kehe_linked_selbri_candidate));
     }
 
     /// Product node for negated selbri; preserves `na` and `inner_selbri` in source order.

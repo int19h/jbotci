@@ -654,7 +654,8 @@ fn strict_priority_tail_selbri(
                         let value: &model::CoSelbriSyntax = value;
                         !PriorityAtomRejection.rejects_in_dialect(value, dialect)
                     }
-                    model::UntaggedSelbriSyntax::NegatedSelbri(_) => false,
+                    model::UntaggedSelbriSyntax::NegatedSelbri(_)
+                    | model::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(_) => false,
                 }
             }
             has_priority(value, dialect)
@@ -682,7 +683,8 @@ fn recovered_priority_tail_selbri(
                 recovered::UntaggedSelbriSyntax::CoSelbri(value) => {
                     !PriorityAtomRejection.rejects_in_dialect(value.as_ref(), dialect)
                 }
-                recovered::UntaggedSelbriSyntax::NegatedSelbri(_) => false,
+                recovered::UntaggedSelbriSyntax::NegatedSelbri(_)
+                | recovered::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(_) => false,
             }
         }
         recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)

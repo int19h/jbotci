@@ -1966,6 +1966,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     },
     parser_construct_metadata!("Zantufa reinterpreted assigned selbri", "selbri"),
     parser_construct_metadata!("Zantufa relative selbri", "selbri"),
+    parser_construct_metadata!("Zantufa KEhE-linked selbri", "selbri"),
     parser_construct_metadata!("selbri without terminal relative", "selbri"),
     parser_construct_metadata!(
         "Zantufa priority assigned selbri without terminal relative",
@@ -1989,6 +1990,10 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     ),
     parser_construct_metadata!(
         "negated selbri without terminal relative",
+        "untagged selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "Zantufa KEhE-linked selbri without terminal relative",
         "untagged selbri without terminal relative"
     ),
     parser_construct_metadata!(
@@ -3039,6 +3044,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaFaTanruUnit,
     ExperimentalZantufaForethoughtTanruUnit,
     ExperimentalZantufaGroupedSumti,
+    ExperimentalZantufaKeheLinkargs,
     ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
@@ -3153,6 +3159,9 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaGroupedSumti => {
                 "syntax.warning.experimental-zantufa-grouped-sumti"
+            }
+            Self::ExperimentalZantufaKeheLinkargs => {
+                "syntax.warning.experimental-zantufa-kehe-linkargs"
             }
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
@@ -3345,6 +3354,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaFaTanruUnit => "Zantufa FA-prefixed tanru unit",
             Self::ExperimentalZantufaForethoughtTanruUnit => "Zantufa forethought tanru unit",
             Self::ExperimentalZantufaGroupedSumti => "Zantufa KE-grouped sumti",
+            Self::ExperimentalZantufaKeheLinkargs => {
+                "Zantufa selbri closed by an unmatched KEhE before linked arguments"
+            }
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {

@@ -228,6 +228,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalZantufaFaTanruUnit => ("EXPERIMENTAL_ZANTUFA_FA_TANRU_UNIT", "experimental-zantufa-fa-tanru-unit"),
         ExperimentalConstruct::ExperimentalZantufaForethoughtTanruUnit => ("EXPERIMENTAL_ZANTUFA_FORETHOUGHT_TANRU_UNIT", "experimental-zantufa-forethought-tanru-unit"),
         ExperimentalConstruct::ExperimentalZantufaGroupedSumti => ("EXPERIMENTAL_ZANTUFA_GROUPED_SUMTI", "experimental-zantufa-grouped-sumti"),
+        ExperimentalConstruct::ExperimentalZantufaKeheLinkargs => ("EXPERIMENTAL_ZANTUFA_KEHE_LINKARGS", "experimental-zantufa-kehe-linkargs"),
         ExperimentalConstruct::ExperimentalLohOiBridiDescription => ("EXPERIMENTAL_LOH_OI_BRIDI_DESCRIPTION", "experimental-loh-oi-bridi-description"),
         ExperimentalConstruct::ExperimentalLohAiReplacementFree => ("EXPERIMENTAL_LOH_AI_REPLACEMENT_FREE", "experimental-loh-ai-replacement-free"),
         ExperimentalConstruct::ExperimentalJacuPredicateTailConnective => ("EXPERIMENTAL_JACU_PREDICATE_TAIL_CONNECTIVE", "experimental-jacu-predicate-tail-connective"),

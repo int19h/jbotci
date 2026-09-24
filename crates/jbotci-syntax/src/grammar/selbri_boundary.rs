@@ -14,7 +14,8 @@ use super::generated_model::{
     SelbriSyntax, SelbriWithoutTerminalRelativeSyntax, TaggedSelbriSyntax,
     TaggedSelbriWithoutTerminalRelativeSyntax, TanruUnitSyntax, UntaggedSelbriSyntax,
     UntaggedSelbriWithoutTerminalRelativeSyntax, ZantufaAssignedSelbriSyntax,
-    ZantufaAssignedSelbriWithoutTerminalRelativeSyntax, ZantufaPriorityAssignedSelbriSyntax,
+    ZantufaAssignedSelbriWithoutTerminalRelativeSyntax, ZantufaKeheLinkedSelbriSyntax,
+    ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax, ZantufaPriorityAssignedSelbriSyntax,
     ZantufaSelbriAssignmentSyntax, ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax, recovered,
 };
 use super::generated_runtime::{GrammarMapTo, RecoveredSyntaxSlot};
@@ -65,6 +66,43 @@ fn assigned_into_full(
     }
 }
 
+/// The boundary form carries no relatives and splits its CEI chain only to restrict the final
+/// operand; the full form holds the same chain as one sequence.
+#[requires(true)]
+#[ensures(ret.relative_clauses.is_none())]
+#[ensures(
+    ret.assignments.len()
+        == old(value.preceding_assignments.len() + usize::from(value.final_assignment.is_some())),
+    "the CEI chain is carried over whole"
+)]
+fn kehe_linked_into_full(
+    value: ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax,
+) -> ZantufaKeheLinkedSelbriSyntax {
+    let ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax {
+        leading_selbri,
+        kehe,
+        linkargs,
+        preceding_assignments,
+        final_assignment,
+    } = value;
+    let mut assignments = preceding_assignments;
+    if let Some(final_assignment) = final_assignment {
+        let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei, selbri } =
+            Arc::unwrap_or_clone(final_assignment);
+        assignments.push(Arc::new(ZantufaSelbriAssignmentSyntax {
+            cei,
+            selbri: Arc::new(Arc::unwrap_or_clone(selbri).into()),
+        }));
+    }
+    ZantufaKeheLinkedSelbriSyntax {
+        leading_selbri,
+        kehe,
+        linkargs,
+        relative_clauses: None,
+        assignments,
+    }
+}
+
 impl From<SelbriWithoutTerminalRelativeSyntax> for SelbriSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -111,6 +149,11 @@ impl From<UntaggedSelbriWithoutTerminalRelativeSyntax> for UntaggedSelbriSyntax 
                 }))
             }
             UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(value) => Self::CoSelbri(value),
+            UntaggedSelbriWithoutTerminalRelativeSyntax::ZantufaKeheLinkedSelbriWithoutTerminalRelative(
+                value,
+            ) => Self::ZantufaKeheLinkedSelbri(Arc::new(kehe_linked_into_full(
+                Arc::unwrap_or_clone(value),
+            ))),
         }
     }
 }
@@ -178,6 +221,39 @@ fn recovered_assigned_into_full(
 }
 
 #[requires(true)]
+#[ensures(ret.relative_clauses.is_none())]
+#[ensures(
+    ret.assignments.len()
+        == old(value.preceding_assignments.len() + usize::from(value.final_assignment.is_some())),
+    "the CEI chain is carried over whole"
+)]
+fn recovered_kehe_linked_into_full(
+    value: recovered::ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax,
+) -> recovered::ZantufaKeheLinkedSelbriSyntax {
+    let recovered::ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax {
+        leading_selbri,
+        kehe,
+        linkargs,
+        preceding_assignments,
+        final_assignment,
+    } = value;
+    let mut assignments = preceding_assignments;
+    if let Some(final_assignment) = final_assignment {
+        assignments.push(map_shared_recovered(
+            final_assignment,
+            recovered_restricted_assignment_into_assignment,
+        ));
+    }
+    recovered::ZantufaKeheLinkedSelbriSyntax {
+        leading_selbri,
+        kehe,
+        linkargs,
+        relative_clauses: None,
+        assignments,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn recovered_priority_into_priority(
     value: recovered::ZantufaPriorityAssignedSelbriWithoutTerminalRelativeSyntax,
@@ -210,6 +286,12 @@ fn recovered_untagged_into_untagged(
         recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(value) => {
             recovered::UntaggedSelbriSyntax::CoSelbri(value)
         }
+        recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::ZantufaKeheLinkedSelbriWithoutTerminalRelative(
+            value,
+        ) => recovered::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(map_shared_recovered(
+            value,
+            recovered_kehe_linked_into_full,
+        )),
     }
 }
 
