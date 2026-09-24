@@ -511,6 +511,9 @@ struct ActiveRecoveryDirective {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum RecoveryFieldActionKind {
     Abandon,
+    /// Consume the active directive's claimed range, then abandon the field with a skipped item
+    /// built from the range the input actually moved over.
+    SkipThrough,
     BoundaryResync,
     Resume,
 }
@@ -518,6 +521,8 @@ pub(super) enum RecoveryFieldActionKind {
 #[invariant(item.as_ref().is_none_or(|item| item.recovery_error_index().is_some()))]
 #[invariant(match kind {
     RecoveryFieldActionKind::Abandon => resume_token_index.is_none(),
+    RecoveryFieldActionKind::SkipThrough => item.is_none()
+        && resume_token_index.is_some_and(|index| index < usize::MAX),
     RecoveryFieldActionKind::BoundaryResync | RecoveryFieldActionKind::Resume =>
         resume_token_index.is_some_and(|index| index < usize::MAX),
 })]
@@ -536,6 +541,18 @@ impl RecoveryFieldAction {
             kind: RecoveryFieldActionKind::Abandon,
             item,
             resume_token_index: None,
+        })
+    }
+
+    /// The item is deliberately absent: it is built after the caller has advanced, from the
+    /// range the input actually covered (see `ParserState::skipped_item_for_advance`).
+    #[requires(resume_token_index < usize::MAX)]
+    #[ensures(ret.kind == RecoveryFieldActionKind::SkipThrough)]
+    pub(super) fn skip_through(resume_token_index: usize) -> Self {
+        new!(RecoveryFieldAction {
+            kind: RecoveryFieldActionKind::SkipThrough,
+            item: None,
+            resume_token_index: Some(resume_token_index),
         })
     }
 
@@ -3045,19 +3062,25 @@ impl<'tokens> ParserState<'tokens> {
                 return Some(RecoveryFieldAction::abandon(None));
             }
             let directive = active.directive.clone();
-            let effective_fail_token_index = active.effective_fail_token_index;
             let skipped_item_emitted = active.skipped_item_emitted;
             if let Some(active) = self.active_recovery_directive.take() {
                 self.active_recovery_directive = Some(active.with_data(data! {
                     skipped_item_emitted: true,
                 }));
             }
-            let item = if skipped_item_emitted {
-                self.missing_recovery_item_for_directive(&directive)
-            } else {
-                self.recovery_item_for_directive(&directive, effective_fail_token_index)
-            };
-            return Some(RecoveryFieldAction::abandon(Some(item)));
+            if skipped_item_emitted {
+                let item = self.missing_recovery_item_for_directive(&directive);
+                return Some(RecoveryFieldAction::abandon(Some(item)));
+            }
+            // The first required field this directive abandons carries its skipped region, and
+            // the input must move over that region here: a resume-at-end directive
+            // (`resume_field == usize::MAX`) has no later resume field to advance at, so a
+            // skipped item emitted without advancing would claim tokens its enclosing frames are
+            // then free to parse again. The caller advances from the directive's effective
+            // failure location and builds the item from the range actually covered.
+            return Some(RecoveryFieldAction::skip_through(
+                directive.resume_token_index,
+            ));
         }
         if field_index == active.directive.resume_field {
             let directive = active.directive.clone();
@@ -3122,6 +3145,30 @@ impl<'tokens> ParserState<'tokens> {
         self.recovery_directives
             .len()
             .saturating_sub(self.consumed_recovery_directives)
+    }
+
+    /// The recovery item for a `SkipThrough` action, built from the range the input actually
+    /// advanced over: the skipped tokens when it moved, or the missing-field item when the
+    /// directive's region was already empty.
+    #[requires(start <= end && end <= self.recovery_tokens.len())]
+    #[requires(self.active_recovery_directive.as_ref().is_some_and(|active| active.effective_fail_token_index == start))]
+    #[ensures(match ret.as_data() {
+        data!(SyntaxRecoveryItem::SkippedTokens { tokens, .. }) => start < end && tokens.len() == end - start,
+        data!(SyntaxRecoveryItem::MissingRequiredField { .. }) => start == end,
+    })]
+    pub(super) fn skipped_item_for_advance(&self, start: usize, end: usize) -> SyntaxRecoveryItem {
+        let directive = &self
+            .active_recovery_directive
+            .as_ref()
+            .expect("a skip-through action runs under its active directive")
+            .directive;
+        match Vec1::try_from_vec(self.recovery_tokens[start..end].to_vec()) {
+            Ok(tokens) => new!(SyntaxRecoveryItem::SkippedTokens {
+                error_index: directive.error_index,
+                tokens,
+            }),
+            Err(_) => self.missing_recovery_item_for_directive(directive),
+        }
     }
 
     #[requires(directive.fail_token_index <= directive.resume_token_index)]

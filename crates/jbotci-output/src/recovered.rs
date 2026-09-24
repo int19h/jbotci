@@ -1385,7 +1385,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("full brackets");
-        assert_eq!(full, "([mi kláma] [.i {(do ‼ku‼) ‼‼}])");
+        assert_eq!(full, "([mi kláma] [.i {do ‼ku‼}])");
 
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
@@ -1558,7 +1558,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(regions, "…\n[.i {(do ‼ku‼) ‼‼}]");
+        assert_eq!(regions, "…\n[.i {do ‼ku‼}]");
         assert!(regions.chars().count() <= 1_000);
 
         // Trailing neighbor (a long valid statement after the error region):

@@ -2,6 +2,11 @@ id = "adhoc.recovery.syntax.recovery-at-cu"
 lojban = "mi cu ku"
 tags = ["adhoc", "recovery", "syntax"]
 
+[[provenance]]
+kind = "other"
+name = "resume-at-end conservation fix (#927 regression)"
+description = "The inner prefixed-tail claim, previously unable to consume its skipped region and therefore rejected, now owns the recovery as the selector's innermost-owner priority intends: `mi cu` stays a prefix and `ku` is skipped, instead of an outer bridi claim that invented a missing selbri after the skip."
+
 [expectations.syntax]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
@@ -14,5 +19,4 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 valid-tokens = ["mi", "cu"]
 recovery-items = [
     { kind = "invalid", error-index = 0, byte-spans = [[6, 8]] },
-    { kind = "missing", error-index = 0, byte-spans = [[6, 6]] },
 ]

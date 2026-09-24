@@ -4929,6 +4929,45 @@ mod tests {
         assert_eq!(probe.missing_count, 0);
     }
 
+    // A resume-at-end directive (the final selector's shape) abandons the rest of its instance.
+    // Its skipped region must be consumed where it is claimed: each of these once reported the
+    // region's tokens as skipped while an enclosing frame parsed them again (a closer such as
+    // `ku`, `li'u`, `toi` or `se'u`, or the following bridi material).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_resume_at_end_skip_consumes_what_it_claims() {
+        for source in [
+            "lenumakumokau",
+            " cusku lu se se li'u",
+            ".i xu cazi sarcu fa lenu tolcurmi lenu la kif. cu jdicmima (to vote toi)",
+            " i lu mi na go'i sei la cipnrlori sutra co cusku li'u",
+            " i lu la'e di'u cu vajrai lei datni poi se tirna ca le cabdei sei la noltrunau noi simymosra lei xance cu cusku i seki'ubo ei le pairkanmi li'o li'u ",
+            "le nu ma ku",
+            "le se ku",
+            "lu mi sei se se'u li'u",
+        ] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+            let recovered = parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default(),
+            );
+            assert!(
+                recovered_syntax_parse_conserves_word_spans(&words, &recovered),
+                "recovered syntax must account for every input token exactly once for {source:?}"
+            );
+        }
+
+        // The skipped region runs to the end, so `le`'s terminator is elided rather than taken
+        // back out of it, and nothing after it is parsed twice.
+        let probe = recovered_syntax_probe("lenumakumokau");
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(probe.valid_tokens, ["le", "nu", "ma"]);
+        assert_eq!(probe.recovery_spans, [(6, 8), (8, 10), (10, 13)]);
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
