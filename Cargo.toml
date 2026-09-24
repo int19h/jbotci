@@ -230,7 +230,8 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 inherits = "dev"
 
 # Full DWARF makes the emitted web module about 1.39 GB, exceeding V8's 1 GiB
-# WebAssembly module limit. Use CARGO_PROFILE_WASM_DEV_DEBUG=full when needed.
+# WebAssembly module limit. Use CARGO_PROFILE_WASM_DEV_DEBUG=full when needed; it
+# does not reach jbotci-syntax, whose own override below disables debug info.
 [profile.wasm-dev]
 inherits = "dev"
 debug = "line-tables-only"
@@ -239,8 +240,19 @@ debug = "line-tables-only"
 opt-level = 3
 codegen-units = 16
 
+# The web debug build of jbotci-syntax carries no debug info at all. Even line
+# tables name every monomorphized function in .debug_str, and the generated
+# grammar's combinator types make those names enormous: on their own they exceed
+# both V8's 1 GiB WebAssembly module limit and rust-lld's 2 GiB section limit
+# (lld crashes linking the module past it). Every other crate keeps the profile's
+# line tables, native debug builds are unaffected, and wasm stack traces still
+# name functions through the name section. Package overrides are not read from
+# CARGO_PROFILE_* environment variables; to get the syntax crate's line tables
+# back for a one-off cargo build, pass
+# --config 'profile.wasm-dev.package.jbotci-syntax.debug="line-tables-only"'.
 [profile.wasm-dev.package.jbotci-syntax]
 opt-level = 1
+debug = false
 
 [profile.release.build-override]
 opt-level = 3
