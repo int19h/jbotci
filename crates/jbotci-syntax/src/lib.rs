@@ -4909,8 +4909,9 @@ mod tests {
         // Control: the first phase already recovers these, so the final
         // candidates must not be tried. Any of them winning instead would
         // replace the in-place skip with a skip to the end of the text. The
-        // first two recover by exact success; the third makes progress past
-        // its first error, which the final candidates must not preempt either.
+        // first two recover outright at their only error; the third makes
+        // progress past its first error, which the final candidates must not
+        // preempt either.
         let probe = recovered_syntax_probe_at_strict_error("mi jai ke ko'a ke'e", 10);
         assert_eq!(probe.error_byte_starts, [10]);
         assert_eq!(probe.valid_tokens, ["mi", "jaĭ", "ke", "ke'e"]);
