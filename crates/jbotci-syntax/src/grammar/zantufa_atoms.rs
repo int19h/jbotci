@@ -510,19 +510,19 @@ pub(crate) struct PriorityAtomRejection;
 
 /// The priority-atom ownership answer for a complete co-selbri on this parse axis.
 ///
-/// The feature being off is `Absent` rather than `Unproven`: there is nothing left to establish,
-/// the priority owner simply does not exist on that axis.
+/// The priority routes exist only on the ZantufaSelbri axis: the grammar gates each of them on
+/// `feature(ZantufaSelbri)`, so no candidate reaches this on another axis.
 macro_rules! priority_answer {
     ($model:ident, $name:ident, $uncertainty:block) => {
-        #[requires(true)]
+        #[requires(
+                            dialect.zantufa_selbri_enabled,
+                            "the grammar gates every priority route on feature(ZantufaSelbri)"
+                        )]
         #[ensures(true)]
         fn $name(
             value: &$model::CoSelbriSyntax,
             dialect: super::generated_runtime::SyntaxGrammarDialect,
         ) -> ZantufaTanruAtomPresence {
-            if !dialect.zantufa_selbri_enabled {
-                return ZantufaTanruAtomPresence::Absent;
-            }
             let uncertain: fn(&$model::CoSelbriSyntax) -> bool = $uncertainty;
             if uncertain(value) {
                 return ZantufaTanruAtomPresence::Unproven;

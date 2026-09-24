@@ -1309,14 +1309,14 @@ pub mod generated_model {
 
     // Keep the priority aliases tree-transparent over the existing tail products.
     alias "bridi tail" zantufa_simple_bridi_tail_without_tail_terms_entry(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal) = choice((
-        selbri_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail_without_tail_terms),
+        feature(ZantufaSelbri).ignore_then(selbri_simple_bridi_tail_without_tail_terms(zantufa_selbri_entry).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail_without_tail_terms)),
         simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, zantufa_selbri_entry, subbridi, term, tense_modal),
     )).recursive_output(zantufa_simple_bridi_tail_without_tail_terms_entry);
 
     // The approved complete atom priority crosses this enclosing choice; the
     // ordinary forethought/selbri order below remains the rejection fallback.
     alias "bridi tail" zantufa_simple_bridi_tail_entry(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal) = choice((
-        selbri_simple_bridi_tail(zantufa_selbri_entry, term).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail),
+        feature(ZantufaSelbri).ignore_then(selbri_simple_bridi_tail(zantufa_selbri_entry, term).reject_output(crate::grammar::zantufa_atoms::PriorityTailRejection).map_recovered_to(simple_bridi_tail)),
         simple_bridi_tail(forethought_bridi_connection, zantufa_selbri_entry, subbridi, term, tense_modal),
     )).recursive_output(zantufa_simple_bridi_tail_entry);
 
@@ -6662,8 +6662,10 @@ pub mod generated_model {
         co_selbri.reject_output(crate::grammar::zantufa_atoms::PriorityAtomRejection)
             .map_recovered_to(selbri).recursive_output(zantufa_atom_priority_selbri);
 
+    // The priority arms exist only on the ZantufaSelbri axis; elsewhere the ordinary route is the
+    // sole owner, so the grammar skips the attempt rather than completing and rejecting it.
     alias "selbri" zantufa_selbri_entry(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier, zantufa_atom_priority_selbri) = choice((
-        zantufa_atom_priority_selbri,
+        feature(ZantufaSelbri).ignore_then(zantufa_atom_priority_selbri),
         selbri(zantufa_selbri_entry, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier),
     )).recursive_output(zantufa_selbri_entry);
 
