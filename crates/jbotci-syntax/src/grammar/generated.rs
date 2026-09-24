@@ -3371,15 +3371,21 @@ pub mod generated_model {
     /// parse, because every genuine raw-mex candidate is taken by the priority route above them.
     rule "quantifier" quantifier(mekso, letter_tokens, free_modifier, zantufa_priority_raw_mekso_quantifier_candidate, zantufa_priority_raw_mekso_quantifier_with_relatives_candidate, zantufa_raw_mekso_quantifier_with_relatives_candidate) -> enum {
         /// Uses the `zantufa_priority_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.
-        when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier_with_relatives_candidate,
+        // Published before public fields were named for the construct; the name stays for API
+        // stability (an explicit `as`, never the default).
+        when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier_with_relatives_candidate as zantufa_priority_raw_mekso_quantifier_with_relatives_candidate,
         /// Uses the classified `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.
-        when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier_candidate,
+        // Published before public fields were named for the construct; the name stays for API
+        // stability (an explicit `as`, never the default).
+        when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier_candidate as zantufa_priority_raw_mekso_quantifier_candidate,
         /// Uses the `mekso_quantifier` product form, whose payload preserves `vei`, `mekso`, and `veho`.
         mekso_quantifier,
         /// Uses the `pa_run_quantifier` product form, whose payload preserves `number` and `boi`.
         pa_run_quantifier,
         /// Uses the recovered-fallback `zantufa_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.
-        when feature(ZantufaMex) zantufa_raw_mekso_quantifier_with_relatives_candidate,
+        // Published before public fields were named for the construct; the name stays for API
+        // stability (an explicit `as`, never the default).
+        when feature(ZantufaMex) zantufa_raw_mekso_quantifier_with_relatives_candidate as zantufa_raw_mekso_quantifier_with_relatives_candidate,
         /// Uses the recovered-fallback `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.
         when feature(ZantufaMex) zantufa_raw_mekso_quantifier,
     }
@@ -5022,7 +5028,9 @@ pub mod generated_model {
     /// same inner shape and three different owners.
     rule "relative bridi" bridi_relative_clause(subbridi, statement_relative_clause) -> enum {
         /// Uses the site's rolling-Zantufa statement relative clause, after its ownership filter.
-        statement_relative_clause,
+        // Published before public fields were named for the construct; the name stays for API
+        // stability (an explicit `as`, never the default).
+        statement_relative_clause as statement_relative_clause,
         /// Uses the `restrictive_bridi_relative_clause` product form, whose payload preserves `poi`, `subbridi`, and `kuho`.
         restrictive_bridi_relative_clause,
         /// Uses the `incidental_bridi_relative_clause` product form, whose payload preserves `noi`, `subbridi`, and `kuho`.

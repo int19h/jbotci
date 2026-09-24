@@ -735,7 +735,7 @@ impl SyntaxGrammar {
                                 .filter(|attr| attr.path().is_ident("doc"))
                                 .cloned()
                                 .collect(),
-                            name: branch.name.clone(),
+                            name: branch.field_name(branch_output, type_env),
                             ty: branch.containment(branch_output, type_env).stored_type(),
                         });
                         push_generated_variant(
@@ -3582,9 +3582,37 @@ struct EnumBranch {
     conditions: Vec<Condition>,
     name: Ident,
     inline: bool,
+    /// An explicit public field name (`branch as field`), for a published name that predates the
+    /// construct-naming rule and must stay stable; see [`EnumBranch::field_name`].
+    field_override: Option<Ident>,
 }
 
 impl EnumBranch {
+    /// The public model field for this branch: the construct it produces, never the parser used
+    /// to reach it.
+    ///
+    /// A branch may name a guarded or warned alias, or a recursive site handle, rather than the
+    /// product rule itself (`jai_modal_tanru_unit_candidate` reaches `jai_modal_tanru_unit`). That
+    /// name is a parser-internal identity; the model and its bindings are named for the product
+    /// rule whose type the branch yields, so a refactor of the parser route cannot rename a public
+    /// field. Only an explicit `as` override, reserved for already-published names, departs from it.
+    #[requires(true)]
+    #[ensures(self.field_override.as_ref().is_none_or(|field| &ret == field))]
+    fn field_name(&self, output: &Type, type_env: &GrammarTypeEnv) -> Ident {
+        if let Some(field) = &self.field_override {
+            return field.clone();
+        }
+        let Some(output) = simple_type_ident(output) else {
+            return self.name.clone();
+        };
+        type_env
+            .rules
+            .keys()
+            .map(|rule| format_ident!("{rule}"))
+            .find(|rule| &syntax_type_ident_for_rule(rule) == output)
+            .unwrap_or_else(|| self.name.clone())
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Containment {
@@ -3698,7 +3726,7 @@ impl EnumRule {
                         })?
                 };
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
-                let field = &branch.name;
+                let field = &branch.field_name(branch_output, type_env);
                 let branch_parser = if branch_is_argument {
                     strict_argument_parser_tokens(
                         &branch_name,
@@ -3832,7 +3860,7 @@ impl EnumRule {
                         })?
                 };
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
-                let field = &branch.name;
+                let field = &branch.field_name(branch_output, type_env);
                 let branch_parser = if branch_is_argument {
                     recovered_argument_parser_tokens(
                         &branch_name,
@@ -9079,11 +9107,18 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
                     return Err(argument.error("inline enum branches require one rule name"));
                 }
             }
+            let field_override = if content.peek(Token![as]) {
+                content.parse::<Token![as]>()?;
+                Some(content.parse()?)
+            } else {
+                None
+            };
             branches.push(EnumBranch {
                 attrs,
                 conditions,
                 name,
                 inline,
+                field_override,
             });
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
