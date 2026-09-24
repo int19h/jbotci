@@ -702,9 +702,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn whole_skip_recovery_falls_back_through_line_to_document() {
-        let source = "mi klama\ncu ku\nzo'e";
+        // The error is at the first token, so recovery has no construct to
+        // retain and the whole text is one skipped region with no tree node
+        // narrower than the document around the second line's `ku`.
+        let source = "ku klama\ncu ku\nzo'e";
         let snapshot = DocumentSnapshot::new(source.to_owned(), 1);
-        let offset = source.find("ku").expect("recovered word");
+        let offset = source.rfind("ku").expect("recovered word");
         let ranges = char_ranges(&snapshot.selection_ranges(&[offset])[0]);
 
         assert_eq!(ranges.first(), Some(&(12, 14)));
