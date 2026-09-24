@@ -268,7 +268,7 @@ impl super::generated_runtime::RecoveredOutputRejection<recovered::ZantufaFaTanr
         "unproven source FA atom"
     }
     fn rejects_uncertain(&self, value: &recovered::ZantufaFaTanruUnitSyntax) -> bool {
-        classify_recovered_product(TracedCandidate::Fa, value, recovered_fa_presence)
+        classify_recovered_product(TracedCandidate::Fa, value, recovered_inventory_presence)
             != ZantufaTanruAtomPresence::Present
     }
 }
@@ -286,7 +286,7 @@ impl
         &self,
         value: &recovered::Recovered<recovered::ZantufaFaTanruUnitSyntax>,
     ) -> bool {
-        classify_recovered_wrapper(TracedCandidate::Fa, value, recovered_fa_presence)
+        classify_recovered_wrapper(TracedCandidate::Fa, value, recovered_inventory_presence)
             != ZantufaTanruAtomPresence::Present
     }
 }
@@ -314,47 +314,31 @@ fn strict_fa_presence(value: &model::ZantufaFaTanruUnitSyntax) -> ZantufaTanruAt
     ZantufaTanruAtomPresence::Present
 }
 
+/// Recovered presence for a product whose own rule states its inventory: the FA atom (its
+/// markers are `selmaho(Fa)`, its connectives the source JOIK) and the grouped sumti (a
+/// `cmavo(Ke)` opener and an `arc(sumti)` body).
+///
+/// Every parsed token in such a product already has the class its slot requires, exactly as for
+/// the strict product ([`strict_fa_presence`]): the rule and any class check read the same adopted
+/// identity through `Token::cmavo()`, and a dialect cmavo swap rewrites that identity for both. So
+/// recovery can undermine the claim only through its evidence, and the claim is proven exactly
+/// when no recovery item -- skipped, invalid or synthesized content -- lies anywhere under the
+/// candidate. A synthesized mandatory token is itself such an item, so an uncertainty-free
+/// candidate always carries parsed tokens of its own.
+///
+/// These classifiers used to restate the inventory and answer `Absent` on a wrong-class token.
+/// No parse can produce that state (a bounded search of 15,596 damaged inputs over every axis,
+/// 96,238 traced classifications, never produced it), and the `rejects_uncertain` contract now
+/// declares such a hand-built value out of bounds, so the check was removed rather than kept as an
+/// untestable branch.
 #[requires(true)]
-#[ensures(true)]
-fn recovered_fa_presence(value: &recovered::ZantufaFaTanruUnitSyntax) -> ZantufaTanruAtomPresence {
-    use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
-    let mut evidence = RequiredSubtreeEvidence::default();
-    recovered::TreeNode::visit_in_order(value, &mut evidence);
-    if evidence.uncertainty || !evidence.parsed_token {
-        return Unproven;
+#[ensures(ret != ZantufaTanruAtomPresence::Absent)]
+fn recovered_inventory_presence<T: recovered::TreeNode>(value: &T) -> ZantufaTanruAtomPresence {
+    if super::generated_runtime::carries_recovery_uncertainty(value) {
+        ZantufaTanruAtomPresence::Unproven
+    } else {
+        ZantufaTanruAtomPresence::Present
     }
-    let matches = |value: &StoredRecoveredTokenClause, selmaho| {
-        parsed_value(&value.value).is_some_and(|token| token.is_selmaho(selmaho))
-    };
-    if !matches(&value.fa, Selmaho::Fa) {
-        return Absent;
-    }
-    for part in &value.continuations {
-        let Some(part) = parsed_value(part) else {
-            return Unproven;
-        };
-        let Some(joik) = parsed_value(&part.connective) else {
-            return Unproven;
-        };
-        if !matches(&part.fa, Selmaho::Fa)
-            || !joik
-                .left_gaho
-                .as_ref()
-                .is_none_or(|v| matches(v, Selmaho::Gaho))
-            || !joik.na.as_ref().is_none_or(|v| matches(v, Selmaho::Na))
-            || !joik.se.as_ref().is_none_or(|v| matches(v, Selmaho::Se))
-            || ![Selmaho::Joi, Selmaho::Ja, Selmaho::Bihi]
-                .iter()
-                .any(|s| matches(&joik.head, *s))
-            || !joik
-                .right_gaho
-                .as_ref()
-                .is_none_or(|v| matches(v, Selmaho::Gaho))
-        {
-            return Absent;
-        }
-    }
-    Present
 }
 
 /// The grouped-sumti owner has to prove its own body, exactly as the atom family does.
@@ -369,35 +353,6 @@ fn recovered_fa_presence(value: &recovered::ZantufaFaTanruUnitSyntax) -> Zantufa
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GroupedSumtiRejection;
 
-/// Fail closed: a grouped sumti owns its extent only with a proven `KE` and a proven body.
-///
-/// Recovery can synthesize the mandatory body, so an occupied field is not evidence; the body
-/// must carry a parsed value, and any recovery item anywhere under the candidate makes the whole
-/// claim unproven, as in every other C-e classifier.
-#[requires(true)]
-#[ensures(ret == ZantufaTanruAtomPresence::Present -> parsed_value(value.sumti.as_ref()).is_some())]
-fn recovered_grouped_sumti_presence(
-    value: &recovered::ZantufaGroupedSumtiSyntax,
-) -> ZantufaTanruAtomPresence {
-    use ZantufaTanruAtomPresence::{Absent, Present, Unproven};
-
-    let mut evidence = RequiredSubtreeEvidence::default();
-    recovered::TreeNode::visit_in_order(value, &mut evidence);
-    if evidence.uncertainty || !evidence.parsed_token {
-        return Unproven;
-    }
-    let Some(ke) = parsed_value(&value.ke.value) else {
-        return Unproven;
-    };
-    if !ke.is_cmavo(jbotci_morphology::Cmavo::Ke) {
-        return Absent;
-    }
-    if parsed_value(value.sumti.as_ref()).is_none() {
-        return Unproven;
-    }
-    Present
-}
-
 #[bityzba::contract_trait]
 impl super::generated_runtime::RecoveredOutputRejection<recovered::ZantufaGroupedSumtiSyntax>
     for GroupedSumtiRejection
@@ -409,7 +364,7 @@ impl super::generated_runtime::RecoveredOutputRejection<recovered::ZantufaGroupe
         classify_recovered_product(
             TracedCandidate::GroupedSumti,
             value,
-            recovered_grouped_sumti_presence,
+            recovered_inventory_presence,
         ) != ZantufaTanruAtomPresence::Present
     }
 }
@@ -430,7 +385,7 @@ impl
         classify_recovered_wrapper(
             TracedCandidate::GroupedSumti,
             value,
-            recovered_grouped_sumti_presence,
+            recovered_inventory_presence,
         ) != ZantufaTanruAtomPresence::Present
     }
 }
@@ -501,7 +456,7 @@ priority_domain_walker!(model, strict_standalone_presence, strict_fa_presence);
 priority_domain_walker!(
     recovered,
     recovered_standalone_presence,
-    recovered_fa_presence
+    recovered_inventory_presence
 );
 
 #[invariant(true)]
@@ -2518,7 +2473,7 @@ mod tests {
                 .expect("complete recovered FA")
                 .into_owned();
             assert_eq!(
-                recovered_fa_presence(&parsed),
+                recovered_inventory_presence(&parsed),
                 ZantufaTanruAtomPresence::Present,
                 "{source}"
             );
@@ -2529,7 +2484,7 @@ mod tests {
             let mut uncertain = parsed.clone();
             uncertain.inner_unit = std::sync::Arc::new(recovered::Recovered::error(error));
             assert_eq!(
-                recovered_fa_presence(&uncertain),
+                recovered_inventory_presence(&uncertain),
                 ZantufaTanruAtomPresence::Unproven
             );
         }
@@ -2586,87 +2541,6 @@ mod tests {
                 "{source} must not parse as a strict FA atom"
             );
         }
-    }
-
-    /// The FA classifier's inventory rejection has no parser route; pin it directly.
-    ///
-    /// `recovered_fa_presence` answers `Absent` when the marker occupying the `fa` slot is not
-    /// FA, or when a continuation's JOIK head is outside the JOI/JA/BIhI inventory. No parse can
-    /// produce either state: the generated rule spells those slots `selmaho(Fa)` and
-    /// `choice((selmaho(Joi), selmaho(Ja), selmaho(Bihi)))`, and the classifier re-tests the same
-    /// adopted identity through `is_selmaho`, so a completed product cannot contradict it. A
-    /// dialect cmavo swap cannot separate the two either, because it rewrites the adopted identity
-    /// that the rule and the classifier both read. A bounded search of 15,596 damaged inputs over
-    /// every axis (96,238 traced classifications) produced `Present` and `Unproven` for this
-    /// classifier and never `Absent`.
-    ///
-    /// The branch is deliberate defense in depth: the classifier states its own inventory rather
-    /// than trusting the route that produced the value. This test is therefore the honest home for
-    /// it -- a direct substitution into a really-parsed product, with its winning-tree
-    /// counterparts pinned end to end by the `ce-fr1-*` (valid inventory admitted) and `ce-fr5-*`
-    /// (incomplete evidence fails closed) fixtures.
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn fa_inventory_rejection_has_no_parser_route_and_is_pinned_directly() {
-        let dialect = parse_dialect_definition("(+ZANTUFA-SELBRI)").expect("minimal feature");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
-        let words = segment_words_with_modifiers("fa joi fa broda").expect("valid morphology");
-        let words = syntax_tokens(&words, &options);
-        let spanned = tokens::spanned_tokens(&words);
-        let eoi = spanned.last().expect("nonempty FA chain").span.end;
-        let mut state = ParserState::new(&words, &options);
-        let original = recovered_fa_tanru_unit_parser!()
-            .parse_with_state(
-                spanned.as_slice().split_spanned(SimpleSpan::from(eoi..eoi)),
-                &mut state,
-            )
-            .into_result()
-            .expect("complete recovered FA chain")
-            .into_owned();
-        assert_eq!(
-            recovered_fa_presence(&original),
-            ZantufaTanruAtomPresence::Present
-        );
-
-        // `broda` is the one token in this input that is neither FA nor a source JOIK head.
-        let outsider = words.last().expect("trailing brivla").clone();
-        assert!(!outsider.is_selmaho(Selmaho::Fa));
-
-        let mut wrong_marker = original.clone();
-        wrong_marker.fa.value = recovered::Recovered::valid(outsider.clone());
-        assert_eq!(
-            recovered_fa_presence(&wrong_marker),
-            ZantufaTanruAtomPresence::Absent,
-            "a non-FA marker in the FA slot is a known shape, not missing evidence"
-        );
-
-        let mut wrong_continuation_marker = original.clone();
-        let recovered::Recovered::Valid(part) =
-            Arc::make_mut(&mut wrong_continuation_marker.continuations[0])
-        else {
-            panic!("complete continuation");
-        };
-        part.fa.value = recovered::Recovered::valid(outsider.clone());
-        assert_eq!(
-            recovered_fa_presence(&wrong_continuation_marker),
-            ZantufaTanruAtomPresence::Absent
-        );
-
-        let mut wrong_joik_head = original.clone();
-        let recovered::Recovered::Valid(part) =
-            Arc::make_mut(&mut wrong_joik_head.continuations[0])
-        else {
-            panic!("complete continuation");
-        };
-        let recovered::Recovered::Valid(joik) = Arc::make_mut(&mut part.connective) else {
-            panic!("complete JOIK");
-        };
-        joik.head.value = recovered::Recovered::valid(outsider);
-        assert_eq!(
-            recovered_fa_presence(&wrong_joik_head),
-            ZantufaTanruAtomPresence::Absent
-        );
     }
 
     // All nonnegative counts are valid intermediate traversal states.
