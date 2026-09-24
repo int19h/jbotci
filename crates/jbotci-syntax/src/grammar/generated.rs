@@ -6834,8 +6834,11 @@ pub mod generated_model {
         field assignments <- [zero_or_more zantufa_selbri_assignment(zantufa_selbri_entry)];
     }
 
+    // Recovery may not hand this owner a KEhE, BE or link payload it did not parse (for example
+    // `broda be ko'a` with a synthesized `ke'e` is baseline tanru-unit linkargs, not this).
     alias "Zantufa KEhE-linked selbri" zantufa_kehe_linked_selbri_candidate(zantufa_selbri_entry, co_selbri, linkargs, selbri_relative_clause_list) =
         zantufa_kehe_linked_selbri(zantufa_selbri_entry, co_selbri, linkargs, selbri_relative_clause_list)
+            .reject_recovered_output(crate::grammar::kehe_linked_selbri::KeheLinkedRecoveredRejection)
             .recursive_output(zantufa_kehe_linked_selbri_candidate);
 
     /// The KEhE-linked selbri at the description boundary: no terminal relative, and a CEI chain
@@ -6857,6 +6860,7 @@ pub mod generated_model {
 
     alias "Zantufa KEhE-linked selbri without terminal relative" zantufa_kehe_linked_selbri_without_terminal_relative_candidate(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, linkargs) =
         zantufa_kehe_linked_selbri_without_terminal_relative(zantufa_selbri_entry, selbri_without_terminal_relative, co_selbri, linkargs)
+            .reject_recovered_output(crate::grammar::kehe_linked_selbri::KeheLinkedRecoveredRejection)
             .recursive_output(zantufa_kehe_linked_selbri_without_terminal_relative_candidate);
 
     /// One full-selbri Zantufa CEI assignment.

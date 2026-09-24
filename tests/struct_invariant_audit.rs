@@ -2587,6 +2587,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:GroupedSumtiRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
+    (
+        "crates/jbotci-syntax/src/grammar/kehe_linked_selbri.rs:KeheLinkedRecoveredRejection",
+        "zero-sized recovered-only rejection policy has exactly one state; the candidate's own recovery evidence decides eligibility",
+    ),
 ];
 
 #[test]
