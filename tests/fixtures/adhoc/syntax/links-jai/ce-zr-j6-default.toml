@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-zr-j6-default"
-lojban = "ko'a jai ga broda gi me ku .i ku"
+lojban = "ko'a jai ga broda gi me ku .i ku'o"
 dialect = "()"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row ZR-J6"
-description = "ZR-J6: a proven JAI marker whose nested inner child is unproven -- the enclosed GEK's branch operand is a bare me with a synthesized mandatory sumti -- with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Pairs with ce-zr-j5, whose identical fail-closed rejection sits under Valid containing fields. Reaching this row at all takes both halves at once, which is why it was the last one pinned: the in-candidate damage that produces Unproven normally leaves the survivor on an all-Valid chain, and the separate skipped ku that confers the Prefix normally stops the classifier being re-entered on the first statement. Here the first statement fails on its own, so recovery re-parses it and both observations hold together. Default control: no C-e product exists on this axis, so the row's ownership question is never asked."
+description = "ZR-J6: a proven JAI marker whose nested inner child is unproven -- the enclosed GEK's branch operand is a bare me with a synthesized mandatory sumti -- with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Pairs with ce-zr-j5, whose identical fail-closed rejection sits under Valid containing fields. Reaching this row at all takes both halves at once, which is why it was the last one pinned: the in-candidate damage that produces Unproven normally leaves the survivor on an all-Valid chain, and the separate skipped ku'o that confers the Prefix normally stops the classifier being re-entered on the first statement. Here the first statement fails on its own, so recovery re-parses it and both observations hold together. Default control: no C-e product exists on this axis, so the row's ownership question is never asked. Trailing damage changed in epoch-10 C-g from `ku` to `ku'o` together with the -zantufa row, so every axis of this family pins one input: on the -zantufa axis main's recovery keeps a bare `ku` behind a synthesized sumti (#934), and a stray `ku'o` is skipped on every axis."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "b54605eca7dca491669159f7130c2fbbc82443f41454be41c36f9172fdf2005a" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "ga", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["ko'a", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[5, 8], [9, 11], [12, 17], [18, 20], [21, 23], [24, 26]] }, { kind = "invalid", error-index = 1, byte-spans = [[30, 32]] }] }
+raw = { sha256 = "1c97014c4a3f5ff0bdecbb87b9cb62016a9ef2d49e36e533e6a4294d739d70c1" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "ga", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 34], source-text = "ku'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[5, 8], [9, 11], [12, 17], [18, 20], [21, 23], [24, 26]] }, { kind = "invalid", error-index = 1, byte-spans = [[30, 34]] }] }
