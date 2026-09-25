@@ -109,7 +109,7 @@ Where it sits:
 
 A recovered-only rejection (see `reject_recovered_output` below) stops recovery from claiming the owner on a `ke'e`, BE or link payload it did not parse. Without it, recovery claims the owner on synthesized content in 12 probe rows, for example a synthesized `ke'e` before ordinary tanru-unit linkargs (`mi broda be ko'a be'o ku`, pinned as `cf-recovered-synthesized-kehe`).
 
-**Order-independence measurement.** In a measurement build I swapped only the owner's arm and the D5 arm, then re-parsed every C-f row on every pinned axis. Only the brodi-GEK row breaks: `mi brodi ga broda gi brode ke'e be ko'a be'o` on `+zantufa-selbri +zantufa-selbri-reinterpretation`. The leading FA and GEK rows never produce an atom-bearing level-2 selbri in jbotci (see #933 below), so they are unaffected. The atom-bearing set jbotci actually has breaks exactly as predicted, and no other row breaks.
+**Order-independence measurement.** A measurement build swapped only the owner's arm and the D5 arm, and every C-f row was re-parsed on every pinned axis. Only the brodi-GEK row breaks: `mi brodi ga broda gi brode ke'e be ko'a be'o` on `+zantufa-selbri +zantufa-selbri-reinterpretation`. The leading FA and GEK rows never produce an atom-bearing level-2 selbri in jbotci (see #933 below), so they are unaffected. The atom-bearing set jbotci actually has breaks exactly as predicted, and no other row breaks.
 
 **Reference parity.** All 99 C-f fixtures record their Zantufa 1.9999, camxes and camxes-exp result. Where jbotci accepts, the linked extent matches Zantufa's (selbri_2 before `KEhE_clause`, and the linkargs), with these exceptions:
 - **CEI after the linkargs** needs ZantufaTerms, because `zantufa_selbri_assignment` asserts it; that is the C-e feature allocation. These rows fail on `+zantufa-selbri` alone and agree on `+zantufa-selbri +zantufa-terms`.
@@ -182,7 +182,7 @@ Any new piece of diagnostic or recovery state added to `ParserState` must be add
 ### `reject_recovered_output`: a recovered-only rejection, and its contract
 
 The classifier-layer audit added one DSL form for "recovery may not hand a construct a claim it did not parse": `.reject_recovered_output(X)`.
-- **Strict flavour.** It lowers to its receiver unchanged, so the strict language is unaffected by construction, and the strict spine loses a combinator.
+- **Strict flavour.** It lowers to its receiver unchanged, so the strict language is unaffected by construction, and the strict parser carries no extra combinator.
 - **Recovered flavours.** It lowers to the shared `reject_output` mechanism through `RecoveredOutputRejection::rejects_uncertain`.
 - **The contract.** `rejects_uncertain` carries `#[expensive_ensures(!ret || carries_recovery_uncertainty(value))]`: it may reject only a value with a recovery item (skipped, invalid or synthesized content) somewhere in its subtree. Rejecting a fully parsed value would be a strict-language decision made only in recovery. The expensive-contracts gate exercises this across the corpora.
 
@@ -215,7 +215,7 @@ The policy for a known gap is to pin its current output, with provenance naming 
 - **#925.** The final selector is consulted and exhausted: every candidate is rejected. This covers ce-sr2-zantufa: C-e's grouped-sumti rejection works, and the remaining recovery is a KE bridi-tail group with a missing body that loses `broda`.
 - **#935.** A late natural-stop success is kept only `if !directives.is_empty()`, so at the first error it is discarded and the parse degrades, although the driver's own comment says such a success is preferable to degrading. This is the same shape of asymmetry as #927, and main shares it.
   - C-e exposed it on four epoch-9 descriptor witnesses (`d3c-recovered-r2-*`, `d3c-recovered-r4-*`). Its added checkpoints displace the winning `descriptor_with_outer_quantifier_sumti` candidate to position 31 or 41 of the final list, past the exact-phase trial budget of 8. The base tried it fourth.
-  - It is not fixed here: a driver-policy change needs its own PR with the full differential, conservation and the expensive gate.
+  - It is not fixed here: a driver-policy change needs its own PR with the full differential, conservation and the expensive gate. That PR is scheduled right after this epoch and before epoch 11. It removes the `!directives.is_empty()` guard, with the #927/#930 evidence standard.
 - **#934.** On Zantufa axes, main's recovery keeps a bare `ku` behind a synthesized missing sumti, `[‼‼ ku]`, inventing a description the input never started. 20 re-pinned rows cite it.
 - **#931.** Resume-at-end skips swallow the enclosing construct's closer.
 - **#928.** The final-selector fallback costs up to 3.7× on inputs that still collapse.
@@ -224,28 +224,21 @@ The policy for a known gap is to pin its current output, with provenance naming 
 
 `EnumBranch::field_name` names every enum variant's public field for the product rule whose type the branch yields, never for the parser arm or alias that reaches it. The lane had leaked 8 alias names into the public model, including a rename of main's published `jai_modal_tanru_unit` to `jai_modal_tanru_unit_candidate`. All 8 now carry construct names, with 0 renames against main.
 
-Main already published 4 alias-named fields: three quantifier `*_candidate` arms, and `bridi_relative_clause`'s `statement_relative_clause`. Each is pinned with an explicit `arm as field` override, the only way to depart from the rule. Renaming them is an API decision pending with the owner.
+Main already published 4 alias-named fields: three quantifier `*_candidate` arms, and `bridi_relative_clause`'s `statement_relative_clause`. Each is pinned with an explicit `arm as field` override, the only way to depart from the rule. The owner approved renaming them; the rename lands as a standalone PR right after this epoch (#937).
 
 At C-g, `validate_unique_rules` also rejects two rules that denote the same syntax type (`foo_bar` / `foo__bar` → `FooBarSyntax`). That makes `field_name`'s choice unambiguous by construction; its precondition states this.
-
-## Python API: break notice
-
-Compared with origin/main, the regenerated Python models remove 22 whole classes. At the audit head (1a059274a6) they added 234 public names; C-f adds its own since. There are no renames inside surviving classes. The removals come from three reviewed model changes:
-- the `JaiInner*` family, 17 classes (#808, shared JAI atom recursion);
-- `EmptyLinkedSumti`, 3 classes (#807, empty BE/BEI payloads removed);
-- `ExperimentalMehoiCompoundQuote`, 2 classes (#820, direct MEhOI predicate atoms).
 
 ## Alice
 
 `corpus.alis.full-alice` (run under `(case-insensitive zantufa)`) stays a strict failure until #924. It contains `panzi be ny ci mei`, which is correct Zantufa: `be ny` followed by the tanru unit `ci mei`. Standard camxes and every jbotci profile keep the mixed lerfu-string form `lerfu_string <- lerfu_word (PA / lerfu_word)*`, so `ny ci` forms one string and the phrase is rejected. Main's earlier "success" was a wrong tree through the empty-`be` defect (#807).
 
-The fixture regains success once #924 provides the split number/lerfu reading under a reinterpretation flag. The vendored text is not edited.
+The fixture regains success once #924 provides the split number/lerfu reading under a reinterpretation flag. The vendored text is not edited. #924 is scheduled with epoch 11. Its first design question is whether the union can take the split reading where standard camxes rejects the whole input, which is the `fa je fe broda` precedent.
 
 ## Expectations re-pinned at C-g
 
 At 92fedd55cd the full fixture profile had 128 failing facets, all attributed.
 
-**Attribution.** I made 17 release builds along the lane's first-parent history (base, #793, #807, #808, #820, C-e, its follow-ups, the union and its extraction, the main merges, the audit, #930, C-f). Each failing row's input was probed on its axis, and the row was attributed to the interval where its output last changed after its fixture was pinned.
+**Attribution.** 17 release builds were made along the lane's first-parent history (base, #793, #807, #808, #820, C-e, its follow-ups, the union and its extraction, the main merges, the audit, #930, C-f). Each failing row's input was probed on its axis, and the row was attributed to the interval where its output last changed after its fixture was pinned.
 
 **Controls.**
 - A memo-disabled 5094feaf95 build confirms class F.
@@ -273,10 +266,10 @@ Rows that needed individual treatment:
 - **Seven Prefix witnesses** (ce-gr-e7, ce-gr-s8, ce-gr-s10, ce-sr1b, ce-sr5, ce-zr-j6, ce-zr-s6, all on the -zantufa axis). They are the only coverage of the kept classifiers' behaviour under a Prefix-wrapped containing field. Their Prefix came from recovery skipping a trailing bare `ku`, which main's recovery now keeps (#934).
   - Only the trailing damage changed, `ku` → `ku'o`, measured per row over 18 candidates.
   - The head's raw tree again has a Prefix on `paragraphs.first`, and every traced decision the provenance states still holds.
-  - Their -default, -selbri and -terms siblings, the same families' controls, moved to the same input. On those axes the traced decisions, warnings, Prefix count and tree are unchanged apart from the skipped token.
+  - Their 14 -default, -selbri and -terms siblings, the same families' controls, moved to the same input so that each control tests the same input as its -zantufa row. On those axes the traced decisions, warnings, Prefix count and tree are unchanged apart from the skipped token, and each control's own claim was checked. These 14 are input edits of passing rows, outside the 128-row table.
 - **The IDE provisional-diagnostic gate.** `trailing-operator-mex-quantifier` left the reviewed set. Since C-e (7a18ce022d), recovery reads its `su'i` as the experimental VUhU connective on a parsed token, which complies with the recovered-claim policy but carries a local experimental warning that the gate must reject.
 
-The full fixture profile at c7e7946211: 27,248 fixtures, 73,295 passed, 509 xfailed, 0 failed, 7,940 skipped. The delta is exactly the 128 re-pinned rows.
+After the re-pin the full fixture profile had 0 failures, and the delta from 92fedd55cd was exactly the 128 re-pinned rows. The final totals are in the Gate section.
 
 ## Harness notes
 
@@ -286,20 +279,47 @@ The full fixture profile at c7e7946211: 27,248 fixtures, 73,295 passed, 509 xfai
   - The epoch's grammar pushed the merged `.debug_str` past 2^31, and rust-lld 22.1.2 crashed with SIGSEGV while linking.
   - With the fix, the module is 139 MB and loads in V8.
   - Cargo does not read package overrides from `CARGO_PROFILE_*` environment variables. The escape hatch is `--config 'profile.wasm-dev.package.jbotci-syntax.debug="line-tables-only"'`.
-- **Python tools on aarch64.** Build with `CARGO_PROFILE_DEV_DEBUG=0` and a separate `CARGO_TARGET_DIR`. Debug info overflows R_AARCH64_ABS32 `.debug_str` relocations when linking `jbotci-python-api-parity`, and the full debug tree is large.
+- **The native debug build and jbotci-syntax.** `profile.dev.package.jbotci-syntax` has `debug = "line-tables-only"` (5398803b52; see Gate). The test and desktop-dev profiles inherit it. For full debug info in a one-off build, pass `--config 'profile.dev.package.jbotci-syntax.debug="full"'`. The underlying growth is #936.
+- **Python tools on aarch64.** Use a separate `CARGO_TARGET_DIR`. `CARGO_PROFILE_DEV_DEBUG=0` is no longer needed. Before 5398803b52, full debug info overflowed the R_AARCH64_ABS32 `.debug_str` relocations when linking `jbotci-python-api-parity`. Measured at 5398803b52: in a fresh target with default debug settings, maturin and all four `--check` tools pass (17 GB target).
 - **Test runs.** `cargo test` stops at the first failing target, so always pass `--no-fail-fast`. In piped gate scripts, take the exit code from `${PIPESTATUS[0]}`.
 - **fixture-test.** `--path` without a profile selects nothing; use `--profile all --path-prefix`.
 - **fixture-rewrite.** It fills only keys that are present. It adds keys that were never pinned, drops comments and re-quotes keys, so re-pin field by field and validate against the parsed TOML.
 
 ## Gate
 
-To be completed on the final candidate. It runs once:
-- the release expensive-contracts gate (all targets);
-- the full fixture profile;
-- `cargo test -r --workspace`;
-- the debug `jbotci` build and the debug `dx build`;
-- cliff.py;
-- the four Python `--check` tools.
+The heavy gate ran once, on 00bfea6afb, with a clean tree before and after:
+
+| check | result |
+|---|---|
+| release expensive contracts (`--workspace --all-targets --features expensive_contracts`) | 2,052 passed, 0 failed, 7 ignored |
+| `cargo test -r --workspace` | 2,053 passed, 0 failed, 15 ignored |
+| full fixture profile | 27,248 fixtures, 73,295 passed, 509 xfailed, 0 failed, 7,940 skipped |
+| Python: `maturin develop` + four `--check` tools | all pass |
+| cliff.py bbq (release bundle identified by its embedded revision) | 184/188 default, 192/196 zantufa, equal to the baseline |
+| debug `dx build` | links with no rust-lld crash; 138,728,897-byte module; `new WebAssembly.Module` succeeds in V8 |
+| debug `jbotci` | **failed**: `relocation truncated to fit` in `.debug_info` |
+
+**Why the debug `jbotci` build failed.** It is the native twin of the wasm limit. With full debug info, jbotci-syntax fed 7.5 GB of `.debug_str` into the link, against 5.0 GB on main, whose merged section was already 3.26 GB, 76% of 2^32. DWARF32 addresses `.debug_str` with 32-bit offsets.
+
+The fix is 5398803b52, `[profile.dev.package.jbotci-syntax] debug = "line-tables-only"`. Three options were measured at 00bfea6afb. The footprint is the target size after `cargo build -p jbotci` plus `cargo test -p jbotci --no-run`.
+
+| option | merged `.debug_str` | file:line (backtrace, gdb) | footprint |
+|---|---|---|---|
+| line-tables-only (chosen) | 1.42 GB, 33% of 2^32 | yes, yes | 22.9 GB |
+| `false` | 89 MB, 2% | no, no | 15.4 GB |
+| `split-debuginfo = "unpacked"` | 89 MB, 2%; full debug info in `.dwo` files | yes, yes | 31.8 GB, 15.3 GB of it `.dwo` per build flavour |
+
+The 33% is headroom, not a fix: this epoch grew the crate's debug strings by about 50%. The real fix is #936.
+
+**Re-verification at 5398803b52** (the only change there is to a dev profile, so no release, fixture or cliff result can move):
+- the debug `jbotci` build links, with a merged `.debug_str` of 1.42 GB;
+- `cargo test -p jbotci --no-run` links;
+- desktop-dev compiles jbotci-syntax with `-C debuginfo=line-tables-only`;
+- the debug `dx build` links (138,728,897 bytes, V8 OK);
+- fmt is clean;
+- jbotci-syntax: 283 passed, 0 failed;
+- the struct and enum invariant audits pass;
+- the Python tools build and all four `--check` tools pass without `CARGO_PROFILE_DEV_DEBUG=0`.
 
 ## Follow-up issues filed by this epoch
 
@@ -313,3 +333,5 @@ To be completed on the final candidate. It runs once:
 - #933: ZantufaSelbriReinterpretation does not cover leading FA/GEK tanru atoms.
 - #934: recovery policy for a bare `ku` kept behind a synthesized missing sumti.
 - #935: the recovery driver discards a late natural-stop success at the first error.
+- #936: jbotci-syntax debug info outgrows the 32-bit DWARF and wasm linker limits (monomorphized combinator names).
+- #937: rename the four legacy alias-named public syntax fields.
