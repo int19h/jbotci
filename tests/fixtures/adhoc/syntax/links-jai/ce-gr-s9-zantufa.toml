@@ -10,10 +10,10 @@ description = "GR-S9: the same warned BINARY candidate as ce-gr-s5, classified P
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "gi", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "c1a279e727139f7ebbe7c9d95bba93e1c48d39eb4b2832818215e04b82afddbb" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "gi", message = "unexpected cmavo" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 8], [9, 11], [12, 17], [18, 20], [21, 26], [27, 29]] }] }
+raw = { sha256 = "f97bd03e718cd095f265417721cad0e0e596e595a78cdcc27f9f74ec5bfe4cd1" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [21, 26], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 17]] }, { kind = "invalid", error-index = 1, byte-spans = [[18, 20], [21, 26], [27, 29]] }] }
