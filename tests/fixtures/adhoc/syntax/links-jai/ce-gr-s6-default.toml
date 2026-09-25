@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "cfe56a87cf3b90e54f6b114664305257d5fd19fa5081f711cbf5e75b32b7e77c" }
+raw = { sha256 = "a8664e4f7c0dc71e8bf7059150651d463683eb046663f6bd8225e89e1cfb98c1" }
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "gi", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [9, 14], source-text = "broda", message = "unexpected brivla" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 5], [6, 8], [9, 14], [15, 17], [18, 23], [24, 26]] }] }
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 5]] }, { kind = "invalid", error-index = 1, byte-spans = [[6, 8], [9, 14], [15, 17], [18, 23], [24, 26]] }] }
