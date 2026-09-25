@@ -4128,7 +4128,7 @@ fn recover_after_strict_failure(
                                     continuation_sentinel_index.is_some(),
                                 );
                             }
-                            if !directives.is_empty() && exact_position_success.is_none() {
+                            if exact_position_success.is_none() {
                                 exact_position_success = Some(new!(RecoverySuccessTrial {
                                     parsed,
                                     trace: attempt_trace,
@@ -4201,9 +4201,9 @@ fn recover_after_strict_failure(
         }
 
         // The wider phase preserves natural-stop recoveries as its first
-        // priority. After prior progress, if none fires left of the next
-        // declared failure, a late exact-site success is still a complete
-        // recovery and is preferable to degrading the entire parse.
+        // priority. If none fires left of the declared failure, a late
+        // exact-site success is still a complete recovery, including at the
+        // first error, and is preferable to degrading the entire parse.
         //
         // Degraded text is the last resort: past this point the driver stops
         // only after the final selector has been consulted for the current
