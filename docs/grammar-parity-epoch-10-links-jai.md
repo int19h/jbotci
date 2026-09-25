@@ -273,7 +273,7 @@ Rows that needed individual treatment:
 - **Seven Prefix witnesses** (ce-gr-e7, ce-gr-s8, ce-gr-s10, ce-sr1b, ce-sr5, ce-zr-j6, ce-zr-s6, all on the -zantufa axis). They are the only coverage of the kept classifiers' behaviour under a Prefix-wrapped containing field. Their Prefix came from recovery skipping a trailing bare `ku`, which main's recovery now keeps (#934).
   - Only the trailing damage changed, `ku` → `ku'o`, measured per row over 18 candidates.
   - The head's raw tree again has a Prefix on `paragraphs.first`, and every traced decision the provenance states still holds.
-  - Their -default, -selbri and -terms siblings keep `.i ku`.
+  - Their -default, -selbri and -terms siblings, the same families' controls, moved to the same input. On those axes the traced decisions, warnings, Prefix count and tree are unchanged apart from the skipped token.
 - **The IDE provisional-diagnostic gate.** `trailing-operator-mex-quantifier` left the reviewed set. Since C-e (7a18ce022d), recovery reads its `su'i` as the experimental VUhU connective on a parsed token, which complies with the recovered-claim policy but carries a local experimental warning that the gate must reject.
 
 The full fixture profile at c7e7946211: 27,248 fixtures, 73,295 passed, 509 xfailed, 0 failed, 7,940 skipped. The delta is exactly the 128 re-pinned rows.
