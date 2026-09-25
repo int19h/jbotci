@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr2-default"
+lojban = "ko'a ke ke'e broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR2"
+description = "SR2: no parsed value proves KE body ownership, so the grouped candidate answers Unproven and rejects fail-closed. Trace candidate=grouped-sumti wrapper=valid answer=Unproven decision=reject. This row previously pinned a real fail-open gap: grouped sumti was the one C-e product with no recovered evidence classifier of its own, so `ke ke'e` claimed the construct and reported its warning while its mandatory sumti was a synthesized Error covering no input. The classifier added alongside this fixture closes that, and the row now witnesses the behaviour the frozen table asks for. Default control: the construct does not exist on this axis at all."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "92d65eb4ef97e9e1d8d1604a213ac9a2069f2ea3b7a1d89141d541682510dd7f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ke'e", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }] }

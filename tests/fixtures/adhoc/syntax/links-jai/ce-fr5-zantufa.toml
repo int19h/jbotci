@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr5-zantufa"
+lojban = "mi broda fa je fa me ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR5"
+description = "FR5: a complete, occupied FA wrapper whose nested inner atom is a bare me with a synthesized mandatory sumti. Trace candidate=fa wrapper=valid answer=Unproven decision=reject. The containing fields stay Valid and the damaged region survives as an Error element, so this is the Valid-outer half of the nested-uncertainty pair. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "510b1f13d50ef5ea18ec70a3e14c1b8dc6a042c800ba7061f9142db42413ee49" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 20], [21, 23]] }] }

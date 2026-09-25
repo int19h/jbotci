@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s10-default"
+lojban = "mi na'e ga broda gi me ku .i ku'o"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S10"
+description = "GR-S10: the same occupied-opener, unproven-branch standalone rejection as ce-gr-s7 -- the branch operand is a bare me with a synthesized mandatory sumti -- under a Prefix containing field rather than a Valid one. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject. The row requires the candidate to reject fail-closed, and nothing claims the extent afterwards; the Prefix on the containing paragraph field carries the separately skipped ku'o as its ordered recovery evidence. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands. Trailing damage changed in epoch-10 C-g from `ku` to `ku'o` together with the -zantufa row, so every axis of this family pins one input: on the -zantufa axis main's recovery keeps a bare `ku` behind a synthesized sumti (#934), and a stray `ku'o` is skipped on every axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "bf6b615fb9319c04678640b7cd0e77b67c0d509fe5af3012f66254371e5ef27c" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 33], source-text = "ku'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 7], [8, 10], [11, 16], [17, 19], [20, 22], [23, 25]] }, { kind = "invalid", error-index = 1, byte-spans = [[29, 33]] }] }

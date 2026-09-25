@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s6-default"
+lojban = "mi gi je broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S6"
+description = "GR-S6 is a negative reachability obligation resolved by construction, and this is its nearest honest end-to-end pin. The frozen row asks for a complete standalone candidate with NAI-bearing or non-Zantufa inventory answering Absent. No parse can build one: the atom GEK has no NAI field anywhere -- the branch rule is commented in the grammar as the exact GI branch, not the NAI-bearing GIK -- and recovered_standalone_presence has no inventory-driven Absent arm either, all its Absent outcomes coming from the ownership and reservation rules. This fixture is therefore an explicitly labelled CONTROL, not the row's witness: it demonstrates that a real standalone Absent ownership route exists and rejects with the prior owner keeping the extent, using the JOIK overlap rule. It does NOT witness the NAI-bearing or inventory-contradicting condition the row names, which the model cannot represent at all; that condition is resolved by the construction proof above. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "gi", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "a8664e4f7c0dc71e8bf7059150651d463683eb046663f6bd8225e89e1cfb98c1" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "gi", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [9, 14], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 5]] }, { kind = "invalid", error-index = 1, byte-spans = [[6, 8], [9, 14], [15, 17], [18, 23], [24, 26]] }] }

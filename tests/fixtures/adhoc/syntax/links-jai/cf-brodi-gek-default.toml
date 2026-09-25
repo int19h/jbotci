@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-brodi-gek-default"
+lojban = "mi brodi ga broda gi brode ke'e be ko'a be'o"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 positive row: an atom-bearing tanru whose GEK unit follows a brivla. Reference: Zantufa 1.9999 accepts through selbri_1's KEhE-linked alternative; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "198f13ec36edcef01c7a0b8b099af6b6931aa1187a49f3a4f45eb10b3479acd3" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.incomplete-selbri", byte-span = [44, 44], source-text = "", message = "incomplete selbri" }]
+tree = { valid-tokens = ["mi", "bródi", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 17], [18, 20], [21, 26], [27, 31]] }, { kind = "missing", error-index = 1, byte-spans = [[44, 44]] }] }

@@ -11,12 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "used" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cmána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "used" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [ParentheticalText(ParentheticalTextSyntax { to: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, text: RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: PreposedLinkargsTanruUnit(PreposedLinkargsTanruUnitSyntax { linkargs: LinkargsSyntax { be: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })), free_modifiers: [] }, first_link: EmptyLinkedSumti(EmptyLinkedSumtiSyntax), bei_links: [], beho: None }, base: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "cmána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] } }) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] })), additional_niho: [] })) }), toi: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":11,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":11,"length":5},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":11,"length":5},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":11,"length":5},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":8,"length":8},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":8,"length":8},"propagation":{"kind":"forward","inner":1}},{"index":3,"node":{"offset":8,"length":8},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":8,"length":8},"propagation":{"kind":"forward","inner":2}},{"index":4,"node":{"offset":8,"length":8},"kind":"compound","selbri":{"offset":8,"length":8},"tanru-unit":null,"propagation":{"kind":"compound","head":3,"modifiers":[]}},{"index":5,"node":{"offset":8,"length":8},"kind":"forwarding","selbri":{"offset":8,"length":8},"tanru-unit":null,"propagation":{"kind":"forward","inner":4}},{"index":6,"node":{"offset":8,"length":8},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":5}},{"index":7,"node":{"offset":8,"length":8},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":8,"length":8},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}},{"index":9,"node":{"offset":8,"length":8},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[8]}},{"index":10,"node":{"offset":8,"length":8},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[9]}}],"assignments":[],"selbri-places":[],"references":[]}'
+# C-b #807: strict-dependent refs/Gentufa outputs are unavailable (blocked by syntax failure).
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-word", "byte-span" = [11, 16], "source-text" = "cmana", "message" = "unexpected word" }]
 
 [expectations.output.vlasei]
 brackets = "(.used. to be cmána)"
@@ -28,24 +25,3 @@ tree = """
   Gismu @[11‥16) "cmána",
 ]"""
 json = '[{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}},{"PlainWord":{"Gismu":{"phonemes":"cmána","span":[11,16]}}}]'
-
-[expectations.output.gentufa]
-tree = """
-Text @[0‥16) {
-  leading_cmevla: [
-    Cmevla @[0‥4) "used",
-  ],
-  leading_free_modifiers: [
-    ParentheticalText @[5‥16) {
-      to: Cmavo @[5‥7) "to",
-      text: PreposedLinkargsTanruUnit @[8‥16) {
-        linkargs: Linkargs @[8‥10) {
-          be: Cmavo @[8‥10) "be",
-          first_link: EmptyLinkedSumti {},
-        },
-        base: Gismu @[11‥16) "cmána",
-      },
-    },
-  ],
-}"""
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}}}],"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"PreposedLinkargsTanruUnit":{"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}}},"first_link":{"EmptyLinkedSumti":{}}},"base":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmána","span":[11,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}'

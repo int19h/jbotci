@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-tags-jai-grouped-route-default"
+lojban = "mi jai ke ko'a ke'e"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: grouped sumti payload"
+description = "Legitimate tags route where the JAI tag term takes a KE-grouped sumti payload, carrying both the JAI tag-term warning and the grouped-sumti warning. This is the #827 payload the C-e guards deliberately keep with the tag term rather than the atom family, so it also witnesses that the JAI reservation fix leaves that split intact. Default control."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [10, 14], source-text = "ko'a", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "d2689ffc444ccc69100bae23f949aa599cac252b12d3a7ea2911510f17d4d65b" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [10, 14], source-text = "ko'a", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ke", "ke'e"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[10, 14]] }, { kind = "missing", error-index = 0, byte-spans = [[10, 10]] }] }

@@ -1,0 +1,14 @@
+id = "adhoc.syntax.links-jai.cc-nu-strict-control-zantufa"
+lojban = "mi nu do klama kei"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c NU component warning control"
+description = "No-JAI control for PM ruling msg_20260912T171312373960Z_79190f2f468142ad9694ebf54261cf56. Built-in/minimal retain exactly one component warning, grammar-attached (not #891 post-pass), at NU 3..5; default has no warning. The malformed counterpart retains the same component warning before its local recovery error at 21..21. Shared JAI must not add or duplicate this warning; #891 remains deferred."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-zantufa-statement-abstraction", "byte-span" = [3, 5], "source-text" = "nu", "message" = "experimental syntax: Zantufa statement payload in abstraction", "word-index" = 1 }]
+raw = { "sha256" = "6e3657922003bbc8d15a0ba71ab2a20669a00499352a95e5a5eb2be4048aa6a3" }

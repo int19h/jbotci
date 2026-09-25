@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr6-zantufa"
+lojban = "lo broda fa je fa me cu brodi"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR6"
+description = "FR6: the same nested-uncertainty rejection as ce-fr5, but under a Prefix containing field. Trace candidate=fa wrapper=valid answer=Unproven decision=reject, and the winning tree confers Prefix on the field holding the surviving structure at that position together with the synthesized sumti as an Error. A Prefix containing field is not permission to admit an Unproven candidate: the FA atom is still absent. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "cu", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "e8a5ed32d027d6912e610cc611a37c999839c66f8a18f47cf857274eba1f9f95" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-fa-as-tag", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: FA place tag used as a tag/stag atom", word-index = 2 }, { severity = "warning", code = "syntax.warning.experimental-fa-as-tag", byte-span = [15, 17], source-text = "fa", message = "experimental syntax: FA place tag used as a tag/stag atom", word-index = 4 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "cu", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lo", "bróda", "fa", "je", "fa", "me"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[21, 23], [24, 29]] }, { kind = "missing", error-index = 0, byte-spans = [[21, 21]] }] }

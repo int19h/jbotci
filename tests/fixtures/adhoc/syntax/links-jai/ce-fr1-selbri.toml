@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr1-selbri"
+lojban = "mi broda fa je fa brode .i mi ku broda"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR1"
+description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Trace candidate=fa wrapper=valid answer=Present decision=accept. The FA atom owns brode and every recovered field enclosing it in the winning tree is Valid; the damage is in the second statement, off the atom's containing chain. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "af125860e602144e85551becd7ec003fbb235adb96c4bc2b02c8df31d3868550" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32], [33, 38]] }] }

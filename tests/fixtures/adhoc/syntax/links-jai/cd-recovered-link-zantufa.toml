@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cd-recovered-link-zantufa"
+lojban = "mi me'oi broda be"
+tags = ["links-jai-epoch", "mehoi-owner"]
+dialect = "(zantufa)"
+
+[[provenance]]
+kind = "other"
+name = "Epoch10 C-d #820 typed MEhOI ownership"
+description = "Malformed winning MEhOI atom with a missing first BE payload. Exactly one grammar-attached selbri-unit component warning precedes the local error; this is not #891 recovered-spine generation. Full final raw hash, diagnostics, tokens and recovery items are pinned."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [17, 17], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "4be2b4600e4ca92e19318851f493c9567bdb0c5de22479b53e064873c8d38d4f" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-meh-oi-selbri-unit", "byte-span" = [3, 14], "source-text" = "me'oi broda", "message" = "experimental syntax: MEhOI stage-0 fu'ivla selbri unit", "word-index" = 1 }, { "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [17, 17], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "me'oĭ-\"broda\"", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[17, 17]] }] }

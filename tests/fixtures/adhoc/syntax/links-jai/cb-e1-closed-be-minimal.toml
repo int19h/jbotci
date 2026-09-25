@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cb-e1-closed-be-minimal"
+lojban = "mi broda be be'o"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-b required BE/BEI payload"
+description = "E1: final LinkargsSyntax.first_link is Error(MissingRequiredField) immediately before the valid BEhO; the BE/BEhO parent is retained, never a valid empty link. Full recovered-tree and diagnostic pins record the actual winning parser result; no construct warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 16], "source-text" = "be'o", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "58b5324e1753e95aa47ed4af0dbc4c6d44fca5a6a1ca84e17618cbd666a8e995" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 16], "source-text" = "be'o", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "be'o"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[12, 12]] }] }

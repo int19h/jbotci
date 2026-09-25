@@ -1952,8 +1952,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed payload validity is owned by the invariant-bearing tag-term node the view holds",
     ),
     (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
-        "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::FullTerm",
+        "this borrowed view accepts every NormalTermSyntax value; the parser guard, not the semantic view, determines which term wins a Full link",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::PlaceTagged",
@@ -2253,6 +2253,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Lookahead",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::StrictObserve",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
@@ -2938,6 +2942,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:Command::ServeWebRelease",
         "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::AtomOperand",
+        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::FreeModifier",
+        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::Opener",
+        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::Operand",
+        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId::Recovered",
+        "identity of one observing frame; the nonzero counters are unique by construction within the state that issues them and no combination of them is invalid",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId::Strict",
+        "identity of one observing frame; the nonzero counters are unique by construction within the state that issues them and no combination of them is invalid",
     ),
 ];
 

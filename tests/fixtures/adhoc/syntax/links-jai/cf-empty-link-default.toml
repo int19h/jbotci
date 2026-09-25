@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-empty-link-default"
+lojban = "mi broda ke'e be be'o"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 negative row: an empty BE payload. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "c48b6e1edf777a62bea5d6c52e17b132ce8dfbf8618c4989d9c92c3db1ac37c4" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "be'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13]] }, { kind = "invalid", error-index = 1, byte-spans = [[14, 16], [17, 21]] }] }

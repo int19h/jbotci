@@ -11,12 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "used" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "used" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [ParentheticalText(ParentheticalTextSyntax { to: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, text: RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(LinkedSumtiFragment(LinkedSumtiFragmentSyntax(LinkargsSyntax { be: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })), free_modifiers: [] }, first_link: EmptyLinkedSumti(EmptyLinkedSumtiSyntax), bei_links: [], beho: None })))), following: [], trailing: [] })), additional_niho: [] })) }), toi: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+# C-b #807: strict-dependent refs/Gentufa outputs are unavailable (blocked by syntax failure).
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [10, 10], "source-text" = "", "message" = "incomplete selbri" }]
 
 [expectations.output.vlasei]
 brackets = "(.used. to be)"
@@ -27,21 +24,3 @@ tree = """
   Cmavo @[8‥10) "be",
 ]"""
 json = '[{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}}]'
-
-[expectations.output.gentufa]
-tree = """
-Text @[0‥10) {
-  leading_cmevla: [
-    Cmevla @[0‥4) "used",
-  ],
-  leading_free_modifiers: [
-    ParentheticalText @[5‥10) {
-      to: Cmavo @[5‥7) "to",
-      text: LinkedSumti @[8‥10) {
-        be: Cmavo @[8‥10) "be",
-        first_link: EmptyLinkedSumti {},
-      },
-    },
-  ],
-}"""
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}}}],"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiFragment":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}}},"first_link":{"EmptyLinkedSumti":{}}}}}}}}}}}}}]}}'

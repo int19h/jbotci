@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cb-e1-bare-be-minimal"
+lojban = "mi broda be"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-b required BE/BEI payload"
+description = "E1: final LinkargsSyntax.first_link is Error(MissingRequiredField) at EOF after BE; the sourced BE remains in its parent. The elided BEhO does not make the required payload optional. Full recovered-tree and diagnostic pins record the actual winning parser result; no construct warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [11, 11], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "1e9e91355fc10ea5c983f85cacf3d4b26bad42de49702e1c5d44e035a162bf00" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [11, 11], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[11, 11]] }] }

@@ -620,7 +620,6 @@ fn foldable_constructor(constructor: &str, contains_lohu_quote: bool) -> bool {
             | "NuhiTermsetSyntax"
             | "KeTermsetSyntax"
             | "GroupedTanruUnitSyntax"
-            | "GroupedJaiInnerTanruUnitSyntax"
     ) || (constructor == "GenericCompoundQuoteSyntax" && contains_lohu_quote)
 }
 

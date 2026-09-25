@@ -1,0 +1,13 @@
+id = "adhoc.syntax.links-jai.cc-jai-group-zantufa-nary-default"
+lojban = "mi jai ke gu'a broda gi brode gi brodi ke'e"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "The shared KE body retains the existing connective feature boundary: the extra GI at 30..32 requires ZantufaConnectives; default and the explicit terms-only profile reject it."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [30, 32], "source-text" = "gi", "message" = "unexpected cmavo" }]

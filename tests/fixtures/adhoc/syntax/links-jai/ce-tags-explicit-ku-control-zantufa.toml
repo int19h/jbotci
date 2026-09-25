@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-tags-explicit-ku-control-zantufa"
+lojban = "mi tavla zo broda ku be"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: explicit terminator"
+description = "Control for the JAI term-start reservation fix. An explicit KU terminates the quote sumti, so the stray BE fails locally in every dialect. This is the input that first isolated the defect: before the fix, eliding the terminator made ZANTUFA-TAGS report at end of input and discard the whole statement, while the explicit terminator behaved like default. Pinning it keeps that invariance -- terminator-explicit and terminator-elided forms must fail the same way -- so a future regression in the reservation's position shows up here. Built-in axis, where the other built-in features add a second error of their own; the terminator invariance this row protects is pinned on the tags-only and default axes, which are identical to each other."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "163c1a434424390b8b0861c2cc67e36666def168d719f314f7e3675a47d5b222" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "be", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "távla", "zo-<<gismu:bróda>>", "ku"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[21, 23]] }, { kind = "missing", error-index = 0, byte-spans = [[18, 18]] }, { kind = "missing", error-index = 1, byte-spans = [[21, 21]] }] }

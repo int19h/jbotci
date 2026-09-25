@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-j2-default"
+lojban = "mi brodi jai na'e ga broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-J2"
+description = "ZR-J2: the same eligible no-tag JAI, Present at an outer-Valid boundary, winning under a Prefix containing selbri field that carries the skipped ku. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "bdf23f80f2ec4c88e8e2e8a989658deae15a40c2b0b9553524482c78cec29a5c" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 12], [13, 17], [18, 20], [21, 26], [27, 29], [30, 35], [36, 38]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr1a-default"
+lojban = "ko'a ke ko'e ke'e broda ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR1a"
+description = "SR1a: a grouped-sumti candidate proving KE and a complete single-sumti body with an explicit closer, winning under Valid containing fields. Grouped sumti has no rejection classifier of its own, so this row is pinned by the winning tree and the owner-specific warning. Default control on the identical input and identical damage: the pre-existing KE termset owner keeps the extent and reports the KE-termset warning instead, so the row pins the ownership move rather than assuming it."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "c4e4a423ed4e3b8eaf92a296276988d30b79ab4a4559bd8f5596cd40544fcf1d" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ko'e", "ke'e", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[24, 26]] }] }

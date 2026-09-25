@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr2-zantufa"
+lojban = "mi broda fa je fa brode ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR2"
+description = "FR2: the same fully proven FA candidate, classified Present at an outer-Valid boundary, but the containing selbri field of the winning tree is Prefix, carrying the skipped ku as its ordered recovery evidence. Per the C-a boundary rule the Prefix belongs to the containing field, not to the classifier input; the candidate is outer-Valid by construction. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "6ca779efaac3314536696d046f16681921043efb1785677870d8216b93b2b27c" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[24, 26]] }] }

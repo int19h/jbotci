@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cc-recovered-jai-nu-default"
+lojban = "mi jai nu do klama kei be"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "Winning JaiModal.inner_unit is Valid(TanruUnitAtom) containing the existing dialect-appropriate NU abstraction product. The following outer Linkargs.first_link is Error(MissingRequiredField). Full final raw-tree SHA, complete diagnostics and complete valid-token/recovery-item lists pin this actual winning recovery. No recovered-spine post-pass warning is generated; #891 remains deferred. Per PM ruling msg_20260912T171312373960Z_79190f2f468142ad9694ebf54261cf56, the built-in/minimal axes retain exactly one component warning, grammar-attached (not #891 post-pass), at NU 7..9 before the local recovery error; default retains only the error. Shared JAI adds no warning."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [25, 25], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "590e447f10efe49f7a4083d8cc7bac214c55439c90a74bcd77f3f7fb38d2aec6" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [25, 25], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "jaĭ", "nu", "do", "kláma", "keĭ", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[25, 25]] }] }

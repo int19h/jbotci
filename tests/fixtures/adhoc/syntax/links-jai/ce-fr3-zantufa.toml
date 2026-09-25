@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr3-zantufa"
+lojban = "lo broda fa je ku fa brode cu brodi"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR3"
+description = "FR3: no parsed value proves the source discriminators of the wide candidate, whose JOIK continuation is broken by the skipped ku, so it answers Unproven and rejects fail-closed. Trace shows both answers at their own extents: Unproven for the wide candidate and Present for the shorter complete FA atom that actually survives, so the withdrawal lands on a real owner rather than an assumed earlier one. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "5fa8f853904757bc7414a3b55fcb2406453ddada54b0d55f0592b54ea2d59917" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "ku", message = "unexpected cmavo" }, { severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [18, 20], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 5 }]
+tree = { valid-tokens = ["lo", "bróda", "fa", "bróde", "cu", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-mixed-unproven-added"
+lojban = "mi broda be lu mi ku li'u .e bo na ku be'o .i mi ku .i do broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a complete mixed-candidate rejection"
+description = "Real mixed BO connection with Added NA KU and an internally damaged LU quotation, Unproven then Added. The actual complete candidate is rejected as Unproven; final ownership and extent are independently pinned. A shorter Full, if present, is not a complete mixed-payload witness. Final field: valid plain-linked-sumti, parsed value 12..25; intended complete mixed extent 12..37. The legacy quoted-sumti fallback keeps its nested recovery item and the remaining mixed continuation is withdrawn."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "62ae8caa2606f816c9a14c2412d232827d5e6ecaf508831db370299aa5baa341" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [35, 37], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [49, 51], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "lu", "mi", "li'u", "i", "mi", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[18, 20]] }, { "kind" = "invalid", "error-index" = 1, "byte-spans" = [[27, 28], [29, 31], [32, 34], [35, 37], [38, 42]] }, { "kind" = "invalid", "error-index" = 2, "byte-spans" = [[49, 51]] }] }

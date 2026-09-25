@@ -13,8 +13,14 @@ use jbotci_source::{SourceId, SourceSpan};
 
 const SYNTAX_MULTI_ERROR_SOURCE: &str = "mi ku i do ku i mi klama";
 const MORPHOLOGY_MULTI_ERROR_SOURCE: &str = "mi @@@ do ### mi";
+// The `tanru unit` / `selbri` slot in both constants below holds whichever of two
+// feature-gated same-position alternatives survives `select_parser_error`'s discard.
+// Both are reachable and truthful here; which one is offered is order-dependent, which
+// is the defect #926 exists to fix, and so is the note's feature annotation on that slot
+// (either ZANTUFA-SELBRI or ZANTUFA-SELBRI-REINTERPRETATION enables a selbri here). Once
+// #926 lands, both should appear rather than one.
 const SYNTAX_EXPECTED_LABEL: &str = "expected: free modifier, space interval, sumti association phrase, time interval, interval, space tense, time tense, sumti relative phrase, termset connection continuation, place tag, tag, paragraph statement, selbri, prenex, or paragraph";
-const SYNTAX_DETAILED_NOTE: &str = "needs one of:\n- replacement phrase ({lo'ai})\n- space interval (VEhA)\n- sumti association phrase (GOI)\n- time interval (ZEhA)\n- interval (GAhO)\n- space tense (FAhA or VA)\n- time tense (PU or ZI)\n- sumti relative phrase ({vu'o})\n- termset connection continuation ({pe'e})\n- place tag (FA)\n- tag (NAhE)\n- term connection (NA, NAhE, SE, {cu}, {pe'o}, or {vau})\n- paragraph statement ({i})\n- selbri (ZANTUFA-SELBRI-REINTERPRETATION feature)\n- {zo'u} [continues prenex]\n- paragraph (NIhO)";
+const SYNTAX_DETAILED_NOTE: &str = "needs one of:\n- replacement phrase ({lo'ai})\n- space interval (VEhA)\n- sumti association phrase (GOI)\n- time interval (ZEhA)\n- interval (GAhO)\n- space tense (FAhA or VA)\n- time tense (PU or ZI)\n- sumti relative phrase ({vu'o})\n- termset connection continuation ({pe'e})\n- place tag (FA)\n- tag (NAhE)\n- term connection (NA, NAhE, SE, {cu}, {pe'o}, or {vau})\n- paragraph statement ({i})\n- selbri (ZANTUFA-SELBRI feature)\n- {zo'u} [continues prenex]\n- paragraph (NIhO)";
 
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
 struct CapturedCli {

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr1a-zantufa"
+lojban = "ko'a ke ko'e ke'e broda ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR1a"
+description = "SR1a: a grouped-sumti candidate proving KE and a complete single-sumti body with an explicit closer, winning under Valid containing fields. Grouped sumti has no rejection classifier of its own, so this row is pinned by the winning tree and the owner-specific warning. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "a962173f87ab5889cecdf3818db968097c57d865c5f30f9ee80f1442809bd9cc" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-grouped-sumti", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: Zantufa KE-grouped sumti", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "ko'e", "ke'e", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[24, 26]] }] }

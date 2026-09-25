@@ -5,12 +5,16 @@ from typing import assert_never
 from jbotci import syntax
 
 
-def incomplete_linked_sumti(value: syntax.strict.LinkedSumtiSyntax) -> str:
+def incomplete_linked_term(value: syntax.strict.LinkedTermSyntax) -> str:
     match value:
-        case syntax.strict.LinkedSumtiSyntaxPlaceTaggedLinkedSumti():
+        case syntax.strict.LinkedTermSyntaxPlaceTaggedLinkedSumti():
             return "place"
-        case syntax.strict.LinkedSumtiSyntaxTenseTaggedLinkedSumti():
+        case syntax.strict.LinkedTermSyntaxTenseTaggedLinkedSumti():
             return "tense"
-        case syntax.strict.LinkedSumtiSyntaxPlainLinkedSumti():
+        case syntax.strict.LinkedTermSyntaxPlainLinkedSumti():
             return "plain"
+        case syntax.strict.LinkedTermSyntaxConnectedLinkedTerm():
+            return "connected"
+        case syntax.strict.LinkedTermSyntaxBoundLinkedTermConnection():
+            return "bound"
     assert_never(value)

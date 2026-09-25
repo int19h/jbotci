@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cb-e2-bare-bei-zantufa"
+lojban = "mi broda be ko'a bei"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-b required BE/BEI payload"
+description = "E2: final BeiLinkSyntax.link is Error(MissingRequiredField) at EOF after BEI. The same LinkargsSyntax retains a Valid PlainLinkedSumti first_link for ko'a at 12..16. E4: the built-in Zantufa profile follows the same required-payload policy. Full recovered-tree and diagnostic pins record the actual winning parser result; no construct warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [20, 20], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "6092b03197b2599078c225c5796f77f878e3511326883eef0290b79bbcff61d4" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [20, 20], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "ko'a", "beĭ"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[20, 20]] }] }

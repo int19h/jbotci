@@ -1236,13 +1236,25 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret.path.is_empty())]
-    fn linked_sumti_factory() -> SyntaxHandle {
-        let empty = jbotci_syntax::generated_model::EmptyLinkedSumtiSyntax {};
-        let linked =
-            jbotci_syntax::generated_model::LinkedSumtiSyntax::EmptyLinkedSumti(Arc::new(empty));
+    fn full_linked_term_factory() -> SyntaxHandle {
+        use jbotci_syntax::generated_model as model;
+
+        let mut words = jbotci_morphology::segment_words_with_modifiers("na ku")
+            .expect("the binding-internal syntax fixture is valid morphology")
+            .into_iter();
+        let na = Token::from_indicators(WithIndicators::bare(words.next().unwrap()));
+        let ku = Token::from_indicators(WithIndicators::bare(words.next().unwrap()));
+        assert!(words.next().is_none());
+        let term = model::NormalTermSyntax::NaKuTerm(Arc::new(model::NaKuTermSyntax {
+            na,
+            na_ku: jbotci_syntax::tree::WithFreeModifiers::new(ku, Vec::new()),
+        }));
+        let linked = model::LinkedTermSyntax::FullLinkedTerm(Arc::new(
+            model::FullLinkedTermSyntax(Arc::new(term)),
+        ));
         let owner = Arc::new(SyntaxOwner {
             root: SyntaxRoot::Strict {
-                value: StrictSyntaxRoot::LinkedSumtiSyntax(Arc::new(linked)),
+                value: StrictSyntaxRoot::LinkedTermSyntax(Arc::new(linked)),
             },
             projections: std::sync::atomic::AtomicUsize::new(0),
         });
@@ -1309,8 +1321,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn internal_factory_retains_owner_and_typed_tree_paths() {
-        let root = linked_sumti_factory();
-        assert_eq!(root.class_name(), "LinkedSumtiSyntaxEmptyLinkedSumti");
+        let root = full_linked_term_factory();
+        assert_eq!(root.class_name(), "LinkedTermSyntaxFullLinkedTerm");
 
         let mut child_path = root.path.clone();
         child_path.push(jbotci_tree::TreePathStep::field(None, 0));
@@ -1322,7 +1334,7 @@ mod tests {
         };
         assert!(matches!(
             child,
-            jbotci_syntax::generated_model::NodeRef::EmptyLinkedSumtiSyntax(_)
+            jbotci_syntax::generated_model::NodeRef::FullLinkedTermSyntax(_)
         ));
         assert!(root.same_identity(&root.clone()));
     }

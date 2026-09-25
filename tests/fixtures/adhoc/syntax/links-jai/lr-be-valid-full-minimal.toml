@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-valid-full-minimal"
+lojban = "mi broda be na ku be'o .i mi ku .i do broda"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a actual containing-field recovery"
+description = "Binding recovery-boundary ruling of 2026-09-07. Real BE marker 9..11; final field is Valid(FullLinkedTerm) containing complete NA KU at 12..17. Classifier attempts and final field wrappers are distinct. Full raw-tree pin includes the entire recovery result; parsed-value extent excludes skipped items. This fixture does not claim a classifier-input Prefix or Error."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [29, 31], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "cf38e092844ed6f497d21b6bb7b829588bbcf4d7706a7c760c658055f2766e31" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [29, 31], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "na", "ku", "be'o", "i", "mi", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[29, 31]] }] }

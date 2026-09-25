@@ -134,6 +134,50 @@ def _walk_syntax(value: object) -> Iterator[_SyntaxNode]:
 
 
 @pytest.mark.parametrize(
+    "definition",
+    ["(+ZANTUFA-SELBRI)", "(+ZANTUFA-SELBRI +ZANTUFA-CONNECTIVES)"],
+)
+@pytest.mark.parametrize(
+    ("text", "branches"),
+    [
+        ("mi ga'o je ke'i gi broda gi brode", (3, 7)),
+        ("mi ga broda gi brode gi brodi", (3, 7, 11)),
+    ],
+)
+def test_routed_gek_atom_model_and_branch_projection(
+    definition: str, text: str, branches: tuple[int, ...]
+) -> None:
+    """The Python model exposes the same real atom and ordered Rust frames."""
+    options = syntax.ParseOptions.default().with_dialect(
+        dialect.parse_dialect_definition(definition)
+    )
+    parsed = jbotci.parse(text, parse_options=options)
+    atoms = tuple(
+        node for node in _walk_syntax(parsed.parse_tree)
+        if isinstance(node, strict.ZantufaForethoughtTanruUnitSyntax)
+    )
+    assert len(atoms) == 1
+    assert isinstance(atoms[0], strict.ZantufaForethoughtTanruUnitSyntax)
+    assert len(atoms[0].branches) == len(branches) - 1
+    projection = references.analyze_references(parsed).fixture_projection()
+    branching = tuple(
+        frame for frame in projection.frames
+        if frame.kind is references.PlaceFrameKind.CONNECTIVE_BRANCHING
+    )
+    assert len(branching) == 1
+    frame = branching[0]
+    assert isinstance(frame.propagation, references.FixtureConnectiveBranchesPlaceFramePropagation)
+    assert frame.propagation.branches == branches
+    assert frame.selbri is None
+    assert frame.tanru_unit == references.FixtureSpanKey(3, len(text) - 3)
+    for operand in range(len(branches)):
+        assignments = tuple(a for a in projection.assignments if a.frame == operand * 4)
+        assert len(assignments) == 1
+        assert assignments[0].sumti == references.FixtureSpanKey(0, 2)
+        assert assignments[0].slot == references.FixtureNumberedPlaceSlot(1)
+
+
+@pytest.mark.parametrize(
     "fixture_path",
     REFERENCE_FIXTURE_PATHS,
     ids=lambda path: path.stem,

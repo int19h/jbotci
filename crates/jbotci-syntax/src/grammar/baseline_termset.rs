@@ -31,8 +31,9 @@ use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
     BalancedTermsetOperandsSyntax, GekTermsetCandidateSyntax, GikPairedTermsetOperandsSyntax,
-    NormalTermSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
-    ZantufaForethoughtTermsetFirstBranchSyntax, ZantufaGekTermsetCandidateSyntax, recovered,
+    NormalTermSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiForethoughtSyntax, SumtiSyntax,
+    TermSyntax, ZantufaForethoughtTermsetBranchSyntax, ZantufaForethoughtTermsetFirstBranchSyntax,
+    ZantufaGekTermsetCandidateSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -53,6 +54,73 @@ pub(crate) struct BaselineGekSumtiRejection;
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZantufaBaselineGekSumtiRejection;
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ZantufaGroupedSumtiTermRejection;
+
+#[contract_trait]
+impl OutputRejection<SumtiSyntax> for ZantufaGroupedSumtiTermRejection {
+    fn rejected_name(&self) -> &'static str {
+        "elided Zantufa grouped-sumti closer at term position"
+    }
+
+    fn rejects(&self, output: &SumtiSyntax) -> bool {
+        let base = &output.base_sumti;
+        let leading = &base.leading_sumti;
+        let bound = &leading.leading_sumti;
+        let forethought = &bound.leading_sumti;
+        let simple = match forethought.as_ref() {
+            SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
+            SumtiForethoughtSyntax::ForethoughtSumti(_) => return false,
+        };
+        matches!(simple.base_sumti.as_ref(), SumtiAtomSyntax::SumtiBase(base) if matches!(base.as_ref(), SumtiBaseSyntax::ZantufaGroupedSumti(grouped) if grouped.kehe.is_none()))
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::SumtiSyntax>>
+    for ZantufaGroupedSumtiTermRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "elided Zantufa grouped-sumti closer at term position"
+    }
+
+    fn rejects(&self, output: &recovered::Recovered<recovered::SumtiSyntax>) -> bool {
+        let Some(sumti) = valid(output) else {
+            return false;
+        };
+        let Some(grouped) = valid(&sumti.base_sumti) else {
+            return false;
+        };
+        let Some(afterthought) = valid(&grouped.leading_sumti) else {
+            return false;
+        };
+        let Some(bound) = valid(&afterthought.leading_sumti) else {
+            return false;
+        };
+        let Some(forethought) = valid(&bound.leading_sumti) else {
+            return false;
+        };
+        let recovered::SumtiForethoughtSyntax::SimpleSumti(simple) = forethought else {
+            return false;
+        };
+        let Some(simple) = valid(simple) else {
+            return false;
+        };
+        let Some(atom) = valid(&simple.base_sumti) else {
+            return false;
+        };
+        let recovered::SumtiAtomSyntax::SumtiBase(base) = atom else {
+            return false;
+        };
+        let Some(base) = valid(base) else {
+            return false;
+        };
+        matches!(base, recovered::SumtiBaseSyntax::ZantufaGroupedSumti(grouped)
+            if valid(grouped).is_some_and(|grouped| grouped.kehe.is_none()))
+    }
+}
 
 #[requires(true)]
 #[ensures(true)]

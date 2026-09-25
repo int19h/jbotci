@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-tanru-default"
+lojban = "mi broda brode ke'e be ko'a be'o"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 positive row: a two-unit tanru closed by the unmatched ke'e. Reference: Zantufa 1.9999 accepts through selbri_1's KEhE-linked alternative; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 19], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "09317e57fee9df7fc6265cad857316f1d98041ef3f399e8dc3c30bc036abf60d" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 19], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.incomplete-selbri", byte-span = [32, 32], source-text = "", message = "incomplete selbri" }]
+tree = { valid-tokens = ["mi", "bróda", "bróde", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[15, 19]] }, { kind = "missing", error-index = 1, byte-spans = [[32, 32]] }] }

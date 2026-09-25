@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e4-selbri"
+lojban = "mi jai gi je broda gi brode ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E4"
+description = "GR-E4: an enclosed candidate whose opener is outside the exact Zantufa branch inventory the enclosed identity admits -- a GI-before-JOIK form rather than the GA or GUhA family. It rejects, as the frozen row requires, but the measured answer is Unproven, not Absent: enclosed_presence_from_recovered_facts and its strict twin have no Absent arm at all, so anything outside the admitted family is fail-closed rather than known-not-owner. Both answers reject, and Unproven is the stricter of the two. The JAI tag term survives instead. Minimal explicit axis, where the same enclosed rejection is followed by a different survivor: with no baseline competitor for this opener the STANDALONE identity admits it (standalone-gek Present), so the JAI modal tanru unit owns a Zantufa forethought atom here rather than falling back to the tag term. The enclosed identity rejects on both axes; only the fallback differs."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "37bc0cc29f05fbf2c38d95c78b8fd5e01af0d0465610d7e8728716f993b4aed4" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [7, 9], source-text = "gi", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "gi", "je", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[28, 30]] }] }

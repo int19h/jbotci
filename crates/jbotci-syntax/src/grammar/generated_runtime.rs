@@ -68,14 +68,12 @@ where
 {
     custom::<_, _>(move |input| {
         let before = input.save();
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         match input.parse(&parser) {
             Ok(jbotci_tree::Recovered::Valid(value)) => Ok(*value),
             Ok(jbotci_tree::Recovered::Error(_) | jbotci_tree::Recovered::Prefix(_)) => {
                 input.rewind(before);
-                input
-                    .state()
-                    .restore_diagnostic_candidates(diagnostic_snapshot);
+                input.state().restore_diagnostics(diagnostic_snapshot);
                 Err(expected_found_named_at_current(input, expected.to_owned()))
             }
             Err(error) => {
@@ -106,6 +104,32 @@ where
         let previous = input.state().enter_syntax_memo_scope(scope);
         let result = input.parse(&parser);
         input.state().restore_syntax_memo_scope(previous);
+        result
+    })
+    .boxed()
+}
+
+/// Run a parser as an observational strict probe. Cursor movement and every
+/// parser-produced memo, recovery, checkpoint, and diagnostic effect are
+/// discarded regardless of success. Ambient parse policy, including dialect,
+/// grammar scope, completion sentinel, and continuation time limit, remains in
+/// force while the probe's success or failure is retained.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn strict_observe<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let journal = input.state().begin_strict_observe();
+        // Save after the child recovery state is installed. ParserState's
+        // checkpoint inspector must describe the stores that will be rewound,
+        // not the parent collections that `journal` has suspended.
+        let before = input.save();
+        let result = input.parse(&parser).map(|_| ());
+        input.rewind(before);
+        input.state().end_strict_observe(journal);
         result
     })
     .boxed()
@@ -156,6 +180,10 @@ pub(crate) struct SyntaxGrammarDialect {
     pub zantufa_descriptions_enabled: bool,
     pub zantufa_mex_enabled: bool,
     pub zantufa_mex_reinterpretation_enabled: bool,
+    pub zantufa_selbri_enabled: bool,
+    /// Raw selbri-family opt-in. The older reinterpretation field below retains
+    /// its Terms dependency for its existing consumers.
+    pub zantufa_selbri_atom_reinterpretation_enabled: bool,
     pub zantufa_selbri_reinterpretation_enabled: bool,
     pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
@@ -164,7 +192,9 @@ pub(crate) struct SyntaxGrammarDialect {
 
 impl SyntaxGrammarDialect {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.zantufa_selbri_enabled == options.dialect.features.contains(&DialectFeature::ZantufaSelbri))]
+    #[ensures(ret.zantufa_selbri_atom_reinterpretation_enabled == (options.dialect.features.contains(&DialectFeature::ZantufaSelbri) && options.dialect.features.contains(&DialectFeature::ZantufaSelbriReinterpretation)))]
+    #[ensures(ret.zantufa_selbri_reinterpretation_enabled == (options.dialect.features.contains(&DialectFeature::ZantufaTerms) && options.dialect.features.contains(&DialectFeature::ZantufaSelbriReinterpretation)))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
@@ -179,6 +209,10 @@ impl SyntaxGrammarDialect {
             zantufa_selbri_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaSelbriReinterpretation)
                 && features.contains(&DialectFeature::ZantufaTerms),
+            zantufa_selbri_enabled: features.contains(&DialectFeature::ZantufaSelbri),
+            zantufa_selbri_atom_reinterpretation_enabled: features
+                .contains(&DialectFeature::ZantufaSelbri)
+                && features.contains(&DialectFeature::ZantufaSelbriReinterpretation),
             zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
             zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
@@ -197,6 +231,8 @@ pub(crate) enum SyntaxGrammarFeature {
     ZantufaDescriptions,
     ZantufaMex,
     ZantufaMexReinterpretation,
+    ZantufaSelbri,
+    ZantufaSelbriAtomReinterpretation,
     ZantufaSelbriReinterpretation,
     ZantufaQuotes,
     ZantufaTags,
@@ -215,6 +251,10 @@ impl SyntaxGrammarFeature {
             Self::ZantufaDescriptions => dialect.zantufa_descriptions_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
             Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
+            Self::ZantufaSelbri => dialect.zantufa_selbri_enabled,
+            Self::ZantufaSelbriAtomReinterpretation => {
+                dialect.zantufa_selbri_atom_reinterpretation_enabled
+            }
             Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
             Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
@@ -233,6 +273,10 @@ impl SyntaxGrammarFeature {
             Self::ZantufaDescriptions => "ZANTUFA-DESCRIPTIONS feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
             Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
+            Self::ZantufaSelbri => "ZANTUFA-SELBRI feature",
+            Self::ZantufaSelbriAtomReinterpretation => {
+                "Zantufa selbri family and raw reinterpretation features"
+            }
             Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
             Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
@@ -366,6 +410,9 @@ fn mark_recovered_rule_path_cold() {}
 // static dispatch into the selected parser body.
 #[inline(never)]
 fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static str) -> bool {
+    if input.state().is_strict_observing() {
+        return false;
+    }
     if let Some(frame) = input
         .state()
         .active_syntax_rules()
@@ -2341,7 +2388,7 @@ where
         let before = input.save();
         let start_location = ParserInput::cursor_location(before.cursor().inner());
         let start_byte = input.state().byte_offset_for_location(start_location);
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         match input.parse(&inner) {
             Ok(value) => {
                 let after_inner = input.save();
@@ -2352,9 +2399,7 @@ where
                     Ok(value)
                 } else {
                     input.rewind(before);
-                    input
-                        .state()
-                        .restore_diagnostic_candidates(diagnostic_snapshot);
+                    input.state().restore_diagnostics(diagnostic_snapshot);
                     Err(expected_found_at_current(input, expected))
                 }
             }
@@ -2362,10 +2407,7 @@ where
                 input.rewind(before);
                 input
                     .state()
-                    .restore_diagnostic_candidates_preserving_start(
-                        diagnostic_snapshot,
-                        start_byte,
-                    );
+                    .restore_diagnostics_preserving_start(diagnostic_snapshot, start_byte);
                 if error.span().start == start_byte {
                     Err(error)
                 } else {
@@ -2453,6 +2495,68 @@ fn classifier_site_tracing_enabled() -> bool {
     crate::grammar::sumti_operand_tier::trace_enabled()
         || crate::grammar::description_leading::trace_enabled()
         || crate::grammar::zantufa_quantifier_relatives::trace_enabled()
+        || crate::grammar::zantufa_atoms::trace_enabled()
+}
+
+/// Collects the source extent a recovered candidate covers, recovery items included.
+///
+/// The endpoints are one field rather than two so that "seen nothing yet" cannot be spelled
+/// half-way; every combination of the single field is a valid state.
+#[invariant(true)]
+struct RecoveredSourceExtentProbe {
+    extent: Option<(usize, usize)>,
+}
+
+impl RecoveredSourceExtentProbe {
+    #[requires(byte_start <= byte_end)]
+    #[ensures(self.extent.is_some())]
+    fn observe(&mut self, byte_start: usize, byte_end: usize) {
+        self.extent = Some(self.extent.map_or((byte_start, byte_end), |(start, end)| {
+            (start.min(byte_start), end.max(byte_end))
+        }));
+    }
+}
+
+impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSourceExtentProbe {
+    type Node = super::generated_model::recovered::NodeRef<'tree>;
+    type Atom = super::generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        let super::generated_model::recovered::AtomRef::Token(token) = atom;
+        for span in token.source_spans() {
+            self.observe(span.byte_start, span.byte_end);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
+        &mut self,
+        item: &'tree E,
+    ) {
+        let mut observed = Vec::new();
+        item.visit_source_spans(&mut |span| observed.push((span.byte_start, span.byte_end)));
+        for (byte_start, byte_end) in observed {
+            self.observe(byte_start, byte_end);
+        }
+    }
+}
+
+/// The source extent a recovered candidate covers, recovery items included.
+///
+/// Trace support for the classifier traces in this crate: a rejected candidate is rewound and
+/// leaves no trace of the input it covered, so the extent has to be read off the candidate while
+/// the classifier still holds it.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(start, end)| start <= end))]
+pub(crate) fn recovered_source_extent(
+    node: &impl super::generated_model::recovered::TreeNode,
+) -> Option<(usize, usize)> {
+    let mut probe = RecoveredSourceExtentProbe { extent: None };
+    super::generated_model::recovered::TreeNode::visit_in_order(node, &mut probe);
+    probe.extent
 }
 
 #[requires(true)]
@@ -2484,6 +2588,14 @@ pub(crate) trait OutputRejection<O> {
     #[requires(true)]
     #[ensures(true)]
     fn rejects(&self, value: &O) -> bool;
+
+    /// Refine against the actual parse axis when ownership depends on dialect.
+    /// Existing structural refinements remain independent of that context.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_in_dialect(&self, value: &O, _dialect: SyntaxGrammarDialect) -> bool {
+        self.rejects(value)
+    }
 }
 
 /// Rejects a completed typed match and rewinds all state to the route's start.
@@ -2497,7 +2609,7 @@ where
 {
     custom::<_, _>(move |input| {
         let before = input.save();
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         let value = match input.parse(&inner) {
             Ok(value) => value,
             Err(error) => {
@@ -2512,19 +2624,110 @@ where
         if classifier_site_tracing_enabled() {
             publish_output_rejection_site(input.state().active_syntax_rules());
         }
-        if !rejection.rejects(&value) {
+        let dialect = input.state().syntax_grammar_env().dialect;
+        if !rejection.rejects_in_dialect(&value, dialect) {
             return Ok(value);
         }
         input.rewind(before);
-        input
-            .state()
-            .restore_diagnostic_candidates(diagnostic_snapshot);
+        input.state().restore_diagnostics(diagnostic_snapshot);
         Err(expected_found_named_at_current(
             input,
             format!("not {}", rejection.rejected_name()),
         ))
     })
     .boxed()
+}
+
+/// Whether a recovered value carries recovery uncertainty: a recovery item -- skipped, invalid
+/// or missing (synthesized) content -- anywhere in its subtree, as the generated in-order
+/// traversal reports it.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn carries_recovery_uncertainty(
+    node: &impl super::generated_model::recovered::TreeNode,
+) -> bool {
+    let mut probe = RecoveryUncertaintyProbe { uncertain: false };
+    super::generated_model::recovered::TreeNode::visit_in_order(node, &mut probe);
+    probe.uncertain
+}
+
+/// Records whether the traversal met any recovery item.
+#[invariant(true)]
+struct RecoveryUncertaintyProbe {
+    uncertain: bool,
+}
+
+impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveryUncertaintyProbe {
+    type Node = super::generated_model::recovered::NodeRef<'tree>;
+    type Atom = super::generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(self.uncertain)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
+        &mut self,
+        _item: &'tree E,
+    ) {
+        self.uncertain = true;
+    }
+}
+
+/// A refinement of RECOVERED output only; the grammar's `reject_recovered_output()`.
+///
+/// It exists for one policy: a recovered alternative whose content is not actually parsed must
+/// not claim the construct. It may therefore reject a value only when that value carries recovery
+/// uncertainty, and the contract enforces it. Rejecting a fully parsed value would be a decision
+/// about the strict language made only in recovery, so a rule that needs one belongs in the
+/// grammar (or in `reject_output()`, which applies to every parser flavour alike). Strict parsers
+/// never consult this trait: in the strict flavour the method lowers to its receiver unchanged.
+#[contract_trait]
+pub(crate) trait RecoveredOutputRejection<O: super::generated_model::recovered::TreeNode> {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn rejected_name(&self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[bityzba::expensive_ensures(!ret || carries_recovery_uncertainty(value))]
+    fn rejects_uncertain(&self, value: &O) -> bool;
+}
+
+/// Adapts a recovered-only refinement to the shared rejection combinator.
+#[invariant(true)]
+#[derive(Clone)]
+struct RecoveredOnlyRejection<R> {
+    rejection: R,
+}
+
+#[contract_trait]
+impl<O, R> OutputRejection<O> for RecoveredOnlyRejection<R>
+where
+    O: super::generated_model::recovered::TreeNode,
+    R: RecoveredOutputRejection<O>,
+{
+    fn rejected_name(&self) -> &'static str {
+        self.rejection.rejected_name()
+    }
+
+    fn rejects(&self, value: &O) -> bool {
+        self.rejection.rejects_uncertain(value)
+    }
+}
+
+/// Rejects a completed RECOVERED match that carries recovery uncertainty; see
+/// [`RecoveredOutputRejection`] for the meaning and its enforcement. Only recovered parser
+/// flavours are lowered to this; strict flavours use the receiver unchanged.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reject_recovered_output<'tokens, O, P, R>(
+    inner: P,
+    rejection: R,
+) -> BoxedParser<'tokens, O>
+where
+    O: super::generated_model::recovered::TreeNode + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    R: RecoveredOutputRejection<O> + Clone + 'tokens,
+{
+    reject_output(inner, RecoveredOnlyRejection { rejection })
 }
 
 #[requires(true)]

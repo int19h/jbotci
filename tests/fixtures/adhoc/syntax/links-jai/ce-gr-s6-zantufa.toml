@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s6-zantufa"
+lojban = "mi gi je broda gi brode ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S6"
+description = "GR-S6 is a negative reachability obligation resolved by construction, and this is its nearest honest end-to-end pin. The frozen row asks for a complete standalone candidate with NAI-bearing or non-Zantufa inventory answering Absent. No parse can build one: the atom GEK has no NAI field anywhere -- the branch rule is commented in the grammar as the exact GI branch, not the NAI-bearing GIK -- and recovered_standalone_presence has no inventory-driven Absent arm either, all its Absent outcomes coming from the ownership and reservation rules. This fixture is therefore an explicitly labelled CONTROL, not the row's witness: it demonstrates that a real standalone Absent ownership route exists and rejects with the prior owner keeping the extent, using the JOIK overlap rule. It does NOT witness the NAI-bearing or inventory-contradicting condition the row names, which the model cannot represent at all; that condition is resolved by the construction proof above. Built-in axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "31f5eb4618aea1a6deffc0534e95421473220b3275af0bb369104031c6d74c6b" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-gek", byte-span = [3, 5], source-text = "gi", message = "experimental syntax: Zantufa connective form", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "gi", "je", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[24, 26]] }] }

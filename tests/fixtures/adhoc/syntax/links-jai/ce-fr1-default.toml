@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr1-default"
+lojban = "mi broda fa je fa brode .i mi ku broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR1"
+description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Trace candidate=fa wrapper=valid answer=Present decision=accept. The FA atom owns brode and every recovered field enclosing it in the winning tree is Valid; the damage is in the second statement, off the atom's containing chain. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "82a4b8e4b3371b510a23bd4e2b5cbc31f06eb50b19e161ff85b2a7eb1c7baddf" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "fa", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[12, 14], [15, 17], [18, 23]] }, { kind = "invalid", error-index = 1, byte-spans = [[30, 32], [33, 38]] }] }

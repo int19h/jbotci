@@ -8,6 +8,46 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityTailRejection",
+        "stateless completed-tail eligibility refinement; no invalid unit value or persistent parser state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:FaAtomRejection",
+        "stateless rejection policy has exactly one valid state; parsed candidate evidence determines eligibility",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:NestedGekCount",
+        "every count is a valid intermediate state of the test-only generated-tree traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityAtomEvidence",
+        "independent immutable dialect and three-state accumulated entry evidence; every answer is valid on every dialect during a partial generated traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:PriorityAtomRejection",
+        "stateless complete-output refinement; the unit value has no invalid state and only proven admitted atom evidence can grant priority",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ZantufaAtomWalker",
+        "single callback over typed borrowed GEK components; every callback value is a valid generated traversal adapter and no frame IDs or cross-field relationships are stored",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:StandaloneAtomRejection",
+        "stateless typed ownership refinement; the actual parse dialect is supplied by the rejection combinator and the unit value has no invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:JoikOwnershipKey",
+        "all combinations of typed JOIK head, GI order and proven field presences represent valid source-shaped cells; completeness and modifier-free domain are checked before key construction",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:RequiredSubtreeEvidence",
+        "independent observations of parsed tokens and uncertainty in a selected required subtree; all four combinations are valid traversal states, including an error before any token",
+    ),
+    (
+        "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
+        "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
+    ),
+    (
         "apps/jbotci-server/src/discord/codec.rs:PageControl",
         "a page button carries an instruction only: any revision and any positive page are a question the message answers",
     ),
@@ -1268,6 +1308,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "visitor accumulator whose open-node stack and leaf cursor are legitimately mid-flight during traversal; the index it produces is audited by the jbotci-semantics syntax index and projection tests",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:LinkedNormalTermAssigner",
+        "temporary pass borrows an independently valid builder and place cursor; either assigned flag is valid at any cursor state, and source order and monotonic assignment are enforced by walker method contracts and Full-link cursor tests",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:MeksoNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
@@ -1520,6 +1564,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a single accumulating flag whose every value is a valid state of the traversal",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveredSourceExtentProbe",
+        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveryUncertaintyProbe",
+        "a single accumulating flag whose every value is a valid state of the traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RecoveredOnlyRejection",
+        "a transparent adapter around one recovered-only rejection; every wrapped value is valid",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ChoiceCons",
         "a typed ordered-choice alternative list is valid for every head/rest parser pair",
     ),
@@ -1538,6 +1594,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarPolicy",
         "generated grammar policy flags are independent parser behavior switches",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:AttemptedParse",
+        "test capture pairs a final recovered parse with a separate attempted-candidate sequence; rejected attempts need not occur in the final tree, and no cross-field equality is implied",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:BreadthWalker",
+        "the closed three-state classification is the complete accumulator state; each value is valid and combine contracts enforce its transitions",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:FullPayloads",
+        "test collector admits every sequence of borrowed typed Full nodes; its generated walker append contract controls collection order",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LeafEvidence",
+        "parsed-token presence and recovery uncertainty are independent flags: all four combinations are meaningful partial or complete traversal states",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LegacyLinkPayloadRejection",
+        "stateless rejection policy has exactly one valid value; candidate evidence is constrained by its strict and recovered classifier methods",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LinkParents",
+        "test collector admits every sequence of typed linkargs borrows, including empty and nested collections; association comes from the generated walker",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:NormalPayloads",
+        "test collector admits every sequence of typed normal-term borrows; collection is append-only by its walker contract",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:ParsedTokens",
+        "flat test accumulator admits every token-reference sequence; TreeVisitor atom events exclude recovery items without restricting valid token combinations",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:RecoveredTarget",
+        "borrowed marker and payload fields deliberately admit all Valid, Prefix and Error combinations; the generated walker selects their parent association",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:RecoveredTargets",
+        "test collector admits every sequence of independently valid field-view pairs, with append ordering supplied by generated descent",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ChildRecoveryCheckpointObservations",
@@ -1588,8 +1684,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
-        "nonzero trial and frame components make every identity pair structurally valid",
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticCheckpoint",
+        "saved report candidates, journal length and optional frame mark describe transaction snapshots; restoration checks compatibility with live state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
@@ -1742,10 +1838,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Then",
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
-        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
     ),
     (
         "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
@@ -2458,6 +2550,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask release web server args delegate validation to clap defaults and command code",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:InnerIds",
+        "test-local traversal accumulator: a borrowed index plus the set of node ids it has seen, and every set state is a valid stage of the walk",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:WitnessCollector",
+        "test-local traversal accumulator: one growing list of matched node triples, and every list state is a valid stage of the walk",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_termset.rs:ZantufaGroupedSumtiTermRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:StrictObserveJournal",
+        "the suspended parser state taken whole from one parser and restored to it unchanged; the journal never interprets the collections it holds, so any state the parser could be in is a valid state of the journal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:EnclosedAtomRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:RecoveredGekFacts",
+        "independent structural observations of one completed GEK product; the classifier, not the record, decides which combinations mean ownership, and an unobservable combination simply never occurs",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:StrictGekFacts",
+        "independent structural observations of one completed GEK product; the classifier, not the record, decides which combinations mean ownership, and an unobservable combination simply never occurs",
+    ),
+    (
+        "crates/jbotci-syntax/tests/jai_atoms.rs:RecoveredJaiVisitor",
+        "test-local traversal accumulator: one growing list of visited JAI nodes, and every list state is a valid stage of the walk",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_atoms.rs:GroupedSumtiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/kehe_linked_selbri.rs:KeheLinkedRecoveredRejection",
+        "zero-sized recovered-only rejection policy has exactly one state; the candidate's own recovery evidence decides eligibility",
     ),
 ];
 

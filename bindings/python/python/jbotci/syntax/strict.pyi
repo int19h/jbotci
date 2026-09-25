@@ -2246,7 +2246,7 @@ class SimpleBridiTailWithoutTailTermsSyntaxExpPrefixedSimpleBridiTailWithoutTail
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for bridi tail; selects among the `forethought_simple_bridi_tail_without_tail_terms` and `selbri_simple_bridi_tail_without_tail_terms` forms.
+# Sum node for bridi tail without tail terms, with the ordinary fallback order.
 SimpleBridiTailWithoutTailTermsSyntax: TypeAlias = SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxExpPrefixedSimpleBridiTailWithoutTailTerms
 
 @final
@@ -7730,8 +7730,22 @@ class SumtiBaseSyntaxProSumti:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+@final
+class SumtiBaseSyntaxZantufaGroupedSumti:
+    'Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_grouped_sumti']]]
+    def __new__(cls, zantufa_grouped_sumti: ZantufaGroupedSumtiSyntax) -> SumtiBaseSyntaxZantufaGroupedSumti: ...
+    @property
+    def zantufa_grouped_sumti(self) -> ZantufaGroupedSumtiSyntax:
+        'Uses the shared sumti route for an explicit Zantufa KE-grouped sumti.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
 # Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti | SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti
+SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti | SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti | SumtiBaseSyntaxZantufaGroupedSumti
 
 @final
 class QuantifiedSumtiSyntax:
@@ -11210,20 +11224,6 @@ class QuantifierSumtiDescriptionTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class QuoteSyntaxExperimentalMehoiCompoundQuote:
-    'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
-    __match_args__: ClassVar[tuple[Literal['experimental_mehoi_compound_quote']]]
-    def __new__(cls, experimental_mehoi_compound_quote: ExperimentalMehoiCompoundQuoteSyntax) -> QuoteSyntaxExperimentalMehoiCompoundQuote: ...
-    @property
-    def experimental_mehoi_compound_quote(self) -> ExperimentalMehoiCompoundQuoteSyntax:
-        'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class QuoteSyntaxExperimentalZohoiCompoundQuote:
     'Uses the `experimental_zohoi_compound_quote` product form, whose payload preserves `quote`.'
     __match_args__: ClassVar[tuple[Literal['experimental_zohoi_compound_quote']]]
@@ -11293,8 +11293,8 @@ class QuoteSyntaxTextQuote:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for quote; selects among 6 forms including `experimental_mehoi_compound_quote`, `experimental_zohoi_compound_quote`, and `experimental_rahoi_compound_quote`.
-QuoteSyntax: TypeAlias = QuoteSyntaxExperimentalMehoiCompoundQuote | QuoteSyntaxExperimentalZohoiCompoundQuote | QuoteSyntaxExperimentalRahoiCompoundQuote | QuoteSyntaxExperimentalGohoiCompoundQuote | QuoteSyntaxGenericCompoundQuote | QuoteSyntaxTextQuote
+# Sum node for quote; selects among five forms. MEhOI belongs to tanru atoms, not quoted sumti.
+QuoteSyntax: TypeAlias = QuoteSyntaxExperimentalZohoiCompoundQuote | QuoteSyntaxExperimentalRahoiCompoundQuote | QuoteSyntaxExperimentalGohoiCompoundQuote | QuoteSyntaxGenericCompoundQuote | QuoteSyntaxTextQuote
 
 @final
 class TextQuoteSyntax:
@@ -11317,20 +11317,6 @@ class TextQuoteSyntax:
     @property
     def lihu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
         'The optional `Lihu` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ExperimentalMehoiCompoundQuoteSyntax:
-    'Transparent product node for quote; preserves the `quote` component.'
-    __match_args__: ClassVar[tuple[Literal['quote']]]
-    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> ExperimentalMehoiCompoundQuoteSyntax: ...
-    @property
-    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The `quote_marker` grammar result in the `quote` structural role of the `experimental_mehoi_compound_quote` production.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -16853,8 +16839,7 @@ class SelbriSyntaxUntaggedSelbri:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for selbri; gives the full-operand Zantufa CEI owner first
-# refusal before the standard tagged and untagged owners.
+# Sum node for selbri; preserves the existing relative/CEI and ordinary owners.
 SelbriSyntax: TypeAlias = SelbriSyntaxReinterpretZantufaAssignedSelbri | SelbriSyntaxZantufaRelativeSelbri | SelbriSyntaxZantufaPriorityAssignedSelbri | SelbriSyntaxTaggedSelbri | SelbriSyntaxUntaggedSelbri
 
 @final
@@ -17036,6 +17021,20 @@ class TaggedSelbriWithoutTerminalRelativeSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative:
+    'A KEhE-linked level-2 selbri whose tail keeps the description boundary.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_kehe_linked_selbri_without_terminal_relative']]]
+    def __new__(cls, zantufa_kehe_linked_selbri_without_terminal_relative: ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax) -> UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative: ...
+    @property
+    def zantufa_kehe_linked_selbri_without_terminal_relative(self) -> ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax:
+        'A KEhE-linked level-2 selbri whose tail keeps the description boundary.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative:
     'NA followed by another restricted selbri.'
     __match_args__: ClassVar[tuple[Literal['negated_selbri_without_terminal_relative']]]
@@ -17064,7 +17063,7 @@ class UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Untagged description-boundary selbri.
-UntaggedSelbriWithoutTerminalRelativeSyntax: TypeAlias = UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri
+UntaggedSelbriWithoutTerminalRelativeSyntax: TypeAlias = UntaggedSelbriWithoutTerminalRelativeSyntaxZantufaKeheLinkedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxNegatedSelbriWithoutTerminalRelative | UntaggedSelbriWithoutTerminalRelativeSyntaxCoSelbri
 
 @final
 class NegatedSelbriWithoutTerminalRelativeSyntax:
@@ -17078,6 +17077,80 @@ class NegatedSelbriWithoutTerminalRelativeSyntax:
     @property
     def inner_selbri(self) -> SelbriWithoutTerminalRelativeSyntax:
         'The recursively restricted inner selbri.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaKeheLinkedSelbriSyntax:
+    'A whole level-2 selbri closed by an unmatched KEhE, whose linked arguments apply to the\nwhole of it (#834; zantufa-1.9999.peg:45,\n`selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)*`).\n\nThe `!KE` guard is the source\'s: a KE-leading selbri keeps the grouped-KE owner, whose\n`ke\'e` closes its own group.'
+    __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['kehe'], Literal['linkargs'], Literal['relative_clauses'], Literal['assignments']]]
+    def __new__(
+        cls,
+        leading_selbri: CoSelbriSyntax,
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax],
+        linkargs: LinkargsSyntax,
+        relative_clauses: RelativeClauseListSyntax | None,
+        assignments: Sequence[ZantufaSelbriAssignmentSyntax],
+    ) -> ZantufaKeheLinkedSelbriSyntax: ...
+    @property
+    def leading_selbri(self) -> CoSelbriSyntax:
+        'The level-2 selbri the linked arguments apply to, CO breadth included.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The unmatched KEhE closing the level-2 selbri, and the warning anchor.'
+        ...
+    @property
+    def linkargs(self) -> LinkargsSyntax:
+        'The linked arguments of the whole level-2 selbri.'
+        ...
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'Optional selbri-level relative clauses after the linked arguments.'
+        ...
+    @property
+    def assignments(self) -> tuple[ZantufaSelbriAssignmentSyntax, ...]:
+        'Zero or more following full-selbri CEI assignments.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax:
+    'The KEhE-linked selbri at the description boundary: no terminal relative, and a CEI chain\nwhose final operand keeps the boundary, exactly as the other no-terminal-relative forms.'
+    __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['kehe'], Literal['linkargs'], Literal['preceding_assignments'], Literal['final_assignment']]]
+    def __new__(
+        cls,
+        leading_selbri: CoSelbriSyntax,
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax],
+        linkargs: LinkargsSyntax,
+        preceding_assignments: Sequence[ZantufaSelbriAssignmentSyntax],
+        final_assignment: ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax | None,
+    ) -> ZantufaKeheLinkedSelbriWithoutTerminalRelativeSyntax: ...
+    @property
+    def leading_selbri(self) -> CoSelbriSyntax:
+        'The level-2 selbri the linked arguments apply to, CO breadth included.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The unmatched KEhE closing the level-2 selbri, and the warning anchor.'
+        ...
+    @property
+    def linkargs(self) -> LinkargsSyntax:
+        'The linked arguments of the whole level-2 selbri.'
+        ...
+    @property
+    def preceding_assignments(self) -> tuple[ZantufaSelbriAssignmentSyntax, ...]:
+        'Full operands before the final assignment remain unrestricted.'
+        ...
+    @property
+    def final_assignment(self) -> ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax | None:
+        'The final assignment, if any, follows the restricted right spine.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -17121,6 +17194,20 @@ class ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class UntaggedSelbriSyntaxZantufaKeheLinkedSelbri:
+    'A level-2 selbri closed by an unmatched KEhE, with linked arguments for the whole.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_kehe_linked_selbri']]]
+    def __new__(cls, zantufa_kehe_linked_selbri: ZantufaKeheLinkedSelbriSyntax) -> UntaggedSelbriSyntaxZantufaKeheLinkedSelbri: ...
+    @property
+    def zantufa_kehe_linked_selbri(self) -> ZantufaKeheLinkedSelbriSyntax:
+        'A level-2 selbri closed by an unmatched KEhE, with linked arguments for the whole.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class UntaggedSelbriSyntaxNegatedSelbri:
     'Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.'
     __match_args__: ClassVar[tuple[Literal['negated_selbri']]]
@@ -17149,7 +17236,7 @@ class UntaggedSelbriSyntaxCoSelbri:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for selbri level 1; selects between the recursive NA arm and level 2.
-UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxNegatedSelbri | UntaggedSelbriSyntaxCoSelbri
+UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxZantufaKeheLinkedSelbri | UntaggedSelbriSyntaxNegatedSelbri | UntaggedSelbriSyntaxCoSelbri
 
 @final
 class TaggedSelbriSyntax:
@@ -17730,6 +17817,354 @@ class ZantufaGihiForethoughtSelbriConnectionSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ZantufaFaTanruUnitSyntax:
+    'Source-shaped FA product (zantufa-1.9999.peg:51-52).\n\nThe recursive operand is an atom, not a linked unit: postposed BE belongs\nto the ordinary linked_tanru_unit around the completed FA atom.\nThese C-e products are declared before their public routes so all three\nparser flavors and Python can be checked against the new model first.'
+    __match_args__: ClassVar[tuple[Literal['fa'], Literal['continuations'], Literal['inner_unit']]]
+    def __new__(
+        cls,
+        fa: WithFreeModifiers[Token, FreeModifierSyntax],
+        continuations: Sequence[ZantufaFaTanruUnitContinuationSyntax],
+        inner_unit: TanruUnitAtomSyntax,
+    ) -> ZantufaFaTanruUnitSyntax: ...
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'First place marker and the warning anchor for the atom.'
+        ...
+    @property
+    def continuations(self) -> tuple[ZantufaFaTanruUnitContinuationSyntax, ...]:
+        'Ordered source JOIK-plus-FA continuations.'
+        ...
+    @property
+    def inner_unit(self) -> TanruUnitAtomSyntax:
+        'The complete shared atom; no empty link wrapper is introduced.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaFaTanruUnitContinuationSyntax:
+    'One source continuation from the FA prefix at zantufa-1.9999.peg:52.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['fa']]]
+    def __new__(cls, connective: ZantufaAtomJoikSyntax, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaFaTanruUnitContinuationSyntax: ...
+    @property
+    def connective(self) -> ZantufaAtomJoikSyntax:
+        'Source JOIK, with neither structural NAI nor an unrelated feature gate.'
+        ...
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The next place marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomJoikSyntax:
+    'Exact structural JOIK at zantufa-1.9999.peg:68.\n\nKeep the adopted lexical projection used by the existing connective\nfamilies: JOI/JA/BIhI, not source-only spellings lexed into other classes.\nIn particular the existing documented ji-as-A gap is not widened here.'
+    __match_args__: ClassVar[tuple[Literal['left_gaho'], Literal['na'], Literal['se'], Literal['head'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        left_gaho: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        na: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        se: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        head: WithFreeModifiers[Token, FreeModifierSyntax],
+        right_gaho: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaAtomJoikSyntax: ...
+    @property
+    def left_gaho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Independently optional left endpoint.'
+        ...
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional negation before member reversal.'
+        ...
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def head(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The representable adopted source JOI inventory.'
+        ...
+    @property
+    def right_gaho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Independently optional right endpoint.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaForethoughtTanruUnitSyntax:
+    'Source GEK product, zantufa-1.9999.peg:52; both identities share this type.\n\nThis construction is routed through the shared atom entry and participates in\nthe guarded C-e classifier; its public consumers remain feature-gated.\nThe source negative boundary is checked before the optional terminator;\ncomplete-output identities must still be installed before any consumer\nis connected.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['gek'], Literal['leading_selbri'], Literal['branches'], Literal['gihi']]]
+    def __new__(
+        cls,
+        nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        gek: ZantufaAtomGekSyntax,
+        leading_selbri: CoSelbriSyntax,
+        branches: Sequence[ZantufaAtomGekBranchSyntax],
+        gihi: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaForethoughtTanruUnitSyntax: ...
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional scalar negation owned by this GEK, not an outer conversion.'
+        ...
+    @property
+    def gek(self) -> ZantufaAtomGekSyntax:
+        'The source-ordered opener; its selected token arm owns one warning.'
+        ...
+    @property
+    def leading_selbri(self) -> CoSelbriSyntax:
+        'Source level-2 first operand.'
+        ...
+    @property
+    def branches(self) -> tuple[ZantufaAtomGekBranchSyntax, ...]:
+        'At least one exact GI and level-2 operand.'
+        ...
+    @property
+    def gihi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional source terminator, without the outer-connection warning.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekBranchSyntax:
+    'Exact GI branch at zantufa-1.9999.peg:52,72, not the NAI-bearing GIK.'
+    __match_args__: ClassVar[tuple[Literal['gi'], Literal['selbri']]]
+    def __new__(cls, gi: WithFreeModifiers[Token, FreeModifierSyntax], selbri: CoSelbriSyntax) -> ZantufaAtomGekBranchSyntax: ...
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'Exact, unwarned source GI clause.'
+        ...
+    @property
+    def selbri(self) -> CoSelbriSyntax:
+        'Full source CoSelbri, not the baseline tight right L6 operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekSyntax:
+    'Source opener at zantufa-1.9999.peg:71; BO follows the whole alternative.'
+    __match_args__: ClassVar[tuple[Literal['body'], Literal['bo']]]
+    def __new__(cls, body: ZantufaAtomGekBodySyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaAtomGekSyntax: ...
+    @property
+    def body(self) -> ZantufaAtomGekBodySyntax:
+        'Typed GA-family or GI-before/after JOIK/tag form.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Structural evidence only; no BO-specific semantic propagation claim.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekBodySyntaxZantufaAtomGaOpener:
+    'Optional opener-SE followed by a mapped GA or GUhA head.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_ga_opener']]]
+    def __new__(cls, zantufa_atom_ga_opener: ZantufaAtomGaOpenerSyntax) -> ZantufaAtomGekBodySyntaxZantufaAtomGaOpener: ...
+    @property
+    def zantufa_atom_ga_opener(self) -> ZantufaAtomGaOpenerSyntax:
+        'Optional opener-SE followed by a mapped GA or GUhA head.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekBodySyntaxZantufaAtomInitialGiOpener:
+    'Exact GI preceding a source JOIK or tag.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_initial_gi_opener']]]
+    def __new__(cls, zantufa_atom_initial_gi_opener: ZantufaAtomInitialGiOpenerSyntax) -> ZantufaAtomGekBodySyntaxZantufaAtomInitialGiOpener: ...
+    @property
+    def zantufa_atom_initial_gi_opener(self) -> ZantufaAtomInitialGiOpenerSyntax:
+        'Exact GI preceding a source JOIK or tag.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener:
+    'Source JOIK or tag followed by exact GI.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_final_gi_opener']]]
+    def __new__(cls, zantufa_atom_final_gi_opener: ZantufaAtomFinalGiOpenerSyntax) -> ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener: ...
+    @property
+    def zantufa_atom_final_gi_opener(self) -> ZantufaAtomFinalGiOpenerSyntax:
+        'Source JOIK or tag followed by exact GI.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Ordered source alternatives; GUhA remains in the mapped GA family.
+ZantufaAtomGekBodySyntax: TypeAlias = ZantufaAtomGekBodySyntaxZantufaAtomGaOpener | ZantufaAtomGekBodySyntaxZantufaAtomInitialGiOpener | ZantufaAtomGekBodySyntaxZantufaAtomFinalGiOpener
+
+@final
+class ZantufaAtomGaOpenerSyntax:
+    'Source GA includes ordinary GA and GUhA (zantufa-1.9999.peg:544).'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['head']]]
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, head: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaAtomGaOpenerSyntax: ...
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Opener reversal, distinct from an outer atom conversion.'
+        ...
+    @property
+    def head(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'Typed head used by the baseline-ownership partition.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomInitialGiOpenerSyntax:
+    'GI before its complete source JOIK or tag payload.'
+    __match_args__: ClassVar[tuple[Literal['gi'], Literal['payload']]]
+    def __new__(cls, gi: WithFreeModifiers[Token, FreeModifierSyntax], payload: ZantufaAtomGekPayloadSyntax) -> ZantufaAtomInitialGiOpenerSyntax: ...
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The leading exact GI clause.'
+        ...
+    @property
+    def payload(self) -> ZantufaAtomGekPayloadSyntax:
+        'Source JOIK or tag following GI.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomFinalGiOpenerSyntax:
+    'GI after its complete source JOIK or tag payload.'
+    __match_args__: ClassVar[tuple[Literal['payload'], Literal['gi']]]
+    def __new__(cls, payload: ZantufaAtomGekPayloadSyntax, gi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaAtomFinalGiOpenerSyntax: ...
+    @property
+    def payload(self) -> ZantufaAtomGekPayloadSyntax:
+        'Source JOIK or tag preceding GI.'
+        ...
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'Exact trailing GI; the contextual alias selects its warning anchor.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekPayloadSyntaxZantufaAtomJoik:
+    'The exact source JOIK structural product.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_joik']]]
+    def __new__(cls, zantufa_atom_joik: ZantufaAtomJoikSyntax) -> ZantufaAtomGekPayloadSyntaxZantufaAtomJoik: ...
+    @property
+    def zantufa_atom_joik(self) -> ZantufaAtomJoikSyntax:
+        'The exact source JOIK structural product.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomGekPayloadSyntaxZantufaAtomTag:
+    'A complete source tag with shared recursive tcita operands.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_atom_tag']]]
+    def __new__(cls, zantufa_atom_tag: ZantufaAtomTagSyntax) -> ZantufaAtomGekPayloadSyntaxZantufaAtomTag: ...
+    @property
+    def zantufa_atom_tag(self) -> ZantufaAtomTagSyntax:
+        'A complete source tag with shared recursive tcita operands.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Source-ordered JOIK/tag choice, not the shared union's wider connective.
+ZantufaAtomGekPayloadSyntax: TypeAlias = ZantufaAtomGekPayloadSyntaxZantufaAtomJoik | ZantufaAtomGekPayloadSyntaxZantufaAtomTag
+
+@final
+class ZantufaAtomTagSyntax:
+    'Source tag shape (zantufa-1.9999.peg:73) with the directly gated JOIK.'
+    __match_args__: ClassVar[tuple[Literal['first_run'], Literal['continuations']]]
+    def __new__(cls, first_run: Sequence[ZantufaTcitaSelciSyntax], continuations: Sequence[ZantufaAtomTagContinuationSyntax]) -> ZantufaAtomTagSyntax: ...
+    @property
+    def first_run(self) -> tuple[ZantufaTcitaSelciSyntax, ...]:
+        'The first nonempty tcita run.'
+        ...
+    @property
+    def continuations(self) -> tuple[ZantufaAtomTagContinuationSyntax, ...]:
+        'Source-ordered JOIK-linked continuation runs.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaAtomTagContinuationSyntax:
+    'One source JOIK-connected tcita run; recursive tcita operands stay shared.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['run']]]
+    def __new__(cls, connective: ZantufaAtomJoikSyntax, run: Sequence[ZantufaTcitaSelciSyntax]) -> ZantufaAtomTagContinuationSyntax: ...
+    @property
+    def connective(self) -> ZantufaAtomJoikSyntax:
+        'The exact source JOIK joining the runs.'
+        ...
+    @property
+    def run(self) -> tuple[ZantufaTcitaSelciSyntax, ...]:
+        'The following nonempty tcita run.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaGroupedSumtiSyntax:
+    'Source KE sumti (zantufa-1.9999.peg:36), not a KE termset.\nIts term-position routing separately preserves the explicit/elided split.'
+    __match_args__: ClassVar[tuple[Literal['ke'], Literal['sumti'], Literal['kehe']]]
+    def __new__(
+        cls,
+        ke: WithFreeModifiers[Token, FreeModifierSyntax],
+        sumti: SumtiSyntax,
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaGroupedSumtiSyntax: ...
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'KE opener and the grouped-sumti warning anchor.'
+        ...
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The complete shared inner sumti.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional elidable grouping closer.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TanruUnitSyntax:
     'Product node for a complete tanru unit: an atom with optional linkargs,\nfollowed by zero or more CEI assignments.'
     __match_args__: ClassVar[tuple[Literal['base'], Literal['assignments']]]
@@ -17858,6 +18293,34 @@ class TanruUnitAtomBaseSyntaxJaiModalTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class TanruUnitAtomBaseSyntaxZantufaFaTanruUnit:
+    'A fully proven source FA prefix over a shared inner atom.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_fa_tanru_unit']]]
+    def __new__(cls, zantufa_fa_tanru_unit: ZantufaFaTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaFaTanruUnit: ...
+    @property
+    def zantufa_fa_tanru_unit(self) -> ZantufaFaTanruUnitSyntax:
+        'A fully proven source FA prefix over a shared inner atom.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit:
+    'The same completed, guarded GEK identity used by the shared entry.\nEarlier entry rejection cannot be bypassed through this model arm.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_forethought_tanru_unit']]]
+    def __new__(cls, zantufa_forethought_tanru_unit: ZantufaForethoughtTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit: ...
+    @property
+    def zantufa_forethought_tanru_unit(self) -> ZantufaForethoughtTanruUnitSyntax:
+        'The same completed, guarded GEK identity used by the shared entry.\nEarlier entry rejection cannot be bypassed through this model arm.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit:
     'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
     __match_args__: ClassVar[tuple[Literal['scalar_negated_tanru_unit']]]
@@ -17949,6 +18412,20 @@ class TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit:
     @property
     def operator_selbri_tanru_unit(self) -> OperatorSelbriTanruUnitSyntax:
         'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class TanruUnitAtomBaseSyntaxMehoiTanruUnit:
+    'A completed one-word MEhOI quote is a direct atom, never a quoted sumti.'
+    __match_args__: ClassVar[tuple[Literal['mehoi_tanru_unit']]]
+    def __new__(cls, mehoi_tanru_unit: MehoiTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxMehoiTanruUnit: ...
+    @property
+    def mehoi_tanru_unit(self) -> MehoiTanruUnitSyntax:
+        'A completed one-word MEhOI quote is a direct atom, never a quoted sumti.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -18068,7 +18545,7 @@ class TanruUnitAtomBaseSyntaxGroupedTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
+TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxZantufaFaTanruUnit | TanruUnitAtomBaseSyntaxZantufaForethoughtTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxMehoiTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
 
 @final
 class ZantufaKeCoGroupedTanruUnitSyntax:
@@ -18142,14 +18619,14 @@ class TaggedSelbriGroupTanruUnitSyntax:
 class PreposedLinkargsTanruUnitSyntax:
     'Product node for linked arguments; preserves `linkargs` and `base` in source order.'
     __match_args__: ClassVar[tuple[Literal['linkargs'], Literal['base']]]
-    def __new__(cls, linkargs: LinkargsSyntax, base: TanruUnitSyntax) -> PreposedLinkargsTanruUnitSyntax: ...
+    def __new__(cls, linkargs: LinkargsSyntax, base: LinkedTanruUnitSyntax) -> PreposedLinkargsTanruUnitSyntax: ...
     @property
     def linkargs(self) -> LinkargsSyntax:
-        'The `linkargs` grammar result in the `linkargs` structural role of the `preposed_linkargs_tanru_unit` production.'
+        'The complete exp-sourced linkargs; the strict construct visitor warns at its BE.'
         ...
     @property
-    def base(self) -> TanruUnitSyntax:
-        'The shared base child syntax node.'
+    def base(self) -> LinkedTanruUnitSyntax:
+        'The following linked atom; CEI assignments remain at the outer tanru-unit level.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -18176,12 +18653,12 @@ class ScalarNegatedTanruUnitSyntax:
 
 @final
 class ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom:
-    'Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.'
+    'Uses the `zantufa_tanru_unit_atom_entry` product form, whose payload preserves `conversions` and `base`.'
     __match_args__: ClassVar[tuple[Literal['tanru_unit_atom']]]
     def __new__(cls, tanru_unit_atom: TanruUnitAtomSyntax) -> ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom: ...
     @property
     def tanru_unit_atom(self) -> TanruUnitAtomSyntax:
-        'Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.'
+        'Uses the `zantufa_tanru_unit_atom_entry` product form, whose payload preserves `conversions` and `base`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -18199,7 +18676,7 @@ class JaiModalTanruUnitSyntax:
         cls,
         jai: WithFreeModifiers[Token, FreeModifierSyntax],
         tense_modal: TenseModalSyntax | None,
-        inner_unit: JaiInnerTanruUnitSyntax,
+        inner_unit: TanruUnitAtomSyntax,
     ) -> JaiModalTanruUnitSyntax: ...
     @property
     def jai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
@@ -18210,8 +18687,8 @@ class JaiModalTanruUnitSyntax:
         'The optional tense modal component.'
         ...
     @property
-    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
-        'The shared inner unit child syntax node.'
+    def inner_unit(self) -> TanruUnitAtomSyntax:
+        'The standalone recursive atom; enclosed GEK is selected only by the\ndedicated candidate alias below, never by a tagged JAI arm.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -18219,192 +18696,13 @@ class JaiModalTanruUnitSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit:
-    'Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.'
-    __match_args__: ClassVar[tuple[Literal['converted_jai_inner_tanru_unit']]]
-    def __new__(cls, converted_jai_inner_tanru_unit: ConvertedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit: ...
+class MehoiTanruUnitSyntax:
+    'Direct stage-0 fu\'ivla atom. Morphology already owns the one-word payload;\nsyntax must not inspect its spelling or treat it as delimited text.'
+    __match_args__: ClassVar[tuple[Literal['quote']]]
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> MehoiTanruUnitSyntax: ...
     @property
-    def converted_jai_inner_tanru_unit(self) -> ConvertedJaiInnerTanruUnitSyntax:
-        'Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit:
-    'Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
-    __match_args__: ClassVar[tuple[Literal['scalar_negated_jai_inner_tanru_unit']]]
-    def __new__(cls, scalar_negated_jai_inner_tanru_unit: ScalarNegatedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit: ...
-    @property
-    def scalar_negated_jai_inner_tanru_unit(self) -> ScalarNegatedJaiInnerTanruUnitSyntax:
-        'Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit:
-    'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
-    __match_args__: ClassVar[tuple[Literal['sumti_selbri_tanru_unit']]]
-    def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit: ...
-    @property
-    def sumti_selbri_tanru_unit(self) -> SumtiSelbriTanruUnitSyntax:
-        'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit:
-    'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
-    __match_args__: ClassVar[tuple[Literal['quoted_bridi_selbri_tanru_unit']]]
-    def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit: ...
-    @property
-    def quoted_bridi_selbri_tanru_unit(self) -> QuotedBridiSelbriTanruUnitSyntax:
-        'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit:
-    'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
-    __match_args__: ClassVar[tuple[Literal['quoted_text_selbri_tanru_unit']]]
-    def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit: ...
-    @property
-    def quoted_text_selbri_tanru_unit(self) -> QuotedTextSelbriTanruUnitSyntax:
-        'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxTextSelbriTanruUnit:
-    'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
-    __match_args__: ClassVar[tuple[Literal['text_selbri_tanru_unit']]]
-    def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxTextSelbriTanruUnit: ...
-    @property
-    def text_selbri_tanru_unit(self) -> TextSelbriTanruUnitSyntax:
-        'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit:
-    'Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
-    __match_args__: ClassVar[tuple[Literal['grouped_jai_inner_tanru_unit']]]
-    def __new__(cls, grouped_jai_inner_tanru_unit: GroupedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit: ...
-    @property
-    def grouped_jai_inner_tanru_unit(self) -> GroupedJaiInnerTanruUnitSyntax:
-        'Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxOrdinalTanruUnit:
-    'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
-    __match_args__: ClassVar[tuple[Literal['ordinal_tanru_unit']]]
-    def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOrdinalTanruUnit: ...
-    @property
-    def ordinal_tanru_unit(self) -> OrdinalTanruUnitSyntax:
-        'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit:
-    'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
-    __match_args__: ClassVar[tuple[Literal['operator_selbri_tanru_unit']]]
-    def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit: ...
-    @property
-    def operator_selbri_tanru_unit(self) -> OperatorSelbriTanruUnitSyntax:
-        'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxProBridiTanruUnit:
-    'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
-    __match_args__: ClassVar[tuple[Literal['pro_bridi_tanru_unit']]]
-    def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxProBridiTanruUnit: ...
-    @property
-    def pro_bridi_tanru_unit(self) -> ProBridiTanruUnitSyntax:
-        'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class JaiInnerTanruUnitSyntaxWordTanruUnit:
-    'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
-    __match_args__: ClassVar[tuple[Literal['word_tanru_unit']]]
-    def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxWordTanruUnit: ...
-    @property
-    def word_tanru_unit(self) -> WordTanruUnitSyntax:
-        'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for modal conversion; selects among 11 forms including `converted_jai_inner_tanru_unit`, `scalar_negated_jai_inner_tanru_unit`, and `sumti_selbri_tanru_unit`.
-JaiInnerTanruUnitSyntax: TypeAlias = JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit | JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit | JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit | JaiInnerTanruUnitSyntaxTextSelbriTanruUnit | JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxOrdinalTanruUnit | JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit | JaiInnerTanruUnitSyntaxProBridiTanruUnit | JaiInnerTanruUnitSyntaxWordTanruUnit
-
-@final
-class ConvertedJaiInnerTanruUnitSyntax:
-    'Product node for converted tanru unit; preserves `se` and `inner_unit` in source order.'
-    __match_args__: ClassVar[tuple[Literal['se'], Literal['inner_unit']]]
-    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ConvertedJaiInnerTanruUnitSyntax: ...
-    @property
-    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Se`.'
-        ...
-    @property
-    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
-        'The shared inner unit child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ScalarNegatedJaiInnerTanruUnitSyntax:
-    'Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.'
-    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_unit']]]
-    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ScalarNegatedJaiInnerTanruUnitSyntax: ...
-    @property
-    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Nahe`.'
-        ...
-    @property
-    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
-        'The shared inner unit child syntax node.'
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The completed MEhOI token, with its selbri-unit warning and free modifiers.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -18808,87 +19106,6 @@ class GroupedTanruUnitSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class GroupedJaiInnerTanruUnitSyntax:
-    'Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.'
-    __match_args__: ClassVar[tuple[Literal['ke'], Literal['selbri'], Literal['kehe']]]
-    def __new__(
-        cls,
-        ke: WithFreeModifiers[Token, FreeModifierSyntax],
-        selbri: ConnectedJaiInnerSelbriSyntax,
-        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
-    ) -> GroupedJaiInnerTanruUnitSyntax: ...
-    @property
-    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The `Ke` cmavo marker.'
-        ...
-    @property
-    def selbri(self) -> ConnectedJaiInnerSelbriSyntax:
-        'The shared selbri child syntax node.'
-        ...
-    @property
-    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
-        'The optional `Kehe` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ConnectedJaiInnerSelbriSyntax:
-    'Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.'
-    __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['continuations']]]
-    def __new__(cls, leading_selbri: TanruJaiInnerSelbriSyntax, continuations: Sequence[ConnectedJaiInnerSelbriContinuationSyntax]) -> ConnectedJaiInnerSelbriSyntax: ...
-    @property
-    def leading_selbri(self) -> TanruJaiInnerSelbriSyntax:
-        'The shared leading selbri child syntax node.'
-        ...
-    @property
-    def continuations(self) -> tuple[ConnectedJaiInnerSelbriContinuationSyntax, ...]:
-        'Ordered sequence of zero or more continuations components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ConnectedJaiInnerSelbriContinuationSyntax:
-    'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['trailing_selbri']]]
-    def __new__(cls, connective: SelbriAfterthoughtConnectiveSyntax, trailing_selbri: TanruJaiInnerSelbriSyntax) -> ConnectedJaiInnerSelbriContinuationSyntax: ...
-    @property
-    def connective(self) -> SelbriAfterthoughtConnectiveSyntax:
-        'The `selbri_afterthought_connective` connective joining the adjacent constituents of\nthe `connected_jai_inner_selbri_continuation` production. This mini-ladder is a\nselbri connection, not a bridi-tail one, so its inventory is the selbri family\'s\nJOIK/JEK -- the EK and VUhU spellings the legacy shared node also held have no\nsource at a selbri joint (camxes.peg:172-176).'
-        ...
-    @property
-    def trailing_selbri(self) -> TanruJaiInnerSelbriSyntax:
-        'The shared trailing selbri child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class TanruJaiInnerSelbriSyntax:
-    'Product node for selbri; preserves `first_unit` and `additional_units` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first_unit'], Literal['additional_units']]]
-    def __new__(cls, first_unit: JaiInnerTanruUnitSyntax, additional_units: Sequence[JaiInnerTanruUnitSyntax]) -> TanruJaiInnerSelbriSyntax: ...
-    @property
-    def first_unit(self) -> JaiInnerTanruUnitSyntax:
-        'The initial `jai_inner_tanru_unit` constituent before the continuations of the `tanru_jai_inner_selbri` production.'
-        ...
-    @property
-    def additional_units(self) -> tuple[JaiInnerTanruUnitSyntax, ...]:
-        'Ordered sequence of zero or more additional units components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class LinkedSumtiSyntaxPlaceTaggedLinkedSumti:
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __match_args__: ClassVar[tuple[Literal['place_tagged_linked_sumti']]]
@@ -18930,22 +19147,22 @@ class LinkedSumtiSyntaxPlainLinkedSumti:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+# Sum node for the three nonempty legacy linked-sumti forms.
+LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti
+
 @final
-class LinkedSumtiSyntaxEmptyLinkedSumti:
-    'Uses the marker-only `empty_linked_sumti` product form.'
-    __match_args__: ClassVar[tuple[Literal['empty_linked_sumti']]]
-    def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedSumtiSyntaxEmptyLinkedSumti: ...
+class LinkedTermSyntaxFullLinkedTerm:
+    'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
+    __match_args__: ClassVar[tuple[Literal['full_linked_term']]]
+    def __new__(cls, full_linked_term: FullLinkedTermSyntax) -> LinkedTermSyntaxFullLinkedTerm: ...
     @property
-    def empty_linked_sumti(self) -> EmptyLinkedSumtiSyntax:
-        'Uses the marker-only `empty_linked_sumti` product form.'
+    def full_linked_term(self) -> FullLinkedTermSyntax:
+        'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for linked arguments; selects among the `place_tagged_linked_sumti`, `tense_tagged_linked_sumti`, `plain_linked_sumti`, and `empty_linked_sumti` forms.
-LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti | LinkedSumtiSyntaxEmptyLinkedSumti
 
 @final
 class LinkedTermSyntaxConnectedLinkedTerm:
@@ -19017,25 +19234,25 @@ class LinkedTermSyntaxPlainLinkedSumti:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+# The loose connection level for BE/BEI arguments in the camxes-exp term hierarchy.
+#
+# These leaves are listed directly so ordinary links retain their established Debug and
+# serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
+LinkedTermSyntax: TypeAlias = LinkedTermSyntaxFullLinkedTerm | LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti
+
 @final
-class LinkedTermSyntaxEmptyLinkedSumti:
-    'Uses the marker-only `empty_linked_sumti` product form.'
-    __match_args__: ClassVar[tuple[Literal['empty_linked_sumti']]]
-    def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedTermSyntaxEmptyLinkedSumti: ...
+class FullLinkedTermSyntax:
+    'A complete normal-term payload, with no additional warning or copied leaf inventory.'
+    __match_args__: ClassVar[tuple[Literal['term']]]
+    def __new__(cls, term: NormalTermSyntax) -> FullLinkedTermSyntax: ...
     @property
-    def empty_linked_sumti(self) -> EmptyLinkedSumtiSyntax:
-        'Uses the marker-only `empty_linked_sumti` product form.'
+    def term(self) -> NormalTermSyntax:
+        'The full payload of one BE or BEI, in its original term hierarchy.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-# The loose connection level for BE/BEI arguments in the camxes-exp term hierarchy.
-#
-# These leaves are listed directly so ordinary links retain their established Debug and
-# serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-LinkedTermSyntax: TypeAlias = LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti | LinkedTermSyntaxEmptyLinkedSumti
 
 @final
 class ConnectedLinkedTermSyntax:
@@ -19272,16 +19489,6 @@ class PlainLinkedSumtiSyntax:
     def sumti(self) -> SumtiSyntax:
         'The shared sumti child syntax node.'
         ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class EmptyLinkedSumtiSyntax:
-    'Marker-only product node for linked arguments; the parser retains no public fields.'
-    __match_args__: ClassVar[tuple[()]]
-    def __new__(cls) -> EmptyLinkedSumtiSyntax: ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...

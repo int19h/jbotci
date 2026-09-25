@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-fr6-default"
+lojban = "lo broda fa je fa me cu brodi"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row FR6"
+description = "FR6: the same nested-uncertainty rejection as ce-fr5, but under a Prefix containing field. Trace candidate=fa wrapper=valid answer=Unproven decision=reject, and the winning tree confers Prefix on the field holding the surviving structure at that position together with the synthesized sumti as an Error. A Prefix containing field is not permission to admit an Unproven candidate: the FA atom is still absent. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "me", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "082c014f6615580b9ff9721e67dc6e553d9408f8c327d8b1a3f19fe52609d753" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "me", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lo", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 20], [21, 23], [24, 29]] }] }

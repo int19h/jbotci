@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-prefix-legacy-zantufa"
+lojban = "mi broda be ko'a ku be'o .i mi ku .i do broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a actual containing-field recovery"
+description = "Binding recovery-boundary ruling of 2026-09-07. Real BE marker 9..11; final field is Prefix(PlainLinkedSumti). Classifier attempts and final field wrappers are distinct. Full raw-tree pin includes the entire recovery result; parsed-value extent excludes skipped items. This fixture does not claim a classifier-input Prefix or Error."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [17, 19], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "5e0e4b69845ec9adbb51eaf83b3ed7be969e5f839d6ec7809cc49094c6d1b724" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [17, 19], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [31, 33], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "ko'a", "be'o", "i", "mi", "ku", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[17, 19]] }, { "kind" = "missing", "error-index" = 1, "byte-spans" = [[31, 31]] }] }

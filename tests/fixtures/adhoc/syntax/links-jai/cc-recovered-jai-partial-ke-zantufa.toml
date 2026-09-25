@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cc-recovered-jai-partial-ke-zantufa"
+lojban = "mi jai ke broda be"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "Winning JaiModal.inner_unit is Valid(TanruUnitAtom) containing GroupedTanruUnit. Inside that KE body, the linked word retains BE and its Linkargs.first_link is Error(MissingRequiredField); KEhE is elided. The shared KE group survives the malformed body, rather than being replaced by a whole-text skip. Full final raw-tree SHA, complete diagnostics and complete valid-token/recovery-item lists pin this actual winning recovery. No recovered-spine post-pass warning is generated; #891 remains deferred."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [18, 18], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "3892675d3a663bbc6ef1216018da6fccfce2a2a968cded719b7c5e5c1b9b920e" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [18, 18], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "jaĭ", "ke", "bróda", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[18, 18]] }] }

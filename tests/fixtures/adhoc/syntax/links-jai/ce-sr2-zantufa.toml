@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr2-zantufa"
+lojban = "ko'a ke ke'e broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR2"
+description = "SR2: no parsed value proves KE body ownership, so the grouped candidate answers Unproven and rejects fail-closed. Trace candidate=grouped-sumti wrapper=valid answer=Unproven decision=reject. This row previously pinned a real fail-open gap: grouped sumti was the one C-e product with no recovered evidence classifier of its own, so `ke ke'e` claimed the construct and reported its warning while its mandatory sumti was a synthesized Error covering no input. The classifier added alongside this fixture closes that, and the row now witnesses the behaviour the frozen table asks for. Built-in axis, where the region is skipped outright and nothing claims it. Current pin (C-g): provenance-ruling row 17, FD-e10 partial. C-e's grouped-sumti rejection works (the trace claim above holds), and the remaining recovery is a KE bridi-tail group with a missing body that loses broda; tracked in #925."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "61f938b3576fd6dfcd839256be82b377292b6bf8405f153c1d9feed1ac6ec20b" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-grouped-bridi-tail", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: Zantufa KE bridi-tail grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [13, 18], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["ko'a", "ke", "ke'e"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }, { kind = "invalid", error-index = 1, byte-spans = [[13, 18]] }] }

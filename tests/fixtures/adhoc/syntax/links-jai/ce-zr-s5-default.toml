@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s5-default"
+lojban = "mi jai ga broda gi me ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S5"
+description = "ZR-S5: the eligible atom position is occupied but a nested ownership-bearing child is unproven, so the priority classifier answers Unproven and rejects fail-closed. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject under Valid containing fields. Shares its input with ce-gr-e6, which pins the enclosed classifier's own answer on the same parse; this row pins the priority wrapper's. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "12e85a54c80e9332232cb49ae8cd32e288cf952bb431fe6bfb3c9d4e1549f087" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24]] }] }

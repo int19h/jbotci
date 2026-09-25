@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e6-default"
+lojban = "mi jai ga broda gi me ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E6"
+description = "GR-E6: an occupied enclosed opener whose branch child is unproven, the branch operand being a bare me with a synthesized mandatory sumti. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject; containing fields stay Valid. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "12e85a54c80e9332232cb49ae8cd32e288cf952bb431fe6bfb3c9d4e1549f087" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24]] }] }

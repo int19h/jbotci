@@ -34,11 +34,9 @@
 
 use std::sync::OnceLock;
 
-use bityzba::{contract_trait, invariant, requires};
-use jbotci_tree::TreeVisitor;
-
 use super::generated_model::{SumtiBaseSyntax, recovered};
-use super::generated_runtime::{OutputRejection, output_rejection_site};
+use super::generated_runtime::{OutputRejection, output_rejection_site, recovered_source_extent};
+use bityzba::{contract_trait, invariant, requires};
 
 /// The camxes operand tier a completed `sumti_base` candidate belongs to.
 ///
@@ -77,7 +75,8 @@ pub(crate) fn sumti_base_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
         | SumtiBaseSyntax::NumberSumti(_)
         | SumtiBaseSyntax::LerfuStringSumti(_)
         | SumtiBaseSyntax::QuotedSumti(_)
-        | SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
+        | SumtiBaseSyntax::ProSumti(_)
+        | SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
@@ -104,7 +103,8 @@ pub(crate) fn recovered_sumti_base_tier(
         | recovered::SumtiBaseSyntax::NumberSumti(_)
         | recovered::SumtiBaseSyntax::LerfuStringSumti(_)
         | recovered::SumtiBaseSyntax::QuotedSumti(_)
-        | recovered::SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
+        | recovered::SumtiBaseSyntax::ProSumti(_)
+        | recovered::SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
@@ -166,52 +166,6 @@ pub(crate) fn trace_enabled() -> bool {
     })
 }
 
-/// Collects the source extent a recovered candidate covers, recovery items included.
-///
-/// The endpoints are one field rather than two so that "seen nothing yet" cannot be spelled
-/// half-way; every combination of the single field is a valid state.
-#[invariant(true)]
-struct CandidateExtentProbe {
-    extent: Option<(usize, usize)>,
-}
-
-impl CandidateExtentProbe {
-    #[requires(byte_start <= byte_end)]
-    #[ensures(self.extent.is_some())]
-    fn observe(&mut self, byte_start: usize, byte_end: usize) {
-        self.extent = Some(self.extent.map_or((byte_start, byte_end), |(start, end)| {
-            (start.min(byte_start), end.max(byte_end))
-        }));
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for CandidateExtentProbe {
-    type Node = recovered::NodeRef<'tree>;
-    type Atom = recovered::AtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        let recovered::AtomRef::Token(token) = atom;
-        for span in token.source_spans() {
-            self.observe(span.byte_start, span.byte_end);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
-        &mut self,
-        item: &'tree E,
-    ) {
-        let mut observed = Vec::new();
-        item.visit_source_spans(&mut |span| observed.push((span.byte_start, span.byte_end)));
-        for (byte_start, byte_end) in observed {
-            self.observe(byte_start, byte_end);
-        }
-    }
-}
-
 /// One trace line for a recovered classification, with the consumer that asked for it.
 #[requires(true)]
 #[ensures(true)]
@@ -230,9 +184,7 @@ fn trace_recovered_classification(
             .copied()
             .unwrap_or("<unknown>")
     });
-    let mut extent = CandidateExtentProbe { extent: None };
-    recovered::TreeNode::visit_in_order(candidate, &mut extent);
-    let bytes = extent.extent.map_or_else(
+    let bytes = recovered_source_extent(candidate).map_or_else(
         || "empty".to_owned(),
         |(start, end)| format!("{start}..{end}"),
     );

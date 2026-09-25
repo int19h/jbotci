@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s2-default"
+lojban = "mi na'e ga broda gi brode ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S2"
+description = "GR-S2: the same additive standalone candidate, classified Present at an outer-Valid boundary, winning under a Prefix containing selbri field that carries the skipped ku as its ordered recovery evidence. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "0cc2715ebfa6e8ca02d337105768af4ecbcd1707fdd5e287669891396ee1a033" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-nahe-sumti-without-bo", byte-span = [3, 7], source-text = "na'e", message = "experimental syntax: NAhE argument without BO", word-index = 1 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "na'e", "ga"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[11, 16], [17, 19], [20, 25], [26, 28]] }, { kind = "missing", error-index = 0, byte-spans = [[11, 11]] }] }

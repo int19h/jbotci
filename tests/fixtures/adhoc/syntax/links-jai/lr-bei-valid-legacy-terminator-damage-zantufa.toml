@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-bei-valid-legacy-terminator-damage-zantufa"
+lojban = "mi broda be ko'a bei ko'e ku be'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a BEI recovery boundary control"
+description = "Binding recovery-boundary ruling of 2026-09-07. Real BEI marker 17..20; final link is Valid(PlainLinkedSumti) with complete parsed payload 21..25. The independent extra KU damages the enclosing BEhO value, whose Prefix wrapper is not a BEI.link Prefix. Full raw tree, diagnostics, valid tokens and recovery items are pinned separately from classifier attempts."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [26, 28], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "6d4078ca6a80138fb34f56fcf7dad7e2dc2e14f335879f6fdca375d22e9c4c39" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [26, 28], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "ko'a", "beĭ", "ko'e", "be'o"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[26, 28]] }] }

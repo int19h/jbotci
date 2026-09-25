@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s5-default"
+lojban = "mi brodi ga broda gi brode .i mi ku broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S5"
+description = "GR-S5: a complete standalone BINARY candidate WITH the route-level conjunction, at a tanru position where the baseline has no competing reading. Trace candidate=standalone-gek wrapper=valid answer=Present decision=accept, and the warned GEK atom wins under Valid containing fields. Its zantufa axis is the control that isolates reinterpretation. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "981f3fb1dce50ddc221ff174ae3d8148fdb53bbd99b6931c2d12f4fc4df341c7" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 17], [18, 20], [21, 26]] }, { kind = "invalid", error-index = 1, byte-spans = [[33, 35], [36, 41]] }] }

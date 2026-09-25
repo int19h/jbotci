@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s6-selbri"
+lojban = "mi jai ga broda gi me ku .i ku'o"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S6"
+description = "ZR-S6: the same nested-uncertainty priority rejection as ce-zr-s5, with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Shares its input with ce-gr-e7, which pins the enclosed classifier's own answer on the same parse, exactly as ce-zr-s5 shares with ce-gr-e6; the two rows pin different classifiers, not the same observation twice. Minimal explicit axis, where the priority wrapper is not reached, as in ce-zr-s5-selbri. Trailing damage changed in epoch-10 C-g from `ku` to `ku'o` together with the -zantufa row, so every axis of this family pins one input: on the -zantufa axis main's recovery keeps a bare `ku` behind a synthesized sumti (#934), and a stray `ku'o` is skipped on every axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "0af9c77e7f52f97e371e6810934ff339772256cf619130d73367f9c2a746609e" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 32], source-text = "ku'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 21], [22, 24]] }, { kind = "invalid", error-index = 1, byte-spans = [[28, 32]] }] }

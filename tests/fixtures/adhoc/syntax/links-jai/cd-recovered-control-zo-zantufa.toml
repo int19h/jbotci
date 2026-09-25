@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cd-recovered-control-zo-zantufa"
+lojban = "mi tavla zo broda be"
+tags = ["links-jai-epoch", "mehoi-owner"]
+dialect = "(zantufa)"
+
+[[provenance]]
+kind = "other"
+name = "Epoch10 C-d #820 typed MEhOI ownership"
+description = "Unchanged non-MEhOI quote control: all complete strict/reference/Gentufa and requested recovered observations equal the pre-guard parser. The guard inspects only the typed outer marker; even a payload spelling me'oi is inert."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "be", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "eb1a859f7fcbd95f520e8c23fca206a8e56fa017f740e7d7ea2de6e8a9543c99" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "be", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "távla", "zo-<<gismu:bróda>>"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[18, 20]] }, { "kind" = "missing", "error-index" = 0, "byte-spans" = [[18, 18]] }] }

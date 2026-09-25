@@ -1,0 +1,14 @@
+id = "adhoc.syntax.links-jai.cb-alice-warning-cbm-la"
+lojban = "lo selfri be la .alis.\nbei bu'u la selmacygu'e"
+dialect = "(case-insensitive zantufa)"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 Alice strict coverage"
+description = "Exact contiguous excerpt of corpus.alis.full-alice at UTF-8 bytes 0..46. Strict source excerpt preserving syntax.warning.experimental-cbm-la-name-as-description, one of the five structural-warning categories omitted on the full Alice recovered spine by known issue #891. It does not assert recovered warning parity."
+
+[expectations.syntax]
+status = "success"
+raw = { sha256 = "d386a24589bbb6ef2b1921eb28ca3935827ed425e0e009f87e81088442c1e0a9" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-cbm-la-name-as-description", "byte-span" = [13, 15], "source-text" = "la", "message" = "experimental syntax: CBM LA name form parsed as a description", "word-index" = 3 }, { "severity" = "warning", "code" = "syntax.warning.experimental-cbm-cmevla-selbri-word", "byte-span" = [17, 21], "source-text" = "alis", "message" = "experimental syntax: CBM cmevla used as a selbri word", "word-index" = 4 }]

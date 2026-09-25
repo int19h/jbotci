@@ -11,12 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "beĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(LinkedSumtiContinuationFragment(LinkedSumtiContinuationFragmentSyntax([BeiLinkSyntax { bei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "beĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, link: EmptyLinkedSumti(EmptyLinkedSumtiSyntax) }])))), following: [], trailing: [] })), additional_niho: [] })) })'
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+# C-b #807: strict-dependent refs/Gentufa outputs are unavailable (blocked by syntax failure).
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [3, 3], "source-text" = "", "message" = "incomplete selbri" }]
 
 [expectations.output.vlasei]
 brackets = "beĭ"
@@ -25,11 +22,3 @@ tree = """
   Cmavo @[0‥3) "beĭ",
 ]"""
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[0,3]}}}]'
-
-[expectations.output.gentufa]
-tree = """
-BeiLink @[0‥3) {
-  bei: Cmavo @[0‥3) "beĭ",
-  link: EmptyLinkedSumti {},
-}"""
-json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiContinuationFragment":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[0,3]}}}},"link":{"EmptyLinkedSumti":{}}}]}}}}}}}}'

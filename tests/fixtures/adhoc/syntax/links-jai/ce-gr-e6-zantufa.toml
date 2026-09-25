@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e6-zantufa"
+lojban = "mi jai ga broda gi me ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E6"
+description = "GR-E6: an occupied enclosed opener whose branch child is unproven, the branch operand being a bare me with a synthesized mandatory sumti. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject; containing fields stay Valid. Built-in axis, where the actual surviving owner is the pre-existing JAI-tagged sumti term."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "140f762b24bf3748b7451d7ce94fa965d63a817c61a974b68ad332db40784d94" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "me", "ku"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[22, 22]] }] }

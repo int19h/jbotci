@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s5-zantufa"
+lojban = "mi brodi ga broda gi brode .i mi ku broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S5"
+description = "GR-S5: a complete standalone BINARY candidate WITH the route-level conjunction, at a tanru position where the baseline has no competing reading. Trace candidate=standalone-gek wrapper=valid answer=Present decision=accept, and the warned GEK atom wins under Valid containing fields. Its zantufa axis is the control that isolates reinterpretation. Control on the built-in axis, which does not enable reinterpretation: the same complete BINARY candidate is classified Absent and rejects. Its bare ku recovers in main's own shape, kept behind a synthesized missing sumti ([‼‼ ku]); that recovery policy is tracked in #934."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "61b4f8466eb5cbbf395f2edf28206a5344c73dfb365bb471da3ebc752a4c9061" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "broda", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "i", "mi", "ku", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 17], [18, 20], [21, 26]] }, { kind = "missing", error-index = 1, byte-spans = [[33, 33]] }] }

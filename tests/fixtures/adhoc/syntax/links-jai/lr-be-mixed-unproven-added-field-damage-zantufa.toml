@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-mixed-unproven-added-field-damage-zantufa"
+lojban = "mi broda be lu mi ku li'u .e bo na ku ku be'o .i mi ku .i do broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a complete mixed-candidate rejection"
+description = "Real mixed BO connection with Added NA KU and an internally damaged LU quotation, Unproven then Added. The actual complete candidate is rejected as Unproven; final ownership and extent are independently pinned. A shorter Full, if present, is not a complete mixed-payload witness. An additional KU after the complete intended payload supplies independent field damage. Final field: valid plain-linked-sumti, parsed value 12..25; intended complete mixed extent 12..37. The legacy quoted-sumti fallback keeps its nested recovery item and the remaining mixed continuation is withdrawn. Its bare ku recovers in main's own shape, kept behind a synthesized missing sumti ([‼‼ ku]); that recovery policy is tracked in #934."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "6cfe8b8b01281e5569db4b46e3938f4722fe8550f2c3e8e1f844ed61461f56ec" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [35, 37], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [52, 54], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "be", "lu", "mi", "ku", "li'u", "i", "mi", "ku", "i", "do", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[18, 18]] }, { kind = "invalid", error-index = 1, byte-spans = [[27, 28], [29, 31], [32, 34], [35, 37], [38, 40], [41, 45]] }, { kind = "missing", error-index = 2, byte-spans = [[52, 52]] }] }

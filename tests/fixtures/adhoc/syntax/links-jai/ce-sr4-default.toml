@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr4-default"
+lojban = "ko'a ke le ke'e broda ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR4"
+description = "SR4: KE is proven but the nested sumti child is unproven, the body being a bare le with a synthesized mandatory selbri. The grouped candidate cannot prove its body and rejects, and the KE-termset owner keeps the extent with an all-Valid containing chain of its own. Default control: byte-identical outcome, so the fail-closed rejection leaves the default parse untouched."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [11, 15], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "8926c4f947cca25e0b4a6833e59210d8f8871e3d76fc4ba5b9d19fb55aa4c687" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [5, 7], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [11, 15], source-text = "ke'e", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "ke", "le", "ku"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[11, 15], [16, 21]] }, { kind = "missing", error-index = 0, byte-spans = [[11, 11]] }] }

@@ -1,0 +1,18 @@
+id = "adhoc.syntax.links-jai.cf-co-default"
+lojban = "mi broda co brode ke'e be ko'a be'o"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 positive row: CO breadth: the linked arguments apply to the whole CO selbri. Reference: Zantufa 1.9999 accepts through selbri_1's KEhE-linked alternative; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Default axis: the baseline result stands and the owner does not exist."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 22], source-text = "ke'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "4b3b88d9592c9b974884f5054fc5bd253ab73b1a61fa70968d08a764a61f69b3" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 22], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.incomplete-selbri", byte-span = [35, 35], source-text = "", message = "incomplete selbri" }]
+tree = { valid-tokens = ["mi", "bróda", "co", "bróde", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[18, 22]] }, { kind = "missing", error-index = 1, byte-spans = [[35, 35]] }] }

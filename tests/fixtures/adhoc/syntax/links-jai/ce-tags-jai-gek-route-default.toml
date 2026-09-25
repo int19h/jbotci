@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-tags-jai-gek-route-default"
+lojban = "mi jai ga broda gi brode"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: enclosed GEK route"
+description = "Legitimate tags route that the JAI term-start reservation exists to protect. The reservation must still run BEFORE the JAI is consumed, or `jai ga ...` steals the enclosed selbri as a tag term plus gek sumti; the fix only adds this rule's own mandatory JAI as a cheap discriminator in front of it, so this ownership is unchanged. Default control: the construct does not exist on this axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "7ae736479a9a0d8fe88802ff02032b341bd66163edff8c579a1bc7c160cd9eb1" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9], [10, 15], [16, 18], [19, 24]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s7-default"
+lojban = "mi na'e ga broda gi brode be ku ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S7"
+description = "GR-S7: an occupied standalone opener whose GI branch child is unproven, because the branch operand carries a BE with a synthesized mandatory linked term. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject for the candidate covering the damaged branch, and Present at its own shorter extent for the complete atom over broda gi brode that actually survives, under Valid containing fields. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "f25415df08b6df04eea49b2983af1773074eecaad1a6d5bfb5964c30719d9606" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-nahe-sumti-without-bo", byte-span = [3, 7], source-text = "na'e", message = "experimental syntax: NAhE argument without BO", word-index = 1 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [11, 16], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "na'e", "ga"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[11, 16], [17, 19], [20, 25], [26, 28], [29, 31], [32, 34]] }, { kind = "missing", error-index = 0, byte-spans = [[11, 11]] }] }

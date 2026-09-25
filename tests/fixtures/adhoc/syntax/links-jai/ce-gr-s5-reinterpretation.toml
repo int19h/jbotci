@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s5-reinterpretation"
+lojban = "mi brodi ga broda gi brode .i mi ku broda"
+dialect = "(+zantufa-selbri +zantufa-selbri-reinterpretation)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S5"
+description = "GR-S5: a complete standalone BINARY candidate WITH the route-level conjunction, at a tanru position where the baseline has no competing reading. Trace candidate=standalone-gek wrapper=valid answer=Present decision=accept, and the warned GEK atom wins under Valid containing fields. Its zantufa axis is the control that isolates reinterpretation. Explicit ZantufaSelbri plus ZantufaSelbriReinterpretation."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "1677f747c36de62c7f89945a7ec8267a49649e910f8216967c978e0b5765b7dc" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-forethought-tanru-unit", byte-span = [9, 11], source-text = "ga", message = "experimental syntax: Zantufa forethought tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 35], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "ga", "bróda", "gi", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[33, 35], [36, 41]] }] }

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-sr-elided-nonterm-zantufa"
+lojban = "lo ke ko'e broda cu brodi ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row SR elided-closer non-term control"
+description = "Recovered Terms control for the elided grouping closer OUTSIDE term position. At a term position the F2 strict_observe guard pair gives an elided `ke ko'e` to the pre-existing KE termset, as ce-sr1a's siblings show; inside a description there is no termset competing for the extent, so the same elided shape is owned by grouped sumti. Trace candidate=grouped-sumti wrapper=valid answer=Present decision=accept, which also exercises the recovered evidence classifier on a body that really was parsed -- the positive twin of ce-sr2, where a synthesized body is refused. Built-in axis: grouped sumti owns the elided group and reports its warning; the trailing ku is the only damage."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "d1cfb8b4f6d2fcbcef8f671eaaf59f48984758658dbca441f6aba10c25091894" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-grouped-sumti", byte-span = [3, 5], source-text = "ke", message = "experimental syntax: Zantufa KE-grouped sumti", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 28], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lo", "ke", "ko'e", "bróda", "cu", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[26, 28]] }] }

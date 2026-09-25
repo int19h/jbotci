@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-zr-s4-selbri"
+lojban = "mi brodi broda .i mi ku broda"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row ZR-S4"
+description = "ZR-S4: a complete co-selbri containing only shared atoms. Trace candidate=priority-selbri wrapper=valid answer=Absent decision=reject -- a known shape that is simply not priority-owned -- and the existing untagged owner keeps the extent. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "53aa247805dd33a9741510cd322434a11e0391af8b909e362e5c6b4ca9bc7fb9" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bródi", "bróda", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[21, 23], [24, 29]] }] }

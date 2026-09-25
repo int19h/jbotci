@@ -42,11 +42,14 @@ mod baseline_termset;
 mod description_leading;
 mod generated;
 mod generated_runtime;
+mod kehe_linked_selbri;
+mod link_payload;
 mod parse_error;
 mod parser_core;
 mod selbri_boundary;
 mod sumti_operand_tier;
 pub(crate) mod tokens;
+mod zantufa_atoms;
 mod zantufa_quantifier_relatives;
 use parse_error::{
     SharedStack, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError,
@@ -785,10 +788,37 @@ struct SyntaxRuleObservationNode {
 }
 
 #[invariant(true)]
+#[invariant(::Strict { .. } => true)]
+#[invariant(::Recovered { .. } => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct SyntaxDiagnosticObservationId {
-    trial_id: NonZeroUsize,
-    frame_id: NonZeroUsize,
+enum SyntaxDiagnosticObservationId {
+    // Strict nodes never cross states; frame counters are state-local.
+    Strict {
+        frame_id: NonZeroUsize,
+    },
+    // Trial IDs are unique across states sharing the recovery memo store.
+    Recovered {
+        trial_id: NonZeroUsize,
+        frame_id: NonZeroUsize,
+    },
+}
+
+#[invariant(frame_depth > &0)]
+#[derive(Debug)]
+struct SyntaxDiagnosticFrameMark {
+    frame_id: SyntaxDiagnosticObservationId,
+    frame_depth: usize,
+    observation_len: usize,
+}
+
+// A checkpoint describes a prior diagnostic transaction state; all combinations
+// are representable, but restoration checks its live frame and journal bounds.
+#[invariant(true)]
+#[derive(Debug)]
+pub(super) struct SyntaxDiagnosticCheckpoint<'tokens> {
+    candidates: Vec<SyntaxParseError<'tokens>>,
+    replay_log_len: usize,
+    frame: Option<SyntaxDiagnosticFrameMark>,
 }
 
 #[invariant(!observations.is_empty())]
@@ -816,7 +846,7 @@ struct SyntaxMemoRuleFrame<'tokens> {
     recovery_checkpoint_observation_range: RecoveryCheckpointObservationRange,
     child_recovery_checkpoint_observations: Vec<ChildRecoveryCheckpointObservations>,
     finalized_recovery_checkpoint_observations: Option<Rc<SyntaxRecoveryCheckpointObservations>>,
-    diagnostic_observation_id: Option<SyntaxDiagnosticObservationId>,
+    diagnostic_observation_id: SyntaxDiagnosticObservationId,
     diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
     finalized_diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
 }
@@ -1150,7 +1180,7 @@ pub(super) struct ParserState<'tokens> {
     // exact identity needed by the parser-local classification cache.
     cmavo_cache: HashMap<TokenIdentity, Option<Cmavo>>,
     syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
-    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxParseError<'tokens>>,
+    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
     syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
     syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
     recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
@@ -1158,6 +1188,9 @@ pub(super) struct ParserState<'tokens> {
     syntax_memo_scope: SyntaxMemoScope,
     next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
     replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
+    // Applied means offered to report merging, not necessarily retained: the
+    // farthest-position and content filters may suppress an offered candidate.
+    applied_syntax_diagnostic_log: Vec<SyntaxDiagnosticObservationId>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
     continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
@@ -1172,6 +1205,7 @@ pub(super) struct ParserState<'tokens> {
     recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
     syntax_rule_observation_latest_recovery_target_indices:
         RefCell<FxHashMap<usize, Option<usize>>>,
+    strict_observing: bool,
     consumed_recovery_directives: usize,
     // This is a consumption stack parallel to `recovery_directives`; each
     // entry records where its directive actually fired. Checkpoint rewind can
@@ -1189,6 +1223,42 @@ pub(super) struct ParserState<'tokens> {
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
     _tokens: PhantomData<&'tokens ()>,
+}
+
+/// Owned parser-local state suspended while a strict observational probe runs.
+/// Probes must not publish memo, recovery, diagnostic, or continuation effects
+/// into their parent parse; moving these stores is both cheaper and safer than
+/// cloning corpus-sized maps.
+#[invariant(true)]
+struct StrictObserveJournal<'tokens> {
+    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
+    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
+    syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
+    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
+    recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
+    syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
+    replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
+    applied_syntax_diagnostic_log: Vec<SyntaxDiagnosticObservationId>,
+    next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
+    diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
+    diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
+    continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
+    warnings: Vec<SyntaxWarning>,
+    consumed_recovery_directives: usize,
+    effective_fail_token_indices: Vec<usize>,
+    active_recovery_directive: Option<ActiveRecoveryDirective>,
+    abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
+    completed_recovery_boundary_location: Option<usize>,
+    recovery_checkpoint_collection: Option<RecoveryCheckpointCollection>,
+    continuation_sentinel_index: Option<usize>,
+    recovery_directives: Vec<RecoveryDirective>,
+    recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
+    recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
+    syntax_rule_observation_latest_recovery_target_indices: FxHashMap<usize, Option<usize>>,
+    recovery_tokens: Vec<Token>,
+    recovery_source: Option<Arc<str>>,
+    track_recovery_branches: bool,
+    strict_observing: bool,
 }
 
 #[invariant(
@@ -1211,6 +1281,99 @@ pub(super) struct ParserState<'tokens> {
 )]
 impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn begin_strict_observe(&mut self) -> StrictObserveJournal<'tokens> {
+        StrictObserveJournal {
+            syntax_memo: std::mem::take(&mut self.syntax_memo),
+            syntax_failure_memo: std::mem::take(&mut self.syntax_failure_memo),
+            syntax_memo_in_progress: std::mem::take(&mut self.syntax_memo_in_progress),
+            syntax_recovery_memo_in_progress: std::mem::take(
+                &mut self.syntax_recovery_memo_in_progress,
+            ),
+            recovery_memo_trial: self.recovery_memo_trial.take(),
+            syntax_memo_rule_frames: std::mem::take(&mut self.syntax_memo_rule_frames),
+            replayed_syntax_diagnostic_observations: std::mem::take(
+                &mut self.replayed_syntax_diagnostic_observations,
+            ),
+            applied_syntax_diagnostic_log: std::mem::take(&mut self.applied_syntax_diagnostic_log),
+            next_syntax_diagnostic_observation_frame_id: std::mem::replace(
+                &mut self.next_syntax_diagnostic_observation_frame_id,
+                NonZeroUsize::MIN,
+            ),
+            diagnostic_candidates: std::mem::take(&mut self.diagnostic_candidates),
+            diagnostic_candidate_hash_buckets: std::mem::take(
+                &mut self.diagnostic_candidate_hash_buckets,
+            ),
+            continuation_diagnostic_candidates: std::mem::take(
+                &mut self.continuation_diagnostic_candidates,
+            ),
+            warnings: std::mem::take(&mut self.warnings),
+            consumed_recovery_directives: std::mem::replace(
+                &mut self.consumed_recovery_directives,
+                0,
+            ),
+            effective_fail_token_indices: std::mem::take(&mut self.effective_fail_token_indices),
+            active_recovery_directive: self.active_recovery_directive.take(),
+            abandoned_recovery_ranges: std::mem::take(&mut self.abandoned_recovery_ranges),
+            completed_recovery_boundary_location: self.completed_recovery_boundary_location.take(),
+            recovery_checkpoint_collection: self.recovery_checkpoint_collection.take(),
+            // The sentinel and time limit are ambient parse policy, not child
+            // outputs. Keep them in force while the strict probe runs.
+            continuation_sentinel_index: self.continuation_sentinel_index,
+            recovery_directives: std::mem::take(&mut self.recovery_directives),
+            recovery_rule_parser_targets: std::mem::take(&mut self.recovery_rule_parser_targets),
+            recovery_rule_target_last_indices: std::mem::take(
+                &mut self.recovery_rule_target_last_indices,
+            ),
+            syntax_rule_observation_latest_recovery_target_indices: std::mem::take(
+                self.syntax_rule_observation_latest_recovery_target_indices
+                    .get_mut(),
+            ),
+            recovery_tokens: std::mem::take(&mut self.recovery_tokens),
+            recovery_source: self.recovery_source.take(),
+            track_recovery_branches: std::mem::replace(&mut self.track_recovery_branches, false),
+            strict_observing: std::mem::replace(&mut self.strict_observing, true),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn end_strict_observe(&mut self, journal: StrictObserveJournal<'tokens>) {
+        self.syntax_memo = journal.syntax_memo;
+        self.syntax_failure_memo = journal.syntax_failure_memo;
+        self.syntax_memo_in_progress = journal.syntax_memo_in_progress;
+        self.syntax_recovery_memo_in_progress = journal.syntax_recovery_memo_in_progress;
+        self.recovery_memo_trial = journal.recovery_memo_trial;
+        self.syntax_memo_rule_frames = journal.syntax_memo_rule_frames;
+        self.replayed_syntax_diagnostic_observations =
+            journal.replayed_syntax_diagnostic_observations;
+        self.applied_syntax_diagnostic_log = journal.applied_syntax_diagnostic_log;
+        self.next_syntax_diagnostic_observation_frame_id =
+            journal.next_syntax_diagnostic_observation_frame_id;
+        self.diagnostic_candidates = journal.diagnostic_candidates;
+        self.diagnostic_candidate_hash_buckets = journal.diagnostic_candidate_hash_buckets;
+        self.continuation_diagnostic_candidates = journal.continuation_diagnostic_candidates;
+        self.warnings = journal.warnings;
+        self.consumed_recovery_directives = journal.consumed_recovery_directives;
+        self.effective_fail_token_indices = journal.effective_fail_token_indices;
+        self.active_recovery_directive = journal.active_recovery_directive;
+        self.abandoned_recovery_ranges = journal.abandoned_recovery_ranges;
+        self.completed_recovery_boundary_location = journal.completed_recovery_boundary_location;
+        self.recovery_checkpoint_collection = journal.recovery_checkpoint_collection;
+        self.continuation_sentinel_index = journal.continuation_sentinel_index;
+        self.recovery_directives = journal.recovery_directives;
+        self.recovery_rule_parser_targets = journal.recovery_rule_parser_targets;
+        self.recovery_rule_target_last_indices = journal.recovery_rule_target_last_indices;
+        *self
+            .syntax_rule_observation_latest_recovery_target_indices
+            .get_mut() = journal.syntax_rule_observation_latest_recovery_target_indices;
+        self.recovery_tokens = journal.recovery_tokens;
+        self.recovery_source = journal.recovery_source;
+        self.track_recovery_branches = journal.track_recovery_branches;
+        self.strict_observing = journal.strict_observing;
+    }
+
+    #[requires(true)]
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
@@ -1227,6 +1390,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_memo_scope: SyntaxMemoScope::Ordinary,
             next_syntax_diagnostic_observation_frame_id: NonZeroUsize::MIN,
             replayed_syntax_diagnostic_observations: HashSet::new(),
+            applied_syntax_diagnostic_log: Vec::new(),
             diagnostic_candidates: Vec::new(),
             diagnostic_candidate_hash_buckets: HashMap::new(),
             continuation_diagnostic_candidates: Vec::new(),
@@ -1242,6 +1406,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_rule_observation_latest_recovery_target_indices: RefCell::new(
                 FxHashMap::default(),
             ),
+            strict_observing: false,
             consumed_recovery_directives: 0,
             effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
@@ -1349,18 +1514,21 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == !self.recovery_directives.is_empty())]
+    #[ensures(ret == (!self.strict_observing && !self.recovery_directives.is_empty()))]
     pub(super) fn recovery_enabled(&self) -> bool {
-        !self.recovery_directives.is_empty()
+        !self.strict_observing && !self.recovery_directives.is_empty()
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(ret == (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start)))]
+    #[ensures(ret == (!self.strict_observing && (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start))))]
     pub(super) fn recovery_rule_parser_enabled(
         &mut self,
         rule: &'static str,
         instance_byte_start: usize,
     ) -> bool {
+        if self.strict_observing {
+            return false;
+        }
         if !self
             .recovery_rule_parser_targets
             .contains(&(rule, instance_byte_start))
@@ -1382,9 +1550,15 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.track_recovery_branches)]
+    #[ensures(ret == (!self.strict_observing && self.track_recovery_branches))]
     pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
-        self.track_recovery_branches
+        !self.strict_observing && self.track_recovery_branches
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.strict_observing)]
+    pub(super) fn is_strict_observing(&self) -> bool {
+        self.strict_observing
     }
 
     #[requires(true)]
@@ -1423,20 +1597,21 @@ impl<'tokens> ParserState<'tokens> {
             .recovery_checkpoint_collection
             .as_ref()
             .map_or(0, RecoveryCheckpointCollection::observation_count);
-        let diagnostic_observation_id = self.recovery_memo_trial.as_ref().map(|trial| {
-            let frame_id = self.next_syntax_diagnostic_observation_frame_id;
-            self.next_syntax_diagnostic_observation_frame_id = NonZeroUsize::new(
-                frame_id
-                    .get()
-                    .checked_add(1)
-                    .expect("syntax diagnostic observation identity does not overflow"),
-            )
-            .expect("a positive syntax diagnostic observation identity stays nonzero");
-            SyntaxDiagnosticObservationId {
+        let frame_id = self.next_syntax_diagnostic_observation_frame_id;
+        self.next_syntax_diagnostic_observation_frame_id = NonZeroUsize::new(
+            frame_id
+                .get()
+                .checked_add(1)
+                .expect("syntax diagnostic observation identity does not overflow"),
+        )
+        .expect("a positive syntax diagnostic observation identity stays nonzero");
+        let diagnostic_observation_id = match self.recovery_memo_trial.as_ref() {
+            Some(trial) => SyntaxDiagnosticObservationId::Recovered {
                 trial_id: trial.trial_id,
                 frame_id,
-            }
-        });
+            },
+            None => SyntaxDiagnosticObservationId::Strict { frame_id },
+        };
         self.syntax_memo_rule_frames.push(SyntaxMemoRuleFrame {
             recovery_sensitive: false,
             rule_observation: None,
@@ -1521,8 +1696,7 @@ impl<'tokens> ParserState<'tokens> {
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(&mut frame);
         if let Some(observations) = &diagnostic_observations {
-            self.replayed_syntax_diagnostic_observations
-                .insert(observations.id);
+            self.mark_syntax_diagnostic_observation_applied(observations.id);
         }
         if let Some(parent) = self.syntax_memo_rule_frames.last_mut() {
             if frame.recovery_sensitive {
@@ -1713,6 +1887,38 @@ impl<'tokens> ParserState<'tokens> {
         node_results[node].expect("observation containment was computed")
     }
 
+    #[requires(true)]
+    #[ensures(self.replayed_syntax_diagnostic_observations.contains(&id))]
+    #[ensures(self.applied_syntax_diagnostic_log.len() == old(self.applied_syntax_diagnostic_log.len()) + usize::from(ret))]
+    fn mark_syntax_diagnostic_observation_applied(
+        &mut self,
+        id: SyntaxDiagnosticObservationId,
+    ) -> bool {
+        if self.replayed_syntax_diagnostic_observations.insert(id) {
+            self.applied_syntax_diagnostic_log.push(id);
+            true
+        } else {
+            false
+        }
+    }
+
+    #[requires(self.recovery_memo_trial.is_none())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    fn current_strict_diagnostic_observations(
+        &mut self,
+    ) -> Option<Rc<SyntaxDiagnosticObservations<'tokens>>> {
+        let observations = Self::finalize_syntax_diagnostic_observations(
+            self.syntax_memo_rule_frames
+                .last_mut()
+                .expect("memo frame is active"),
+        );
+        if let Some(observations) = &observations {
+            self.mark_syntax_diagnostic_observation_applied(observations.id);
+        }
+        observations
+    }
+
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
     pub(super) fn replay_syntax_diagnostic_observations(
@@ -1730,23 +1936,25 @@ impl<'tokens> ParserState<'tokens> {
                 observations
             ))));
 
-        if !self
-            .replayed_syntax_diagnostic_observations
-            .insert(observations.id)
-        {
+        if !self.mark_syntax_diagnostic_observation_applied(observations.id) {
             return;
         }
+        // Replay is deliberately report-only: continuation candidates are
+        // branch-local state tied to the fresh continuation sentinel. A memo
+        // hit may reproduce the diagnostic DAG and ordinary candidates, but
+        // must not manufacture continuation expectations from an old frame.
         let mut pending = observations.observations.iter().rev().collect::<Vec<_>>();
         while let Some(observation) = pending.pop() {
             match observation.as_data() {
                 data!(SyntaxDiagnosticObservation::Candidate(error)) => {
-                    self.merge_diagnostic_candidate(error.clone());
+                    if self.recovery_memo_trial.is_some() {
+                        self.merge_diagnostic_candidate(error.clone());
+                    } else {
+                        self.merge_strict_diagnostic_candidate(error.clone());
+                    }
                 }
                 data!(SyntaxDiagnosticObservation::Nested(observations)) => {
-                    if self
-                        .replayed_syntax_diagnostic_observations
-                        .insert(observations.id)
-                    {
+                    if self.mark_syntax_diagnostic_observation_applied(observations.id) {
                         pending.extend(observations.observations.iter().rev());
                     }
                 }
@@ -1796,9 +2004,7 @@ impl<'tokens> ParserState<'tokens> {
             return None;
         }
         let observations = Rc::new(new!(SyntaxDiagnosticObservations {
-            id: frame
-                .diagnostic_observation_id
-                .expect("recovered memo frames have diagnostic observation identities"),
+            id: frame.diagnostic_observation_id,
             observations: Rc::from(frame.diagnostic_observations.clone()),
         }));
         frame.finalized_diagnostic_observations = Some(Rc::clone(&observations));
@@ -1835,8 +2041,7 @@ impl<'tokens> ParserState<'tokens> {
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(frame);
         if let Some(observations) = &diagnostic_observations {
-            self.replayed_syntax_diagnostic_observations
-                .insert(observations.id);
+            self.mark_syntax_diagnostic_observation_applied(observations.id);
         }
         (rule_observation_node, diagnostic_observations)
     }
@@ -2066,17 +2271,6 @@ impl<'tokens> ParserState<'tokens> {
         self.syntax_failure_memo
             .get(&(rule_name, start_location, context.scope))
             .cloned()
-            .map(|error| {
-                let end_location = self.memo_failure_end_location(start_location, &error);
-                new!(SyntaxMemoFailure {
-                    start_location,
-                    end_location,
-                    error,
-                    recovery_checkpoint_observations: None,
-                    diagnostic_observations: None,
-                    rule_observation_node: None,
-                })
-            })
     }
 
     #[requires(!rule_name.is_empty())]
@@ -2110,11 +2304,12 @@ impl<'tokens> ParserState<'tokens> {
             );
             Vec::new()
         };
-        let (rule_observation_node, diagnostic_observations) = self
-            .recovery_memo_trial
-            .is_some()
-            .then(|| self.current_syntax_memo_observations())
-            .unwrap_or((None, None));
+        let (rule_observation_node, diagnostic_observations) = if self.recovery_memo_trial.is_some()
+        {
+            self.current_syntax_memo_observations()
+        } else {
+            (None, self.current_strict_diagnostic_observations())
+        };
         let recovery_checkpoint_observations =
             self.current_syntax_memo_recovery_checkpoint_observations();
         let success = new!(SyntaxMemoSuccess {
@@ -2213,8 +2408,19 @@ impl<'tokens> ParserState<'tokens> {
             }
             return;
         }
-        self.syntax_failure_memo
-            .insert((rule_name, start_location, context.scope), error);
+        let diagnostic_observations = self.current_strict_diagnostic_observations();
+        let end_location = self.memo_failure_end_location(start_location, &error);
+        self.syntax_failure_memo.insert(
+            (rule_name, start_location, context.scope),
+            new!(SyntaxMemoFailure {
+                start_location,
+                end_location,
+                error,
+                recovery_checkpoint_observations: None,
+                diagnostic_observations,
+                rule_observation_node: None,
+            }),
+        );
     }
 
     #[requires(!rule_name.is_empty())]
@@ -2327,16 +2533,16 @@ impl<'tokens> ParserState<'tokens> {
         {
             self.continuation_diagnostic_candidates.push(error.clone());
         }
-        if self.recovery_memo_trial.is_none() {
-            self.merge_strict_diagnostic_candidate(error);
-            return;
-        }
         if let Some(frame) = self.syntax_memo_rule_frames.last_mut() {
             frame
                 .diagnostic_observations
                 .push(new!(SyntaxDiagnosticObservation::Candidate(error.clone())));
         }
-        self.merge_diagnostic_candidate(error);
+        if self.recovery_memo_trial.is_some() {
+            self.merge_diagnostic_candidate(error);
+        } else {
+            self.merge_strict_diagnostic_candidate(error);
+        }
     }
 
     #[requires(self.recovery_memo_trial.is_none())]
@@ -2425,6 +2631,23 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
+    #[ensures(ret.replay_log_len == self.applied_syntax_diagnostic_log.len())]
+    #[ensures(ret.candidates.len() == self.diagnostic_candidates.len())]
+    pub(super) fn diagnostic_checkpoint(&self) -> SyntaxDiagnosticCheckpoint<'tokens> {
+        SyntaxDiagnosticCheckpoint {
+            candidates: self.diagnostic_candidates.clone(),
+            replay_log_len: self.applied_syntax_diagnostic_log.len(),
+            frame: self.syntax_memo_rule_frames.last().map(|frame| {
+                new!(SyntaxDiagnosticFrameMark {
+                    frame_id: frame.diagnostic_observation_id,
+                    frame_depth: self.syntax_memo_rule_frames.len(),
+                    observation_len: frame.diagnostic_observations.len(),
+                })
+            }),
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
     pub(super) fn continuation_expectations(&self) -> Vec<SyntaxExpectation> {
         self.continuation_diagnostic_candidates
@@ -2498,13 +2721,36 @@ impl<'tokens> ParserState<'tokens> {
             .is_some_and(|byte_offset| error.span().start == *byte_offset)
     }
 
-    #[requires(true)]
-    #[ensures(self.diagnostic_candidates.len() == old(snapshot.len()))]
-    pub(super) fn restore_diagnostic_candidates(
-        &mut self,
-        snapshot: Vec<SyntaxParseError<'tokens>>,
-    ) {
-        self.diagnostic_candidates = snapshot;
+    #[requires(checkpoint.replay_log_len <= self.applied_syntax_diagnostic_log.len())]
+    #[requires(match &checkpoint.frame {
+        None => self.syntax_memo_rule_frames.is_empty(),
+        Some(mark) => self.syntax_memo_rule_frames.len() == mark.frame_depth
+            && self.syntax_memo_rule_frames.last().is_some_and(|frame|
+                frame.diagnostic_observation_id == mark.frame_id
+                && mark.observation_len <= frame.diagnostic_observations.len()
+                && frame.finalized_diagnostic_observations.is_none()),
+    })]
+    #[ensures(self.diagnostic_candidates.len() == old(checkpoint.candidates.len()))]
+    #[ensures(self.applied_syntax_diagnostic_log.len() == old(checkpoint.replay_log_len))]
+    pub(super) fn restore_diagnostics(&mut self, checkpoint: SyntaxDiagnosticCheckpoint<'tokens>) {
+        if let Some(mark) = checkpoint.frame {
+            // A live frame has not yet published its node. Finished child nodes
+            // remain immutable in the cache; remove only this parent's suffix.
+            self.syntax_memo_rule_frames
+                .last_mut()
+                .expect("checked frame")
+                .diagnostic_observations
+                .truncate(mark.observation_len);
+        }
+        while self.applied_syntax_diagnostic_log.len() > checkpoint.replay_log_len {
+            let id = self
+                .applied_syntax_diagnostic_log
+                .pop()
+                .expect("checked log suffix");
+            let removed = self.replayed_syntax_diagnostic_observations.remove(&id);
+            assert!(removed, "diagnostic journal and applied set agree");
+        }
+        self.diagnostic_candidates = checkpoint.candidates;
         self.diagnostic_candidate_hash_buckets.clear();
         if self.recovery_memo_trial.is_some() {
             for (index, candidate) in self.diagnostic_candidates.iter().enumerate() {
@@ -2520,9 +2766,9 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn restore_diagnostic_candidates_preserving_start(
+    pub(super) fn restore_diagnostics_preserving_start(
         &mut self,
-        snapshot: Vec<SyntaxParseError<'tokens>>,
+        checkpoint: SyntaxDiagnosticCheckpoint<'tokens>,
         start: usize,
     ) {
         let preserved = self
@@ -2531,7 +2777,7 @@ impl<'tokens> ParserState<'tokens> {
             .filter(|candidate| candidate.span().start == start)
             .cloned()
             .collect::<Vec<_>>();
-        self.restore_diagnostic_candidates(snapshot);
+        self.restore_diagnostics(checkpoint);
         for candidate in preserved {
             self.record_diagnostic_candidate(candidate);
         }
@@ -4859,6 +5105,8 @@ fn recovery_feature_condition_matches(
         "ZantufaMex" => dialect.zantufa_mex_enabled,
         "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
         "ZantufaSelbriReinterpretation" => dialect.zantufa_selbri_reinterpretation_enabled,
+        "ZantufaSelbri" => dialect.zantufa_selbri_enabled,
+        "ZantufaSelbriAtomReinterpretation" => dialect.zantufa_selbri_atom_reinterpretation_enabled,
         "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
         "ZantufaTags" => dialect.zantufa_tags_enabled,
         "ZantufaTerms" => dialect.zantufa_terms_enabled,
@@ -5266,6 +5514,15 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
+            generated::generated_model::NodeRef::PreposedLinkargsTanruUnitSyntax(unit) => {
+                // BE belongs to the shared linkargs product, whose ordinary postposed
+                // uses are standard. Warn on this completed preposed field only;
+                // visiting its product once also avoids duplication under recursive JAI.
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalPreposedLinkargs,
+                    &unit.linkargs,
+                );
+            }
             generated::generated_model::NodeRef::ExpTagAtomRunSyntax(run)
                 if !generated_exp_run_is_single_unprefixed_fa(run) =>
             {
@@ -5841,6 +6098,282 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_observe_child_state_is_nested_and_parent_state_is_restored() {
+        let (mut state, _store) = boundary_recovery_test_state();
+        state.syntax_memo_scope = SyntaxMemoScope::DescriptionRelative;
+        state
+            .syntax_memo_in_progress
+            .insert(("parent", 0, SyntaxMemoScope::Ordinary));
+        state.syntax_recovery_memo_in_progress.insert((
+            "parent-recovery",
+            1,
+            SyntaxMemoScope::Ordinary,
+            0,
+        ));
+        let parent_consumed_recovery_directives = state.consumed_recovery_directives;
+        let parent_effective_fail_token_indices = state.effective_fail_token_indices.clone();
+        state.continuation_sentinel_index = Some(3);
+        let parent_frame_id = state.next_syntax_diagnostic_observation_frame_id;
+
+        let outer = state.begin_strict_observe();
+        assert!(state.recovery_memo_trial.is_none());
+        assert!(state.syntax_memo_in_progress.is_empty());
+        assert!(state.syntax_recovery_memo_in_progress.is_empty());
+        assert_eq!(state.consumed_recovery_directives, 0);
+        assert!(state.effective_fail_token_indices.is_empty());
+        assert_eq!(state.continuation_sentinel_index, Some(3));
+        assert!(state.is_strict_observing());
+        assert!(!state.recovery_enabled());
+        assert!(!state.recovery_branch_tracking_enabled());
+        assert_eq!(
+            state.syntax_memo_scope,
+            SyntaxMemoScope::DescriptionRelative
+        );
+
+        state
+            .syntax_memo_in_progress
+            .insert(("outer-child", 4, SyntaxMemoScope::Ordinary));
+        state.consumed_recovery_directives = 1;
+        state.effective_fail_token_indices.push(4);
+        let inner = state.begin_strict_observe();
+        assert!(state.syntax_memo_in_progress.is_empty());
+        state
+            .syntax_memo_in_progress
+            .insert(("inner-child", 5, SyntaxMemoScope::Ordinary));
+        state.consumed_recovery_directives = 1;
+        state.effective_fail_token_indices.push(5);
+        state.end_strict_observe(inner);
+        assert_eq!(state.syntax_memo_in_progress.len(), 1);
+        assert!(state.syntax_memo_in_progress.contains(&(
+            "outer-child",
+            4,
+            SyntaxMemoScope::Ordinary
+        )));
+        assert_eq!(state.consumed_recovery_directives, 1);
+        assert_eq!(state.effective_fail_token_indices, [4]);
+
+        state.end_strict_observe(outer);
+        assert!(!state.is_strict_observing());
+        assert!(state.recovery_memo_trial.is_some());
+        assert!(
+            state
+                .syntax_memo_in_progress
+                .contains(&("parent", 0, SyntaxMemoScope::Ordinary))
+        );
+        assert!(state.syntax_recovery_memo_in_progress.contains(&(
+            "parent-recovery",
+            1,
+            SyntaxMemoScope::Ordinary,
+            0
+        )));
+        assert_eq!(
+            state.consumed_recovery_directives,
+            parent_consumed_recovery_directives
+        );
+        assert_eq!(
+            state.effective_fail_token_indices,
+            parent_effective_fail_token_indices
+        );
+        assert_eq!(state.continuation_sentinel_index, Some(3));
+        assert_eq!(
+            state.next_syntax_diagnostic_observation_frame_id,
+            parent_frame_id
+        );
+        assert_eq!(
+            state.syntax_memo_scope,
+            SyntaxMemoScope::DescriptionRelative
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_observe_parser_rewinds_and_discards_child_state_on_success_and_failure() {
+        use parser_core::{Input as _, Parser as _};
+
+        let words = segment_words_with_modifiers("mi do").expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, inner)| Spanned {
+                inner,
+                span: SimpleSpan::from(index..index + 1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned
+            .as_slice()
+            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
+
+        for fail_probe in [false, true] {
+            let mut state = ParserState::new(&tokens, &ParseOptions::default());
+            let probe = generated_runtime::strict_observe(parser_core::custom(move |input| {
+                assert!(input.next().is_some());
+                input.state().syntax_memo_in_progress.insert((
+                    "probe",
+                    0,
+                    SyntaxMemoScope::Ordinary,
+                ));
+                if fail_probe {
+                    Err(SyntaxParseError::custom(
+                        (0..0).into(),
+                        "strict observe probe failure".to_owned(),
+                    ))
+                } else {
+                    Ok(())
+                }
+            }));
+            let parser = parser_core::custom(move |input| {
+                let result = input.parse(probe.clone());
+                assert_eq!(result.is_err(), fail_probe);
+                assert_eq!(
+                    ParserInput::cursor_location(input.cursor().inner()),
+                    0,
+                    "strict observation must restore the caller cursor"
+                );
+                assert!(input.state().syntax_memo_in_progress.is_empty());
+                assert!(input.next().is_some(), "caller still owns the first token");
+                assert!(
+                    input.next().is_some(),
+                    "caller can continue after the probe"
+                );
+                Ok(())
+            });
+
+            let result = parser.parse_with_state(input, &mut state);
+            assert!(result.into_result().is_ok());
+            assert!(state.syntax_memo_in_progress.is_empty());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_observe_rule_entry_is_isolated_from_populated_recovery_state() {
+        use parser_core::{Input as _, Parser as _};
+
+        let source = "mi zo'u do .i mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, inner)| Spanned {
+                inner,
+                span: SimpleSpan::from(index..index + 1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned
+            .as_slice()
+            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
+
+        for fail_probe in [false, true] {
+            let directive =
+                RecoveryDirective::new("owner", 0, 3, 3, 2, 0, SyntaxError::NotImplemented)
+                    .into_boundary_resync(0);
+            let mut session = SyntaxRecoveryMemoSession::new();
+            let trial = session.begin_trial();
+            let mut state = ParserState::new_with_recovery(
+                &tokens,
+                Some(source),
+                &ParseOptions::default(),
+                &[directive],
+                trial,
+                None,
+                None,
+            );
+            state.consumed_recovery_directives = 1;
+            state.effective_fail_token_indices.push(1);
+            let parent_directives = state.recovery_directives.clone();
+            let parent_targets = state.recovery_rule_parser_targets.clone();
+            let parent_latest_targets = state
+                .syntax_rule_observation_latest_recovery_target_indices
+                .borrow()
+                .clone();
+            let parent_trial = state.recovery_memo_trial.as_ref().unwrap().trial_id;
+
+            let rule = generated_runtime::rule_wrapper(
+                "strict-observed-rule",
+                None,
+                parser_core::custom(move |input| {
+                    assert!(!input.state().recovery_enabled());
+                    assert!(!input.state().recovery_branch_tracking_enabled());
+                    assert_eq!(input.state().syntax_memo_context().recovery_trial_id, None);
+                    assert!(input.next().is_some());
+                    if fail_probe {
+                        Err(SyntaxParseError::custom(
+                            (0..0).into(),
+                            "strict observed rule failure".to_owned(),
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                }),
+            );
+            let probe = generated_runtime::strict_observe(rule);
+            let parser = parser_core::custom(move |input| {
+                assert_eq!(input.parse(probe.clone()).is_err(), fail_probe);
+                assert_eq!(ParserInput::cursor_location(input.cursor().inner()), 0);
+                while input.next().is_some() {}
+                Ok(())
+            });
+            let result = parser.parse_with_state(input, &mut state);
+            assert!(result.into_result().is_ok());
+            assert!(!state.is_strict_observing());
+            assert!(state.recovery_enabled());
+            assert!(state.recovery_branch_tracking_enabled());
+            assert_eq!(state.consumed_recovery_directives, 1);
+            assert_eq!(state.effective_fail_token_indices, [1]);
+            assert_eq!(state.recovery_directives, parent_directives);
+            assert_eq!(state.recovery_rule_parser_targets, parent_targets);
+            assert_eq!(
+                *state
+                    .syntax_rule_observation_latest_recovery_target_indices
+                    .borrow(),
+                parent_latest_targets
+            );
+            assert_eq!(
+                state.recovery_memo_trial.as_ref().unwrap().trial_id,
+                parent_trial
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_observe_keeps_the_completion_cut_unmatchable_and_preserves_time_limit() {
+        use parser_core::{Input as _, Parser as _};
+
+        let sentinel = expected_continuation_sentinel(0);
+        let tokens = vec![sentinel];
+        let spanned = tokens
+            .iter()
+            .cloned()
+            .map(|inner| Spanned {
+                inner,
+                span: SimpleSpan::from(0..1),
+            })
+            .collect::<Vec<_>>();
+        let input = spanned.as_slice().split_spanned(SimpleSpan::from(1..1));
+        let time_limit = ContinuationTimeLimit::new(Duration::from_secs(30));
+        let options = ParseOptions::default();
+        let mut state =
+            ParserState::new_for_expected_continuations(&tokens, &options, 0, Some(time_limit));
+
+        let probe = generated_runtime::strict_observe(tokens::cmavo(Cmavo::Faho));
+        let result = probe.parse_with_state(input, &mut state);
+        assert!(result.into_result().is_err());
+        assert_eq!(state.continuation_sentinel_index, Some(0));
+        assert_eq!(state.continuation_time_limit, Some(time_limit));
+        assert!(!state.is_strict_observing());
+    }
+
+    #[requires(true)]
     #[ensures(ret.0.recovery_directives.len() == 1)]
     fn boundary_recovery_test_state() -> (
         ParserState<'static>,
@@ -5866,6 +6399,342 @@ mod tests {
             ),
             store,
         )
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_transactions_replay_success_failure_and_isolate_rejected_parent() {
+        for recovered in [false, true] {
+            for failure in [false, true] {
+                let mut state = if recovered {
+                    boundary_recovery_test_state().0
+                } else {
+                    ParserState::new(&[], &ParseOptions::default())
+                };
+                let root = state.diagnostic_checkpoint(); // no active frame
+                state.begin_syntax_memo_rule_frame();
+                state.observe_syntax_rule("parent", 0);
+                let parent_context = state.syntax_memo_context();
+                let parent = state.diagnostic_checkpoint();
+                state.begin_syntax_memo_rule_frame();
+                state.observe_syntax_rule("child", 0);
+                let context = state.syntax_memo_context();
+                let error = SyntaxParseError::custom((0..0).into(), "child diagnostic".to_owned());
+                state.record_diagnostic_candidate(error.clone());
+                if failure {
+                    state.store_syntax_memo_failure("child", 0, context, error);
+                } else {
+                    state.store_syntax_memo_success(
+                        "child",
+                        0,
+                        context,
+                        0,
+                        SyntaxMemoValue::from_shared(Rc::new(())),
+                        Vec::new(),
+                    );
+                }
+                state.finish_syntax_memo_rule_frame();
+                let fresh = state.diagnostic_candidates_snapshot();
+                assert_eq!(fresh.len(), 1);
+                state.restore_diagnostics(parent);
+                assert!(state.diagnostic_candidates.is_empty());
+                assert!(
+                    state
+                        .syntax_memo_rule_frames
+                        .last()
+                        .unwrap()
+                        .diagnostic_observations
+                        .is_empty()
+                );
+                state.store_syntax_memo_success(
+                    "parent",
+                    0,
+                    parent_context,
+                    0,
+                    SyntaxMemoValue::from_shared(Rc::new(())),
+                    Vec::new(),
+                );
+                state.finish_syntax_memo_rule_frame();
+                state.restore_diagnostics(root);
+
+                state.begin_syntax_memo_rule_frame();
+                let context = state.syntax_memo_context();
+                let hit = state
+                    .syntax_memo_success("parent", 0, context)
+                    .expect("actual parent cache hit");
+                let effects = state.apply_syntax_memo_success(hit);
+                state.replay_syntax_memo_side_effects(&effects.side_effects);
+                state.finish_syntax_memo_rule_frame();
+                assert!(
+                    state.diagnostic_candidates.is_empty(),
+                    "rejected child cannot leak through parent memo"
+                );
+
+                let reset = state.diagnostic_checkpoint();
+                for repeat in 0..2 {
+                    state.begin_syntax_memo_rule_frame();
+                    let context = state.syntax_memo_context();
+                    if failure {
+                        let hit = state
+                            .syntax_memo_failure("child", 0, context)
+                            .expect("actual failure cache hit");
+                        state.replay_syntax_diagnostic_observations(
+                            hit.diagnostic_observations.as_ref(),
+                        );
+                    } else {
+                        let hit = state
+                            .syntax_memo_success("child", 0, context)
+                            .expect("actual success cache hit");
+                        let effects = state.apply_syntax_memo_success(hit);
+                        state.replay_syntax_memo_side_effects(&effects.side_effects);
+                    }
+                    assert!(
+                        !state
+                            .syntax_memo_rule_frames
+                            .last()
+                            .unwrap()
+                            .diagnostic_observations
+                            .is_empty(),
+                        "repeat {repeat} still captures a Nested recipe"
+                    );
+                    state.finish_syntax_memo_rule_frame();
+                    assert_eq!(state.diagnostic_candidates.len(), fresh.len());
+                    assert!(
+                        state
+                            .diagnostic_candidates
+                            .iter()
+                            .zip(&fresh)
+                            .all(|(a, b)| a.same_report_content(b))
+                    );
+                }
+                state.restore_diagnostics(reset);
+                assert!(state.diagnostic_candidates.is_empty());
+                state.begin_syntax_memo_rule_frame();
+                let context = state.syntax_memo_context();
+                let observations = if failure {
+                    state
+                        .syntax_memo_failure("child", 0, context)
+                        .unwrap()
+                        .diagnostic_observations
+                        .clone()
+                } else {
+                    let hit = state.syntax_memo_success("child", 0, context).unwrap();
+                    state
+                        .apply_syntax_memo_success(hit)
+                        .side_effects
+                        .diagnostic_observations
+                };
+                state.replay_syntax_diagnostic_observations(observations.as_ref());
+                state.finish_syntax_memo_rule_frame();
+                assert_eq!(state.diagnostic_candidates.len(), fresh.len());
+                assert!(
+                    state
+                        .diagnostic_candidates
+                        .iter()
+                        .zip(&fresh)
+                        .all(|(a, b)| a.same_report_content(b))
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_checkpoint_rejects_mismatched_frame_marks() {
+        for mismatch in 0..4 {
+            let mut state = ParserState::new(&[], &ParseOptions::default());
+            if mismatch != 0 {
+                state.begin_syntax_memo_rule_frame();
+            }
+            let checkpoint = state.diagnostic_checkpoint();
+            match mismatch {
+                0 | 1 => state.begin_syntax_memo_rule_frame(), // None/Some or depth mismatch
+                2 => {
+                    state.finish_syntax_memo_rule_frame();
+                } // Some/None
+                3 => {
+                    // same depth, different identity
+                    state.finish_syntax_memo_rule_frame();
+                    state.begin_syntax_memo_rule_frame();
+                }
+                _ => unreachable!(),
+            }
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                state.restore_diagnostics(checkpoint);
+            }));
+            assert!(result.is_err(), "mismatch {mismatch} must fail closed");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_restore_empty_checkpoint_clears_frame_and_replay_state() {
+        let mut state = ParserState::new(&[], &ParseOptions::default());
+        let checkpoint = state.diagnostic_checkpoint();
+        state.begin_syntax_memo_rule_frame();
+        state.observe_syntax_rule("empty-restore", 0);
+        state.record_diagnostic_candidate(SyntaxParseError::custom(
+            (0..0).into(),
+            "transient diagnostic".to_owned(),
+        ));
+        state.finish_syntax_memo_rule_frame();
+        assert!(!state.diagnostic_candidates.is_empty());
+        state.restore_diagnostics(checkpoint);
+        assert!(state.diagnostic_candidates.is_empty());
+        assert!(state.applied_syntax_diagnostic_log.is_empty());
+        assert!(state.replayed_syntax_diagnostic_observations.is_empty());
+        assert!(state.syntax_memo_rule_frames.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_capture_survives_global_suppression_and_preserving_start_is_local() {
+        for recovered in [false, true] {
+            let mut state = if recovered {
+                boundary_recovery_test_state().0
+            } else {
+                ParserState::new(&[], &ParseOptions::default())
+            };
+            let empty = state.diagnostic_checkpoint();
+            state.record_diagnostic_candidate(SyntaxParseError::custom(
+                (2..2).into(),
+                "far".to_owned(),
+            ));
+            state.begin_syntax_memo_rule_frame();
+            state.observe_syntax_rule("near", 0);
+            let context = state.syntax_memo_context();
+            let near = SyntaxParseError::custom((1..1).into(), "near".to_owned())
+                .with_rule_context("description", (0..1).into());
+            state.record_diagnostic_candidate(near.clone());
+            assert_eq!(state.diagnostic_candidates[0].span().start, 2);
+            state.store_syntax_memo_success(
+                "near",
+                0,
+                context,
+                0,
+                SyntaxMemoValue::from_shared(Rc::new(())),
+                Vec::new(),
+            );
+            state.finish_syntax_memo_rule_frame();
+            state.restore_diagnostics(empty);
+            state.begin_syntax_memo_rule_frame();
+            let context = state.syntax_memo_context();
+            let hit = state
+                .syntax_memo_success("near", 0, context)
+                .expect("actual suppressed-child memo hit");
+            let effects = state.apply_syntax_memo_success(hit);
+            state.replay_syntax_memo_side_effects(&effects.side_effects);
+            state.finish_syntax_memo_rule_frame();
+            assert_eq!(state.diagnostic_candidates.len(), 1);
+            assert!(state.diagnostic_candidates[0].same_report_content(&near));
+
+            state.begin_syntax_memo_rule_frame();
+            state.observe_syntax_rule("retaining-parent", 0);
+            let checkpoint = state.diagnostic_checkpoint();
+            state.begin_syntax_memo_rule_frame();
+            state.observe_syntax_rule("mixed-child", 0);
+            state.record_diagnostic_candidate(near);
+            let retained = SyntaxParseError::custom((2..2).into(), "retained".to_owned())
+                .with_rule_context("sumti", (0..2).into());
+            state.record_diagnostic_candidate(retained.clone());
+            state.finish_syntax_memo_rule_frame();
+            state.restore_diagnostics_preserving_start(checkpoint, 2);
+            assert_eq!(state.diagnostic_candidates.len(), 1);
+            assert!(state.diagnostic_candidates[0].same_report_content(&retained));
+            let frame = state.syntax_memo_rule_frames.last().unwrap();
+            assert_eq!(frame.diagnostic_observations.len(), 1);
+            match frame.diagnostic_observations[0].as_data() {
+                data!(SyntaxDiagnosticObservation::Candidate(error)) => {
+                    assert!(error.same_report_content(&retained))
+                }
+                data!(SyntaxDiagnosticObservation::Nested(_)) => {
+                    panic!("must recapture only retained leaf")
+                }
+            }
+            state.finish_syntax_memo_rule_frame();
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_shared_nodes_distinguish_overlapping_trial_frame_ids() {
+        let mut session = SyntaxRecoveryMemoSession::new();
+        let mut first = ParserState::new_with_recovery(
+            &[],
+            None,
+            &ParseOptions::default(),
+            &[],
+            session.begin_trial(),
+            None,
+            None,
+        );
+        let mut second = ParserState::new_with_recovery(
+            &[],
+            None,
+            &ParseOptions::default(),
+            &[],
+            session.begin_trial(),
+            None,
+            None,
+        );
+        first.begin_syntax_memo_rule_frame();
+        first.observe_syntax_rule("first", 0);
+        first.record_diagnostic_candidate(
+            SyntaxParseError::custom((0..0).into(), "first".to_owned())
+                .with_rule_context("description", (0..0).into()),
+        );
+        let (_, earlier) = first.current_syntax_memo_observations();
+        let earlier = earlier.unwrap();
+        first.finish_syntax_memo_rule_frame();
+        second.begin_syntax_memo_rule_frame();
+        second.observe_syntax_rule("second", 0);
+        second.record_diagnostic_candidate(
+            SyntaxParseError::custom((0..0).into(), "second".to_owned())
+                .with_rule_context("sumti", (0..0).into()),
+        );
+        let (_, later) = second.current_syntax_memo_observations();
+        let later = later.unwrap();
+        match (earlier.id, later.id) {
+            (
+                SyntaxDiagnosticObservationId::Recovered {
+                    trial_id: a,
+                    frame_id: x,
+                },
+                SyntaxDiagnosticObservationId::Recovered {
+                    trial_id: b,
+                    frame_id: y,
+                },
+            ) => {
+                assert_eq!(x, y, "deliberately overlapping frame counters");
+                assert_ne!(a, b, "shared-store trial allocator separates states");
+            }
+            _ => panic!("both nodes must originate in recovered trials"),
+        }
+        second.finish_syntax_memo_rule_frame();
+        let reset = second.diagnostic_checkpoint();
+        second.begin_syntax_memo_rule_frame();
+        second.replay_syntax_diagnostic_observations(Some(&earlier));
+        second.finish_syntax_memo_rule_frame();
+        let combined = second.diagnostic_candidates_snapshot();
+        assert_eq!(combined.len(), 2);
+        second.restore_diagnostics(reset);
+        assert_eq!(second.diagnostic_candidates.len(), 1);
+        second.begin_syntax_memo_rule_frame();
+        second.replay_syntax_diagnostic_observations(Some(&earlier));
+        second.finish_syntax_memo_rule_frame();
+        assert_eq!(second.diagnostic_candidates.len(), 2);
+        assert!(
+            second
+                .diagnostic_candidates
+                .iter()
+                .zip(&combined)
+                .all(|(a, b)| a.same_report_content(b))
+        );
     }
 
     #[test]
@@ -7432,15 +8301,15 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn mehoi_quote_warning_is_distinct_from_selbri_unit_warning() {
+    fn mehoi_selbri_unit_does_not_emit_obsolete_quote_warning() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi me'oi broda", &ParseOptions::default());
 
-            assert!(has_warning_kind(
+            assert!(!has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalMehOiQuote
             ));
-            assert!(!has_warning_kind(
+            assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalMehOiSelbriUnit
             ));
@@ -9331,6 +10200,109 @@ mod tests {
             &parsed,
             ExperimentalConstruct::ExperimentalKeTermset
         ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_explicit_ke_grouped_sumti_is_distinct_from_elided_ke_termset() {
+        let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let explicit = parse_source("mi ke ko'a ke'e cu klama", &options);
+        let explicit_debug = format!("{:?}", explicit.parse_tree);
+        assert!(explicit_debug.contains("ZantufaGroupedSumti"));
+        assert!(has_warning_kind(
+            &explicit,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+
+        let elided = parse_source("mi ke ko'a cu klama", &options);
+        let elided_debug = format!("{:?}", elided.parse_tree);
+        assert!(elided_debug.contains("KeTermset"));
+        assert!(!elided_debug.contains("ZantufaGroupedSumti"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_grouped_sumti_f2_behavior_matrix() {
+        let zantufa = parse_dialect_definition("(zantufa)").expect("valid dialect");
+        let enabled = ParseOptions::default().with_dialect_definition(&zantufa);
+
+        // The extension is feature-gated: without the dialect the same surface remains the
+        // existing KE-termset route and never acquires the Zantufa warning.
+        let baseline = parse_source("mi ke ko'a ke'e cu klama", &ParseOptions::default());
+        assert!(!has_warning_kind(
+            &baseline,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+
+        // Explicit and elided forms are deliberately distinct at term position.  The grouped
+        // route owns only a complete single-sumti candidate with a real closer; CEhE/non-single
+        // runs and an omitted closer remain on the existing termset/connection paths.
+        let explicit = parse_source("mi ke ko'a ke'e cu klama", &enabled);
+        assert_eq!(
+            format!("{:?}", explicit.parse_tree)
+                .matches("ExperimentalZantufaGroupedSumti")
+                .count(),
+            0
+        );
+        assert!(has_warning_kind(
+            &explicit,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+        let explicit_debug = format!("{:?}", explicit.parse_tree);
+        assert!(explicit_debug.matches("ZantufaGroupedSumti").count() >= 1);
+
+        let explicit_source = "mi ke ko'a ke'e cu klama";
+        let explicit_words =
+            segment_words_with_modifiers(explicit_source).expect("valid morphology");
+        let explicit_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &explicit_words,
+            explicit_source,
+            &enabled,
+        );
+        assert!(explicit_recovered.errors.is_empty());
+        assert!(format!("{:?}", explicit_recovered.parse_tree).contains("ZantufaGroupedSumti"));
+        assert!(explicit_recovered.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        }));
+
+        let elided = parse_source("mi ke ko'a cu klama", &enabled);
+        assert!(!format!("{:?}", elided.parse_tree).contains("ZantufaGroupedSumti"));
+        assert!(format!("{:?}", elided.parse_tree).contains("KeTermset"));
+
+        let elided_source = "mi ke ko'a cu klama";
+        let elided_words = segment_words_with_modifiers(elided_source).expect("valid morphology");
+        let elided_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &elided_words,
+            elided_source,
+            &enabled,
+        );
+        assert!(elided_recovered.errors.is_empty());
+        let elided_recovered_debug = format!("{:?}", elided_recovered.parse_tree);
+        assert!(!elided_recovered_debug.contains("ZantufaGroupedSumti"));
+        assert!(elided_recovered_debug.contains("KeTermset"));
+
+        // A malformed/recovered closer must not reserve the grouped route.  The parser still
+        // produces a normal recovered result, but no grouped warning is emitted.
+        let malformed = parse_source("mi ke ko'a ke cu klama", &enabled);
+        assert!(!has_warning_kind(
+            &malformed,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+
+        let malformed_source = "mi ke ko'a ke cu klama";
+        let malformed_words =
+            segment_words_with_modifiers(malformed_source).expect("valid morphology");
+        let malformed_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+            &malformed_words,
+            malformed_source,
+            &enabled,
+        );
+        assert!(!malformed_recovered.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        }));
     }
 
     #[test]

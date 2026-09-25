@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s3-selbri"
+lojban = "mi na'e ga broda gi ku brode"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S3"
+description = "GR-S3: no parsed value proves the standalone GEK discriminators, because the branch operand position holds skipped input rather than a complete operand. Trace candidate=standalone-gek wrapper=valid answer=Unproven decision=reject; the atom is absent from the winning tree. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "850c89bac1c3d1f606cde110a6e5967b52feb17bf89d062fd5b7fc10b9219423" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 7], [8, 10], [11, 16], [17, 19], [20, 22], [23, 28]] }] }

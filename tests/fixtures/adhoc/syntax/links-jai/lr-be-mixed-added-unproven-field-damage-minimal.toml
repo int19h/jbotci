@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-mixed-added-unproven-field-damage-minimal"
+lojban = "mi broda be na ku .e bo lu mi ku li'u ku be'o .i mi ku .i do broda"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a complete mixed-candidate rejection"
+description = "Real mixed BO connection with Added NA KU and an internally damaged LU quotation, Added then Unproven. The actual complete candidate is rejected as Unproven; final ownership and extent are independently pinned. A shorter Full, if present, is not a complete mixed-payload witness. An additional KU after the complete intended payload supplies independent field damage. Final field: prefix full-linked-term, parsed value 12..29; intended complete mixed extent 12..37. The surviving shorter Full includes NA KU and the elided-LIhU quotation before the damaged continuation; it does not own the explicit LIhU at the end of the complete candidate."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [30, 32], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "8e7ff11edba0fa20822184f5908da750e72c14630d926c63b521a25f01cdf16c" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-term-bo-connection", "byte-span" = [21, 23], "source-text" = "bo", "message" = "experimental syntax: BO-bound term or linked-argument connection", "word-index" = 6 }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [30, 32], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [52, 54], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "na", "ku", "e", "bo", "lu", "mi", "be'o", "i", "mi", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[30, 32], [33, 37], [38, 40]] }, { "kind" = "invalid", "error-index" = 1, "byte-spans" = [[52, 54]] }] }

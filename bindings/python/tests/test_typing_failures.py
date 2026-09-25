@@ -168,7 +168,7 @@ def test_omitted_syntax_variant_fails_exhaustive_match_in_strict_mypy() -> None:
     assert result.returncode == 1, result.stdout + result.stderr
     assert len(diagnostics) == 1, result.stdout
     assert "[arg-type]" in diagnostics[0]
-    assert "LinkedSumtiSyntaxEmptyLinkedSumti" in diagnostics[0]
+    assert "LinkedTermSyntaxFullLinkedTerm" in diagnostics[0]
 
 
 def test_omitted_parser_payload_fails_exhaustive_match_in_strict_mypy() -> None:

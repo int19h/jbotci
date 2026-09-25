@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-e3-default"
+lojban = "mi jai ga"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-E3"
+description = "GR-E3: no parsed value proves the enclosed GEK discriminators at all -- the opener is the last input and neither operand nor branch exists. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject, fail-closed. Default control: no C-e product exists on this axis, so the row's ownership question is never asked and the pre-existing parse stands."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "968dcf10e1679afaf5bc7519758a8f62c1216de857fa55487e9fd7e4e9189f60" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "ga", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 6], [7, 9]] }] }

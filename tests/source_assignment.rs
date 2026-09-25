@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
@@ -10,7 +10,7 @@ use jbotci_source::SourceSpan;
 use jbotci_syntax::{
     ParseOptions, generated_model_text_syntax_leaf_spans_match_words,
     parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_with_source_and_options,
+    parse_syntax_tree_recovered_with_source_and_options, parse_syntax_tree_with_source_and_options,
 };
 
 #[test]
@@ -75,15 +75,50 @@ fn syntax_assignment_handles_zantufa_poiha_brigahi() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn syntax_assignment_handles_v0_experimental_linkargs() {
+fn syntax_assignment_handles_nonempty_preposed_and_postposed_linkargs() {
     for source in [
         "lo be mi broda cu melbi",
+        "lo broda be mi cu melbi",
+        "lo broda be mi bei do cu melbi",
+    ] {
+        assert_source_assignment(source);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_assignment_conserves_rejected_empty_linkargs_source_spans() {
+    // #807 removes the old successful empty-link interpretation, not its source
+    // tokens. Account for every token through the recovered tree, including error
+    // items; a strict rejection alone would not protect this attribution contract.
+    for source in [
         "lo be broda cu melbi",
         "lo broda be cu melbi",
         "lo broda be mi bei cu melbi",
         "lo broda be bei mi cu melbi",
     ] {
-        assert_source_assignment(source);
+        let words = segment_words_with_options(source);
+        let options = ParseOptions::default();
+        parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect_err("an empty BE/BEI payload must not parse successfully");
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+        assert!(!recovered.errors.is_empty(), "{source}");
+        let mut syntax = Vec::new();
+        recovered.parse_tree.visit_source_spans(&mut |span| {
+            // A missing required field has a zero-width insertion position, not
+            // an input token. Keep all real spans, including skipped-token items.
+            if !span.is_empty() {
+                syntax.push(span_range(span));
+            }
+        });
+        // Recovered traversal follows tree fields, so an attached skipped-token
+        // item can occur after later retained text. Its contract is conservation,
+        // unlike strict syntax's source-order contract. Sort without deduplicating
+        // to detect both missing and repeated spans across valid and error nodes.
+        syntax.sort_unstable();
+        assert_eq!(syntax, morphology_source_ranges(&words), "{source}");
     }
 }
 

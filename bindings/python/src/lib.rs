@@ -1,4 +1,4 @@
-#![recursion_limit = "1024"]
+#![recursion_limit = "2048"]
 
 //! Private native implementation for the `jbotci` Python package.
 

@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.ce-gr-s4-selbri"
+lojban = "mi ga broda gi brode ku ku"
+dialect = "(+zantufa-selbri)"
+tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-e #831 frozen recovered row GR-S4"
+description = "GR-S4: a complete standalone BINARY candidate WITHOUT the route-level ZantufaSelbri and ZantufaSelbriReinterpretation conjunction. Trace candidate=standalone-gek wrapper=valid answer=Absent decision=reject -- Absent rather than Unproven, because the candidate is complete and its shape is known, it simply is not the owner on this axis. The baseline direct forethought bridi connection keeps the extent under Valid containing fields. Minimal explicit axis: the named C-e feature alone is what produces this outcome."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "f3720899b62b838e548bb234eb97cc3f21e1460e1cbf2b675ad3f28e08996d00" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "ga", "bróda", "gi", "bróde"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[21, 23], [24, 26]] }] }

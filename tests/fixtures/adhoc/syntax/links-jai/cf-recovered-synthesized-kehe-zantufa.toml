@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cf-recovered-synthesized-kehe-zantufa"
+lojban = "mi broda be ko'a be'o ku"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-834", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-f #834 KEhE-linked selbri reference row"
+description = "#834 recovered row: recovered row: without the recovered-only rejection, recovery claims the owner here with a synthesized ke'e before ordinary tanru-unit linkargs; with it, the recovered tree and diagnostics carry neither the owner nor its warning. Reference: Zantufa 1.9999 rejects; camxes (ilmentufa -std) rejects; camxes-exp (ilmentufa -exp) rejects. Built-in Zantufa axis."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "463c772f11bc80ead75cb7690e6a317e64e5553c864e83e60a9e03ece4804dc4" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "be", "ko'a", "be'o"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[22, 24]] }] }
