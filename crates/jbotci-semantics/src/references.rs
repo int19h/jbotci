@@ -5965,30 +5965,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         let argument_id = SumtiNodeId(self.raw_for_node(sumti));
         let handled_mention = self.visit_sumti_grouped(argument_id, &sumti.base_sumti);
         if let Some(attachment) = &sumti.vuho_attachment {
-            match attachment.as_ref() {
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.visit_relative_clause_list(
-                        argument_id,
-                        argument_id,
-                        &attachment.relative_clauses,
-                    );
-                }
-                generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.visit_relative_clause_list(
-                        argument_id,
-                        argument_id,
-                        &attachment.relative_clauses,
-                    );
-                    self.visit_argument(&attachment.sumti_connection.sumti);
-                }
-                generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
-                    _,
-                ) => {}
-            }
+            self.visit_vuho_attachment(argument_id, attachment);
         }
         if !handled_mention {
             self.note_self_sumti_mention_with_availability(
@@ -6255,36 +6232,48 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 let inner = &grouped.sumti;
                 let handled = self.visit_sumti_grouped(argument_id, &inner.base_sumti);
                 if let Some(attachment) = &inner.vuho_attachment {
-                    match attachment.as_ref() {
-                        generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
-                            attachment,
-                        ) => self.visit_relative_clause_list(
-                            argument_id,
-                            argument_id,
-                            &attachment.relative_clauses,
-                        ),
-                        generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
-                            attachment,
-                        ) => {
-                            self.visit_relative_clause_list(
-                                argument_id,
-                                argument_id,
-                                &attachment.relative_clauses,
-                            );
-                            // A connected scoped child is a distinct argument node.  Unlike
-                            // the immediately enclosed grouped parent, it owns its identity and
-                            // must receive the full argument traversal (including attachments
-                            // and letter antecedents).
-                            self.visit_argument(&attachment.sumti_connection.sumti);
-                        }
-                        generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
-                            _,
-                        ) => {}
-                    }
+                    self.visit_vuho_attachment(argument_id, attachment);
                 }
                 self.note_letter_sumti_antecedent(argument_id, inner);
                 handled
             }
+        }
+    }
+
+    /// Visit a VUhO attachment on the argument `argument_id`, which is the sumti
+    /// itself or, for a transparent grouped sumti, the enclosing argument.
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_vuho_attachment(
+        &mut self,
+        argument_id: SumtiNodeId,
+        attachment: &'tree generated::VuhoSumtiAttachmentTailSyntax,
+    ) {
+        match attachment {
+            generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
+                attachment,
+            ) => self.visit_relative_clause_list(
+                argument_id,
+                argument_id,
+                &attachment.relative_clauses,
+            ),
+            generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
+                attachment,
+            ) => {
+                self.visit_relative_clause_list(
+                    argument_id,
+                    argument_id,
+                    &attachment.relative_clauses,
+                );
+                // A connected scoped child is a distinct argument node. Unlike the
+                // argument the attachment hangs on, it owns its identity and must
+                // receive the full argument traversal (including attachments and
+                // letter antecedents).
+                self.visit_argument(&attachment.sumti_connection.sumti);
+            }
+            generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
+                _,
+            ) => {}
         }
     }
 
@@ -6967,30 +6956,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         match unit {
             generated::TanruUnitAtomBaseForCeiSyntax::ZantufaFaTanruUnit(unit) => {
-                let mut walker = ZantufaAtomWalker {
-                    on_component: |component| match component {
-                        ZantufaAtomComponent::AtomOperand { node } => {
-                            self.visit_tanru_unit_atom(node)
-                        }
-                        ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
-                        ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                        ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-                    },
-                };
-                GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
+                self.visit_zantufa_atom(unit);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                let mut walker = ZantufaAtomWalker {
-                    on_component: |component| match component {
-                        ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
-                        ZantufaAtomComponent::AtomOperand { node } => {
-                            self.visit_tanru_unit_atom(node)
-                        }
-                        ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                        ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-                    },
-                };
-                GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
+                self.visit_zantufa_atom(unit);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(unit) => {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
@@ -7058,6 +7027,26 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         }
     }
 
+    /// Visit a Zantufa FA or forethought atom in generated child order. Its
+    /// operands are predicates in their own right and resolve as such; the
+    /// opener and free modifiers are walked whole (see `ZantufaAtomComponent`).
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_atom<U>(&mut self, unit: &'tree U)
+    where
+        U: GeneratedSyntaxTreeWalkable<'tree>,
+    {
+        let mut walker = ZantufaAtomWalker {
+            on_component: |component| match component {
+                ZantufaAtomComponent::AtomOperand { node } => self.visit_tanru_unit_atom(node),
+                ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
+                ZantufaAtomComponent::Opener { node } => self.walk_node(node),
+                ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
+            },
+        };
+        GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn visit_tanru_unit_atom(&mut self, unit: &'tree generated::TanruUnitAtomSyntax) {
@@ -7069,30 +7058,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn visit_tanru_unit_atom_base(&mut self, unit: &'tree generated::TanruUnitAtomBaseSyntax) {
         match unit {
             generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(unit) => {
-                let mut walker = ZantufaAtomWalker {
-                    on_component: |component| match component {
-                        ZantufaAtomComponent::AtomOperand { node } => {
-                            self.visit_tanru_unit_atom(node)
-                        }
-                        ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
-                        ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                        ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-                    },
-                };
-                GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
+                self.visit_zantufa_atom(unit);
             }
             generated::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                let mut walker = ZantufaAtomWalker {
-                    on_component: |component| match component {
-                        ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
-                        ZantufaAtomComponent::AtomOperand { node } => {
-                            self.visit_tanru_unit_atom(node)
-                        }
-                        ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                        ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-                    },
-                };
-                GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
+                self.visit_zantufa_atom(unit);
             }
             generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(unit) => {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
@@ -9295,7 +9264,9 @@ fn generated_tanru_unit_atom_base_first_token(
     unit: &generated::TanruUnitAtomBaseSyntax,
 ) -> Option<&Token> {
     match unit {
-        // A compound GEK owner does not assert a lexical CEI predicate identity.
+        // A compound Zantufa atom does not assert a lexical CEI predicate identity: a GEK
+        // owner connects several operands, and an FA atom starts with a place marker rather
+        // than its predicate.
         generated::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_) => None,
         generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(_) => None,
         generated::TanruUnitAtomBaseSyntax::WordTanruUnit(unit) => Some(&unit.0.value),
@@ -9317,7 +9288,9 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
     unit: &generated::TanruUnitAtomBaseForCeiSyntax,
 ) -> Option<&Token> {
     match unit {
-        // A compound GEK owner does not assert a lexical CEI predicate identity.
+        // A compound Zantufa atom does not assert a lexical CEI predicate identity: a GEK
+        // owner connects several operands, and an FA atom starts with a place marker rather
+        // than its predicate.
         generated::TanruUnitAtomBaseForCeiSyntax::ZantufaForethoughtTanruUnit(_) => None,
         generated::TanruUnitAtomBaseForCeiSyntax::ZantufaFaTanruUnit(_) => None,
         generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(unit) => Some(&unit.0.value),
