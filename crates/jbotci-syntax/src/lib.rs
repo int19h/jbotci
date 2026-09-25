@@ -4941,6 +4941,35 @@ mod tests {
         assert_eq!(probe.missing_count, 0);
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_late_natural_stop_retains_first_error_structure() {
+        let source = "tirna re poi cmalu";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let options = ParseOptions {
+            dialect: jbotci_dialect::parse_dialect_definition("(+zantufa-mex)")
+                .expect("valid dialect"),
+            ..ParseOptions::default()
+        };
+        let strict_error = parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect_err("the relative clause leaves the sumti incomplete");
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors, vec![strict_error]);
+        assert_eq!(visitor.valid_tokens, ["tírna", "re", "poĭ", "cmálu"]);
+        assert!(recovered_syntax_parse_conserves_word_spans(
+            &words, &recovered
+        ));
+    }
+
     // A resume-at-end directive (the final selector's shape) abandons the rest of its instance.
     // Its skipped region must be consumed where it is claimed: each of these once reported the
     // region's tokens as skipped while an enclosing frame parsed them again (a closer such as
