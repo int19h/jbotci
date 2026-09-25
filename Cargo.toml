@@ -240,13 +240,40 @@ debug = "line-tables-only"
 opt-level = 3
 codegen-units = 16
 
+# Native debug builds of jbotci-syntax carry line tables, not full debug info. The
+# generated grammar's combinator types give every monomorphized function an enormous
+# name. With full debug info the syntax crate alone fed 7.5 GB of .debug_str into the
+# debug jbotci link: 5.0 GB on main at 166b270386, whose merged section was already
+# 3.26 GB, 76% of 2^32. DWARF32 addresses .debug_str with 32-bit offsets, so the
+# aarch64 link failed with "relocation truncated to fit".
+#
+# Measured at 00bfea6afb, as the debug jbotci binary's merged .debug_str and the
+# target size after `cargo build -p jbotci` plus `cargo test -p jbotci --no-run`:
+#   line-tables-only             1.42 GB (33% of 2^32); 22.9 GB; file:line in
+#                                backtraces and gdb
+#   false                        89 MB (2%); 15.4 GB; no file:line
+#   split-debuginfo = "unpacked"  89 MB (2%) with full debug info in .dwo files;
+#                                31.8 GB, 15.3 GB of it .dwo per build flavour
+#
+# The 33% is headroom, not a fix: this epoch grew the crate's debug strings by about
+# 50%, so a similar epoch would bring line tables to roughly half of 2^32. The real fix
+# is #936. Until it lands, `false` is the fallback if line tables cross the limit.
+# `split-debuginfo = "unpacked"` gives full debug info locally at the disk cost above.
+# The profiles that inherit dev (test, desktop-dev) get this override too; wasm-dev
+# sets its own below. Package overrides are not read from CARGO_PROFILE_* environment
+# variables; for full debug info in a one-off cargo build, pass
+# --config 'profile.dev.package.jbotci-syntax.debug="full"'.
+[profile.dev.package.jbotci-syntax]
+debug = "line-tables-only"
+
 # The web debug build of jbotci-syntax carries no debug info at all. Even line
 # tables name every monomorphized function in .debug_str, and the generated
 # grammar's combinator types make those names enormous: on their own they exceed
 # both V8's 1 GiB WebAssembly module limit and rust-lld's 2 GiB section limit
 # (lld crashes linking the module past it). Every other crate keeps the profile's
-# line tables, native debug builds are unaffected, and wasm stack traces still
-# name functions through the name section. Package overrides are not read from
+# line tables, and wasm stack traces still name functions through the name
+# section. Native debug builds of this crate keep line tables (the dev override
+# above). The underlying growth is #936. Package overrides are not read from
 # CARGO_PROFILE_* environment variables; to get the syntax crate's line tables
 # back for a one-off cargo build, pass
 # --config 'profile.wasm-dev.package.jbotci-syntax.debug="line-tables-only"'.
