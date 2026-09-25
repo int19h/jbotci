@@ -6,7 +6,7 @@ tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row FR1"
-description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Trace candidate=fa wrapper=valid answer=Present decision=accept. The FA atom owns brode and every recovered field enclosing it in the winning tree is Valid; the damage is in the second statement, off the atom's containing chain. Built-in axis."
+description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner discriminator recursively proven. Trace candidate=fa wrapper=valid answer=Present decision=accept. The FA atom owns brode and every recovered field enclosing it in the winning tree is Valid; the damage is in the second statement, off the atom's containing chain. Built-in axis. Its bare ku recovers in main's own shape, kept behind a synthesized missing sumti ([‼‼ ku]); that recovery policy is tracked in #934."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "0adeb2c6c2110311e76ce0e6f0166678c78d8188223f6d85a5175e108cf6bb1a" }
+raw = { sha256 = "89efc9145d5924d97729909ffebb421b3103c2a9d8d60793ed9cc45dad73a5b9" }
 diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-fa-tanru-unit", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: Zantufa FA-prefixed tanru unit", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32], [33, 38]] }, { kind = "missing", error-index = 0, byte-spans = [[30, 30]] }] }
+tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde", "i", "mi", "ku", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[30, 30]] }] }

@@ -6,7 +6,7 @@ tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row ZR-S4"
-description = "ZR-S4: a complete co-selbri containing only shared atoms. Trace candidate=priority-selbri wrapper=valid answer=Absent decision=reject -- a known shape that is simply not priority-owned -- and the existing untagged owner keeps the extent. Built-in axis."
+description = "ZR-S4: a complete co-selbri containing only shared atoms. Trace candidate=priority-selbri wrapper=valid answer=Absent decision=reject -- a known shape that is simply not priority-owned -- and the existing untagged owner keeps the extent. Built-in axis. Its bare ku recovers in main's own shape, kept behind a synthesized missing sumti ([‼‼ ku]); that recovery policy is tracked in #934."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "65ccd17a6809735e0bcca64d419073761476f6f2bcbdddb7d4d229d9fd35dfde" }
+raw = { sha256 = "f0aee5d0e4a7e6712bd65384dc7297238ce35ac48a95181dae44da3fdb7e8961" }
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "bródi", "bróda", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[21, 23], [24, 29]] }, { kind = "missing", error-index = 0, byte-spans = [[21, 21]] }] }
+tree = { valid-tokens = ["mi", "bródi", "bróda", "i", "mi", "ku", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[21, 21]] }] }
