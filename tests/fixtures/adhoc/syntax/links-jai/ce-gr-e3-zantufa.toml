@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.incomplete-mekso", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "432967cece41f080b88c109ac20e27d5807bcffdc1cb221ad510f19d020f7485" }
-diagnostics = [{ severity = "error", code = "syntax.incomplete-mekso", byte-span = [9, 9], source-text = "", message = "incomplete mekso expression" }]
-tree = { valid-tokens = [], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[0, 2], [3, 6], [7, 9]] }] }
+raw = { sha256 = "60e3cfe5b57b0332347409418629ed6630d46f1ad05ffb1a6d90b3b6c2669d12" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.incomplete-mekso", byte-span = [9, 9], source-text = "", message = "incomplete mekso expression" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[9, 9]] }] }
