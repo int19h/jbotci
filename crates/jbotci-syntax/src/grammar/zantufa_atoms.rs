@@ -333,6 +333,7 @@ fn strict_fa_presence(value: &model::ZantufaFaTanruUnitSyntax) -> ZantufaTanruAt
 /// untestable branch.
 #[requires(true)]
 #[ensures(ret != ZantufaTanruAtomPresence::Absent)]
+#[expensive_ensures((ret == ZantufaTanruAtomPresence::Unproven) == super::generated_runtime::carries_recovery_uncertainty(value))]
 fn recovered_inventory_presence<T: recovered::TreeNode>(value: &T) -> ZantufaTanruAtomPresence {
     if super::generated_runtime::carries_recovery_uncertainty(value) {
         ZantufaTanruAtomPresence::Unproven
@@ -1472,53 +1473,6 @@ fn strict_standalone_presence(
     }
 }
 
-/// Shared GA-family projection entry point for context-specific ownership
-/// policies. The standalone policy remains the compatibility implementation;
-/// enclosed JAI will apply its narrower policy to this same projection.
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn strict_gek_projection(
-    candidate: &model::ZantufaForethoughtTanruUnitSyntax,
-    dialect: &super::generated_runtime::SyntaxGrammarDialect,
-) -> ZantufaTanruAtomPresence {
-    let facts = strict_gek_facts(candidate);
-    if !dialect.zantufa_selbri_enabled {
-        return ZantufaTanruAtomPresence::Absent;
-    }
-    if facts.opener_se_free_modifiers {
-        return ZantufaTanruAtomPresence::Present;
-    }
-    if !facts.head_is_ga && !facts.head_is_guha {
-        return ZantufaTanruAtomPresence::Unproven;
-    }
-    if facts.head_is_guha {
-        if facts.has_bo {
-            return ZantufaTanruAtomPresence::Present;
-        }
-        return if facts.branch_count > 1 || facts.has_gihi {
-            if dialect.zantufa_connectives_enabled {
-                ZantufaTanruAtomPresence::Absent
-            } else {
-                ZantufaTanruAtomPresence::Present
-            }
-        } else if dialect.zantufa_selbri_atom_reinterpretation_enabled {
-            ZantufaTanruAtomPresence::Present
-        } else {
-            ZantufaTanruAtomPresence::Absent
-        };
-    }
-    if facts.branch_count > 1 || facts.has_nahe || facts.has_gihi {
-        return ZantufaTanruAtomPresence::Present;
-    }
-    if dialect.zantufa_selbri_atom_reinterpretation_enabled
-        || (facts.has_bo && !dialect.zantufa_connectives_enabled)
-    {
-        ZantufaTanruAtomPresence::Present
-    } else {
-        ZantufaTanruAtomPresence::Absent
-    }
-}
-
 /// Recovered GA/JOIK partitions on the parsed product, before public routing.
 /// The caller retains any outer Prefix wrapper and its ordered errors. Every
 /// required child inside this product must establish its own evidence; a
@@ -1651,15 +1605,6 @@ fn recovered_standalone_presence(
     } else {
         Absent
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn recovered_gek_projection(
-    candidate: &recovered::ZantufaForethoughtTanruUnitSyntax,
-    dialect: &super::generated_runtime::SyntaxGrammarDialect,
-) -> ZantufaTanruAtomPresence {
-    recovered_standalone_presence(candidate, dialect)
 }
 
 /// A selected marker and its own modifiers must be parsed, not synthesized.
