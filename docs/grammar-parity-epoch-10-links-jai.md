@@ -156,7 +156,10 @@ Separating truthful alternatives from unsatisfiable ones needs information the p
 Epoch 10 changes the survivor at a few same-position sites, which is the order dependence #926 exists to remove:
 - 23 refs errors (class I);
 - 7 same-span code changes (class G);
-- the CLI constant's `tanru unit (ZANTUFA-SELBRI feature)` entry (5e23ad704a).
+- the CLI detailed note's selbri entry, which reads `selbri (ZANTUFA-SELBRI feature)` where main's reads `selbri (ZANTUFA-SELBRI-REINTERPRETATION feature)`. Either feature enables a selbri at that point, so both are truthful. The entry went through three states:
+  - 5e23ad704a pinned an intermediate `tanru unit (ZANTUFA-SELBRI feature)` entry, which the ungated priority route produced.
+  - e21a504e57 gated that route. The note returned to main's text, and the CLI's expected label (`SYNTAX_EXPECTED_LABEL`) became byte-identical to main's.
+  - 972c195479 pinned the final annotation.
 
 ### Explored and rejected: a completeness sink
 
@@ -198,7 +201,7 @@ Its users:
 The audit's rule: where a hook post-filters a broader parse to express something the grammar could state, the grammar states it. Hooks that could not be restated are kept, each with its reason:
 - **Enclosed GEK atom, Priority atom and Priority tail.** The category: a tree-transparent eligibility refinement over a memoized product, shared with another route at the same position. Restating it as grammar would instantiate the product twice and add recursive handles on the descent path (#923), losing memo sharing.
   - Enclosed is reduced to the GA-opener variant test, with the head class as an expensive precondition.
-  - The Priority arms are feature-gated (`feature(ZantufaSelbri).ignore_then(…)`), so on axes without ZantufaSelbri the route is absent rather than attempted and rejected. An absent route must not steer recovery or diagnostics, and gating it returned ce-sr2-terms and the CLI label to main's output.
+  - The Priority arms are feature-gated (`feature(ZantufaSelbri).ignore_then(…)`), so on axes without ZantufaSelbri the route is absent rather than attempted and rejected. An absent route must not steer recovery or diagnostics, and gating it (e21a504e57) returned ce-sr2-terms to main's recovery. It also restored main's selbri entry in the CLI detailed note, which the ungated route had displaced with a tanru-unit entry. The entry's feature annotation still differs from main's: main's reads `ZANTUFA-SELBRI-REINTERPRETATION`, the epoch's reads `ZANTUFA-SELBRI` (972c195479). Which of the two is shown is the #926 order dependence.
 - **Standalone GEK atom.** Adjudicated ownership tables, a dialect-dependent strict-language partition of complete products. A PEG cannot state that partition over a completed product without re-deriving it per cell.
 - **LegacyLinkPayload.** An existential property over the connection spine ("some operand is a new-width term"). A PEG cannot state a language difference over the whole term hierarchy without duplicating it.
 - **ZantufaGroupedSumtiTermRejection.** A property of the whole completed sumti at term position: a bare grouped sumti whose KEhE is elided. Stating it structurally means parameterising the whole sumti descent chain for the term site.
