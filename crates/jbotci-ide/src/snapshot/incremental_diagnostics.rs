@@ -926,13 +926,19 @@ mod tests {
         // statement arms are default-enabled now, so the sample parses and carries a local
         // `experimental-zantufa-statement-relative-clause` -- which the gate must be
         // conservative about, exactly as it is about the bare Zantufa MEX fragment.
+        // `trailing-operator-mex-quantifier` LEFT the set with epoch 10's C-e (#831, first
+        // present at 7a18ce022d). The default profile still rejects `pa su'i re mai mi broda`
+        // at the same `su'i`, but recovery now reads that `su'i` as the experimental VUhU
+        // connective instead of skipping it. The claim sits on a parsed token, so it complies
+        // with the recovered-claim policy, but it carries a local
+        // `experimental-vuhu-connective` warning, which the gate must conservatively reject,
+        // as for the bare Zantufa MEX fragment.
         assert_eq!(
             passed_ids,
             [
                 "grouped-bridi-tail",
                 "nary-forethought-statement",
                 "statement-abstraction",
-                "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",
                 "nary-gek-termset",
                 "connectorless-bo-term",
