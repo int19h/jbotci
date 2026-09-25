@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-zr-j6-zantufa"
-lojban = "ko'a jai ga broda gi me ku .i ku"
+lojban = "ko'a jai ga broda gi me ku .i ku'o"
 dialect = "(zantufa)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row ZR-J6"
-description = "ZR-J6: a proven JAI marker whose nested inner child is unproven -- the enclosed GEK's branch operand is a bare me with a synthesized mandatory sumti -- with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Pairs with ce-zr-j5, whose identical fail-closed rejection sits under Valid containing fields. Reaching this row at all takes both halves at once, which is why it was the last one pinned: the in-candidate damage that produces Unproven normally leaves the survivor on an all-Valid chain, and the separate skipped ku that confers the Prefix normally stops the classifier being re-entered on the first statement. Here the first statement fails on its own, so recovery re-parses it and both observations hold together. Built-in axis. The pre-existing JAI-tagged sumti term survives, under a Prefix on the paragraph's first-statement field carrying the separately skipped ku. Note that a priority Unproven answer is reachable only through a JAI-shaped eligible atom: with a bare GEK atom the atom classifier rejects first and hands the priority classifier a complete shared-only co-selbri, which answers Absent."
+description = "ZR-J6: a proven JAI marker whose nested inner child is unproven -- the enclosed GEK's branch operand is a bare me with a synthesized mandatory sumti -- with the surviving owner under a Prefix containing field. Trace candidate=priority-selbri wrapper=valid answer=Unproven decision=reject. Pairs with ce-zr-j5, whose identical fail-closed rejection sits under Valid containing fields. Reaching this row at all takes both halves at once, which is why it was the last one pinned: the in-candidate damage that produces Unproven normally leaves the survivor on an all-Valid chain, and the separate skipped ku'o that confers the Prefix normally stops the classifier being re-entered on the first statement. Here the first statement fails on its own, so recovery re-parses it and both observations hold together. Built-in axis. The pre-existing JAI-tagged sumti term survives, under a Prefix on the paragraph's first-statement field carrying the separately skipped ku'o. Note that a priority Unproven answer is reachable only through a JAI-shaped eligible atom: with a bare GEK atom the atom classifier rejects first and hands the priority classifier a complete shared-only co-selbri, which answers Absent. Trailing damage changed in epoch-10 C-g from `ku` to `ku'o`: main's recovery keeps a bare `ku` behind a synthesized sumti (#934), which left no Prefix anywhere in this tree, whereas the stray `ku'o` is still skipped, so the Prefix again sits on the paragraph's first-statement field (paragraphs.first)."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "5ca7be5a9177cc8c230707f7bf1395e8e9af58d237171a0930da6090d48650b6" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [5, 8], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["ko'a", "jaĭ", "ga", "bróda", "gi", "me", "ku", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[30, 32]] }, { kind = "missing", error-index = 0, byte-spans = [[24, 24]] }] }
+raw = { sha256 = "20ae61a9fb280b9f4af803cfaa84a784c1553ee37dda5ecf8ddd3c5e1ff926ed" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [5, 8], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 34], source-text = "ku'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["ko'a", "jaĭ", "ga", "bróda", "gi", "me", "ku", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[30, 34]] }, { kind = "missing", error-index = 0, byte-spans = [[24, 24]] }] }

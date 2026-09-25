@@ -1,12 +1,12 @@
 id = "adhoc.syntax.links-jai.ce-gr-e7-zantufa"
-lojban = "mi jai ga broda gi me ku .i ku"
+lojban = "mi jai ga broda gi me ku .i ku'o"
 dialect = "(zantufa)"
 tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row GR-E7"
-description = "GR-E7: the same occupied-opener, unproven-branch enclosed rejection as ce-gr-e6, with the surviving owner under a Prefix containing field. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject, and the JAI tag term that survives sits under a Prefix on the paragraph's first-statement field carrying the separately skipped ku. Built-in axis."
+description = "GR-E7: the same occupied-opener, unproven-branch enclosed rejection as ce-gr-e6, with the surviving owner under a Prefix containing field. Trace candidate=enclosed-gek wrapper=valid answer=Unproven decision=reject, and the JAI tag term that survives sits under a Prefix on the paragraph's first-statement field carrying the separately skipped ku'o. Built-in axis. Trailing damage changed in epoch-10 C-g from `ku` to `ku'o`: main's recovery keeps a bare `ku` behind a synthesized sumti (#934), which left no Prefix anywhere in this tree, whereas the stray `ku'o` is still skipped, so the Prefix again sits on the paragraph's first-statement field (paragraphs.first)."
 
 [expectations.syntax]
 status = "failure"
@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "8c95d1c4864d8fbcca46923d0031eff599cbed54aa4817ed43d5d2a6e56ff1e4" }
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 30], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "me", "ku", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[28, 30]] }, { kind = "missing", error-index = 0, byte-spans = [[22, 22]] }] }
+raw = { sha256 = "e57624cba98d914be685245f893156dcaf4beaf985e023e3658bbc45ec251719" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-jai-tag-term", byte-span = [3, 6], source-text = "jai", message = "experimental syntax: Zantufa JAI tag term", word-index = 1 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 32], source-text = "ku'o", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "jaĭ", "ga", "bróda", "gi", "me", "ku", "i"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[28, 32]] }, { kind = "missing", error-index = 0, byte-spans = [[22, 22]] }] }
