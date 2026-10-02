@@ -291,14 +291,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
-        assert_eq!(english().sound_index().len(), 30_639);
-        assert_eq!(english().lujvo_index().len(), 12_826);
+        assert_eq!(english().sound_index().len(), 31_034);
+        assert_eq!(english().lujvo_index().len(), 12_948);
 
         // The decomposition index is audited by word type and not only in
         // total, because a shift between the two that left the total alone
-        // would otherwise pass unnoticed. The 12,724 lujvo are exactly the
-        // entries the index held before #914; the 102 cmevla are what #914
-        // restored, and nothing else decomposes.
+        // would otherwise pass unnoticed. The lujvo are every lujvo entry
+        // except `islenskygu'e` and `refgau`, which do not decompose. #914
+        // restored 102 cmevla; the 2026-10-02 refresh added `kairdid`, and the
+        // new experimental rafsi `gos` and `vet` made `dangos` and `xelvet`
+        // decompose. Nothing else decomposes.
         let entries = english().entries();
         let word_types = english()
             .lujvo_index()
@@ -311,14 +313,14 @@ mod tests {
                 .iter()
                 .filter(|word_type| **word_type == WordType::Lujvo)
                 .count(),
-            12_724
+            12_843
         );
         assert_eq!(
             word_types
                 .iter()
                 .filter(|word_type| **word_type == WordType::Cmevla)
                 .count(),
-            102
+            105
         );
         assert!(
             word_types
@@ -805,7 +807,7 @@ mod compound_tests {
     #[ensures(true)]
     fn embedded_cmavo_sequence_index_has_audited_coverage() {
         let dictionary = english();
-        assert_eq!(dictionary.cmavo_sequence_index().len(), 715);
+        assert_eq!(dictionary.cmavo_sequence_index().len(), 730);
         assert_eq!(dictionary.max_cmavo_sequence_len(), 8);
         assert!(!dictionary.lookup_cmavo_sequence(&["na", "a"]).is_empty());
         for headword in ["ma;u", "madagasikara", "fa'onai", "o'ebu", "la dontu'u"] {

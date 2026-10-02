@@ -2671,14 +2671,18 @@ mod tests {
             highlight: None,
         };
 
+        // 19 before the 2026-10-02 refresh: its new experimental gismu `dastu`
+        // also blocks `dasto` and `dastu`, so they no longer count as
+        // collisions caused only by #672's `daste`.
         let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
-        assert_eq!(collision_delta, 19);
+        assert_eq!(collision_delta, 17);
         let output = compose_gismu(dictionary, &request).expect("output");
         assert_eq!(output.candidate_count, 16_320);
         // The baseline tracks the snapshot: the unfiltered export (#881) added
         // enough gismu-like words to filter out 358 more candidates outright,
-        // while `collision_delta` still isolates only #672's own additions.
-        assert_eq!(output.filtered_count, 11_864 - collision_delta);
+        // and the 2026-10-02 refresh 154 more, while `collision_delta` still
+        // isolates only #672's own additions.
+        assert_eq!(output.filtered_count, 11_708 - collision_delta);
         assert_eq!(output.winner.as_deref(), Some("trado"));
         assert_eq!(
             output
@@ -2788,11 +2792,15 @@ mod tests {
             highlight: None,
         };
 
+        // 128 before the 2026-10-02 refresh: its new experimental gismu `dastu`
+        // also blocks `daste`, `dasto` and `dastu`, so they no longer count as
+        // collisions caused only by #672's `daste`.
         let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
-        assert_eq!(collision_delta, 128);
+        assert_eq!(collision_delta, 125);
         let output = compose_gismu(dictionary, &request).expect("#587 reproduction");
         assert_eq!(output.candidate_count, 96_475);
-        assert_eq!(output.filtered_count, 80_921 - collision_delta);
+        // The 2026-10-02 refresh's new words filter out 808 more candidates.
+        assert_eq!(output.filtered_count, 80_110 - collision_delta);
         assert_eq!(output.candidates.len(), 160);
         let top = output
             .candidates
@@ -2811,16 +2819,19 @@ mod tests {
                     output.candidates[index].score.to_bits(),
                 )
             });
+        // `ferme` and `ferma` led until the 2026-10-02 refresh added the
+        // experimental gismu `fermi` (fermium), which clashes with both, so
+        // `farme` now wins with an unchanged score.
         assert_eq!(
             (output.winner.as_deref(), top, first_r_bearing),
             (
-                Some("ferme"),
+                Some("farme"),
                 vec![
-                    ("ferme", 4_602_169_754_218_645_862),
                     ("farme", 4_602_148_011_832_660_822),
-                    ("ferma", 4_602_119_608_903_817_045),
+                    ("farmo", 4_602_095_587_273_222_188),
+                    ("serme", 4_602_047_027_878_463_513),
                 ],
-                Some((1, "ferme", 4_602_169_754_218_645_862)),
+                Some((1, "farme", 4_602_148_011_832_660_822)),
             )
         );
     }
