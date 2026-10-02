@@ -205,9 +205,9 @@ mod tests {
         assert_eq!(english_metadata().entry_count(), english().entries().len());
         assert_eq!(
             english_metadata().lensisku_created_at(),
-            "2026-09-01T11:38:52Z"
+            "2026-10-02T11:50:15Z"
         );
-        assert_eq!(english_metadata().definition_count(), 33053);
+        assert_eq!(english_metadata().definition_count(), 33467);
         assert!(english_metadata().definition_count() > english_metadata().entry_count());
         assert!(!english_metadata().positive_scores_only());
     }

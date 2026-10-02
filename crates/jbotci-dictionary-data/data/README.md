@@ -10,7 +10,7 @@ without reaching back into a repository checkout.
 The snapshot is Lensisku's **unfiltered** English export — the
 `positive_scores_only=false` variant. Keeping the flag on, as jbotci did until
 jbotci issue #881, silently dropped every word whose best English definition
-scores zero or less: 12,464 of this snapshot's 30,793 embedded words, most of
+scores zero or less: 12,464 of the 2026-09-01 snapshot's 30,793 embedded words, most of
 them simply never voted on.
 
 That export comes from the **authenticated** `/api/export/dictionary` route.
@@ -33,6 +33,15 @@ id to break a tie — in
 the verbatim export, so recovering the alternates later needs no re-fetch. The
 metadata records both counts: `definition_count` for the file's rows,
 `entry_count` for the entries actually embedded.
+
+The export also holds rows that are not words. Lensisku's `wiki` word type
+marks a free-form article stored in its word table. The first one, seen in the
+2026-10 export, is a Markdown text titled "Periodic-table gismu assignment
+algorithm". The importer counts such rows in `definition_count` but never
+embeds them, so they reach neither word lookup nor the embedding corpus. A
+`wiki` row that carries rafsi or a selma'o fails the import, because dropping
+it would silently lose a word-level claim. Any other unknown word type also
+fails the import, so that a new word class gets a deliberate classification.
 
 ## Refreshing
 
@@ -116,3 +125,18 @@ words / 40 forms.
   `kirgo`, and `losmo`'s `los` to `losxa`. The last is a consequence of the
   unfiltered export itself: `losxa` scores 0, so its claim on `los` was
   invisible while the snapshot kept only positively scored definitions.
+
+**2026-10-02** (2026-10 refresh): the table stays at 37 words / 40 forms.
+Lensisku now records rafsi in two columns: `rafsi` for official assignments
+and `experimental_rafsi` for experimental ones. The importer merges them and
+fails if a column contradicts the standing of the row's word type. Lensisku
+also lists every gismu's 4-letter rafsi (the gismu minus its final vowel) as a
+structured rafsi. That form is always derivable, so the importer discards it.
+After that, none of the 37 words carries a structured rafsi of its own.
+Compared with the 2026-09-01 snapshot, the official rafsi are unchanged. Eleven
+experimental words gained one structured rafsi each, and none of these forms
+collides with an extracted form: `bolva` bov, `gelga` geg, `gomsi` gos, `kenjo`
+kej, `nudle` nud, `podji` pod, `tceta` cet, `vente` vet, `vetno` ve'o, `so'y`
+sox and `xei` xem. Two of them share a form with an older claim. The official
+gismu `ckeji` also holds `kej` and outranks `kenjo`. The experimental gismu
+`cketi` also holds `cet`, so `cet` has two experimental claims.

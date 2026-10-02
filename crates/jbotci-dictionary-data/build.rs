@@ -251,7 +251,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         load_dictionary_metadata(&metadata_path)
     })?;
     let mut imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
-    let definition_count = imported.entries.len();
+    let definition_count = imported.row_count();
     // Captured before the reduction below: upstream records rafsi per
     // definition row, so a structured claim can sit on a row that
     // best-definition selection is about to drop, and the fail-closed
@@ -270,9 +270,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         imported.retain_best_definition_per_word()
     });
     emit_build_timing(format_args!(
-        "kept {} of {definition_count} definition(s), dropping {undefined} undefined \
-         and {duplicates} duplicate",
-        imported.entries.len()
+        "kept {} of {definition_count} definition(s), dropping {} non-word, {undefined} \
+         undefined and {duplicates} duplicate",
+        imported.entries.len(),
+        imported.non_word_row_count
     ));
     timed_stage("validate dictionary metadata", || {
         validate_dictionary_metadata(&metadata, definition_count, &imported, input.as_bytes())

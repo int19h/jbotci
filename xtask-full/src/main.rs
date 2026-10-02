@@ -4688,12 +4688,16 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
         .with_context(|| format!("writing `{}`", paths.metadata.display()))?;
     println!(
         "vendored {} Lensisku definition(s) into `{}`; {} entr(ies) survive, dropping {} \
-         undefined and {} duplicate definition(s)",
+         non-word, {} undefined and {} duplicate definition(s)",
         counts.definition_count,
         paths.dictionary.display(),
         counts.entry_count,
+        counts.non_word_count,
         counts.undefined_count,
-        counts.definition_count - counts.undefined_count - counts.entry_count
+        counts.definition_count
+            - counts.non_word_count
+            - counts.undefined_count
+            - counts.entry_count
     );
     Ok(())
 }
@@ -4727,12 +4731,15 @@ impl DictionarySnapshotPaths {
 
 /// How many definitions a snapshot holds, and how many entries it embeds.
 #[invariant(
-    entry_count + undefined_count <= *definition_count,
-    "selection and the undefined-row discard drop definitions, never invent them"
+    entry_count + non_word_count + undefined_count <= *definition_count,
+    "the non-word, undefined-row and selection discards drop rows, never invent them"
 )]
 #[derive(Debug, Clone, Copy)]
 struct DictionarySnapshotCounts {
     definition_count: usize,
+    /// Rows that are not dictionary words at all, such as Lensisku `wiki`
+    /// articles.
+    non_word_count: usize,
     /// Rows discarded for having no definition text at all.
     undefined_count: usize,
     entry_count: usize,
@@ -4747,11 +4754,13 @@ struct DictionarySnapshotCounts {
 #[ensures(true)]
 fn dictionary_snapshot_counts(dictionary_text: &str) -> Result<DictionarySnapshotCounts> {
     let mut imported = parse_lensisku_json(dictionary_text)?;
-    let definition_count = imported.entries.len();
+    let definition_count = imported.row_count();
+    let non_word_count = imported.non_word_row_count;
     let undefined_count = imported.retain_defined_entries();
     imported.retain_best_definition_per_word();
     Ok(new!(DictionarySnapshotCounts {
         definition_count: definition_count,
+        non_word_count: non_word_count,
         undefined_count: undefined_count,
         entry_count: imported.entries.len(),
     }))

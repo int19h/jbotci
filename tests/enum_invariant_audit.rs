@@ -1096,6 +1096,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries serde's diagnostic without adding semantic state",
     ),
     (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::NonWordRowWithWordData",
+        "error report echoes the offending upstream row's word and id verbatim, whatever they are",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::RafsiStandingMismatch",
+        "error report echoes the offending row; the mismatched column is implied by word_type",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuRowKind::Wiki",
+        "unit variant has no payload to constrain",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuRowKind::Word",
+        "payload is a WordType, which every value of is a valid word classification",
+    ),
+    (
         "crates/jbotci-dictionary/src/import.rs:RafsiField::List",
         "raw import field accepts the upstream Lensisku list shape before normalization",
     ),

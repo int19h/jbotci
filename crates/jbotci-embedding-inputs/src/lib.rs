@@ -738,11 +738,11 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "baaf35f8f6fe22617a74efb770736886b275271510e0123c55b623582e17f011"
+            "4c4f4d136216e0d08058138f170ed672de80d10c2ac7ae7de9250b307c6340b0"
         );
         assert_eq!(
             corpus.dictionary_hash,
-            "93842b1db26acb5367c43be89f832a8331e8521def8b019eac9b14c938262e77"
+            "9c108a94ac1f0ff0e30187374350f2a26277fcc78bc66d5227645d37df7677b3"
         );
         assert_eq!(
             corpus.cll_hash,
