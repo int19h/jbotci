@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import shutil
 from pathlib import Path
@@ -36,7 +37,8 @@ def main() -> None:
     onnx_model_path = Path(args.onnx_model)
     model_root = Path(args.model_root) if args.model_root else onnx_model_path.parent.parent
     output = Path(args.out)
-    if output.exists() and not args.overwrite:
+    # lexists, so a dangling symlink at --out also counts as present.
+    if os.path.lexists(output) and not args.overwrite:
         # Refuse before any work starts: replacing an existing output
         # silently discarded a finished pack when several runs shared one
         # --out (2026-10-02 dictionary refresh).
@@ -437,7 +439,7 @@ def write_chunked(out_root: Path, root: Path, basename: str, data: bytes, shard_
 def promote(stage: Path, output: Path, overwrite: bool) -> None:
     # Check again at the end of a long run: an output that appeared meanwhile
     # (for example from an overlapping run) is not replaced either.
-    if output.exists() and not overwrite:
+    if os.path.lexists(output) and not overwrite:
         raise SystemExit(
             f"{output} appeared during the build; pass --overwrite to replace it"
         )

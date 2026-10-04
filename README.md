@@ -126,7 +126,8 @@ to replace it. The rule covers `build-f2llm-webgpu-model`,
 `build-f2llm-webgpu-vectors`, `build-f2llm-webgpu-assets`,
 `build-gguf-embeddings`, `build-web-embeddings`, the three publish commands
 when they build, and the two Python scripts. `dist-server` regenerates the
-packs inside its own bundle on every run.
+packs inside its own bundle on every run, and writes the models it exports to
+`<out_dir>.f2llm-models` next to the bundle.
 
 `build-f2llm-webgpu-vectors` writes one model's pack. To build all four models
 into one merged pack without publishing, run

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Iterable
@@ -41,7 +42,8 @@ def main() -> None:
     q4_onnx = Path(args.q4_onnx)
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else q4_onnx.parent.parent
     output = Path(args.out)
-    if output.exists() and not args.overwrite:
+    # lexists, so a dangling symlink at --out also counts as present.
+    if os.path.lexists(output) and not args.overwrite:
         # Refuse before any work starts: replacing an existing output
         # silently discarded a finished pack when several runs shared one
         # --out (2026-10-02 dictionary refresh).
@@ -378,7 +380,7 @@ def json_bytes(value: object) -> bytes:
 def promote(stage: Path, output: Path, overwrite: bool) -> None:
     # Check again at the end of a long run: an output that appeared meanwhile
     # (for example from an overlapping run) is not replaced either.
-    if output.exists() and not overwrite:
+    if os.path.lexists(output) and not overwrite:
         raise SystemExit(
             f"{output} appeared during the build; pass --overwrite to replace it"
         )

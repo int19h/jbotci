@@ -2455,13 +2455,14 @@ fn export_web_embedding_corpus(args: ExportWebEmbeddingCorpusArgs) -> Result<()>
 fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
     let web_dist = absolute_path(&args.web_dist)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
-    let outputs = WebEmbeddingOutputs {
+    let outputs = new!(WebEmbeddingOutputs {
         model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
         models: existing_output,
         vectors: existing_output,
-    };
+    });
     // Checked before the corpus export below, so a refused run changes nothing.
     existing_output.check(&web_embedding_assets_dir(&web_dist))?;
+    outputs.check_models()?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2820,8 +2821,14 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
 fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
     let output = absolute_path(&args.out_dir)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    let outputs = new!(WebEmbeddingOutputs {
+        model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        models: existing_output,
+        vectors: existing_output,
+    });
     // Checked before the corpus export below, so a refused run changes nothing.
     existing_output.check(&output)?;
+    outputs.check_models()?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2835,11 +2842,7 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
         &corpus,
         &args.embedding_dtypes,
         &args.backend,
-        WebEmbeddingOutputs {
-            model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
-            models: existing_output,
-            vectors: existing_output,
-        },
+        outputs,
     )?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
     put_r2_objects(&args.bucket, &objects)?;
@@ -3326,11 +3329,11 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
             &corpus,
             &args.embedding_dtypes,
             &args.embedding_backend,
-            WebEmbeddingOutputs {
+            new!(WebEmbeddingOutputs {
                 model_out_root: &model_out_root,
                 models: ExistingOutput::Replace,
                 vectors: ExistingOutput::Replace,
-            },
+            }),
         )?;
     }
     server_bundle_path(&out_dir).map(|_| ())
@@ -3672,12 +3675,29 @@ fn web_embedding_assets_dir(web_dist: &Path) -> PathBuf {
 
 /// Where the web embedding build writes the WebGPU model artifacts it exports
 /// on the way, and what it may do with existing model and vector outputs.
-#[invariant(true)]
+#[invariant(
+    model_out_root.components().next().is_some(),
+    "model artifact directories are derived from a non-empty root"
+)]
 #[derive(Debug, Clone, Copy)]
 struct WebEmbeddingOutputs<'a> {
     model_out_root: &'a Path,
     models: ExistingOutput,
     vectors: ExistingOutput,
+}
+
+impl WebEmbeddingOutputs<'_> {
+    /// Check every model artifact directory against the model policy, so a
+    /// command can refuse before its corpus export.
+    #[requires(true)]
+    #[ensures(self.models == ExistingOutput::Replace -> ret.is_ok())]
+    fn check_models(&self) -> Result<()> {
+        for spec in F2LLM_MODEL_SPECS {
+            self.models
+                .check(&f2llm_model_artifact_out_dir(self.model_out_root, spec))?;
+        }
+        Ok(())
+    }
 }
 
 #[requires(corpus.is_file())]
