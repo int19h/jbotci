@@ -410,12 +410,12 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
     assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
     assert not dictionary.WordType.GISMU.is_lujvo_like()
-    # Experimental and obsolete types make provisional rafsi claims; so does
-    # NALVLA, the one exception not named for a register — an entry Lensisku
+    # Experimental and obsolete types are capped at experimental standing; so
+    # is NALVLA, the one exception not named for a register: an entry Lensisku
     # never classified cannot bind the standard register either (it mirrors
-    # the postcondition on the Rust `rafsi_claim_kind`).
+    # the postcondition on the Rust `max_rafsi_standing`).
     for word_type in dictionary.WordType:
-        assert word_type.rafsi_claim_kind() is (
+        assert word_type.max_rafsi_standing() is (
             dictionary.RafsiClaimKind.EXPERIMENTAL
             if word_type is dictionary.WordType.NALVLA
             or word_type.startswith(("experimental ", "obsolete "))
@@ -424,7 +424,7 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     with pytest.raises(TypeError):
         native._dictionary_word_type_is_gismu_like("gismu")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        native._dictionary_word_type_rafsi_claim_kind("gismu")  # type: ignore[arg-type]
+        native._dictionary_word_type_max_rafsi_standing("gismu")  # type: ignore[arg-type]
 
 
 def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> None:

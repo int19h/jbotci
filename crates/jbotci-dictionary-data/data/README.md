@@ -137,10 +137,12 @@ the word. Lensisku also attaches rafsi to each definition rather than to the
 word. An entry takes its rafsi from its selected definition only, because the
 definitions of one word can be unrelated (owner ruling, 2026-10-03). So the
 experimental rafsi `maz`, which a user-contributed definition of the official
-cmavo `ma` proposes, does not reach jbotci's `ma`; the fail-closed audit still
-reads every row. A word
-whose own standing is experimental cannot hold an official rafsi, and a form
-listed in both columns has no single standing; the import rejects both.
+cmavo `ma` proposes, does not reach jbotci's `ma`. The fail-closed audit still
+reads every row, so it is deliberately stricter than the rafsi index: the
+extracted table can never claim `maz`, but gimfihi reports `maz` as free
+because no selected definition holds it. A word whose own standing is
+experimental cannot hold an official rafsi, and a form listed in both columns
+has no single standing; the import rejects both.
 Lensisku also lists a gismu's 4-letter rafsi (the gismu minus its final vowel)
 as a structured rafsi. jbotci derives that form itself, so the importer
 discards exactly the derived form.

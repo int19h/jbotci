@@ -220,7 +220,7 @@ impl LensiskuRow {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|entry| {
         entry.word_type == word_type
-            && (word_type.rafsi_claim_kind() == RafsiClaimKind::Official
+            && (word_type.max_rafsi_standing() == RafsiClaimKind::Official
                 || entry
                     .rafsi
                     .iter()
@@ -236,14 +236,22 @@ impl LensiskuRow {
         // it adds nothing whatever column upstream filed it under.
         discard_universal_short_rafsi(&self.word, word_type, &mut official);
         discard_universal_short_rafsi(&self.word, word_type, &mut experimental);
-        if !official.is_empty() && word_type.rafsi_claim_kind() != RafsiClaimKind::Official {
+        if !official.is_empty() && word_type.max_rafsi_standing() != RafsiClaimKind::Official {
             return Err(LensiskuImportError::RafsiStandingMismatch {
                 word: self.word,
                 definition_id: self.definition_id.get(),
                 word_type,
             });
         }
-        if let Some(form) = official.iter().find(|form| experimental.contains(form)) {
+        // Compared after lookup normalization, like the derived-form discard,
+        // so two spellings of one form (`ma'z`, `mahz`) cannot take both
+        // standings.
+        if let Some(form) = official.iter().find(|form| {
+            let form = normalize_lookup_query(form);
+            experimental
+                .iter()
+                .any(|other| normalize_lookup_query(other) == form)
+        }) {
             return Err(LensiskuImportError::RafsiListedTwice {
                 word: self.word,
                 definition_id: self.definition_id.get(),
@@ -938,8 +946,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn keeps_each_rafsi_with_the_standing_of_its_column() {
-        // Lensisku gives the official cmavo `ma` only the experimental rafsi
-        // `maz`, and an official word may carry both kinds at once.
+        // Synthetic rows: an official cmavo with only an experimental rafsi
+        // (the shape of Lensisku's `maz` proposal on a non-selected definition
+        // of `ma`), and an official gismu carrying both kinds at once.
         let json = r#"[
             {
                 "word": "ma",
