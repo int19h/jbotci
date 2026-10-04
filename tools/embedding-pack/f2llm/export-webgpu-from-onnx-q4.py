@@ -36,6 +36,13 @@ def main() -> None:
     onnx_model_path = Path(args.onnx_model)
     model_root = Path(args.model_root) if args.model_root else onnx_model_path.parent.parent
     output = Path(args.out)
+    if output.exists() and not args.overwrite:
+        # Refuse before any work starts: replacing an existing output
+        # silently discarded a finished pack when several runs shared one
+        # --out (2026-10-02 dictionary refresh).
+        raise SystemExit(
+            f"{output} already exists; pass --overwrite to replace it or choose another --out"
+        )
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
     if stage == output:
         raise ValueError("--stage must differ from --out")
@@ -105,6 +112,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-revision", default=None)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace --out if it already exists (refused by default)",
+    )
     parser.add_argument("--shard-size", type=int, default=DEFAULT_SHARD_SIZE)
     parser.add_argument("--max-sequence-length", type=int, default=DEFAULT_MAX_SEQUENCE_LENGTH)
     args = parser.parse_args()

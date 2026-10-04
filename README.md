@@ -120,6 +120,14 @@ uploads matching q4-generated `f16le` vector packs under the normal web
 embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
 
+The embedding builders refuse to start when their output directory already
+exists. Pass `--overwrite` to replace it. The rule covers
+`build-f2llm-webgpu-model`, `build-f2llm-webgpu-vectors`,
+`build-gguf-embeddings`, the two publish commands without `--skip-build`, and
+the two Python scripts. Each vector build writes one model's
+pack, so give every model its own `--out-dir` and merge them afterwards, or use
+the publish command, which builds and merges all four.
+
 `vendor/cll` tracks the
 [int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.4` release.
 It is kept as a submodule because CLL examples and references are part of the

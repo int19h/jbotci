@@ -640,6 +640,9 @@ struct BuildF2LlmWebgpuModelArgs {
     shard_size: usize,
     #[arg(long, default_value = "python3")]
     python: String,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -669,6 +672,9 @@ struct BuildF2LlmWebgpuVectorsArgs {
     batch_size: usize,
     #[arg(long, default_value = "python3")]
     python: String,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -684,6 +690,9 @@ struct BuildGgufEmbeddingsArgs {
     models: Vec<String>,
     #[arg(long)]
     skip_validation: bool,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -745,6 +754,10 @@ struct PublishF2LlmWebgpuR2Args {
     remote_catalog_url: String,
     #[arg(long)]
     skip_build: bool,
+    /// Replace the staged model and vector directories if they already exist
+    /// (refused by default; irrelevant with `--skip-build`).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -768,6 +781,10 @@ struct PublishGgufEmbeddingsR2Args {
     skip_build: bool,
     #[arg(long)]
     skip_validation: bool,
+    /// Replace the staged pack directory if it already exists (refused by
+    /// default; irrelevant with `--skip-build`).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -2424,6 +2441,8 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
     }
     let out_dir = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    existing_output.check(&out_dir)?;
     let mut command = ProcessCommand::new(&args.python);
     command
         .arg("tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py")
@@ -2439,6 +2458,9 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
         .arg(args.shard_size.to_string());
     if let Some(model_root) = args.model_root {
         command.arg("--model-root").arg(absolute_path(&model_root)?);
+    }
+    if existing_output == ExistingOutput::Replace {
+        command.arg("--overwrite");
     }
     if let Some(stage) = args.stage {
         command.arg("--stage").arg(absolute_path(&stage)?);
@@ -2465,6 +2487,8 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_key,
     )?;
     let out_dir = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    existing_output.check(&out_dir)?;
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     run_f2llm_vector_builder(
         &args.python,
@@ -2478,6 +2502,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_id,
         args.dimensions,
         args.include_wasm_runtime,
+        existing_output,
     )?;
     run_f2llm_vector_validator(
         &args.python,
@@ -2502,6 +2527,10 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     if !args.skip_build {
+        let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+        // The ONNX fallback is also built under `model_out_root`, so checking
+        // the root covers it along with every model artifact.
+        existing_output.check(&model_out_root)?;
         build_all_f2llm_webgpu_assets(
             &args.python,
             &model_out_root,
@@ -2510,6 +2539,7 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
             args.tokenizer_dir.as_deref(),
             args.f2llm_artifact_root.as_deref(),
             args.batch_size,
+            existing_output,
         )?;
         build_f2llm_onnx_fallback_asset(&model_out_root, args.f2llm_artifact_root.as_deref())?;
     } else {
@@ -2566,6 +2596,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
     let index_dir = absolute_path(&args.index_dir)?;
     let models = selected_gguf_model_keys(&args.models)?;
+    ExistingOutput::from_overwrite_flag(args.overwrite).check(&out_dir)?;
     remove_path_if_exists(&out_dir)?;
     fs::create_dir_all(out_dir.join("models"))
         .with_context(|| format!("creating `{}`", out_dir.join("models").display()))?;
@@ -2658,6 +2689,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
             model_dir: args.model_dir,
             models: selected_models.to_vec(),
             skip_validation: args.skip_validation,
+            overwrite: args.overwrite,
         })?;
     } else {
         validate_native_gguf_r2_tree(&out_dir)?;
@@ -3518,6 +3550,8 @@ fn build_web_embedding_assets_to(
     backend: &str,
 ) -> Result<()> {
     let _ = (dtypes, backend);
+    // The web release and server bundle commands regenerate these assets on
+    // every run as part of a bundle they own, so replacing is intended here.
     build_all_f2llm_webgpu_assets(
         "python3",
         Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
@@ -3526,6 +3560,7 @@ fn build_web_embedding_assets_to(
         None,
         None,
         8,
+        ExistingOutput::Replace,
     )
 }
 
@@ -3617,7 +3652,14 @@ fn build_all_f2llm_webgpu_assets(
     tokenizer_dir: Option<&Path>,
     artifact_root: Option<&Path>,
     batch_size: usize,
+    existing_output: ExistingOutput,
 ) -> Result<()> {
+    // Check every output up front, before hours of model export and
+    // embedding work, rather than failing on the last model.
+    existing_output.check(vector_out_dir)?;
+    for spec in F2LLM_MODEL_SPECS {
+        existing_output.check(&f2llm_model_artifact_out_dir(model_out_root, spec))?;
+    }
     let vector_parts_root = vector_out_dir.with_file_name(format!(
         "{}.parts",
         vector_out_dir
@@ -3641,6 +3683,7 @@ fn build_all_f2llm_webgpu_assets(
             stage: None,
             shard_size: 4 * 1024 * 1024,
             python: python.to_owned(),
+            overwrite: existing_output == ExistingOutput::Replace,
         })?;
         let part_dir = vector_parts_root.join(spec.id);
         run_f2llm_vector_builder(
@@ -3655,6 +3698,9 @@ fn build_all_f2llm_webgpu_assets(
             spec.model_id,
             spec.dimensions,
             spec.include_wasm_runtime,
+            // The parts root was just emptied, so a part dir that exists here
+            // would be a bug, never an output worth replacing.
+            ExistingOutput::Refuse,
         )?;
         run_f2llm_vector_validator(
             python,
@@ -3861,6 +3907,7 @@ fn run_f2llm_vector_builder(
     model_id: &str,
     dimensions: usize,
     include_wasm_runtime: bool,
+    existing_output: ExistingOutput,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -3891,6 +3938,9 @@ fn run_f2llm_vector_builder(
         .arg(batch_size.to_string());
     if include_wasm_runtime {
         command.arg("--include-wasm-runtime");
+    }
+    if existing_output == ExistingOutput::Replace {
+        command.arg("--overwrite");
     }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command
@@ -6782,6 +6832,43 @@ fn wiki_sibling_work_dir(output: &Path, suffix: &str) -> Result<PathBuf> {
         .context("system clock is before Unix epoch")?
         .as_nanos();
     Ok(parent.join(format!(".{name}.{suffix}-{}-{nonce}", std::process::id())))
+}
+
+/// What a build command may do with an output directory that already exists.
+///
+/// Build outputs take hours of compute, and a command that silently replaced
+/// its output once discarded three finished embedding packs when several runs
+/// shared one output directory. So replacing is opt-in through `--overwrite`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum ExistingOutput {
+    Refuse,
+    Replace,
+}
+
+impl ExistingOutput {
+    #[requires(true)]
+    #[ensures((ret == Self::Replace) == overwrite)]
+    fn from_overwrite_flag(overwrite: bool) -> Self {
+        if overwrite {
+            Self::Replace
+        } else {
+            Self::Refuse
+        }
+    }
+
+    /// Fail before any work starts if `path` exists and replacing is not allowed.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == (self == Self::Replace || !path.exists()))]
+    fn check(self, path: &Path) -> Result<()> {
+        if self == Self::Refuse && path.exists() {
+            bail!(
+                "`{}` already exists; pass --overwrite to replace it or choose another output directory",
+                path.display()
+            );
+        }
+        Ok(())
+    }
 }
 
 #[requires(true)]

@@ -40,8 +40,15 @@ def main() -> None:
     args = parse_args()
     q4_onnx = Path(args.q4_onnx)
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else q4_onnx.parent.parent
-    corpus = read_json(Path(args.input))
     output = Path(args.out)
+    if output.exists() and not args.overwrite:
+        # Refuse before any work starts: replacing an existing output
+        # silently discarded a finished pack when several runs shared one
+        # --out (2026-10-02 dictionary refresh).
+        raise SystemExit(
+            f"{output} already exists; pass --overwrite to replace it or choose another --out"
+        )
+    corpus = read_json(Path(args.input))
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
     if stage == output:
         raise ValueError("--stage must differ from --out")
@@ -136,6 +143,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace --out if it already exists (refused by default)",
+    )
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX)
     parser.add_argument("--tokenizer-dir", default=None)
     parser.add_argument("--model-key", default=MODEL_KEY)
