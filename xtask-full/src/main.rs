@@ -2577,7 +2577,10 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py",
+        &format!(
+            "{} tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py",
+            args.python
+        ),
     )
 }
 
@@ -4323,7 +4326,7 @@ fn run_f2llm_vector_builder(
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/build-vector-pack.py",
+        &format!("{python} tools/embedding-pack/f2llm/build-vector-pack.py"),
     )
 }
 
@@ -4387,7 +4390,7 @@ fn run_f2llm_vector_validator(
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/validate-vector-pack.py",
+        &format!("{python} tools/embedding-pack/f2llm/validate-vector-pack.py"),
     )
 }
 
