@@ -706,17 +706,32 @@ mod tests {
         let corpus = embedding_input_corpus().expect("the embedding corpus should build");
         let chunks = cll_search_all_chunks(site);
         assert_eq!(corpus.cll.len(), chunks.len());
-        for child_id in &peg.child_section_ids {
+        // Spelled out rather than read back from the import, so the test
+        // fails if the subsections vanish or renumber.
+        let expected_children = [
+            "peg-classes",
+            "peg-words",
+            "peg-cmevla",
+            "peg-cmavo",
+            "peg-brivla",
+            "peg-fuhivla",
+            "peg-gismu",
+            "peg-syllables",
+            "peg-vowels",
+            "peg-consonants",
+            "peg-boundaries",
+            "peg-spaces",
+            "peg-selmaho",
+        ];
+        assert_eq!(peg.child_section_ids, expected_children);
+        for (offset, child_id) in expected_children.iter().enumerate() {
             let child =
                 jbotci_cll::cll_lookup_section(site, child_id).expect("subsection should exist");
-            let number = child
-                .number
-                .expect("PEG subsections are numbered")
-                .to_string();
+            let number = format!("21.2.{}", offset + 1);
             let index = chunks
                 .iter()
                 .position(|chunk| {
-                    chunk.kind == CllSearchChunkKind::Section && &chunk.section_id == child_id
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == *child_id
                 })
                 .unwrap_or_else(|| panic!("{child_id} should have a section chunk"));
             let document = &corpus.cll[index];

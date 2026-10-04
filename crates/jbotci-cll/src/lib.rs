@@ -2126,14 +2126,32 @@ mod tests {
                 chunk.kind == CllSearchChunkKind::Section && chunk.section_id == peg.section_id
             })
             .expect("21.2 should have a section chunk");
-        for child_id in &peg.child_section_ids {
+        // The ids and numbers are spelled out rather than read back from the
+        // import, so the test fails if the subsections vanish or renumber.
+        let expected_children = [
+            "peg-classes",
+            "peg-words",
+            "peg-cmevla",
+            "peg-cmavo",
+            "peg-brivla",
+            "peg-fuhivla",
+            "peg-gismu",
+            "peg-syllables",
+            "peg-vowels",
+            "peg-consonants",
+            "peg-boundaries",
+            "peg-spaces",
+            "peg-selmaho",
+        ];
+        assert_eq!(peg.child_section_ids, expected_children);
+        for (offset, child_id) in expected_children.iter().enumerate() {
             let child = cll_lookup_section(site, child_id).expect("subsection should exist");
-            let number = child.number.map(|number| number.to_string());
+            let number = Some(format!("21.2.{}", offset + 1));
             let section_chunks = site
                 .search_chunks
                 .iter()
                 .filter(|chunk| {
-                    chunk.kind == CllSearchChunkKind::Section && &chunk.section_id == child_id
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == *child_id
                 })
                 .collect::<Vec<_>>();
             let [chunk] = section_chunks.as_slice() else {
@@ -2153,7 +2171,7 @@ mod tests {
             for chunk in site
                 .search_chunks
                 .iter()
-                .filter(|chunk| &chunk.section_id == child_id)
+                .filter(|chunk| chunk.section_id == *child_id)
             {
                 assert_eq!(chunk.section_number, number, "{}", chunk.anchor_id);
                 assert_eq!(chunk.section_title, child.title, "{}", chunk.anchor_id);
@@ -2183,7 +2201,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("{section_id} should have a section chunk"))
         };
         let mut previous = position(&peg.section_id);
-        for child_id in &peg.child_section_ids {
+        for child_id in expected_children {
             let current = position(child_id);
             assert!(previous < current, "{child_id} is out of reading order");
             previous = current;
