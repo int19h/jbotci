@@ -275,8 +275,8 @@ fn parse_chapter(
         // that survive block parsing: an `<indexterm>` carries no visible text,
         // so it is filtered out of `prelude_nodes` below, and a term written as
         // a direct child of the chapter would be lost if the two lists were the
-        // same one. This mirrors `parse_section`, which scans its whole
-        // container including the title.
+        // same one. This mirrors `parse_section`, which scans every child of
+        // its section, including the title, except its subsections.
         index_entries.extend(index_entries_in(
             &root
                 .children()
@@ -490,6 +490,13 @@ struct ParsedSection {
 #[ensures(ret.as_ref().is_ok_and(|parsed| parsed.sections.iter().all(|section| {
     section.division == old(placement.division)
 })) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|parsed| {
+    parsed.sections[0].number == old(placement.number)
+        && parsed.sections[0].parent_section_id.as_deref() == old(placement.parent_section_id)
+        && parsed.sections[1..].iter().all(|child| {
+            child.parent_section_id.as_ref() == Some(&parsed.section_id)
+        })
+}) || ret.is_err())]
 fn parse_section(
     section_node: Node<'_, '_>,
     placement: SectionPlacement<'_>,
@@ -587,7 +594,7 @@ fn parse_section(
                 chapter_id: chapter_id,
                 division: division,
                 number: section_number.and_then(|number| number.subsection(index)),
-                fallback_id: format!("{section_id}-s{index}"),
+                fallback_id: subsection_fallback_id(&section_id, index),
                 parent_section_id: Some(section_id.as_str()),
             }),
             source_path,
@@ -647,6 +654,14 @@ fn index_entries_in(containers: &[Node<'_, '_>], section_id: &str) -> Vec<Pendin
 /// without parsing it. Chapter-level content has to name the section it is
 /// displayed with before that section has been reached, so both callers derive
 /// the id here rather than each spelling out the fallback.
+/// The id a subsection without an `xml:id` gets: its parent's id and its
+/// position, so it is unique within the parent and stable across imports.
+#[requires(!parent_section_id.is_empty())]
+#[ensures(ret.starts_with(parent_section_id))]
+fn subsection_fallback_id(parent_section_id: &str, index: NonZeroUsize) -> String {
+    format!("{parent_section_id}-s{index}")
+}
+
 #[requires(section_node.is_element())]
 #[requires(!chapter_id.is_empty())]
 #[requires(section_index > 0)]
@@ -1920,7 +1935,7 @@ fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
 /// The DocBook block vocabulary the importer understands. It deliberately
 /// exceeds what the vendored edition happens to contain: nine of these are
 /// absent from the book today - `simpara`, `screen`, `math`, the five
-/// admonitions, and, since colojban 1.3.4 typeset the PEG appendix,
+/// admonitions, and, since colojban 1.3.4 typeset the PEG word-form grammar,
 /// `programlisting`. They stay because an element that is not listed here is
 /// not rejected: it is merged into the surrounding prose without any
 /// diagnostic. Narrowing the list to the current edition would make the next
@@ -3730,7 +3745,7 @@ mod tests {
 
     /// Probes for the block handlers the current edition exercises least: the
     /// nine that are absent from the book altogether - `programlisting` among
-    /// them, since colojban 1.3.4 typeset the PEG appendix and took the book's
+    /// them, since colojban 1.3.4 typeset the PEG word-form grammar and took the book's
     /// last program listing with it, while `screen`, `simpara`, `math`, and the
     /// five admonitions have never appeared in it at all - plus
     /// `literallayout`, the one preformatted element the book still uses, which
@@ -4219,7 +4234,7 @@ mod tests {
     /// The importer's block vocabulary is a statement about the input format,
     /// DocBook, not about one edition of one document. Nine of the block
     /// elements it handles are absent from the vendored book - `programlisting`
-    /// among them, since colojban 1.3.4 typeset the PEG appendix. Because
+    /// among them, since colojban 1.3.4 typeset the PEG word-form grammar. Because
     /// unrecognized markup degrades silently (see `VENDORED_ELEMENTS`),
     /// narrowing the vocabulary to whatever the current edition happens to use
     /// would turn any future reintroduction into invisible data loss rather
@@ -4320,6 +4335,120 @@ mod tests {
             !format!("{:?}", chapter.prelude_blocks).contains("direct child"),
             "an index term is not rendered as prose"
         );
+    }
+
+    /// The book's only nested sections (colojban 1.3.5's PEG grammar under
+    /// 21.2) carry no index terms or examples and all have ids, so this probe
+    /// pins what the real corpus cannot: a subsection's terms and examples
+    /// belong to the subsection, an id-less subsection gets a fallback id
+    /// derived from its parent, and nesting two levels deep is rejected.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_sections_import_as_numbered_subsections_of_their_parent() {
+        let probe = concat!(
+            r#"<chapter xml:id="probe-chapter"><title>Probe</title>"#,
+            r#"<section xml:id="probe-parent"><title>Parent</title>"#,
+            "<para><indexterm><primary>parent term</primary></indexterm>Parent text.</para>",
+            r#"<section xml:id="probe-child"><title>Child</title>"#,
+            "<para><indexterm><primary>child term</primary></indexterm>Child text.</para>",
+            r#"<example xml:id="example-probe-child"><title/>"#,
+            "<interlinear-gloss><jbo>mi klama</jbo></interlinear-gloss></example>",
+            "</section>",
+            "<section><title>Unnamed</title><para>No id.</para></section>",
+            "</section></chapter>",
+        );
+        let document = Document::parse(probe).expect("probe chapter parses");
+        let chapter_seven = CllDivision::Chapter {
+            number: std::num::NonZeroU16::new(7).expect("non-zero"),
+        };
+        let (chapter, sections, examples, anchors, index_entries) =
+            parse_chapter(document.root_element(), chapter_seven, "07.xml")
+                .expect("the probe chapter imports");
+
+        assert_eq!(chapter.root_section_ids, ["probe-parent"]);
+        let summary = sections
+            .iter()
+            .map(|section| {
+                (
+                    section.section_id.as_str(),
+                    section.number.map(|number| number.to_string()),
+                    section.parent_section_id.as_deref(),
+                    section.child_section_ids.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            summary,
+            [
+                (
+                    "probe-parent",
+                    Some("7.1".to_owned()),
+                    None,
+                    vec!["probe-child".to_owned(), "probe-parent-s2".to_owned()],
+                ),
+                (
+                    "probe-child",
+                    Some("7.1.1".to_owned()),
+                    Some("probe-parent"),
+                    vec![]
+                ),
+                (
+                    "probe-parent-s2",
+                    Some("7.1.2".to_owned()),
+                    Some("probe-parent"),
+                    vec![]
+                ),
+            ]
+        );
+        // The parent's own blocks hold only its own text, not its children's.
+        assert!(!format!("{:?}", sections[0].blocks).contains("Child text"));
+
+        let entries = index_entries
+            .iter()
+            .map(|entry| (entry.key.as_str(), entry.section_id.as_str()))
+            .collect::<BTreeSet<_>>();
+        assert!(
+            entries.contains(&("parent term", "probe-parent")),
+            "{entries:?}"
+        );
+        assert!(
+            entries.contains(&("child term", "probe-child")),
+            "{entries:?}"
+        );
+        assert!(
+            !entries.contains(&("child term", "probe-parent")),
+            "{entries:?}"
+        );
+
+        let [example] = examples.as_slice() else {
+            panic!("the probe has one example, got {examples:?}");
+        };
+        assert_eq!(example.reference.section_id, "probe-child");
+        assert_eq!(
+            example
+                .reference
+                .section_number
+                .map(|number| number.to_string()),
+            Some("7.1.1".to_owned())
+        );
+        assert!(
+            anchors
+                .iter()
+                .any(|(id, anchor)| id == "probe-child" && anchor.label == "7.1.1. Child")
+        );
+
+        let too_deep = concat!(
+            r#"<chapter xml:id="deep"><title>Deep</title>"#,
+            r#"<section xml:id="a"><title>A</title><section xml:id="b"><title>B</title>"#,
+            r#"<section xml:id="c"><title>C</title><para>Too deep.</para></section>"#,
+            "</section></section></chapter>",
+        );
+        let document = Document::parse(too_deep).expect("deep probe parses");
+        assert!(matches!(
+            parse_chapter(document.root_element(), chapter_seven, "07.xml"),
+            Err(CllError::Parse(message)) if message.contains("two levels deep")
+        ));
     }
 
     /// A table writes its row areas either as DocBook `tgroup` children or as

@@ -384,7 +384,7 @@ fn top_heading(dialect: CllMarkdownDialect) -> &'static str {
 
 /// Append an HTML list of `section_ids`, nesting each section's subsections
 /// under it, so the table of contents shows the book's full section tree.
-#[requires(!section_ids.is_empty())]
+#[requires(true)]
 #[ensures(output.len() > old(output.len()))]
 fn push_html_toc_sections(
     site: &CllSite,
@@ -2360,7 +2360,10 @@ mod tests {
             section(r#""appendix""#, r#""23.1""#).is_err(),
             "an appendix section carries no number at all"
         );
-        assert!(section(chapter_six, r#""6.3.1""#).is_ok());
+        assert!(
+            section(chapter_six, r#""6.3.1""#).is_err(),
+            "a subsection number belongs only to a section nested under a parent"
+        );
         assert!(
             section(chapter_six, r#""22.3.1""#).is_err(),
             "a chapter 6 subsection must not carry chapter 22's number"

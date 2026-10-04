@@ -803,19 +803,7 @@ pub(super) fn render_cukta_toc_node(
     base_path: &str,
 ) -> Element {
     let filter = filter.trim().to_ascii_lowercase();
-    let visible = filter.is_empty()
-        || node.label.to_ascii_lowercase().contains(&filter)
-        || node
-            .number_label
-            .as_ref()
-            .is_some_and(|number| number.contains(&filter))
-        || node.children.iter().any(|child| {
-            child.label.to_ascii_lowercase().contains(&filter)
-                || child
-                    .number_label
-                    .as_ref()
-                    .is_some_and(|number| number.contains(&filter))
-        });
+    let visible = filter.is_empty() || toc_subtree_matches(node, &filter);
     if !visible {
         return rsx! {};
     }
@@ -904,6 +892,33 @@ pub(super) fn render_cukta_toc_node(
             }
         }
     }
+}
+
+/// Whether `node` or any node below it matches the lowercase `filter`.
+///
+/// The whole subtree is searched, not just the node and its children, so a
+/// subsection nested under a section (`21.2.3` under `21.2` under chapter 21)
+/// keeps every ancestor visible and stays reachable through the filter.
+#[requires(filter == filter.to_ascii_lowercase())]
+#[ensures(ret == (toc_node_label_matches(node, filter)
+    || node.children.iter().any(|child| toc_subtree_matches(child, filter))))]
+pub(super) fn toc_subtree_matches(node: &CuktaTocNode, filter: &str) -> bool {
+    toc_node_label_matches(node, filter)
+        || node
+            .children
+            .iter()
+            .any(|child| toc_subtree_matches(child, filter))
+}
+
+/// Whether `node`'s own label or number matches the lowercase `filter`.
+#[requires(filter == filter.to_ascii_lowercase())]
+#[ensures(true)]
+fn toc_node_label_matches(node: &CuktaTocNode, filter: &str) -> bool {
+    node.label.to_ascii_lowercase().contains(filter)
+        || node
+            .number_label
+            .as_ref()
+            .is_some_and(|number| number.contains(filter))
 }
 
 #[requires(true)]
@@ -3093,4 +3108,45 @@ pub(super) fn set_cukta_state_immediate(
     clear_cukta_search_timer();
     draft_state.set(state.clone());
     committed_state.set(state);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.label == label)]
+    fn toc_node(label: &str, number: Option<&str>, children: Vec<CuktaTocNode>) -> CuktaTocNode {
+        CuktaTocNode {
+            node_id: label.to_owned(),
+            number_label: number.map(str::to_owned),
+            label: label.to_owned(),
+            href: String::new(),
+            active: false,
+            section_id: None,
+            current: false,
+            children,
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn toc_filter_reaches_subsections_below_their_section() {
+        // Chapter 21 -> 21.2 -> 21.2.3: neither ancestor's label matches, so
+        // only a search of the whole subtree keeps the path visible.
+        let chapter = toc_node(
+            "Formal grammars",
+            Some("21"),
+            vec![toc_node(
+                "PEG word-form grammar",
+                Some("21.2"),
+                vec![toc_node("cmevla", Some("21.2.3"), Vec::new())],
+            )],
+        );
+        assert!(toc_subtree_matches(&chapter, "cmevla"));
+        assert!(toc_subtree_matches(&chapter, "21.2.3"));
+        assert!(toc_subtree_matches(&chapter.children[0], "cmevla"));
+        assert!(!toc_subtree_matches(&chapter, "gismu"));
+    }
 }

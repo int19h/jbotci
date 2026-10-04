@@ -368,6 +368,16 @@ pub struct CllChapter {
 )]
 #[invariant(!title.is_empty())]
 #[invariant(parent_section_id.as_ref().is_none_or(|section_id| !section_id.is_empty()))]
+#[invariant(
+    number.is_none_or(|number| {
+        matches!(number, CllSectionNumber::Subsection { .. }) == parent_section_id.is_some()
+    }),
+    "a numbered section carries a subsection number exactly when it is nested under a parent"
+)]
+#[invariant(
+    parent_section_id.is_none() || child_section_ids.is_empty(),
+    "the book nests one level deep, so a subsection has no subsections"
+)]
 #[invariant(!source_path.is_empty())]
 #[expensive_invariant(child_section_ids.iter().all(|section_id| !section_id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -516,20 +526,26 @@ fn cll_site_section_references_are_consistent(
                 && chapters.iter().any(|chapter| {
                     chapter.chapter_id == section.chapter_id && chapter.division == section.division
                 })
-                && section
-                    .parent_section_id
-                    .as_ref()
-                    .is_none_or(|parent_id| sections_by_id.contains_key(parent_id))
-                && section
-                    .child_section_ids
-                    .iter()
-                    .all(|child_id| sections_by_id.contains_key(child_id))
+                // Parent and child links agree both ways, within one chapter.
+                && section.parent_section_id.as_ref().is_none_or(|parent_id| {
+                    sections_by_id.get(parent_id).is_some_and(|parent| {
+                        parent.chapter_id == section.chapter_id
+                            && parent.child_section_ids.contains(section_id)
+                    })
+                })
+                && section.child_section_ids.iter().all(|child_id| {
+                    sections_by_id.get(child_id).is_some_and(|child| {
+                        child.parent_section_id.as_ref() == Some(section_id)
+                    })
+                })
         })
         && chapters.iter().all(|chapter| {
-            chapter
-                .root_section_ids
-                .iter()
-                .all(|section_id| sections_by_id.contains_key(section_id))
+            // A chapter's roots are its top-level sections, never subsections.
+            chapter.root_section_ids.iter().all(|section_id| {
+                sections_by_id
+                    .get(section_id)
+                    .is_some_and(|section| section.parent_section_id.is_none())
+            })
         })
         && section_ids_by_normalized_reference
             .iter()
