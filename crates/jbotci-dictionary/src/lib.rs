@@ -1951,6 +1951,38 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn validate_rejects_an_official_rafsi_above_the_word_type_ceiling() {
+        // Synthetic: an obsolete cmavo can hold only experimental rafsi, so a
+        // dictionary that gives it an official one is invalid, whoever built it.
+        static OFFICIAL: [Rafsi<'static>; 1] = [official("xua")];
+        let entries = &[test_entry(
+            "xua'ai",
+            WordType::ObsoleteCmavo,
+            &OFFICIAL,
+            None,
+        )];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_selmaho_index(&indexes.selmaho_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        assert!(matches!(
+            dictionary.validate(),
+            Err(DictionaryValidationError::InvalidEntry { index: 0, reason })
+                if reason == "an experimental-standing word lists an official rafsi"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn claim_standing_comes_from_the_rafsi_not_the_word_type() {
         // Synthetic: an official cmavo holding an experimental rafsi, the
         // shape Lensisku's `maz` proposal has on a non-selected definition of
