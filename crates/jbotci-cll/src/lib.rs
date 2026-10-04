@@ -2111,6 +2111,89 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn subsections_are_searched_as_sections_of_their_own() {
+        // Search — and the semantic corpus built from the same chunks — must
+        // reach a subsection's text through the subsection itself: its own
+        // section chunk, labelled and linked with its own number and id, and
+        // never through text copied into its parent's chunk.
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let peg = cll_lookup_section(site, "section-peg-grammar")
+            .expect("the PEG word-form grammar section should exist");
+        let parent_chunk = site
+            .search_chunks
+            .iter()
+            .find(|chunk| {
+                chunk.kind == CllSearchChunkKind::Section && chunk.section_id == peg.section_id
+            })
+            .expect("21.2 should have a section chunk");
+        for child_id in &peg.child_section_ids {
+            let child = cll_lookup_section(site, child_id).expect("subsection should exist");
+            let number = child.number.map(|number| number.to_string());
+            let section_chunks = site
+                .search_chunks
+                .iter()
+                .filter(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && &chunk.section_id == child_id
+                })
+                .collect::<Vec<_>>();
+            let [chunk] = section_chunks.as_slice() else {
+                panic!("{child_id} should have exactly one section chunk");
+            };
+            assert_eq!(chunk.section_number, number);
+            assert_eq!(chunk.label, format_section_display_title(child));
+            assert_eq!(cll_search_chunk_href(chunk), section_href(child_id));
+            assert!(
+                chunk
+                    .text
+                    .contains(&normalized_plain_text(&child.plain_text))
+            );
+
+            // Every other chunk of the subsection's text carries the
+            // subsection's own number and title, never its parent's.
+            for chunk in site
+                .search_chunks
+                .iter()
+                .filter(|chunk| &chunk.section_id == child_id)
+            {
+                assert_eq!(chunk.section_number, number, "{}", chunk.anchor_id);
+                assert_eq!(chunk.section_title, child.title, "{}", chunk.anchor_id);
+                if chunk.kind == CllSearchChunkKind::Paragraph {
+                    assert_eq!(
+                        chunk.label,
+                        format!("Paragraph in {}", format_section_display_title(child))
+                    );
+                }
+            }
+            assert!(
+                !parent_chunk
+                    .text
+                    .contains(&normalized_plain_text(&child.plain_text)),
+                "{child_id}'s text must not be duplicated into 21.2's chunk"
+            );
+        }
+
+        // Reading-order search lists a subsection between its parent and the
+        // next top-level section, as the table of contents does.
+        let position = |section_id: &str| {
+            site.search_chunks
+                .iter()
+                .position(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == section_id
+                })
+                .unwrap_or_else(|| panic!("{section_id} should have a section chunk"))
+        };
+        let mut previous = position(&peg.section_id);
+        for child_id in &peg.child_section_ids {
+            let current = position(child_id);
+            assert!(previous < current, "{child_id} is out of reading order");
+            previous = current;
+        }
+        assert!(previous < position(&cll_import_metadata().ebnf_section_id));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn chapter_front_matter_is_parsed_and_addressed_as_first_section_content() {
         // Content that sits outside every section belongs to the chapter, but
         // the reader only ever meets it above the chapter's first section. It

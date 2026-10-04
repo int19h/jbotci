@@ -696,6 +696,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cll_corpus_embeds_each_subsection_as_its_own_document() {
+        // Semantic search maps a hit back to the chunk at the same position,
+        // so each subsection of 21.2 must be its own document there, titled
+        // with its own number like any other section.
+        let site = jbotci_cll::embedded_cll_site().expect("embedded CLL should load");
+        let peg = jbotci_cll::cll_lookup_section(site, "section-peg-grammar")
+            .expect("the PEG word-form grammar section should exist");
+        let corpus = embedding_input_corpus().expect("the embedding corpus should build");
+        let chunks = cll_search_all_chunks(site);
+        assert_eq!(corpus.cll.len(), chunks.len());
+        for child_id in &peg.child_section_ids {
+            let child =
+                jbotci_cll::cll_lookup_section(site, child_id).expect("subsection should exist");
+            let number = child
+                .number
+                .expect("PEG subsections are numbered")
+                .to_string();
+            let index = chunks
+                .iter()
+                .position(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && &chunk.section_id == child_id
+                })
+                .unwrap_or_else(|| panic!("{child_id} should have a section chunk"));
+            let document = &corpus.cll[index];
+            assert_eq!(document.id, index);
+            assert_eq!(
+                document.kind.as_deref(),
+                Some(cll_embedding_kind(&chunks[index]))
+            );
+            let title = format!("{number}. {title} — {title}", title = child.title);
+            assert!(
+                document
+                    .input
+                    .starts_with(&format!("title: {title} | text: ")),
+                "{child_id}: {}",
+                document.input
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn document_id_hash_bytes_are_target_independent() {
         assert_eq!(document_id_hash_bytes(0), [0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(document_id_hash_bytes(1), [1, 0, 0, 0, 0, 0, 0, 0]);
