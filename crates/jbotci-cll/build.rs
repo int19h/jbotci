@@ -3,7 +3,7 @@ extern crate bityzba;
 use std::env;
 use std::fs;
 use std::io::Write;
-use std::num::{NonZeroU16, NonZeroUsize};
+use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
@@ -96,8 +96,9 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
     // `NN.xml` files are the numbered chapters and `aNN.xml` files are the
     // appendices; the sort above puts every numbered chapter before every
     // appendix, so a numbered chapter's sorted position is its chapter number
-    // and appendices never need one synthesized for them.
-    let mut numbered_chapter_count = 0usize;
+    // and appendices never need one synthesized for them. An appendix's `NN`
+    // is upstream's stable file id, not a running count: colojban 1.3.5 moved
+    // `a02` into chapter 21 and kept `a03`, so the ids may have gaps.
     for (chapter_index, path) in chapters.into_iter().enumerate() {
         let file_name = path
             .file_name()
@@ -113,17 +114,11 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .into());
                 }
-                numbered_chapter_count += 1;
             }
-            EmbeddedDivision::Appendix { number } => {
-                if chapter_index != numbered_chapter_count + number.get() - 1 {
-                    return Err(format!(
-                        "CLL appendix file {file_name} is appendix {number}, but sorted position {} does not follow the {numbered_chapter_count} numbered chapters",
-                        chapter_index + 1
-                    )
-                    .into());
-                }
-            }
+            // Nothing to check: a chapter sorted after an appendix would fail
+            // the position check above, so every appendix already follows all
+            // numbered chapters, in `aNN` order.
+            EmbeddedDivision::Appendix => {}
         }
         println!("cargo:rerun-if-changed={}", path.display());
         let source = fs::read(&path)?;
@@ -248,16 +243,15 @@ fn validate_chrestomathy_metadata(path: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-/// How a vendored chapter file names its division. The appendix ordinal is the
-/// file's own `aNN` position and is used only to check that the vendored files
-/// are complete and in order; it never becomes a chapter number.
+/// How a vendored chapter file names its division. An appendix carries no
+/// number: its `aNN` is upstream's stable file id, which may have gaps, and the
+/// book cites appendices by title and stable id rather than by ordinal.
 #[invariant(true)]
 #[invariant(::Chapter => true)]
-#[invariant(::Appendix => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EmbeddedDivision {
     Chapter { number: NonZeroU16 },
-    Appendix { number: NonZeroUsize },
+    Appendix,
 }
 
 impl EmbeddedDivision {
@@ -270,7 +264,7 @@ impl EmbeddedDivision {
             Self::Chapter { number } => format!(
                 "CllDivision::Chapter {{ number: std::num::NonZeroU16::new({number}).unwrap() }}"
             ),
-            Self::Appendix { .. } => "CllDivision::Appendix".to_owned(),
+            Self::Appendix => "CllDivision::Appendix".to_owned(),
         }
     }
 }
@@ -278,7 +272,7 @@ impl EmbeddedDivision {
 #[requires(!file_name.is_empty())]
 #[ensures(
     ret.as_ref().is_ok_and(|division| {
-        matches!(division, EmbeddedDivision::Appendix { .. }) == file_name.starts_with('a')
+        matches!(division, EmbeddedDivision::Appendix) == file_name.starts_with('a')
     }) || ret.is_err(),
     "`aNN.xml` names appendices and `NN.xml` names numbered chapters; anything else is rejected"
 )]
@@ -295,9 +289,10 @@ fn division_for_file_name(file_name: &str) -> Result<EmbeddedDivision, Box<dyn s
         && !appendix_stem.is_empty()
         && appendix_stem.chars().all(|ch| ch.is_ascii_digit())
     {
-        let number = NonZeroUsize::new(appendix_stem.parse::<usize>()?)
-            .ok_or_else(|| format!("CLL appendix file has zero appendix number: {file_name}"))?;
-        return Ok(EmbeddedDivision::Appendix { number });
+        if appendix_stem.parse::<usize>()? == 0 {
+            return Err(format!("CLL appendix file has zero appendix id: {file_name}").into());
+        }
+        return Ok(EmbeddedDivision::Appendix);
     }
     Err(format!("CLL chapter file has unsupported numeric prefix: {file_name}").into())
 }

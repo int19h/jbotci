@@ -489,7 +489,7 @@ mod tests {
             "### `gleki` — *gismu*\n\n",
             "𝑥₁ is happy/merry/glad/gleeful about 𝑥₂ (event/state).\n\n",
             "**Glosses:** `happy`\n\n",
-            "**Rafsi:** `gek`, `gei`\n\n",
+            "**Rafsi:** `gei`, `gek`\n\n",
             "---\n\n",
             "### `py` — *cmavo* · **BY2**\n\n",
             "letteral for p.\n\n",

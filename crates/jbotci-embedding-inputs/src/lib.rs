@@ -696,6 +696,64 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cll_corpus_embeds_each_subsection_as_its_own_document() {
+        // Semantic search maps a hit back to the chunk at the same position,
+        // so each subsection of 21.2 must be its own document there, titled
+        // with its own number like any other section.
+        let site = jbotci_cll::embedded_cll_site().expect("embedded CLL should load");
+        let peg = jbotci_cll::cll_lookup_section(site, "section-peg-grammar")
+            .expect("the PEG word-form grammar section should exist");
+        let corpus = embedding_input_corpus().expect("the embedding corpus should build");
+        let chunks = cll_search_all_chunks(site);
+        assert_eq!(corpus.cll.len(), chunks.len());
+        // Spelled out rather than read back from the import, so the test
+        // fails if the subsections vanish or renumber.
+        let expected_children = [
+            "peg-classes",
+            "peg-words",
+            "peg-cmevla",
+            "peg-cmavo",
+            "peg-brivla",
+            "peg-fuhivla",
+            "peg-gismu",
+            "peg-syllables",
+            "peg-vowels",
+            "peg-consonants",
+            "peg-boundaries",
+            "peg-spaces",
+            "peg-selmaho",
+        ];
+        assert_eq!(peg.child_section_ids, expected_children);
+        for (offset, child_id) in expected_children.iter().enumerate() {
+            let child =
+                jbotci_cll::cll_lookup_section(site, child_id).expect("subsection should exist");
+            let number = format!("21.2.{}", offset + 1);
+            let index = chunks
+                .iter()
+                .position(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == *child_id
+                })
+                .unwrap_or_else(|| panic!("{child_id} should have a section chunk"));
+            let document = &corpus.cll[index];
+            assert_eq!(document.id, index);
+            assert_eq!(
+                document.kind.as_deref(),
+                Some(cll_embedding_kind(&chunks[index]))
+            );
+            let title = format!("{number}. {title} — {title}", title = child.title);
+            assert!(
+                document
+                    .input
+                    .starts_with(&format!("title: {title} | text: ")),
+                "{child_id}: {}",
+                document.input
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn document_id_hash_bytes_are_target_independent() {
         assert_eq!(document_id_hash_bytes(0), [0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(document_id_hash_bytes(1), [1, 0, 0, 0, 0, 0, 0, 0]);
@@ -738,15 +796,15 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "baaf35f8f6fe22617a74efb770736886b275271510e0123c55b623582e17f011"
+            "3a13c970bc597d0a4f04e4bb35663eadbaf576cce40371d9b5ebbfce88a571b9"
         );
         assert_eq!(
             corpus.dictionary_hash,
-            "93842b1db26acb5367c43be89f832a8331e8521def8b019eac9b14c938262e77"
+            "0087b842603223a581491262ffb75088bb5d2075e619d184c53560d86ec57851"
         );
         assert_eq!(
             corpus.cll_hash,
-            "2e87a303741701a65b6dc97ea2bb6fd35af52dbb10d5f4121411038a08c3409d"
+            "a1456e9912c9478f993e99dc6d266d2d433735b5f7997120048da1282faddf65"
         );
         assert_eq!(corpus.input_hash.len(), 64);
         assert!(

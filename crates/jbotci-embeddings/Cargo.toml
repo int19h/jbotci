@@ -12,6 +12,13 @@ repository.workspace = true
 default = []
 expensive_contracts = []
 native-llama = ["dep:llama-cpp-4", "dep:llama-cpp-sys-4"]
+# Run llama.cpp on the GPU through Metal (macOS). For building embedding packs
+# on a Mac; search rankings change about as much as between two CPU builds.
+metal = ["native-llama", "llama-cpp-sys-4/metal"]
+# Compile llama.cpp for the build machine's own CPU (-mcpu=native), about 1.7x
+# faster on Apple silicon. The binary may not run on other CPUs, so this is for
+# local pack builds only, never for distributed binaries.
+native-cpu = ["native-llama", "llama-cpp-sys-4/native"]
 
 [dependencies]
 bityzba.workspace = true

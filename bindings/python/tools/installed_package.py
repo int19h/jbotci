@@ -186,6 +186,6 @@ def assert_installed_package(
 
     assert jbotci.smoke() == "jbotci native bindings ready"
     dictionary = modules["jbotci.dictionary"]
-    assert len(dictionary.english) == 30_793
+    assert len(dictionary.english) == 31_248
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english.lookup_word("tavla") is not None

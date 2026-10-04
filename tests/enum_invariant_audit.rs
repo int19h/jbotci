@@ -812,10 +812,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/jbotci-cll/build.rs:EmbeddedDivision::Appendix",
-        "the vendored appendix ordinal is a NonZeroUsize, so the variant data already expresses its positivity",
-    ),
-    (
         "crates/jbotci-cll/build.rs:EmbeddedDivision::Chapter",
         "the vendored chapter number is a NonZeroU16, so the variant data already expresses its positivity",
     ),
@@ -1028,6 +1024,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the chapter and the section index are NonZeroU16 and NonZeroUsize, so the variant data already expresses that the book counts both from one",
     ),
     (
+        "crates/jbotci-cll/src/model.rs:CllSectionNumber::Subsection",
+        "the chapter, section and index are NonZero, so every value names a real subsection",
+    ),
+    (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::WholeChapter",
         "the chapter is a NonZeroU16, so the variant data already expresses its positivity",
     ),
@@ -1096,6 +1096,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries serde's diagnostic without adding semantic state",
     ),
     (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::NonWordRowWithWordData",
+        "error report echoes the offending upstream row's word and id verbatim, whatever they are",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::RafsiListedTwice",
+        "error report echoes the offending row; its form comes from whitespace splitting, so it is never empty",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::RafsiStandingMismatch",
+        "error report echoes the offending row; the mismatched column is implied by word_type",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuRowKind::Wiki",
+        "unit variant has no payload to constrain",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuRowKind::Word",
+        "payload is a WordType, which every value of is a valid word classification",
+    ),
+    (
         "crates/jbotci-dictionary/src/import.rs:RafsiField::List",
         "raw import field accepts the upstream Lensisku list shape before normalization",
     ),
@@ -1126,6 +1146,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:RafsiAvailability::Free",
         "a free short rafsi has no claimants to constrain; the Taken alternative carries and validates the claimant list",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:RafsiSource::Listed",
+        "the payload is a RafsiClaimKind, every value of which is a valid standing",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:RafsiClaimKind::Experimental",

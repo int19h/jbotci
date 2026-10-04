@@ -576,6 +576,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw Lensisku keyword metadata preserves upstream scalar shape",
     ),
     (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuRow",
+        "verbatim Lensisku export row; into_entry checks rafsi standing before it becomes an entry",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DefinitionId",
         "Lensisku definition ids are opaque upstream identifiers",
     ),

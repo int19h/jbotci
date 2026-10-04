@@ -544,7 +544,13 @@ mod tests {
 
         for entry in jbotci_dictionary_data::english().entries() {
             for rafsi in entry.rafsi {
-                assert_dictionary_rafsi_transliterates(rafsi.0, entry.word, RafsiSource::Listed);
+                assert_dictionary_rafsi_transliterates(
+                    rafsi.form,
+                    entry.word,
+                    RafsiSource::Listed {
+                        standing: rafsi.standing,
+                    },
+                );
                 listed_count += 1;
             }
 

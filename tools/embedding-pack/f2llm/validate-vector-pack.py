@@ -43,7 +43,12 @@ def main() -> None:
 
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else Path(args.q4_onnx).parent.parent
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
-    session = ort.InferenceSession(str(args.q4_onnx), providers=["CPUExecutionProvider"])
+    session_options = ort.SessionOptions()
+    if args.threads is not None:
+        session_options.intra_op_num_threads = args.threads
+    session = ort.InferenceSession(
+        str(args.q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
+    )
 
     comparisons = []
     for corpus_manifest in manifest["corpora"]:
@@ -93,11 +98,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--include-wasm-runtime", action="store_true")
     parser.add_argument("--sample-rows", type=int, default=3)
     parser.add_argument("--threshold", type=float, default=0.999)
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX Runtime intra-op threads (default: one per core)",
+    )
     args = parser.parse_args()
     if args.sample_rows <= 0:
         raise ValueError("--sample-rows must be positive")
     if not 0.0 < args.threshold <= 1.0:
         raise ValueError("--threshold must be in (0, 1]")
+    if args.threads is not None and args.threads <= 0:
+        raise ValueError("--threads must be positive")
     if args.dimensions <= 0:
         raise ValueError("--dimensions must be positive")
     if args.max_sequence_length <= 1:

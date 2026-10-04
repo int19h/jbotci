@@ -6,7 +6,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
-use std::num::NonZeroU16;
+use std::num::{NonZeroU16, NonZeroUsize};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -138,6 +138,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: F2LLM_80M_MODEL_ID,
         q4_onnx_relative: F2LLM_80M_Q4_ONNX_RELATIVE,
         dimensions: F2LLM_80M_DIMENSIONS,
+        parameters_millions: 80,
         webgpu_artifact_dir_name: "f2llm-v2-80m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-80m-webgpu/v1",
         include_wasm_runtime: true,
@@ -148,6 +149,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-160M",
         q4_onnx_relative: "f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 640,
+        parameters_millions: 160,
         webgpu_artifact_dir_name: "f2llm-v2-160m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-160m-webgpu/v1",
         include_wasm_runtime: false,
@@ -158,6 +160,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-330M",
         q4_onnx_relative: "f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 896,
+        parameters_millions: 330,
         webgpu_artifact_dir_name: "f2llm-v2-330m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-330m-webgpu/v1",
         include_wasm_runtime: false,
@@ -168,6 +171,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-0.6B",
         q4_onnx_relative: "f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 1024,
+        parameters_millions: 600,
         webgpu_artifact_dir_name: "f2llm-v2-0.6b-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-0.6b-webgpu/v1",
         include_wasm_runtime: false,
@@ -183,6 +187,9 @@ struct F2LlmAssetSpec {
     model_id: &'static str,
     q4_onnx_relative: &'static str,
     dimensions: usize,
+    /// Model size in millions of parameters. The parallel vector build starts
+    /// the largest model first, because it bounds the total time.
+    parameters_millions: u32,
     webgpu_artifact_dir_name: &'static str,
     webgpu_r2_prefix: &'static str,
     include_wasm_runtime: bool,
@@ -217,6 +224,7 @@ struct Cli {
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::BuildF2LlmWebgpuModel(..) => true)]
 #[invariant(::BuildF2LlmWebgpuVectors(..) => true)]
+#[invariant(::BuildF2LlmWebgpuAssets(..) => true)]
 #[invariant(::BuildGgufEmbeddings(..) => true)]
 #[invariant(::F2LlmExtractionGate(..) => true)]
 #[invariant(::F2LlmGoldenGate(..) => true)]
@@ -255,6 +263,10 @@ enum Command {
     BuildF2LlmWebgpuModel(BuildF2LlmWebgpuModelArgs),
     #[command(name = "build-f2llm-webgpu-vectors")]
     BuildF2LlmWebgpuVectors(BuildF2LlmWebgpuVectorsArgs),
+    /// Build every F2LLM model artifact and the merged four-model vector
+    /// pack, without publishing anything.
+    #[command(name = "build-f2llm-webgpu-assets")]
+    BuildF2LlmWebgpuAssets(BuildF2LlmWebgpuAssetsArgs),
     #[command(name = "build-gguf-embeddings")]
     BuildGgufEmbeddings(BuildGgufEmbeddingsArgs),
     #[command(name = "f2llm-extraction-gate")]
@@ -614,6 +626,10 @@ struct BuildWebEmbeddingsArgs {
     dtypes: Vec<String>,
     #[arg(long, default_value = "transformers")]
     backend: String,
+    /// Replace the bundle's embedding packs and the shared model artifacts if
+    /// they already exist (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -640,6 +656,9 @@ struct BuildF2LlmWebgpuModelArgs {
     shard_size: usize,
     #[arg(long, default_value = "python3")]
     python: String,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -669,6 +688,42 @@ struct BuildF2LlmWebgpuVectorsArgs {
     batch_size: usize,
     #[arg(long, default_value = "python3")]
     python: String,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
+    /// ONNX Runtime threads (default: one per core).
+    #[arg(long)]
+    threads: Option<NonZeroUsize>,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct BuildF2LlmWebgpuAssetsArgs {
+    #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_ROOT_DIR)]
+    model_out_root: PathBuf,
+    #[arg(long, default_value = F2LLM_VECTOR_PACK_OUT_DIR)]
+    vector_out_dir: PathBuf,
+    #[arg(long)]
+    corpus: Option<PathBuf>,
+    #[arg(long)]
+    tokenizer_dir: Option<PathBuf>,
+    #[arg(long)]
+    f2llm_artifact_root: Option<PathBuf>,
+    #[arg(long, default_value_t = 8)]
+    batch_size: usize,
+    #[arg(long, default_value = "python3")]
+    python: String,
+    /// Replace the model and vector directories if they already exist
+    /// (refused by default).
+    #[arg(long)]
+    overwrite: bool,
+    /// How many model vector builds run at once (default 1).
+    #[arg(long, default_value_t = NonZeroUsize::MIN)]
+    jobs: NonZeroUsize,
+    /// ONNX Runtime threads per vector build (default: the cores divided
+    /// evenly between the jobs).
+    #[arg(long)]
+    threads_per_job: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Args)]
@@ -684,6 +739,40 @@ struct BuildGgufEmbeddingsArgs {
     models: Vec<String>,
     #[arg(long)]
     skip_validation: bool,
+    /// Replace the output directory if it already exists (refused by default).
+    #[arg(long)]
+    overwrite: bool,
+    /// How llama.cpp computes the vectors.
+    #[arg(long, value_enum, default_value_t = LlamaBackend::Cpu)]
+    llama_backend: LlamaBackend,
+}
+
+/// Which llama.cpp build computes native embedding vectors.
+///
+/// Pack builds embed tens of thousands of inputs, so they can opt into faster
+/// builds that are unsuitable for distributed binaries: `metal` runs on the
+/// GPU of an Apple-silicon Mac (search rankings change about as much as
+/// between two CPU builds), and `native-cpu` compiles for the build machine's
+/// own CPU.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum LlamaBackend {
+    Cpu,
+    NativeCpu,
+    Metal,
+}
+
+impl LlamaBackend {
+    /// The `jbotci` cargo feature that selects this build, if any.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self == Self::Cpu))]
+    fn jbotci_feature(self) -> Option<&'static str> {
+        match self {
+            Self::Cpu => None,
+            Self::NativeCpu => Some("embeddings-native-cpu"),
+            Self::Metal => Some("embeddings-metal"),
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -718,6 +807,10 @@ struct PublishWebEmbeddingsR2Args {
     embedding_dtypes: Vec<String>,
     #[arg(long, default_value = "transformers")]
     backend: String,
+    /// Replace `--out-dir` and the shared model artifacts if they already
+    /// exist (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -745,6 +838,17 @@ struct PublishF2LlmWebgpuR2Args {
     remote_catalog_url: String,
     #[arg(long)]
     skip_build: bool,
+    /// Replace the staged model and vector directories if they already exist
+    /// (refused by default; irrelevant with `--skip-build`).
+    #[arg(long)]
+    overwrite: bool,
+    /// How many model vector builds run at once (default 1).
+    #[arg(long, default_value_t = NonZeroUsize::MIN)]
+    jobs: NonZeroUsize,
+    /// ONNX Runtime threads per vector build (default: the cores divided
+    /// evenly between the jobs).
+    #[arg(long)]
+    threads_per_job: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Args)]
@@ -768,6 +872,13 @@ struct PublishGgufEmbeddingsR2Args {
     skip_build: bool,
     #[arg(long)]
     skip_validation: bool,
+    /// Replace the staged pack directory if it already exists (refused by
+    /// default; irrelevant with `--skip-build`).
+    #[arg(long)]
+    overwrite: bool,
+    /// How llama.cpp computes the vectors when building.
+    #[arg(long, value_enum, default_value_t = LlamaBackend::Cpu)]
+    llama_backend: LlamaBackend,
 }
 
 #[derive(Debug, Args)]
@@ -1222,6 +1333,7 @@ fn main() -> Result<()> {
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::BuildF2LlmWebgpuModel(args) => build_f2llm_webgpu_model(args),
         Command::BuildF2LlmWebgpuVectors(args) => build_f2llm_webgpu_vectors(args),
+        Command::BuildF2LlmWebgpuAssets(args) => build_f2llm_webgpu_assets(args),
         Command::BuildGgufEmbeddings(args) => build_gguf_embeddings(args),
         Command::F2LlmExtractionGate(args) => f2llm_extraction_gate(args),
         Command::F2LlmGoldenGate(args) => f2llm_golden_gate(args),
@@ -2400,6 +2512,15 @@ fn export_web_embedding_corpus(args: ExportWebEmbeddingCorpusArgs) -> Result<()>
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
     let web_dist = absolute_path(&args.web_dist)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    let outputs = new!(WebEmbeddingOutputs {
+        model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        models: existing_output,
+        vectors: existing_output,
+    });
+    // Checked before the corpus export below, so a refused run changes nothing.
+    existing_output.check(&web_embedding_assets_dir(&web_dist))?;
+    outputs.check_models()?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2408,7 +2529,7 @@ fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
             output
         }
     };
-    build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend)
+    build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend, outputs)
 }
 
 #[requires(!args.python.trim().is_empty())]
@@ -2424,6 +2545,8 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
     }
     let out_dir = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    existing_output.check(&out_dir)?;
     let mut command = ProcessCommand::new(&args.python);
     command
         .arg("tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py")
@@ -2440,6 +2563,9 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
     if let Some(model_root) = args.model_root {
         command.arg("--model-root").arg(absolute_path(&model_root)?);
     }
+    if existing_output == ExistingOutput::Replace {
+        command.arg("--overwrite");
+    }
     if let Some(stage) = args.stage {
         command.arg("--stage").arg(absolute_path(&stage)?);
     }
@@ -2451,7 +2577,10 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py",
+        &format!(
+            "{} tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py",
+            args.python
+        ),
     )
 }
 
@@ -2465,6 +2594,8 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_key,
     )?;
     let out_dir = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    existing_output.check(&out_dir)?;
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     run_f2llm_vector_builder(
         &args.python,
@@ -2478,6 +2609,8 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_id,
         args.dimensions,
         args.include_wasm_runtime,
+        existing_output,
+        args.threads,
     )?;
     run_f2llm_vector_validator(
         &args.python,
@@ -2488,6 +2621,44 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_key,
         args.dimensions,
         args.include_wasm_runtime,
+        args.threads,
+    )
+}
+
+/// Build exactly what `publish-f2llm-webgpu-r2` builds, into local
+/// directories, so the four packs can be inspected and validated before a
+/// separate `--skip-build` publish.
+#[requires(!args.python.trim().is_empty())]
+#[requires(args.batch_size > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
+    let model_out_root = absolute_path(&args.model_out_root)?;
+    let vector_out_dir = absolute_path(&args.vector_out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    // Checked before the corpus export below, so a refused run changes
+    // nothing. The ONNX fallback is built under `model_out_root` too.
+    existing_output.check(&model_out_root)?;
+    existing_output.check(&vector_out_dir)?;
+    let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
+    build_all_f2llm_webgpu_assets(
+        &args.python,
+        &model_out_root,
+        &vector_out_dir,
+        &corpus,
+        args.tokenizer_dir.as_deref(),
+        args.f2llm_artifact_root.as_deref(),
+        args.batch_size,
+        existing_output,
+        existing_output,
+        VectorBuildParallelism {
+            jobs: args.jobs,
+            threads_per_job: args.threads_per_job,
+        },
+    )?;
+    build_f2llm_onnx_fallback_asset(
+        &model_out_root,
+        args.f2llm_artifact_root.as_deref(),
+        existing_output,
     )
 }
 
@@ -2500,6 +2671,14 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let model_out_root = absolute_path(&args.model_out_root)?;
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    if !args.skip_build {
+        // Checked before the corpus export below, so a refused run changes
+        // nothing. The ONNX fallback is also built under `model_out_root`, so
+        // checking the root covers it along with every model artifact.
+        existing_output.check(&model_out_root)?;
+        existing_output.check(&vector_out_dir)?;
+    }
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     if !args.skip_build {
         build_all_f2llm_webgpu_assets(
@@ -2510,8 +2689,18 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
             args.tokenizer_dir.as_deref(),
             args.f2llm_artifact_root.as_deref(),
             args.batch_size,
+            existing_output,
+            existing_output,
+            VectorBuildParallelism {
+                jobs: args.jobs,
+                threads_per_job: args.threads_per_job,
+            },
         )?;
-        build_f2llm_onnx_fallback_asset(&model_out_root, args.f2llm_artifact_root.as_deref())?;
+        build_f2llm_onnx_fallback_asset(
+            &model_out_root,
+            args.f2llm_artifact_root.as_deref(),
+            existing_output,
+        )?;
     } else {
         validate_all_f2llm_vector_packs(
             &args.python,
@@ -2566,21 +2755,24 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
     let index_dir = absolute_path(&args.index_dir)?;
     let models = selected_gguf_model_keys(&args.models)?;
+    ExistingOutput::from_overwrite_flag(args.overwrite).check(&out_dir)?;
     remove_path_if_exists(&out_dir)?;
     fs::create_dir_all(out_dir.join("models"))
         .with_context(|| format!("creating `{}`", out_dir.join("models").display()))?;
     let mut catalog_models = Vec::new();
     for model in &models {
         let model_index_dir = index_dir.join(model);
+        // The index directory is scratch: the pack is copied out of it into
+        // `out_dir`, which is the guarded output.
         remove_path_if_exists(&model_index_dir)?;
         fs::create_dir_all(&model_index_dir)
             .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
         let mut command = ProcessCommand::new("cargo");
+        command.arg("run").arg("--release").arg("-p").arg("jbotci");
+        if let Some(feature) = args.llama_backend.jbotci_feature() {
+            command.arg("--features").arg(feature);
+        }
         command
-            .arg("run")
-            .arg("--release")
-            .arg("-p")
-            .arg("jbotci")
             .arg("--")
             .arg("setup")
             .arg("--embedding")
@@ -2658,6 +2850,8 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
             model_dir: args.model_dir,
             models: selected_models.to_vec(),
             skip_validation: args.skip_validation,
+            overwrite: args.overwrite,
+            llama_backend: args.llama_backend,
         })?;
     } else {
         validate_native_gguf_r2_tree(&out_dir)?;
@@ -2698,6 +2892,15 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
     let output = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    let outputs = new!(WebEmbeddingOutputs {
+        model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        models: existing_output,
+        vectors: existing_output,
+    });
+    // Checked before the corpus export below, so a refused run changes nothing.
+    existing_output.check(&output)?;
+    outputs.check_models()?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2706,7 +2909,13 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
             output
         }
     };
-    build_web_embedding_assets_to(&output, &corpus, &args.embedding_dtypes, &args.backend)?;
+    build_web_embedding_assets_to(
+        &output,
+        &corpus,
+        &args.embedding_dtypes,
+        &args.backend,
+        outputs,
+    )?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
     put_r2_objects(&args.bucket, &objects)?;
     Ok(())
@@ -3176,11 +3385,27 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
     if !args.skip_web_embeddings {
         let corpus = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
         write_web_embedding_corpus(&corpus)?;
+        // The bundle is this command's own output, regenerated on every run,
+        // so its packs are replaced. The models it exports on the way go to a
+        // directory reserved for the bundle rather than the shared default
+        // model root, which standalone builds and publishing use.
+        let model_out_root = out_dir.with_file_name(format!(
+            "{}.f2llm-models",
+            out_dir
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("jbotci-web")
+        ));
         build_web_embedding_assets(
             &web_dist,
             &corpus,
             &args.embedding_dtypes,
             &args.embedding_backend,
+            new!(WebEmbeddingOutputs {
+                model_out_root: &model_out_root,
+                models: ExistingOutput::Replace,
+                vectors: ExistingOutput::Replace,
+            }),
         )?;
     }
     server_bundle_path(&out_dir).map(|_| ())
@@ -3498,13 +3723,53 @@ fn build_web_embedding_assets(
     corpus: &Path,
     dtypes: &[String],
     backend: &str,
+    outputs: WebEmbeddingOutputs<'_>,
 ) -> Result<()> {
-    let output = web_dist
+    build_web_embedding_assets_to(
+        &web_embedding_assets_dir(web_dist),
+        corpus,
+        dtypes,
+        backend,
+        outputs,
+    )
+}
+
+/// Where a web bundle keeps its embedding packs.
+#[requires(true)]
+#[ensures(ret.starts_with(web_dist))]
+fn web_embedding_assets_dir(web_dist: &Path) -> PathBuf {
+    web_dist
         .join("assets")
         .join("embeddings")
         .join("web")
-        .join("v1");
-    build_web_embedding_assets_to(&output, corpus, dtypes, backend)
+        .join("v1")
+}
+
+/// Where the web embedding build writes the WebGPU model artifacts it exports
+/// on the way, and what it may do with existing model and vector outputs.
+#[invariant(
+    model_out_root.components().next().is_some(),
+    "model artifact directories are derived from a non-empty root"
+)]
+#[derive(Debug, Clone, Copy)]
+struct WebEmbeddingOutputs<'a> {
+    model_out_root: &'a Path,
+    models: ExistingOutput,
+    vectors: ExistingOutput,
+}
+
+impl WebEmbeddingOutputs<'_> {
+    /// Check every model artifact directory against the model policy, so a
+    /// command can refuse before its corpus export.
+    #[requires(true)]
+    #[ensures(self.models == ExistingOutput::Replace -> ret.is_ok())]
+    fn check_models(&self) -> Result<()> {
+        for spec in F2LLM_MODEL_SPECS {
+            self.models
+                .check(&f2llm_model_artifact_out_dir(self.model_out_root, spec))?;
+        }
+        Ok(())
+    }
 }
 
 #[requires(corpus.is_file())]
@@ -3516,16 +3781,20 @@ fn build_web_embedding_assets_to(
     corpus: &Path,
     dtypes: &[String],
     backend: &str,
+    outputs: WebEmbeddingOutputs<'_>,
 ) -> Result<()> {
     let _ = (dtypes, backend);
     build_all_f2llm_webgpu_assets(
         "python3",
-        Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        outputs.model_out_root,
         output,
         corpus,
         None,
         None,
         8,
+        outputs.models,
+        outputs.vectors,
+        VectorBuildParallelism::SEQUENTIAL,
     )
 }
 
@@ -3606,9 +3875,47 @@ fn resolve_f2llm_q4_onnx(
     resolve_f2llm_spec_q4_onnx(spec, artifact_root)
 }
 
+/// Sets the shared failure flag when dropped during unwinding (normal exit
+/// forgets it), so a panicking vector-build worker stops the queue.
+#[invariant(true)]
+struct StopQueueOnUnwind<'a> {
+    failed: &'a std::sync::atomic::AtomicBool,
+}
+
+impl Drop for StopQueueOnUnwind<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        self.failed.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// How many model vector builds run at once, and how many ONNX Runtime
+/// threads each gets.
+///
+/// Per-process throughput stops improving at a few threads (measured on an M1
+/// Ultra: 7.4 docs/s at 2 threads, 12.6 at 4, 19.0 at 8, 19.9 at 16), so
+/// several models each limited to a few threads finish far sooner than one
+/// model at a time with every core.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct VectorBuildParallelism {
+    jobs: NonZeroUsize,
+    threads_per_job: Option<NonZeroUsize>,
+}
+
+impl VectorBuildParallelism {
+    /// One model at a time, ONNX Runtime's default threading.
+    const SEQUENTIAL: Self = Self {
+        jobs: NonZeroUsize::MIN,
+        threads_per_job: None,
+    };
+}
+
 #[requires(!python.trim().is_empty())]
 #[requires(batch_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+#[allow(clippy::too_many_arguments)]
 fn build_all_f2llm_webgpu_assets(
     python: &str,
     model_out_root: &Path,
@@ -3617,7 +3924,16 @@ fn build_all_f2llm_webgpu_assets(
     tokenizer_dir: Option<&Path>,
     artifact_root: Option<&Path>,
     batch_size: usize,
+    models: ExistingOutput,
+    vectors: ExistingOutput,
+    parallelism: VectorBuildParallelism,
 ) -> Result<()> {
+    // Check every output up front, before hours of model export and
+    // embedding work, rather than failing on the last model.
+    vectors.check(vector_out_dir)?;
+    for spec in F2LLM_MODEL_SPECS {
+        models.check(&f2llm_model_artifact_out_dir(model_out_root, spec))?;
+    }
     let vector_parts_root = vector_out_dir.with_file_name(format!(
         "{}.parts",
         vector_out_dir
@@ -3625,10 +3941,15 @@ fn build_all_f2llm_webgpu_assets(
             .and_then(|name| name.to_str())
             .unwrap_or("r2-web-embeddings-f2llm")
     ));
+    // The parts directory is intermediate: the merge below copies every part
+    // into the real output, so a stale one is always discarded.
     fs::remove_dir_all(&vector_parts_root).ok();
     fs::create_dir_all(&vector_parts_root)
         .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
-    let mut part_dirs = Vec::new();
+
+    // Model export is quick, so it runs first and in order; the vector builds
+    // are the long part and run up to `parallelism.jobs` at a time.
+    let mut jobs = Vec::new();
     for spec in F2LLM_MODEL_SPECS {
         let q4_onnx = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
         build_f2llm_webgpu_model(BuildF2LlmWebgpuModelArgs {
@@ -3641,13 +3962,31 @@ fn build_all_f2llm_webgpu_assets(
             stage: None,
             shard_size: 4 * 1024 * 1024,
             python: python.to_owned(),
+            overwrite: models == ExistingOutput::Replace,
         })?;
-        let part_dir = vector_parts_root.join(spec.id);
+        jobs.push((spec, q4_onnx, vector_parts_root.join(spec.id)));
+    }
+
+    // Largest model first: the 0.6b build is about half the work, so it bounds
+    // the total time and must not start last.
+    let mut queue = jobs.iter().collect::<Vec<_>>();
+    queue.sort_by_key(|(spec, _, _)| std::cmp::Reverse(spec.parameters_millions));
+    let workers = parallelism.jobs.get().min(queue.len()).max(1);
+    // Without an explicit count, the workers actually started split the cores
+    // evenly (at least one thread each), so `--jobs` alone never
+    // oversubscribes them and never leaves cores idle.
+    let threads_per_job = parallelism.threads_per_job.or_else(|| {
+        (workers > 1)
+            .then(|| std::thread::available_parallelism().ok())
+            .flatten()
+            .map(|cores| NonZeroUsize::new(cores.get() / workers).unwrap_or(NonZeroUsize::MIN))
+    });
+    let build_part = |(spec, q4_onnx, part_dir): &(&F2LlmAssetSpec, PathBuf, PathBuf)| {
         run_f2llm_vector_builder(
             python,
-            &q4_onnx,
+            q4_onnx,
             tokenizer_dir,
-            &part_dir,
+            part_dir,
             None,
             corpus,
             batch_size,
@@ -3655,20 +3994,81 @@ fn build_all_f2llm_webgpu_assets(
             spec.model_id,
             spec.dimensions,
             spec.include_wasm_runtime,
-        )?;
-        run_f2llm_vector_validator(
-            python,
-            &q4_onnx,
-            tokenizer_dir,
-            &part_dir,
-            corpus,
-            spec.model_key,
-            spec.dimensions,
-            spec.include_wasm_runtime,
-        )?;
-        part_dirs.push(part_dir);
+            // The parts root was just emptied, so a part dir that exists here
+            // would be a bug, never an output worth replacing.
+            ExistingOutput::Refuse,
+            threads_per_job,
+        )
+        .and_then(|()| {
+            run_f2llm_vector_validator(
+                python,
+                q4_onnx,
+                tokenizer_dir,
+                part_dir,
+                corpus,
+                spec.model_key,
+                spec.dimensions,
+                spec.include_wasm_runtime,
+                threads_per_job,
+            )
+        })
+        .with_context(|| format!("building the {} vector pack", spec.model_key))
+    };
+    // A shared queue: each worker takes the next model until none remain or
+    // some build has failed (or panicked), so a failure stops new builds from
+    // starting while the running ones finish.
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let failed = std::sync::atomic::AtomicBool::new(false);
+    let errors = std::sync::Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                // Marks the queue failed if this worker unwinds, so a panic
+                // stops new builds just as an error does.
+                let guard = StopQueueOnUnwind { failed: &failed };
+                while !failed.load(std::sync::atomic::Ordering::SeqCst) {
+                    let index = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let Some(job) = queue.get(index) else {
+                        break;
+                    };
+                    if let Err(error) = build_part(job) {
+                        failed.store(true, std::sync::atomic::Ordering::SeqCst);
+                        errors
+                            .lock()
+                            .expect("no worker panics while holding the lock")
+                            .push(error);
+                    }
+                }
+                std::mem::forget(guard);
+            });
+        }
+    });
+    let mut errors = errors
+        .into_inner()
+        .expect("no worker panicked while holding the lock")
+        .into_iter();
+    if let Some(first) = errors.next() {
+        // Report every failed model, side by side rather than as a chain of
+        // causes, not only the first to finish.
+        let rest = errors.collect::<Vec<_>>();
+        if rest.is_empty() {
+            return Err(first);
+        }
+        let mut message = format!("{} vector builds failed:\n- {first:#}", rest.len() + 1);
+        for error in rest {
+            message.push_str(&format!("\n- {error:#}"));
+        }
+        bail!(message);
     }
-    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir)
+    let part_dirs = jobs
+        .into_iter()
+        .map(|(_, _, part_dir)| part_dir)
+        .collect::<Vec<_>>();
+    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)?;
+    // The merged output now holds a copy of every part. A failed run keeps
+    // its parts for inspection; the next run discards them anyway.
+    fs::remove_dir_all(&vector_parts_root)
+        .with_context(|| format!("removing `{}`", vector_parts_root.display()))
 }
 
 #[requires(!python.trim().is_empty())]
@@ -3691,6 +4091,7 @@ fn validate_all_f2llm_vector_packs(
             spec.model_key,
             spec.dimensions,
             spec.include_wasm_runtime,
+            None,
         )?;
     }
     Ok(())
@@ -3699,7 +4100,11 @@ fn validate_all_f2llm_vector_packs(
 #[requires(!part_dirs.is_empty())]
 #[requires(part_dirs.iter().all(|path| path.is_dir()))]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn merge_f2llm_vector_pack_parts(part_dirs: &[PathBuf], out_dir: &Path) -> Result<()> {
+fn merge_f2llm_vector_pack_parts(
+    part_dirs: &[PathBuf],
+    out_dir: &Path,
+    existing_output: ExistingOutput,
+) -> Result<()> {
     let stage = out_dir.with_file_name(format!(
         "{}.staging",
         out_dir
@@ -3734,7 +4139,7 @@ fn merge_f2llm_vector_pack_parts(part_dirs: &[PathBuf], out_dir: &Path) -> Resul
             "models": models,
         }),
     )?;
-    promote_directory(&stage, out_dir)
+    promote_directory(&stage, out_dir, existing_output)
 }
 
 #[requires(source.is_dir())]
@@ -3780,7 +4185,10 @@ fn copy_dir_recursive(source: &Path, target: &Path, description: &str) -> Result
 
 #[requires(stage.is_dir())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
+fn promote_directory(stage: &Path, output: &Path, existing_output: ExistingOutput) -> Result<()> {
+    existing_output.check(output)?;
+    // `<output>.previous` is promotion's own rollback copy, never a build
+    // output, so it is always removed.
     let backup = output.with_file_name(format!(
         "{}.previous",
         output
@@ -3806,13 +4214,19 @@ fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
 
 #[requires(root.components().next().is_some())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_f2llm_onnx_fallback_asset(root: &Path, artifact_root: Option<&Path>) -> Result<()> {
+fn build_f2llm_onnx_fallback_asset(
+    root: &Path,
+    artifact_root: Option<&Path>,
+    existing_output: ExistingOutput,
+) -> Result<()> {
     let spec = F2LLM_MODEL_SPECS
         .iter()
         .find(|spec| spec.include_wasm_runtime)
         .context("F2LLM model table must contain a WASM fallback model")?;
     let source = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
     let output = f2llm_onnx_fallback_out_dir(root);
+    existing_output.check(&output)?;
+    // The staging directory is this function's own scratch, never an output.
     let stage = output.with_file_name("v1.staging");
     fs::remove_dir_all(&stage).ok();
     fs::create_dir_all(&stage).with_context(|| format!("creating `{}`", stage.display()))?;
@@ -3841,7 +4255,7 @@ fn build_f2llm_onnx_fallback_asset(root: &Path, artifact_root: Option<&Path>) ->
             "dimensions": spec.dimensions,
         }),
     )?;
-    promote_directory(&stage, &output)
+    promote_directory(&stage, &output, existing_output)
 }
 
 #[requires(!python.trim().is_empty())]
@@ -3861,6 +4275,8 @@ fn run_f2llm_vector_builder(
     model_id: &str,
     dimensions: usize,
     include_wasm_runtime: bool,
+    existing_output: ExistingOutput,
+    threads: Option<NonZeroUsize>,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -3892,6 +4308,12 @@ fn run_f2llm_vector_builder(
     if include_wasm_runtime {
         command.arg("--include-wasm-runtime");
     }
+    if existing_output == ExistingOutput::Replace {
+        command.arg("--overwrite");
+    }
+    if let Some(threads) = threads {
+        command.arg("--threads").arg(threads.to_string());
+    }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command
             .arg("--tokenizer-dir")
@@ -3908,7 +4330,7 @@ fn run_f2llm_vector_builder(
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/build-vector-pack.py",
+        &format!("{python} tools/embedding-pack/f2llm/build-vector-pack.py"),
     )
 }
 
@@ -3925,6 +4347,7 @@ fn run_f2llm_vector_validator(
     model_key: &str,
     dimensions: usize,
     include_wasm_runtime: bool,
+    threads: Option<NonZeroUsize>,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -3955,6 +4378,9 @@ fn run_f2llm_vector_validator(
     if include_wasm_runtime {
         command.arg("--include-wasm-runtime");
     }
+    if let Some(threads) = threads {
+        command.arg("--threads").arg(threads.to_string());
+    }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command
             .arg("--tokenizer-dir")
@@ -3968,7 +4394,7 @@ fn run_f2llm_vector_validator(
     })?;
     check_status(
         status,
-        "python3 tools/embedding-pack/f2llm/validate-vector-pack.py",
+        &format!("{python} tools/embedding-pack/f2llm/validate-vector-pack.py"),
     )
 }
 
@@ -4688,12 +5114,16 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
         .with_context(|| format!("writing `{}`", paths.metadata.display()))?;
     println!(
         "vendored {} Lensisku definition(s) into `{}`; {} entr(ies) survive, dropping {} \
-         undefined and {} duplicate definition(s)",
+         non-word, {} undefined and {} duplicate definition(s)",
         counts.definition_count,
         paths.dictionary.display(),
         counts.entry_count,
+        counts.non_word_count,
         counts.undefined_count,
-        counts.definition_count - counts.undefined_count - counts.entry_count
+        counts.definition_count
+            - counts.non_word_count
+            - counts.undefined_count
+            - counts.entry_count
     );
     Ok(())
 }
@@ -4727,12 +5157,15 @@ impl DictionarySnapshotPaths {
 
 /// How many definitions a snapshot holds, and how many entries it embeds.
 #[invariant(
-    entry_count + undefined_count <= *definition_count,
-    "selection and the undefined-row discard drop definitions, never invent them"
+    entry_count + non_word_count + undefined_count <= *definition_count,
+    "the non-word, undefined-row and selection discards drop rows, never invent them"
 )]
 #[derive(Debug, Clone, Copy)]
 struct DictionarySnapshotCounts {
     definition_count: usize,
+    /// Rows that are not dictionary words at all, such as Lensisku `wiki`
+    /// articles.
+    non_word_count: usize,
     /// Rows discarded for having no definition text at all.
     undefined_count: usize,
     entry_count: usize,
@@ -4747,11 +5180,13 @@ struct DictionarySnapshotCounts {
 #[ensures(true)]
 fn dictionary_snapshot_counts(dictionary_text: &str) -> Result<DictionarySnapshotCounts> {
     let mut imported = parse_lensisku_json(dictionary_text)?;
-    let definition_count = imported.entries.len();
+    let definition_count = imported.row_count();
+    let non_word_count = imported.non_word_row_count;
     let undefined_count = imported.retain_defined_entries();
     imported.retain_best_definition_per_word();
     Ok(new!(DictionarySnapshotCounts {
         definition_count: definition_count,
+        non_word_count: non_word_count,
         undefined_count: undefined_count,
         entry_count: imported.entries.len(),
     }))
@@ -6773,6 +7208,56 @@ fn wiki_sibling_work_dir(output: &Path, suffix: &str) -> Result<PathBuf> {
         .context("system clock is before Unix epoch")?
         .as_nanos();
     Ok(parent.join(format!(".{name}.{suffix}-{}-{nonce}", std::process::id())))
+}
+
+/// What a build command may do with an output directory that already exists.
+///
+/// Build outputs take hours of compute, and a command that silently replaced
+/// its output once discarded three finished embedding packs when several runs
+/// shared one output directory. So replacing is opt-in through `--overwrite`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum ExistingOutput {
+    Refuse,
+    Replace,
+}
+
+impl ExistingOutput {
+    #[requires(true)]
+    #[ensures((ret == Self::Replace) == overwrite)]
+    fn from_overwrite_flag(overwrite: bool) -> Self {
+        if overwrite {
+            Self::Replace
+        } else {
+            Self::Refuse
+        }
+    }
+
+    /// Fail if `path` exists and replacing is not allowed.
+    ///
+    /// Commands call this before any work starts, and promotion calls it again
+    /// just before moving a finished build into place, so an output that
+    /// appeared during a long run (say, from an overlapping run) is not
+    /// replaced either. `symlink_metadata` treats a dangling symlink as
+    /// present, and any error other than "not found" fails rather than being
+    /// read as absence.
+    #[requires(true)]
+    #[ensures(self == Self::Replace -> ret.is_ok())]
+    fn check(self, path: &Path) -> Result<()> {
+        if self == Self::Replace {
+            return Ok(());
+        }
+        match fs::symlink_metadata(path) {
+            Ok(_) => bail!(
+                "`{}` already exists; pass --overwrite to replace it or choose another output directory",
+                path.display()
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => {
+                Err(error).with_context(|| format!("checking whether `{}` exists", path.display()))
+            }
+        }
+    }
 }
 
 #[requires(true)]

@@ -1839,7 +1839,11 @@ fn entry_card_with_dictionary_decomposition(
         is_official: entry.user.username == OFFICIAL_AUTHOR_USERNAME,
         similarity,
         votes: Some(entry_vote_count(entry)),
-        rafsi: entry.rafsi.iter().map(|rafsi| rafsi.0.to_owned()).collect(),
+        rafsi: entry
+            .rafsi
+            .iter()
+            .map(|rafsi| rafsi.form.to_owned())
+            .collect(),
         glosses: entry.gloss_keywords.iter().map(format_keyword).collect(),
         definition: entry.definition.to_owned(),
         notes: entry.notes.to_owned(),

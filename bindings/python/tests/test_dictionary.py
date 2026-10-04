@@ -115,18 +115,18 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
         dictionary.PronunciationTargetSequenceView
         is native._dictionary_PronunciationTargetSequenceView
     )
-    assert len(dictionary.english) == 30_793
+    assert len(dictionary.english) == 31_248
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
     assert dictionary.english_metadata.language_realname == "English"
     assert dictionary.english_metadata.format == "json"
     assert dictionary.english_metadata.filename == "dictionary-en.json"
-    assert dictionary.english_metadata.lensisku_created_at == "2026-09-01T11:38:52Z"
+    assert dictionary.english_metadata.lensisku_created_at == "2026-10-04T03:07:08Z"
     assert dictionary.english_metadata.source_language_tag == "jbo"
     assert dictionary.english_metadata.positive_scores_only is False
-    assert dictionary.english_metadata.definition_count == 33_053
+    assert dictionary.english_metadata.definition_count == 33_526
     assert dictionary.english_metadata.sha256 == (
-        "d446173f1e2acb4d590999c4f120f407ff6021c3945c94c5f9ee8d79a85cb5b1"
+        "12e826751c3e50c10dd8df1adafb5f9eb32cdf542b22c4244f284b59d3824dde"
     )
     assert repr(dictionary.english) == "jbotci.dictionary.english"
     assert dictionary.Dictionary.__name__ == "Dictionary"
@@ -159,7 +159,7 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert not hasattr(dictionary.english, "index")
     assert not hasattr(entries, "count")
     assert not hasattr(entries, "index")
-    assert len(entries) == 30_793
+    assert len(entries) == 31_248
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
     assert entries[-1].word == entries[len(entries) - 1].word
@@ -260,7 +260,8 @@ def test_prefix_lookup_is_normalized_ordered_and_handles_empty_prefix() -> None:
 def test_rafsi_queries_preserve_provenance_and_helpers_are_typed() -> None:
     listed = dictionary.english.lookup_rafsi("bau")
     assert any(
-        match.entry.word == "bangu" and match.source is dictionary.RafsiSource.LISTED
+        match.entry.word == "bangu"
+        and match.source is dictionary.RafsiSource.LISTED_OFFICIAL
         for match in listed
     )
     short = dictionary.english.lookup_rafsi("banl")
@@ -391,6 +392,12 @@ def test_entry_records_expose_optional_and_repeated_typed_values() -> None:
     assert adzau.jargon == "Internet"
     assert required_entry("bafygau").user.realname is None
     assert [rafsi.value for rafsi in required_entry("bangu").rafsi] == ["ban", "bau"]
+    assert [rafsi.standing for rafsi in required_entry("bangu").rafsi] == [
+        dictionary.RafsiClaimKind.OFFICIAL,
+        dictionary.RafsiClaimKind.OFFICIAL,
+    ]
+    # A rafsi constructed as a lookup key has no standing.
+    assert dictionary.Rafsi("bau").standing is None
     assert required_entry("bangu").word_type.is_gismu_like()
     assert required_entry("jbobau").word_type.is_lujvo_like()
 
@@ -403,12 +410,12 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
     assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
     assert not dictionary.WordType.GISMU.is_lujvo_like()
-    # Experimental and obsolete types make provisional rafsi claims; so does
-    # NALVLA, the one exception not named for a register — an entry Lensisku
+    # Experimental and obsolete types are capped at experimental standing; so
+    # is NALVLA, the one exception not named for a register: an entry Lensisku
     # never classified cannot bind the standard register either (it mirrors
-    # the postcondition on the Rust `rafsi_claim_kind`).
+    # the postcondition on the Rust `max_rafsi_standing`).
     for word_type in dictionary.WordType:
-        assert word_type.rafsi_claim_kind() is (
+        assert word_type.max_rafsi_standing() is (
             dictionary.RafsiClaimKind.EXPERIMENTAL
             if word_type is dictionary.WordType.NALVLA
             or word_type.startswith(("experimental ", "obsolete "))
@@ -417,7 +424,7 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     with pytest.raises(TypeError):
         native._dictionary_word_type_is_gismu_like("gismu")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        native._dictionary_word_type_rafsi_claim_kind("gismu")  # type: ignore[arg-type]
+        native._dictionary_word_type_max_rafsi_standing("gismu")  # type: ignore[arg-type]
 
 
 def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> None:

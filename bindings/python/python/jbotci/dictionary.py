@@ -47,7 +47,7 @@ from ._native import (
     _dictionary_universal_gismu_rafsi_forms,
     _dictionary_word_type_is_gismu_like,
     _dictionary_word_type_is_lujvo_like,
-    _dictionary_word_type_rafsi_claim_kind,
+    _dictionary_word_type_max_rafsi_standing,
 )
 from ._native import JbotciError
 
@@ -78,9 +78,9 @@ def _word_type_is_lujvo_like(self: WordType) -> bool:
     return _dictionary_word_type_is_lujvo_like(self)
 
 
-def _word_type_rafsi_claim_kind(self: WordType) -> RafsiClaimKind:
-    """Return the standing of a rafsi claim made by this Rust word type."""
-    return _dictionary_word_type_rafsi_claim_kind(self)
+def _word_type_max_rafsi_standing(self: WordType) -> RafsiClaimKind:
+    """Return the highest standing a rafsi on this Rust word type can have."""
+    return _dictionary_word_type_max_rafsi_standing(self)
 
 
 # Functional `StrEnum` construction is what lets Rust register the exact class
@@ -88,7 +88,7 @@ def _word_type_rafsi_claim_kind(self: WordType) -> RafsiClaimKind:
 # implementations delegate through exact native enum extraction to Rust.
 setattr(WordType, "is_gismu_like", _word_type_is_gismu_like)
 setattr(WordType, "is_lujvo_like", _word_type_is_lujvo_like)
-setattr(WordType, "rafsi_claim_kind", _word_type_rafsi_claim_kind)
+setattr(WordType, "max_rafsi_standing", _word_type_max_rafsi_standing)
 
 
 @final

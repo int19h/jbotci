@@ -205,9 +205,9 @@ mod tests {
         assert_eq!(english_metadata().entry_count(), english().entries().len());
         assert_eq!(
             english_metadata().lensisku_created_at(),
-            "2026-09-01T11:38:52Z"
+            "2026-10-04T03:07:08Z"
         );
-        assert_eq!(english_metadata().definition_count(), 33053);
+        assert_eq!(english_metadata().definition_count(), 33526);
         assert!(english_metadata().definition_count() > english_metadata().entry_count());
         assert!(!english_metadata().positive_scores_only());
     }
@@ -291,14 +291,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
-        assert_eq!(english().sound_index().len(), 30_639);
-        assert_eq!(english().lujvo_index().len(), 12_826);
+        assert_eq!(english().sound_index().len(), 31_093);
+        assert_eq!(english().lujvo_index().len(), 12_983);
 
         // The decomposition index is audited by word type and not only in
         // total, because a shift between the two that left the total alone
-        // would otherwise pass unnoticed. The 12,724 lujvo are exactly the
-        // entries the index held before #914; the 102 cmevla are what #914
-        // restored, and nothing else decomposes.
+        // would otherwise pass unnoticed. The lujvo are every lujvo entry
+        // except `islenskygu'e` and `refgau`, which do not decompose. #914
+        // restored 102 cmevla; the 2026-10-02 refresh added `kairdid`, and the
+        // new experimental rafsi `gos` and `vet` made `dangos` and `xelvet`
+        // decompose. Nothing else decomposes.
         let entries = english().entries();
         let word_types = english()
             .lujvo_index()
@@ -311,14 +313,14 @@ mod tests {
                 .iter()
                 .filter(|word_type| **word_type == WordType::Lujvo)
                 .count(),
-            12_724
+            12_878
         );
         assert_eq!(
             word_types
                 .iter()
                 .filter(|word_type| **word_type == WordType::Cmevla)
                 .count(),
-            102
+            105
         );
         assert!(
             word_types
@@ -402,9 +404,8 @@ mod tests {
         assert_extracted_rafsi("supso", &["sus"]);
 
         // Losers of the owner-adjudicated conflicts keep no rafsi at all:
-        // `dit` went to ditcu, `sus` to supso, and dzama's `zam` claim was
-        // dropped in favour of the cmavo zai'e.
-        for word in ["dinti", "smusu", "dzama"] {
+        // `dit` went to ditcu and `sus` to supso.
+        for word in ["dinti", "smusu"] {
             let entry = english()
                 .lookup_word(word)
                 .unwrap_or_else(|| panic!("entry for {word}"));
@@ -413,6 +414,27 @@ mod tests {
                 "{word} lost its contested rafsi claim and must stay rafsi-free"
             );
         }
+        // The extraction's `zam→zai'e` ruling dropped dzama's claim, but
+        // Lensisku now records `zam` as dzama's structured experimental
+        // rafsi, and `zai'e` holds none; the owner accepted upstream's
+        // assignment (2026-10-03), so it arrives as ordinary snapshot data.
+        // An entry takes its rafsi from its selected definition only:
+        // definitions of one word can be unrelated, so a rafsi proposed by a
+        // competing definition is not attached to the one jbotci embeds (owner
+        // ruling, 2026-10-03). Lensisku's `maz` sits on a user-contributed
+        // definition of `ma`, not on the selected official one.
+        let ma = english().lookup_word("ma").expect("entry for ma");
+        assert_eq!(ma.definition_id.get(), 1791);
+        assert!(ma.rafsi.is_empty());
+        let dzama = english().lookup_word("dzama").expect("entry for dzama");
+        assert_eq!(
+            dzama
+                .rafsi
+                .iter()
+                .map(|rafsi| (rafsi.form, rafsi.standing))
+                .collect::<Vec<_>>(),
+            [("zam", RafsiClaimKind::Experimental)]
+        );
     }
 
     #[test]
@@ -687,7 +709,12 @@ mod tests {
             .lookup_rafsi("bau")
             .map(|matched| (matched.entry.word, matched.source))
             .collect::<Vec<_>>();
-        assert!(listed.contains(&("bangu", RafsiSource::Listed)));
+        assert!(listed.contains(&(
+            "bangu",
+            RafsiSource::Listed {
+                standing: RafsiClaimKind::Official
+            }
+        )));
 
         let universal = english()
             .lookup_rafsi("banl")
@@ -762,11 +789,18 @@ mod tests {
             entry
                 .rafsi
                 .iter()
-                .map(|value| value.0)
+                .map(|value| value.form)
                 .collect::<Vec<_>>()
                 .as_slice(),
             rafsi,
             "extracted rafsi for {word} did not reach the embedded entry"
+        );
+        assert!(
+            entry
+                .rafsi
+                .iter()
+                .all(|value| value.standing == RafsiClaimKind::Experimental),
+            "extracted rafsi for {word} must enter with experimental standing"
         );
         for form in rafsi {
             assert_listed_rafsi(form, word);
@@ -777,9 +811,9 @@ mod tests {
     #[ensures(true)]
     fn assert_listed_rafsi(rafsi: &str, word: &str) {
         assert!(
-            english()
-                .lookup_rafsi(rafsi)
-                .any(|matched| matched.entry.word == word && matched.source == RafsiSource::Listed),
+            english().lookup_rafsi(rafsi).any(|matched| {
+                matched.entry.word == word && matched.source.listed_standing().is_some()
+            }),
             "listed rafsi {rafsi} should resolve to {word}"
         );
     }
@@ -805,7 +839,7 @@ mod compound_tests {
     #[ensures(true)]
     fn embedded_cmavo_sequence_index_has_audited_coverage() {
         let dictionary = english();
-        assert_eq!(dictionary.cmavo_sequence_index().len(), 715);
+        assert_eq!(dictionary.cmavo_sequence_index().len(), 730);
         assert_eq!(dictionary.max_cmavo_sequence_len(), 8);
         assert!(!dictionary.lookup_cmavo_sequence(&["na", "a"]).is_empty());
         for headword in ["ma;u", "madagasikara", "fa'onai", "o'ebu", "la dontu'u"] {

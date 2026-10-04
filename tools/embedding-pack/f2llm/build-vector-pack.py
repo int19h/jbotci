@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Iterable
@@ -40,16 +41,32 @@ def main() -> None:
     args = parse_args()
     q4_onnx = Path(args.q4_onnx)
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else q4_onnx.parent.parent
-    corpus = read_json(Path(args.input))
     output = Path(args.out)
+    # lexists, so a dangling symlink at --out also counts as present.
+    if os.path.lexists(output) and not args.overwrite:
+        # Refuse before any work starts: replacing an existing output
+        # silently discarded a finished pack when several runs shared one
+        # --out (2026-10-02 dictionary refresh).
+        raise SystemExit(
+            f"{output} already exists; pass --overwrite to replace it or choose another --out"
+        )
+    corpus = read_json(Path(args.input))
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
     if stage == output:
         raise ValueError("--stage must differ from --out")
+    # --stage is scratch for this run, never an output: it is always cleared.
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
-    session = ort.InferenceSession(str(q4_onnx), providers=["CPUExecutionProvider"])
+    session_options = ort.SessionOptions()
+    if args.threads is not None:
+        # Throughput per thread falls off past a few threads, so a parallel
+        # build runs several models at once, each limited to a few threads.
+        session_options.intra_op_num_threads = args.threads
+    session = ort.InferenceSession(
+        str(q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
+    )
     q4_onnx_sha256 = file_sha256(q4_onnx)
     compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime, args.max_sequence_length)
 
@@ -76,6 +93,7 @@ def main() -> None:
             batch_size=args.batch_size,
             dimensions=args.dimensions,
             max_sequence_length=args.max_sequence_length,
+            progress_label=f"{args.model_key} {corpus_id}",
         ))
 
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
@@ -126,7 +144,7 @@ def main() -> None:
         ],
     }
     write_json(stage / "catalog.json", catalog)
-    promote(stage, output)
+    promote(stage, output, args.overwrite)
 
 
 def parse_args() -> argparse.Namespace:
@@ -136,6 +154,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace --out if it already exists (refused by default)",
+    )
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX)
     parser.add_argument("--tokenizer-dir", default=None)
     parser.add_argument("--model-key", default=MODEL_KEY)
@@ -145,10 +168,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-sequence-length", type=int, default=MAX_SEQUENCE_LENGTH)
     parser.add_argument("--revision", default=None)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX Runtime intra-op threads (default: one per core)",
+    )
     parser.add_argument("--include-wasm-runtime", action="store_true")
     args = parser.parse_args()
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
+    if args.threads is not None and args.threads <= 0:
+        raise ValueError("--threads must be positive")
     if args.dimensions <= 0:
         raise ValueError("--dimensions must be positive")
     if args.max_sequence_length <= 1:
@@ -190,6 +221,7 @@ def write_corpus(
     batch_size: int,
     dimensions: int,
     max_sequence_length: int,
+    progress_label: str,
 ) -> dict[str, object]:
     docs = corpus.get(source_key, [])
     if not isinstance(docs, list):
@@ -201,6 +233,7 @@ def write_corpus(
         batch_size,
         dimensions,
         max_sequence_length,
+        progress_label,
     )
     corpus_dir = pack_root / "corpora" / corpus_id
     corpus_dir.mkdir(parents=True)
@@ -242,6 +275,7 @@ def embed_texts(
     batch_size: int,
     dimensions: int,
     max_sequence_length: int,
+    progress_label: str,
 ) -> np.ndarray:
     doc_windows = [token_windows(text, tokenizer, max_sequence_length) for text in texts]
     window_refs = [
@@ -272,7 +306,9 @@ def embed_texts(
         if done_windows == len(window_refs) or done_windows % PROGRESS_WINDOW_INTERVAL == 0:
             completed_docs = sum(1 for vectors in vectors_by_doc if vectors)
             print(
-                f"embedded {done_windows} of {len(window_refs)} windows "
+                # The label names the model and corpus, so the output of
+                # several concurrent builds stays attributable.
+                f"{progress_label}: embedded {done_windows} of {len(window_refs)} windows "
                 f"for {completed_docs} of {len(texts)} documents",
                 flush=True,
             )
@@ -362,7 +398,15 @@ def json_bytes(value: object) -> bytes:
     return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def promote(stage: Path, output: Path) -> None:
+def promote(stage: Path, output: Path, overwrite: bool) -> None:
+    # Check again at the end of a long run: an output that appeared meanwhile
+    # (for example from an overlapping run) is not replaced either.
+    if os.path.lexists(output) and not overwrite:
+        raise SystemExit(
+            f"{output} appeared during the build; pass --overwrite to replace it"
+        )
+    # `<output>.previous` is this function's own rollback copy, never a build
+    # output, so it is always removed.
     backup = Path(f"{output}.previous")
     shutil.rmtree(backup, ignore_errors=True)
     if output.exists():

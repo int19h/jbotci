@@ -1,0 +1,733 @@
+//! A safe wrapper around `llama_context_params`.
+use std::fmt::Debug;
+use std::num::NonZeroU32;
+
+/// A rusty wrapper around `llama_context_type`.
+//
+// Cast the sys constants to `u32` so the discriminants compile on both clang
+// (where bindgen emits `c_uint`) and MSVC (where it emits `c_int`).
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum LlamaContextType {
+    /// Default context (standard inference).
+    Default = llama_cpp_sys_4::LLAMA_CONTEXT_TYPE_DEFAULT as u32,
+    /// Multi-token-prediction draft context, used as the draft side of
+    /// speculative decoding. Pair with [`crate::mtp::MtpSession`].
+    Mtp = llama_cpp_sys_4::LLAMA_CONTEXT_TYPE_MTP as u32,
+}
+
+impl From<llama_cpp_sys_4::llama_context_type> for LlamaContextType {
+    fn from(value: llama_cpp_sys_4::llama_context_type) -> Self {
+        if value == llama_cpp_sys_4::LLAMA_CONTEXT_TYPE_MTP {
+            Self::Mtp
+        } else {
+            Self::Default
+        }
+    }
+}
+
+impl From<LlamaContextType> for llama_cpp_sys_4::llama_context_type {
+    fn from(value: LlamaContextType) -> Self {
+        value as u32 as Self
+    }
+}
+
+/// A rusty wrapper around `rope_scaling_type`.
+#[repr(i8)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum RopeScalingType {
+    /// The scaling type is unspecified
+    Unspecified = -1,
+    /// No scaling
+    None = 0,
+    /// Linear scaling
+    Linear = 1,
+    /// Yarn scaling
+    Yarn = 2,
+}
+
+/// Create a `RopeScalingType` from a `c_int` - returns `RopeScalingType::ScalingUnspecified` if
+/// the value is not recognized.
+impl From<i32> for RopeScalingType {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Self::None,
+            1 => Self::Linear,
+            2 => Self::Yarn,
+            _ => Self::Unspecified,
+        }
+    }
+}
+
+/// Create a `c_int` from a `RopeScalingType`.
+impl From<RopeScalingType> for i32 {
+    fn from(value: RopeScalingType) -> Self {
+        match value {
+            RopeScalingType::None => 0,
+            RopeScalingType::Linear => 1,
+            RopeScalingType::Yarn => 2,
+            RopeScalingType::Unspecified => -1,
+        }
+    }
+}
+
+/// A rusty wrapper around `LLAMA_POOLING_TYPE`.
+#[repr(i8)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum LlamaPoolingType {
+    /// The pooling type is unspecified
+    Unspecified = -1,
+    /// No pooling    
+    None = 0,
+    /// Mean pooling
+    Mean = 1,
+    /// CLS pooling
+    Cls = 2,
+    /// Last pooling
+    Last = 3,
+}
+
+/// Create a `LlamaPoolingType` from a `c_int` - returns `LlamaPoolingType::Unspecified` if
+/// the value is not recognized.
+impl From<i32> for LlamaPoolingType {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Self::None,
+            1 => Self::Mean,
+            2 => Self::Cls,
+            3 => Self::Last,
+            _ => Self::Unspecified,
+        }
+    }
+}
+
+/// Create a `c_int` from a `LlamaPoolingType`.
+impl From<LlamaPoolingType> for i32 {
+    fn from(value: LlamaPoolingType) -> Self {
+        match value {
+            LlamaPoolingType::None => 0,
+            LlamaPoolingType::Mean => 1,
+            LlamaPoolingType::Cls => 2,
+            LlamaPoolingType::Last => 3,
+            LlamaPoolingType::Unspecified => -1,
+        }
+    }
+}
+
+/// A safe wrapper around `llama_context_params`.
+///
+/// Generally this should be created with [`Default::default()`] and then modified with `with_*` methods.
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::num::NonZeroU32;
+/// use llama_cpp_4::context::params::LlamaContextParams;
+///
+/// let ctx_params = LlamaContextParams::default()
+///     .with_n_ctx(NonZeroU32::new(2048));
+///
+/// assert_eq!(ctx_params.n_ctx(), NonZeroU32::new(2048));
+/// ```
+#[derive(Debug, Clone)]
+#[allow(
+    missing_docs,
+    clippy::struct_excessive_bools,
+    clippy::module_name_repetitions
+)]
+pub struct LlamaContextParams {
+    pub(crate) context_params: llama_cpp_sys_4::llama_context_params,
+    /// When `true`, the `TurboQuant` attention rotation (PR #21038) will be
+    /// disabled for any context created from these params.
+    pub(crate) attn_rot_disabled: bool,
+}
+
+/// SAFETY: we do not currently allow setting or reading the pointers that cause this to not be automatically send or sync.
+unsafe impl Send for LlamaContextParams {}
+unsafe impl Sync for LlamaContextParams {}
+
+impl LlamaContextParams {
+    /// Set the side of the context
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::num::NonZeroU32;
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// let params = params.with_n_ctx(NonZeroU32::new(2048));
+    /// assert_eq!(params.n_ctx(), NonZeroU32::new(2048));
+    /// ```
+    #[must_use]
+    pub fn with_n_ctx(mut self, n_ctx: Option<NonZeroU32>) -> Self {
+        self.context_params.n_ctx = n_ctx.map_or(0, std::num::NonZeroU32::get);
+        self
+    }
+
+    /// Get the size of the context.
+    ///
+    /// [`None`] if the context size is specified by the model and not the context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.n_ctx(), std::num::NonZeroU32::new(512));
+    #[must_use]
+    pub fn n_ctx(&self) -> Option<NonZeroU32> {
+        NonZeroU32::new(self.context_params.n_ctx)
+    }
+
+    /// Set the `n_batch`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::num::NonZeroU32;
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///     .with_n_batch(2048);
+    /// assert_eq!(params.n_batch(), 2048);
+    /// ```
+    #[must_use]
+    pub fn with_n_batch(mut self, n_batch: u32) -> Self {
+        self.context_params.n_batch = n_batch;
+        self
+    }
+
+    /// Get the `n_batch`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// assert_eq!(params.n_batch(), 2048);
+    /// ```
+    #[must_use]
+    pub fn n_batch(&self) -> u32 {
+        self.context_params.n_batch
+    }
+
+    /// Set the maximum number of distinct sequences one context processes.
+    ///
+    /// jbotci addition: embedding many short inputs per decode call needs
+    /// more than the default single sequence.
+    #[must_use]
+    pub fn with_n_seq_max(mut self, n_seq_max: u32) -> Self {
+        self.context_params.n_seq_max = n_seq_max;
+        self
+    }
+
+    /// Share one KV cache across all sequences instead of giving each
+    /// sequence `n_ctx / n_seq_max` cells.
+    ///
+    /// jbotci addition: with a unified cache, any one sequence can still use
+    /// the whole context, so packing several inputs never shortens the
+    /// longest window a call accepts.
+    #[must_use]
+    pub fn with_kv_unified(mut self, kv_unified: bool) -> Self {
+        self.context_params.kv_unified = kv_unified;
+        self
+    }
+
+    /// Set the `n_ubatch`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::num::NonZeroU32;
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///     .with_n_ubatch(512);
+    /// assert_eq!(params.n_ubatch(), 512);
+    /// ```
+    #[must_use]
+    pub fn with_n_ubatch(mut self, n_ubatch: u32) -> Self {
+        self.context_params.n_ubatch = n_ubatch;
+        self
+    }
+
+    /// Get the `n_ubatch`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// assert_eq!(params.n_ubatch(), 512);
+    /// ```
+    #[must_use]
+    pub fn n_ubatch(&self) -> u32 {
+        self.context_params.n_ubatch
+    }
+
+    /// Set the context type (e.g. [`LlamaContextType::Mtp`] for the draft context in
+    /// [`crate::mtp::MtpSession`]).
+    #[must_use]
+    pub fn with_ctx_type(mut self, ctx_type: LlamaContextType) -> Self {
+        self.context_params.ctx_type = ctx_type.into();
+        self
+    }
+
+    /// Get the configured context type.
+    #[must_use]
+    pub fn ctx_type(&self) -> LlamaContextType {
+        self.context_params.ctx_type.into()
+    }
+
+    /// Set the number of recurrent-state snapshots per sequence (MTP rollback).
+    ///
+    /// Must be `>=` [`MtpSessionConfig::n_draft_max`](crate::mtp::MtpSessionConfig::n_draft_max)
+    /// on the draft context. See [`crate::mtp`].
+    #[must_use]
+    pub fn with_n_rs_seq(mut self, n_rs_seq: u32) -> Self {
+        self.context_params.n_rs_seq = n_rs_seq;
+        self
+    }
+
+    /// Get the number of recurrent-state snapshots per sequence used for MTP rollback.
+    #[must_use]
+    pub fn n_rs_seq(&self) -> u32 {
+        self.context_params.n_rs_seq
+    }
+
+    /// Set the `flash_attention` parameter
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///     .with_flash_attention(true);
+    /// assert_eq!(params.flash_attention(), true);
+    /// ```
+    #[must_use]
+    pub fn with_flash_attention(mut self, enabled: bool) -> Self {
+        self.context_params.flash_attn_type = if enabled {
+            llama_cpp_sys_4::LLAMA_FLASH_ATTN_TYPE_ENABLED
+        } else {
+            llama_cpp_sys_4::LLAMA_FLASH_ATTN_TYPE_DISABLED
+        };
+        self
+    }
+
+    /// Get the `flash_attention` parameter
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// assert_eq!(params.flash_attention(), false);
+    /// ```
+    #[must_use]
+    pub fn flash_attention(&self) -> bool {
+        self.context_params.flash_attn_type == llama_cpp_sys_4::LLAMA_FLASH_ATTN_TYPE_ENABLED
+    }
+
+    /// Set the `offload_kqv` parameter to control offloading KV cache & KQV ops to GPU
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///     .with_offload_kqv(false);
+    /// assert_eq!(params.offload_kqv(), false);
+    /// ```
+    #[must_use]
+    pub fn with_offload_kqv(mut self, enabled: bool) -> Self {
+        self.context_params.offload_kqv = enabled;
+        self
+    }
+
+    /// Get the `offload_kqv` parameter
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// assert_eq!(params.offload_kqv(), true);
+    /// ```
+    #[must_use]
+    pub fn offload_kqv(&self) -> bool {
+        self.context_params.offload_kqv
+    }
+
+    /// Set the type of rope scaling.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::{LlamaContextParams, RopeScalingType};
+    /// let params = LlamaContextParams::default()
+    ///     .with_rope_scaling_type(RopeScalingType::Linear);
+    /// assert_eq!(params.rope_scaling_type(), RopeScalingType::Linear);
+    /// ```
+    #[must_use]
+    pub fn with_rope_scaling_type(mut self, rope_scaling_type: RopeScalingType) -> Self {
+        self.context_params.rope_scaling_type = i32::from(rope_scaling_type);
+        self
+    }
+
+    /// Get the type of rope scaling.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.rope_scaling_type(), llama_cpp_4::context::params::RopeScalingType::Unspecified);
+    /// ```
+    #[must_use]
+    pub fn rope_scaling_type(&self) -> RopeScalingType {
+        RopeScalingType::from(self.context_params.rope_scaling_type)
+    }
+
+    /// Set the rope frequency base.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///    .with_rope_freq_base(0.5);
+    /// assert_eq!(params.rope_freq_base(), 0.5);
+    /// ```
+    #[must_use]
+    pub fn with_rope_freq_base(mut self, rope_freq_base: f32) -> Self {
+        self.context_params.rope_freq_base = rope_freq_base;
+        self
+    }
+
+    /// Get the rope frequency base.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.rope_freq_base(), 0.0);
+    /// ```
+    #[must_use]
+    pub fn rope_freq_base(&self) -> f32 {
+        self.context_params.rope_freq_base
+    }
+
+    /// Set the rope frequency scale.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///   .with_rope_freq_scale(0.5);
+    /// assert_eq!(params.rope_freq_scale(), 0.5);
+    /// ```
+    #[must_use]
+    pub fn with_rope_freq_scale(mut self, rope_freq_scale: f32) -> Self {
+        self.context_params.rope_freq_scale = rope_freq_scale;
+        self
+    }
+
+    /// Get the rope frequency scale.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.rope_freq_scale(), 0.0);
+    /// ```
+    #[must_use]
+    pub fn rope_freq_scale(&self) -> f32 {
+        self.context_params.rope_freq_scale
+    }
+
+    /// Get the number of threads.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.n_threads(), 4);
+    /// ```
+    #[must_use]
+    pub fn n_threads(&self) -> i32 {
+        self.context_params.n_threads
+    }
+
+    /// Get the number of threads allocated for batches.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.n_threads_batch(), 4);
+    /// ```
+    #[must_use]
+    pub fn n_threads_batch(&self) -> i32 {
+        self.context_params.n_threads_batch
+    }
+
+    /// Set the number of threads.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///    .with_n_threads(8);
+    /// assert_eq!(params.n_threads(), 8);
+    /// ```
+    #[must_use]
+    pub fn with_n_threads(mut self, n_threads: i32) -> Self {
+        self.context_params.n_threads = n_threads;
+        self
+    }
+
+    /// Set the number of threads allocated for batches.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///    .with_n_threads_batch(8);
+    /// assert_eq!(params.n_threads_batch(), 8);
+    /// ```
+    #[must_use]
+    pub fn with_n_threads_batch(mut self, n_threads: i32) -> Self {
+        self.context_params.n_threads_batch = n_threads;
+        self
+    }
+
+    /// Check whether embeddings are enabled
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert!(!params.embeddings());
+    /// ```
+    #[must_use]
+    pub fn embeddings(&self) -> bool {
+        self.context_params.embeddings
+    }
+
+    /// Enable the use of embeddings
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default()
+    ///    .with_embeddings(true);
+    /// assert!(params.embeddings());
+    /// ```
+    #[must_use]
+    pub fn with_embeddings(mut self, embedding: bool) -> Self {
+        self.context_params.embeddings = embedding;
+        self
+    }
+
+    /// Set the evaluation callback.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern "C" fn cb_eval_fn(
+    ///     t: *mut llama_cpp_sys_4::ggml_tensor,
+    ///     ask: bool,
+    ///     user_data: *mut std::ffi::c_void,
+    /// ) -> bool {
+    ///     false
+    /// }
+    ///
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default().with_cb_eval(Some(cb_eval_fn));
+    /// ```
+    #[must_use]
+    pub fn with_cb_eval(
+        mut self,
+        cb_eval: llama_cpp_sys_4::ggml_backend_sched_eval_callback,
+    ) -> Self {
+        self.context_params.cb_eval = cb_eval;
+        self
+    }
+
+    /// Set the evaluation callback user data.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// let params = LlamaContextParams::default();
+    /// let user_data = std::ptr::null_mut();
+    /// let params = params.with_cb_eval_user_data(user_data);
+    /// ```
+    #[must_use]
+    pub fn with_cb_eval_user_data(mut self, cb_eval_user_data: *mut std::ffi::c_void) -> Self {
+        self.context_params.cb_eval_user_data = cb_eval_user_data;
+        self
+    }
+
+    /// Attach a [`TensorCapture`](super::tensor_capture::TensorCapture) to
+    /// intercept intermediate tensor outputs during `decode()`.
+    ///
+    /// This sets up the `cb_eval` callback to capture tensors matching the
+    /// capture's filter (e.g. specific layer outputs). After `decode()` the
+    /// captured data can be read from the `TensorCapture`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// use llama_cpp_4::context::tensor_capture::TensorCapture;
+    ///
+    /// let mut capture = TensorCapture::for_layers(&[13, 20, 27]);
+    /// let ctx_params = LlamaContextParams::default()
+    ///     .with_embeddings(true)
+    ///     .with_tensor_capture(&mut capture);
+    /// ```
+    #[must_use]
+    pub fn with_tensor_capture(self, capture: &mut super::tensor_capture::TensorCapture) -> Self {
+        self.with_cb_eval(Some(super::tensor_capture::tensor_capture_callback))
+            .with_cb_eval_user_data(
+                std::ptr::from_mut::<super::tensor_capture::TensorCapture>(capture)
+                    .cast::<std::ffi::c_void>(),
+            )
+    }
+
+    /// Set the storage type for the **K** (key) KV cache tensors.
+    ///
+    /// The default is `GgmlType::F16`.  Quantized types like `GgmlType::Q5_0`
+    /// or `GgmlType::Q4_0` reduce VRAM usage significantly; combining them with
+    /// `TurboQuant` attention rotation (the default) keeps quality high.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// use llama_cpp_4::quantize::GgmlType;
+    /// let params = LlamaContextParams::default()
+    ///     .with_cache_type_k(GgmlType::Q5_0);
+    /// ```
+    #[must_use]
+    pub fn with_cache_type_k(mut self, ty: crate::quantize::GgmlType) -> Self {
+        self.context_params.type_k = ty as llama_cpp_sys_4::ggml_type;
+        self
+    }
+
+    /// Get the K-cache storage type.
+    #[must_use]
+    pub fn cache_type_k(&self) -> llama_cpp_sys_4::ggml_type {
+        self.context_params.type_k
+    }
+
+    /// Set the storage type for the **V** (value) KV cache tensors.
+    ///
+    /// See [`with_cache_type_k`](Self::with_cache_type_k) for details.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// use llama_cpp_4::quantize::GgmlType;
+    /// let params = LlamaContextParams::default()
+    ///     .with_cache_type_v(GgmlType::Q5_0);
+    /// ```
+    #[must_use]
+    pub fn with_cache_type_v(mut self, ty: crate::quantize::GgmlType) -> Self {
+        self.context_params.type_v = ty as llama_cpp_sys_4::ggml_type;
+        self
+    }
+
+    /// Get the V-cache storage type.
+    #[must_use]
+    pub fn cache_type_v(&self) -> llama_cpp_sys_4::ggml_type {
+        self.context_params.type_v
+    }
+
+    /// Control the `TurboQuant` attention-rotation feature (llama.cpp PR #21038).
+    ///
+    /// By default, llama.cpp applies a Hadamard rotation to Q/K/V tensors
+    /// before writing them into the KV cache.  This significantly improves
+    /// quantized KV-cache quality at near-zero overhead, and is enabled
+    /// automatically for models whose head dimension is a power of two.
+    ///
+    /// Set `disabled = true` to opt out (equivalent to `LLAMA_ATTN_ROT_DISABLE=1`).
+    /// The env-var is applied just before the context is created and restored
+    /// afterwards, so this is safe to call from a single thread.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::LlamaContextParams;
+    /// // Disable rotation for this context only:
+    /// let params = LlamaContextParams::default().with_attn_rot_disabled(true);
+    /// assert!(params.attn_rot_disabled());
+    /// ```
+    #[must_use]
+    pub fn with_attn_rot_disabled(mut self, disabled: bool) -> Self {
+        self.attn_rot_disabled = disabled;
+        self
+    }
+
+    /// Returns `true` if `TurboQuant` attention rotation is disabled for this context.
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert!(!params.attn_rot_disabled());
+    /// ```
+    #[must_use]
+    pub fn attn_rot_disabled(&self) -> bool {
+        self.attn_rot_disabled
+    }
+
+    /// Set the type of pooling.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use llama_cpp_4::context::params::{LlamaContextParams, LlamaPoolingType};
+    /// let params = LlamaContextParams::default()
+    ///     .with_pooling_type(LlamaPoolingType::Last);
+    /// assert_eq!(params.pooling_type(), LlamaPoolingType::Last);
+    /// ```
+    #[must_use]
+    pub fn with_pooling_type(mut self, pooling_type: LlamaPoolingType) -> Self {
+        self.context_params.pooling_type = i32::from(pooling_type);
+        self
+    }
+
+    /// Get the type of pooling.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let params = llama_cpp_4::context::params::LlamaContextParams::default();
+    /// assert_eq!(params.pooling_type(), llama_cpp_4::context::params::LlamaPoolingType::Unspecified);
+    /// ```
+    #[must_use]
+    pub fn pooling_type(&self) -> LlamaPoolingType {
+        LlamaPoolingType::from(self.context_params.pooling_type)
+    }
+}
+
+/// Default parameters for `LlamaContext`. (as defined in llama.cpp by `llama_context_default_params`)
+/// ```
+/// # use std::num::NonZeroU32;
+/// use llama_cpp_4::context::params::{LlamaContextParams, RopeScalingType};
+/// let params = LlamaContextParams::default();
+/// assert_eq!(params.n_ctx(), NonZeroU32::new(512), "n_ctx should be 512");
+/// assert_eq!(params.rope_scaling_type(), RopeScalingType::Unspecified);
+/// ```
+impl Default for LlamaContextParams {
+    fn default() -> Self {
+        let context_params = unsafe { llama_cpp_sys_4::llama_context_default_params() };
+        Self {
+            context_params,
+            attn_rot_disabled: false,
+        }
+    }
+}

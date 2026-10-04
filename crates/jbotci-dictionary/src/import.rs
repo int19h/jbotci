@@ -4,11 +4,14 @@ use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
 use bityzba::expensive_ensures;
-use bityzba::{invariant, requires};
+use bityzba::{invariant, new, requires};
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
 
-use crate::{DefinitionId, Score, WordType};
+use crate::{
+    DefinitionId, RafsiClaimKind, RafsiSource, Score, WordType, normalize_lookup_query,
+    universal_gismu_rafsi_forms,
+};
 
 /// Imported Lensisku dictionary snapshot.
 ///
@@ -21,9 +24,22 @@ use crate::{DefinitionId, Score, WordType};
 #[invariant(true)]
 pub struct ImportedDictionary {
     pub entries: Vec<ImportedDictionaryEntry>,
+    /// How many of the export's rows were not dictionary words at all (such as
+    /// Lensisku `wiki` articles) and were therefore set aside at parse time.
+    pub non_word_row_count: usize,
 }
 
 impl ImportedDictionary {
+    /// Return how many rows the export held, words and non-words alike.
+    ///
+    /// This is the snapshot's `definition_count` as long as it is taken before
+    /// any of the `retain_*` reductions run.
+    #[requires(true)]
+    #[ensures(ret == self.entries.len() + self.non_word_row_count)]
+    pub fn row_count(&self) -> usize {
+        self.entries.len() + self.non_word_row_count
+    }
+
     /// Discard entries whose definition text is empty, returning how many were
     /// dropped.
     ///
@@ -127,31 +143,152 @@ impl ImportedDictionary {
 }
 
 /// Owned Lensisku dictionary entry.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
+///
+/// Built by [`parse_lensisku_json`] from an export row that is a word, so
+/// downstream code never encounters a non-word row.
+#[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
 pub struct ImportedDictionaryEntry {
     pub word: String,
-    #[serde(rename = "word_type")]
     pub word_type: WordType,
     pub definition: String,
     pub definition_id: DefinitionId,
-    #[serde(default, deserialize_with = "deserialize_empty_string_for_null")]
     pub notes: String,
     pub score: Score,
-    #[serde(default, deserialize_with = "deserialize_keyword_vec")]
     pub gloss_keywords: Vec<ImportedKeyword>,
-    #[serde(default, deserialize_with = "deserialize_keyword_vec")]
     pub place_keywords: Vec<ImportedKeyword>,
-    #[serde(default, deserialize_with = "deserialize_rafsi_vec")]
-    pub rafsi: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_non_empty_string")]
+    /// The row's structured rafsi, each with the standing of the Lensisku
+    /// column it came from (`rafsi` is official, `experimental_rafsi` is
+    /// experimental), less the derived 4-letter form.
+    pub rafsi: Vec<ImportedRafsi>,
     pub selmaho: Option<String>,
-    #[serde(default)]
     pub etymology: Option<String>,
-    #[serde(default)]
     pub jargon: Option<String>,
     pub user: ImportedDictionaryUser,
+}
+
+/// One imported rafsi with the standing of its assignment.
+#[invariant(!form.is_empty(), "a rafsi is a non-empty form")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedRafsi {
+    pub form: String,
+    pub standing: RafsiClaimKind,
+}
+
+/// One row of a Lensisku dictionary export, exactly as serialized.
+///
+/// Lensisku records rafsi in two columns: `rafsi` for official assignments and
+/// `experimental_rafsi` for experimental ones. [`Self::into_entry`] keeps each
+/// form with its column's standing.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+struct LensiskuRow {
+    word: String,
+    word_type: LensiskuRowKind,
+    definition: String,
+    definition_id: DefinitionId,
+    #[serde(default, deserialize_with = "deserialize_empty_string_for_null")]
+    notes: String,
+    score: Score,
+    #[serde(default, deserialize_with = "deserialize_keyword_vec")]
+    gloss_keywords: Vec<ImportedKeyword>,
+    #[serde(default, deserialize_with = "deserialize_keyword_vec")]
+    place_keywords: Vec<ImportedKeyword>,
+    #[serde(default, deserialize_with = "deserialize_rafsi_vec")]
+    rafsi: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_rafsi_vec")]
+    experimental_rafsi: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_non_empty_string")]
+    selmaho: Option<String>,
+    #[serde(default)]
+    etymology: Option<String>,
+    #[serde(default)]
+    jargon: Option<String>,
+    user: ImportedDictionaryUser,
+}
+
+impl LensiskuRow {
+    /// Convert a word row into an entry of type `word_type`.
+    ///
+    /// Each form keeps the standing of the column it came from. An
+    /// experimental rafsi may sit on any word (Lensisku gives the official
+    /// cmavo `ma` the experimental rafsi `maz`), but a word whose own standing
+    /// is experimental cannot hold an official assignment, and a form listed
+    /// in both columns has no single standing. The conversion refuses both
+    /// rather than guessing.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|entry| {
+        entry.word_type == word_type
+            && (word_type.max_rafsi_standing() == RafsiClaimKind::Official
+                || entry
+                    .rafsi
+                    .iter()
+                    .all(|rafsi| rafsi.standing == RafsiClaimKind::Experimental))
+    }) || ret.is_err())]
+    fn into_entry(
+        self,
+        word_type: WordType,
+    ) -> Result<ImportedDictionaryEntry, LensiskuImportError> {
+        let mut official = self.rafsi;
+        let mut experimental = self.experimental_rafsi;
+        // The derivable form is dropped from both columns before the checks:
+        // it adds nothing whatever column upstream filed it under.
+        discard_universal_short_rafsi(&self.word, word_type, &mut official);
+        discard_universal_short_rafsi(&self.word, word_type, &mut experimental);
+        if !official.is_empty() && word_type.max_rafsi_standing() != RafsiClaimKind::Official {
+            return Err(LensiskuImportError::RafsiStandingMismatch {
+                word: self.word,
+                definition_id: self.definition_id.get(),
+                word_type,
+            });
+        }
+        // Compared after lookup normalization, like the derived-form discard,
+        // so two spellings of one form (`ma'z`, `mahz`) cannot take both
+        // standings.
+        if let Some(form) = official.iter().find(|form| {
+            let form = normalize_lookup_query(form);
+            experimental
+                .iter()
+                .any(|other| normalize_lookup_query(other) == form)
+        }) {
+            return Err(LensiskuImportError::RafsiListedTwice {
+                word: self.word,
+                definition_id: self.definition_id.get(),
+                form: form.clone(),
+            });
+        }
+        let rafsi = official
+            .into_iter()
+            .map(|form| (form, RafsiClaimKind::Official))
+            .chain(
+                experimental
+                    .into_iter()
+                    .map(|form| (form, RafsiClaimKind::Experimental)),
+            )
+            .map(|(form, standing)| {
+                new!(ImportedRafsi {
+                    form: form,
+                    standing: standing
+                })
+            })
+            .collect();
+        Ok(ImportedDictionaryEntry {
+            word: self.word,
+            word_type,
+            definition: self.definition,
+            definition_id: self.definition_id,
+            notes: self.notes,
+            score: self.score,
+            gloss_keywords: self.gloss_keywords,
+            place_keywords: self.place_keywords,
+            rafsi,
+            selmaho: self.selmaho,
+            etymology: self.etymology,
+            jargon: self.jargon,
+            user: self.user,
+        })
+    }
 }
 
 impl ImportedDictionaryEntry {
@@ -203,26 +340,159 @@ enum RafsiField {
     List(Vec<String>),
 }
 
+/// The `word_type` column of a Lensisku export row.
+///
+/// Lensisku's dictionary export also carries rows that are not words. Such a
+/// row is a free-form article stored in the `valsi` table (the first, seen in
+/// 2026-10, is a Markdown write-up titled "Periodic-table gismu assignment
+/// algorithm"), so it has no word form, no place structure, and no business
+/// in word lookup or in the embedding corpus. It is recognised by name so that
+/// any *other* unknown type still fails the import, as a new word class must
+/// be classified consciously in [`WordType`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Word(..) => true)]
+#[invariant(::Wiki => true)]
+enum LensiskuRowKind {
+    Word(WordType),
+    /// Lensisku's `wiki` type: an article rather than a word.
+    Wiki,
+}
+
+impl<'de> Deserialize<'de> for LensiskuRowKind {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::IntoDeserializer;
+
+        let name = String::deserialize(deserializer)?;
+        if name == "wiki" {
+            return Ok(Self::Wiki);
+        }
+        // Delegate to `WordType` so an unknown name keeps serde's error that
+        // lists every accepted word type.
+        WordType::deserialize(name.into_deserializer()).map(Self::Word)
+    }
+}
+
+/// Drop the forms that are `word`'s own derived 4-letter rafsi.
+///
+/// Since 2026-09 Lensisku lists a gismu's 4-letter rafsi (the gismu minus its
+/// final vowel, e.g. `celd` for `celdi`) as a structured rafsi on gismu and
+/// experimental gismu that have rafsi at all. jbotci derives that form itself
+/// ([`RafsiSource::UniversalShort`]), so listing it adds nothing, and keeping
+/// it would look like an upstream rafsi assignment to the extracted-rafsi
+/// audit and the rafsi index. Exactly the form jbotci derives is dropped,
+/// compared after lookup normalization, so the two can never disagree: a form
+/// jbotci does not derive, such as `brod` (the broda family is the CLL
+/// exception) or a short rafsi like `ba'u`, always survives.
+#[requires(true)]
+#[ensures(
+    universal_gismu_rafsi_forms(word)
+        .iter()
+        .filter(|(_, source)| *source == RafsiSource::UniversalShort)
+        .all(|(derived, _)| {
+            !word_type.is_gismu_like()
+                || forms.iter().all(|form| normalize_lookup_query(form) != *derived)
+        }),
+    "no surviving form of a gismu-like word is its derived 4-letter rafsi"
+)]
+#[ensures(forms.len() <= old(forms.len()))]
+fn discard_universal_short_rafsi(word: &str, word_type: WordType, forms: &mut Vec<String>) {
+    if !word_type.is_gismu_like() {
+        return;
+    }
+    let Some((derived, _)) = universal_gismu_rafsi_forms(word)
+        .into_iter()
+        .find(|(_, source)| *source == RafsiSource::UniversalShort)
+    else {
+        return;
+    };
+    forms.retain(|form| normalize_lookup_query(form) != derived);
+}
+
 /// Lensisku import error.
 #[derive(Debug, Error)]
 #[invariant(true)]
 #[invariant(::Json(..) => true)]
+#[invariant(::NonWordRowWithWordData { .. } => true)]
+#[invariant(::RafsiStandingMismatch { .. } => true)]
+#[invariant(::RafsiListedTwice { .. } => true)]
 pub enum LensiskuImportError {
     #[error("failed to parse Lensisku dictionary JSON: {0}")]
     Json(#[from] serde_json::Error),
+    /// A non-word row carries rafsi or a selma'o. Dropping it would silently
+    /// discard a word-level claim, which the fail-closed rafsi audit exists to
+    /// prevent, so the import refuses instead.
+    #[error(
+        "Lensisku row `{word}` (definition {definition_id}) is not a word but carries \
+         rafsi or a selma'o"
+    )]
+    NonWordRowWithWordData { word: String, definition_id: u64 },
+    /// A word whose own standing is experimental lists an official rafsi.
+    /// An experimental or obsolete word cannot bind the official register.
+    #[error(
+        "Lensisku row `{word}` (definition {definition_id}) is a {} word but lists an \
+         official rafsi",
+        word_type.as_str()
+    )]
+    RafsiStandingMismatch {
+        word: String,
+        definition_id: u64,
+        word_type: WordType,
+    },
+    /// A form appears in both rafsi columns of one row, so it has no single
+    /// standing.
+    #[error(
+        "Lensisku row `{word}` (definition {definition_id}) lists rafsi `{form}` as both \
+         official and experimental"
+    )]
+    RafsiListedTwice {
+        word: String,
+        definition_id: u64,
+        form: String,
+    },
 }
 
 /// Parse a Lensisku JSON dictionary snapshot.
+///
+/// Non-word rows (Lensisku `wiki` articles) are counted in
+/// [`ImportedDictionary::non_word_row_count`] and otherwise discarded.
 #[requires(true)]
 #[expensive_ensures(ret.as_ref().is_ok_and(|dictionary| {
     dictionary.entries.iter().all(|entry| {
         entry.selmaho.as_ref().is_none_or(|text| !text.trim().is_empty())
-            && entry.rafsi.iter().all(|rafsi| !rafsi.is_empty())
+            && entry.rafsi.iter().all(|rafsi| !rafsi.form.is_empty())
     })
 }) || ret.is_err())]
 pub fn parse_lensisku_json(input: &str) -> Result<ImportedDictionary, LensiskuImportError> {
-    let entries = serde_json::from_str::<Vec<ImportedDictionaryEntry>>(input)?;
-    Ok(ImportedDictionary { entries })
+    let rows = serde_json::from_str::<Vec<LensiskuRow>>(input)?;
+    let mut entries = Vec::with_capacity(rows.len());
+    let mut non_word_row_count = 0;
+    for row in rows {
+        match row.word_type {
+            LensiskuRowKind::Word(word_type) => entries.push(row.into_entry(word_type)?),
+            LensiskuRowKind::Wiki => {
+                if !row.rafsi.is_empty()
+                    || !row.experimental_rafsi.is_empty()
+                    || row.selmaho.is_some()
+                {
+                    return Err(LensiskuImportError::NonWordRowWithWordData {
+                        word: row.word,
+                        definition_id: row.definition_id.get(),
+                    });
+                }
+                non_word_row_count += 1;
+            }
+        }
+    }
+    Ok(ImportedDictionary {
+        entries,
+        non_word_row_count,
+    })
 }
 
 #[requires(true)]
@@ -283,6 +553,16 @@ fn split_rafsi_text(value: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
+    #[requires(true)]
+    #[ensures(ret.len() == entry.rafsi.len())]
+    fn rafsi_forms(entry: &ImportedDictionaryEntry) -> Vec<&str> {
+        entry
+            .rafsi
+            .iter()
+            .map(|rafsi| rafsi.form.as_str())
+            .collect()
+    }
+
     #[requires(!word.is_empty())]
     #[ensures(ret.word == word && ret.definition_id == DefinitionId(definition_id))]
     fn entry(word: &str, definition_id: u64, score: f64) -> ImportedDictionaryEntry {
@@ -314,6 +594,7 @@ mod tests {
         blank.definition = String::new();
         let mut dictionary = ImportedDictionary {
             entries: vec![blank, entry("mlatu", 11, 1.0)],
+            non_word_row_count: 0,
         };
         // The blank outscores the real definition, so discarding it first is
         // what keeps `mlatu` defined at all.
@@ -330,6 +611,7 @@ mod tests {
         blank.definition = String::new();
         let mut dictionary = ImportedDictionary {
             entries: vec![blank, entry("broda", 11, 0.0)],
+            non_word_row_count: 0,
         };
         assert_eq!(dictionary.retain_defined_entries(), 1);
         assert_eq!(
@@ -352,6 +634,7 @@ mod tests {
                 entry("mlatu", 11, 3.0),
                 entry("mlatu", 12, -1.0),
             ],
+            non_word_row_count: 0,
         };
         assert_eq!(dictionary.retain_best_definition_per_word(), 2);
         assert_eq!(
@@ -370,6 +653,7 @@ mod tests {
     fn best_definition_selection_breaks_score_ties_by_lowest_definition_id() {
         let mut dictionary = ImportedDictionary {
             entries: vec![entry("mlatu", 12, 2.0), entry("mlatu", 11, 2.0)],
+            non_word_row_count: 0,
         };
         assert_eq!(dictionary.retain_best_definition_per_word(), 1);
         assert_eq!(dictionary.entries[0].definition_id, DefinitionId(11));
@@ -386,6 +670,7 @@ mod tests {
                 entry("mlatu", 3, 1.0),
                 entry("zbasu", 4, 0.0),
             ],
+            non_word_row_count: 0,
         };
         assert_eq!(dictionary.retain_best_definition_per_word(), 1);
         assert_eq!(
@@ -405,6 +690,7 @@ mod tests {
     fn best_definition_selection_keeps_words_that_only_normalize_alike() {
         let mut dictionary = ImportedDictionary {
             entries: vec![entry("ba'e", 1, 0.0), entry("bahe", 2, 0.0)],
+            non_word_row_count: 0,
         };
         assert_eq!(dictionary.retain_best_definition_per_word(), 0);
         assert_eq!(dictionary.entries.len(), 2);
@@ -463,7 +749,294 @@ mod tests {
             }
         ]"#;
 
-        assert!(parse_lensisku_json(json).is_err());
+        // The error comes through `LensiskuRowKind`'s delegation to
+        // `WordType`, which must keep serde's list of accepted types.
+        let Err(LensiskuImportError::Json(error)) = parse_lensisku_json(json) else {
+            panic!("an unknown word type must fail JSON parsing");
+        };
+        let message = error.to_string();
+        assert!(message.contains("unknown variant `mystery`"), "{message}");
+        assert!(message.contains("`experimental gismu`"), "{message}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn accepts_experimental_rafsi_on_every_experimental_standing_type() {
+        for word_type in ["nalvla", "obsolete cmavo", "obsolete fu'ivla"] {
+            let json = format!(
+                r#"[
+                    {{
+                        "word": "zbaxu",
+                        "word_type": "{word_type}",
+                        "definition": "x",
+                        "definition_id": 1,
+                        "score": 1.0,
+                        "experimental_rafsi": "zbx",
+                        "user": {{"username": "test"}}
+                    }}
+                ]"#
+            );
+            let dictionary = parse_lensisku_json(&json).expect("experimental standing type");
+            assert_eq!(rafsi_forms(&dictionary.entries[0]), ["zbx"]);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn keeps_brod_because_jbotci_never_derives_it() {
+        let json = r#"[
+            {
+                "word": "brodi",
+                "word_type": "gismu",
+                "definition": "x",
+                "definition_id": 1,
+                "score": 1.0,
+                "rafsi": "brod",
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid entry");
+        assert_eq!(rafsi_forms(&dictionary.entries[0]), ["brod"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sets_wiki_rows_aside() {
+        let json = r#"[
+            {
+                "word": "Periodic-table gismu assignment algorithm",
+                "word_type": "wiki",
+                "definition": "**Periodic-table gismu assignment algorithm**",
+                "definition_id": 1,
+                "score": 0.0,
+                "user": {"username": "test"}
+            },
+            {
+                "word": "a",
+                "word_type": "cmavo",
+                "definition": "or",
+                "definition_id": 2,
+                "score": 1.0,
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("wiki rows are recognised");
+        assert_eq!(dictionary.non_word_row_count, 1);
+        assert_eq!(dictionary.row_count(), 2);
+        assert_eq!(
+            dictionary
+                .entries
+                .iter()
+                .map(|entry| entry.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_wiki_rows_carrying_word_data() {
+        for extra in [
+            r#""rafsi": "pat""#,
+            r#""experimental_rafsi": "pat""#,
+            r#""selmaho": "UI""#,
+        ] {
+            let json = format!(
+                r#"[
+                    {{
+                        "word": "article",
+                        "word_type": "wiki",
+                        "definition": "text",
+                        "definition_id": 7,
+                        "score": 0.0,
+                        {extra},
+                        "user": {{"username": "test"}}
+                    }}
+                ]"#
+            );
+            assert!(matches!(
+                parse_lensisku_json(&json),
+                Err(LensiskuImportError::NonWordRowWithWordData {
+                    definition_id: 7,
+                    ..
+                })
+            ));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discards_only_the_four_letter_rafsi_of_gismu() {
+        let json = r#"[
+            {
+                "word": "bacru",
+                "word_type": "gismu",
+                "definition": "utter",
+                "definition_id": 1,
+                "score": 1.0,
+                "rafsi": "bac ba'u bacr",
+                "user": {"username": "test"}
+            },
+            {
+                "word": "celdi",
+                "word_type": "experimental gismu",
+                "definition": "x",
+                "definition_id": 2,
+                "score": 1.0,
+                "rafsi": "celd",
+                "user": {"username": "test"}
+            },
+            {
+                "word": "gu'e",
+                "word_type": "cmavo",
+                "selmaho": "GUhA",
+                "definition": "and",
+                "definition_id": 3,
+                "score": 1.0,
+                "rafsi": "gu'e",
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid entries");
+        assert_eq!(rafsi_forms(&dictionary.entries[0]), ["bac", "ba'u"]);
+        assert!(dictionary.entries[1].rafsi.is_empty());
+        assert_eq!(rafsi_forms(&dictionary.entries[2]), ["gu'e"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn merges_experimental_rafsi_without_the_four_letter_form() {
+        let json = r#"[
+            {
+                "word": "kenjo",
+                "word_type": "experimental gismu",
+                "definition": "x",
+                "definition_id": 1,
+                "score": 1.0,
+                "rafsi": null,
+                "experimental_rafsi": "kej kenj",
+                "user": {"username": "test"}
+            },
+            {
+                "word": "so'y",
+                "word_type": "experimental cmavo",
+                "definition": "x",
+                "definition_id": 2,
+                "score": 1.0,
+                "experimental_rafsi": "sox",
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid entries");
+        assert_eq!(rafsi_forms(&dictionary.entries[0]), ["kej"]);
+        assert_eq!(rafsi_forms(&dictionary.entries[1]), ["sox"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn keeps_each_rafsi_with_the_standing_of_its_column() {
+        // Synthetic rows: an official cmavo with only an experimental rafsi
+        // (the shape of Lensisku's `maz` proposal on a non-selected definition
+        // of `ma`), and an official gismu carrying both kinds at once.
+        let json = r#"[
+            {
+                "word": "ma",
+                "word_type": "cmavo",
+                "selmaho": "KOhA",
+                "definition": "x",
+                "definition_id": 1,
+                "score": 1.0,
+                "experimental_rafsi": "maz",
+                "user": {"username": "test"}
+            },
+            {
+                "word": "ckeji",
+                "word_type": "gismu",
+                "definition": "x",
+                "definition_id": 2,
+                "score": 1.0,
+                "rafsi": "cke kej",
+                "experimental_rafsi": "cki",
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid entries");
+        let standings = |index: usize| {
+            dictionary.entries[index]
+                .rafsi
+                .iter()
+                .map(|rafsi| (rafsi.form.as_str(), rafsi.standing))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(standings(0), [("maz", RafsiClaimKind::Experimental)]);
+        assert_eq!(
+            standings(1),
+            [
+                ("cke", RafsiClaimKind::Official),
+                ("kej", RafsiClaimKind::Official),
+                ("cki", RafsiClaimKind::Experimental),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_an_official_rafsi_on_an_experimental_word() {
+        let json = r#"[
+            {
+                "word": "kenjo",
+                "word_type": "experimental gismu",
+                "definition": "x",
+                "definition_id": 9,
+                "score": 1.0,
+                "rafsi": "kej",
+                "user": {"username": "test"}
+            }
+        ]"#;
+        assert!(matches!(
+            parse_lensisku_json(json),
+            Err(LensiskuImportError::RafsiStandingMismatch {
+                definition_id: 9,
+                word_type: WordType::ExperimentalGismu,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_a_rafsi_listed_in_both_columns() {
+        let json = r#"[
+            {
+                "word": "ma",
+                "word_type": "cmavo",
+                "definition": "x",
+                "definition_id": 3,
+                "score": 1.0,
+                "rafsi": "maz",
+                "experimental_rafsi": "maz",
+                "user": {"username": "test"}
+            }
+        ]"#;
+        assert!(matches!(
+            parse_lensisku_json(json),
+            Err(LensiskuImportError::RafsiListedTwice { definition_id: 3, ref form, .. })
+                if form == "maz"
+        ));
     }
 
     #[test]
@@ -502,7 +1075,7 @@ mod tests {
         ]"#;
 
         let dictionary = parse_lensisku_json(json).expect("valid rafsi field");
-        assert_eq!(dictionary.entries[0].rafsi, vec!["ban", "bau"]);
+        assert_eq!(rafsi_forms(&dictionary.entries[0]), ["ban", "bau"]);
     }
 
     #[test]
@@ -522,7 +1095,7 @@ mod tests {
         ]"#;
 
         let dictionary = parse_lensisku_json(json).expect("valid rafsi field");
-        assert_eq!(dictionary.entries[0].rafsi, vec!["ban", "bau"]);
+        assert_eq!(rafsi_forms(&dictionary.entries[0]), ["ban", "bau"]);
     }
 
     #[test]

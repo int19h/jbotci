@@ -410,6 +410,18 @@ pub trait EmbeddingBackend {
     #[requires(!input.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|embedding| !embedding.values.is_empty()) || ret.is_err())]
     fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError>;
+
+    /// Embed several inputs, returning one embedding per input in order.
+    ///
+    /// Pack builds embed tens of thousands of short inputs, and a backend
+    /// that can process several of them in one model call does so here. The
+    /// default embeds them one at a time, so a backend without that ability
+    /// behaves exactly as before.
+    #[requires(inputs.iter().all(|input| !input.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|embeddings| embeddings.len() == inputs.len()) || ret.is_err())]
+    fn embed_batch(&mut self, inputs: &[&str]) -> Result<Vec<QueryEmbedding>, EmbeddingError> {
+        inputs.iter().map(|input| self.embed(input)).collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2214,22 +2226,40 @@ where
             continue;
         }
 
+        // Rows whose input already has a vector in the previous pack reuse it;
+        // the rest are embedded together, so a backend that batches can share
+        // model calls across the whole chunk. Progress therefore advances a
+        // chunk at a time (about a minute per chunk on a slow CPU), which the
+        // checkpoint granularity already implies.
+        let reused = chunk_rows
+            .iter()
+            .map(|row| reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions)))
+            .collect::<Vec<_>>();
+        let fresh_inputs = chunk_rows
+            .iter()
+            .zip(&reused)
+            .filter(|(_, reused)| reused.is_none())
+            .map(|(row, _)| row.input.as_str())
+            .collect::<Vec<_>>();
+        let mut fresh = backend.embed_batch(&fresh_inputs)?.into_iter();
         let mut values = Vec::with_capacity(row_count * dimensions);
-        for row in chunk_rows {
-            if let Some(reusable) =
-                reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions))
-            {
-                values.extend_from_slice(reusable);
-            } else {
-                let mut embedding = backend.embed(&row.input)?.values;
-                if embedding.len() != dimensions {
-                    return Err(EmbeddingError::DimensionMismatch {
-                        expected: dimensions,
-                        actual: embedding.len(),
-                    });
+        for reused in reused {
+            match reused {
+                Some(reusable) => values.extend_from_slice(reusable),
+                None => {
+                    let mut embedding = fresh
+                        .next()
+                        .expect("embed_batch returns one embedding per input")
+                        .values;
+                    if embedding.len() != dimensions {
+                        return Err(EmbeddingError::DimensionMismatch {
+                            expected: dimensions,
+                            actual: embedding.len(),
+                        });
+                    }
+                    normalize_vector(&mut embedding);
+                    values.extend_from_slice(&embedding);
                 }
-                normalize_vector(&mut embedding);
-                values.extend_from_slice(&embedding);
             }
             *completed_rows = completed_rows.saturating_add(1);
             emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
@@ -4454,14 +4484,21 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let dictionary = jbotci_dictionary_data::english();
         let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
-        let cll_chunks = &cll_site.search_chunks[..4];
-        assert!(
-            cll_chunks
+        // Two section chunks and two paragraph chunks, chosen by kind so the
+        // fixture does not depend on how many paragraphs the book's first
+        // sections happen to have.
+        let of_kind = |kind| {
+            cll_site
+                .search_chunks
                 .iter()
-                .filter(|chunk| chunk.kind == jbotci_cll::CllSearchChunkKind::Section)
-                .count()
-                >= 2
-        );
+                .filter(move |chunk| chunk.kind == kind)
+                .take(2)
+                .cloned()
+        };
+        let cll_chunks = &of_kind(jbotci_cll::CllSearchChunkKind::Section)
+            .chain(of_kind(jbotci_cll::CllSearchChunkKind::Paragraph))
+            .collect::<Vec<_>>()[..];
+        assert_eq!(cll_chunks.len(), 4);
         let spec = EmbeddingModelSpec {
             dimensions: 4,
             ..EmbeddingModelSpec::default_f2llm()

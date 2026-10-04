@@ -1,0 +1,203 @@
+//! Safe wrapper around `llama_perf_context_data`.
+use std::fmt::{Debug, Display, Formatter};
+
+use llama_cpp_sys_4::{ggml_time_us, llama_perf_context_print};
+
+use crate::context::LlamaContext;
+
+/// A wrapper around `llama_perf_context_data`.
+#[derive(Clone, Copy, Debug)]
+pub struct PerfContextData {
+    pub(crate) perf_context_data: llama_cpp_sys_4::llama_perf_context_data,
+}
+
+impl PerfContextData {
+    /// Create a new `PerfContextData`.
+    /// ```
+    /// # use llama_cpp_4::context::perf::PerfContextData;
+    /// let timings = PerfContextData::new(1.0, 2.0, 3.0, 4.0, 5, 6);
+    /// assert_eq!(timings.t_load_ms(), 2.0);
+    /// assert_eq!(timings.t_p_eval_ms(), 3.0);
+    /// assert_eq!(timings.t_eval_ms(), 4.0);
+    /// assert_eq!(timings.n_p_eval(), 5);
+    /// assert_eq!(timings.n_eval(), 6);
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    #[must_use]
+    pub fn new(
+        t_start_ms: f64,
+        // t_end_ms: f64,
+        t_load_ms: f64,
+        // t_sample_ms: f64,
+        t_p_eval_ms: f64,
+        t_eval_ms: f64,
+        // n_sample: i32,
+        n_p_eval: i32,
+        n_eval: i32,
+    ) -> Self {
+        Self {
+            perf_context_data: llama_cpp_sys_4::llama_perf_context_data {
+                t_start_ms,
+                // t_end_ms,
+                t_load_ms,
+                // t_sample_ms,
+                t_p_eval_ms,
+                t_eval_ms,
+                // n_sample,
+                n_p_eval,
+                n_eval,
+                n_reused: 0,
+            },
+        }
+    }
+
+    /// print llama context performance data
+    /// load time
+    /// prompt eval time
+    /// eval time
+    /// total time
+    pub fn print(ctx: &LlamaContext<'_>) {
+        unsafe {
+            llama_perf_context_print(ctx.context.as_ptr());
+        };
+    }
+
+    /// Get the start time in milliseconds.
+    #[must_use]
+    pub fn t_start_ms(&self) -> f64 {
+        self.perf_context_data.t_start_ms
+    }
+
+    /// Get the end time in milliseconds.
+    #[must_use]
+    pub fn t_end_ms(&self) -> f64 {
+        // self.perf_context_data.t_end_ms
+
+        #[allow(clippy::cast_precision_loss)]
+        {
+            1e-3 * (unsafe { ggml_time_us() }) as f64
+        }
+    }
+
+    /// Get the load time in milliseconds.
+    #[must_use]
+    pub fn t_load_ms(&self) -> f64 {
+        self.perf_context_data.t_load_ms
+    }
+
+    // /// Get the sample time in milliseconds.
+    // #[must_use]
+    // pub fn t_sample_ms(&self) -> f64 {
+    //     self.perf_context_data.t_sample_ms
+    // }
+
+    /// Get the prompt evaluation time in milliseconds.
+    #[must_use]
+    pub fn t_p_eval_ms(&self) -> f64 {
+        self.perf_context_data.t_p_eval_ms
+    }
+
+    /// Get the evaluation time in milliseconds.
+    #[must_use]
+    pub fn t_eval_ms(&self) -> f64 {
+        self.perf_context_data.t_eval_ms
+    }
+
+    // /// Get the number of samples.
+    // #[must_use]
+    // pub fn n_sample(&self) -> i32 {
+    //     self.perf_context_data.n_sample
+    // }
+
+    /// Get the number of prompt evaluations.
+    #[must_use]
+    pub fn n_p_eval(&self) -> i32 {
+        self.perf_context_data.n_p_eval
+    }
+
+    /// Get the number of evaluations.
+    #[must_use]
+    pub fn n_eval(&self) -> i32 {
+        self.perf_context_data.n_eval
+    }
+
+    /// Set the start time in milliseconds.
+    pub fn set_t_start_ms(&mut self, t_start_ms: f64) {
+        self.perf_context_data.t_start_ms = t_start_ms;
+    }
+
+    // /// Set the end time in milliseconds.
+    // pub fn set_t_end_ms(&mut self, t_end_ms: f64) {
+    //     self.perf_context_data.t_end_ms = t_end_ms;
+    // }
+
+    /// Set the load time in milliseconds.
+    pub fn set_t_load_ms(&mut self, t_load_ms: f64) {
+        self.perf_context_data.t_load_ms = t_load_ms;
+    }
+
+    // /// Set the sample time in milliseconds.
+    // pub fn set_t_sample_ms(&mut self, t_sample_ms: f64) {
+    //     self.perf_context_data.t_sample_ms = t_sample_ms;
+    // }
+
+    /// Set the prompt evaluation time in milliseconds.
+    pub fn set_t_p_eval_ms(&mut self, t_p_eval_ms: f64) {
+        self.perf_context_data.t_p_eval_ms = t_p_eval_ms;
+    }
+
+    /// Set the evaluation time in milliseconds.
+    pub fn set_t_eval_ms(&mut self, t_eval_ms: f64) {
+        self.perf_context_data.t_eval_ms = t_eval_ms;
+    }
+
+    // /// Set the number of samples.
+    // pub fn set_n_sample(&mut self, n_sample: i32) {
+    //     self.perf_context_data.n_sample = n_sample;
+    // }
+
+    /// Set the number of prompt evaluations.
+    pub fn set_n_p_eval(&mut self, n_p_eval: i32) {
+        self.perf_context_data.n_p_eval = n_p_eval;
+    }
+
+    /// Set the number of evaluations.
+    pub fn set_n_eval(&mut self, n_eval: i32) {
+        self.perf_context_data.n_eval = n_eval;
+    }
+}
+
+impl Display for PerfContextData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "load time = {:.2} ms", self.t_load_ms())?;
+        // writeln!(
+        //     f,
+        //     "sample time = {:.2} ms / {} runs ({:.2} ms per token, {:.2} tokens per second)",
+        //     self.t_sample_ms(),
+        //     self.n_sample(),
+        //     self.t_sample_ms() / f64::from(self.n_sample()),
+        //     1e3 / self.t_sample_ms() * f64::from(self.n_sample())
+        // )?;
+        writeln!(
+            f,
+            "prompt eval time = {:.2} ms / {} tokens ({:.2} ms per token, {:.2} tokens per second)",
+            self.t_p_eval_ms(),
+            self.n_p_eval(),
+            self.t_p_eval_ms() / f64::from(self.n_p_eval()),
+            1e3 / self.t_p_eval_ms() * f64::from(self.n_p_eval())
+        )?;
+        writeln!(
+            f,
+            "eval time = {:.2} ms / {} runs ({:.2} ms per token, {:.2} tokens per second)",
+            self.t_eval_ms(),
+            self.n_eval(),
+            self.t_eval_ms() / f64::from(self.n_eval()),
+            1e3 / self.t_eval_ms() * f64::from(self.n_eval())
+        )?;
+        write!(
+            f,
+            "total time = {:.2} ms",
+            self.t_end_ms() - self.t_start_ms()
+        )
+    }
+}

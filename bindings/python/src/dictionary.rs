@@ -111,7 +111,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_universal_gismu_rafsi_forms",
     "_dictionary_word_type_is_gismu_like",
     "_dictionary_word_type_is_lujvo_like",
-    "_dictionary_word_type_rafsi_claim_kind",
+    "_dictionary_word_type_max_rafsi_standing",
     "_dictionary_english",
     "_dictionary_english_metadata",
 ];
@@ -424,9 +424,22 @@ impl RafsiStorage {
     fn value(&self) -> &str {
         match self.as_data() {
             data!(RafsiStorage::Borrowed { owner, position }) => {
-                owner.dictionary().entries()[position.entry.0].rafsi[position.item].0
+                owner.dictionary().entries()[position.entry.0].rafsi[position.item].form
             }
             data!(RafsiStorage::Owned(value)) => value,
+        }
+    }
+
+    /// The standing of a dictionary entry's rafsi, or `None` for a value
+    /// constructed from Python, which is only a lookup key.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RafsiStorage::Borrowed { .. })))]
+    fn standing(&self) -> Option<RafsiClaimKind> {
+        match self.as_data() {
+            data!(RafsiStorage::Borrowed { owner, position }) => {
+                Some(owner.dictionary().entries()[position.entry.0].rafsi[position.item].standing)
+            }
+            data!(RafsiStorage::Owned(_)) => None,
         }
     }
 }
@@ -596,7 +609,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn variants() -> &'static [Self] {
         const VARIANTS: &[RafsiSource] = &[
-            RafsiSource::Listed,
+            RafsiSource::Listed {
+                standing: RafsiClaimKind::Official,
+            },
+            RafsiSource::Listed {
+                standing: RafsiClaimKind::Experimental,
+            },
             RafsiSource::UniversalShort,
             RafsiSource::UniversalLong,
         ];
@@ -605,7 +623,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn python_member_name(self) -> std::borrow::Cow<'static, str> {
         std::borrow::Cow::Borrowed(match self {
-            Self::Listed => "LISTED",
+            Self::Listed {
+                standing: RafsiClaimKind::Official,
+            } => "LISTED_OFFICIAL",
+            Self::Listed {
+                standing: RafsiClaimKind::Experimental,
+            } => "LISTED_EXPERIMENTAL",
             Self::UniversalShort => "UNIVERSAL_SHORT",
             Self::UniversalLong => "UNIVERSAL_LONG",
         })
@@ -613,7 +636,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn python_value(self) -> &'static str {
         match self {
-            Self::Listed => "listed",
+            Self::Listed {
+                standing: RafsiClaimKind::Official,
+            } => "listed-official",
+            Self::Listed {
+                standing: RafsiClaimKind::Experimental,
+            } => "listed-experimental",
             Self::UniversalShort => "universal-short",
             Self::UniversalLong => "universal-long",
         }
@@ -931,6 +959,10 @@ impl PyKeyword {
 }
 
 /// Rafsi value.
+///
+/// Equality, ordering and hashing compare the form only, so a rafsi read from
+/// an entry equals the lookup key built from the same text; `standing` is
+/// extra information that only entry rafsi carry.
 #[invariant(true)]
 #[pyclass(
     name = "Rafsi",
@@ -979,6 +1011,19 @@ impl PyRafsi {
     #[getter]
     fn value(&self) -> &str {
         self.storage.value()
+    }
+
+    /// Return whether a dictionary entry holds this rafsi officially or
+    /// experimentally, or `None` for a value constructed as a lookup key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn standing(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let module = native_module(py)?;
+        self.storage
+            .standing()
+            .map(|standing| Ok(string_enum_member(&module, standing)?.unbind()))
+            .transpose()
     }
 
     #[requires(true)]
@@ -3329,13 +3374,16 @@ fn py_word_type_is_lujvo_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyRes
     Ok(extract_string_enum::<WordType>(&module, value)?.is_lujvo_like())
 }
 
-/// Classify a word type's rafsi claims after registered-enum extraction.
+/// Return a word type's rafsi standing ceiling after registered-enum extraction.
 #[requires(true)]
 #[ensures(true)]
-#[pyfunction(name = "_word_type_rafsi_claim_kind")]
-fn py_word_type_rafsi_claim_kind(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+#[pyfunction(name = "_word_type_max_rafsi_standing")]
+fn py_word_type_max_rafsi_standing(
+    py: Python<'_>,
+    value: &Bound<'_, PyAny>,
+) -> PyResult<Py<PyAny>> {
     let module = native_module(py)?;
-    let kind = extract_string_enum::<WordType>(&module, value)?.rafsi_claim_kind();
+    let kind = extract_string_enum::<WordType>(&module, value)?.max_rafsi_standing();
     Ok(string_enum_member(&module, kind)?.unbind())
 }
 
@@ -3423,8 +3471,12 @@ fn register_functions(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_private_object(module, "_dictionary_word_type_is_gismu_like", gismu_like)?;
     let lujvo_like = wrap_pyfunction!(py_word_type_is_lujvo_like, module)?;
     register_private_object(module, "_dictionary_word_type_is_lujvo_like", lujvo_like)?;
-    let claim_kind = wrap_pyfunction!(py_word_type_rafsi_claim_kind, module)?;
-    register_private_object(module, "_dictionary_word_type_rafsi_claim_kind", claim_kind)?;
+    let claim_kind = wrap_pyfunction!(py_word_type_max_rafsi_standing, module)?;
+    register_private_object(
+        module,
+        "_dictionary_word_type_max_rafsi_standing",
+        claim_kind,
+    )?;
     Ok(())
 }
 
@@ -3977,7 +4029,15 @@ class DictionaryValidationError(JbotciError):
                             .unwrap()
                             .extract::<String>()
                             .unwrap(),
-                        rust_rafsi.0
+                        rust_rafsi.form
+                    );
+                    let python_standing = python_rafsi.getattr("standing").unwrap();
+                    assert_eq!(
+                        python_standing.extract::<String>().unwrap(),
+                        match rust_rafsi.standing {
+                            RafsiClaimKind::Official => "official",
+                            RafsiClaimKind::Experimental => "experimental",
+                        }
                     );
                 }
 

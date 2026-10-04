@@ -382,6 +382,65 @@ fn top_heading(dialect: CllMarkdownDialect) -> &'static str {
     }
 }
 
+/// Append an HTML list of `section_ids`, nesting each section's subsections
+/// under it, so the table of contents shows the book's full section tree.
+#[requires(true)]
+#[ensures(output.len() > old(output.len()))]
+fn push_html_toc_sections(
+    site: &CllSite,
+    section_ids: &[String],
+    link_mode: CllLinkRenderMode,
+    output: &mut String,
+) {
+    output.push_str("<ol>");
+    for section_id in section_ids {
+        let section = site
+            .sections_by_id
+            .get(section_id)
+            .expect("CllSite invariant guarantees section ids resolve");
+        output.push_str("<li>");
+        if link_mode == CllLinkRenderMode::Web {
+            output.push_str("<a href=\"");
+            output.push_str(&escape_html(&section_href(&section.section_id)));
+            output.push_str("\">");
+        }
+        output.push_str(&escape_html(&format_section_display_title(section)));
+        if link_mode == CllLinkRenderMode::Web {
+            output.push_str("</a>");
+        }
+        if !section.child_section_ids.is_empty() {
+            push_html_toc_sections(site, &section.child_section_ids, link_mode, output);
+        }
+        output.push_str("</li>");
+    }
+    output.push_str("</ol>");
+}
+
+/// Append Markdown list items for `section_ids` at `depth`, with each
+/// section's subsections indented one level under it.
+#[requires(depth > 0)]
+#[ensures(section_ids.is_empty() || output.len() > old(output.len()))]
+fn push_markdown_toc_sections(
+    site: &CllSite,
+    section_ids: &[String],
+    dialect: CllMarkdownDialect,
+    depth: usize,
+    output: &mut String,
+) {
+    for section_id in section_ids {
+        let section = site
+            .sections_by_id
+            .get(section_id)
+            .expect("CllSite invariant guarantees section ids resolve");
+        output.push_str(&format!(
+            "{}- {}\n",
+            "  ".repeat(depth),
+            dialect_text(&format_section_display_title(section), dialect)
+        ));
+        push_markdown_toc_sections(site, &section.child_section_ids, dialect, depth + 1, output);
+    }
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
@@ -400,25 +459,8 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
                     chapter.division.chapter_number(),
                     &chapter.chapter_title,
                 )));
-                output.push_str("<ol>");
-                for section_id in &chapter.root_section_ids {
-                    let section = site
-                        .sections_by_id
-                        .get(section_id)
-                        .expect("CllSite invariant guarantees chapter root section ids resolve");
-                    output.push_str("<li>");
-                    if link_mode == CllLinkRenderMode::Web {
-                        output.push_str("<a href=\"");
-                        output.push_str(&escape_html(&section_href(&section.section_id)));
-                        output.push_str("\">");
-                    }
-                    output.push_str(&escape_html(&format_section_display_title(section)));
-                    if link_mode == CllLinkRenderMode::Web {
-                        output.push_str("</a>");
-                    }
-                    output.push_str("</li>");
-                }
-                output.push_str("</ol></li>");
+                push_html_toc_sections(site, &chapter.root_section_ids, link_mode, &mut output);
+                output.push_str("</li>");
             }
             output.push_str("</ol></nav>\n");
             output
@@ -439,16 +481,13 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
                     dialect,
                 ));
                 output.push('\n');
-                for section_id in &chapter.root_section_ids {
-                    let section = site
-                        .sections_by_id
-                        .get(section_id)
-                        .expect("CllSite invariant guarantees chapter root section ids resolve");
-                    output.push_str(&format!(
-                        "  - {}\n",
-                        dialect_text(&format_section_display_title(section), dialect)
-                    ));
-                }
+                push_markdown_toc_sections(
+                    site,
+                    &chapter.root_section_ids,
+                    dialect,
+                    1,
+                    &mut output,
+                );
                 output.push('\n');
             }
             output
@@ -1433,6 +1472,14 @@ mod tests {
         assert!(html.contains(&escape_html(&edition.title)));
         assert!(html.contains(&escape_html(&edition.publisher)));
         assert!(html.contains("<h2>Table of Contents</h2>"));
+
+        // Subsections are listed under their section in both renderings.
+        assert!(
+            markdown.contains("  - 21.2. PEG word-form grammar\n    - 21.2.1. "),
+            "{markdown}"
+        );
+        assert!(html.contains("PEG word-form grammar</a><ol><li><a href=\""));
+        assert!(html.contains("21.2.3. cmevla</a></li>"));
     }
 
     #[test]
@@ -1670,10 +1717,14 @@ mod tests {
     #[ensures(true)]
     fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
+        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
+        // text changed in both (the camxes MIT notice; the EBNF section became
+        // 21.3). The renderer itself did not change: with the book at 1.3.4,
+        // this code still reproduces the previous hashes exactly.
         let cases = [
             (
                 "1.8",
-                "431f3bacf76041930750732951d356e792574c85f31a41e717e7aab6abfe1710",
+                "18f959f1d46bccde09d57f5084dfe7b2045c74353b1a598f11a6ad3a7b035b90",
             ),
             (
                 "2.1",
@@ -1685,7 +1736,7 @@ mod tests {
             ),
             (
                 "section-EBNF",
-                "0685302ea249fbcaaedef565e917d6866bdafc362e41440c235603f8ed3599aa",
+                "418269c42bcbe8d247ae081f6a33eda90566018e620d528505085308c2d77a8c",
             ),
         ];
 
@@ -1710,10 +1761,14 @@ mod tests {
     #[ensures(true)]
     fn web_html_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
+        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
+        // text changed in both (the camxes MIT notice; the EBNF section became
+        // 21.3). The renderer itself did not change: with the book at 1.3.4,
+        // this code still reproduces the previous hashes exactly.
         let cases = [
             (
                 "1.8",
-                "d2eb92b7063ce00201b4ab4b7c4a76ba8dded192b74a5ccad84f29082a5d4366",
+                "119e81356aedd9c0cf76c3634ea94876d20efbd9a3da2cb22bda2bc072d6d88b",
             ),
             (
                 "2.1",
@@ -1725,7 +1780,7 @@ mod tests {
             ),
             (
                 "section-EBNF",
-                "a7aa9ac42cbf574aaeaee9c0ad0ba33771099ca3f7804c84723c2e845608ee5a",
+                "c0e026bd7b77ea09e442f49a358b5cfdc666b4793bb05e123580ab143bd9ec16",
             ),
         ];
 
@@ -1879,7 +1934,7 @@ mod tests {
             .expect("metadata EBNF section should exist");
         assert_eq!(
             ebnf.number.map(|number| number.to_string()).as_deref(),
-            Some("21.2")
+            Some("21.3")
         );
         assert_eq!(
             ebnf.blocks
@@ -1912,54 +1967,68 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn peg_morphology_appendix_imports_as_a_sectioned_appendix() {
-        // colojban 1.3.4 breaks the PEG word-form grammar out of a single
-        // program listing into thirteen numbered-in-the-book-by-nothing
-        // sections. It is the first appendix to have sections at all, so this
-        // pins that the sectioned path stays appendix-shaped: real sections,
-        // none of them carrying a number.
+    fn peg_word_form_grammar_imports_as_numbered_subsections_of_section_21_2() {
+        // colojban 1.3.5 moves the PEG word-form grammar from its own appendix
+        // into chapter 21 as section 21.2, whose thirteen parts become nested
+        // sections. The book's stylesheet numbers them 21.2.1 to 21.2.13, so
+        // each is imported as a real section with that number, linked to its
+        // parent, rather than flattened into 21.2's text.
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let chapter = site
-            .chapters
-            .iter()
-            .find(|chapter| chapter.chapter_id == "appendix-peg-morphology")
-            .expect("the PEG morphology appendix should be imported");
-        assert_eq!(chapter.division, CllDivision::Appendix);
+        let peg = cll_lookup_section(site, "section-peg-grammar")
+            .expect("the PEG word-form grammar section should exist");
         assert_eq!(
-            chapter.root_section_ids,
-            [
-                "a02-classes",
-                "a02-words",
-                "a02-cmevla",
-                "a02-cmavo",
-                "a02-brivla",
-                "a02-fuhivla",
-                "a02-gismu",
-                "a02-syllables",
-                "a02-vowels",
-                "a02-consonants",
-                "a02-boundaries",
-                "a02-spaces",
-                "a02-selmaho",
-            ]
+            peg.number.map(|number| number.to_string()).as_deref(),
+            Some("21.2")
         );
-        assert!(
-            cll_lookup_section(site, "appendix-peg-morphology").is_none(),
-            "an appendix with sections of its own gets no synthetic root section"
+        assert_eq!(peg.parent_section_id, None);
+        let expected_children = [
+            "peg-classes",
+            "peg-words",
+            "peg-cmevla",
+            "peg-cmavo",
+            "peg-brivla",
+            "peg-fuhivla",
+            "peg-gismu",
+            "peg-syllables",
+            "peg-vowels",
+            "peg-consonants",
+            "peg-boundaries",
+            "peg-spaces",
+            "peg-selmaho",
+        ];
+        assert_eq!(peg.child_section_ids, expected_children);
+
+        // Subsections follow their parent in reading order, before 21.3.
+        let position = |section_id: &str| {
+            site.section_order
+                .iter()
+                .position(|id| id == section_id)
+                .unwrap_or_else(|| panic!("{section_id} should be in reading order"))
+        };
+        let peg_position = position("section-peg-grammar");
+        for (offset, child_id) in expected_children.iter().enumerate() {
+            assert_eq!(position(child_id), peg_position + offset + 1, "{child_id}");
+        }
+        assert_eq!(
+            position(&cll_import_metadata().ebnf_section_id),
+            peg_position + expected_children.len() + 1
         );
 
-        // Every grammar rule in the appendix survives import, and each one is a
-        // `varlistentry` in one of the appendix's variable lists.
+        // Every grammar rule survives import, each a `varlistentry` in one of
+        // the subsections' variable lists, and none is tokenized as EBNF.
         let mut entries = 0usize;
-        for section_id in &chapter.root_section_ids {
-            let section = cll_lookup_section(site, section_id).expect("a02 section should exist");
-            assert_eq!(section.division, CllDivision::Appendix);
+        for (offset, child_id) in expected_children.iter().enumerate() {
+            let section = cll_lookup_section(site, child_id).expect("PEG subsection should exist");
             assert_eq!(
-                section.number, None,
-                "{section_id} is in an appendix and must carry no number"
+                section.number.map(|number| number.to_string()),
+                Some(format!("21.2.{}", offset + 1))
             );
-            assert_eq!(section.chapter_id, "appendix-peg-morphology");
-            assert_eq!(section.source_path, "a02.xml");
+            assert_eq!(
+                section.parent_section_id.as_deref(),
+                Some("section-peg-grammar")
+            );
+            assert!(section.child_section_ids.is_empty());
+            assert_eq!(section.source_path, "21.xml");
             entries += section
                 .blocks
                 .iter()
@@ -1973,14 +2042,36 @@ mod tests {
                     .blocks
                     .iter()
                     .any(|block| matches!(block, CllBlock::Ebnf { .. })),
-                "{section_id} is PEG, not the chapter 21 EBNF, so it must not be tokenized as EBNF"
+                "{child_id} is PEG, not the EBNF, so it must not be tokenized as EBNF"
             );
         }
         assert_eq!(entries, 236);
 
+        // 21.2's own text opens with prose that links into the numbered
+        // chapters and ends with a bulleted key to the PEG notation; none of
+        // its subsections' rules are flattened into it.
+        let (paragraphs, others): (Vec<_>, Vec<_>) = peg
+            .blocks
+            .iter()
+            .partition(|block| matches!(block, CllBlock::Paragraph { .. }));
+        assert!(matches!(others.as_slice(), [CllBlock::List { .. }]));
+        let CllBlock::Paragraph { inlines, .. } = paragraphs[0] else {
+            unreachable!("partitioned on Paragraph")
+        };
+        assert_eq!(
+            inlines
+                .iter()
+                .filter_map(|inline| match inline {
+                    CllInline::Link { target, .. } => Some(target.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            ["chapter-morphology", "chapter-phonology"]
+        );
+
         // Chapter 21's EBNF section is the one variable list that gets the
         // bespoke EBNF treatment; every other variable list in the book, the
-        // appendix's included, renders as a definition list.
+        // PEG subsections' included, renders as a definition list.
         let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
             .expect("the EBNF section should exist");
         assert!(
@@ -1995,26 +2086,127 @@ mod tests {
                 .any(|block| matches!(block, CllBlock::VariableList { .. }))
         );
 
-        // The appendix is addressable through cukta by any of its section ids,
-        // and a cross-reference to the appendix as a whole lands on its first
-        // section under the title the book gives it.
-        let rendered = render_cukta_request(
-            site,
-            &CuktaRequest::Section {
-                reference: "a02-cmevla".to_owned(),
-            },
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        )
-        .expect("a PEG morphology section should render through cukta");
-        assert!(rendered.starts_with("# cmevla\n"));
-        assert!(rendered.contains("**zifcme ←**\n\n!h (nucleus / glide / h / consonant !pause"));
-        assert_eq!(
-            site.anchors_by_id
-                .get("appendix-peg-morphology")
-                .map(|anchor| (anchor.section_id.as_str(), anchor.label.as_str())),
-            Some(("a02-classes", "The PEG word-form grammar"))
-        );
+        // A subsection is addressable through cukta by its id and by its
+        // number, and renders under its full number.
+        for reference in ["peg-cmevla", "21.2.3"] {
+            let rendered = render_cukta_request(
+                site,
+                &CuktaRequest::Section {
+                    reference: reference.to_owned(),
+                },
+                CllRenderFormat::Markdown,
+                CllLinkRenderMode::Plain,
+            )
+            .unwrap_or_else(|error| panic!("{reference} should render through cukta: {error}"));
+            assert!(
+                rendered.starts_with("# 21.2.3. cmevla\n"),
+                "{reference}: {rendered}"
+            );
+            assert!(
+                rendered.contains("**zifcme ←**\n\n!h (nucleus / glide / h / consonant !pause")
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn subsections_are_searched_as_sections_of_their_own() {
+        // Search — and the semantic corpus built from the same chunks — must
+        // reach a subsection's text through the subsection itself: its own
+        // section chunk, labelled and linked with its own number and id, and
+        // never through text copied into its parent's chunk.
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let peg = cll_lookup_section(site, "section-peg-grammar")
+            .expect("the PEG word-form grammar section should exist");
+        let parent_chunk = site
+            .search_chunks
+            .iter()
+            .find(|chunk| {
+                chunk.kind == CllSearchChunkKind::Section && chunk.section_id == peg.section_id
+            })
+            .expect("21.2 should have a section chunk");
+        // The ids and numbers are spelled out rather than read back from the
+        // import, so the test fails if the subsections vanish or renumber.
+        let expected_children = [
+            "peg-classes",
+            "peg-words",
+            "peg-cmevla",
+            "peg-cmavo",
+            "peg-brivla",
+            "peg-fuhivla",
+            "peg-gismu",
+            "peg-syllables",
+            "peg-vowels",
+            "peg-consonants",
+            "peg-boundaries",
+            "peg-spaces",
+            "peg-selmaho",
+        ];
+        assert_eq!(peg.child_section_ids, expected_children);
+        for (offset, child_id) in expected_children.iter().enumerate() {
+            let child = cll_lookup_section(site, child_id).expect("subsection should exist");
+            let number = Some(format!("21.2.{}", offset + 1));
+            let section_chunks = site
+                .search_chunks
+                .iter()
+                .filter(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == *child_id
+                })
+                .collect::<Vec<_>>();
+            let [chunk] = section_chunks.as_slice() else {
+                panic!("{child_id} should have exactly one section chunk");
+            };
+            assert_eq!(chunk.section_number, number);
+            assert_eq!(chunk.label, format_section_display_title(child));
+            assert_eq!(cll_search_chunk_href(chunk), section_href(child_id));
+            assert!(
+                chunk
+                    .text
+                    .contains(&normalized_plain_text(&child.plain_text))
+            );
+
+            // Every other chunk of the subsection's text carries the
+            // subsection's own number and title, never its parent's.
+            for chunk in site
+                .search_chunks
+                .iter()
+                .filter(|chunk| chunk.section_id == *child_id)
+            {
+                assert_eq!(chunk.section_number, number, "{}", chunk.anchor_id);
+                assert_eq!(chunk.section_title, child.title, "{}", chunk.anchor_id);
+                if chunk.kind == CllSearchChunkKind::Paragraph {
+                    assert_eq!(
+                        chunk.label,
+                        format!("Paragraph in {}", format_section_display_title(child))
+                    );
+                }
+            }
+            assert!(
+                !parent_chunk
+                    .text
+                    .contains(&normalized_plain_text(&child.plain_text)),
+                "{child_id}'s text must not be duplicated into 21.2's chunk"
+            );
+        }
+
+        // Reading-order search lists a subsection between its parent and the
+        // next top-level section, as the table of contents does.
+        let position = |section_id: &str| {
+            site.search_chunks
+                .iter()
+                .position(|chunk| {
+                    chunk.kind == CllSearchChunkKind::Section && chunk.section_id == section_id
+                })
+                .unwrap_or_else(|| panic!("{section_id} should have a section chunk"))
+        };
+        let mut previous = position(&peg.section_id);
+        for child_id in expected_children {
+            let current = position(child_id);
+            assert!(previous < current, "{child_id} is out of reading order");
+            previous = current;
+        }
+        assert!(previous < position(&cll_import_metadata().ebnf_section_id));
     }
 
     #[test]
@@ -2023,55 +2215,50 @@ mod tests {
     fn chapter_front_matter_is_parsed_and_addressed_as_first_section_content() {
         // Content that sits outside every section belongs to the chapter, but
         // the reader only ever meets it above the chapter's first section. It
-        // goes through the ordinary block pipeline, so its cross-references,
-        // lists, and inline markup survive, and everything it contributes -
-        // search chunks and index entries alike - names that first section.
+        // goes through the ordinary block pipeline, so its cross-references
+        // and inline markup survive, and everything it contributes - search
+        // chunks and index entries alike - names that first section. The
+        // chrestomathy is the division that opens with front matter.
         let site = embedded_cll_site().expect("embedded CLL should load");
+        let metadata = cll_import_metadata();
         let appendix = site
             .chapters
             .iter()
-            .find(|chapter| chapter.chapter_id == "appendix-peg-morphology")
-            .expect("the PEG morphology appendix should be imported");
-        let first_section =
-            cll_lookup_section(site, "a02-classes").expect("a02's first section should exist");
+            .find(|chapter| chapter.chapter_id == metadata.chrestomathy_chapter_id)
+            .expect("the chrestomathy should be imported");
+        let first_id = appendix
+            .root_section_ids
+            .first()
+            .expect("the chrestomathy has sections");
+        assert_eq!(first_id, "section-north-wind");
+        let first_section = cll_lookup_section(site, first_id).expect("first section exists");
         assert_eq!(
             cll_section_prelude_blocks(site, first_section),
             appendix.prelude_blocks
         );
+        let last_id = appendix.root_section_ids.last().expect("has sections");
         assert!(
-            cll_lookup_section(site, "a02-selmaho")
+            cll_lookup_section(site, last_id)
                 .is_some_and(|section| cll_section_prelude_blocks(site, section).is_empty()),
             "only the first section of a chapter shows that chapter's front matter"
         );
 
-        // The appendix opens with prose and closes its front matter with a
-        // bulleted key to the PEG notation.
-        let (paragraphs, lists): (Vec<_>, Vec<_>) = appendix
+        // The front matter is two paragraphs, and the second one's
+        // cross-reference to the changes appendix survives as a link.
+        let paragraphs = appendix
             .prelude_blocks
             .iter()
-            .partition(|block| matches!(block, CllBlock::Paragraph { .. }));
-        assert_eq!(paragraphs.len(), 5);
-        assert_eq!(lists.len(), 1);
-        assert!(matches!(lists[0], CllBlock::List { .. }));
-
-        // The opening paragraph's two cross-references into the numbered
-        // chapters survive as links, rather than being flattened away.
-        let opening = paragraphs
-            .first()
-            .expect("the appendix opens with a paragraph");
-        let CllBlock::Paragraph { inlines, .. } = opening else {
-            unreachable!("partitioned on Paragraph")
+            .filter(|block| matches!(block, CllBlock::Paragraph { .. }))
+            .collect::<Vec<_>>();
+        assert_eq!(paragraphs.len(), appendix.prelude_blocks.len());
+        assert_eq!(paragraphs.len(), 2);
+        let CllBlock::Paragraph { inlines, .. } = paragraphs[1] else {
+            unreachable!("filtered on Paragraph")
         };
-        assert_eq!(
-            inlines
-                .iter()
-                .filter_map(|inline| match inline {
-                    CllInline::Link { target, .. } => Some(target.as_str()),
-                    _ => None,
-                })
-                .collect::<Vec<_>>(),
-            ["chapter-morphology", "chapter-phonology"]
-        );
+        assert!(inlines.iter().any(|inline| matches!(
+            inline,
+            CllInline::Link { target, .. } if target == "appendix-changes"
+        )));
 
         // cukta renders the front matter above the first section, exactly where
         // the web shows it, and searching finds it under that section.
@@ -2081,20 +2268,20 @@ mod tests {
             CllRenderFormat::Markdown,
             CllLinkRenderMode::Plain,
         );
-        assert!(rendered.starts_with("# Word classes\n\nThis appendix reproduces"));
-        assert!(rendered.contains("\n**CMEVLA ←**\n"));
+        assert!(
+            rendered.starts_with("# The North Wind and the Sun\n\nThis chrestomathy reprints"),
+            "{rendered}"
+        );
         assert!(site.search_chunks.iter().any(|chunk| {
-            chunk.section_id == "a02-classes"
+            chunk.section_id == "section-north-wind"
                 && chunk.kind == CllSearchChunkKind::Paragraph
-                && chunk
-                    .text
-                    .starts_with("A parsing expression grammar differs")
+                && chunk.text.starts_with("The texts range")
         }));
         assert!(
             cll_index_entries(site)
                 .iter()
-                .find(|entry| entry.key == "slinku'i test; formal statement of")
-                .is_some_and(|entry| entry.section_ids == ["a02-classes"]),
+                .find(|entry| entry.key == "chrestomathy; editorial principles of")
+                .is_some_and(|entry| entry.section_ids == ["section-north-wind"]),
             "an index term in a chapter's front matter is indexed at its first section"
         );
 
@@ -2135,16 +2322,14 @@ mod tests {
                 .iter()
                 .map(|chapter| chapter.chapter_title.as_str())
                 .collect::<Vec<_>>(),
-            [
-                "Chrestomathy",
-                "The PEG word-form grammar",
-                "Changes from the first edition",
-            ]
+            ["Chrestomathy", "Changes from the first edition"]
         );
 
         // A cross-reference to an appendix renders the appendix title, the only
         // designation the book gives it, rather than a synthesized chapter
-        // number that would have collided with the real chapter 22.
+        // number that would have collided with the real chapter 22. The PEG
+        // grammar it also cites is a numbered section of chapter 21 since
+        // colojban 1.3.5, so that reference carries its number.
         let rafsi_for_fuivla = cll_lookup_section(site, "section-rafsi-fuhivla")
             .expect("chapter 4's fu'ivla rafsi section should exist");
         let rendered = render_section(
@@ -2153,7 +2338,10 @@ mod tests {
             CllRenderFormat::Markdown,
             CllLinkRenderMode::Plain,
         );
-        assert!(rendered.contains("printed in The PEG word-form grammar"));
+        assert!(
+            rendered.contains("PEG word-form grammar in 21.2. PEG word-form grammar"),
+            "{rendered}"
+        );
         assert!(rendered.contains("see Changes from the first edition"));
         assert!(!rendered.contains("Chapter 24"));
         assert!(!rendered.contains("Chapter 25"));
@@ -2198,7 +2386,23 @@ mod tests {
         let twenty: CllSectionNumber = "20".parse().expect("20 is a whole-chapter number");
         assert_eq!(twenty.to_string(), "20");
         assert_eq!(twenty.chapter().get(), 20);
-        for text in ["", "6.", ".3", "6.0", "0.3", "6.3.1", "6.x", "a01"] {
+        let subsection: CllSectionNumber = "21.2.4".parse().expect("21.2.4 is a subsection number");
+        assert_eq!(subsection.to_string(), "21.2.4");
+        assert_eq!(subsection.chapter().get(), 21);
+        assert_eq!(
+            "21.2"
+                .parse::<CllSectionNumber>()
+                .ok()
+                .and_then(|number| { number.subsection(NonZeroUsize::new(4).expect("non-zero")) }),
+            Some(subsection)
+        );
+        // The book nests one level deep, so a subsection has no subsections
+        // and a whole chapter has no sections to nest under.
+        assert_eq!(subsection.subsection(NonZeroUsize::MIN), None);
+        assert_eq!(twenty.subsection(NonZeroUsize::MIN), None);
+        for text in [
+            "", "6.", ".3", "6.0", "0.3", "6.3.0", "6.3.1.1", "6..3", "6.x", "a01",
+        ] {
             assert!(
                 text.parse::<CllSectionNumber>().is_err(),
                 "`{text}` is not a section number"
@@ -2259,6 +2463,14 @@ mod tests {
         );
         assert!(
             section(chapter_six, r#""6.3.1""#).is_err(),
+            "a subsection number belongs only to a section nested under a parent"
+        );
+        assert!(
+            section(chapter_six, r#""22.3.1""#).is_err(),
+            "a chapter 6 subsection must not carry chapter 22's number"
+        );
+        assert!(
+            section(chapter_six, r#""6.3.1.1""#).is_err(),
             "a malformed section number is rejected while parsing"
         );
     }
@@ -2275,7 +2487,7 @@ mod tests {
                 .number
                 .map(|number| number.to_string())
                 .as_deref(),
-            Some("21.3")
+            Some("21.4")
         );
         assert_eq!(
             cross_reference
@@ -2391,12 +2603,12 @@ mod tests {
     #[ensures(true)]
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
-        assert_eq!(site.chapters.len(), 25);
-        // Every division of colojban 1.3.4 has sections of its own - the PEG
-        // appendix was the last one that did not - so the site holds exactly the
-        // 350 `section` elements the sources contain and synthesizes none.
-        assert_eq!(site.sections_by_id.len(), 350);
-        assert_eq!(site.section_order.len(), 350);
+        assert_eq!(site.chapters.len(), 24);
+        // Every division of colojban 1.3.5 has sections of its own, so the site
+        // holds exactly the 351 `section` elements the sources contain,
+        // subsections included, and synthesizes none.
+        assert_eq!(site.sections_by_id.len(), 351);
+        assert_eq!(site.section_order.len(), 351);
         assert_eq!(site.examples_by_id.len(), 1857);
     }
 

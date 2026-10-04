@@ -6449,7 +6449,7 @@ fn unique_rafsi_count_for_word_types(
             .any(|word_type| entry.word_type == *word_type)
         {
             for value in entry.rafsi {
-                rafsi.insert(value.0);
+                rafsi.insert(value.form);
             }
         }
     }
@@ -9719,6 +9719,25 @@ mod tests {
         assert!(results.is_empty());
         assert_eq!(message.as_deref(), Some("No matches found."));
 
+        // The hits are chosen by chunk kind rather than by position, so the
+        // case does not depend on how many paragraphs the book's first
+        // sections happen to have: the best hit is a paragraph, which the
+        // section-only filter drops, and two section hits remain for a
+        // one-result page, so there is more to page through.
+        let chunks = &jbotci_cll::embedded_cll_site()
+            .expect("embedded CLL should load")
+            .search_chunks;
+        let mut section_indexes = chunks
+            .iter()
+            .enumerate()
+            .filter(|(_, chunk)| chunk.kind == CllSearchChunkKind::Section)
+            .map(|(index, _)| index);
+        let first_section = section_indexes.next().expect("a section chunk");
+        let second_section = section_indexes.next().expect("a second section chunk");
+        let paragraph = chunks
+            .iter()
+            .position(|chunk| chunk.kind == CllSearchChunkKind::Paragraph)
+            .expect("a paragraph chunk");
         let section_only_page = build_cukta_semantic_web_page(
             "",
             &CuktaWebState {
@@ -9731,15 +9750,15 @@ mod tests {
             },
             &[
                 CuktaSemanticSearchHit {
-                    chunk_index: 1,
+                    chunk_index: paragraph,
                     score: 0.99,
                 },
                 CuktaSemanticSearchHit {
-                    chunk_index: 0,
+                    chunk_index: first_section,
                     score: 0.75,
                 },
                 CuktaSemanticSearchHit {
-                    chunk_index: 3,
+                    chunk_index: second_section,
                     score: 0.74,
                 },
             ],
@@ -10168,9 +10187,9 @@ mod tests {
             .dictionary_info
             .as_ref()
             .expect("blank vlacku result should include dictionary metadata");
-        assert_eq!(info.lensisku_created_date, "2026-09-01");
-        assert_eq!(info.lensisku_created_at, "2026-09-01T11:38:52Z");
-        assert_eq!(info.total_count, 30_793);
+        assert_eq!(info.lensisku_created_date, "2026-10-04");
+        assert_eq!(info.lensisku_created_at, "2026-10-04T03:07:08Z");
+        assert_eq!(info.total_count, 31_248);
         assert!(!info.count_tree.is_empty());
 
         let dictionary = jbotci_dictionary_data::english();
@@ -10265,7 +10284,7 @@ mod tests {
         );
 
         let cmavo = dictionary_count_node(&info.count_tree, "cmavo");
-        assert_eq!(cmavo.count, 1_669);
+        assert_eq!(cmavo.count, 1_681);
         assert_eq!(
             dictionary_count_node_labels(&cmavo.children),
             vec!["regular", "experimental", "obsolete"]
@@ -10278,42 +10297,44 @@ mod tests {
         );
         assert_eq!(
             dictionary_count_node(&cmavo.children, "experimental").count,
-            1_068
+            1_080
         );
         assert_eq!(dictionary_count_node(&cmavo.children, "obsolete").count, 3);
         assert_eq!(
             dictionary_count_node(&info.count_tree, "cmavo compounds").count,
-            719
+            734
         );
 
         let brivla = dictionary_count_node(&info.count_tree, "brivla");
-        assert_eq!(brivla.count, 27_739);
+        assert_eq!(brivla.count, 28_150);
         assert_eq!(
             dictionary_count_node_labels(&brivla.children),
             vec!["gismu", "lujvo", "fu'ivla"]
         );
         let gismu = dictionary_count_node(&brivla.children, "gismu");
-        assert_eq!(gismu.count, 1_983);
+        assert_eq!(gismu.count, 2_098);
         assert_eq!(
             dictionary_count_node(&gismu.children, "experimental").count,
-            645
+            760
         );
         // Both rafsi counts are unique-form counts, so each is the snapshot's
-        // own forms plus exactly the 40 the extracted table (issue #768,
-        // re-audited in #881) adds to 37 experimental gismu: 1_491 + 40 and
-        // 59 + 40.
-        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_531);
+        // own forms plus exactly the 35 the extracted table (issue #768,
+        // re-audited in #881 and the 2026-10 refresh) adds to 32 experimental
+        // gismu: 1_504 + 35 and 73 + 35. The gismu total is 1_432 official
+        // forms plus the 73 experimental ones, less `kej`, which `ckeji` and
+        // `kenjo` share.
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_539);
         assert_eq!(
             dictionary_count_node(
                 &dictionary_count_node(&gismu.children, "experimental").children,
                 "rafsi",
             )
             .count,
-            99
+            108
         );
 
         let lujvo = dictionary_count_node(&brivla.children, "lujvo");
-        assert_eq!(lujvo.count, 12_894);
+        assert_eq!(lujvo.count, 13_048);
         assert_eq!(
             dictionary_count_node_labels(&lujvo.children),
             vec!["zei-lujvo", "obsolete zei-lujvo"]
@@ -10328,14 +10349,14 @@ mod tests {
         );
 
         let fuivla = dictionary_count_node(&brivla.children, "fu'ivla");
-        assert_eq!(fuivla.count, 12_862);
+        assert_eq!(fuivla.count, 13_004);
         assert_eq!(
             dictionary_count_node(&fuivla.children, "obsolete").count,
             373
         );
 
         let cmevla = dictionary_count_node(&info.count_tree, "cmevla");
-        assert_eq!(cmevla.count, 589);
+        assert_eq!(cmevla.count, 594);
         assert_eq!(
             dictionary_count_node(&cmevla.children, "obsolete").count,
             33
@@ -10344,7 +10365,7 @@ mod tests {
             dictionary_count_node(&info.count_tree, "letterals").count,
             59
         );
-        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 17);
+        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 29);
         assert_eq!(dictionary_count_node(&info.count_tree, "untyped").count, 1);
     }
 
