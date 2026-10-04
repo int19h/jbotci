@@ -1,0 +1,31 @@
+--- a/src/context/params.rs
++++ b/src/context/params.rs
+@@ -209,6 +209,28 @@
+         self.context_params.n_batch
+     }
+ 
++    /// Set the maximum number of distinct sequences one context processes.
++    ///
++    /// jbotci addition: embedding many short inputs per decode call needs
++    /// more than the default single sequence.
++    #[must_use]
++    pub fn with_n_seq_max(mut self, n_seq_max: u32) -> Self {
++        self.context_params.n_seq_max = n_seq_max;
++        self
++    }
++
++    /// Share one KV cache across all sequences instead of giving each
++    /// sequence `n_ctx / n_seq_max` cells.
++    ///
++    /// jbotci addition: with a unified cache, any one sequence can still use
++    /// the whole context, so packing several inputs never shortens the
++    /// longest window a call accepts.
++    #[must_use]
++    pub fn with_kv_unified(mut self, kv_unified: bool) -> Self {
++        self.context_params.kv_unified = kv_unified;
++        self
++    }
++
+     /// Set the `n_ubatch`
+     ///
+     /// # Examples

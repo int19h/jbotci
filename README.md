@@ -120,8 +120,8 @@ uploads matching q4-generated `f16le` vector packs under the normal web
 embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
 
-The embedding builders refuse to start when their output directory already
-exists, and refuse again if it appears before they finish. Pass `--overwrite`
+If their output directory already exists, the embedding builders refuse to
+start, and they refuse again if it appears before they finish. Pass `--overwrite`
 to replace it. The rule covers `build-f2llm-webgpu-model`,
 `build-f2llm-webgpu-vectors`, `build-f2llm-webgpu-assets`,
 `build-gguf-embeddings`, `build-web-embeddings`, the three publish commands
@@ -133,6 +133,24 @@ packs inside its own bundle on every run, and writes the models it exports to
 into one merged pack without publishing, run
 `cargo run -r -p xtask-full -- build-f2llm-webgpu-assets`, then publish the
 result with `publish-f2llm-webgpu-r2 --skip-build`.
+
+Building packs takes hours on a CPU, so both pack builders have options that
+make it faster:
+
+- The web packs use ONNX Runtime on the CPU. One build stops getting faster
+  past a few threads, so run several models at once:
+  `build-f2llm-webgpu-assets --jobs 4 --threads-per-job 4` builds the four
+  models in parallel, about 2.5 times faster on an M1 Ultra than one model at
+  a time. No GPU route is faster: ONNX Runtime's CoreML provider supports only
+  part of these q4 models, and jbotci's own WebGPU runtime is tuned for single
+  queries.
+- The native GGUF packs use llama.cpp. On an Apple-silicon Mac, pass
+  `build-gguf-embeddings --llama-backend metal` to run it on the GPU, about 25
+  times faster than the CPU. Metal vectors differ from CPU vectors only in the
+  last digits: search rankings change about as much as between two CPU
+  builds. `--llama-backend native-cpu` compiles llama.cpp for the build
+  machine's own CPU, about 1.7 times faster than the portable build. Both are
+  for building packs locally; never ship binaries built with them.
 
 `vendor/cll` tracks the
 [int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.5` release.

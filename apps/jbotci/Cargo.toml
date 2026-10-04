@@ -11,6 +11,10 @@ repository.workspace = true
 [features]
 disable_contracts = ["bityzba/disable_contracts"]
 expensive_contracts = []
+# Embedding-pack build accelerators (see jbotci-embeddings): GPU through
+# Metal, and a CPU build tuned to the build machine. Local use only.
+embeddings-metal = ["jbotci-embeddings/metal"]
+embeddings-native-cpu = ["jbotci-embeddings/native-cpu"]
 
 [[bin]]
 name = "jbotci"

@@ -6,7 +6,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
-use std::num::NonZeroU16;
+use std::num::{NonZeroU16, NonZeroUsize};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -684,6 +684,9 @@ struct BuildF2LlmWebgpuVectorsArgs {
     /// Replace the output directory if it already exists (refused by default).
     #[arg(long)]
     overwrite: bool,
+    /// ONNX Runtime threads (default: one per core).
+    #[arg(long)]
+    threads: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Args)]
@@ -707,6 +710,12 @@ struct BuildF2LlmWebgpuAssetsArgs {
     /// (refused by default).
     #[arg(long)]
     overwrite: bool,
+    /// How many model vector builds run at once (default 1).
+    #[arg(long, default_value_t = NonZeroUsize::MIN)]
+    jobs: NonZeroUsize,
+    /// ONNX Runtime threads per vector build (default: one per core).
+    #[arg(long)]
+    threads_per_job: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Args)]
@@ -725,6 +734,36 @@ struct BuildGgufEmbeddingsArgs {
     /// Replace the output directory if it already exists (refused by default).
     #[arg(long)]
     overwrite: bool,
+    /// How llama.cpp computes the vectors.
+    #[arg(long, value_enum, default_value_t = LlamaBackend::Cpu)]
+    llama_backend: LlamaBackend,
+}
+
+/// Which llama.cpp build computes native embedding vectors.
+///
+/// Pack builds embed tens of thousands of inputs, so they can opt into faster
+/// builds that are unsuitable for distributed binaries: `metal` runs on the
+/// GPU of an Apple-silicon Mac (vectors agree with the CPU's to the last few
+/// digits), and `native-cpu` compiles for the build machine's own CPU.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum LlamaBackend {
+    Cpu,
+    NativeCpu,
+    Metal,
+}
+
+impl LlamaBackend {
+    /// The `jbotci` cargo feature that selects this build, if any.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self == Self::Cpu))]
+    fn jbotci_feature(self) -> Option<&'static str> {
+        match self {
+            Self::Cpu => None,
+            Self::NativeCpu => Some("embeddings-native-cpu"),
+            Self::Metal => Some("embeddings-metal"),
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -794,6 +833,12 @@ struct PublishF2LlmWebgpuR2Args {
     /// (refused by default; irrelevant with `--skip-build`).
     #[arg(long)]
     overwrite: bool,
+    /// How many model vector builds run at once (default 1).
+    #[arg(long, default_value_t = NonZeroUsize::MIN)]
+    jobs: NonZeroUsize,
+    /// ONNX Runtime threads per vector build (default: one per core).
+    #[arg(long)]
+    threads_per_job: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Args)]
@@ -821,6 +866,9 @@ struct PublishGgufEmbeddingsR2Args {
     /// default; irrelevant with `--skip-build`).
     #[arg(long)]
     overwrite: bool,
+    /// How llama.cpp computes the vectors when building.
+    #[arg(long, value_enum, default_value_t = LlamaBackend::Cpu)]
+    llama_backend: LlamaBackend,
 }
 
 #[derive(Debug, Args)]
@@ -2549,6 +2597,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.dimensions,
         args.include_wasm_runtime,
         existing_output,
+        args.threads,
     )?;
     run_f2llm_vector_validator(
         &args.python,
@@ -2587,6 +2636,10 @@ fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
         args.batch_size,
         existing_output,
         existing_output,
+        VectorBuildParallelism {
+            jobs: args.jobs,
+            threads_per_job: args.threads_per_job,
+        },
     )?;
     build_f2llm_onnx_fallback_asset(
         &model_out_root,
@@ -2624,6 +2677,10 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
             args.batch_size,
             existing_output,
             existing_output,
+            VectorBuildParallelism {
+                jobs: args.jobs,
+                threads_per_job: args.threads_per_job,
+            },
         )?;
         build_f2llm_onnx_fallback_asset(
             &model_out_root,
@@ -2697,11 +2754,11 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         fs::create_dir_all(&model_index_dir)
             .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
         let mut command = ProcessCommand::new("cargo");
+        command.arg("run").arg("--release").arg("-p").arg("jbotci");
+        if let Some(feature) = args.llama_backend.jbotci_feature() {
+            command.arg("--features").arg(feature);
+        }
         command
-            .arg("run")
-            .arg("--release")
-            .arg("-p")
-            .arg("jbotci")
             .arg("--")
             .arg("setup")
             .arg("--embedding")
@@ -2780,6 +2837,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
             models: selected_models.to_vec(),
             skip_validation: args.skip_validation,
             overwrite: args.overwrite,
+            llama_backend: args.llama_backend,
         })?;
     } else {
         validate_native_gguf_r2_tree(&out_dir)?;
@@ -3722,6 +3780,7 @@ fn build_web_embedding_assets_to(
         8,
         outputs.models,
         outputs.vectors,
+        VectorBuildParallelism::SEQUENTIAL,
     )
 }
 
@@ -3802,9 +3861,32 @@ fn resolve_f2llm_q4_onnx(
     resolve_f2llm_spec_q4_onnx(spec, artifact_root)
 }
 
+/// How many model vector builds run at once, and how many ONNX Runtime
+/// threads each gets.
+///
+/// Per-process throughput stops improving at a few threads (measured on an M1
+/// Ultra: 7.4 docs/s at 2 threads, 12.6 at 4, 19.0 at 8, 19.9 at 16), so
+/// several models each limited to a few threads finish far sooner than one
+/// model at a time with every core.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct VectorBuildParallelism {
+    jobs: NonZeroUsize,
+    threads_per_job: Option<NonZeroUsize>,
+}
+
+impl VectorBuildParallelism {
+    /// One model at a time, ONNX Runtime's default threading.
+    const SEQUENTIAL: Self = Self {
+        jobs: NonZeroUsize::MIN,
+        threads_per_job: None,
+    };
+}
+
 #[requires(!python.trim().is_empty())]
 #[requires(batch_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+#[allow(clippy::too_many_arguments)]
 fn build_all_f2llm_webgpu_assets(
     python: &str,
     model_out_root: &Path,
@@ -3815,6 +3897,7 @@ fn build_all_f2llm_webgpu_assets(
     batch_size: usize,
     models: ExistingOutput,
     vectors: ExistingOutput,
+    parallelism: VectorBuildParallelism,
 ) -> Result<()> {
     // Check every output up front, before hours of model export and
     // embedding work, rather than failing on the last model.
@@ -3834,7 +3917,10 @@ fn build_all_f2llm_webgpu_assets(
     fs::remove_dir_all(&vector_parts_root).ok();
     fs::create_dir_all(&vector_parts_root)
         .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
-    let mut part_dirs = Vec::new();
+
+    // Model export is quick, so it runs first and in order; the vector builds
+    // are the long part and run up to `parallelism.jobs` at a time.
+    let mut jobs = Vec::new();
     for spec in F2LLM_MODEL_SPECS {
         let q4_onnx = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
         build_f2llm_webgpu_model(BuildF2LlmWebgpuModelArgs {
@@ -3849,12 +3935,15 @@ fn build_all_f2llm_webgpu_assets(
             python: python.to_owned(),
             overwrite: models == ExistingOutput::Replace,
         })?;
-        let part_dir = vector_parts_root.join(spec.id);
+        jobs.push((spec, q4_onnx, vector_parts_root.join(spec.id)));
+    }
+
+    let build_part = |(spec, q4_onnx, part_dir): &(&F2LlmAssetSpec, PathBuf, PathBuf)| {
         run_f2llm_vector_builder(
             python,
-            &q4_onnx,
+            q4_onnx,
             tokenizer_dir,
-            &part_dir,
+            part_dir,
             None,
             corpus,
             batch_size,
@@ -3865,19 +3954,58 @@ fn build_all_f2llm_webgpu_assets(
             // The parts root was just emptied, so a part dir that exists here
             // would be a bug, never an output worth replacing.
             ExistingOutput::Refuse,
-        )?;
-        run_f2llm_vector_validator(
-            python,
-            &q4_onnx,
-            tokenizer_dir,
-            &part_dir,
-            corpus,
-            spec.model_key,
-            spec.dimensions,
-            spec.include_wasm_runtime,
-        )?;
-        part_dirs.push(part_dir);
+            parallelism.threads_per_job,
+        )
+        .and_then(|()| {
+            run_f2llm_vector_validator(
+                python,
+                q4_onnx,
+                tokenizer_dir,
+                part_dir,
+                corpus,
+                spec.model_key,
+                spec.dimensions,
+                spec.include_wasm_runtime,
+            )
+        })
+        .with_context(|| format!("building the {} vector pack", spec.model_key))
+    };
+    // A shared queue: each worker takes the next model until none remain or
+    // some build has failed, so one failure stops new builds from starting.
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let failed = std::sync::atomic::AtomicBool::new(false);
+    let errors = std::sync::Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for _ in 0..parallelism.jobs.get().min(jobs.len()) {
+            scope.spawn(|| {
+                while !failed.load(std::sync::atomic::Ordering::SeqCst) {
+                    let index = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let Some(job) = jobs.get(index) else {
+                        break;
+                    };
+                    if let Err(error) = build_part(job) {
+                        failed.store(true, std::sync::atomic::Ordering::SeqCst);
+                        errors
+                            .lock()
+                            .expect("no worker panics holding the lock")
+                            .push(error);
+                    }
+                }
+            });
+        }
+    });
+    if let Some(error) = errors
+        .into_inner()
+        .expect("no worker panicked holding the lock")
+        .into_iter()
+        .next()
+    {
+        return Err(error);
     }
+    let part_dirs = jobs
+        .into_iter()
+        .map(|(_, _, part_dir)| part_dir)
+        .collect::<Vec<_>>();
     merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)
 }
 
@@ -4085,6 +4213,7 @@ fn run_f2llm_vector_builder(
     dimensions: usize,
     include_wasm_runtime: bool,
     existing_output: ExistingOutput,
+    threads: Option<NonZeroUsize>,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -4118,6 +4247,9 @@ fn run_f2llm_vector_builder(
     }
     if existing_output == ExistingOutput::Replace {
         command.arg("--overwrite");
+    }
+    if let Some(threads) = threads {
+        command.arg("--threads").arg(threads.to_string());
     }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command

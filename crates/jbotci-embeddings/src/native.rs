@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Once, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use llama_cpp_4::context::LlamaContext;
 use llama_cpp_4::context::params::LlamaContextParams;
 use llama_cpp_4::llama_backend::LlamaBackend;
@@ -26,6 +26,12 @@ const N_BATCH: u32 = 2048;
 const N_UBATCH: u32 = 2048;
 const N_CTX: u32 = 2048;
 const N_PARALLEL: usize = 32;
+/// The most inputs one decode call carries in `embed_batch`. The token budget
+/// stays N_UBATCH whatever this is, so it costs no memory; it only lets many
+/// short inputs (most dictionary entries are tens of tokens) share a call.
+/// 64 was the fastest setting measured on Metal (about twice one sequence per
+/// call); on the CPU it neither helps nor hurts.
+const N_SEQ_MAX: u32 = 64;
 
 static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
 static SUPPRESS_LLAMA_LOGS: Once = Once::new();
@@ -101,6 +107,10 @@ impl NativeLlamaEmbeddingBackend {
             .with_n_ctx(NonZeroU32::new(N_CTX))
             .with_n_batch(N_BATCH)
             .with_n_ubatch(N_UBATCH)
+            .with_n_seq_max(N_SEQ_MAX)
+            // One shared cache, so a call carrying many sequences can still
+            // give any one of them the whole N_CTX.
+            .with_kv_unified(true)
             .with_n_threads(threads as i32)
             .with_n_threads_batch(threads as i32);
         let owned = OwnedLlamaContext::load(path, context_params)?;
@@ -143,11 +153,8 @@ impl NativeLlamaEmbeddingBackend {
         let has_encoder_only =
             self.owned.model().has_encoder() && !self.owned.model().has_decoder();
         let context = self.owned.context_mut();
-        let _ = context
-            .clear_kv_cache_seq(Some(0), None, None)
-            .map_err(|source| EmbeddingError::Backend {
-                message: format!("llama.cpp failed to clear context memory: {source}"),
-            })?;
+        // Clear every sequence, not just 0: `embed_batch` uses the others.
+        context.clear_kv_cache();
         let mut batch = LlamaBatch::new(tokens.len(), 1);
         for (index, token) in tokens.iter().enumerate() {
             batch
@@ -208,6 +215,109 @@ unsafe extern "C" fn silent_llama_log(
 ) {
 }
 
+/// One token window of one input in `embed_batch`.
+#[invariant(!tokens.is_empty())]
+#[derive(Debug)]
+struct BatchWindow {
+    input_index: usize,
+    tokens: Vec<llama_cpp_4::token::LlamaToken>,
+}
+
+impl NativeLlamaEmbeddingBackend {
+    /// Tokenize `input` and split it into windows of at most one call's
+    /// token budget, exactly as `embed` does.
+    #[requires(!input.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|windows| !windows.is_empty()) || ret.is_err())]
+    fn token_windows(
+        &self,
+        input: &str,
+    ) -> Result<Vec<Vec<llama_cpp_4::token::LlamaToken>>, EmbeddingError> {
+        let tokens = self
+            .owned
+            .model()
+            .str_to_token(input, AddBos::Always)
+            .map_err(|source| EmbeddingError::Backend {
+                message: format!("llama.cpp tokenization failed: {source}"),
+            })?;
+        if tokens.is_empty() {
+            return Err(EmbeddingError::Backend {
+                message: "cannot embed an empty token sequence".to_owned(),
+            });
+        }
+        Ok(tokens
+            .chunks(self.max_tokens_per_call.max(1))
+            .map(<[_]>::to_vec)
+            .collect())
+    }
+
+    /// Embed `windows` in one decode call, one sequence per window, returning
+    /// each window's normalized embedding in order.
+    #[requires(!windows.is_empty() && windows.len() <= N_SEQ_MAX as usize)]
+    #[requires(windows.iter().map(|window| window.tokens.len()).sum::<usize>() <= self.max_tokens_per_call)]
+    #[ensures(ret.as_ref().is_ok_and(|embeddings| embeddings.len() == windows.len()) || ret.is_err())]
+    fn embed_window_group(
+        &mut self,
+        windows: &[&BatchWindow],
+    ) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        let has_encoder_only =
+            self.owned.model().has_encoder() && !self.owned.model().has_decoder();
+        let total_tokens = windows
+            .iter()
+            .map(|window| window.tokens.len())
+            .sum::<usize>();
+        let dimensions = self.dimensions;
+        let context = self.owned.context_mut();
+        context.clear_kv_cache();
+        let mut batch = LlamaBatch::new(total_tokens, windows.len() as i32);
+        // Batch index of each sequence's last token, for models whose GGUF
+        // metadata asks for no pooling: there the last token's output is the
+        // embedding, as in `embed_tokens`.
+        let mut last_token_indices = Vec::with_capacity(windows.len());
+        for (sequence, window) in windows.iter().enumerate() {
+            for (position, token) in window.tokens.iter().enumerate() {
+                batch
+                    .add(*token, position as i32, &[sequence as i32], true)
+                    .map_err(|source| EmbeddingError::Backend {
+                        message: format!("llama.cpp failed to prepare embedding batch: {source}"),
+                    })?;
+            }
+            last_token_indices.push(batch.n_tokens() - 1);
+        }
+        if has_encoder_only {
+            context
+                .encode(&mut batch)
+                .map_err(|source| EmbeddingError::Backend {
+                    message: format!("llama.cpp embedding encode failed: {source}"),
+                })?;
+        } else {
+            context
+                .decode(&mut batch)
+                .map_err(|source| EmbeddingError::Backend {
+                    message: format!("llama.cpp embedding decode failed: {source}"),
+                })?;
+        }
+        let mut embeddings = Vec::with_capacity(windows.len());
+        for (sequence, last_token_index) in last_token_indices.into_iter().enumerate() {
+            let embedding = context
+                .embeddings_seq_ith(sequence as i32)
+                .or_else(|_| context.embeddings_ith(last_token_index))
+                .map_err(|source| EmbeddingError::Backend {
+                    message: format!("llama.cpp did not return an embedding: {source}"),
+                })?;
+            if embedding.len() != dimensions {
+                return Err(EmbeddingError::DimensionMismatch {
+                    expected: dimensions,
+                    actual: embedding.len(),
+                });
+            }
+            let mut values = embedding.to_vec();
+            normalize_vector(&mut values);
+            embeddings.push(values);
+        }
+        Ok(embeddings)
+    }
+}
+
 #[contract_trait]
 impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
     #[requires(true)]
@@ -253,6 +363,67 @@ impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
         }
         normalize_vector(&mut pooled);
         Ok(QueryEmbedding { values: pooled })
+    }
+
+    /// Embed many inputs with several windows per decode call.
+    ///
+    /// Each input is tokenized and windowed exactly as `embed` does it, and
+    /// its windows are pooled the same way (a single window as is, several by
+    /// token-weighted mean). Only the packing differs: consecutive windows
+    /// share a call up to N_SEQ_MAX sequences and the N_UBATCH token budget,
+    /// each in its own sequence, so attention never crosses inputs. The
+    /// results can differ from `embed` in the last digits (measured cosine
+    /// above 0.998), because the arithmetic is grouped differently.
+    #[requires(inputs.iter().all(|input| !input.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|embeddings| embeddings.len() == inputs.len()) || ret.is_err())]
+    fn embed_batch(&mut self, inputs: &[&str]) -> Result<Vec<QueryEmbedding>, EmbeddingError> {
+        let mut windows = Vec::new();
+        for (input_index, input) in inputs.iter().enumerate() {
+            windows.extend(self.token_windows(input)?.into_iter().map(|tokens| {
+                new!(BatchWindow {
+                    input_index: input_index,
+                    tokens: tokens
+                })
+            }));
+        }
+        let mut pooled = vec![vec![0.0f32; self.dimensions]; inputs.len()];
+        let mut token_counts = vec![0usize; inputs.len()];
+        let mut start = 0;
+        while start < windows.len() {
+            let mut end = start;
+            let mut tokens = 0;
+            while end < windows.len()
+                && end - start < N_SEQ_MAX as usize
+                && tokens + windows[end].tokens.len() <= self.max_tokens_per_call
+            {
+                tokens += windows[end].tokens.len();
+                end += 1;
+            }
+            let group = windows[start..end].iter().collect::<Vec<_>>();
+            let embeddings = self.embed_window_group(&group)?;
+            for (window, embedding) in group.iter().zip(embeddings) {
+                let weight = window.tokens.len() as f32;
+                for (accumulator, value) in pooled[window.input_index].iter_mut().zip(&embedding) {
+                    *accumulator += value * weight;
+                }
+                token_counts[window.input_index] += window.tokens.len();
+            }
+            start = end;
+        }
+        Ok(pooled
+            .into_iter()
+            .zip(token_counts)
+            .map(|(mut values, token_count)| {
+                // A single window is already normalized, and dividing by its
+                // own weight undoes the weighting, so one rule covers both
+                // the single-window and the multi-window case of `embed`.
+                for value in &mut values {
+                    *value /= token_count as f32;
+                }
+                normalize_vector(&mut values);
+                QueryEmbedding { values }
+            })
+            .collect())
     }
 }
 
@@ -528,5 +699,52 @@ fn global_backend() -> Result<&'static LlamaBackend, EmbeddingError> {
         Err(message) => Err(EmbeddingError::Backend {
             message: format!("llama.cpp backend initialization failed: {message}"),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Batched embedding must agree with one-at-a-time `embed`, which is what
+    /// queries use at search time, for short inputs packed many to a call and
+    /// for an input longer than one window. Needs a real GGUF model, which CI
+    /// does not have: run with `--ignored` and point
+    /// `JBOTCI_TEST_GGUF_MODEL` at an F2LLM 80m Q4_K_M file.
+    #[test]
+    #[ignore = "needs a GGUF model file; set JBOTCI_TEST_GGUF_MODEL and run with --ignored"]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embed_batch_agrees_with_embed() {
+        let model_path = PathBuf::from(
+            std::env::var_os("JBOTCI_TEST_GGUF_MODEL")
+                .expect("JBOTCI_TEST_GGUF_MODEL must name the F2LLM 80m GGUF model"),
+        );
+        let spec = model_spec("f2llm-v2-80m-q4-k-m-320").expect("the 80m model is registered");
+        let mut backend =
+            NativeLlamaEmbeddingBackend::load(&spec, &model_path).expect("the model loads");
+        let long = "lo mlatu cu citka lo finpe ".repeat(400);
+        let inputs = [
+            "klama",
+            "title: mlatu | text: x1 is a cat",
+            "a",
+            long.as_str(),
+        ];
+        assert!(
+            backend.token_windows(&long).expect("tokenizes").len() > 1,
+            "the long input must span several windows"
+        );
+        let batched = backend.embed_batch(&inputs).expect("batch embeds");
+        assert_eq!(batched.len(), inputs.len());
+        for (input, batched) in inputs.iter().zip(&batched) {
+            let single = backend.embed(input).expect("single embeds");
+            let cosine = single
+                .values
+                .iter()
+                .zip(&batched.values)
+                .map(|(a, b)| a * b)
+                .sum::<f32>();
+            assert!(cosine > 0.998, "{input:.40}: cosine {cosine}");
+        }
     }
 }

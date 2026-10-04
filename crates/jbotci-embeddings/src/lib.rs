@@ -410,6 +410,18 @@ pub trait EmbeddingBackend {
     #[requires(!input.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|embedding| !embedding.values.is_empty()) || ret.is_err())]
     fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError>;
+
+    /// Embed several inputs, returning one embedding per input in order.
+    ///
+    /// Pack builds embed tens of thousands of short inputs, and a backend
+    /// that can process several of them in one model call does so here. The
+    /// default embeds them one at a time, so a backend without that ability
+    /// behaves exactly as before.
+    #[requires(inputs.iter().all(|input| !input.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|embeddings| embeddings.len() == inputs.len()) || ret.is_err())]
+    fn embed_batch(&mut self, inputs: &[&str]) -> Result<Vec<QueryEmbedding>, EmbeddingError> {
+        inputs.iter().map(|input| self.embed(input)).collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2214,22 +2226,38 @@ where
             continue;
         }
 
+        // Rows whose input already has a vector in the previous pack reuse it;
+        // the rest are embedded together, so a backend that batches can share
+        // model calls across the whole chunk.
+        let reused = chunk_rows
+            .iter()
+            .map(|row| reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions)))
+            .collect::<Vec<_>>();
+        let fresh_inputs = chunk_rows
+            .iter()
+            .zip(&reused)
+            .filter(|(_, reused)| reused.is_none())
+            .map(|(row, _)| row.input.as_str())
+            .collect::<Vec<_>>();
+        let mut fresh = backend.embed_batch(&fresh_inputs)?.into_iter();
         let mut values = Vec::with_capacity(row_count * dimensions);
-        for row in chunk_rows {
-            if let Some(reusable) =
-                reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions))
-            {
-                values.extend_from_slice(reusable);
-            } else {
-                let mut embedding = backend.embed(&row.input)?.values;
-                if embedding.len() != dimensions {
-                    return Err(EmbeddingError::DimensionMismatch {
-                        expected: dimensions,
-                        actual: embedding.len(),
-                    });
+        for reused in reused {
+            match reused {
+                Some(reusable) => values.extend_from_slice(reusable),
+                None => {
+                    let mut embedding = fresh
+                        .next()
+                        .expect("embed_batch returns one embedding per input")
+                        .values;
+                    if embedding.len() != dimensions {
+                        return Err(EmbeddingError::DimensionMismatch {
+                            expected: dimensions,
+                            actual: embedding.len(),
+                        });
+                    }
+                    normalize_vector(&mut embedding);
+                    values.extend_from_slice(&embedding);
                 }
-                normalize_vector(&mut embedding);
-                values.extend_from_slice(&embedding);
             }
             *completed_rows = completed_rows.saturating_add(1);
             emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
