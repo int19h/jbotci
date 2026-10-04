@@ -160,6 +160,7 @@ impl CllDivision {
 #[invariant(true)]
 #[invariant(::WholeChapter => true)]
 #[invariant(::Section => true)]
+#[invariant(::Subsection => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CllSectionNumber {
     /// A numbered chapter with no `<section>` children of its own, printed as
@@ -168,6 +169,16 @@ pub enum CllSectionNumber {
     /// The `index`-th section of a numbered chapter, printed `chapter.index`.
     Section {
         chapter: NonZeroU16,
+        index: NonZeroUsize,
+    },
+    /// The `index`-th subsection of a section, printed
+    /// `chapter.section.index`. The book's stylesheet numbers nested sections
+    /// with the full path (colojban 1.3.5 nests the PEG word-form grammar's
+    /// thirteen parts under section 21.2). Only one level of nesting exists, so
+    /// a deeper one is rejected at import rather than numbered by guesswork.
+    Subsection {
+        chapter: NonZeroU16,
+        section: NonZeroUsize,
         index: NonZeroUsize,
     },
 }
@@ -179,7 +190,29 @@ impl CllSectionNumber {
     #[ensures(true)]
     pub const fn chapter(self) -> NonZeroU16 {
         match self {
-            Self::WholeChapter { chapter } | Self::Section { chapter, .. } => chapter,
+            Self::WholeChapter { chapter }
+            | Self::Section { chapter, .. }
+            | Self::Subsection { chapter, .. } => chapter,
+        }
+    }
+
+    /// The number of this section's `index`-th subsection, or `None` when this
+    /// number cannot have subsections: a whole chapter has no sections to nest
+    /// under, and the book nests only one level deep.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Section { .. }))]
+    #[ensures(ret.is_none_or(|number| number.chapter() == self.chapter()))]
+    pub fn subsection(self, index: NonZeroUsize) -> Option<Self> {
+        match self {
+            Self::Section {
+                chapter,
+                index: section,
+            } => Some(Self::Subsection {
+                chapter,
+                section,
+                index,
+            }),
+            Self::WholeChapter { .. } | Self::Subsection { .. } => None,
         }
     }
 }
@@ -191,6 +224,11 @@ impl fmt::Display for CllSectionNumber {
         match self {
             Self::WholeChapter { chapter } => write!(formatter, "{chapter}"),
             Self::Section { chapter, index } => write!(formatter, "{chapter}.{index}"),
+            Self::Subsection {
+                chapter,
+                section,
+                index,
+            } => write!(formatter, "{chapter}.{section}.{index}"),
         }
     }
 }
@@ -204,14 +242,21 @@ impl FromStr for CllSectionNumber {
         let invalid = || CllSectionNumberError::Invalid {
             text: text.to_owned(),
         };
-        let number = match text.split_once('.') {
-            Some((chapter, index)) => Self::Section {
+        let parts = text.split('.').collect::<Vec<_>>();
+        let number = match parts.as_slice() {
+            [chapter] => Self::WholeChapter {
+                chapter: chapter.parse().map_err(|_| invalid())?,
+            },
+            [chapter, index] => Self::Section {
                 chapter: chapter.parse().map_err(|_| invalid())?,
                 index: index.parse().map_err(|_| invalid())?,
             },
-            None => Self::WholeChapter {
-                chapter: text.parse().map_err(|_| invalid())?,
+            [chapter, section, index] => Self::Subsection {
+                chapter: chapter.parse().map_err(|_| invalid())?,
+                section: section.parse().map_err(|_| invalid())?,
+                index: index.parse().map_err(|_| invalid())?,
             },
+            _ => return Err(invalid()),
         };
         // Rust's integer parsers accept a leading `+` and leading zeroes, so
         // `+6.3`, `06.3` and `6.03` would all parse to the number that prints
@@ -230,7 +275,7 @@ impl FromStr for CllSectionNumber {
 #[invariant(::Invalid => true)]
 pub enum CllSectionNumberError {
     #[error(
-        "`{text}` is not a CLL section number; expected a chapter number such as `20` or a chapter and section such as `6.3`, both counted from one"
+        "`{text}` is not a CLL section number; expected a chapter number such as `20`, a chapter and section such as `6.3`, or a subsection such as `21.2.4`, all counted from one"
     )]
     Invalid { text: String },
 }
@@ -561,7 +606,7 @@ fn cll_site_example_references_are_consistent(
 /// machine-readable `condition="status:..."` attribute that would name the
 /// authority level of each note — ratified, committee-approved, checkpointed,
 /// de facto, editorial. No release has emitted one yet: `v1.3.2` through
-/// `v1.3.4` carry only the transitional bare form, so the level exists solely
+/// `v1.3.5` carry only the transitional bare form, so the level exists solely
 /// in each note's prose and this type deliberately does not guess at it.
 #[invariant(true)]
 #[invariant(

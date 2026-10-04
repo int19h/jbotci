@@ -136,11 +136,11 @@ DEALINGS IN THE FONT SOFTWARE.
 ### The Contemporary Lojban Language (CLL)
 
 jbotci embeds text, examples, and the formal grammar from
-[colojban 1.3.4](https://github.com/int19h/cll/tree/v1.3.4), a modified fork of
+[colojban 1.3.5](https://github.com/int19h/cll/tree/v1.3.5), a modified fork of
 *The Complete Lojban Language* by John Woldemar Cowan. This material powers the
 grammar reference (the `cukta` tool) and drives parser and reference-analysis
 development. Its lineage is the official CLL 1.1, followed by the UnCLL
-`geklojban-1.2.16` revision, followed by the colojban 1.3.4 fork vendored here.
+`geklojban-1.2.16` revision, followed by the colojban 1.3.5 fork vendored here.
 The book carries the following notice, which its license requires us to
 preserve on all copies:
 
@@ -166,7 +166,54 @@ Fairfax VA 22031-1303 USA. Web Address: http://www.lojban.org
 ```
 
 The formal grammar (the machine-parseable EBNF) and certain other contents of
-the book are placed in the public domain by that same notice. Except for
+the book are placed in the public domain by that same notice. The exception is
+the PEG word-form grammar (section 21.2 of colojban 1.3.5), which reproduces
+rules from the grammar file of the camxes parser (`camxes.peg` in the
+ilmentufa project). That file is under the MIT License, and the book prints its
+copyright and permission notices, which also cover those rules:
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2014 lagleki, ilmen, and other contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The files “camxes.js.peg” and “camxes.js” are copyright (c) 2013, 2014 Masato
+Hagiwara and licensed as follow:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+``` Except for
 separately sourced components, the colojban source repository applies the
 book's permission notice to its sources and associated scripts as well. The
 source maintainers consider that notice equivalent to the

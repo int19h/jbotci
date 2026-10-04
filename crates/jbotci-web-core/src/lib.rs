@@ -9719,6 +9719,25 @@ mod tests {
         assert!(results.is_empty());
         assert_eq!(message.as_deref(), Some("No matches found."));
 
+        // The hits are chosen by chunk kind rather than by position, so the
+        // case does not depend on how many paragraphs the book's first
+        // sections happen to have: the best hit is a paragraph, which the
+        // section-only filter drops, and two section hits remain for a
+        // one-result page, so there is more to page through.
+        let chunks = &jbotci_cll::embedded_cll_site()
+            .expect("embedded CLL should load")
+            .search_chunks;
+        let mut section_indexes = chunks
+            .iter()
+            .enumerate()
+            .filter(|(_, chunk)| chunk.kind == CllSearchChunkKind::Section)
+            .map(|(index, _)| index);
+        let first_section = section_indexes.next().expect("a section chunk");
+        let second_section = section_indexes.next().expect("a second section chunk");
+        let paragraph = chunks
+            .iter()
+            .position(|chunk| chunk.kind == CllSearchChunkKind::Paragraph)
+            .expect("a paragraph chunk");
         let section_only_page = build_cukta_semantic_web_page(
             "",
             &CuktaWebState {
@@ -9731,15 +9750,15 @@ mod tests {
             },
             &[
                 CuktaSemanticSearchHit {
-                    chunk_index: 1,
+                    chunk_index: paragraph,
                     score: 0.99,
                 },
                 CuktaSemanticSearchHit {
-                    chunk_index: 0,
+                    chunk_index: first_section,
                     score: 0.75,
                 },
                 CuktaSemanticSearchHit {
-                    chunk_index: 3,
+                    chunk_index: second_section,
                     score: 0.74,
                 },
             ],

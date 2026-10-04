@@ -4454,14 +4454,21 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let dictionary = jbotci_dictionary_data::english();
         let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
-        let cll_chunks = &cll_site.search_chunks[..4];
-        assert!(
-            cll_chunks
+        // Two section chunks and two paragraph chunks, chosen by kind so the
+        // fixture does not depend on how many paragraphs the book's first
+        // sections happen to have.
+        let of_kind = |kind| {
+            cll_site
+                .search_chunks
                 .iter()
-                .filter(|chunk| chunk.kind == jbotci_cll::CllSearchChunkKind::Section)
-                .count()
-                >= 2
-        );
+                .filter(move |chunk| chunk.kind == kind)
+                .take(2)
+                .cloned()
+        };
+        let cll_chunks = &of_kind(jbotci_cll::CllSearchChunkKind::Section)
+            .chain(of_kind(jbotci_cll::CllSearchChunkKind::Paragraph))
+            .collect::<Vec<_>>()[..];
+        assert_eq!(cll_chunks.len(), 4);
         let spec = EmbeddingModelSpec {
             dimensions: 4,
             ..EmbeddingModelSpec::default_f2llm()

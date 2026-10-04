@@ -812,10 +812,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/jbotci-cll/build.rs:EmbeddedDivision::Appendix",
-        "the vendored appendix ordinal is a NonZeroUsize, so the variant data already expresses its positivity",
-    ),
-    (
         "crates/jbotci-cll/build.rs:EmbeddedDivision::Chapter",
         "the vendored chapter number is a NonZeroU16, so the variant data already expresses its positivity",
     ),
@@ -1026,6 +1022,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::Section",
         "the chapter and the section index are NonZeroU16 and NonZeroUsize, so the variant data already expresses that the book counts both from one",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllSectionNumber::Subsection",
+        "the chapter, section and index are NonZero, so every value names a real subsection",
     ),
     (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::WholeChapter",

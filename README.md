@@ -135,6 +135,6 @@ into one merged pack without publishing, run
 result with `publish-f2llm-webgpu-r2 --skip-build`.
 
 `vendor/cll` tracks the
-[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.4` release.
+[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.5` release.
 It is kept as a submodule because CLL examples and references are part of the
 core parser and reference-analysis development loop.
