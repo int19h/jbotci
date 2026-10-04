@@ -4064,7 +4064,11 @@ fn build_all_f2llm_webgpu_assets(
         .into_iter()
         .map(|(_, _, part_dir)| part_dir)
         .collect::<Vec<_>>();
-    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)
+    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)?;
+    // The merged output now holds a copy of every part. A failed run keeps
+    // its parts for inspection; the next run discards them anyway.
+    fs::remove_dir_all(&vector_parts_root)
+        .with_context(|| format!("removing `{}`", vector_parts_root.display()))
 }
 
 #[requires(!python.trim().is_empty())]
