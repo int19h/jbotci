@@ -424,9 +424,22 @@ impl RafsiStorage {
     fn value(&self) -> &str {
         match self.as_data() {
             data!(RafsiStorage::Borrowed { owner, position }) => {
-                owner.dictionary().entries()[position.entry.0].rafsi[position.item].0
+                owner.dictionary().entries()[position.entry.0].rafsi[position.item].form
             }
             data!(RafsiStorage::Owned(value)) => value,
+        }
+    }
+
+    /// The standing of a dictionary entry's rafsi, or `None` for a value
+    /// constructed from Python, which is only a lookup key.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RafsiStorage::Borrowed { .. })))]
+    fn standing(&self) -> Option<RafsiClaimKind> {
+        match self.as_data() {
+            data!(RafsiStorage::Borrowed { owner, position }) => {
+                Some(owner.dictionary().entries()[position.entry.0].rafsi[position.item].standing)
+            }
+            data!(RafsiStorage::Owned(_)) => None,
         }
     }
 }
@@ -596,7 +609,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn variants() -> &'static [Self] {
         const VARIANTS: &[RafsiSource] = &[
-            RafsiSource::Listed,
+            RafsiSource::Listed {
+                standing: RafsiClaimKind::Official,
+            },
+            RafsiSource::Listed {
+                standing: RafsiClaimKind::Experimental,
+            },
             RafsiSource::UniversalShort,
             RafsiSource::UniversalLong,
         ];
@@ -605,7 +623,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn python_member_name(self) -> std::borrow::Cow<'static, str> {
         std::borrow::Cow::Borrowed(match self {
-            Self::Listed => "LISTED",
+            Self::Listed {
+                standing: RafsiClaimKind::Official,
+            } => "LISTED_OFFICIAL",
+            Self::Listed {
+                standing: RafsiClaimKind::Experimental,
+            } => "LISTED_EXPERIMENTAL",
             Self::UniversalShort => "UNIVERSAL_SHORT",
             Self::UniversalLong => "UNIVERSAL_LONG",
         })
@@ -613,7 +636,12 @@ impl PythonStringEnum for RafsiSource {
 
     fn python_value(self) -> &'static str {
         match self {
-            Self::Listed => "listed",
+            Self::Listed {
+                standing: RafsiClaimKind::Official,
+            } => "listed-official",
+            Self::Listed {
+                standing: RafsiClaimKind::Experimental,
+            } => "listed-experimental",
             Self::UniversalShort => "universal-short",
             Self::UniversalLong => "universal-long",
         }
@@ -979,6 +1007,19 @@ impl PyRafsi {
     #[getter]
     fn value(&self) -> &str {
         self.storage.value()
+    }
+
+    /// Return whether a dictionary entry holds this rafsi officially or
+    /// experimentally, or `None` for a value constructed as a lookup key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn standing(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let module = native_module(py)?;
+        self.storage
+            .standing()
+            .map(|standing| Ok(string_enum_member(&module, standing)?.unbind()))
+            .transpose()
     }
 
     #[requires(true)]
@@ -3977,7 +4018,7 @@ class DictionaryValidationError(JbotciError):
                             .unwrap()
                             .extract::<String>()
                             .unwrap(),
-                        rust_rafsi.0
+                        rust_rafsi.form
                     );
                 }
 

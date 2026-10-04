@@ -422,7 +422,7 @@ fn candidate_list_for_word(
     let listed_rafsi = entry
         .rafsi
         .iter()
-        .map(|rafsi| canonicalize_text(rafsi.0))
+        .map(|rafsi| canonicalize_text(rafsi.form))
         .collect::<Vec<_>>();
     let gismu_extras = if entry.word_type.is_gismu_like() {
         jbotci_dictionary::universal_gismu_rafsi_forms(&canonical_word)

@@ -115,18 +115,18 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
         dictionary.PronunciationTargetSequenceView
         is native._dictionary_PronunciationTargetSequenceView
     )
-    assert len(dictionary.english) == 31_189
+    assert len(dictionary.english) == 31_248
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
     assert dictionary.english_metadata.language_realname == "English"
     assert dictionary.english_metadata.format == "json"
     assert dictionary.english_metadata.filename == "dictionary-en.json"
-    assert dictionary.english_metadata.lensisku_created_at == "2026-10-02T11:50:15Z"
+    assert dictionary.english_metadata.lensisku_created_at == "2026-10-04T03:07:08Z"
     assert dictionary.english_metadata.source_language_tag == "jbo"
     assert dictionary.english_metadata.positive_scores_only is False
-    assert dictionary.english_metadata.definition_count == 33_467
+    assert dictionary.english_metadata.definition_count == 33_526
     assert dictionary.english_metadata.sha256 == (
-        "64c1141bbfd3beafb46b7e6fddb20cc835366ca62d92090f500bdcecefbdf31c"
+        "12e826751c3e50c10dd8df1adafb5f9eb32cdf542b22c4244f284b59d3824dde"
     )
     assert repr(dictionary.english) == "jbotci.dictionary.english"
     assert dictionary.Dictionary.__name__ == "Dictionary"
@@ -159,7 +159,7 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert not hasattr(dictionary.english, "index")
     assert not hasattr(entries, "count")
     assert not hasattr(entries, "index")
-    assert len(entries) == 31_189
+    assert len(entries) == 31_248
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
     assert entries[-1].word == entries[len(entries) - 1].word
@@ -260,7 +260,8 @@ def test_prefix_lookup_is_normalized_ordered_and_handles_empty_prefix() -> None:
 def test_rafsi_queries_preserve_provenance_and_helpers_are_typed() -> None:
     listed = dictionary.english.lookup_rafsi("bau")
     assert any(
-        match.entry.word == "bangu" and match.source is dictionary.RafsiSource.LISTED
+        match.entry.word == "bangu"
+        and match.source is dictionary.RafsiSource.LISTED_OFFICIAL
         for match in listed
     )
     short = dictionary.english.lookup_rafsi("banl")
@@ -391,6 +392,12 @@ def test_entry_records_expose_optional_and_repeated_typed_values() -> None:
     assert adzau.jargon == "Internet"
     assert required_entry("bafygau").user.realname is None
     assert [rafsi.value for rafsi in required_entry("bangu").rafsi] == ["ban", "bau"]
+    assert [rafsi.standing for rafsi in required_entry("bangu").rafsi] == [
+        dictionary.RafsiClaimKind.OFFICIAL,
+        dictionary.RafsiClaimKind.OFFICIAL,
+    ]
+    # A rafsi constructed as a lookup key has no standing.
+    assert dictionary.Rafsi("bau").standing is None
     assert required_entry("bangu").word_type.is_gismu_like()
     assert required_entry("jbobau").word_type.is_lujvo_like()
 

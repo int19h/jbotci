@@ -10,16 +10,16 @@ use std::time::Instant;
 use bityzba::{invariant, new, requires};
 use jbotci_dictionary::import::{
     ImportedDictionary, ImportedDictionaryEntry, ImportedDictionaryUser, ImportedKeyword,
-    parse_lensisku_json,
+    ImportedRafsi, parse_lensisku_json,
 };
 use jbotci_dictionary::{
     CmavoSequenceIndexEntry, Dictionary, DictionaryEntry, DictionaryLujvoEntry,
     DictionaryLujvoSegment, DictionaryLujvoSegmentKind, DictionaryPatternEntry,
     DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword, OwnedCmavoSequenceIndexEntry,
     OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry, OwnedSelmahoIndexEntry,
-    OwnedWordIndexEntry, Rafsi, RafsiIndexEntry, RafsiIndexTarget, RafsiSource, RawSelmaho,
-    SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes, normalize_lookup_query,
-    universal_gismu_rafsi_forms,
+    OwnedWordIndexEntry, Rafsi, RafsiClaimKind, RafsiIndexEntry, RafsiIndexTarget, RafsiSource,
+    RawSelmaho, SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes,
+    normalize_lookup_query, universal_gismu_rafsi_forms,
 };
 use jbotci_jvozba::decompose_lujvo_like;
 use jbotci_morphology::{LujvoPart, possible_short_rafsi_forms};
@@ -413,10 +413,13 @@ fn leak_keywords(keywords: &[ImportedKeyword]) -> &'static [Keyword<'static>] {
 
 #[requires(true)]
 #[ensures(!ret.is_empty() || rafsi.is_empty())]
-fn leak_rafsi(rafsi: &[String]) -> &'static [Rafsi<'static>] {
+fn leak_rafsi(rafsi: &[ImportedRafsi]) -> &'static [Rafsi<'static>] {
     rafsi
         .iter()
-        .map(|value| Rafsi(leak_str(value)))
+        .map(|value| Rafsi {
+            form: leak_str(&value.form),
+            standing: value.standing,
+        })
         .collect::<Vec<_>>()
         .leak()
 }
@@ -699,9 +702,9 @@ fn collect_raw_structured_rafsi(dictionary: &ImportedDictionary) -> BTreeMap<Str
             continue;
         }
         let forms = raw.entry(entry.word.clone()).or_default();
-        for form in &entry.rafsi {
-            if !forms.contains(form) {
-                forms.push(form.clone());
+        for rafsi in &entry.rafsi {
+            if !forms.contains(&rafsi.form) {
+                forms.push(rafsi.form.clone());
             }
         }
     }
@@ -725,7 +728,14 @@ fn collect_raw_structured_rafsi(dictionary: &ImportedDictionary) -> BTreeMap<Str
                     .entries
                     .iter()
                     .filter(|entry| entry.word == *word)
-                    .all(|entry| forms.iter().all(|form| entry.rafsi.contains(form)))
+                    .all(|entry| {
+                        forms.iter().all(|form| {
+                            entry.rafsi.iter().any(|rafsi| {
+                                rafsi.form == *form
+                                    && rafsi.standing == RafsiClaimKind::Experimental
+                            })
+                        })
+                    })
         }),
     "a successful merge lands every accepted assignment on every entry of its word"
 )]
@@ -797,7 +807,17 @@ fn merge_extracted_rafsi(
             );
         }
 
-        dictionary.entries[index].rafsi = forms.clone();
+        // Extracted forms are proposals made in prose, never official
+        // assignments, so they enter with experimental standing.
+        dictionary.entries[index].rafsi = forms
+            .iter()
+            .map(|form| {
+                new!(ImportedRafsi {
+                    form: form.clone(),
+                    standing: RafsiClaimKind::Experimental,
+                })
+            })
+            .collect();
     }
     Ok(())
 }
@@ -971,8 +991,9 @@ fn render_entry(entry: &ImportedDictionaryEntry) -> TokenStream {
     let gloss_keywords = entry.gloss_keywords.iter().map(render_keyword);
     let place_keywords = entry.place_keywords.iter().map(render_keyword);
     let rafsi = entry.rafsi.iter().map(|value| {
-        let value = string_literal(value);
-        quote! { jbotci_dictionary::Rafsi(#value) }
+        let form = string_literal(&value.form);
+        let standing = render_rafsi_claim_kind(value.standing);
+        quote! { jbotci_dictionary::Rafsi { form: #form, standing: #standing } }
     });
     let selmaho = render_optional_string_newtype(entry.selmaho.as_deref(), "RawSelmaho");
     let etymology = render_optional_str(entry.etymology.as_deref());
@@ -1212,9 +1233,23 @@ fn render_word_type(word_type: WordType) -> TokenStream {
 
 #[requires(true)]
 #[ensures(true)]
+fn render_rafsi_claim_kind(kind: RafsiClaimKind) -> TokenStream {
+    match kind {
+        RafsiClaimKind::Official => quote! { jbotci_dictionary::RafsiClaimKind::Official },
+        RafsiClaimKind::Experimental => {
+            quote! { jbotci_dictionary::RafsiClaimKind::Experimental }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_rafsi_source(source: RafsiSource) -> TokenStream {
     match source {
-        RafsiSource::Listed => quote! { jbotci_dictionary::RafsiSource::Listed },
+        RafsiSource::Listed { standing } => {
+            let standing = render_rafsi_claim_kind(standing);
+            quote! { jbotci_dictionary::RafsiSource::Listed { standing: #standing } }
+        }
         RafsiSource::UniversalShort => quote! { jbotci_dictionary::RafsiSource::UniversalShort },
         RafsiSource::UniversalLong => quote! { jbotci_dictionary::RafsiSource::UniversalLong },
     }

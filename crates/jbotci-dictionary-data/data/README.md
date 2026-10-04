@@ -127,27 +127,42 @@ words / 40 forms.
   unfiltered export itself: `losxa` scores 0, so its claim on `los` was
   invisible while the snapshot kept only positively scored definitions.
 
-**2026-10-02** (2026-10 refresh): the table stays at 37 words / 40 forms.
+**2026-10-04** (2026-10 refresh): 37 words / 40 forms became 32 words / 35
+forms.
+
 Lensisku now records rafsi in two columns: `rafsi` for official assignments
-and `experimental_rafsi` for experimental ones. The importer takes the column
-that matches the standing of the row's word type, and fails if the other
-column lists anything. Lensisku also lists a gismu's 4-letter rafsi (the gismu
-minus its final vowel) as a structured rafsi. jbotci derives that form
-itself, so the importer discards exactly the derived form. After that, none of
-the 37 words carries a structured rafsi of its own.
+and `experimental_rafsi` for experimental ones. The importer keeps each form
+with the standing of its column, so the standing belongs to the rafsi, not to
+the word. Lensisku also attaches rafsi to each definition rather than to the
+word. An entry takes its rafsi from its selected definition only, because the
+definitions of one word can be unrelated (owner ruling, 2026-10-03). So the
+experimental rafsi `maz`, which a user-contributed definition of the official
+cmavo `ma` proposes, does not reach jbotci's `ma`; the fail-closed audit still
+reads every row. A word
+whose own standing is experimental cannot hold an official rafsi, and a form
+listed in both columns has no single standing; the import rejects both.
+Lensisku also lists a gismu's 4-letter rafsi (the gismu minus its final vowel)
+as a structured rafsi. jbotci derives that form itself, so the importer
+discards exactly the derived form.
 
 Compared with the 2026-09-01 snapshot, these are the changes:
 
 - The official rafsi of every word are the same set of forms. Lensisku now
   sorts each list in ASCII order, so the displayed order changes for many
   words, for example `bal ba'i` becomes `ba'i bal`.
-- Ten experimental words gained one structured rafsi each: `bolva` bov,
-  `gelga` geg, `gomsi` gos, `kenjo` kej, `nudle` nud, `podji` pod, `tceta`
-  cet, `vente` vet, `vetno` ve'o and `xei` xem. The new experimental cmavo
-  `so'y` arrives with sox. None of these forms collides with an extracted
-  form.
+- Five extracted words now carry exactly their extracted forms as structured
+  experimental rafsi, with no divergence, so they were dropped from the table:
+  `majgo` jgo, `pombo` pom, `posko` pok, `sfeno` se'o and `zvomo` zvo.
+- Thirteen other words gained one experimental rafsi each on their selected
+  definition: `bolva` bov, `dzama` zam, `gelga` geg, `gomsi` gos, `kenjo` kej,
+  `nedlo` ned, `nudle` nud, `podji` pod, `tceta` cet, `vente` vet, `vetno`
+  ve'o, `so'y` sox (a new word) and `xei` xem. None of these forms collides with an
+  extracted form.
+- `dzama` zam supersedes the 2026-08-06 ruling `zam→zai'e`, which dropped
+  `dzama`'s extracted claim. `zai'e` holds no structured rafsi, and the owner
+  accepted upstream's structured assignment on 2026-10-03.
 - Two of the new forms share a form with an older claim. The official gismu
-  `ckeji` also holds `kej` and outranks `kenjo`. The experimental gismu
+  `ckeji` holds `kej` officially and outranks `kenjo`. The experimental gismu
   `cketi` also holds `cet`, so `cet` has two experimental claims.
 - The experimental gismu `linge` no longer lists `ling`, because that is its
   derived 4-letter form. jbotci still derives it, so only the listed rafsi on

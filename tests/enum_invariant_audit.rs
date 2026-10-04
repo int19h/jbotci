@@ -1100,6 +1100,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error report echoes the offending upstream row's word and id verbatim, whatever they are",
     ),
     (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::RafsiListedTwice",
+        "error report echoes the offending row; its form comes from whitespace splitting, so it is never empty",
+    ),
+    (
         "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::RafsiStandingMismatch",
         "error report echoes the offending row; the mismatched column is implied by word_type",
     ),
@@ -1142,6 +1146,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:RafsiAvailability::Free",
         "a free short rafsi has no claimants to constrain; the Taken alternative carries and validates the claimant list",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:RafsiSource::Listed",
+        "the payload is a RafsiClaimKind, every value of which is a valid standing",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:RafsiClaimKind::Experimental",
