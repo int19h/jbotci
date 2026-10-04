@@ -138,6 +138,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: F2LLM_80M_MODEL_ID,
         q4_onnx_relative: F2LLM_80M_Q4_ONNX_RELATIVE,
         dimensions: F2LLM_80M_DIMENSIONS,
+        parameters_millions: 80,
         webgpu_artifact_dir_name: "f2llm-v2-80m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-80m-webgpu/v1",
         include_wasm_runtime: true,
@@ -148,6 +149,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-160M",
         q4_onnx_relative: "f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 640,
+        parameters_millions: 160,
         webgpu_artifact_dir_name: "f2llm-v2-160m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-160m-webgpu/v1",
         include_wasm_runtime: false,
@@ -158,6 +160,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-330M",
         q4_onnx_relative: "f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 896,
+        parameters_millions: 330,
         webgpu_artifact_dir_name: "f2llm-v2-330m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-330m-webgpu/v1",
         include_wasm_runtime: false,
@@ -168,6 +171,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         model_id: "codefuse-ai/F2LLM-v2-0.6B",
         q4_onnx_relative: "f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 1024,
+        parameters_millions: 600,
         webgpu_artifact_dir_name: "f2llm-v2-0.6b-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-0.6b-webgpu/v1",
         include_wasm_runtime: false,
@@ -183,6 +187,9 @@ struct F2LlmAssetSpec {
     model_id: &'static str,
     q4_onnx_relative: &'static str,
     dimensions: usize,
+    /// Model size in millions of parameters. The parallel vector build starts
+    /// the largest model first, because it bounds the total time.
+    parameters_millions: u32,
     webgpu_artifact_dir_name: &'static str,
     webgpu_r2_prefix: &'static str,
     include_wasm_runtime: bool,
@@ -3957,18 +3964,20 @@ fn build_all_f2llm_webgpu_assets(
         jobs.push((spec, q4_onnx, vector_parts_root.join(spec.id)));
     }
 
-    // Without an explicit count, concurrent builds split the cores evenly, so
-    // `--jobs` alone never oversubscribes them.
-    let threads_per_job = parallelism.threads_per_job.or_else(|| {
-        (parallelism.jobs.get() > 1)
-            .then(|| std::thread::available_parallelism().ok())
-            .flatten()
-            .and_then(|cores| NonZeroUsize::new(cores.get() / parallelism.jobs.get()))
-    });
     // Largest model first: the 0.6b build is about half the work, so it bounds
     // the total time and must not start last.
     let mut queue = jobs.iter().collect::<Vec<_>>();
-    queue.sort_by_key(|(spec, _, _)| std::cmp::Reverse(spec.dimensions));
+    queue.sort_by_key(|(spec, _, _)| std::cmp::Reverse(spec.parameters_millions));
+    let workers = parallelism.jobs.get().min(queue.len()).max(1);
+    // Without an explicit count, the workers actually started split the cores
+    // evenly (at least one thread each), so `--jobs` alone never
+    // oversubscribes them and never leaves cores idle.
+    let threads_per_job = parallelism.threads_per_job.or_else(|| {
+        (workers > 1)
+            .then(|| std::thread::available_parallelism().ok())
+            .flatten()
+            .map(|cores| NonZeroUsize::new(cores.get() / workers).unwrap_or(NonZeroUsize::MIN))
+    });
     let build_part = |(spec, q4_onnx, part_dir): &(&F2LlmAssetSpec, PathBuf, PathBuf)| {
         run_f2llm_vector_builder(
             python,
@@ -4009,7 +4018,7 @@ fn build_all_f2llm_webgpu_assets(
     let failed = std::sync::atomic::AtomicBool::new(false);
     let errors = std::sync::Mutex::new(Vec::new());
     std::thread::scope(|scope| {
-        for _ in 0..parallelism.jobs.get().min(queue.len()) {
+        for _ in 0..workers {
             scope.spawn(|| {
                 // Marks the queue failed if this worker unwinds, so a panic
                 // stops new builds just as an error does.
@@ -4036,10 +4045,17 @@ fn build_all_f2llm_webgpu_assets(
         .expect("no worker panicked while holding the lock")
         .into_iter();
     if let Some(first) = errors.next() {
-        // Report every failed model, not only the first to finish.
-        return Err(errors.fold(first, |combined, error| {
-            combined.context(format!("{error:#}"))
-        }));
+        // Report every failed model, side by side rather than as a chain of
+        // causes, not only the first to finish.
+        let rest = errors.collect::<Vec<_>>();
+        if rest.is_empty() {
+            return Err(first);
+        }
+        let mut message = format!("{} vector builds failed:\n- {first:#}", rest.len() + 1);
+        for error in rest {
+            message.push_str(&format!("\n- {error:#}"));
+        }
+        bail!(message);
     }
     let part_dirs = jobs
         .into_iter()

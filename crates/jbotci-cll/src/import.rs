@@ -316,7 +316,7 @@ fn parse_chapter(
                     chapter_id: &chapter_id,
                     division: division,
                     number: division.section_number(index),
-                    fallback_id: section_id_for(child, &chapter_id, section_index),
+                    fallback_id: section_id_for(child, &chapter_id, index),
                     parent_section_id: None,
                 }),
                 source_path,
@@ -665,15 +665,13 @@ fn positional_section_id(container_id: &str, index: NonZeroUsize) -> String {
 /// the id here rather than each spelling out the fallback.
 #[requires(section_node.is_element())]
 #[requires(!chapter_id.is_empty())]
-#[requires(section_index > 0)]
 #[ensures(!ret.is_empty())]
-fn section_id_for(section_node: Node<'_, '_>, chapter_id: &str, section_index: usize) -> String {
-    xml_id(section_node).unwrap_or_else(|| {
-        positional_section_id(
-            chapter_id,
-            NonZeroUsize::new(section_index).expect("section indexes are counted from one"),
-        )
-    })
+fn section_id_for(
+    section_node: Node<'_, '_>,
+    chapter_id: &str,
+    section_index: NonZeroUsize,
+) -> String {
+    xml_id(section_node).unwrap_or_else(|| positional_section_id(chapter_id, section_index))
 }
 
 /// The id of the chapter's first section, or the chapter's own id when the
@@ -685,7 +683,7 @@ fn section_id_for(section_node: Node<'_, '_>, chapter_id: &str, section_index: u
 fn first_section_id(root: Node<'_, '_>, chapter_id: &str) -> String {
     root.children()
         .find(|child| child.is_element() && child.has_tag_name("section"))
-        .map(|section| section_id_for(section, chapter_id, 1))
+        .map(|section| section_id_for(section, chapter_id, NonZeroUsize::MIN))
         .unwrap_or_else(|| chapter_id.to_owned())
 }
 

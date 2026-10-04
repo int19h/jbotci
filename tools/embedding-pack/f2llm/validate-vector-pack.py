@@ -109,6 +109,8 @@ def parse_args() -> argparse.Namespace:
         raise ValueError("--sample-rows must be positive")
     if not 0.0 < args.threshold <= 1.0:
         raise ValueError("--threshold must be in (0, 1]")
+    if args.threads is not None and args.threads <= 0:
+        raise ValueError("--threads must be positive")
     if args.dimensions <= 0:
         raise ValueError("--dimensions must be positive")
     if args.max_sequence_length <= 1:
