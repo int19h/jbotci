@@ -121,12 +121,17 @@ embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
 
 The embedding builders refuse to start when their output directory already
-exists. Pass `--overwrite` to replace it. The rule covers
-`build-f2llm-webgpu-model`, `build-f2llm-webgpu-vectors`,
-`build-gguf-embeddings`, the two publish commands without `--skip-build`, and
-the two Python scripts. Each vector build writes one model's
-pack, so give every model its own `--out-dir` and merge them afterwards, or use
-the publish command, which builds and merges all four.
+exists, and refuse again if it appears before they finish. Pass `--overwrite`
+to replace it. The rule covers `build-f2llm-webgpu-model`,
+`build-f2llm-webgpu-vectors`, `build-f2llm-webgpu-assets`,
+`build-gguf-embeddings`, `build-web-embeddings`, the three publish commands
+when they build, and the two Python scripts. `dist-server` regenerates the
+packs inside its own bundle on every run.
+
+`build-f2llm-webgpu-vectors` writes one model's pack. To build all four models
+into one merged pack without publishing, run
+`cargo run -r -p xtask-full -- build-f2llm-webgpu-assets`, then publish the
+result with `publish-f2llm-webgpu-r2 --skip-build`.
 
 `vendor/cll` tracks the
 [int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.4` release.

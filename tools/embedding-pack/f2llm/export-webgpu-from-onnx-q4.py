@@ -46,6 +46,7 @@ def main() -> None:
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
     if stage == output:
         raise ValueError("--stage must differ from --out")
+    # --stage is scratch for this run, never an output: it is always cleared.
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
 
@@ -98,7 +99,7 @@ def main() -> None:
     manifest["tensors"] = tensors
     validate_manifest_shapes(manifest)
     write_json(stage / "manifest.json", manifest)
-    promote(stage, output)
+    promote(stage, output, args.overwrite)
 
 
 def parse_args() -> argparse.Namespace:
@@ -433,7 +434,15 @@ def write_chunked(out_root: Path, root: Path, basename: str, data: bytes, shard_
     }
 
 
-def promote(stage: Path, output: Path) -> None:
+def promote(stage: Path, output: Path, overwrite: bool) -> None:
+    # Check again at the end of a long run: an output that appeared meanwhile
+    # (for example from an overlapping run) is not replaced either.
+    if output.exists() and not overwrite:
+        raise SystemExit(
+            f"{output} appeared during the build; pass --overwrite to replace it"
+        )
+    # `<output>.previous` is this function's own rollback copy, never a build
+    # output, so it is always removed.
     backup = Path(f"{output}.previous")
     shutil.rmtree(backup, ignore_errors=True)
     if output.exists():

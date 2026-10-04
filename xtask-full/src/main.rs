@@ -217,6 +217,7 @@ struct Cli {
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::BuildF2LlmWebgpuModel(..) => true)]
 #[invariant(::BuildF2LlmWebgpuVectors(..) => true)]
+#[invariant(::BuildF2LlmWebgpuAssets(..) => true)]
 #[invariant(::BuildGgufEmbeddings(..) => true)]
 #[invariant(::F2LlmExtractionGate(..) => true)]
 #[invariant(::F2LlmGoldenGate(..) => true)]
@@ -255,6 +256,10 @@ enum Command {
     BuildF2LlmWebgpuModel(BuildF2LlmWebgpuModelArgs),
     #[command(name = "build-f2llm-webgpu-vectors")]
     BuildF2LlmWebgpuVectors(BuildF2LlmWebgpuVectorsArgs),
+    /// Build every F2LLM model artifact and the merged four-model vector
+    /// pack, without publishing anything.
+    #[command(name = "build-f2llm-webgpu-assets")]
+    BuildF2LlmWebgpuAssets(BuildF2LlmWebgpuAssetsArgs),
     #[command(name = "build-gguf-embeddings")]
     BuildGgufEmbeddings(BuildGgufEmbeddingsArgs),
     #[command(name = "f2llm-extraction-gate")]
@@ -614,6 +619,10 @@ struct BuildWebEmbeddingsArgs {
     dtypes: Vec<String>,
     #[arg(long, default_value = "transformers")]
     backend: String,
+    /// Replace the bundle's embedding packs and the shared model artifacts if
+    /// they already exist (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -679,6 +688,29 @@ struct BuildF2LlmWebgpuVectorsArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct BuildF2LlmWebgpuAssetsArgs {
+    #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_ROOT_DIR)]
+    model_out_root: PathBuf,
+    #[arg(long, default_value = F2LLM_VECTOR_PACK_OUT_DIR)]
+    vector_out_dir: PathBuf,
+    #[arg(long)]
+    corpus: Option<PathBuf>,
+    #[arg(long)]
+    tokenizer_dir: Option<PathBuf>,
+    #[arg(long)]
+    f2llm_artifact_root: Option<PathBuf>,
+    #[arg(long, default_value_t = 8)]
+    batch_size: usize,
+    #[arg(long, default_value = "python3")]
+    python: String,
+    /// Replace the model and vector directories if they already exist
+    /// (refused by default).
+    #[arg(long)]
+    overwrite: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct BuildGgufEmbeddingsArgs {
     #[arg(long, default_value = GGUF_VECTOR_PACK_OUT_DIR)]
     out_dir: PathBuf,
@@ -727,6 +759,10 @@ struct PublishWebEmbeddingsR2Args {
     embedding_dtypes: Vec<String>,
     #[arg(long, default_value = "transformers")]
     backend: String,
+    /// Replace `--out-dir` and the shared model artifacts if they already
+    /// exist (refused by default).
+    #[arg(long)]
+    overwrite: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1239,6 +1275,7 @@ fn main() -> Result<()> {
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::BuildF2LlmWebgpuModel(args) => build_f2llm_webgpu_model(args),
         Command::BuildF2LlmWebgpuVectors(args) => build_f2llm_webgpu_vectors(args),
+        Command::BuildF2LlmWebgpuAssets(args) => build_f2llm_webgpu_assets(args),
         Command::BuildGgufEmbeddings(args) => build_gguf_embeddings(args),
         Command::F2LlmExtractionGate(args) => f2llm_extraction_gate(args),
         Command::F2LlmGoldenGate(args) => f2llm_golden_gate(args),
@@ -2417,6 +2454,14 @@ fn export_web_embedding_corpus(args: ExportWebEmbeddingCorpusArgs) -> Result<()>
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
     let web_dist = absolute_path(&args.web_dist)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    let outputs = WebEmbeddingOutputs {
+        model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        models: existing_output,
+        vectors: existing_output,
+    };
+    // Checked before the corpus export below, so a refused run changes nothing.
+    existing_output.check(&web_embedding_assets_dir(&web_dist))?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2425,7 +2470,7 @@ fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
             output
         }
     };
-    build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend)
+    build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend, outputs)
 }
 
 #[requires(!args.python.trim().is_empty())]
@@ -2516,6 +2561,39 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
     )
 }
 
+/// Build exactly what `publish-f2llm-webgpu-r2` builds, into local
+/// directories, so the four packs can be inspected and validated before a
+/// separate `--skip-build` publish.
+#[requires(!args.python.trim().is_empty())]
+#[requires(args.batch_size > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
+    let model_out_root = absolute_path(&args.model_out_root)?;
+    let vector_out_dir = absolute_path(&args.vector_out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    // Checked before the corpus export below, so a refused run changes
+    // nothing. The ONNX fallback is built under `model_out_root` too.
+    existing_output.check(&model_out_root)?;
+    existing_output.check(&vector_out_dir)?;
+    let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
+    build_all_f2llm_webgpu_assets(
+        &args.python,
+        &model_out_root,
+        &vector_out_dir,
+        &corpus,
+        args.tokenizer_dir.as_deref(),
+        args.f2llm_artifact_root.as_deref(),
+        args.batch_size,
+        existing_output,
+        existing_output,
+    )?;
+    build_f2llm_onnx_fallback_asset(
+        &model_out_root,
+        args.f2llm_artifact_root.as_deref(),
+        existing_output,
+    )
+}
+
 #[requires(!args.bucket.trim().is_empty())]
 #[requires(!args.embedding_prefix.trim().is_empty())]
 #[requires(!args.python.trim().is_empty())]
@@ -2525,12 +2603,16 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let model_out_root = absolute_path(&args.model_out_root)?;
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    if !args.skip_build {
+        // Checked before the corpus export below, so a refused run changes
+        // nothing. The ONNX fallback is also built under `model_out_root`, so
+        // checking the root covers it along with every model artifact.
+        existing_output.check(&model_out_root)?;
+        existing_output.check(&vector_out_dir)?;
+    }
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     if !args.skip_build {
-        let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
-        // The ONNX fallback is also built under `model_out_root`, so checking
-        // the root covers it along with every model artifact.
-        existing_output.check(&model_out_root)?;
         build_all_f2llm_webgpu_assets(
             &args.python,
             &model_out_root,
@@ -2540,8 +2622,13 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
             args.f2llm_artifact_root.as_deref(),
             args.batch_size,
             existing_output,
+            existing_output,
         )?;
-        build_f2llm_onnx_fallback_asset(&model_out_root, args.f2llm_artifact_root.as_deref())?;
+        build_f2llm_onnx_fallback_asset(
+            &model_out_root,
+            args.f2llm_artifact_root.as_deref(),
+            existing_output,
+        )?;
     } else {
         validate_all_f2llm_vector_packs(
             &args.python,
@@ -2603,6 +2690,8 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
     let mut catalog_models = Vec::new();
     for model in &models {
         let model_index_dir = index_dir.join(model);
+        // The index directory is scratch: the pack is copied out of it into
+        // `out_dir`, which is the guarded output.
         remove_path_if_exists(&model_index_dir)?;
         fs::create_dir_all(&model_index_dir)
             .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
@@ -2730,6 +2819,9 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
     let output = absolute_path(&args.out_dir)?;
+    let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
+    // Checked before the corpus export below, so a refused run changes nothing.
+    existing_output.check(&output)?;
     let corpus = match args.corpus {
         Some(path) => absolute_path(&path)?,
         None => {
@@ -2738,7 +2830,17 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
             output
         }
     };
-    build_web_embedding_assets_to(&output, &corpus, &args.embedding_dtypes, &args.backend)?;
+    build_web_embedding_assets_to(
+        &output,
+        &corpus,
+        &args.embedding_dtypes,
+        &args.backend,
+        WebEmbeddingOutputs {
+            model_out_root: Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+            models: existing_output,
+            vectors: existing_output,
+        },
+    )?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
     put_r2_objects(&args.bucket, &objects)?;
     Ok(())
@@ -3208,11 +3310,27 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
     if !args.skip_web_embeddings {
         let corpus = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
         write_web_embedding_corpus(&corpus)?;
+        // The bundle is this command's own output, regenerated on every run,
+        // so its packs are replaced. The models it exports on the way go to a
+        // directory reserved for the bundle rather than the shared default
+        // model root, which standalone builds and publishing use.
+        let model_out_root = out_dir.with_file_name(format!(
+            "{}.f2llm-models",
+            out_dir
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("jbotci-web")
+        ));
         build_web_embedding_assets(
             &web_dist,
             &corpus,
             &args.embedding_dtypes,
             &args.embedding_backend,
+            WebEmbeddingOutputs {
+                model_out_root: &model_out_root,
+                models: ExistingOutput::Replace,
+                vectors: ExistingOutput::Replace,
+            },
         )?;
     }
     server_bundle_path(&out_dir).map(|_| ())
@@ -3530,13 +3648,36 @@ fn build_web_embedding_assets(
     corpus: &Path,
     dtypes: &[String],
     backend: &str,
+    outputs: WebEmbeddingOutputs<'_>,
 ) -> Result<()> {
-    let output = web_dist
+    build_web_embedding_assets_to(
+        &web_embedding_assets_dir(web_dist),
+        corpus,
+        dtypes,
+        backend,
+        outputs,
+    )
+}
+
+/// Where a web bundle keeps its embedding packs.
+#[requires(true)]
+#[ensures(ret.starts_with(web_dist))]
+fn web_embedding_assets_dir(web_dist: &Path) -> PathBuf {
+    web_dist
         .join("assets")
         .join("embeddings")
         .join("web")
-        .join("v1");
-    build_web_embedding_assets_to(&output, corpus, dtypes, backend)
+        .join("v1")
+}
+
+/// Where the web embedding build writes the WebGPU model artifacts it exports
+/// on the way, and what it may do with existing model and vector outputs.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct WebEmbeddingOutputs<'a> {
+    model_out_root: &'a Path,
+    models: ExistingOutput,
+    vectors: ExistingOutput,
 }
 
 #[requires(corpus.is_file())]
@@ -3548,19 +3689,19 @@ fn build_web_embedding_assets_to(
     corpus: &Path,
     dtypes: &[String],
     backend: &str,
+    outputs: WebEmbeddingOutputs<'_>,
 ) -> Result<()> {
     let _ = (dtypes, backend);
-    // The web release and server bundle commands regenerate these assets on
-    // every run as part of a bundle they own, so replacing is intended here.
     build_all_f2llm_webgpu_assets(
         "python3",
-        Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        outputs.model_out_root,
         output,
         corpus,
         None,
         None,
         8,
-        ExistingOutput::Replace,
+        outputs.models,
+        outputs.vectors,
     )
 }
 
@@ -3652,13 +3793,14 @@ fn build_all_f2llm_webgpu_assets(
     tokenizer_dir: Option<&Path>,
     artifact_root: Option<&Path>,
     batch_size: usize,
-    existing_output: ExistingOutput,
+    models: ExistingOutput,
+    vectors: ExistingOutput,
 ) -> Result<()> {
     // Check every output up front, before hours of model export and
     // embedding work, rather than failing on the last model.
-    existing_output.check(vector_out_dir)?;
+    vectors.check(vector_out_dir)?;
     for spec in F2LLM_MODEL_SPECS {
-        existing_output.check(&f2llm_model_artifact_out_dir(model_out_root, spec))?;
+        models.check(&f2llm_model_artifact_out_dir(model_out_root, spec))?;
     }
     let vector_parts_root = vector_out_dir.with_file_name(format!(
         "{}.parts",
@@ -3667,6 +3809,8 @@ fn build_all_f2llm_webgpu_assets(
             .and_then(|name| name.to_str())
             .unwrap_or("r2-web-embeddings-f2llm")
     ));
+    // The parts directory is intermediate: the merge below copies every part
+    // into the real output, so a stale one is always discarded.
     fs::remove_dir_all(&vector_parts_root).ok();
     fs::create_dir_all(&vector_parts_root)
         .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
@@ -3683,7 +3827,7 @@ fn build_all_f2llm_webgpu_assets(
             stage: None,
             shard_size: 4 * 1024 * 1024,
             python: python.to_owned(),
-            overwrite: existing_output == ExistingOutput::Replace,
+            overwrite: models == ExistingOutput::Replace,
         })?;
         let part_dir = vector_parts_root.join(spec.id);
         run_f2llm_vector_builder(
@@ -3714,7 +3858,7 @@ fn build_all_f2llm_webgpu_assets(
         )?;
         part_dirs.push(part_dir);
     }
-    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir)
+    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)
 }
 
 #[requires(!python.trim().is_empty())]
@@ -3745,7 +3889,11 @@ fn validate_all_f2llm_vector_packs(
 #[requires(!part_dirs.is_empty())]
 #[requires(part_dirs.iter().all(|path| path.is_dir()))]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn merge_f2llm_vector_pack_parts(part_dirs: &[PathBuf], out_dir: &Path) -> Result<()> {
+fn merge_f2llm_vector_pack_parts(
+    part_dirs: &[PathBuf],
+    out_dir: &Path,
+    existing_output: ExistingOutput,
+) -> Result<()> {
     let stage = out_dir.with_file_name(format!(
         "{}.staging",
         out_dir
@@ -3780,7 +3928,7 @@ fn merge_f2llm_vector_pack_parts(part_dirs: &[PathBuf], out_dir: &Path) -> Resul
             "models": models,
         }),
     )?;
-    promote_directory(&stage, out_dir)
+    promote_directory(&stage, out_dir, existing_output)
 }
 
 #[requires(source.is_dir())]
@@ -3826,7 +3974,10 @@ fn copy_dir_recursive(source: &Path, target: &Path, description: &str) -> Result
 
 #[requires(stage.is_dir())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
+fn promote_directory(stage: &Path, output: &Path, existing_output: ExistingOutput) -> Result<()> {
+    existing_output.check(output)?;
+    // `<output>.previous` is promotion's own rollback copy, never a build
+    // output, so it is always removed.
     let backup = output.with_file_name(format!(
         "{}.previous",
         output
@@ -3852,13 +4003,19 @@ fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
 
 #[requires(root.components().next().is_some())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_f2llm_onnx_fallback_asset(root: &Path, artifact_root: Option<&Path>) -> Result<()> {
+fn build_f2llm_onnx_fallback_asset(
+    root: &Path,
+    artifact_root: Option<&Path>,
+    existing_output: ExistingOutput,
+) -> Result<()> {
     let spec = F2LLM_MODEL_SPECS
         .iter()
         .find(|spec| spec.include_wasm_runtime)
         .context("F2LLM model table must contain a WASM fallback model")?;
     let source = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
     let output = f2llm_onnx_fallback_out_dir(root);
+    existing_output.check(&output)?;
+    // The staging directory is this function's own scratch, never an output.
     let stage = output.with_file_name("v1.staging");
     fs::remove_dir_all(&stage).ok();
     fs::create_dir_all(&stage).with_context(|| format!("creating `{}`", stage.display()))?;
@@ -3887,7 +4044,7 @@ fn build_f2llm_onnx_fallback_asset(root: &Path, artifact_root: Option<&Path>) ->
             "dimensions": spec.dimensions,
         }),
     )?;
-    promote_directory(&stage, &output)
+    promote_directory(&stage, &output, existing_output)
 }
 
 #[requires(!python.trim().is_empty())]
@@ -6857,17 +7014,30 @@ impl ExistingOutput {
         }
     }
 
-    /// Fail before any work starts if `path` exists and replacing is not allowed.
+    /// Fail if `path` exists and replacing is not allowed.
+    ///
+    /// Commands call this before any work starts, and promotion calls it again
+    /// just before moving a finished build into place, so an output that
+    /// appeared during a long run (say, from an overlapping run) is not
+    /// replaced either. `symlink_metadata` treats a dangling symlink as
+    /// present, and any error other than "not found" fails rather than being
+    /// read as absence.
     #[requires(true)]
-    #[ensures(ret.is_ok() == (self == Self::Replace || !path.exists()))]
+    #[ensures(self == Self::Replace -> ret.is_ok())]
     fn check(self, path: &Path) -> Result<()> {
-        if self == Self::Refuse && path.exists() {
-            bail!(
+        if self == Self::Replace {
+            return Ok(());
+        }
+        match fs::symlink_metadata(path) {
+            Ok(_) => bail!(
                 "`{}` already exists; pass --overwrite to replace it or choose another output directory",
                 path.display()
-            );
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => {
+                Err(error).with_context(|| format!("checking whether `{}` exists", path.display()))
+            }
         }
-        Ok(())
     }
 }
 
