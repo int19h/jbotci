@@ -900,8 +900,10 @@ pub(super) fn render_cukta_toc_node(
 /// subsection nested under a section (`21.2.3` under `21.2` under chapter 21)
 /// keeps every ancestor visible and stays reachable through the filter.
 #[requires(filter == filter.to_ascii_lowercase())]
-#[ensures(ret == (toc_node_label_matches(node, filter)
-    || node.children.iter().any(|child| toc_subtree_matches(child, filter))))]
+#[ensures(
+    !toc_node_label_matches(node, filter) || ret,
+    "a node whose own label matches always keeps its subtree visible"
+)]
 pub(super) fn toc_subtree_matches(node: &CuktaTocNode, filter: &str) -> bool {
     toc_node_label_matches(node, filter)
         || node

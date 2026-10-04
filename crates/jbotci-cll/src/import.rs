@@ -650,10 +650,6 @@ fn index_entries_in(containers: &[Node<'_, '_>], section_id: &str) -> Vec<Pendin
         .collect()
 }
 
-/// The id `parse_section` will give the section at `section_index`, computed
-/// without parsing it. Chapter-level content has to name the section it is
-/// displayed with before that section has been reached, so both callers derive
-/// the id here rather than each spelling out the fallback.
 /// The id a subsection without an `xml:id` gets: its parent's id and its
 /// position, so it is unique within the parent and stable across imports.
 #[requires(!parent_section_id.is_empty())]
@@ -662,6 +658,10 @@ fn subsection_fallback_id(parent_section_id: &str, index: NonZeroUsize) -> Strin
     format!("{parent_section_id}-s{index}")
 }
 
+/// The id `parse_section` will give the section at `section_index`, computed
+/// without parsing it. Chapter-level content has to name the section it is
+/// displayed with before that section has been reached, so both callers derive
+/// the id here rather than each spelling out the fallback.
 #[requires(section_node.is_element())]
 #[requires(!chapter_id.is_empty())]
 #[requires(section_index > 0)]
