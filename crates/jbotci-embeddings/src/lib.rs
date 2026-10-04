@@ -2228,7 +2228,9 @@ where
 
         // Rows whose input already has a vector in the previous pack reuse it;
         // the rest are embedded together, so a backend that batches can share
-        // model calls across the whole chunk.
+        // model calls across the whole chunk. Progress therefore advances a
+        // chunk at a time (about a minute per chunk on a slow CPU), which the
+        // checkpoint granularity already implies.
         let reused = chunk_rows
             .iter()
             .map(|row| reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions)))

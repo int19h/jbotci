@@ -902,7 +902,7 @@ pub(super) fn render_cukta_toc_node(
 #[requires(filter == filter.to_ascii_lowercase())]
 #[ensures(
     !toc_node_label_matches(node, filter) || ret,
-    "a node whose own label matches always keeps its subtree visible"
+    "a node whose own label matches is always kept"
 )]
 pub(super) fn toc_subtree_matches(node: &CuktaTocNode, filter: &str) -> bool {
     toc_node_label_matches(node, filter)

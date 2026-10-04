@@ -713,7 +713,8 @@ struct BuildF2LlmWebgpuAssetsArgs {
     /// How many model vector builds run at once (default 1).
     #[arg(long, default_value_t = NonZeroUsize::MIN)]
     jobs: NonZeroUsize,
-    /// ONNX Runtime threads per vector build (default: one per core).
+    /// ONNX Runtime threads per vector build (default: the cores divided
+    /// evenly between the jobs).
     #[arg(long)]
     threads_per_job: Option<NonZeroUsize>,
 }
@@ -743,8 +744,9 @@ struct BuildGgufEmbeddingsArgs {
 ///
 /// Pack builds embed tens of thousands of inputs, so they can opt into faster
 /// builds that are unsuitable for distributed binaries: `metal` runs on the
-/// GPU of an Apple-silicon Mac (vectors agree with the CPU's to the last few
-/// digits), and `native-cpu` compiles for the build machine's own CPU.
+/// GPU of an Apple-silicon Mac (search rankings change about as much as
+/// between two CPU builds), and `native-cpu` compiles for the build machine's
+/// own CPU.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LlamaBackend {
@@ -836,7 +838,8 @@ struct PublishF2LlmWebgpuR2Args {
     /// How many model vector builds run at once (default 1).
     #[arg(long, default_value_t = NonZeroUsize::MIN)]
     jobs: NonZeroUsize,
-    /// ONNX Runtime threads per vector build (default: one per core).
+    /// ONNX Runtime threads per vector build (default: the cores divided
+    /// evenly between the jobs).
     #[arg(long)]
     threads_per_job: Option<NonZeroUsize>,
 }
@@ -2608,6 +2611,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         &args.model_key,
         args.dimensions,
         args.include_wasm_runtime,
+        args.threads,
     )
 }
 
@@ -3861,6 +3865,21 @@ fn resolve_f2llm_q4_onnx(
     resolve_f2llm_spec_q4_onnx(spec, artifact_root)
 }
 
+/// Sets the shared failure flag when dropped during unwinding (normal exit
+/// forgets it), so a panicking vector-build worker stops the queue.
+#[invariant(true)]
+struct StopQueueOnUnwind<'a> {
+    failed: &'a std::sync::atomic::AtomicBool,
+}
+
+impl Drop for StopQueueOnUnwind<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        self.failed.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// How many model vector builds run at once, and how many ONNX Runtime
 /// threads each gets.
 ///
@@ -3938,6 +3957,18 @@ fn build_all_f2llm_webgpu_assets(
         jobs.push((spec, q4_onnx, vector_parts_root.join(spec.id)));
     }
 
+    // Without an explicit count, concurrent builds split the cores evenly, so
+    // `--jobs` alone never oversubscribes them.
+    let threads_per_job = parallelism.threads_per_job.or_else(|| {
+        (parallelism.jobs.get() > 1)
+            .then(|| std::thread::available_parallelism().ok())
+            .flatten()
+            .and_then(|cores| NonZeroUsize::new(cores.get() / parallelism.jobs.get()))
+    });
+    // Largest model first: the 0.6b build is about half the work, so it bounds
+    // the total time and must not start last.
+    let mut queue = jobs.iter().collect::<Vec<_>>();
+    queue.sort_by_key(|(spec, _, _)| std::cmp::Reverse(spec.dimensions));
     let build_part = |(spec, q4_onnx, part_dir): &(&F2LlmAssetSpec, PathBuf, PathBuf)| {
         run_f2llm_vector_builder(
             python,
@@ -3954,7 +3985,7 @@ fn build_all_f2llm_webgpu_assets(
             // The parts root was just emptied, so a part dir that exists here
             // would be a bug, never an output worth replacing.
             ExistingOutput::Refuse,
-            parallelism.threads_per_job,
+            threads_per_job,
         )
         .and_then(|()| {
             run_f2llm_vector_validator(
@@ -3966,41 +3997,49 @@ fn build_all_f2llm_webgpu_assets(
                 spec.model_key,
                 spec.dimensions,
                 spec.include_wasm_runtime,
+                threads_per_job,
             )
         })
         .with_context(|| format!("building the {} vector pack", spec.model_key))
     };
     // A shared queue: each worker takes the next model until none remain or
-    // some build has failed, so one failure stops new builds from starting.
+    // some build has failed (or panicked), so a failure stops new builds from
+    // starting while the running ones finish.
     let next = std::sync::atomic::AtomicUsize::new(0);
     let failed = std::sync::atomic::AtomicBool::new(false);
     let errors = std::sync::Mutex::new(Vec::new());
     std::thread::scope(|scope| {
-        for _ in 0..parallelism.jobs.get().min(jobs.len()) {
+        for _ in 0..parallelism.jobs.get().min(queue.len()) {
             scope.spawn(|| {
+                // Marks the queue failed if this worker unwinds, so a panic
+                // stops new builds just as an error does.
+                let guard = StopQueueOnUnwind { failed: &failed };
                 while !failed.load(std::sync::atomic::Ordering::SeqCst) {
                     let index = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    let Some(job) = jobs.get(index) else {
+                    let Some(job) = queue.get(index) else {
                         break;
                     };
                     if let Err(error) = build_part(job) {
                         failed.store(true, std::sync::atomic::Ordering::SeqCst);
                         errors
                             .lock()
-                            .expect("no worker panics holding the lock")
+                            .expect("no worker panics while holding the lock")
                             .push(error);
                     }
                 }
+                std::mem::forget(guard);
             });
         }
     });
-    if let Some(error) = errors
+    let mut errors = errors
         .into_inner()
-        .expect("no worker panicked holding the lock")
-        .into_iter()
-        .next()
-    {
-        return Err(error);
+        .expect("no worker panicked while holding the lock")
+        .into_iter();
+    if let Some(first) = errors.next() {
+        // Report every failed model, not only the first to finish.
+        return Err(errors.fold(first, |combined, error| {
+            combined.context(format!("{error:#}"))
+        }));
     }
     let part_dirs = jobs
         .into_iter()
@@ -4029,6 +4068,7 @@ fn validate_all_f2llm_vector_packs(
             spec.model_key,
             spec.dimensions,
             spec.include_wasm_runtime,
+            None,
         )?;
     }
     Ok(())
@@ -4284,6 +4324,7 @@ fn run_f2llm_vector_validator(
     model_key: &str,
     dimensions: usize,
     include_wasm_runtime: bool,
+    threads: Option<NonZeroUsize>,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -4313,6 +4354,9 @@ fn run_f2llm_vector_validator(
         .arg(F2LLM_MAX_SEQUENCE_LENGTH.to_string());
     if include_wasm_runtime {
         command.arg("--include-wasm-runtime");
+    }
+    if let Some(threads) = threads {
+        command.arg("--threads").arg(threads.to_string());
     }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command

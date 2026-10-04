@@ -1,0 +1,41 @@
+--- a/src/context.rs
++++ b/src/context.rs
+@@ -196,8 +196,11 @@
+             return Err(EmbeddingsError::NotEnabled);
+         }
+ 
++        // jbotci fix: llama.cpp sizes embedding outputs by n_embd_out
++        // (llama-context.cpp), which can be smaller than n_embd; slicing
++        // by n_embd would read past the vector.
+         let n_embd =
+-            usize::try_from(self.model.n_embd()).expect("n_embd does not fit into a usize");
++            usize::try_from(self.model.n_embd_out()).expect("n_embd_out does not fit into a usize");
+ 
+         unsafe {
+             let embedding = llama_cpp_sys_4::llama_get_embeddings_seq(self.context.as_ptr(), i);
+@@ -232,8 +235,11 @@
+             return Err(EmbeddingsError::NotEnabled);
+         }
+ 
++        // jbotci fix: llama.cpp sizes embedding outputs by n_embd_out
++        // (llama-context.cpp), which can be smaller than n_embd; slicing
++        // by n_embd would read past the vector.
+         let n_embd =
+-            usize::try_from(self.model.n_embd()).expect("n_embd does not fit into a usize");
++            usize::try_from(self.model.n_embd_out()).expect("n_embd_out does not fit into a usize");
+ 
+         unsafe {
+             let embedding = llama_cpp_sys_4::llama_get_embeddings_ith(self.context.as_ptr(), i);
+@@ -433,8 +439,11 @@
+             return Err(EmbeddingsError::NotEnabled);
+         }
+ 
++        // jbotci fix: llama.cpp sizes embedding outputs by n_embd_out
++        // (llama-context.cpp), which can be smaller than n_embd; slicing
++        // by n_embd would read past the vector.
+         let n_embd =
+-            usize::try_from(self.model.n_embd()).expect("n_embd does not fit into a usize");
++            usize::try_from(self.model.n_embd_out()).expect("n_embd_out does not fit into a usize");
+ 
+         unsafe {
+             let embedding = llama_cpp_sys_4::llama_get_embeddings(self.context.as_ptr());

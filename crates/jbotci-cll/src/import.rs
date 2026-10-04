@@ -594,7 +594,7 @@ fn parse_section(
                 chapter_id: chapter_id,
                 division: division,
                 number: section_number.and_then(|number| number.subsection(index)),
-                fallback_id: subsection_fallback_id(&section_id, index),
+                fallback_id: positional_section_id(&section_id, index),
                 parent_section_id: Some(section_id.as_str()),
             }),
             source_path,
@@ -650,12 +650,13 @@ fn index_entries_in(containers: &[Node<'_, '_>], section_id: &str) -> Vec<Pendin
         .collect()
 }
 
-/// The id a subsection without an `xml:id` gets: its parent's id and its
-/// position, so it is unique within the parent and stable across imports.
-#[requires(!parent_section_id.is_empty())]
-#[ensures(ret.starts_with(parent_section_id))]
-fn subsection_fallback_id(parent_section_id: &str, index: NonZeroUsize) -> String {
-    format!("{parent_section_id}-s{index}")
+/// The id a section without an `xml:id` gets: its container's id (the
+/// chapter's for a top-level section, the parent's for a subsection) and its
+/// position, so it is unique within the container and stable across imports.
+#[requires(!container_id.is_empty())]
+#[ensures(ret.starts_with(container_id))]
+fn positional_section_id(container_id: &str, index: NonZeroUsize) -> String {
+    format!("{container_id}-s{index}")
 }
 
 /// The id `parse_section` will give the section at `section_index`, computed
@@ -667,7 +668,12 @@ fn subsection_fallback_id(parent_section_id: &str, index: NonZeroUsize) -> Strin
 #[requires(section_index > 0)]
 #[ensures(!ret.is_empty())]
 fn section_id_for(section_node: Node<'_, '_>, chapter_id: &str, section_index: usize) -> String {
-    xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"))
+    xml_id(section_node).unwrap_or_else(|| {
+        positional_section_id(
+            chapter_id,
+            NonZeroUsize::new(section_index).expect("section indexes are counted from one"),
+        )
+    })
 }
 
 /// The id of the chapter's first section, or the chapter's own id when the

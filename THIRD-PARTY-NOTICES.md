@@ -258,8 +258,10 @@ public-domain terms.
 The native jbotci binaries include local inference support built on
 [llama.cpp](https://github.com/ggml-org/llama.cpp). This is reached through the
 `llama-cpp-4` / `llama-cpp-sys-4` Rust crates (listed among the Rust
-dependencies below), but the `-sys` crate is vendored at
-`crates/vendor/llama-cpp-sys-4` and **compiles llama.cpp's C/C++ source directly
+dependencies below). Both are vendored, at `crates/vendor/llama-cpp-4` (with
+small jbotci changes recorded in its `patches/`) and
+`crates/vendor/llama-cpp-sys-4`, each with its upstream MIT and Apache-2.0
+license files, and the `-sys` crate **compiles llama.cpp's C/C++ source directly
 into the binary** at build time. That native code carries its own copyright
 notices, which the standard Rust dependency tooling does not capture, so they
 are reproduced here.
