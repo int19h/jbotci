@@ -536,10 +536,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dialect settings are persisted transport state normalized by import/export helpers",
     ),
     (
-        "crates/jbotci-dialect/src/lib.rs:JohauShorthandSwap",
-        "JOHAU shorthand swap records are static internal mappings with closed code and atom fields",
-    ),
-    (
         "crates/jbotci-dictionary-data/build.rs:GeneratedLujvoEntry",
         "generated lujvo entries are build-script intermediates created from morphology-backed decomposition and checked through Dictionary::validate",
     ),
@@ -1070,18 +1066,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/lib.rs:TreeRenderOptions",
         "render options are independent flags with no cross-field invariant",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrBuild",
-        "QR build state is internal renderer assembly data validated by encoded-output tests",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrCoord",
-        "QR coordinates are internal renderer grid positions bounded by placement code",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrLogoLayer",
-        "QR logo layers are derived renderer masks covered by logo placement tests",
     ),
     (
         "crates/jbotci-output/src/recovered.rs:RecoveredBracketBuilder",

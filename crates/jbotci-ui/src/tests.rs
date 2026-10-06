@@ -100,14 +100,6 @@ fn pwa_manifest_uses_root_routes_and_separate_maskable_icons() {
         serde_json::json!(["tabbed", "minimal-ui", "standalone"])
     );
 
-    let protocol_handlers = manifest["protocol_handlers"]
-        .as_array()
-        .expect("protocol_handlers is an array");
-    assert!(protocol_handlers.iter().any(|handler| {
-        handler.get("protocol").and_then(serde_json::Value::as_str) == Some("web+johau")
-            && handler.get("url").and_then(serde_json::Value::as_str) == Some("/settings?johau=%s")
-    }));
-
     let icons = manifest["icons"].as_array().expect("icons is an array");
     let has_icon = |src: &str, sizes: &str, content_type: &str, purpose: &str| {
         icons.iter().any(|icon| {
@@ -3297,9 +3289,9 @@ fn typed_routes_preserve_canonical_url_contract() {
     );
     assert!(gentufa.gentufa_text_explicit);
 
-    let settings = parse_test_route("", "/settings?johau=lojban");
-    assert_eq!(settings.to_string(), "/settings?johau=lojban");
-    assert_eq!(settings.settings_query, "johau=lojban");
+    let settings = parse_test_route("", "/settings");
+    assert_eq!(settings.app_route(), AppRoute::Settings);
+    assert_eq!(settings.to_string(), "/settings");
 
     let cukta_search = parse_test_route("", "/cukta/search?q=klama&target=example&count=40");
     assert_eq!(
@@ -3357,10 +3349,8 @@ fn typed_routes_accept_dioxus_route_strings() {
         "/gentufa?text=coi"
     );
     assert_eq!(
-        JbotciRoute::from_str("settings?johau=lojban")
-            .unwrap()
-            .to_string(),
-        "/settings?johau=lojban"
+        JbotciRoute::from_str("settings").unwrap().to_string(),
+        "/settings"
     );
     assert_eq!(
         JbotciRoute::from_str("cukta/section/chapter-abstractions#section-example")
