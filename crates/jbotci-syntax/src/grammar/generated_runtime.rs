@@ -12,7 +12,7 @@ use std::{
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
-    SyntaxMemoContext, SyntaxMemoScope, SyntaxParseError,
+    SyntaxMemoContext, SyntaxParseError,
     parser_core::{
         Checkpoint, InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end,
     },
@@ -60,30 +60,6 @@ where
                 Err(error)
             }
         }
-    })
-    .boxed()
-}
-
-/// Isolates memo entries produced by one parameterization of generated rules.
-///
-/// Generated rule functions are reusable with different recursive parser
-/// arguments. Their memoized results are reusable only within the same
-/// argument family, even when the rule name and token location coincide.
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn memo_scope<'tokens, O, P>(
-    scope: SyntaxMemoScope,
-    parser: P,
-) -> BoxedParser<'tokens, O>
-where
-    O: 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
-    custom::<_, _>(move |input| {
-        let previous = input.state().enter_syntax_memo_scope(scope);
-        let result = input.parse(&parser);
-        input.state().restore_syntax_memo_scope(previous);
-        result
     })
     .boxed()
 }

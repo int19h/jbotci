@@ -5689,6 +5689,51 @@ fn strict_method_parser_expr_tokens(
     }
 }
 
+/// Checks that a call of a parameterized rule passes the rule's own parameters.
+///
+/// A rule's memo entry is keyed by the rule name and the input position alone. Two calls that
+/// passed different recursive parsers for the same parameter would parse different languages
+/// under one memo key, and the second call would replay the first call's result. Each argument
+/// must therefore name the callee's parameter at its position, which makes every call of a rule
+/// the same parser. Strict generation lowers every rule body, so this check sees every call.
+#[requires(!function.is_empty())]
+#[ensures(true)]
+fn validate_rule_call_arguments(
+    call: &ExprCall,
+    function: &str,
+    type_env: &GrammarTypeEnv,
+) -> Result<()> {
+    let parameters = type_env
+        .rule_arguments_for_call(function)
+        .unwrap_or_default();
+    if call.args.len() != parameters.len() {
+        return Err(syn::Error::new_spanned(
+            call,
+            format!(
+                "rule `{function}` takes {} parser arguments, but this call passes {}",
+                parameters.len(),
+                call.args.len()
+            ),
+        ));
+    }
+    for (argument, parameter) in call.args.iter().zip(parameters) {
+        let names_parameter = matches!(
+            argument,
+            Expr::Path(path) if path.qself.is_none() && path.path.is_ident(parameter.as_str())
+        );
+        if !names_parameter {
+            return Err(syn::Error::new_spanned(
+                argument,
+                format!(
+                    "rule `{function}` must receive its own parameter `{parameter}` here: rule \
+                     memo entries are keyed by rule name, so every call must pass the same parsers"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn strict_call_parser_expr_tokens(
@@ -5702,6 +5747,7 @@ fn strict_call_parser_expr_tokens(
         syn::Error::new_spanned(call, "strict parser calls must use a named function")
     })?;
     if generation.type_env.rules.contains_key(&function) {
+        validate_rule_call_arguments(call, &function, generation.type_env)?;
         return strict_rule_call_parser_tokens(
             &function,
             call.args.iter(),
@@ -5712,24 +5758,6 @@ fn strict_call_parser_expr_tokens(
         );
     }
     match (function.as_str(), call.args.len()) {
-        ("memo_scope", 2) => {
-            let scope = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "memo_scope() requires a syntax memo scope path",
-            )?;
-            let scope = format_ident!("{scope}");
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(generated_runtime::memo_scope(
-                SyntaxMemoScope::#scope,
-                #inner,
-            )))
-        }
         ("cmavo", 1) => {
             let cmavo = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -6602,24 +6630,6 @@ fn recovered_call_parser_expr_tokens(
     }
     let recovered_module = generation.recovered_module;
     match (function.as_str(), call.args.len()) {
-        ("memo_scope", 2) => {
-            let scope = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "memo_scope() requires a syntax memo scope path",
-            )?;
-            let scope = format_ident!("{scope}");
-            let inner = recovered_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(generated_runtime::memo_scope(
-                SyntaxMemoScope::#scope,
-                #inner,
-            )))
-        }
         ("cmavo", 1) => {
             let cmavo = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -7477,11 +7487,6 @@ fn call_rust_parser_output_type(
         return Some(quote!(#ty));
     }
     match (function.as_str(), call.args.len()) {
-        ("memo_scope", 2) => rust_parser_output_type(
-            call.args.iter().nth(1).expect("length checked"),
-            type_env,
-            arguments,
-        ),
         ("cmavo" | "selmaho" | "word_category" | "quote_marker", 1)
         | (
             "relation_word"
@@ -8926,7 +8931,6 @@ fn classify_call_recovery_expr(
         return Ok(RecoveryExpr::Opaque(compact_tokens(call)));
     };
     Ok(match (name.as_str(), call.args.len()) {
-        ("memo_scope", 2) => classify_recovery_expr(&call.args[1], arguments, type_env)?,
         ("cmavo", 1) => call
             .args
             .first()
@@ -10603,6 +10607,50 @@ mod tests {
             expanded.contains("cannot generate enum variant")
                 && expanded.contains("generated model ownership must be one rule per enum variant"),
             "unexpected expansion: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn rule_call_with_another_parser_for_a_parameter_reports_compile_error() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            recursive {
+                item: ItemSyntax;
+            }
+
+            /// Syntax model for item parsed by the `item` grammar rule.
+            rule "item" item(item) -> enum {
+                /// Uses the `group` product form.
+                group,
+            }
+
+            /// Syntax model for group parsed by the `group` grammar rule.
+            rule "group" group(item) -> struct {
+                /// The opening marker.
+                field ke <- cmavo(Ke);
+                /// The grouped item.
+                field inner <- item;
+            }
+
+            /// Syntax model for wrapper parsed by the `wrapper` grammar rule.
+            rule "wrapper" wrapper(item) -> struct {
+                /// The wrapped group, called with a parser other than its parameter.
+                field group <- group(wrapper);
+            }
+        })
+        .expect("grammar parses before strict parser generation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("rule `group` must receive its own parameter `item` here"),
+            "a call that passes another parser for a parameter should be reported: {expanded}"
         );
     }
 

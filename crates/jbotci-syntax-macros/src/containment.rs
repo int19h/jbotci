@@ -527,9 +527,7 @@ impl ContainmentData {
                     if let Action::Unary { inner, .. } = &mut self.action {
                         inner.apply_parser_policy(&call.args[0])?;
                     }
-                } else if matches!(name.as_deref(), Some("feature" | "memo_scope"))
-                    && call.args.len() == 2
-                {
+                } else if name.as_deref() == Some("feature") && call.args.len() == 2 {
                     self.apply_parser_policy(&call.args[1])?;
                 } else if name.as_deref() == Some("choice") {
                     let alternatives = if call.args.len() == 1 {
