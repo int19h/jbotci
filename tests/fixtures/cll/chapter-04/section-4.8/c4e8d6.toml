@@ -1,0 +1,38 @@
+id = "cll.4.62.c4e8d6"
+lojban = ".kat,r,in."
+translation-en = "Catherine"
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.8"
+section-id = "cmevla"
+example-number = "4.62"
+example-id = "c4e8d6"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "kat,r,in" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 9, char_start: 1, char_end: 9, start: None, end: None } })]'
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "kat,r,in" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 9, char_start: 1, char_end: 9, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = ".kat,r,in."
+tree = """
+[
+  Cmevla @[1‥9) "kat,r,in",
+]"""
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"kat,r,in","span":[1,9]}}}]'
+
+[expectations.output.gentufa]
+brackets = ".kat,r,in."
+tree = 'Cmevla @[1‥9) "kat,r,in"'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kat,r,in","span":[1,9]}}}}]}}'

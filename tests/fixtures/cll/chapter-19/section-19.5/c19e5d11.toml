@@ -1,0 +1,45 @@
+id = "cll.19.23.c19e5d11"
+lojban = "vomu"
+translation-en = ""
+gloss-en = "Forty-five."
+
+[[provenance]]
+kind = "cll"
+chapter = 19
+section-number = "19.5"
+section-id = "questions-and-answers"
+example-number = "19.23"
+example-id = "c19e5d11"
+source-path = "vendor/cll/chapters/19.xml"
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "vo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })]'
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(MeksoFragment(MeksoFragmentSyntax(PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "vo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), continuations: [NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }))))] }, boi: None, free_modifiers: [] }))))), following: [], trailing: [] })), additional_niho: [] })) })'
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = "(vo mu)"
+tree = """
+[
+  Cmavo @[0‥2) "vo",
+  Cmavo @[2‥4) "mu",
+]"""
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[2,4]}}}]'
+
+[expectations.output.gentufa]
+brackets = "(vo mu)"
+tree = """
+NumberWords @[0‥4) {
+  first_number: Cmavo @[0‥2) "vo",
+  continuations: [
+    Cmavo @[2‥4) "mu",
+  ],
+}"""
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[2,4]}}}}}]}}}}}}}}}}}'

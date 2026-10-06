@@ -1,0 +1,38 @@
+id = "cll.4.23.c4e5d5"
+lojban = "sampli"
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.5"
+section-id = "lujvo"
+example-number = "4.23"
+example-id = "c4e5d5"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sám" }), Rafsi(Phonemes { text: "pli" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None } })]'
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sám" }), Rafsi(Phonemes { text: "pli" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] })), additional_niho: [] })) })'
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":0,"length":6},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":0,"length":6},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":0,"length":6},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":0,"length":6},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":0,"length":6},"kind":"compound","selbri":{"offset":0,"length":6},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[]}},{"index":3,"node":{"offset":0,"length":6},"kind":"forwarding","selbri":{"offset":0,"length":6},"tanru-unit":null,"propagation":{"kind":"forward","inner":2}},{"index":4,"node":{"offset":0,"length":6},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":3}},{"index":5,"node":{"offset":0,"length":6},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}},{"index":6,"node":{"offset":0,"length":6},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[5]}},{"index":7,"node":{"offset":0,"length":6},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":0,"length":6},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}}],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = "sámpli"
+tree = """
+[
+  Lujvo @[0‥6) "sámpli",
+]"""
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Rafsi":"pli"}],"span":[0,6]}}}]'
+
+[expectations.output.gentufa]
+brackets = "sámpli"
+tree = 'Lujvo @[0‥6) "sámpli"'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Rafsi":"pli"}],"span":[0,6]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'
