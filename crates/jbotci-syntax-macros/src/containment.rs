@@ -500,7 +500,6 @@ impl ContainmentData {
             "elidable_terminator"
             | "lookahead"
             | "reject_output"
-            | "reject_recovered_output"
             | "warn"
             | "payload_start"
             | "then_ignore"

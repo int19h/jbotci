@@ -269,7 +269,6 @@ impl SyntaxGrammar {
                 NotNextToken(SyntaxGrammarTokenPredicate),
                 NotNextRule(&'static str),
                 Lookahead(&'static SyntaxGrammarRecoveryExpr),
-                StrictObserve(&'static SyntaxGrammarRecoveryExpr),
                 Not(&'static SyntaxGrammarRecoveryExpr),
                 Choice(&'static [SyntaxGrammarRecoveryExpr]),
                 Sequence(&'static [SyntaxGrammarRecoveryExpr]),
@@ -4740,12 +4739,7 @@ fn strict_postfix_parser_expr_tokens(
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
         }
-        // A recovered-only refinement: the strict language is untouched by construction.
-        ("reject_recovered_output", 1) => {
-            output_rejection_argument(args.first().expect("length checked"))?;
-            Ok(inner)
-        }
-        ("map_to" | "map_recovered_to", 1) => {
+        ("map_to", 1) => {
             let target = required_path_expr_last_segment(
                 args.first().expect("length checked"),
                 "map_to() requires a grammar rule path",
@@ -5078,10 +5072,6 @@ fn recovered_postfix_parser_expr_tokens(
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
         }
-        ("reject_recovered_output", 1) => {
-            let rejection = output_rejection_argument(args.first().expect("length checked"))?;
-            Ok(quote!(generated_runtime::reject_recovered_output(#inner, #rejection)))
-        }
         ("map_to", 1) => {
             let target = required_path_expr_last_segment(
                 args.first().expect("length checked"),
@@ -5094,29 +5084,6 @@ fn recovered_postfix_parser_expr_tokens(
                 ));
             }
             Ok(quote!(#inner.map(Into::into)))
-        }
-        ("map_recovered_to", 1) => {
-            let target = required_path_expr_last_segment(
-                args.first().expect("length checked"),
-                "map_recovered_to() requires a grammar rule path",
-            )?;
-            if !generation.type_env.rules.contains_key(&target) {
-                return Err(syn::Error::new_spanned(
-                    args.first().expect("length checked"),
-                    "map_recovered_to() names an unknown grammar rule",
-                ));
-            }
-            let target_output = generation
-                .type_env
-                .rules
-                .get(&target)
-                .expect("target presence checked");
-            let recovered_module = generation.recovered_module;
-            let target_output =
-                quote!(#recovered_module::Recovered<#recovered_module::#target_output>);
-            Ok(quote!(#inner.map(|value| {
-                generated_runtime::grammar_map_to::<_, #target_output>(value)
-            })))
         }
         ("ignore_then", 1) => {
             let parser = recovered_rust_parser_expr_tokens(
@@ -5629,19 +5596,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
-    } else if method.method == "reject_recovered_output" && method.args.len() == 1 {
-        // A recovered-only refinement: the strict language is untouched by construction.
-        output_rejection_argument(method.args.first().expect("length checked"))?;
-        strict_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )
-    } else if (method.method == "map_to" || method.method == "map_recovered_to")
-        && method.args.len() == 1
-    {
+    } else if method.method == "map_to" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -5757,40 +5712,6 @@ fn strict_call_parser_expr_tokens(
         );
     }
     match (function.as_str(), call.args.len()) {
-        ("strict_observe", 1) => {
-            let normal_generation = StrictParserGeneration {
-                flavor: StrictParserFlavor::Normal,
-                ..*generation
-            };
-            let normal_free_modifier_parser = if generation.flavor.records_recovery_checkpoints() {
-                format_ident!("__generated_strict_free_modifier")
-            } else {
-                free_modifier_parser.clone()
-            };
-            let argument_bindings = generation
-                .flavor
-                .records_recovery_checkpoints()
-                .then(|| {
-                    arguments.iter().map(|argument| {
-                        let argument_ident = format_ident!("{argument}");
-                        let strict_argument = format_ident!("__strict_{argument}");
-                        quote!(let #argument_ident = #strict_argument.clone();)
-                    })
-                })
-                .into_iter()
-                .flatten();
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                &normal_generation,
-                &normal_free_modifier_parser,
-                StrictParserCallMode::Local,
-            )?;
-            Ok(quote!({
-                #(#argument_bindings)*
-                generated_runtime::strict_observe(#inner)
-            }))
-        }
         ("memo_scope", 2) => {
             let scope = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -5840,14 +5761,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             let cmavo = format_ident!("{cmavo}");
             Ok(quote!(generated_runtime::quote_marker(Cmavo::#cmavo)))
-        }
-        ("delimited_quote_marker", 1) => {
-            let cmavo = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "delimited_quote_marker() requires a cmavo path",
-            )?;
-            let cmavo = format_ident!("{cmavo}");
-            Ok(quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo)))
         }
         ("word_not_cmavo", _) if !call.args.is_empty() => {
             let terminators = call
@@ -6564,16 +6477,6 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
-    } else if method.method == "reject_recovered_output" && method.args.len() == 1 {
-        let inner = recovered_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
-        Ok(quote!(generated_runtime::reject_recovered_output(#inner, #rejection)))
     } else if method.method == "map_to" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -6593,34 +6496,6 @@ fn recovered_method_parser_expr_tokens(
             ));
         }
         Ok(quote!(#inner.map(Into::into)))
-    } else if method.method == "map_recovered_to" && method.args.len() == 1 {
-        let inner = recovered_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let target = required_path_expr_last_segment(
-            method.args.first().expect("length checked"),
-            "map_recovered_to() requires a grammar rule path",
-        )?;
-        if !generation.type_env.rules.contains_key(&target) {
-            return Err(syn::Error::new_spanned(
-                method.args.first().expect("length checked"),
-                "map_recovered_to() names an unknown grammar rule",
-            ));
-        }
-        let target_output = generation
-            .type_env
-            .rules
-            .get(&target)
-            .expect("target presence checked");
-        let recovered_module = generation.recovered_module;
-        let target_output = quote!(#recovered_module::Recovered<#recovered_module::#target_output>);
-        Ok(quote!(#inner.map(|value| {
-            generated_runtime::grammar_map_to::<_, #target_output>(value)
-        })))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -6727,26 +6602,6 @@ fn recovered_call_parser_expr_tokens(
     }
     let recovered_module = generation.recovered_module;
     match (function.as_str(), call.args.len()) {
-        ("strict_observe", 1) => {
-            let strict_generation = generation.normal_strict_generation();
-            let strict_free_modifier_parser = format_ident!("__generated_strict_free_modifier");
-            let argument_bindings = arguments.iter().map(|argument| {
-                let argument_ident = format_ident!("{argument}");
-                let strict_argument = format_ident!("__strict_{argument}");
-                quote!(let #argument_ident = #strict_argument.clone();)
-            });
-            let strict_inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                &strict_generation,
-                &strict_free_modifier_parser,
-                StrictParserCallMode::Local,
-            )?;
-            Ok(quote!({
-                #(#argument_bindings)*
-                generated_runtime::strict_observe(#strict_inner)
-            }))
-        }
         ("memo_scope", 2) => {
             let scope = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -6799,16 +6654,6 @@ fn recovered_call_parser_expr_tokens(
             let cmavo = format_ident!("{cmavo}");
             Ok(
                 quote!(generated_runtime::quote_marker(Cmavo::#cmavo).map(#recovered_module::Recovered::valid)),
-            )
-        }
-        ("delimited_quote_marker", 1) => {
-            let cmavo = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "delimited_quote_marker() requires a cmavo path",
-            )?;
-            let cmavo = format_ident!("{cmavo}");
-            Ok(
-                quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo).map(#recovered_module::Recovered::valid)),
             )
         }
         ("word_not_cmavo", _) if !call.args.is_empty() => {
@@ -7387,10 +7232,8 @@ fn postfix_parser_output_type(
             type_env.recursive.get(&target).map(|ty| quote!(#ty))
         }
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
-        ("reject_output" | "reject_recovered_output", 1) => {
-            parser_output_type(receiver, type_env, arguments)
-        }
-        ("map_to" | "map_recovered_to", 1) => {
+        ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
+        ("map_to", 1) => {
             let target = required_path_expr_last_segment(&args[0], "map_to target").ok()?;
             type_env.rules.get(&target).map(|ty| quote!(#ty))
         }
@@ -7585,12 +7428,9 @@ fn method_rust_parser_output_type(
         || method.method == "followed_by"
         || method.method == "lookahead"
         || method.method == "reject_output"
-        || method.method == "reject_recovered_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
-    } else if (method.method == "map_to" || method.method == "map_recovered_to")
-        && method.args.len() == 1
-    {
+    } else if method.method == "map_to" && method.args.len() == 1 {
         let target = required_path_expr_last_segment(
             method.args.first().expect("length checked"),
             "map_to target",
@@ -7642,8 +7482,7 @@ fn call_rust_parser_output_type(
             type_env,
             arguments,
         ),
-        ("strict_observe", 1) => Some(quote!(())),
-        ("cmavo" | "selmaho" | "word_category" | "quote_marker" | "delimited_quote_marker", 1)
+        ("cmavo" | "selmaho" | "word_category" | "quote_marker", 1)
         | (
             "relation_word"
             | "tanru_unit_relation_word"
@@ -8627,9 +8466,7 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
         Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
             ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
             | ("wf_when", 1)
-            | ("warn" | "reject_output" | "reject_recovered_output", 1) => {
-                elidable_terminator_terminal_cmavo(&method.receiver)
-            }
+            | ("warn" | "reject_output", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
             _ => None,
         },
         Expr::Group(group) => elidable_terminator_terminal_cmavo(&group.expr),
@@ -8712,7 +8549,6 @@ impl Parse for Condition {
 #[invariant(::Cmavo(_) => true)]
 #[invariant(::Ignored(_) => true)]
 #[invariant(::Lookahead(_) => true)]
-#[invariant(::StrictObserve(_) => true)]
 #[invariant(::Many(_) => true)]
 #[invariant(::Many1(_) => true)]
 #[invariant(::Not(_) => true)]
@@ -8747,7 +8583,6 @@ enum RecoveryExpr {
     NotNextToken(String),
     NotNextRule(String),
     Lookahead(Box<RecoveryExpr>),
-    StrictObserve(Box<RecoveryExpr>),
     Not(Box<RecoveryExpr>),
     Choice(Vec<RecoveryExpr>),
     Sequence(Vec<RecoveryExpr>),
@@ -8831,10 +8666,6 @@ impl RecoveryExpr {
             RecoveryExpr::Lookahead(inner) => {
                 let inner = inner.expand();
                 quote!(SyntaxGrammarRecoveryExpr::Lookahead(&#inner))
-            }
-            RecoveryExpr::StrictObserve(inner) => {
-                let inner = inner.expand();
-                quote!(SyntaxGrammarRecoveryExpr::StrictObserve(&#inner))
             }
             RecoveryExpr::Not(inner) => {
                 let inner = inner.expand();
@@ -8943,9 +8774,7 @@ fn classify_postfix_recovery_expr(
         ("warn", 1)
         | ("elidable_terminator", 1)
         | ("reject_output", 1)
-        | ("reject_recovered_output", 1)
         | ("map_to", 1)
-        | ("map_recovered_to", 1)
         | ("recursive_output", 1) => classify_parser_expr(receiver, arguments, type_env),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
@@ -9031,12 +8860,9 @@ fn classify_method_recovery_expr(
                 method.args.first().expect("length checked"),
             )?),
         }),
-        ("warn", 1)
-        | ("reject_output", 1)
-        | ("reject_recovered_output", 1)
-        | ("map_to", 1)
-        | ("map_recovered_to", 1)
-        | ("recursive_output", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
+        ("warn", 1) | ("reject_output", 1) | ("map_to", 1) | ("recursive_output", 1) => {
+            classify_recovery_expr(&method.receiver, arguments, type_env)
+        }
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
@@ -9101,11 +8927,6 @@ fn classify_call_recovery_expr(
     };
     Ok(match (name.as_str(), call.args.len()) {
         ("memo_scope", 2) => classify_recovery_expr(&call.args[1], arguments, type_env)?,
-        ("strict_observe", 1) => RecoveryExpr::StrictObserve(Box::new(classify_recovery_expr(
-            &call.args[0],
-            arguments,
-            type_env,
-        )?)),
         ("cmavo", 1) => call
             .args
             .first()
@@ -9124,7 +8945,7 @@ fn classify_call_recovery_expr(
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::WordCategory)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
-        ("quote_marker" | "delimited_quote_marker", 1) => call
+        ("quote_marker", 1) => call
             .args
             .first()
             .and_then(path_expr_last_segment)
@@ -9234,14 +9055,14 @@ fn wf_when_anchor_condition(expr: &Expr) -> Result<AnchorCondition> {
     })))
 }
 
-/// The refinement value passed to `reject_output()` or `reject_recovered_output()`.
+/// The refinement value passed to `reject_output()`.
 #[requires(true)]
 #[ensures(true)]
 fn output_rejection_argument(expr: &Expr) -> Result<TokenStream2> {
     let Expr::Path(path) = expr else {
         return Err(syn::Error::new_spanned(
             expr,
-            "reject_output() and reject_recovered_output() require a path to an output rejection value",
+            "reject_output() requires a path to an output rejection value",
         ));
     };
     Ok(quote!(#path))
@@ -9857,7 +9678,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             }
             RecoveryExpr::WordCategory(_)
             | RecoveryExpr::Lookahead(_)
-            | RecoveryExpr::StrictObserve(_)
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
@@ -9899,7 +9719,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                 nullable
             }
             RecoveryExpr::Lookahead(_)
-            | RecoveryExpr::StrictObserve(_)
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
@@ -10050,7 +9869,6 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         RecoveryExpr::Many(_)
         | RecoveryExpr::Many1(_)
         | RecoveryExpr::Lookahead(_)
-        | RecoveryExpr::StrictObserve(_)
         | RecoveryExpr::Not(_)
         | RecoveryExpr::NotNextSelmaho(_)
         | RecoveryExpr::NotNextToken(_)
@@ -10785,72 +10603,6 @@ mod tests {
             expanded.contains("cannot generate enum variant")
                 && expanded.contains("generated model ownership must be one rule per enum variant"),
             "unexpected expansion: {expanded}"
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn strict_observe_lowers_normal_checkpoint_and_recovered_dependencies() {
-        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
-            tree_model {}
-            model;
-            env generated_runtime::SyntaxGrammarEnv;
-            strict_parsers;
-
-            recursive {
-                item: ItemSyntax;
-            }
-
-            /// Syntax model for item parsed by the `item` grammar rule.
-            rule "item" item(item) -> enum {
-                /// Uses the `group` product form.
-                group,
-            }
-
-            /// Syntax model for group parsed by the `group` grammar rule.
-            rule "group" group(item) -> struct {
-                /// The opening marker.
-                field ke <- cmavo(Ke);
-                assert !strict_observe((item, cmavo(Kehe)));
-                /// The closing marker.
-                field kehe <- cmavo(Kehe);
-            }
-
-            /// Syntax model for wrapper parsed by the `wrapper` grammar rule.
-            rule "wrapper" wrapper(item) -> struct {
-                assert !strict_observe(group(item));
-                /// The wrapped item.
-                field item <- item;
-            }
-        })
-        .expect("strict-observe grammar parses before expansion");
-
-        let expanded = grammar.expand().to_string();
-        assert_eq!(
-            expanded
-                .matches("generated_runtime :: strict_observe")
-                .count(),
-            8,
-            "both strict-observe forms should lower in normal, checkpoint, and both recovered parser branches: {expanded}"
-        );
-        assert!(
-            expanded.contains("recovery_checkpoint_strict_group_parser")
-                && expanded.contains("recovered_group_parser")
-                && expanded.contains("__strict_item")
-                && expanded.contains("__generated_strict_free_modifier"),
-            "checkpoint and recovered parsers should carry matched normal-strict dependencies: {expanded}"
-        );
-        assert_eq!(
-            expanded
-                .matches("let __generated_normal_strict_family = strict_generated_parser_family")
-                .count(),
-            2,
-            "checkpoint and recovered recursive families should each construct one paired normal-strict family: {expanded}"
-        );
-        assert!(
-            expanded.contains("SyntaxGrammarRecoveryExpr :: StrictObserve"),
-            "recovery metadata should retain the strict-observe primitive: {expanded}"
         );
     }
 

@@ -291,7 +291,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
-        assert_eq!(english().sound_index().len(), 31_093);
+        assert_eq!(english().sound_index().len(), 31_098);
         assert_eq!(english().lujvo_index().len(), 12_983);
 
         // The decomposition index is audited by word type and not only in

@@ -192,7 +192,6 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Gaho
             | Selmaho::Gi
             | Selmaho::Giha
-            | Selmaho::Gihi
             | Selmaho::Guha
             | Selmaho::Ja
             | Selmaho::Jehi
@@ -203,6 +202,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             Selmaho::Beho
             | Selmaho::Faho
             | Selmaho::Ku
+            | Selmaho::Kuhoi
             | Selmaho::Loho
             | Selmaho::Sehu
             | Selmaho::Toi
@@ -215,6 +215,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Lohu
             | Selmaho::Lu
             | Selmaho::Zo
+            | Selmaho::Zohoi
             | Selmaho::Zoi,
         ) => SemanticTokenKind::QuotationMarker,
         Some(Selmaho::Pa) => SemanticTokenKind::Number,
@@ -261,6 +262,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Nahe
             | Selmaho::Nai
             | Selmaho::Niho
+            | Selmaho::Nohoi
             | Selmaho::Noi
             | Selmaho::Noiha
             | Selmaho::Sa

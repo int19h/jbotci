@@ -755,108 +755,100 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn missing_link_payloads_are_required_errors_not_empty_values() {
-        for dialect in ["()", "(zantufa)", "(+zantufa-terms)"] {
-            let definition = jbotci_dialect::parse_dialect_definition(dialect).unwrap();
-            let options = ParseOptions::default().with_dialect_definition(&definition);
-            for case in [
-                new!(MissingPayloadCase {
-                    source: "mi broda be",
-                    anchor: new!(LinkAnchor {
-                        marker: LinkMarker::Be,
-                        byte_start: 9,
-                        byte_end: 11
-                    }),
-                    parent_end: 11,
+        let options = ParseOptions::default();
+        for case in [
+            new!(MissingPayloadCase {
+                source: "mi broda be",
+                anchor: new!(LinkAnchor {
+                    marker: LinkMarker::Be,
+                    byte_start: 9,
+                    byte_end: 11
                 }),
-                new!(MissingPayloadCase {
-                    source: "mi broda be be'o",
-                    anchor: new!(LinkAnchor {
-                        marker: LinkMarker::Be,
-                        byte_start: 9,
-                        byte_end: 11
-                    }),
-                    parent_end: 16,
+                parent_end: 11,
+            }),
+            new!(MissingPayloadCase {
+                source: "mi broda be be'o",
+                anchor: new!(LinkAnchor {
+                    marker: LinkMarker::Be,
+                    byte_start: 9,
+                    byte_end: 11
                 }),
-                new!(MissingPayloadCase {
-                    source: "mi broda be ko'a bei",
-                    anchor: new!(LinkAnchor {
-                        marker: LinkMarker::Bei,
-                        byte_start: 17,
-                        byte_end: 20
-                    }),
-                    parent_end: 20,
+                parent_end: 16,
+            }),
+            new!(MissingPayloadCase {
+                source: "mi broda be ko'a bei",
+                anchor: new!(LinkAnchor {
+                    marker: LinkMarker::Bei,
+                    byte_start: 17,
+                    byte_end: 20
                 }),
-                new!(MissingPayloadCase {
-                    source: "mi broda be be'o ko'a",
-                    anchor: new!(LinkAnchor {
-                        marker: LinkMarker::Be,
-                        byte_start: 9,
-                        byte_end: 11
-                    }),
-                    parent_end: 16,
+                parent_end: 20,
+            }),
+            new!(MissingPayloadCase {
+                source: "mi broda be be'o ko'a",
+                anchor: new!(LinkAnchor {
+                    marker: LinkMarker::Be,
+                    byte_start: 9,
+                    byte_end: 11
                 }),
-                new!(MissingPayloadCase {
-                    source: "mi broda be bei ko'a be'o",
-                    anchor: new!(LinkAnchor {
-                        marker: LinkMarker::Be,
-                        byte_start: 9,
-                        byte_end: 11
-                    }),
-                    parent_end: 25,
+                parent_end: 16,
+            }),
+            new!(MissingPayloadCase {
+                source: "mi broda be bei ko'a be'o",
+                anchor: new!(LinkAnchor {
+                    marker: LinkMarker::Be,
+                    byte_start: 9,
+                    byte_end: 11
                 }),
-            ] {
-                let source = case.source;
-                let anchor = &case.anchor;
-                let words = jbotci_morphology::segment_words_with_modifiers(source).unwrap();
-                assert!(
-                    parse_syntax_tree_with_source_and_options(&words, source, &options).is_err()
-                );
-                let parsed =
-                    parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
-                assert_eq!(parsed.errors.len(), 1, "{dialect}: {source}");
-                assert!(parsed.warnings.is_empty(), "{dialect}: {source}");
-                let TargetObservation::Found { link } =
-                    recovered_target_observation(&parsed.parse_tree, Some(anchor))
-                else {
-                    panic!("required link field was lost: {dialect}: {source}");
-                };
-                assert!(
-                    matches!(link.field, RecoveredLinkField::Error),
-                    "{dialect}: {source}"
-                );
-                let extent = link
-                    .parent_parsed_extent
-                    .expect("the marker remains sourced");
-                assert_eq!(
-                    (extent.byte_start, extent.byte_end),
-                    (anchor.byte_start, case.parent_end)
-                );
+                parent_end: 25,
+            }),
+        ] {
+            let source = case.source;
+            let anchor = &case.anchor;
+            let words = jbotci_morphology::segment_words_with_modifiers(source).unwrap();
+            assert!(parse_syntax_tree_with_source_and_options(&words, source, &options).is_err());
+            let parsed =
+                parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            assert_eq!(parsed.errors.len(), 1, "{source}");
+            assert!(parsed.warnings.is_empty(), "{source}");
+            let TargetObservation::Found { link } =
+                recovered_target_observation(&parsed.parse_tree, Some(anchor))
+            else {
+                panic!("required link field was lost: {source}");
+            };
+            assert!(matches!(link.field, RecoveredLinkField::Error), "{source}");
+            let extent = link
+                .parent_parsed_extent
+                .expect("the marker remains sourced");
+            assert_eq!(
+                (extent.byte_start, extent.byte_end),
+                (anchor.byte_start, case.parent_end)
+            );
 
-                // A missing BEI payload must not discard the preceding complete BE payload.
-                // E3 retains the following recovered text, but its failed required field and
-                // diagnostics prevent any claim of a successful empty link/outer reassignment.
-                if anchor.marker == LinkMarker::Bei {
-                    let first = new!(LinkAnchor {
-                        marker: LinkMarker::Be,
-                        byte_start: 9,
-                        byte_end: 11
-                    });
-                    let TargetObservation::Found { link } =
-                        recovered_target_observation(&parsed.parse_tree, Some(&first))
-                    else {
-                        panic!("earlier BE payload was lost: {dialect}: {source}");
-                    };
-                    let RecoveredLinkField::Valid {
-                        owner,
-                        parsed_extent,
-                    } = link.field
-                    else {
-                        panic!("earlier BE payload is no longer Valid: {dialect}: {source}");
-                    };
-                    assert_eq!(owner, LinkOwner::PlainLinkedSumti);
-                    let extent = parsed_extent.expect("the preceding sumti is sourced");
-                    assert_eq!((extent.byte_start, extent.byte_end), (12, 16));
-                }
+            // A missing BEI payload must not discard the preceding complete BE payload.
+            // E3 retains the following recovered text, but its failed required field and
+            // diagnostics prevent any claim of a successful empty link/outer reassignment.
+            if anchor.marker == LinkMarker::Bei {
+                let first = new!(LinkAnchor {
+                    marker: LinkMarker::Be,
+                    byte_start: 9,
+                    byte_end: 11
+                });
+                let TargetObservation::Found { link } =
+                    recovered_target_observation(&parsed.parse_tree, Some(&first))
+                else {
+                    panic!("earlier BE payload was lost: {source}");
+                };
+                let RecoveredLinkField::Valid {
+                    owner,
+                    parsed_extent,
+                } = link.field
+                else {
+                    panic!("earlier BE payload is no longer Valid: {source}");
+                };
+                assert_eq!(owner, LinkOwner::PlainLinkedSumti);
+                let extent = parsed_extent.expect("the preceding sumti is sourced");
+                assert_eq!((extent.byte_start, extent.byte_end), (12, 16));
             }
         }
     }

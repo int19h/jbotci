@@ -64,25 +64,19 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
                 model::walk::normal_term(self, node)
             }
             model::NormalTermSyntax::PlaceTaggedSumtiTerm(_)
-            | model::NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
             | model::NormalTermSyntax::ElidedNaheFihoTagTerm(_)
             | model::NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::NormalTermSyntax::NonabsTaggedSumtiTerm(_)
             | model::NormalTermSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
-            model::NormalTermSyntax::JaiTaggedSumtiTerm(_)
-            | model::NormalTermSyntax::NoihaAdverbialTerm(_)
-            | model::NormalTermSyntax::FihoiProposalAdverbialTerm(_)
-            | model::NormalTermSyntax::ZantufaXoiAdverbialTerm(_)
+            model::NormalTermSyntax::FihoiProposalAdverbialTerm(_)
             | model::NormalTermSyntax::ExpSoiAdverbialTerm(_)
             | model::NormalTermSyntax::NaKuTerm(_)
             | model::NormalTermSyntax::BareNaTerm(_)
             | model::NormalTermSyntax::GekTermset(_)
-            | model::NormalTermSyntax::ZantufaGekTermset(_)
             | model::NormalTermSyntax::ForethoughtTermset(_)
-            | model::NormalTermSyntax::NuhiTermset(_)
-            | model::NormalTermSyntax::KeTermset(_) => {
+            | model::NormalTermSyntax::NuhiTermset(_) => {
                 self.observe(LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -96,25 +90,19 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
                 model::walk::bound_normal_term(self, node)
             }
             model::BoundNormalTermSyntax::PlaceTaggedSumtiTerm(_)
-            | model::BoundNormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
             | model::BoundNormalTermSyntax::ElidedNaheFihoTagTerm(_)
             | model::BoundNormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::BoundNormalTermSyntax::NonabsTaggedSumtiTerm(_)
             | model::BoundNormalTermSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
-            model::BoundNormalTermSyntax::JaiTaggedSumtiTerm(_)
-            | model::BoundNormalTermSyntax::NoihaAdverbialTerm(_)
-            | model::BoundNormalTermSyntax::FihoiProposalAdverbialTerm(_)
-            | model::BoundNormalTermSyntax::ZantufaXoiAdverbialTerm(_)
+            model::BoundNormalTermSyntax::FihoiProposalAdverbialTerm(_)
             | model::BoundNormalTermSyntax::ExpSoiAdverbialTerm(_)
             | model::BoundNormalTermSyntax::NaKuTerm(_)
             | model::BoundNormalTermSyntax::BareNaTerm(_)
             | model::BoundNormalTermSyntax::GekTermset(_)
-            | model::BoundNormalTermSyntax::ZantufaGekTermset(_)
             | model::BoundNormalTermSyntax::ForethoughtTermset(_)
-            | model::BoundNormalTermSyntax::NuhiTermset(_)
-            | model::BoundNormalTermSyntax::KeTermset(_) => {
+            | model::BoundNormalTermSyntax::NuhiTermset(_) => {
                 self.observe(LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -125,45 +113,22 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
     fn walk_normal_term_atom(&mut self, node: &'tree model::NormalTermAtomSyntax) {
         match node {
             model::NormalTermAtomSyntax::PlaceTaggedSumtiTerm(_)
-            | model::NormalTermAtomSyntax::ZantufaJoikChainedPlaceTagTerm(_)
             | model::NormalTermAtomSyntax::ElidedNaheFihoTagTerm(_)
             | model::NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::NormalTermAtomSyntax::NonabsTaggedSumtiTerm(_)
             | model::NormalTermAtomSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
-            model::NormalTermAtomSyntax::JaiTaggedSumtiTerm(_)
-            | model::NormalTermAtomSyntax::NoihaAdverbialTerm(_)
-            | model::NormalTermAtomSyntax::FihoiProposalAdverbialTerm(_)
-            | model::NormalTermAtomSyntax::ZantufaXoiAdverbialTerm(_)
+            model::NormalTermAtomSyntax::FihoiProposalAdverbialTerm(_)
             | model::NormalTermAtomSyntax::ExpSoiAdverbialTerm(_)
             | model::NormalTermAtomSyntax::NaKuTerm(_)
             | model::NormalTermAtomSyntax::BareNaTerm(_)
             | model::NormalTermAtomSyntax::GekTermset(_)
-            | model::NormalTermAtomSyntax::ZantufaGekTermset(_)
             | model::NormalTermAtomSyntax::ForethoughtTermset(_)
-            | model::NormalTermAtomSyntax::NuhiTermset(_)
-            | model::NormalTermAtomSyntax::KeTermset(_) => {
+            | model::NormalTermAtomSyntax::NuhiTermset(_) => {
                 self.observe(LinkPayloadBreadth::AddedFullTerm)
             }
         }
-    }
-
-    #[requires(self.answer != LinkPayloadBreadth::Unproven)]
-    #[ensures(self.answer != LinkPayloadBreadth::Unproven)]
-    fn walk_normal_term_bo_continuation(
-        &mut self,
-        node: &'tree model::NormalTermBoContinuationSyntax,
-    ) {
-        match node {
-            model::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(_) => {}
-            // The old link ladder requires a connective. BO alone is new width even if both
-            // operands are legacy, so the continuation's own sourced marker contributes too.
-            model::NormalTermBoContinuationSyntax::ZantufaBoundNormalTermContinuation(_) => {
-                self.observe(LinkPayloadBreadth::AddedFullTerm);
-            }
-        }
-        model::walk::normal_term_bo_continuation(self, node);
     }
 
     #[requires(true)]
@@ -277,9 +242,6 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermSyntax::PlaceTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
-            }
             recovered::NormalTermSyntax::ElidedNaheFihoTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
@@ -292,16 +254,7 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermSyntax::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::JaiTaggedSumtiTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermSyntax::NoihaAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::NormalTermSyntax::FihoiProposalAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermSyntax::ZantufaXoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::NormalTermSyntax::ExpSoiAdverbialTerm(value) => {
@@ -316,16 +269,10 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermSyntax::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::ZantufaGekTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::NormalTermSyntax::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::NormalTermSyntax::NuhiTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermSyntax::KeTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -341,9 +288,6 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::BoundNormalTermSyntax::PlaceTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
-            }
             recovered::BoundNormalTermSyntax::ElidedNaheFihoTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
@@ -356,16 +300,7 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::BoundNormalTermSyntax::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::JaiTaggedSumtiTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::BoundNormalTermSyntax::NoihaAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::BoundNormalTermSyntax::FihoiProposalAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::BoundNormalTermSyntax::ZantufaXoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::BoundNormalTermSyntax::ExpSoiAdverbialTerm(value) => {
@@ -380,16 +315,10 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::BoundNormalTermSyntax::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::ZantufaGekTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::BoundNormalTermSyntax::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::BoundNormalTermSyntax::NuhiTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::BoundNormalTermSyntax::KeTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -400,9 +329,6 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
     fn walk_normal_term_atom(&mut self, node: &'tree recovered::NormalTermAtomSyntax) {
         match node {
             recovered::NormalTermAtomSyntax::PlaceTaggedSumtiTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
-            }
-            recovered::NormalTermAtomSyntax::ZantufaJoikChainedPlaceTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
             recovered::NormalTermAtomSyntax::ElidedNaheFihoTagTerm(value) => {
@@ -417,16 +343,7 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermAtomSyntax::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::JaiTaggedSumtiTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermAtomSyntax::NoihaAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::NormalTermAtomSyntax::FihoiProposalAdverbialTerm(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermAtomSyntax::ZantufaXoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::NormalTermAtomSyntax::ExpSoiAdverbialTerm(value) => {
@@ -441,16 +358,10 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermAtomSyntax::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::ZantufaGekTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
             recovered::NormalTermAtomSyntax::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
             recovered::NormalTermAtomSyntax::NuhiTermset(value) => {
-                self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
-            }
-            recovered::NormalTermAtomSyntax::KeTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -515,9 +426,6 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(value) => {
                 self.descend(value)
             }
-            recovered::NormalTermBoContinuationSyntax::ZantufaBoundNormalTermContinuation(
-                value,
-            ) => self.descend(value),
         }
     }
 
@@ -538,17 +446,6 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             self.observe_leaf(tag, LinkPayloadBreadth::LegacyLinked);
         }
         self.observe_leaf(&bo.value, LinkPayloadBreadth::LegacyLinked);
-        self.descend(trailing_term);
-    }
-
-    #[requires(true)]
-    #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_zantufa_bound_normal_term_continuation(
-        &mut self,
-        node: &'tree recovered::ZantufaBoundNormalTermContinuationSyntax,
-    ) {
-        let recovered::ZantufaBoundNormalTermContinuationSyntax { bo, trailing_term } = node;
-        self.observe_leaf(&bo.value, LinkPayloadBreadth::AddedFullTerm);
         self.descend(trailing_term);
     }
 }
@@ -616,7 +513,6 @@ mod tests {
     use std::sync::Arc;
 
     use bityzba::new;
-    use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::segment_words_with_modifiers;
     use vec1::vec1;
 
@@ -658,15 +554,10 @@ mod tests {
     // pre/postcondition can specify the returned grammar without repeating that same parser.
     #[requires(true)]
     #[ensures(true)]
-    fn parse(source: &str, dialect: &str) -> SyntaxParse {
-        let dialect = parse_dialect_definition(dialect).expect("test dialect");
+    fn parse(source: &str) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("test morphology");
-        parse_syntax_tree_with_source_and_options(
-            &words,
-            source,
-            &ParseOptions::default().with_dialect_definition(&dialect),
-        )
-        .unwrap_or_else(|error| panic!("{source} ({dialect:?}): {error:?}"))
+        parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"))
     }
 
     #[invariant(true)]
@@ -732,27 +623,25 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn closed_na_ku_and_nuhi_payloads_reach_full_through_be_and_bei() {
-        for dialect in ["()", "(zantufa)"] {
-            for source in [
-                "mi broda be na ku be'o",
-                "mi broda be ko'a bei na ku be'o",
-                "mi broda be nu'i ko'a ce'e ko'e nu'u be'o",
-                "mi broda be ko'a bei nu'i ko'e ce'e ko'i nu'u be'o",
-            ] {
-                let parsed = parse(source, dialect);
-                assert!(
-                    parsed.warnings.is_empty(),
-                    "{source}: {:?}",
-                    parsed.warnings
-                );
-                let mut payloads = FullPayloads::default();
-                model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut payloads);
-                assert_eq!(payloads.values.len(), 1, "{source}");
-                assert_eq!(
-                    breadth(payloads.values[0]),
-                    LinkPayloadBreadth::AddedFullTerm
-                );
-            }
+        for source in [
+            "mi broda be na ku be'o",
+            "mi broda be ko'a bei na ku be'o",
+            "mi broda be nu'i ko'a ce'e ko'e nu'u be'o",
+            "mi broda be ko'a bei nu'i ko'e ce'e ko'i nu'u be'o",
+        ] {
+            let parsed = parse(source);
+            assert!(
+                parsed.warnings.is_empty(),
+                "{source}: {:?}",
+                parsed.warnings
+            );
+            let mut payloads = FullPayloads::default();
+            model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut payloads);
+            assert_eq!(payloads.values.len(), 1, "{source}");
+            assert_eq!(
+                breadth(payloads.values[0]),
+                LinkPayloadBreadth::AddedFullTerm
+            );
         }
     }
 
@@ -760,41 +649,39 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn old_tagged_and_plain_payloads_are_legacy_not_full() {
-        for dialect in ["()", "(zantufa)"] {
-            for payload in [
-                "ko'a",
-                "fa ko'a",
-                "bau do",
-                "ga'a mi",
-                "pu ku",
-                "ki ku",
-                "fi'o broda fe'u ko'a",
-            ] {
-                let source = format!("mi broda be {payload} be'o");
-                let parsed = parse(&source, dialect);
-                let mut links = FullPayloads::default();
-                model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut links);
-                assert!(links.values.is_empty(), "old owner was lost: {source}");
-                assert!(
-                    parsed.warnings.is_empty(),
-                    "{source}: {:?}",
-                    parsed.warnings
-                );
+        for payload in [
+            "ko'a",
+            "fa ko'a",
+            "bau do",
+            "ga'a mi",
+            "pu ku",
+            "ki ku",
+            "fi'o broda fe'u ko'a",
+        ] {
+            let source = format!("mi broda be {payload} be'o");
+            let parsed = parse(&source);
+            let mut links = FullPayloads::default();
+            model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut links);
+            assert!(links.values.is_empty(), "old owner was lost: {source}");
+            assert!(
+                parsed.warnings.is_empty(),
+                "{source}: {:?}",
+                parsed.warnings
+            );
 
-                // GOI supplies a normal-term slot without enabling the new link route.
-                let source = format!("mi broda ko'e goi {payload} ge'u");
-                let parsed = parse(&source, dialect);
-                let mut terms = NormalPayloads::default();
-                model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut terms);
-                assert_eq!(terms.values.len(), 1, "{source}");
-                let candidate = model::FullLinkedTermSyntax(Arc::new(terms.values[0].clone()));
-                assert_eq!(
-                    breadth(&candidate),
-                    LinkPayloadBreadth::LegacyLinked,
-                    "{source}"
-                );
-                assert!(LegacyLinkPayloadRejection.rejects(&candidate));
-            }
+            // GOI supplies a normal-term slot without enabling the new link route.
+            let source = format!("mi broda ko'e goi {payload} ge'u");
+            let parsed = parse(&source);
+            let mut terms = NormalPayloads::default();
+            model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut terms);
+            assert_eq!(terms.values.len(), 1, "{source}");
+            let candidate = model::FullLinkedTermSyntax(Arc::new(terms.values[0].clone()));
+            assert_eq!(
+                breadth(&candidate),
+                LinkPayloadBreadth::LegacyLinked,
+                "{source}"
+            );
+            assert!(LegacyLinkPayloadRejection.rejects(&candidate));
         }
     }
 
@@ -802,7 +689,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_new_operand_makes_a_legacy_shaped_connection_full() {
-        let parsed = parse("mi broda ko'a goi bau do .e bo na ku ge'u", "()");
+        let parsed = parse("mi broda ko'a goi bau do .e bo na ku ge'u");
         let mut terms = NormalPayloads::default();
         model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut terms);
         assert_eq!(terms.values.len(), 1);
@@ -814,68 +701,66 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn mixed_connections_reach_full_through_be_and_bei() {
-        for dialect in ["()", "(zantufa)", "(+zantufa-terms)"] {
-            for payload in [
-                "bau do .e bo na ku",
-                "na ku .e bo bau do",
-                "bau do .e na ku",
-                "na ku .e bau do",
-                "bau do .e bo pu ku .e bo na ku",
-                "bau do .e pu ku .e na ku",
-            ] {
-                // Equal token counts and padding give the payload identical token indices and
-                // source coordinates. Compare the entire typed normal term and warnings, not a
-                // string-stripped tree or a warning count that could hide ownership changes.
-                let control_source = format!("{:24}{payload} ge'u", "mi broda ko'a goi ");
-                let control = parse(&control_source, dialect);
-                let mut terms = NormalPayloads::default();
-                model::TreeWalkable::walk_with(control.parse_tree.as_ref(), &mut terms);
-                assert_eq!(terms.values.len(), 1, "{control_source}");
-                assert!(
-                    !control.warnings.is_empty(),
-                    "connection control must be diagnosed"
+        for payload in [
+            "bau do .e bo na ku",
+            "na ku .e bo bau do",
+            "bau do .e na ku",
+            "na ku .e bau do",
+            "bau do .e bo pu ku .e bo na ku",
+            "bau do .e pu ku .e na ku",
+        ] {
+            // Equal token counts and padding give the payload identical token indices and
+            // source coordinates. Compare the entire typed normal term and warnings, not a
+            // string-stripped tree or a warning count that could hide ownership changes.
+            let control_source = format!("{:24}{payload} ge'u", "mi broda ko'a goi ");
+            let control = parse(&control_source);
+            let mut terms = NormalPayloads::default();
+            model::TreeWalkable::walk_with(control.parse_tree.as_ref(), &mut terms);
+            assert_eq!(terms.values.len(), 1, "{control_source}");
+            assert!(
+                !control.warnings.is_empty(),
+                "connection control must be diagnosed"
+            );
+
+            for is_bei in [false, true] {
+                let prefix = if is_bei {
+                    "broda be ko'a bei "
+                } else {
+                    "mi cu broda be "
+                };
+                let source = format!("{prefix:24}{payload} be'o");
+                let parsed = parse(&source);
+                let mut links = FullPayloads::default();
+                model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut links);
+                assert_eq!(links.values.len(), 1, "{source}");
+                let full = links.values[0];
+                assert_eq!(breadth(full), LinkPayloadBreadth::AddedFullTerm);
+                assert_eq!(full.0.as_ref(), terms.values[0], "{source}");
+                assert_eq!(extent(full), 24..24 + payload.len(), "{source}");
+                assert_eq!(parsed.warnings, control.warnings, "{source}");
+
+                let mut parents = LinkParents::default();
+                model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut parents);
+                assert_eq!(parents.values.len(), 1, "{source}");
+                let parent = parents.values[0];
+                assert_eq!(parent.bei_links.len(), usize::from(is_bei), "{source}");
+                let target = if is_bei {
+                    assert_eq!(extent(&parent.bei_links[0].bei), 14..17);
+                    &parent.bei_links[0].link
+                } else {
+                    &parent.first_link
+                };
+                let model::LinkedTermSyntax::FullLinkedTerm(target) = target.as_ref() else {
+                    panic!("wrong parent link owner: {source}");
+                };
+                assert!(std::ptr::eq(target.as_ref(), full), "{source}");
+                let marker = if is_bei { 6..8 } else { 12..14 };
+                assert_eq!(extent(&parent.be), marker);
+                assert_eq!(extent(parent), marker.start..source.len(), "{source}");
+                assert_eq!(
+                    extent(parent.beho.as_ref().expect("closed BEhO")),
+                    source.len() - 4..source.len()
                 );
-
-                for is_bei in [false, true] {
-                    let prefix = if is_bei {
-                        "broda be ko'a bei "
-                    } else {
-                        "mi cu broda be "
-                    };
-                    let source = format!("{prefix:24}{payload} be'o");
-                    let parsed = parse(&source, dialect);
-                    let mut links = FullPayloads::default();
-                    model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut links);
-                    assert_eq!(links.values.len(), 1, "{source}");
-                    let full = links.values[0];
-                    assert_eq!(breadth(full), LinkPayloadBreadth::AddedFullTerm);
-                    assert_eq!(full.0.as_ref(), terms.values[0], "{source}");
-                    assert_eq!(extent(full), 24..24 + payload.len(), "{source}");
-                    assert_eq!(parsed.warnings, control.warnings, "{source}");
-
-                    let mut parents = LinkParents::default();
-                    model::TreeWalkable::walk_with(parsed.parse_tree.as_ref(), &mut parents);
-                    assert_eq!(parents.values.len(), 1, "{source}");
-                    let parent = parents.values[0];
-                    assert_eq!(parent.bei_links.len(), usize::from(is_bei), "{source}");
-                    let target = if is_bei {
-                        assert_eq!(extent(&parent.bei_links[0].bei), 14..17);
-                        &parent.bei_links[0].link
-                    } else {
-                        &parent.first_link
-                    };
-                    let model::LinkedTermSyntax::FullLinkedTerm(target) = target.as_ref() else {
-                        panic!("wrong parent link owner: {source}");
-                    };
-                    assert!(std::ptr::eq(target.as_ref(), full), "{source}");
-                    let marker = if is_bei { 6..8 } else { 12..14 };
-                    assert_eq!(extent(&parent.be), marker);
-                    assert_eq!(extent(parent), marker.start..source.len(), "{source}");
-                    assert_eq!(
-                        extent(parent.beho.as_ref().expect("closed BEhO")),
-                        source.len() - 4..source.len()
-                    );
-                }
             }
         }
     }
@@ -911,7 +796,7 @@ mod tests {
     #[ensures(true)]
     fn recovered_na_ku(missing_ku: bool) -> recovered::FullLinkedTermSyntax {
         let words = segment_words_with_modifiers("na ku").unwrap();
-        let tokens = crate::grammar::syntax_tokens(&words, &ParseOptions::default());
+        let tokens = crate::grammar::syntax_tokens(&words);
         let [na, ku] = tokens.as_slice() else {
             panic!("two syntax tokens")
         };
@@ -1033,9 +918,8 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn parse_with_attempts(source: &str, dialect: &str) -> AttemptedParse {
-        let definition = parse_dialect_definition(dialect).unwrap();
-        let options = ParseOptions::default().with_dialect_definition(&definition);
+    fn parse_with_attempts(source: &str) -> AttemptedParse {
+        let options = ParseOptions::default();
         let words = segment_words_with_modifiers(source).unwrap();
         RECOVERED_ATTEMPTS.set(Some(Vec::new()));
         let parsed =
@@ -1067,127 +951,117 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn complete_uncertain_connections_reject_in_both_orders_and_link_positions() {
-        for dialect in ["()", "(+zantufa-terms)", "(zantufa)"] {
-            for is_bei in [false, true] {
-                for reverse in [false, true] {
-                    for field_damage in [false, true] {
-                        let prefix = if is_bei {
-                            "mi broda be ko'a bei "
-                        } else {
-                            "mi broda be "
-                        };
-                        let payload = if reverse {
-                            "lu mi ku li'u .e bo na ku"
-                        } else {
-                            "na ku .e bo lu mi ku li'u"
-                        };
-                        let damage = if field_damage { " ku" } else { "" };
-                        let source = format!("{prefix}{payload}{damage} be'o .i mi ku .i do broda");
-                        let result = parse_with_attempts(&source, dialect);
-                        let start = prefix.len();
-                        let complete = start..start + payload.len();
-                        let mut complete_attempts = 0;
-                        for attempt in &result.attempts {
-                            if recovered_extent(&attempt.candidate) != Some(complete.clone()) {
-                                continue;
-                            }
-                            let candidate = parsed_value(&attempt.candidate).unwrap();
-                            let recovered::NormalTermSyntax::BoundNormalTermConnection(connection) =
-                                parsed_value(&candidate.0).unwrap()
-                            else {
-                                continue;
-                            };
-                            let connection = parsed_value(connection).unwrap();
-                            assert_eq!(connection.continuations.len(), 1, "{source}");
-                            let recovered::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(continuation) = parsed_value(&connection.continuations[0]).unwrap() else { panic!("explicit connective BO: {source}"); };
-                            let continuation = parsed_value(continuation).unwrap();
-                            let answers = [
-                                child_breadth(&connection.leading_term),
-                                child_breadth(&continuation.trailing_term),
-                            ];
-                            let expected = if reverse {
-                                [
-                                    LinkPayloadBreadth::Unproven,
-                                    LinkPayloadBreadth::AddedFullTerm,
-                                ]
-                            } else {
-                                [
-                                    LinkPayloadBreadth::AddedFullTerm,
-                                    LinkPayloadBreadth::Unproven,
-                                ]
-                            };
-                            assert_eq!(answers, expected, "{source}");
-                            assert_eq!(attempt.answer, LinkPayloadBreadth::Unproven, "{source}");
-                            // Calling the predicate with recording disabled proves the actual
-                            // observed answer is a rejection, not a classifier trace label.
-                            assert!(
-                                LegacyLinkPayloadRejection.rejects(&attempt.candidate),
-                                "{source}"
-                            );
-                            complete_attempts += 1;
+        for is_bei in [false, true] {
+            for reverse in [false, true] {
+                for field_damage in [false, true] {
+                    let prefix = if is_bei {
+                        "mi broda be ko'a bei "
+                    } else {
+                        "mi broda be "
+                    };
+                    let payload = if reverse {
+                        "lu mi ku li'u .e bo na ku"
+                    } else {
+                        "na ku .e bo lu mi ku li'u"
+                    };
+                    let damage = if field_damage { " ku" } else { "" };
+                    let source = format!("{prefix}{payload}{damage} be'o .i mi ku .i do broda");
+                    let result = parse_with_attempts(&source);
+                    let start = prefix.len();
+                    let complete = start..start + payload.len();
+                    let mut complete_attempts = 0;
+                    for attempt in &result.attempts {
+                        if recovered_extent(&attempt.candidate) != Some(complete.clone()) {
+                            continue;
                         }
+                        let candidate = parsed_value(&attempt.candidate).unwrap();
+                        let recovered::NormalTermSyntax::BoundNormalTermConnection(connection) =
+                            parsed_value(&candidate.0).unwrap()
+                        else {
+                            continue;
+                        };
+                        let connection = parsed_value(connection).unwrap();
+                        assert_eq!(connection.continuations.len(), 1, "{source}");
+                        let recovered::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(
+                            continuation,
+                        ) = parsed_value(&connection.continuations[0]).unwrap();
+                        let continuation = parsed_value(continuation).unwrap();
+                        let answers = [
+                            child_breadth(&connection.leading_term),
+                            child_breadth(&continuation.trailing_term),
+                        ];
+                        let expected = if reverse {
+                            [
+                                LinkPayloadBreadth::Unproven,
+                                LinkPayloadBreadth::AddedFullTerm,
+                            ]
+                        } else {
+                            [
+                                LinkPayloadBreadth::AddedFullTerm,
+                                LinkPayloadBreadth::Unproven,
+                            ]
+                        };
+                        assert_eq!(answers, expected, "{source}");
+                        assert_eq!(attempt.answer, LinkPayloadBreadth::Unproven, "{source}");
+                        // Calling the predicate with recording disabled proves the actual
+                        // observed answer is a rejection, not a classifier trace label.
                         assert!(
-                            complete_attempts > 0,
-                            "no complete mixed candidate: {source} {dialect}"
-                        );
-                        let mut targets = RecoveredTargets::default();
-                        recovered::TreeWalkable::walk_with(
-                            result.parsed.parse_tree.as_ref(),
-                            &mut targets,
-                        );
-                        let marker = if is_bei { 17..20 } else { 9..11 };
-                        let targets: Vec<_> = targets
-                            .values
-                            .iter()
-                            .filter(|target| {
-                                recovered_extent(target.marker) == Some(marker.clone())
-                            })
-                            .collect();
-                        assert_eq!(targets.len(), 1, "{source}");
-                        let field = targets[0].field;
-                        assert_eq!(
-                            matches!(field, recovered::Recovered::Prefix(_)),
-                            !reverse && !is_bei,
+                            LegacyLinkPayloadRejection.rejects(&attempt.candidate),
                             "{source}"
                         );
-                        let value = parsed_value(field).expect("actual surviving field");
-                        if reverse {
-                            assert!(
-                                matches!(value, recovered::LinkedTermSyntax::PlainLinkedSumti(_)),
-                                "{source}"
-                            );
-                            assert_eq!(
-                                recovered_extent(value),
-                                Some(start..start + 13),
-                                "{source}"
-                            );
-                            assert!(result.parsed.warnings.is_empty(), "{source}");
-                        } else {
-                            let recovered::LinkedTermSyntax::FullLinkedTerm(full) = value else {
-                                panic!("shorter Full: {source}");
-                            };
-                            assert_eq!(
-                                recovered_breadth(full),
-                                LinkPayloadBreadth::AddedFullTerm,
-                                "{source}"
-                            );
-                            assert_eq!(
-                                recovered_extent(value),
-                                Some(start..start + 17),
-                                "{source}"
-                            );
-                            assert_ne!(
-                                recovered_extent(value),
-                                Some(complete),
-                                "shorter Full is not the rejected complete candidate"
-                            );
-                            assert_eq!(result.parsed.warnings.len(), 1, "{source}");
-                            assert_eq!(
-                                result.parsed.warnings[0].kind,
-                                crate::ExperimentalConstruct::ExperimentalTermBoConnection,
-                                "{source}"
-                            );
-                        }
+                        complete_attempts += 1;
+                    }
+                    assert!(
+                        complete_attempts > 0,
+                        "no complete mixed candidate: {source}"
+                    );
+                    let mut targets = RecoveredTargets::default();
+                    recovered::TreeWalkable::walk_with(
+                        result.parsed.parse_tree.as_ref(),
+                        &mut targets,
+                    );
+                    let marker = if is_bei { 17..20 } else { 9..11 };
+                    let targets: Vec<_> = targets
+                        .values
+                        .iter()
+                        .filter(|target| recovered_extent(target.marker) == Some(marker.clone()))
+                        .collect();
+                    assert_eq!(targets.len(), 1, "{source}");
+                    let field = targets[0].field;
+                    assert_eq!(
+                        matches!(field, recovered::Recovered::Prefix(_)),
+                        !reverse && !is_bei,
+                        "{source}"
+                    );
+                    let value = parsed_value(field).expect("actual surviving field");
+                    if reverse {
+                        assert!(
+                            matches!(value, recovered::LinkedTermSyntax::PlainLinkedSumti(_)),
+                            "{source}"
+                        );
+                        assert_eq!(recovered_extent(value), Some(start..start + 13), "{source}");
+                        assert!(result.parsed.warnings.is_empty(), "{source}");
+                    } else {
+                        let recovered::LinkedTermSyntax::FullLinkedTerm(full) = value else {
+                            panic!("shorter Full: {source}");
+                        };
+                        assert_eq!(
+                            recovered_breadth(full),
+                            LinkPayloadBreadth::AddedFullTerm,
+                            "{source}"
+                        );
+                        assert_eq!(recovered_extent(value), Some(start..start + 17), "{source}");
+                        assert_ne!(
+                            recovered_extent(value),
+                            Some(complete),
+                            "shorter Full is not the rejected complete candidate"
+                        );
+                        assert_eq!(result.parsed.warnings.len(), 1, "{source}");
+                        assert_eq!(
+                            result.parsed.warnings[0].kind,
+                            crate::ExperimentalConstruct::ExperimentalTermBoConnection,
+                            "{source}"
+                        );
                     }
                 }
             }
@@ -1243,156 +1117,143 @@ mod tests {
                 prefix: false
             }),
         ];
-        for dialect in ["()", "(+zantufa-terms)", "(zantufa)"] {
-            for case in &cases {
-                let result = parse_with_attempts(case.source, dialect);
-                assert!(!result.parsed.errors.is_empty());
-                assert!(result.parsed.warnings.is_empty());
-                let expected = if case.full {
-                    LinkPayloadBreadth::AddedFullTerm
-                } else {
-                    LinkPayloadBreadth::LegacyLinked
-                };
-                let matching: Vec<_> = result
-                    .attempts
-                    .iter()
-                    .filter(|attempt| {
-                        recovered_extent(&attempt.candidate) == Some(case.payload.clone())
-                    })
-                    .collect();
-                assert!(
-                    !matching.is_empty(),
-                    "no complete candidate: {} {dialect}",
-                    case.source
-                );
-                for attempt in matching {
-                    assert_eq!(attempt.answer, expected);
-                    assert_eq!(
-                        LegacyLinkPayloadRejection.rejects(&attempt.candidate),
-                        !case.full
-                    );
-                }
-                let mut targets = RecoveredTargets::default();
-                recovered::TreeWalkable::walk_with(result.parsed.parse_tree.as_ref(), &mut targets);
-                let matching: Vec<_> = targets
-                    .values
-                    .iter()
-                    .filter(|target| recovered_extent(target.marker) == Some(case.marker.clone()))
-                    .collect();
-                assert_eq!(matching.len(), 1);
-                let field = matching[0].field;
-                assert_eq!(
-                    matches!(field, recovered::Recovered::Prefix(_)),
-                    case.prefix
-                );
-                let value = parsed_value(field).expect("real final field value");
-                assert_eq!(recovered_extent(value), Some(case.payload.clone()));
-                if case.full {
-                    assert!(matches!(
-                        value,
-                        recovered::LinkedTermSyntax::FullLinkedTerm(_)
-                    ));
-                } else {
-                    assert!(matches!(
-                        value,
-                        recovered::LinkedTermSyntax::PlainLinkedSumti(_)
-                    ));
-                }
-            }
-        }
-        // Built-in Zantufa gives the KU a real old owner instead of this Error field, so it
-        // is not labeled as an Error witness. On these two axes the guard is never invoked.
-        for dialect in ["()", "(+zantufa-terms)"] {
-            let result =
-                parse_with_attempts("mi broda be ku ko'a be'o .i mi ku .i do broda", dialect);
-            assert!(
-                result.attempts.is_empty(),
-                "no invocation fabricated for an abandoned field"
-            );
+        for case in &cases {
+            let result = parse_with_attempts(case.source);
             assert!(!result.parsed.errors.is_empty());
             assert!(result.parsed.warnings.is_empty());
+            let expected = if case.full {
+                LinkPayloadBreadth::AddedFullTerm
+            } else {
+                LinkPayloadBreadth::LegacyLinked
+            };
+            let matching: Vec<_> = result
+                .attempts
+                .iter()
+                .filter(|attempt| {
+                    recovered_extent(&attempt.candidate) == Some(case.payload.clone())
+                })
+                .collect();
+            assert!(
+                !matching.is_empty(),
+                "no complete candidate: {}",
+                case.source
+            );
+            for attempt in matching {
+                assert_eq!(attempt.answer, expected);
+                assert_eq!(
+                    LegacyLinkPayloadRejection.rejects(&attempt.candidate),
+                    !case.full
+                );
+            }
             let mut targets = RecoveredTargets::default();
             recovered::TreeWalkable::walk_with(result.parsed.parse_tree.as_ref(), &mut targets);
-            assert_eq!(targets.values.len(), 1);
-            assert_eq!(recovered_extent(targets.values[0].marker), Some(9..11));
-            assert!(matches!(
-                targets.values[0].field,
-                recovered::Recovered::Error(_)
-            ));
-            assert_eq!(recovered_extent(targets.values[0].field), None);
+            let matching: Vec<_> = targets
+                .values
+                .iter()
+                .filter(|target| recovered_extent(target.marker) == Some(case.marker.clone()))
+                .collect();
+            assert_eq!(matching.len(), 1);
+            let field = matching[0].field;
+            assert_eq!(
+                matches!(field, recovered::Recovered::Prefix(_)),
+                case.prefix
+            );
+            let value = parsed_value(field).expect("real final field value");
+            assert_eq!(recovered_extent(value), Some(case.payload.clone()));
+            if case.full {
+                assert!(matches!(
+                    value,
+                    recovered::LinkedTermSyntax::FullLinkedTerm(_)
+                ));
+            } else {
+                assert!(matches!(
+                    value,
+                    recovered::LinkedTermSyntax::PlainLinkedSumti(_)
+                ));
+            }
         }
+        // The abandoned BE field stays an Error field, and the guard is never invoked on it.
+        let result = parse_with_attempts("mi broda be ku ko'a be'o .i mi ku .i do broda");
+        assert!(
+            result.attempts.is_empty(),
+            "no invocation fabricated for an abandoned field"
+        );
+        assert!(!result.parsed.errors.is_empty());
+        assert!(result.parsed.warnings.is_empty());
+        let mut targets = RecoveredTargets::default();
+        recovered::TreeWalkable::walk_with(result.parsed.parse_tree.as_ref(), &mut targets);
+        assert_eq!(targets.values.len(), 1);
+        assert_eq!(recovered_extent(targets.values[0].marker), Some(9..11));
+        assert!(matches!(
+            targets.values[0].field,
+            recovered::Recovered::Error(_)
+        ));
+        assert_eq!(recovered_extent(targets.values[0].field), None);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn complete_legacy_connections_reject_full_before_field_recovery() {
-        for dialect in ["()", "(+zantufa-terms)", "(zantufa)"] {
-            for is_bei in [false, true] {
-                for bound in [false, true] {
-                    let prefix = if is_bei {
-                        "mi broda be ko'i bei "
-                    } else {
-                        "mi broda be "
-                    };
-                    let payload = if bound {
-                        "bau ko'a .e bo pu ko'e"
-                    } else {
-                        "bau ko'a .e pu ko'e"
-                    };
-                    let source = format!("{prefix}{payload} ku be'o .i mi ku .i do broda");
-                    let result = parse_with_attempts(&source, dialect);
-                    let extent = prefix.len()..prefix.len() + payload.len();
-                    let attempts: Vec<_> = result
-                        .attempts
-                        .iter()
-                        .filter(|attempt| {
-                            recovered_extent(&attempt.candidate) == Some(extent.clone())
-                        })
-                        .collect();
-                    assert!(
-                        !attempts.is_empty(),
-                        "no complete legacy candidate: {source} {dialect}"
-                    );
-                    for attempt in attempts {
-                        assert_eq!(attempt.answer, LinkPayloadBreadth::LegacyLinked, "{source}");
-                        assert!(LegacyLinkPayloadRejection.rejects(&attempt.candidate));
-                    }
-                    let mut targets = RecoveredTargets::default();
-                    recovered::TreeWalkable::walk_with(
-                        result.parsed.parse_tree.as_ref(),
-                        &mut targets,
-                    );
-                    let marker = if is_bei { 17..20 } else { 9..11 };
-                    let matching: Vec<_> = targets
-                        .values
-                        .iter()
-                        .filter(|target| recovered_extent(target.marker) == Some(marker.clone()))
-                        .collect();
-                    assert_eq!(matching.len(), 1);
+        for is_bei in [false, true] {
+            for bound in [false, true] {
+                let prefix = if is_bei {
+                    "mi broda be ko'i bei "
+                } else {
+                    "mi broda be "
+                };
+                let payload = if bound {
+                    "bau ko'a .e bo pu ko'e"
+                } else {
+                    "bau ko'a .e pu ko'e"
+                };
+                let source = format!("{prefix}{payload} ku be'o .i mi ku .i do broda");
+                let result = parse_with_attempts(&source);
+                let extent = prefix.len()..prefix.len() + payload.len();
+                let attempts: Vec<_> = result
+                    .attempts
+                    .iter()
+                    .filter(|attempt| recovered_extent(&attempt.candidate) == Some(extent.clone()))
+                    .collect();
+                assert!(
+                    !attempts.is_empty(),
+                    "no complete legacy candidate: {source}"
+                );
+                for attempt in attempts {
+                    assert_eq!(attempt.answer, LinkPayloadBreadth::LegacyLinked, "{source}");
+                    assert!(LegacyLinkPayloadRejection.rejects(&attempt.candidate));
+                }
+                let mut targets = RecoveredTargets::default();
+                recovered::TreeWalkable::walk_with(result.parsed.parse_tree.as_ref(), &mut targets);
+                let marker = if is_bei { 17..20 } else { 9..11 };
+                let matching: Vec<_> = targets
+                    .values
+                    .iter()
+                    .filter(|target| recovered_extent(target.marker) == Some(marker.clone()))
+                    .collect();
+                assert_eq!(matching.len(), 1);
+                assert_eq!(
+                    matches!(matching[0].field, recovered::Recovered::Prefix(_)),
+                    !is_bei
+                );
+                let value = parsed_value(matching[0].field).expect("old connection survives");
+                assert_eq!(recovered_extent(value), Some(extent));
+                if bound {
+                    assert!(matches!(
+                        value,
+                        recovered::LinkedTermSyntax::BoundLinkedTermConnection(_)
+                    ));
+                    assert_eq!(result.parsed.warnings.len(), 1);
                     assert_eq!(
-                        matches!(matching[0].field, recovered::Recovered::Prefix(_)),
-                        !is_bei
+                        result.parsed.warnings[0].kind,
+                        crate::ExperimentalConstruct::ExperimentalTermBoConnection
                     );
-                    let value = parsed_value(matching[0].field).expect("old connection survives");
-                    assert_eq!(recovered_extent(value), Some(extent));
-                    if bound {
-                        assert!(matches!(
-                            value,
-                            recovered::LinkedTermSyntax::BoundLinkedTermConnection(_)
-                        ));
-                        assert_eq!(result.parsed.warnings.len(), 1);
-                        assert_eq!(
-                            result.parsed.warnings[0].kind,
-                            crate::ExperimentalConstruct::ExperimentalTermBoConnection
-                        );
-                    } else {
-                        assert!(matches!(
-                            value,
-                            recovered::LinkedTermSyntax::ConnectedLinkedTerm(_)
-                        ));
-                        assert!(result.parsed.warnings.is_empty());
-                    }
+                } else {
+                    assert!(matches!(
+                        value,
+                        recovered::LinkedTermSyntax::ConnectedLinkedTerm(_)
+                    ));
+                    assert!(result.parsed.warnings.is_empty());
                 }
             }
         }

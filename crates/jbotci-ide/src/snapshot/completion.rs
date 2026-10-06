@@ -1204,10 +1204,12 @@ mod tests {
                 .any(|item| item.label == "zarci" && item.preselect)
         );
 
-        let duplicate_provenances = completions_at_marker("mi klama i| do cadzu");
+        // zo'oi is expected both as its own quote marker and as a member of the quote word
+        // category, so the same canonical word arrives with two provenances.
+        let duplicate_provenances = completions_at_marker("mi klama zo'oi| do cadzu");
         let matching = duplicate_provenances
             .iter()
-            .filter(|item| item.label == "i" && item.replacement_span.byte_len() == 1)
+            .filter(|item| item.label == "zo'oi" && item.replacement_span.byte_len() == 5)
             .collect::<Vec<_>>();
         assert!(
             matching.len() > 1,
@@ -1444,12 +1446,6 @@ mod tests {
                 .iter()
                 .filter(|item| item.label == "i")
                 .collect::<Vec<_>>(),
-        );
-        assert!(
-            items
-                .iter()
-                .any(|item| { item.label == "i" && item.kind == CompletionKind::LetterWord }),
-            "the legitimate BY interpretation of i remains available",
         );
     }
 

@@ -67,16 +67,13 @@ pub(crate) fn sumti_base_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
         | SumtiBaseSyntax::LaheTermWrapper(_)
         | SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(_)
         | SumtiBaseSyntax::ScalarNegatedTermWrapper(_)
-        | SumtiBaseSyntax::BridiDescriptionSumti(_)
         | SumtiBaseSyntax::NameSumti(_)
         | SumtiBaseSyntax::DescriptorWithGadriSumti(_)
         | SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
-        | SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(_)
         | SumtiBaseSyntax::NumberSumti(_)
         | SumtiBaseSyntax::LerfuStringSumti(_)
         | SumtiBaseSyntax::QuotedSumti(_)
-        | SumtiBaseSyntax::ProSumti(_)
-        | SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
+        | SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
@@ -95,16 +92,13 @@ pub(crate) fn recovered_sumti_base_tier(
         | recovered::SumtiBaseSyntax::LaheTermWrapper(_)
         | recovered::SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(_)
         | recovered::SumtiBaseSyntax::ScalarNegatedTermWrapper(_)
-        | recovered::SumtiBaseSyntax::BridiDescriptionSumti(_)
         | recovered::SumtiBaseSyntax::NameSumti(_)
         | recovered::SumtiBaseSyntax::DescriptorWithGadriSumti(_)
         | recovered::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
-        | recovered::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(_)
         | recovered::SumtiBaseSyntax::NumberSumti(_)
         | recovered::SumtiBaseSyntax::LerfuStringSumti(_)
         | recovered::SumtiBaseSyntax::QuotedSumti(_)
-        | recovered::SumtiBaseSyntax::ProSumti(_)
-        | recovered::SumtiBaseSyntax::ZantufaGroupedSumti(_) => SumtiOperandTier::Sumti6,
+        | recovered::SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
@@ -255,7 +249,6 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
     use vec1::vec1;
 
-    use crate::ParseOptions;
     use crate::grammar::{SyntaxRecoveryItemData, syntax_tokens};
     use crate::tree::SyntaxRecoveryItem;
 
@@ -279,7 +272,7 @@ mod tests {
     #[ensures(true)]
     fn recovered_pro_sumti() -> recovered::SumtiBaseSyntax {
         let words = segment_words_with_modifiers("mi").expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let [token] = tokens.as_slice() else {
             panic!("`mi` must be exactly one word");
         };

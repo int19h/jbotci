@@ -1051,58 +1051,6 @@ impl DiscourseReferences {
     }
 }
 
-// Generated descent owns child order. Opener subtrees are delegated whole,
-// so their nested CoSelbri nodes are not mistaken for predicate operands.
-#[invariant(true)]
-#[invariant(::Operand => true)]
-#[invariant(::AtomOperand => true)]
-#[invariant(::Opener => true)]
-#[invariant(::FreeModifier => true)]
-enum ZantufaAtomComponent<'tree> {
-    AtomOperand {
-        node: &'tree generated::TanruUnitAtomSyntax,
-    },
-    Operand {
-        node: &'tree generated::CoSelbriSyntax,
-    },
-    Opener {
-        node: &'tree generated::ZantufaAtomGekSyntax,
-    },
-    FreeModifier {
-        node: &'tree generated::FreeModifierSyntax,
-    },
-}
-
-#[invariant(true)]
-struct ZantufaAtomWalker<F> {
-    on_component: F,
-}
-
-impl<'tree, F: FnMut(ZantufaAtomComponent<'tree>)> GeneratedSyntaxTreeWalker<'tree>
-    for ZantufaAtomWalker<F>
-{
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_tanru_unit_atom(&mut self, node: &'tree generated::TanruUnitAtomSyntax) {
-        (self.on_component)(ZantufaAtomComponent::AtomOperand { node });
-    }
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_co_selbri(&mut self, node: &'tree generated::CoSelbriSyntax) {
-        (self.on_component)(ZantufaAtomComponent::Operand { node });
-    }
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_zantufa_atom_gek(&mut self, node: &'tree generated::ZantufaAtomGekSyntax) {
-        (self.on_component)(ZantufaAtomComponent::Opener { node });
-    }
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        (self.on_component)(ZantufaAtomComponent::FreeModifier { node });
-    }
-}
-
 #[derive(Debug)]
 #[invariant(true)]
 struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
@@ -1209,112 +1157,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::BridiTailSyntax::ZantufaPriorityGroupedBridiTail(tail) => {
-                let tail = tail.0.as_ref();
-                let mut analysis =
-                    self.analyze_bridi_tail(&tail.bridi_tail, gek_branch_initial_place);
-                analysis
-                    .terms
-                    .extend(tail.tail_terms.iter().map(Arc::as_ref));
-                analysis
-            }
-            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTail(tail) => {
-                self.analyze_zantufa_continued_bridi_tail(&tail.0, gek_branch_initial_place)
-            }
-            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTailWithoutTailTerms(tail) => {
-                self.analyze_zantufa_continued_bridi_tail_without_tail_terms(
-                    &tail.0,
-                    gek_branch_initial_place,
-                )
-            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
             }
             generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
                 self.analyze_bridi_tail_without_tail_terms(tail, gek_branch_initial_place)
             }
-        }
-    }
-
-    /// Analyse rolling Zantufa's unbound top continuation. Its shape is the flat chain's one
-    /// level up -- a leading tail and a non-empty run of continuations over the same level -- so
-    /// its branches propagate exactly the way the flat chain's do.
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_zantufa_continued_bridi_tail(
-        &mut self,
-        tail: &'tree generated::ZantufaContinuedBridiTailSyntax,
-        gek_branch_initial_place: u8,
-    ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis =
-            self.analyze_afterthought_bridi_tail(&tail.first, gek_branch_initial_place);
-        let mut branch_cursors = Some(self.consume_branch_tail_cursors(&mut analysis));
-        for continuation in &tail.continuations {
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                self.walk_node(tense_modal);
-            }
-            let mut next = self.analyze_afterthought_bridi_tail(
-                &continuation.bridi_tail,
-                gek_branch_initial_place,
-            );
-            if let Some(cursors) = branch_cursors.as_mut() {
-                let next_cursors = self.consume_branch_tail_cursors(&mut next);
-                cursors.extend(next_cursors);
-            }
-            analysis.frames.extend(next.frames);
-        }
-        let frame = self.add_frame(
-            self.raw_for_node(tail),
-            PlaceFrameKind::BridiTail,
-            None,
-            None,
-            propagation_connective_branches(analysis.frames),
-        );
-        GeneratedBridiTailAnalysis {
-            frames: vec![frame],
-            terms: analysis.terms,
-            branch_cursors,
-        }
-    }
-
-    /// The tail-terms-free twin of [`Self::analyze_zantufa_continued_bridi_tail`].
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_zantufa_continued_bridi_tail_without_tail_terms(
-        &mut self,
-        tail: &'tree generated::ZantufaContinuedBridiTailWithoutTailTermsSyntax,
-        gek_branch_initial_place: u8,
-    ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis = self.analyze_afterthought_bridi_tail_without_tail_terms(
-            &tail.first,
-            gek_branch_initial_place,
-        );
-        let mut branch_cursors = Some(self.consume_branch_tail_cursors(&mut analysis));
-        for continuation in &tail.continuations {
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                self.walk_node(tense_modal);
-            }
-            let mut next = self.analyze_afterthought_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
-                gek_branch_initial_place,
-            );
-            if let Some(cursors) = branch_cursors.as_mut() {
-                let next_cursors = self.consume_branch_tail_cursors(&mut next);
-                cursors.extend(next_cursors);
-            }
-            analysis.frames.extend(next.frames);
-        }
-        let frame = self.add_frame(
-            self.raw_for_node(tail),
-            PlaceFrameKind::BridiTail,
-            None,
-            None,
-            propagation_connective_branches(analysis.frames),
-        );
-        GeneratedBridiTailAnalysis {
-            frames: vec![frame],
-            terms: analysis.terms,
-            branch_cursors,
         }
     }
 
@@ -1710,13 +1558,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     &connection.first_branch.branch,
                     branch_initial_place,
                 );
-                let mut branch_frames = vec![first_frame, second_frame];
-                for branch in &connection.additional_branches {
-                    branch_frames.push(self.analyze_subbridi_frame_with_initial_place(
-                        &branch.branch,
-                        branch_initial_place,
-                    ));
-                }
+                let branch_frames = vec![first_frame, second_frame];
                 let mut cursors = branch_frames
                     .iter()
                     .map(|frame| {
@@ -1757,13 +1599,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_subbridi_frame_with_initial_place(&connection.first, branch_initial_place);
                 let second_frame =
                     self.analyze_subbridi_frame_with_initial_place(&connection.first_branch.branch, branch_initial_place);
-                let mut branch_frames = vec![first_frame, second_frame];
-                for branch in &connection.additional_branches {
-                    branch_frames.push(self.analyze_subbridi_frame_with_initial_place(
-                        &branch.branch,
-                        branch_initial_place,
-                    ));
-                }
+                let branch_frames = vec![first_frame, second_frame];
                 branch_frames
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(connection) => {
@@ -1805,46 +1641,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_relation(&mut self, selbri: &'tree generated::SelbriSyntax) -> SelbriPlaceFrameId {
         match selbri {
-            generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
-                let inner = self.analyze_co_selbri(&assigned.0.leading_selbri);
-                for assignment in &assigned.0.assignments {
-                    self.walk_node(&assignment.selbri);
-                }
-                self.add_frame(
-                    self.raw_for_node(assigned),
-                    PlaceFrameKind::Forwarding,
-                    Some(SelbriNodeId(self.raw_for_node(assigned))),
-                    None,
-                    propagation_forward(inner),
-                )
-            }
-            generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
-                let inner = self.analyze_co_selbri(&relative.leading_selbri);
-                self.walk_node(&relative.relative_clauses);
-                for assignment in &relative.assignments {
-                    self.walk_node(&assignment.selbri);
-                }
-                self.add_frame(
-                    self.raw_for_node(relative),
-                    PlaceFrameKind::Forwarding,
-                    Some(SelbriNodeId(self.raw_for_node(relative))),
-                    None,
-                    propagation_forward(inner),
-                )
-            }
-            generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
-                let inner = self.analyze_co_selbri(&assigned.0.leading_selbri);
-                for assignment in &assigned.0.assignments {
-                    self.walk_node(&assignment.selbri);
-                }
-                self.add_frame(
-                    self.raw_for_node(assigned),
-                    PlaceFrameKind::Forwarding,
-                    Some(SelbriNodeId(self.raw_for_node(assigned))),
-                    None,
-                    propagation_forward(inner),
-                )
-            }
             generated::SelbriSyntax::TaggedSelbri(selbri) => {
                 self.walk_node(&selbri.tense_modal);
                 let inner = self.analyze_untagged_relation(&selbri.inner_selbri);
@@ -1880,26 +1676,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => self.analyze_co_selbri(selbri),
-            // The linked arguments fill the places of the whole level-2 selbri (#834), which is
-            // the frame its tanru forwards to; relatives and CEI operands are walked as they are
-            // for the other Zantufa selbri-level forms.
-            generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
-                let inner = self.analyze_co_selbri(&selbri.leading_selbri);
-                self.assign_link_arguments(inner, &selbri.linkargs);
-                if let Some(relative_clauses) = &selbri.relative_clauses {
-                    self.walk_node(relative_clauses);
-                }
-                for assignment in &selbri.assignments {
-                    self.walk_node(&assignment.selbri);
-                }
-                self.add_frame(
-                    self.raw_for_node(selbri),
-                    PlaceFrameKind::Forwarding,
-                    Some(SelbriNodeId(self.raw_for_node(selbri))),
-                    None,
-                    propagation_forward(inner),
-                )
-            }
         }
     }
 
@@ -2075,24 +1851,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                         self.analyze_relation(&selbri.leading_selbri),
                         self.analyze_plain_bo_selbri(&selbri.first_branch.selbri),
                     ],
-                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
-                        selbri,
-                    ) => vec![
-                        self.analyze_co_selbri(&selbri.leading_selbri),
-                        self.analyze_co_selbri(&selbri.first_branch.selbri),
-                    ],
-                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
-                        selbri,
-                    ) => {
-                        let mut branches = vec![
-                            self.analyze_co_selbri(&selbri.leading_selbri),
-                            self.analyze_co_selbri(&selbri.first_branch.selbri),
-                        ];
-                        for branch in &selbri.additional_branches {
-                            branches.push(self.analyze_co_selbri(&branch.selbri));
-                        }
-                        branches
-                    }
                 };
                 self.add_frame(
                     self.raw_for_node(selbri),
@@ -2173,81 +1931,15 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_zantufa_forethought_tanru_unit(
-        &mut self,
-        unit: &'tree generated::ZantufaForethoughtTanruUnitSyntax,
-    ) -> SelbriPlaceFrameId {
-        let mut branches = Vec::new();
-        {
-            let mut walker = ZantufaAtomWalker {
-                on_component: |component| match component {
-                    ZantufaAtomComponent::Operand { node } => {
-                        branches.push(self.analyze_co_selbri(node))
-                    }
-                    ZantufaAtomComponent::AtomOperand { node } => {
-                        branches.push(self.analyze_tanru_unit_atom(node))
-                    }
-                    ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                    ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-                },
-            };
-            GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
-        }
-        self.add_frame(
-            self.raw_for_node(unit),
-            PlaceFrameKind::ConnectiveBranching,
-            None,
-            Some(TanruUnitNodeId(self.raw_for_node(unit))),
-            propagation_connective_branches(branches),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_zantufa_fa_tanru_unit(
-        &mut self,
-        unit: &'tree generated::ZantufaFaTanruUnitSyntax,
-    ) -> SelbriPlaceFrameId {
-        let mut walker = ZantufaAtomWalker {
-            on_component: |component| match component {
-                ZantufaAtomComponent::AtomOperand { node } => {
-                    self.analyze_tanru_unit_atom(node);
-                }
-                ZantufaAtomComponent::Operand { node } => {
-                    self.analyze_co_selbri(node);
-                }
-                ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-            },
-        };
-        GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
-        // Approved opaque FA policy: retain inner analysis but make no
-        // outer-to-inner place propagation or invented FA-to-SE conversion.
-        self.add_frame(
-            self.raw_for_node(unit),
-            PlaceFrameKind::TanruUnit,
-            None,
-            Some(TanruUnitNodeId(self.raw_for_node(unit))),
-            propagation_none(),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn analyze_tanru_unit_atom_base(
         &mut self,
         unit: &'tree generated::TanruUnitAtomBaseSyntax,
     ) -> SelbriPlaceFrameId {
         match unit {
-            generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(unit) => {
-                self.analyze_zantufa_fa_tanru_unit(unit)
-            }
             generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_) => self.add_frame(
                 self.raw_for_node(unit),
                 PlaceFrameKind::TanruUnit,
@@ -2255,41 +1947,8 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 Some(TanruUnitNodeId(self.raw_for_node(unit))),
                 propagation_none(),
             ),
-            generated::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                self.analyze_zantufa_forethought_tanru_unit(unit)
-            }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
-                self.walk_node(unit);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
-                self.walk_node(&unit.expression);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.tag);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2308,16 +1967,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_none(),
                 )
             }
-            generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
             generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
                 let inner = self.analyze_tanru_selbri(&unit.selbri);
                 self.add_frame(
@@ -2327,30 +1976,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation_forward(inner),
                 )
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
-                let mut trailing = self.analyze_tanru_selbri(&unit.co_tails.last().trailing_selbri);
-                for index in (0..unit.co_tails.len()).rev() {
-                    let leading = if index == 0 {
-                        unit.leading_selbri.as_ref()
-                    } else {
-                        unit.co_tails[index - 1].trailing_selbri.as_ref()
-                    };
-                    let leading = self.analyze_tanru_selbri(leading);
-                    let source = if index == 0 {
-                        self.raw_for_node(unit)
-                    } else {
-                        self.raw_for_node(&unit.co_tails[index - 1])
-                    };
-                    trailing = self.add_frame(
-                        source,
-                        PlaceFrameKind::CoInverted,
-                        None,
-                        Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                        propagation_co(leading, trailing),
-                    );
-                }
-                trailing
             }
             generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
                 let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
@@ -2402,16 +2027,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation,
                 )
             }
-            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
-                self.walk_node(&unit.statement);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Abstraction,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
         }
     }
 
@@ -2426,8 +2041,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_) => self.add_frame(
                 self.raw_for_node(unit),
                 PlaceFrameKind::TanruUnit,
@@ -2435,44 +2048,8 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 Some(TanruUnitNodeId(self.raw_for_node(unit))),
                 propagation_none(),
             ),
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                self.analyze_zantufa_forethought_tanru_unit(unit)
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaFaTanruUnit(unit) => {
-                self.analyze_zantufa_fa_tanru_unit(unit)
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
-                self.walk_node(unit);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
-                self.walk_node(&unit.expression);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.tag);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2491,16 +2068,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_none(),
                 )
             }
-            generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
                 let inner = self.analyze_tanru_selbri(&unit.selbri);
                 self.add_frame(
@@ -2510,25 +2077,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation_forward(inner),
                 )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
-                let mut trailing = self.analyze_tanru_selbri(&unit.co_tails.last().trailing_selbri);
-                for index in (0..unit.co_tails.len()).rev() {
-                    let leading = if index == 0 {
-                        unit.leading_selbri.as_ref()
-                    } else {
-                        unit.co_tails[index - 1].trailing_selbri.as_ref()
-                    };
-                    let leading = self.analyze_tanru_selbri(leading);
-                    trailing = self.add_frame(
-                        self.raw_for_node(unit),
-                        PlaceFrameKind::CoInverted,
-                        None,
-                        Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                        propagation_co(leading, trailing),
-                    );
-                }
-                trailing
             }
             generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
                 let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
@@ -2578,18 +2126,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     None,
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation,
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
-                unit,
-            ) => {
-                self.walk_node(&unit.statement);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Abstraction,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
                 )
             }
         }
@@ -2873,48 +2409,17 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::ModalTerm,
                 );
             }
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                // The payload may be an explicit or elided KU rather than an overt sumti
-                // (zantufa-1.9999.peg:31); there is no argument to assign in that case.
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.assign_argument_to_cursors(
-                        cursors,
-                        outer_term,
-                        sumti,
-                        Some(fai_slot()),
-                        AssignmentSource::FaTerm,
-                    );
-                }
-            }
-            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
-                // A JOIK-chained place tag names several places at once, which no lowering
-                // reads yet; the payload is still walked so its own references are recorded.
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.walk_node(sumti);
-                }
-            }
             GeneratedSimpleTermRef::NuhiTermset(term) => {
                 for term in &term.termset {
                     self.assign_term(cursors, term, AssignmentSource::TermsetBranch);
                 }
             }
-            GeneratedSimpleTermRef::KeTermset(term) => {
-                for term in &term.termset {
-                    self.assign_term(cursors, term, AssignmentSource::TermsetBranch);
-                }
-            }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::GekTermset(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::ZantufaGekTermset(term) => self.walk_node(term),
             GeneratedSimpleTermRef::ForethoughtTermset(term) => self.walk_node(term),
         }
     }
@@ -3638,35 +3143,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
-            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.walk_node(&term.sumti);
-            }
             GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
                 self.walk_node(&term.subsentence);
-            }
-            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
-                self.walk_node(&term.0.statement);
             }
             GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
                 self.walk_node(&term.0.subsentence);
             }
-            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.analyze_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.analyze_relation(&term.selbri);
-                }
-            },
             // The operand tree is walked directly rather than through the whole termset node, so
             // the opening forethought connective is skipped exactly as it is for the NUhI-present
             // termset below: this walk visits term operands, not the connective that joins them.
@@ -3681,25 +3163,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.walk_node(term);
                 }
             }
-            GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
-                for term in &term.0.terms {
-                    self.walk_node(term);
-                }
-                for term in &term.0.first_branch.terms {
-                    self.walk_node(term);
-                }
-                for branch in &term.0.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term);
-                    }
-                }
-            }
             GeneratedSimpleTermRef::NuhiTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term);
-                }
-            }
-            GeneratedSimpleTermRef::KeTermset(term) => {
                 for term in &term.termset {
                     self.walk_node(term);
                 }
@@ -3815,10 +3279,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_statement_or_fragment(&mut self, node: &'tree generated::StatementOrFragmentSyntax) {
         match node {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.walk_node(&statement.statement);
-                self.walk_node(&statement.tail);
-            }
             generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
                 self.walk_node(&statement.0);
             }
@@ -3877,9 +3337,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.walk_node(statement);
-            }
         }
     }
 
@@ -3914,19 +3371,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::StatementBaseSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.walk_node(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_forethought_statement(&mut self, node: &'tree generated::ForethoughtStatementSyntax) {
-        self.walk_node(&node.first);
-        self.walk_node(&node.first_branch.statement);
-        for branch in &node.additional_branches {
-            self.walk_node(&branch.statement);
         }
     }
 
@@ -4113,24 +3557,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
                 self.walk_node(&quantifier.mekso);
             }
-            generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
-                self.walk_node(&quantifier.0);
-            }
-            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
-                self.walk_node(&quantifier.0);
-            }
-            // Rolling Zantufa's quantifier relatives attach to the quantifier itself, so both
-            // the mex and the relative list are walked from here.
-            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifierWithRelatives(
-                quantifier,
-            ) => {
-                self.walk_node(&quantifier.mekso);
-                self.walk_node(&quantifier.relative_clauses);
-            }
-            generated::QuantifierSyntax::ZantufaRawMeksoQuantifierWithRelatives(quantifier) => {
-                self.walk_node(&quantifier.mekso);
-                self.walk_node(&quantifier.relative_clauses);
-            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
@@ -4139,13 +3565,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
         match node {
-            generated::MeksoSyntax::ReinterpretZantufaMex(expression) => {
-                self.walk_node(&expression.0);
-            }
-            generated::MeksoSyntax::ZantufaPriorityMex(expression) => {
-                self.walk_node(&expression.0);
-            }
-            generated::MeksoSyntax::ZantufaMex(expression) => self.walk_node(expression),
             generated::MeksoSyntax::InfixMekso(expression) => {
                 self.walk_node(&expression.first_expression);
                 for continuation in &expression.continuations {
@@ -4375,7 +3794,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::TenseModalBodySyntax::TenseModalAtom(tense_modal) => {
                 self.walk_node(tense_modal);
             }
-            generated::TenseModalBodySyntax::ZantufaTag(tag) => self.walk_node(tag),
         }
     }
 
@@ -4397,9 +3815,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 }
                 self.analyze_relation(&free_modifier.selbri);
             }
-            generated::FreeModifierSyntax::ZantufaSeiStatementFreeModifier(free_modifier) => {
-                self.walk_node(&free_modifier.statement);
-            }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.walk_node(&free_modifier.text);
             }
@@ -4408,15 +3823,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                         self.walk_node(&free_modifier.expression.inner_expression);
                     }
-                    generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
-                        self.walk_node(&free_modifier.expression);
-                    }
                     generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                     | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
-            }
-            generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
-                self.walk_node(&free_modifier.expression);
             }
             generated::FreeModifierSyntax::SoiFreeModifier(free_modifier) => {
                 self.walk_node(&free_modifier.leading_sumti);
@@ -4641,36 +4050,6 @@ impl<'tree> generated::TreeWalker<'tree> for LinkedNormalTermAssigner<'_, '_, 't
     }
 
     #[requires(true)]
-    #[ensures(old(self.assigned) -> self.assigned)]
-    fn walk_jai_tagged_sumti_term(&mut self, node: &'tree generated::JaiTaggedSumtiTermSyntax) {
-        if let Some(tag) = &node.tag {
-            self.builder.walk_node(tag);
-        }
-        // Match the existing term assignment policy: an elided JAI payload carries no argument.
-        match node.sumti.as_ref() {
-            generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
-                self.builder
-                    .assign_link_argument(self.cursor, sumti, Some(fai_slot()));
-                self.assigned = true;
-            }
-            generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(self.assigned == old(self.assigned))]
-    fn walk_zantufa_joik_chained_place_tag_term(
-        &mut self,
-        node: &'tree generated::ZantufaJoikChainedPlaceTagTermSyntax,
-    ) {
-        // As in assign_simple_term, multi-place FA chains are traversed but not lowered.
-        match node.sumti.as_ref() {
-            generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) => self.builder.walk_node(sumti),
-            generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
     #[ensures(self.assigned == old(self.assigned))]
     fn walk_tagged_sumti_before_tag_term(
         &mut self,
@@ -4681,24 +4060,9 @@ impl<'tree> generated::TreeWalker<'tree> for LinkedNormalTermAssigner<'_, '_, 't
 
     #[requires(true)]
     #[ensures(self.assigned == old(self.assigned))]
-    fn walk_noiha_adverbial_term(&mut self, node: &'tree generated::NoihaAdverbialTermSyntax) {
-        self.builder.walk_node(node);
-    }
-
-    #[requires(true)]
-    #[ensures(self.assigned == old(self.assigned))]
     fn walk_fihoi_proposal_adverbial_term(
         &mut self,
         node: &'tree generated::FihoiProposalAdverbialTermSyntax,
-    ) {
-        self.builder.walk_node(node);
-    }
-
-    #[requires(true)]
-    #[ensures(self.assigned == old(self.assigned))]
-    fn walk_zantufa_xoi_adverbial_term(
-        &mut self,
-        node: &'tree generated::ZantufaXoiAdverbialTermSyntax,
     ) {
         self.builder.walk_node(node);
     }
@@ -4724,12 +4088,6 @@ impl<'tree> generated::TreeWalker<'tree> for LinkedNormalTermAssigner<'_, '_, 't
     #[requires(true)]
     #[ensures(self.assigned == old(self.assigned))]
     fn walk_gek_termset(&mut self, node: &'tree generated::GekTermsetSyntax) {
-        self.builder.walk_node(node);
-    }
-
-    #[requires(true)]
-    #[ensures(self.assigned == old(self.assigned))]
-    fn walk_zantufa_gek_termset(&mut self, node: &'tree generated::ZantufaGekTermsetSyntax) {
         self.builder.walk_node(node);
     }
 
@@ -5266,12 +4624,6 @@ impl<'index, 'tree> TreeVisitor<'tree>
             return;
         }
         match node {
-            GeneratedSyntaxNodeRef::NoihaVariableAdverbialTermSyntax(term) => {
-                self.bind_relation(&term.selbri);
-            }
-            GeneratedSyntaxNodeRef::NoihaRelativeAdverbialTermSyntax(term) => {
-                self.bind_relation(&term.selbri);
-            }
             GeneratedSyntaxNodeRef::DescriptorWithoutGadriSumtiSyntax(description) => {
                 self.bind_relation(&description.selbri);
             }
@@ -5309,7 +4661,6 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
     matches!(
         node,
         GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiProposalAdverbialTerm(_)
-            | GeneratedSyntaxNodeRef::SimpleTermSyntaxZantufaXoiAdverbialTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxExpSoiAdverbialTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
@@ -5322,18 +4673,15 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMeksoFragment(_)
-            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxZantufaMeksoFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
             | GeneratedSyntaxNodeRef::NormalTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
-            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
-            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(_)
@@ -5504,9 +4852,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementBaseSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.walk_node(statement);
-            }
         }
     }
 
@@ -5578,33 +4923,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_bridi_tail(&mut self, tail: &'tree generated::BridiTailSyntax) {
         match tail {
-            generated::BridiTailSyntax::ZantufaPriorityGroupedBridiTail(tail) => {
-                let tail = tail.0.as_ref();
-                self.visit_bridi_tail(&tail.bridi_tail);
-                for term in &tail.tail_terms {
-                    self.walk_node(term);
-                }
-            }
-            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTail(tail) => {
-                let tail = tail.0.as_ref();
-                self.visit_afterthought_bridi_tail(&tail.first);
-                for continuation in &tail.continuations {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_afterthought_bridi_tail(&continuation.bridi_tail);
-                }
-            }
-            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTailWithoutTailTerms(tail) => {
-                let tail = tail.0.as_ref();
-                self.visit_afterthought_bridi_tail_without_tail_terms(&tail.first);
-                for continuation in &tail.continuations {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_afterthought_bridi_tail_without_tail_terms(&continuation.bridi_tail);
-                }
-            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.visit_afterthought_bridi_tail(&tail.first);
                 if let Some(continuation) = tail.ke_continuation.as_deref() {
@@ -5752,9 +5070,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             ) => {
                 self.visit_subbridi(&connection.first);
                 self.visit_subbridi(&connection.first_branch.branch);
-                for branch in &connection.additional_branches {
-                    self.visit_subbridi(&branch.branch);
-                }
                 for term in &connection.tail_terms {
                     self.walk_node(term);
                 }
@@ -5787,9 +5102,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             ) => {
                 self.visit_subbridi(&connection.first);
                 self.visit_subbridi(&connection.first_branch.branch);
-                for branch in &connection.additional_branches {
-                    self.visit_subbridi(&branch.branch);
-                }
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(
                 connection,
@@ -5827,18 +5139,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         statement: &'tree generated::StatementSyntax,
     ) {
         if let Some(bridi) = self.statement_main_predicate_id(statement) {
-            self.bind_prenex_cei_predicate_targets(terms, bridi);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
-        &mut self,
-        terms: &'tree [Arc<generated::TermSyntax>],
-        statement: &'tree generated::ZantufaRelativeStatementSyntax,
-    ) {
-        if let Some(bridi) = self.zantufa_relative_statement_main_predicate_id(statement) {
             self.bind_prenex_cei_predicate_targets(terms, bridi);
         }
     }
@@ -5900,33 +5200,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementBaseSyntax::PrenexStatement(statement) => {
                 self.statement_main_predicate_id(&statement.inner_statement)
             }
-            generated::StatementBaseSyntax::TextGroupStatement(_)
-            | generated::StatementBaseSyntax::ForethoughtStatement(_) => None,
-        }
-    }
-
-    /// The tailored Zantufa relative statement's main predicate, resolved the way the shared
-    /// statement's is: through the prenexes down to the bridi, and absent for an I-connection or
-    /// a TUhE group, neither of which has one predicate a prenex CEI could name.
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_relative_statement_main_predicate_id(
-        &self,
-        statement: &'tree generated::ZantufaRelativeStatementSyntax,
-    ) -> Option<BridiNodeId> {
-        match statement {
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
-                statement,
-            ) => self.zantufa_relative_statement_main_predicate_id(&statement.inner_statement),
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => None,
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => {
-                match base.as_ref() {
-                    generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => None,
-                    generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
-                        statement,
-                    ) => Some(BridiNodeId(self.raw_for_node(&statement.0))),
-                }
-            }
+            generated::StatementBaseSyntax::TextGroupStatement(_) => None,
         }
     }
 
@@ -6041,9 +5315,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
                 self.visit_argument(&sumti.leading_sumti);
                 self.visit_sumti_forethought(argument_id, &sumti.first_branch.sumti);
-                for branch in &sumti.additional_branches {
-                    self.visit_sumti_forethought(argument_id, &branch.sumti);
-                }
                 false
             }
             generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
@@ -6149,10 +5420,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_quote(&sumti.0);
                 false
             }
-            generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.visit_statement(&sumti.statement);
-                false
-            }
             generated::SumtiBaseSyntax::LaheSumti(sumti) => {
                 if let Some(clauses) = &sumti.relative_clauses {
                     self.visit_relative_clause_list(argument_id, argument_id, clauses);
@@ -6199,18 +5466,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_description_tail_body(argument_id, sumti.tail.tail.as_ref());
                 false
             }
-            // Rolling Zantufa's relatives-first ordering: the relatives precede the leading
-            // sumti in the source, and they attach to the description rather than to it.
-            generated::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(sumti) => {
-                self.visit_relative_clause_list(
-                    argument_id,
-                    argument_id,
-                    &sumti.tail.relative_clauses,
-                );
-                self.visit_argument(&sumti.tail.leading_sumti);
-                self.visit_description_tail_body(argument_id, sumti.tail.tail.as_ref());
-                false
-            }
             generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(sumti) => {
                 self.walk_node(&sumti.quantifier);
                 self.visit_relation(&sumti.selbri);
@@ -6224,18 +5479,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_relative_clause_list(argument_id, argument_id, clauses);
                 }
                 false
-            }
-            generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) => {
-                // The grouped wrapper is transparent: reuse the caller's argument identity
-                // while traversing the enclosed sumti, so the wrapper cannot create a second
-                // self-mention or split relative-clause attachment onto a fresh node.
-                let inner = &grouped.sumti;
-                let handled = self.visit_sumti_grouped(argument_id, &inner.base_sumti);
-                if let Some(attachment) = &inner.vuho_attachment {
-                    self.visit_vuho_attachment(argument_id, attachment);
-                }
-                self.note_letter_sumti_antecedent(argument_id, inner);
-                handled
             }
         }
     }
@@ -6421,9 +5664,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     self.visit_relative_clause_without_head(&tail.0.inner);
                 }
-                generated::RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => {
-                    self.visit_relative_clause_without_head(&tail.0);
-                }
             }
         }
     }
@@ -6449,9 +5689,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         &tail.0.inner,
                     );
                 }
-                generated::RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => {
-                    self.visit_relative_clause(assignment_head_id, reference_head_id, &tail.0);
-                }
             }
         }
     }
@@ -6474,9 +5711,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.visit_subbridi(&clause.subbridi);
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
-                    self.visit_zantufa_statement_relative_clause(clause);
                 }
             },
         }
@@ -6507,108 +5741,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_subbridi(&clause.subbridi);
                     self.relative_heads.pop();
                 }
-                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
-                    self.relative_heads.push(reference_head_id);
-                    self.visit_zantufa_statement_relative_clause(clause);
-                    self.relative_heads.pop();
-                }
             },
-        }
-    }
-
-    /// Rolling Zantufa's statement relative clause. Its body is the tailored
-    /// `zantufa_relative_statement` family rather than the shared statement node, so it is
-    /// walked here with the same prenex-binding and utterance bookkeeping the shared node gets.
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_zantufa_statement_relative_clause(
-        &mut self,
-        clause: &'tree generated::ZantufaStatementRelativeClauseSyntax,
-    ) {
-        match clause {
-            generated::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                clause,
-            ) => {
-                self.visit_zantufa_relative_statement(&clause.statement);
-            }
-            generated::ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                clause,
-            ) => {
-                self.visit_zantufa_relative_statement(&clause.statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_zantufa_relative_statement(
-        &mut self,
-        statement: &'tree generated::ZantufaRelativeStatementSyntax,
-    ) {
-        let statement_id = StatementNodeId(self.raw_for_node(statement));
-        for source in std::mem::take(&mut self.pending_next_utterance_sources) {
-            self.add_edge(
-                ReferenceKind::Utterance,
-                source,
-                target_resolved_node(statement_id.0),
-                ReferenceRule::DiheFollowing,
-            );
-        }
-        let previous_utterance = self.current_utterance.replace(statement_id.0);
-        match statement {
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
-                statement,
-            ) => {
-                let previous_da_bindings = self.da_bindings.clone();
-                for term in &statement.prenex_terms {
-                    self.walk_node(term);
-                }
-                let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
-                self.bind_prenex_relation_variables(&statement.prenex_terms);
-                let previous_cei_bridi_bindings = self.cei_bridi_bindings.clone();
-                self.bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
-                    &statement.prenex_terms,
-                    &statement.inner_statement,
-                );
-                self.visit_zantufa_relative_statement(&statement.inner_statement);
-                self.cei_bridi_bindings = previous_cei_bridi_bindings;
-                self.selbri_variable_bindings = previous_selbri_variable_bindings;
-                self.da_bindings = previous_da_bindings;
-            }
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
-                connection,
-            ) => {
-                self.visit_zantufa_relative_statement_base(&connection.leading_statement);
-                // The whole continuation, as the shared statement visitor walks its own: the
-                // `i` and the connective may carry a tense-modal tag, and references inside
-                // that tag are as real as the ones in the statement it introduces.
-                for continuation in &connection.continuations {
-                    self.walk_node(continuation);
-                }
-            }
-            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(statement) => {
-                self.visit_zantufa_relative_statement_base(statement);
-            }
-        }
-        self.current_utterance = previous_utterance;
-        self.utterance_history.push(statement_id.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_zantufa_relative_statement_base(
-        &mut self,
-        statement: &'tree generated::ZantufaRelativeStatementBaseSyntax,
-    ) {
-        match statement {
-            generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(statement) => {
-                self.walk_node(statement);
-            }
-            generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
-                statement,
-            ) => {
-                self.walk_node(&statement.0);
-            }
         }
     }
 
@@ -6724,49 +5857,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_relation(&mut self, selbri: &'tree generated::SelbriSyntax) {
         match selbri {
-            generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
-                self.visit_co_selbri(&assigned.0.leading_selbri);
-                for assignment in &assigned.0.assignments {
-                    self.visit_relation(&assignment.selbri);
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
-                    }
-                }
-            }
-            generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
-                self.visit_co_selbri(&relative.leading_selbri);
-                self.visit_relative_clause_list_without_head(&relative.relative_clauses);
-                for assignment in &relative.assignments {
-                    self.visit_relation(&assignment.selbri);
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
-                    }
-                }
-            }
-            generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
-                self.visit_co_selbri(&assigned.0.leading_selbri);
-                for assignment in &assigned.0.assignments {
-                    self.visit_relation(&assignment.selbri);
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
-                    }
-                }
-            }
             generated::SelbriSyntax::TaggedSelbri(selbri) => {
                 self.walk_node(&selbri.tense_modal);
                 self.visit_untagged_relation(&selbri.inner_selbri);
@@ -6786,24 +5876,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
                 self.visit_co_selbri(selbri);
-            }
-            generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
-                self.visit_co_selbri(&selbri.leading_selbri);
-                self.walk_node(&selbri.linkargs);
-                if let Some(relative_clauses) = &selbri.relative_clauses {
-                    self.visit_relative_clause_list_without_head(relative_clauses);
-                }
-                for assignment in &selbri.assignments {
-                    self.visit_relation(&assignment.selbri);
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
-                    }
-                }
             }
         }
     }
@@ -6901,21 +5973,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         self.visit_relation(&selbri.leading_selbri);
                         self.visit_plain_bo_selbri(&selbri.first_branch.selbri);
                     }
-                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
-                        selbri,
-                    ) => {
-                        self.visit_co_selbri(&selbri.leading_selbri);
-                        self.visit_co_selbri(&selbri.first_branch.selbri);
-                    }
-                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
-                        selbri,
-                    ) => {
-                        self.visit_co_selbri(&selbri.leading_selbri);
-                        self.visit_co_selbri(&selbri.first_branch.selbri);
-                        for branch in &selbri.additional_branches {
-                            self.visit_co_selbri(&branch.selbri);
-                        }
-                    }
                 }
             }
         }
@@ -6955,12 +6012,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         unit: &'tree generated::TanruUnitAtomBaseForCeiSyntax,
     ) {
         match unit {
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaFaTanruUnit(unit) => {
-                self.visit_zantufa_atom(unit);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                self.visit_zantufa_atom(unit);
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(unit) => {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
             }
@@ -6988,63 +6039,18 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
             }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
-                unit,
-            ) => {
-                self.visit_statement(&unit.statement);
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
             }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
-                self.walk_node(unit);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
-                self.walk_node(&unit.expression);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.tag);
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
                 self.visit_tanru_selbri(&unit.selbri);
             }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
-                self.visit_tanru_selbri(&unit.leading_selbri);
-                for tail in &unit.co_tails {
-                    self.visit_tanru_selbri(&tail.trailing_selbri);
-                }
-            }
             generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_) => {}
+            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_) => {}
         }
-    }
-
-    /// Visit a Zantufa FA or forethought atom in generated child order. Its
-    /// operands are predicates in their own right and resolve as such; the
-    /// opener and free modifiers are walked whole (see `ZantufaAtomComponent`).
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_zantufa_atom<U>(&mut self, unit: &'tree U)
-    where
-        U: GeneratedSyntaxTreeWalkable<'tree>,
-    {
-        let mut walker = ZantufaAtomWalker {
-            on_component: |component| match component {
-                ZantufaAtomComponent::AtomOperand { node } => self.visit_tanru_unit_atom(node),
-                ZantufaAtomComponent::Operand { node } => self.visit_co_selbri(node),
-                ZantufaAtomComponent::Opener { node } => self.walk_node(node),
-                ZantufaAtomComponent::FreeModifier { node } => self.walk_node(node),
-            },
-        };
-        GeneratedSyntaxTreeWalkable::walk_with(unit, &mut walker);
     }
 
     #[requires(true)]
@@ -7057,12 +6063,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_tanru_unit_atom_base(&mut self, unit: &'tree generated::TanruUnitAtomBaseSyntax) {
         match unit {
-            generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(unit) => {
-                self.visit_zantufa_atom(unit);
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(unit) => {
-                self.visit_zantufa_atom(unit);
-            }
             generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(unit) => {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
             }
@@ -7090,58 +6090,17 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
             }
-            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
-                self.visit_statement(&unit.statement);
-            }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
             }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
             }
-            generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
-                self.walk_node(unit);
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
-                self.walk_node(&unit.expression);
-            }
-            generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-            }
-            generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.tag);
-            }
             generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
                 self.visit_tanru_selbri(&unit.selbri);
             }
-            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
-                self.visit_tanru_selbri(&unit.leading_selbri);
-                for tail in &unit.co_tails {
-                    self.visit_tanru_selbri(&tail.trailing_selbri);
-                }
-            }
             generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_zantufa_me_tanru_unit(&mut self, unit: &'tree generated::ZantufaMeTanruUnitSyntax) {
-        match unit.body.as_ref() {
-            generated::ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => {
-                for operator in &body.0 {
-                    self.walk_node(operator);
-                }
-            }
-            generated::ZantufaMeSelbriBodySyntax::ZantufaMeMeksoSelbriBody(body) => {
-                self.walk_node(&body.0);
-            }
-            generated::ZantufaMeSelbriBodySyntax::ZantufaMeTagSelbriBody(body) => {
-                self.walk_node(&body.0);
-            }
+            | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_) => {}
         }
     }
 
@@ -7669,19 +6628,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.visit_argument(sumti);
-                }
-            }
-            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.visit_argument(sumti);
-                }
-            }
             // The operand tree is walked directly rather than through the whole termset node, so
             // the opening forethought connective is skipped exactly as it is for the NUhI-present
             // termset below: this walk visits term operands, not the connective that joins them.
@@ -7696,45 +6642,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.walk_node(term.as_ref());
                 }
             }
-            GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
-                for term in &term.0.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for term in &term.0.first_branch.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for branch in &term.0.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term.as_ref());
-                    }
-                }
-            }
             GeneratedSimpleTermRef::NuhiTermset(term) => {
                 for term in &term.termset {
                     self.walk_node(term.as_ref());
                 }
             }
-            GeneratedSimpleTermRef::KeTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term.as_ref());
-                }
-            }
-            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.visit_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.visit_relation(&term.selbri);
-                }
-            },
             GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
                 self.visit_subbridi(&term.subsentence);
-            }
-            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
-                self.visit_zantufa_relative_statement(&term.0.statement);
             }
             GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
                 self.visit_subbridi(&term.0.subsentence);
@@ -7848,10 +6762,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_statement_or_fragment(&mut self, node: &'tree generated::StatementOrFragmentSyntax) {
         match node {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.visit_statement(&statement.statement);
-                self.walk_node(&statement.tail);
-            }
             generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
                 self.visit_statement(&statement.0);
             }
@@ -7896,19 +6806,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.walk_node(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_forethought_statement(&mut self, node: &'tree generated::ForethoughtStatementSyntax) {
-        self.visit_statement(&node.first);
-        self.visit_statement(&node.first_branch.statement);
-        for branch in &node.additional_branches {
-            self.visit_statement(&branch.statement);
         }
     }
 
@@ -8132,7 +7029,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::TenseModalBodySyntax::TenseModalAtom(tense_modal) => {
                 self.walk_node(tense_modal);
             }
-            generated::TenseModalBodySyntax::ZantufaTag(tag) => self.walk_node(tag),
         }
     }
 
@@ -8154,9 +7050,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 }
                 self.visit_relation(&free_modifier.selbri);
             }
-            generated::FreeModifierSyntax::ZantufaSeiStatementFreeModifier(free_modifier) => {
-                self.visit_statement(&free_modifier.statement);
-            }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.walk_node(&free_modifier.text);
             }
@@ -8165,15 +7058,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                         self.walk_node(&free_modifier.expression.inner_expression);
                     }
-                    generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
-                        self.walk_node(&free_modifier.expression);
-                    }
                     generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                     | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
-            }
-            generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
-                self.walk_node(&free_modifier.expression);
             }
             generated::FreeModifierSyntax::SoiFreeModifier(free_modifier) => {
                 self.visit_argument(&free_modifier.leading_sumti);
@@ -8540,24 +7427,11 @@ fn advance_cursor_for_generated_simple_term_shape(
             }
             cursor.record_slot(modal_slot(None));
         }
-        GeneratedSimpleTermRef::JaiTaggedSumtiTerm(_) => {
-            cursor.record_slot(fai_slot());
-        }
         GeneratedSimpleTermRef::ForethoughtTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.terms);
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.first_branch.terms);
         }
-        GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
-            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.0.terms);
-            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.0.first_branch.terms);
-            for branch in &term.0.additional_branches {
-                advance_cursor_for_generated_boxed_terms_shape(cursor, &branch.terms);
-            }
-        }
         GeneratedSimpleTermRef::NuhiTermset(term) => {
-            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.termset);
-        }
-        GeneratedSimpleTermRef::KeTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.termset);
         }
         _ => {}
@@ -8768,9 +7642,6 @@ fn generated_koha_subscript_index(
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript) => {
                     generated_math_expression_to_usize(&subscript.expression.inner_expression)
                 }
-                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript) => {
-                    generated_zantufa_mex_2_to_usize(&subscript.expression)
-                }
                 generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => None,
             },
             _ => None,
@@ -8783,49 +7654,6 @@ fn generated_math_expression_to_usize(expression: &generated::MeksoSyntax) -> Op
     match expression {
         generated::MeksoSyntax::InfixMekso(expression) if expression.continuations.is_empty() => {
             generated_mekso_precedence_to_usize(&expression.first_expression)
-        }
-        generated::MeksoSyntax::ReinterpretZantufaMex(expression) => {
-            generated_zantufa_mex_to_usize(&expression.0)
-        }
-        generated::MeksoSyntax::ZantufaPriorityMex(expression) => {
-            generated_zantufa_mex_to_usize(&expression.0)
-        }
-        generated::MeksoSyntax::ZantufaMex(expression) => {
-            generated_zantufa_mex_to_usize(expression)
-        }
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_zantufa_mex_to_usize(expression: &generated::ZantufaMexSyntax) -> Option<usize> {
-    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
-        return None;
-    }
-    let generated::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
-        expression.first_expression.first_group.as_ref()
-    else {
-        return None;
-    };
-    if !group.continuations.is_empty() {
-        return None;
-    }
-    generated_zantufa_mex_2_to_usize(&group.first_expression)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_zantufa_mex_2_to_usize(expression: &generated::ZantufaMex2Syntax) -> Option<usize> {
-    let generated::ZantufaMex2Syntax::ZantufaOperand(operand) = expression else {
-        return None;
-    };
-    match operand.as_ref() {
-        generated::ZantufaOperandSyntax::NumberMekso(number) => {
-            generated_number_words_to_usize(&number.0.number)
-        }
-        generated::ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
-            generated_zantufa_mex_to_usize(&operand.inner_expression)
         }
         _ => None,
     }
@@ -8955,9 +7783,6 @@ fn generated_argument_letter_base_from_sumti_base(
             generated_description_tail_base_letter(&description.tail)
         }
         generated::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(description) => {
-            generated_description_tail_body_base_letter(description.tail.tail.as_ref())
-        }
-        generated::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(description) => {
             generated_description_tail_body_base_letter(description.tail.tail.as_ref())
         }
         generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
@@ -9166,15 +7991,6 @@ fn generated_relation_pro_bridi_cmavo(selbri: &generated::SelbriSyntax) -> Optio
 #[ensures(true)]
 fn generated_relation_first_token(selbri: &generated::SelbriSyntax) -> Option<&Token> {
     match selbri {
-        generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
-            generated_tanru_selbri_first_token(&assigned.0.leading_selbri.leading_selbri)
-        }
-        generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
-            generated_tanru_selbri_first_token(&relative.leading_selbri.leading_selbri)
-        }
-        generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
-            generated_tanru_selbri_first_token(&assigned.0.leading_selbri.leading_selbri)
-        }
         generated::SelbriSyntax::TaggedSelbri(selbri) => {
             generated_untagged_relation_first_token(&selbri.inner_selbri)
         }
@@ -9195,9 +8011,6 @@ fn generated_untagged_relation_first_token(
         }
         generated::UntaggedSelbriSyntax::NegatedSelbri(selbri) => {
             generated_relation_first_token(&selbri.inner_selbri)
-        }
-        generated::UntaggedSelbriSyntax::ZantufaKeheLinkedSelbri(selbri) => {
-            generated_tanru_selbri_first_token(&selbri.leading_selbri.leading_selbri)
         }
     }
 }
@@ -9264,11 +8077,6 @@ fn generated_tanru_unit_atom_base_first_token(
     unit: &generated::TanruUnitAtomBaseSyntax,
 ) -> Option<&Token> {
     match unit {
-        // A compound Zantufa atom does not assert a lexical CEI predicate identity: a GEK
-        // owner connects several operands, and an FA atom starts with a place marker rather
-        // than its predicate.
-        generated::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_) => None,
-        generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(_) => None,
         generated::TanruUnitAtomBaseSyntax::WordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(unit) => Some(&unit.goha.value),
@@ -9288,11 +8096,6 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
     unit: &generated::TanruUnitAtomBaseForCeiSyntax,
 ) -> Option<&Token> {
     match unit {
-        // A compound Zantufa atom does not assert a lexical CEI predicate identity: a GEK
-        // owner connects several operands, and an FA atom starts with a place marker rather
-        // than its predicate.
-        generated::TanruUnitAtomBaseForCeiSyntax::ZantufaForethoughtTanruUnit(_) => None,
-        generated::TanruUnitAtomBaseForCeiSyntax::ZantufaFaTanruUnit(_) => None,
         generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(unit) => Some(&unit.goha.value),
@@ -9452,13 +8255,8 @@ mod tests {
 
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
-    use jbotci_dialect::parse_dialect_definition;
-    use jbotci_morphology::{
-        MorphologyOptions, segment_words_with_modifiers,
-        segment_words_with_modifiers_with_options_and_source_id,
-    };
+    use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
-    use std::sync::Arc;
 
     #[requires(true)]
     #[ensures(true)]
@@ -9476,620 +8274,6 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("generated syntax succeeds")
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn parse_generated_zantufa_syntax(input: &str) -> Box<GeneratedTextSyntax> {
-        parse_generated_syntax_in_dialect(input, "(zantufa)")
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn parse_generated_syntax_in_dialect(
-        input: &str,
-        definition: &str,
-    ) -> Box<GeneratedTextSyntax> {
-        let dialect = parse_dialect_definition(definition).expect("test dialect");
-        let words = segment_words_with_modifiers_with_options_and_source_id(
-            input,
-            &MorphologyOptions::default().with_dialect_definition(&dialect),
-            None,
-        )
-        .expect("morphology succeeds");
-        parse_syntax_tree_generated_model_with_source_and_options(
-            &words,
-            input,
-            &ParseOptions::default().with_dialect_definition(&dialect),
-        )
-        .expect("generated Zantufa syntax succeeds")
-    }
-
-    /// These frame IDs are derived from the consumer structure, not captured output:
-    /// each plain operand creates terminal, linked, compound and Co-forward frames.
-    /// The GEK frame must retain all operand roots in source order, then distribute
-    /// the outer x1 assignment to each terminal without creating a bridi owner.
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn routed_gek_atoms_preserve_ordered_branch_places() {
-        for definition in [
-            "(+ZANTUFA-SELBRI)",
-            "(+ZANTUFA-SELBRI +ZANTUFA-CONNECTIVES)",
-        ] {
-            for (input, expected_branches, predicates) in [
-                (
-                    "mi ga'o je ke'i gi broda gi brode",
-                    &[3, 7][..],
-                    &["broda", "brode"][..],
-                ),
-                (
-                    "mi ga broda gi brode gi brodi",
-                    &[3, 7, 11][..],
-                    &["broda", "brode", "brodi"][..],
-                ),
-            ] {
-                let syntax = parse_generated_syntax_in_dialect(input, definition);
-                let analysis = analyze_generated_references(&syntax).unwrap();
-                let projection = analysis.fixture_projection();
-                let mut branching = projection
-                    .frames
-                    .iter()
-                    .filter(|frame| frame.kind == PlaceFrameKind::ConnectiveBranching);
-                let gek = branching.next().expect("one real GEK atom frame");
-                assert!(branching.next().is_none(), "no extra forethought owner");
-                assert_eq!(gek.index, predicates.len() * 4);
-                assert_eq!(gek.selbri, None);
-                assert_eq!(gek.tanru_unit, Some(span_key(3, input.len() - 3)));
-                let FixturePlaceFramePropagation::ConnectiveBranches { branches } =
-                    &gek.propagation
-                else {
-                    panic!("GEK must distribute to operand branches");
-                };
-                assert_eq!(branches, expected_branches, "{definition}: {input}");
-                assert!(!branches.iter().eq(expected_branches.iter().rev()));
-                for (operand, predicate) in predicates.iter().enumerate() {
-                    let terminal = &projection.frames[operand * 4];
-                    assert_eq!(terminal.kind, PlaceFrameKind::TanruUnit);
-                    assert_eq!(terminal.node, nth_span_key(input, predicate, 0));
-                    let mut assignments = projection
-                        .assignments
-                        .iter()
-                        .filter(|assignment| assignment.frame == terminal.index);
-                    let assignment = assignments.next().expect("outer x1 reaches operand");
-                    assert!(assignments.next().is_none(), "operand visited exactly once");
-                    assert_eq!(assignment.slot, FixturePlaceSlot::Numbered { place: 1 });
-                    assert_eq!(assignment.sumti, span_key(0, 2));
-                    assert_eq!(assignment.term, Some(span_key(0, 2)));
-                    assert_eq!(assignment.source, AssignmentSource::Propagated);
-                }
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn routed_gek_atoms_preserve_reserved_ja_owner() {
-        let input = "mi je gi broda gi brode";
-        let baseline = parse_generated_syntax(input);
-        let expected = analyze_generated_references(&baseline)
-            .unwrap()
-            .fixture_projection();
-        assert_eq!(expected.frames.len(), 22);
-        assert_eq!(expected.assignments.len(), 22);
-        for definition in [
-            "(+ZANTUFA-SELBRI)",
-            "(+ZANTUFA-SELBRI +ZANTUFA-CONNECTIVES)",
-        ] {
-            let syntax = parse_generated_syntax_in_dialect(input, definition);
-            assert_eq!(syntax, baseline, "reserved JA keeps the exact tree");
-            assert_eq!(
-                analyze_generated_references(&syntax)
-                    .unwrap()
-                    .fixture_projection(),
-                expected,
-                "reserved JA keeps exact frame, slot and provenance data"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn routed_fa_keeps_outer_frame_opaque_with_postposed_link() {
-        let input = "mi cu fa broda be ko'a be'o";
-        let syntax = parse_generated_zantufa_syntax(input);
-        let analysis = analyze_generated_references(&syntax).expect("FA route analyzes");
-        let index = &analysis.syntax_index;
-        let mut fas = Vec::new();
-        let mut linked_units = Vec::new();
-        for raw in 0..index.node_count() {
-            match index.node(RawSyntaxNodeId(raw)) {
-                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => fas.push(value),
-                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) => {
-                    linked_units.push(value)
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(fas.len(), 1);
-        let fa = fas[0];
-        let linked = linked_units.into_iter().find(|linked| {
-            linked.linkargs.is_some()
-                && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value.as_ref(), fa))
-        }).expect("typed enclosing linked unit");
-        let linked_raw = index
-            .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked))
-            .unwrap();
-        let linked_matches: Vec<_> = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit)
-            .collect();
-        assert_eq!(linked_matches.len(), 1);
-        let linked_semantic = linked_matches[0];
-        assert_eq!(
-            fixture_span_key_for_generated_node(
-                index,
-                index
-                    .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked))
-                    .unwrap()
-            )
-            .unwrap(),
-            span_key(6, 21)
-        );
-        let projection = analysis.fixture_projection();
-        let fa_raw = index
-            .id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa))
-            .unwrap();
-        assert_eq!(
-            fixture_span_key_for_generated_node(index, fa_raw).unwrap(),
-            span_key(6, 8)
-        );
-        let fa_candidates: Vec<_> = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .filter(|frame| frame.node == fa_raw)
-            .collect();
-        assert_eq!(
-            fa_candidates.len(),
-            1,
-            "FA raw candidates: {:?}",
-            fa_candidates
-        );
-        let fa_frame = fa_candidates[0];
-        assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
-        let inner_base_raw = index.id_for_tree_node(fa.inner_unit.base.as_ref()).unwrap();
-        let word_frames: Vec<_> = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .filter(|frame| frame.node == inner_base_raw && frame.kind == PlaceFrameKind::TanruUnit)
-            .collect();
-        assert_eq!(word_frames.len(), 1);
-        let inner_word = word_frames[0];
-        assert_eq!(
-            fixture_span_key_for_generated_node(index, inner_base_raw).unwrap(),
-            span_key(9, 5)
-        );
-        assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
-        assert_ne!(inner_word.node, fa_raw);
-        assert!(
-            matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id)
-        );
-        assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
-        let fa_frame = projection
-            .frames
-            .iter()
-            .find(|frame| frame.index == fa_frame.id.0)
-            .expect("FA outer frame projection");
-        assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
-        assert_eq!(fa_frame.selbri, None);
-        assert!(matches!(
-            fa_frame.propagation,
-            FixturePlaceFramePropagation::None
-        ));
-        let inner = projection
-            .frames
-            .iter()
-            .find(|frame| frame.index == inner_word.id.0)
-            .expect("FA traversal retains inner word frame");
-        assert_eq!(inner.node, span_key(9, 5));
-        assert_ne!(inner.index, fa_frame.index);
-        assert_eq!(fa_frame.tanru_unit, Some(span_key(6, 8)));
-        let local_x2: Vec<_> = projection
-            .assignments
-            .iter()
-            .filter(|a| {
-                a.frame == fa_frame.index
-                    && a.sumti == span_key(18, 4)
-                    && a.slot == FixturePlaceSlot::Numbered { place: 2 }
-                    && a.term.is_none()
-                    && a.source == AssignmentSource::LinkedSumti
-            })
-            .collect();
-        assert_eq!(local_x2.len(), 1);
-        let outer_x1: Vec<_> = projection
-            .assignments
-            .iter()
-            .filter(|a| {
-                a.sumti == span_key(0, 2)
-                    && a.frame == fa_frame.index
-                    && a.slot == FixturePlaceSlot::Numbered { place: 1 }
-            })
-            .collect();
-        assert_eq!(outer_x1.len(), 1);
-        assert!(
-            !projection
-                .assignments
-                .iter()
-                .any(|a| a.frame == inner.index)
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn routed_fa_preserves_nested_local_links_without_crossing_owner() {
-        let input = "mi cu fa ke broda be ko'e be'o ke'e be ko'a be'o";
-        let syntax = parse_generated_zantufa_syntax(input);
-        let analysis = analyze_generated_references(&syntax).expect("nested FA analyzes");
-        #[invariant(true)]
-        struct InnerIds<'a> {
-            index: &'a GeneratedSyntaxIndex<'a>,
-            ids: HashSet<RawSyntaxNodeId>,
-        }
-        impl<'tree, 'a> TreeVisitor<'tree> for InnerIds<'a> {
-            type Node = GeneratedSyntaxNodeRef<'tree>;
-            type Atom = GeneratedSyntaxAtomRef<'tree>;
-            #[requires(true)]
-            #[ensures(true)]
-            fn enter_node(&mut self, node: Self::Node) {
-                if let Some(id) = self.index.id_of(node) {
-                    self.ids.insert(id);
-                }
-            }
-        }
-        let index = &analysis.syntax_index;
-        let fa = (0..index.node_count())
-            .find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
-                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => Some(value),
-                _ => None,
-            })
-            .expect("typed FA owner");
-        let fa_raw = index
-            .id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa))
-            .unwrap();
-        let linked_owner = (0..index.node_count()).find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
-            Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value))
-                if value.linkargs.is_some()
-                    && matches!(value.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(inner) if std::ptr::eq(inner.as_ref(), fa)) => Some(value),
-            _ => None,
-        }).expect("typed enclosing linked owner");
-        let linked_raw = index
-            .id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked_owner))
-            .unwrap();
-        assert_eq!(
-            analysis
-                .place_analysis
-                .frames()
-                .iter()
-                .filter(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit)
-                .count(),
-            1
-        );
-        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).count(), 1);
-        let mut inner_ids = InnerIds {
-            index,
-            ids: HashSet::new(),
-        };
-        generated::TreeNode::visit_in_order(fa.inner_unit.as_ref(), &mut inner_ids);
-        let inner_frame_ids: HashSet<_> = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .filter(|frame| inner_ids.ids.contains(&frame.node))
-            .map(|frame| frame.id.0)
-            .collect();
-        let projection = analysis.fixture_projection();
-        let outers: Vec<_> = projection
-            .frames
-            .iter()
-            .filter(|frame| frame.node == span_key(6, 29))
-            .collect();
-        let inners: Vec<_> = projection
-            .frames
-            .iter()
-            .filter(|frame| frame.node == span_key(12, 5))
-            .collect();
-        assert_eq!(outers.len(), 1);
-        assert_eq!(inners.len(), 1);
-        let outer = outers[0];
-        let inner = inners[0];
-        let group_raw = match fa.inner_unit.base.as_ref() {
-            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(group) => {
-                index.id_for_tree_node(group).unwrap()
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(group) => {
-                index.id_for_tree_node(group).unwrap()
-            }
-            _ => panic!("expected grouped KE inner unit"),
-        };
-        let inner_ke_frames: Vec<_> = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .filter(|frame| frame.node == group_raw && frame.kind == PlaceFrameKind::Forwarding)
-            .collect();
-        assert_eq!(inner_ke_frames.len(), 1);
-        assert!(
-            inner_frame_ids.contains(&inner_ke_frames[0].id.0),
-            "actual inner KE frame participates in isolation set"
-        );
-        assert!(
-            inner_frame_ids.contains(&inner.index),
-            "actual inner KE/word frame is in generated inner subtree"
-        );
-        let linked = projection
-            .frames
-            .iter()
-            .find(|frame| frame.node == span_key(6, 42))
-            .expect("outer linked owner");
-        let outer_semantic = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .find(|frame| frame.node == fa_raw && frame.kind == PlaceFrameKind::TanruUnit)
-            .expect("typed outer FA semantic frame");
-        let linked_semantic = analysis
-            .place_analysis
-            .frames()
-            .iter()
-            .find(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit)
-            .expect("typed linked semantic frame");
-        assert_eq!(outer.index, outer_semantic.id.0);
-        assert_eq!(linked.index, linked_semantic.id.0);
-        assert!(
-            matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == outer_semantic.id)
-        );
-        assert_ne!(outer.index, inner.index);
-        assert!(matches!(
-            outer.propagation,
-            FixturePlaceFramePropagation::None
-        ));
-        assert!(
-            matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index)
-        );
-        let inner_x2: Vec<_> = projection
-            .assignments
-            .iter()
-            .filter(|assignment| {
-                assignment.frame == inner.index
-                    && assignment.sumti == span_key(21, 4)
-                    && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
-                    && assignment.term.is_none()
-                    && assignment.source == AssignmentSource::LinkedSumti
-            })
-            .collect();
-        assert_eq!(inner_x2.len(), 1);
-        let outer_x2: Vec<_> = projection
-            .assignments
-            .iter()
-            .filter(|assignment| {
-                assignment.frame == outer.index
-                    && assignment.sumti == span_key(39, 4)
-                    && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
-                    && assignment.term.is_none()
-                    && assignment.source == AssignmentSource::LinkedSumti
-            })
-            .collect();
-        assert_eq!(outer_x2.len(), 1);
-        assert!(!projection.assignments.iter().any(|assignment| {
-            assignment.frame == inner.index
-                && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
-        }));
-        assert!(!projection.assignments.iter().any(|assignment| {
-            assignment.frame == outer.index && assignment.sumti == span_key(21, 4)
-        }));
-        assert!(!projection.assignments.iter().any(|assignment| {
-            inner_frame_ids.contains(&assignment.frame)
-                && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
-        }));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn routed_grouped_and_enclosed_jai_consumers_preserve_frames() {
-        for input in ["mi ke broda brode ke'e", "mi jai pu ko'a broda"] {
-            let syntax = parse_generated_zantufa_syntax(input);
-            let projection = analyze_generated_references(&syntax)
-                .expect("grouped/enclosed-JAI route analyzes")
-                .fixture_projection();
-            assert!(
-                projection
-                    .frames
-                    .iter()
-                    .any(|frame| frame.kind == PlaceFrameKind::TanruUnit),
-                "route retains a tanru-unit frame: {input}"
-            );
-            assert!(
-                projection
-                    .frames
-                    .iter()
-                    .any(|frame| frame.kind == PlaceFrameKind::Bridi),
-                "route retains its enclosing bridi frame: {input}"
-            );
-            if input.starts_with("mi ke ") {
-                let forwarding: Vec<_> = projection
-                    .frames
-                    .iter()
-                    .filter(|frame| {
-                        frame.kind == PlaceFrameKind::Forwarding
-                            && matches!(
-                                frame.propagation,
-                                FixturePlaceFramePropagation::Forward { .. }
-                            )
-                    })
-                    .collect();
-                assert!(!forwarding.is_empty());
-                assert!(
-                    forwarding
-                        .iter()
-                        .map(|frame| frame.index)
-                        .collect::<std::collections::HashSet<_>>()
-                        .len()
-                        == forwarding.len()
-                );
-            } else {
-                assert!(
-                    projection
-                        .frames
-                        .iter()
-                        .all(|frame| frame.kind != PlaceFrameKind::JaiConverted),
-                    "tagged JAI keeps its payload as an ordinary owned tanru unit"
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn grouped_scoped_vuho_child_is_distinct_and_traversed() {
-        #[invariant(true)]
-        #[derive(Default)]
-        struct WitnessCollector<'tree> {
-            hits: Vec<(
-                &'tree generated::SumtiSyntax,
-                &'tree generated::SumtiSyntax,
-                &'tree generated::SumtiSyntax,
-            )>,
-        }
-        impl<'tree> generated::TreeWalker<'tree> for WitnessCollector<'tree> {
-            #[requires(true)]
-            #[ensures(true)]
-            fn walk_sumti(&mut self, node: &'tree generated::SumtiSyntax) {
-                if let Some(simple) = generated_simple_sumti_from_sumti(node)
-                    && let generated::SumtiAtomSyntax::SumtiBase(base) = simple.base_sumti.as_ref()
-                    && let generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) = base.as_ref()
-                    && let Some(generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(attachment)) = grouped.sumti.vuho_attachment.as_deref()
-                {
-                    self.hits.push((node, grouped.sumti.as_ref(), attachment.sumti_connection.sumti.as_ref()));
-                }
-                generated::walk::sumti(self, node);
-            }
-        }
-        let input = "mi viska la'e ke lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u";
-        let syntax = parse_generated_zantufa_syntax(input);
-        let mut collector = WitnessCollector::default();
-        GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut collector);
-        assert_eq!(collector.hits.len(), 1, "exact grouped scoped-VUhO witness");
-        let index = GeneratedSyntaxIndex::new(&syntax).expect("syntax index");
-        let (parent, _enclosed, child) = collector.hits[0];
-        let parent_id = SumtiNodeId(index.id_for_tree_node(parent).expect("parent id"));
-        let child_id = SumtiNodeId(index.id_for_tree_node(child).expect("child id"));
-        assert_ne!(parent_id, child_id);
-        let places = PlaceAnalysis::analyze_generated(&index, &syntax);
-        let mut builder = GeneratedDiscourseReferenceBuilder::new(&index, &places);
-        GeneratedSyntaxTreeWalkable::walk_with(&syntax, &mut builder);
-        assert_eq!(
-            builder
-                .sumti_mentions
-                .iter()
-                .filter(|mention| mention.source == child_id && mention.target == child_id)
-                .count(),
-            1
-        );
-        let child_keys = generated_argument_letter_keys(child);
-        assert!(!child_keys.is_empty());
-        for key in child_keys {
-            let mentions = builder
-                .letter_sumti_mentions
-                .get(&key)
-                .expect("child antecedent registered");
-            assert_eq!(
-                mentions
-                    .iter()
-                    .filter(|mention| mention.source == child_id && mention.target == child_id)
-                    .count(),
-                1
-            );
-            assert!(
-                !mentions
-                    .iter()
-                    .any(|mention| mention.source == child_id && mention.target == parent_id)
-            );
-        }
-        let debug = format!("{syntax:?}");
-        assert!(debug.contains("ExperimentalVuhoScopedSumtiAttachmentTail"));
-        let projection = analyze_generated_references(&syntax)
-            .expect("scoped VUhO route analyzes")
-            .fixture_projection();
-        let forwarding: Vec<_> = projection
-            .frames
-            .iter()
-            .filter(|frame| frame.kind == PlaceFrameKind::Forwarding)
-            .collect();
-        assert!(
-            !forwarding.is_empty(),
-            "scoped child forwarding is retained"
-        );
-        assert!(forwarding.iter().all(|frame| matches!(
-            frame.propagation,
-            FixturePlaceFramePropagation::Forward { inner: _ }
-        )));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn generated_zantufa_numeric_xi_route_preserves_koha_index() {
-        let syntax = parse_generated_zantufa_syntax("ko'a xi na'e pa cu broda");
-        let index = GeneratedSyntaxIndex::new(&syntax).expect("syntax index");
-        let pro_sumti = (0..index.node_count())
-            .find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
-                Some(GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(
-                    generated::SumtiBaseSyntax::ProSumti(pro_sumti),
-                )) => Some(pro_sumti),
-                _ => None,
-            })
-            .expect("ko'a node");
-        let generated::FreeModifierSyntax::XiFreeModifier(subscript) =
-            pro_sumti.0.free_modifiers[0].as_ref()
-        else {
-            panic!("test source must select the exact Zantufa xi route");
-        };
-        let generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript) =
-            subscript.as_ref()
-        else {
-            panic!("test source must select the exact Zantufa xi route");
-        };
-        let generated::ZantufaMex2Syntax::ZantufaOperand(operand) = subscript.expression.as_ref()
-        else {
-            panic!("test source must wrap the numeric operand");
-        };
-        let generated::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(negated) =
-            operand.as_ref()
-        else {
-            panic!("test source must wrap the numeric operand");
-        };
-        let direct_subscript = generated::ZantufaMex2XiFreeModifierSyntax {
-            xi: subscript.xi.clone(),
-            expression: Arc::new(generated::ZantufaMex2Syntax::ZantufaOperand(
-                negated.inner_expression.clone(),
-            )),
-        };
-        let free_modifiers = [Arc::new(generated::FreeModifierSyntax::XiFreeModifier(
-            Arc::new(generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(
-                Arc::new(direct_subscript),
-            )),
-        ))];
-
-        assert_eq!(generated_koha_subscript_index(&free_modifiers), Some(1));
     }
 
     #[requires(true)]
@@ -10209,79 +8393,72 @@ mod tests {
     #[ensures(true)]
     fn full_link_termsets_preserve_cursor_order_and_do_not_fabricate_term_ids() {
         for explicit_fo in [false, true] {
-            for zantufa in [false, true] {
-                let tag = if explicit_fo { "fo " } else { "" };
-                let input = format!(
-                    "mi broda be nu'i {tag}ko'a ce'e bau ko'e ce'e ko'i nu'u bei ko'o be'o ko'u"
-                );
-                let syntax = if zantufa {
-                    parse_generated_zantufa_syntax(&input)
-                } else {
-                    parse_generated_syntax(&input)
-                };
-                let analysis = analyze_generated_references(&syntax).unwrap();
-                let projection = analysis.fixture_projection();
-                let frame = projection
-                    .frames
-                    .iter()
-                    .find(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node.offset == 3)
-                    .unwrap()
-                    .index;
-                let first_place = if explicit_fo { 4 } else { 2 };
-                // The fixture projection sorts by slot; assignment construction order is the
-                // sequence that proves traversal order and cursor progression here.
-                let linked: Vec<_> = analysis
-                    .place_analysis
-                    .assignments()
-                    .iter()
-                    .filter_map(|assignment| generated_fixture_assignment(&analysis, assignment))
-                    .filter(|assignment| {
-                        assignment.frame == frame
-                            && assignment.source == AssignmentSource::LinkedSumti
-                    })
-                    .collect();
-                assert_eq!(linked.len(), 4, "{input}");
-                for (index, word) in ["ko'a", "ko'e", "ko'i", "ko'o"].iter().enumerate() {
-                    assert_eq!(
-                        linked[index].sumti,
-                        nth_span_key(&input, word, 0),
-                        "{input}"
-                    );
-                    assert_eq!(
-                        linked[index].term, None,
-                        "a linked normal term is not a TermSyntax wrapper"
-                    );
-                }
+            let tag = if explicit_fo { "fo " } else { "" };
+            let input = format!(
+                "mi broda be nu'i {tag}ko'a ce'e bau ko'e ce'e ko'i nu'u bei ko'o be'o ko'u"
+            );
+            let syntax = parse_generated_syntax(&input);
+            let analysis = analyze_generated_references(&syntax).unwrap();
+            let projection = analysis.fixture_projection();
+            let frame = projection
+                .frames
+                .iter()
+                .find(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node.offset == 3)
+                .unwrap()
+                .index;
+            let first_place = if explicit_fo { 4 } else { 2 };
+            // The fixture projection sorts by slot; assignment construction order is the
+            // sequence that proves traversal order and cursor progression here.
+            let linked: Vec<_> = analysis
+                .place_analysis
+                .assignments()
+                .iter()
+                .filter_map(|assignment| generated_fixture_assignment(&analysis, assignment))
+                .filter(|assignment| {
+                    assignment.frame == frame && assignment.source == AssignmentSource::LinkedSumti
+                })
+                .collect();
+            assert_eq!(linked.len(), 4, "{input}");
+            for (index, word) in ["ko'a", "ko'e", "ko'i", "ko'o"].iter().enumerate() {
                 assert_eq!(
-                    linked[0].slot,
-                    FixturePlaceSlot::Numbered { place: first_place }
-                );
-                assert!(matches!(linked[1].slot, FixturePlaceSlot::Modal { .. }));
-                assert_eq!(
-                    linked[2].slot,
-                    FixturePlaceSlot::Numbered {
-                        place: first_place + 1
-                    }
+                    linked[index].sumti,
+                    nth_span_key(&input, word, 0),
+                    "{input}"
                 );
                 assert_eq!(
-                    linked[3].slot,
-                    FixturePlaceSlot::Numbered {
-                        place: first_place + 2
-                    }
-                );
-                assert!(
-                    projection
-                        .assignments
-                        .iter()
-                        .any(|assignment| assignment.frame == frame
-                            && assignment.sumti == nth_span_key(&input, "ko'u", 0)
-                            && assignment.slot
-                                == FixturePlaceSlot::Numbered {
-                                    place: first_place + 3
-                                }),
-                    "following term must continue after linked arguments: {input}"
+                    linked[index].term, None,
+                    "a linked normal term is not a TermSyntax wrapper"
                 );
             }
+            assert_eq!(
+                linked[0].slot,
+                FixturePlaceSlot::Numbered { place: first_place }
+            );
+            assert!(matches!(linked[1].slot, FixturePlaceSlot::Modal { .. }));
+            assert_eq!(
+                linked[2].slot,
+                FixturePlaceSlot::Numbered {
+                    place: first_place + 1
+                }
+            );
+            assert_eq!(
+                linked[3].slot,
+                FixturePlaceSlot::Numbered {
+                    place: first_place + 2
+                }
+            );
+            assert!(
+                projection
+                    .assignments
+                    .iter()
+                    .any(|assignment| assignment.frame == frame
+                        && assignment.sumti == nth_span_key(&input, "ko'u", 0)
+                        && assignment.slot
+                            == FixturePlaceSlot::Numbered {
+                                place: first_place + 3
+                            }),
+                "following term must continue after linked arguments: {input}"
+            );
         }
     }
 

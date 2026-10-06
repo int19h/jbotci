@@ -29,7 +29,6 @@ use super::generated_model::{
     ExpZiTagAtomSyntax, SelbriSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax,
     recovered,
 };
-use super::generated_runtime::GrammarMapTo;
 use super::generated_runtime::OutputRejection;
 
 #[invariant(true)]
@@ -239,15 +238,6 @@ impl From<recovered::Recovered<recovered::BaselineTermTenseModalSyntax>>
             value,
             recovered_baseline_body_into_body,
         )))
-    }
-}
-
-#[contract_trait]
-impl GrammarMapTo<recovered::TenseModalSyntax>
-    for recovered::Recovered<recovered::BaselineTermTenseModalSyntax>
-{
-    fn grammar_map_to(self) -> recovered::TenseModalSyntax {
-        self.into()
     }
 }
 
@@ -584,14 +574,6 @@ fn is_baseline_tag(run: &ExpTagAtomRunBodySyntax) -> bool {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineTagRejection;
 
-/// Rejects only the whole rolling-Zantufa tag arm at source positions that are
-/// camxes `stag` consumers but have no rolling `tag` counterpart. This match is
-/// deliberately exhaustive and contains no catch-all arm: extending the shared
-/// body enum must force every context guard to be audited again.
-#[invariant(true)]
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ZantufaTagRejection;
-
 /// Rejects extension-owned tags immediately after selbri negation, where the
 /// baseline grammar instead owns the surface as a sequence of leading terms.
 #[invariant(true)]
@@ -757,10 +739,6 @@ fn tense_modal_is_extension(output: &TenseModalSyntax) -> bool {
             | TenseModalAtomSyntax::ModalTense(_)
             | TenseModalAtomSyntax::StickyTense(_) => false,
         },
-        // Whole-Zantufa is tried after both baseline and camxes-exp ownership. Any
-        // baseline-prefix stealing surface therefore reaches the exp arm above;
-        // Zantufa-only first atoms such as bare ROI must remain valid after NA.
-        TenseModalBodySyntax::ZantufaTag(_) => false,
     }
 }
 
@@ -836,8 +814,6 @@ fn recovered_tense_modal_is_extension(output: &recovered::TenseModalSyntax) -> b
                 | recovered::TenseModalAtomSyntax::StickyTense(_) => false,
             })
         }
-        // Keep this disposition identical to the strict predicate above.
-        recovered::TenseModalBodySyntax::ZantufaTag(_) => false,
     }
 }
 
@@ -850,9 +826,6 @@ impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
     fn rejects(&self, output: &SelbriSyntax) -> bool {
         match output {
             SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
-            SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
-            | SelbriSyntax::ZantufaRelativeSelbri(_)
-            | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             SelbriSyntax::UntaggedSelbri(_) => false,
         }
     }
@@ -874,48 +847,7 @@ impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
             recovered::SelbriSyntax::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
                 valid(&tagged.tense_modal).is_some_and(recovered_tense_modal_is_extension)
             }),
-            recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
-            | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
-            | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             recovered::SelbriSyntax::UntaggedSelbri(_) => false,
-        }
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<TenseModalSyntax> for ZantufaTagRejection {
-    fn rejected_name(&self) -> &'static str {
-        "Zantufa tag at a camxes-only stag position"
-    }
-
-    fn rejects(&self, output: &TenseModalSyntax) -> bool {
-        let TenseModalSyntax(body) = output;
-        match body.as_ref() {
-            TenseModalBodySyntax::ConnectedTenseModal(_) => false,
-            TenseModalBodySyntax::TenseModalAtom(_) => false,
-            TenseModalBodySyntax::ZantufaTag(_) => true,
-        }
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::TenseModalSyntax>> for ZantufaTagRejection {
-    fn rejected_name(&self) -> &'static str {
-        "Zantufa tag at a camxes-only stag position"
-    }
-
-    fn rejects(&self, output: &recovered::Recovered<recovered::TenseModalSyntax>) -> bool {
-        let Some(output) = valid(output) else {
-            return false;
-        };
-        let recovered::TenseModalSyntax(body) = output;
-        let Some(body) = valid(body) else {
-            return false;
-        };
-        match body {
-            recovered::TenseModalBodySyntax::ConnectedTenseModal(_) => false,
-            recovered::TenseModalBodySyntax::TenseModalAtom(_) => false,
-            recovered::TenseModalBodySyntax::ZantufaTag(_) => true,
         }
     }
 }

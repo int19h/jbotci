@@ -243,7 +243,7 @@ pub struct ToolGentufaRequest {
     /// How to render the parse. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolGentufaFormat,
-    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// Optional dialect selector: a builtin dialect name (e.g.
     /// `cbm`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
@@ -445,7 +445,7 @@ pub struct ToolVlaseiRequest {
     /// How to render the analysis. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolVlaseiFormat,
-    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// Optional dialect selector: a builtin dialect name (e.g.
     /// `cbm`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]

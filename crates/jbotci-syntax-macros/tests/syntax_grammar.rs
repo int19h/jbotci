@@ -169,8 +169,8 @@ jbotci_syntax_macros::syntax_grammar! {
         /// The source-ordered `first_sumti` component retained by the `linkargs` syntax node.
         field first_sumti <- opt(boxed(sumti));
         /// The source-ordered `tagged` component retained by the `linkargs` syntax node.
-        when feature(ZantufaTags) field tagged <- boxed(sumti);
-        assert feature(ZantufaTags);
+        when feature(Cbm) field tagged <- boxed(sumti);
+        assert feature(Cbm);
         assert !feature(UnrestrictedFree);
         when feature(UnrestrictedFree) assert !word_category(Quote);
         when feature(UnrestrictedFree) let folded = fold_chain(head, tail);
@@ -256,15 +256,13 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[4].conditions.len(), 1);
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[4].conditions[0],
-        SyntaxGrammarCondition {
-            feature: "ZantufaTags",
-        }
+        SyntaxGrammarCondition { feature: "Cbm" }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].kind, "require");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[5].recovery,
         SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Lookahead(
-            &SyntaxGrammarRecoveryExpr::Opaque("feature(ZantufaTags)")
+            &SyntaxGrammarRecoveryExpr::Opaque("feature(Cbm)")
         ))
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "require");
@@ -405,7 +403,7 @@ mod anchor_metadata {
             /// The `recursive_item` alternative of item.
             recursive_item,
             /// The `gated_item` alternative of item.
-            when feature(ZantufaTags) gated_item,
+            when feature(Cbm) gated_item,
             /// The `nullable_item` alternative of item.
             nullable_item,
             /// The `explicit_argument_item` alternative of item.
@@ -454,7 +452,7 @@ mod anchor_metadata {
             /// The source-ordered `fa` component retained by the `gated_item` syntax node.
             field fa <- selmaho(Fa).warn(ExperimentalAnchorMetadata).wf();
             /// The source-ordered `bo` component retained by the `gated_item` syntax node.
-            when feature(ZantufaTags) field bo <- cmavo(Bo).wf();
+            when feature(Cbm) field bo <- cmavo(Bo).wf();
         }
 
         /// Syntax model for nullable item parsed by the `nullable_item` grammar rule.
@@ -584,9 +582,7 @@ mod anchor_metadata {
             .expect("gated first token");
         assert_eq!(
             gated_first.conditions,
-            &[SyntaxGrammarCondition {
-                feature: "ZantufaTags",
-            }]
+            &[SyntaxGrammarCondition { feature: "Cbm" }]
         );
         let gated = anchors_for("gated_item");
         let gated_field_anchor = gated.fields[1]
@@ -601,9 +597,7 @@ mod anchor_metadata {
             .expect("gated field anchor");
         assert_eq!(
             gated_field_anchor.conditions,
-            &[SyntaxGrammarCondition {
-                feature: "ZantufaTags",
-            }]
+            &[SyntaxGrammarCondition { feature: "Cbm" }]
         );
 
         let tail_anchors = &literal.fields[3].anchors;
@@ -970,7 +964,7 @@ mod new_dsl {
             /// The computed `computed` component retained by the `item` syntax node.
             field computed: usize = 1usize;
             let temp = 2usize;
-            assert feature(ZantufaTags);
+            assert feature(Cbm);
             assert !feature(UnrestrictedFree);
             assert !cmavo(Bo);
         }
@@ -1015,7 +1009,7 @@ mod new_dsl {
             /// The `other_item` alternative of item choice.
             other_item,
             /// The `gated_item` alternative of item choice.
-            when feature(ZantufaTags) gated_item,
+            when feature(Cbm) gated_item,
         }
 
         /// Syntax model for item choice parsed by the `external_item_choice` grammar rule.
@@ -1097,7 +1091,7 @@ mod new_dsl {
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[0].fields[3].recovery,
             SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Lookahead(
-                &SyntaxGrammarRecoveryExpr::Opaque("feature(ZantufaTags)")
+                &SyntaxGrammarRecoveryExpr::Opaque("feature(Cbm)")
             ))
         );
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[4].kind, "require");
@@ -1139,9 +1133,7 @@ mod new_dsl {
         assert_eq!(SYNTAX_GRAMMAR_RULES[5].fields[2].name, "gated_item");
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[5].fields[2].conditions,
-            &[SyntaxGrammarCondition {
-                feature: "ZantufaTags",
-            }]
+            &[SyntaxGrammarCondition { feature: "Cbm" }]
         );
 
         assert_eq!(SYNTAX_GRAMMAR_RULES[6].kind, "enum");

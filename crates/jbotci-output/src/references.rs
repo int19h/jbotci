@@ -462,9 +462,7 @@ impl<'tree> ReferenceIndexView<'tree> for GeneratedSyntaxIndex<'tree> {
                     syntax,
                     GeneratedSyntaxNodeRef::TermSyntaxTermsetGroup(_)
                         | GeneratedSyntaxNodeRef::SimpleTermSyntaxNuhiTermset(_)
-                        | GeneratedSyntaxNodeRef::SimpleTermSyntaxKeTermset(_)
                         | GeneratedSyntaxNodeRef::NuhiTermsetSyntax(_)
-                        | GeneratedSyntaxNodeRef::KeTermsetSyntax(_)
                         | GeneratedSyntaxNodeRef::TermsetGroupSyntax(_)
                 )
             }) {
@@ -1042,11 +1040,6 @@ fn generated_words_for_tense_modal(
             }
             words
         }
-        generated::TenseModalBodySyntax::ZantufaTag(tag) => generated_words_for_node(
-            GeneratedSyntaxNodeRef::ZantufaTagSyntax(tag),
-            source,
-            options,
-        ),
     }
 }
 
@@ -1114,8 +1107,7 @@ fn generated_words_for_node(
     match node {
         GeneratedSyntaxNodeRef::TenseModalSyntax(value) => value.visit_in_order(&mut collector),
         GeneratedSyntaxNodeRef::TenseModalBodySyntaxConnectedTenseModal(value)
-        | GeneratedSyntaxNodeRef::TenseModalBodySyntaxTenseModalAtom(value)
-        | GeneratedSyntaxNodeRef::TenseModalBodySyntaxZantufaTag(value) => {
+        | GeneratedSyntaxNodeRef::TenseModalBodySyntaxTenseModalAtom(value) => {
             value.visit_in_order(&mut collector)
         }
         GeneratedSyntaxNodeRef::ConnectedTenseModalSyntax(value) => {
@@ -1163,9 +1155,6 @@ fn generated_words_for_node(
         }
         GeneratedSyntaxNodeRef::ModalTenseSyntax(value) => value.visit_in_order(&mut collector),
         GeneratedSyntaxNodeRef::ExpTagAtomRunSyntax(value) => {
-            value.visit_in_order(&mut collector)
-        }
-        GeneratedSyntaxNodeRef::ZantufaTagSyntax(value) => {
             value.visit_in_order(&mut collector)
         }
         GeneratedSyntaxNodeRef::StickyTenseSyntax(value) => value.visit_in_order(&mut collector),

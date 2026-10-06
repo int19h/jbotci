@@ -31,26 +31,17 @@ use crate::{
     WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
-mod baseline_bo;
-mod baseline_bridi_tail;
-mod baseline_mex;
-mod baseline_quantifier;
 mod baseline_relative;
-mod baseline_selbri;
 mod baseline_tag;
 mod baseline_termset;
 mod description_leading;
 mod generated;
 mod generated_runtime;
-mod kehe_linked_selbri;
 mod link_payload;
 mod parse_error;
 mod parser_core;
-mod selbri_boundary;
 mod sumti_operand_tier;
 pub(crate) mod tokens;
-mod zantufa_atoms;
-mod zantufa_quantifier_relatives;
 use parse_error::{
     SharedStack, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError,
 };
@@ -662,9 +653,7 @@ pub(super) struct SyntaxMemoValue {
 pub(super) enum SyntaxMemoScope {
     #[default]
     Ordinary,
-    CeiFree,
     DescriptionRelative,
-    CeiFreeDescriptionRelative,
 }
 
 impl SyntaxMemoScope {
@@ -673,11 +662,7 @@ impl SyntaxMemoScope {
     fn nested(self, nested: Self) -> Self {
         match (self, nested) {
             (Self::Ordinary, nested) | (nested, Self::Ordinary) => nested,
-            (Self::CeiFree, Self::DescriptionRelative)
-            | (Self::DescriptionRelative, Self::CeiFree)
-            | (Self::CeiFreeDescriptionRelative, _)
-            | (_, Self::CeiFreeDescriptionRelative) => Self::CeiFreeDescriptionRelative,
-            (scope, _) => scope,
+            (Self::DescriptionRelative, Self::DescriptionRelative) => Self::DescriptionRelative,
         }
     }
 }
@@ -1205,7 +1190,6 @@ pub(super) struct ParserState<'tokens> {
     recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
     syntax_rule_observation_latest_recovery_target_indices:
         RefCell<FxHashMap<usize, Option<usize>>>,
-    strict_observing: bool,
     consumed_recovery_directives: usize,
     // This is a consumption stack parallel to `recovery_directives`; each
     // entry records where its directive actually fired. Checkpoint rewind can
@@ -1223,42 +1207,6 @@ pub(super) struct ParserState<'tokens> {
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
     _tokens: PhantomData<&'tokens ()>,
-}
-
-/// Owned parser-local state suspended while a strict observational probe runs.
-/// Probes must not publish memo, recovery, diagnostic, or continuation effects
-/// into their parent parse; moving these stores is both cheaper and safer than
-/// cloning corpus-sized maps.
-#[invariant(true)]
-struct StrictObserveJournal<'tokens> {
-    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
-    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
-    syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
-    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
-    recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
-    syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
-    replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
-    applied_syntax_diagnostic_log: Vec<SyntaxDiagnosticObservationId>,
-    next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
-    diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
-    diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
-    continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
-    warnings: Vec<SyntaxWarning>,
-    consumed_recovery_directives: usize,
-    effective_fail_token_indices: Vec<usize>,
-    active_recovery_directive: Option<ActiveRecoveryDirective>,
-    abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
-    completed_recovery_boundary_location: Option<usize>,
-    recovery_checkpoint_collection: Option<RecoveryCheckpointCollection>,
-    continuation_sentinel_index: Option<usize>,
-    recovery_directives: Vec<RecoveryDirective>,
-    recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
-    recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
-    syntax_rule_observation_latest_recovery_target_indices: FxHashMap<usize, Option<usize>>,
-    recovery_tokens: Vec<Token>,
-    recovery_source: Option<Arc<str>>,
-    track_recovery_branches: bool,
-    strict_observing: bool,
 }
 
 #[invariant(
@@ -1280,99 +1228,6 @@ struct StrictObserveJournal<'tokens> {
     "abandoned recovery ranges are ordered and disjoint"
 )]
 impl<'tokens> ParserState<'tokens> {
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn begin_strict_observe(&mut self) -> StrictObserveJournal<'tokens> {
-        StrictObserveJournal {
-            syntax_memo: std::mem::take(&mut self.syntax_memo),
-            syntax_failure_memo: std::mem::take(&mut self.syntax_failure_memo),
-            syntax_memo_in_progress: std::mem::take(&mut self.syntax_memo_in_progress),
-            syntax_recovery_memo_in_progress: std::mem::take(
-                &mut self.syntax_recovery_memo_in_progress,
-            ),
-            recovery_memo_trial: self.recovery_memo_trial.take(),
-            syntax_memo_rule_frames: std::mem::take(&mut self.syntax_memo_rule_frames),
-            replayed_syntax_diagnostic_observations: std::mem::take(
-                &mut self.replayed_syntax_diagnostic_observations,
-            ),
-            applied_syntax_diagnostic_log: std::mem::take(&mut self.applied_syntax_diagnostic_log),
-            next_syntax_diagnostic_observation_frame_id: std::mem::replace(
-                &mut self.next_syntax_diagnostic_observation_frame_id,
-                NonZeroUsize::MIN,
-            ),
-            diagnostic_candidates: std::mem::take(&mut self.diagnostic_candidates),
-            diagnostic_candidate_hash_buckets: std::mem::take(
-                &mut self.diagnostic_candidate_hash_buckets,
-            ),
-            continuation_diagnostic_candidates: std::mem::take(
-                &mut self.continuation_diagnostic_candidates,
-            ),
-            warnings: std::mem::take(&mut self.warnings),
-            consumed_recovery_directives: std::mem::replace(
-                &mut self.consumed_recovery_directives,
-                0,
-            ),
-            effective_fail_token_indices: std::mem::take(&mut self.effective_fail_token_indices),
-            active_recovery_directive: self.active_recovery_directive.take(),
-            abandoned_recovery_ranges: std::mem::take(&mut self.abandoned_recovery_ranges),
-            completed_recovery_boundary_location: self.completed_recovery_boundary_location.take(),
-            recovery_checkpoint_collection: self.recovery_checkpoint_collection.take(),
-            // The sentinel and time limit are ambient parse policy, not child
-            // outputs. Keep them in force while the strict probe runs.
-            continuation_sentinel_index: self.continuation_sentinel_index,
-            recovery_directives: std::mem::take(&mut self.recovery_directives),
-            recovery_rule_parser_targets: std::mem::take(&mut self.recovery_rule_parser_targets),
-            recovery_rule_target_last_indices: std::mem::take(
-                &mut self.recovery_rule_target_last_indices,
-            ),
-            syntax_rule_observation_latest_recovery_target_indices: std::mem::take(
-                self.syntax_rule_observation_latest_recovery_target_indices
-                    .get_mut(),
-            ),
-            recovery_tokens: std::mem::take(&mut self.recovery_tokens),
-            recovery_source: self.recovery_source.take(),
-            track_recovery_branches: std::mem::replace(&mut self.track_recovery_branches, false),
-            strict_observing: std::mem::replace(&mut self.strict_observing, true),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn end_strict_observe(&mut self, journal: StrictObserveJournal<'tokens>) {
-        self.syntax_memo = journal.syntax_memo;
-        self.syntax_failure_memo = journal.syntax_failure_memo;
-        self.syntax_memo_in_progress = journal.syntax_memo_in_progress;
-        self.syntax_recovery_memo_in_progress = journal.syntax_recovery_memo_in_progress;
-        self.recovery_memo_trial = journal.recovery_memo_trial;
-        self.syntax_memo_rule_frames = journal.syntax_memo_rule_frames;
-        self.replayed_syntax_diagnostic_observations =
-            journal.replayed_syntax_diagnostic_observations;
-        self.applied_syntax_diagnostic_log = journal.applied_syntax_diagnostic_log;
-        self.next_syntax_diagnostic_observation_frame_id =
-            journal.next_syntax_diagnostic_observation_frame_id;
-        self.diagnostic_candidates = journal.diagnostic_candidates;
-        self.diagnostic_candidate_hash_buckets = journal.diagnostic_candidate_hash_buckets;
-        self.continuation_diagnostic_candidates = journal.continuation_diagnostic_candidates;
-        self.warnings = journal.warnings;
-        self.consumed_recovery_directives = journal.consumed_recovery_directives;
-        self.effective_fail_token_indices = journal.effective_fail_token_indices;
-        self.active_recovery_directive = journal.active_recovery_directive;
-        self.abandoned_recovery_ranges = journal.abandoned_recovery_ranges;
-        self.completed_recovery_boundary_location = journal.completed_recovery_boundary_location;
-        self.recovery_checkpoint_collection = journal.recovery_checkpoint_collection;
-        self.continuation_sentinel_index = journal.continuation_sentinel_index;
-        self.recovery_directives = journal.recovery_directives;
-        self.recovery_rule_parser_targets = journal.recovery_rule_parser_targets;
-        self.recovery_rule_target_last_indices = journal.recovery_rule_target_last_indices;
-        *self
-            .syntax_rule_observation_latest_recovery_target_indices
-            .get_mut() = journal.syntax_rule_observation_latest_recovery_target_indices;
-        self.recovery_tokens = journal.recovery_tokens;
-        self.recovery_source = journal.recovery_source;
-        self.track_recovery_branches = journal.track_recovery_branches;
-        self.strict_observing = journal.strict_observing;
-    }
-
     #[requires(true)]
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
@@ -1406,7 +1261,6 @@ impl<'tokens> ParserState<'tokens> {
             syntax_rule_observation_latest_recovery_target_indices: RefCell::new(
                 FxHashMap::default(),
             ),
-            strict_observing: false,
             consumed_recovery_directives: 0,
             effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
@@ -1514,21 +1368,18 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == (!self.strict_observing && !self.recovery_directives.is_empty()))]
+    #[ensures(ret == !self.recovery_directives.is_empty())]
     pub(super) fn recovery_enabled(&self) -> bool {
-        !self.strict_observing && !self.recovery_directives.is_empty()
+        !self.recovery_directives.is_empty()
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(ret == (!self.strict_observing && (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start))))]
+    #[ensures(ret == (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start)))]
     pub(super) fn recovery_rule_parser_enabled(
         &mut self,
         rule: &'static str,
         instance_byte_start: usize,
     ) -> bool {
-        if self.strict_observing {
-            return false;
-        }
         if !self
             .recovery_rule_parser_targets
             .contains(&(rule, instance_byte_start))
@@ -1550,15 +1401,9 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == (!self.strict_observing && self.track_recovery_branches))]
+    #[ensures(ret == self.track_recovery_branches)]
     pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
-        !self.strict_observing && self.track_recovery_branches
-    }
-
-    #[requires(true)]
-    #[ensures(ret == self.strict_observing)]
-    pub(super) fn is_strict_observing(&self) -> bool {
-        self.strict_observing
+        self.track_recovery_branches
     }
 
     #[requires(true)]
@@ -3640,7 +3485,7 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     _source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
-    let tokens = syntax_tokens(words, options);
+    let tokens = syntax_tokens(words);
     let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
@@ -3714,7 +3559,7 @@ pub(crate) fn expected_continuations(
     // must participate in the same modifier preparation as a real word.
     // In particular, trailing BAhE decorates the sentinel without changing
     // which grammar terminals are tested at the cut.
-    let mut tokens = prepare_syntax_tokens(bare_tokens, options);
+    let mut tokens = prepare_syntax_tokens(bare_tokens);
     let sentinel_index = tokens.len() - 1;
     // BAhE has now been consumed as the sentinel's prefix. Its source span
     // must not widen the synthetic zero-width parser token back over the
@@ -3797,7 +3642,7 @@ pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
-    let tokens = syntax_tokens(words, options);
+    let tokens = syntax_tokens(words);
     parse_generated_model_syntax_tokens_with_recovery_attempt(tokens, source, options)
 }
 
@@ -5088,14 +4933,6 @@ fn recovery_condition_matches(
     match condition.feature {
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
-        "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
-        "ZantufaMex" => dialect.zantufa_mex_enabled,
-        "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
-        "ZantufaSelbriReinterpretation" => dialect.zantufa_selbri_reinterpretation_enabled,
-        "ZantufaSelbri" => dialect.zantufa_selbri_enabled,
-        "ZantufaSelbriAtomReinterpretation" => dialect.zantufa_selbri_atom_reinterpretation_enabled,
-        "ZantufaTags" => dialect.zantufa_tags_enabled,
-        "ZantufaTerms" => dialect.zantufa_terms_enabled,
         _ => false,
     }
 }
@@ -5351,7 +5188,6 @@ fn add_generated_construct_warnings(
     let mut visitor = new!(GeneratedConstructWarningVisitor {
         tokens,
         cbm_enabled,
-        zantufa_tag_depth: Cell::new(0),
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
@@ -5370,7 +5206,6 @@ fn add_generated_construct_warnings(
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
     cbm_enabled: bool,
-    zantufa_tag_depth: Cell<usize>,
     warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
@@ -5381,11 +5216,6 @@ impl GeneratedConstructWarningVisitor<'_> {
     where
         T: generated::generated_model::TreeNode,
     {
-        if construct == ExperimentalConstruct::ExperimentalZantufaMex
-            && self.zantufa_tag_depth.get() > 0
-        {
-            return;
-        }
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
         });
@@ -5394,32 +5224,6 @@ impl GeneratedConstructWarningVisitor<'_> {
             let mut warnings = self.warnings.borrow_mut();
             push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn remove_nested_zantufa_warnings<T>(&mut self, node: &T)
-    where
-        T: generated::generated_model::TreeNode,
-    {
-        let mut visitor = new!(TokenRangeVisitor {
-            first: Cell::new(None),
-            last: Cell::new(None),
-        });
-        node.visit_in_order(&mut visitor);
-        let (Some(first), Some(last)) = (visitor.first.get(), visitor.last.get()) else {
-            return;
-        };
-        let first = generated_warning_anchor_index(self.tokens, first);
-        let last = generated_warning_anchor_index(self.tokens, last);
-        self.warnings.borrow_mut().retain(|warning| {
-            !matches!(
-                warning.kind,
-                ExperimentalConstruct::ExperimentalZantufaMex
-                    | ExperimentalConstruct::ExperimentalZantufaCmavo
-            ) || warning.anchor_index < first
-                || warning.anchor_index > last
-        });
     }
 
     #[requires(description.0.value.is_cmavo(Cmavo::La))]
@@ -5461,21 +5265,6 @@ fn generated_exp_run_is_single_unprefixed_fa(
             atom.value.as_ref(),
             generated::generated_model::ExpTagAtomSyntax::ExpFaTagAtom(_)
         )
-}
-
-/// Report whether a bridi-tail joint's shared connective selected one of the arms rolling
-/// Zantufa contributes to it. The sum is matched exhaustively so that a further spelling has to
-/// answer this question for itself.
-#[requires(true)]
-#[ensures(true)]
-fn generated_tail_connective_is_zantufa(
-    connective: &generated::generated_model::BridiTailConnectiveSyntax,
-) -> bool {
-    match connective {
-        generated::generated_model::BridiTailConnectiveSyntax::JoikConnective(_)
-        | generated::generated_model::BridiTailConnectiveSyntax::JekConnective(_) => true,
-        generated::generated_model::BridiTailConnectiveSyntax::GihekConnective(_) => false,
-    }
 }
 
 impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
@@ -5525,94 +5314,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             ) => {
                 self.warn_first_token(ExperimentalConstruct::ExperimentalCuTermsSelbri, tail);
             }
-            // Rolling Zantufa's three additional bridi-tail joints own no token that is theirs
-            // alone: the connective is the shared GIhA/JOI/JA spelling, the tag is the shared
-            // tag machinery, the BO and the CU are the sourced words, and the top continuation's
-            // tag and CU are both optional. Each is therefore diagnosed post-parse here, anchored
-            // at its own first token, which is the connective or the tag that opens the joint.
-            // The unbound top continuation warns ONCE for the whole construct rather than once
-            // per element: the repeated group is one node and one decision.
-            generated::generated_model::NodeRef::ZantufaContinuedBridiTailSyntax(tail) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    tail.continuations.first(),
-                );
-            }
-            generated::generated_model::NodeRef::ZantufaContinuedBridiTailWithoutTailTermsSyntax(
-                tail,
-            ) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    tail.continuations.first(),
-                );
-            }
-            // The same category covers the two sourced joints rolling Zantufa widens when the
-            // shared connective selects one of the arms it adds (zantufa-1.9999.peg:70). The KE
-            // join is not among them: its connective is GIhA alone, because rolling Zantufa
-            // spells no KE join at that level. Those joints own no
-            // token of their own in that reading either -- the JOI/JA spelling is the one every
-            // other connective tier shares -- so the warning is attached here, anchored at the
-            // connective that opens the joint. The top continuation is deliberately not in this
-            // list: it warns once for its whole list at the node above, and warning here as well
-            // would count one construct twice.
-            generated::generated_model::NodeRef::BridiTailContinuationSyntax(continuation)
-                if generated_tail_connective_is_zantufa(&continuation.connective) =>
-            {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::BridiTailContinuationWithoutTailTermsSyntax(
-                continuation,
-            ) if generated_tail_connective_is_zantufa(&continuation.connective) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::BridiTailBoContinuationSyntax(continuation)
-                if generated_tail_connective_is_zantufa(&continuation.connective) =>
-            {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::BridiTailBoContinuationWithoutTailTermsSyntax(
-                continuation,
-            ) if generated_tail_connective_is_zantufa(&continuation.connective) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::ZantufaTagBoBridiTailContinuationSyntax(
-                continuation,
-            ) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax(
-                continuation,
-            ) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            // Rolling Zantufa's NUhI-less termset owns no token of its own -- its GEK and its
-            // first GIK are the shapes every other forethought connection spells, and its GIhI is
-            // elidable -- so the arm is diagnosed post-parse here, anchored at the GEK that opens
-            // it. Branches beyond the first keep the in-parser n-ary warning on their own GI.
-            generated::generated_model::NodeRef::ZantufaGekTermsetSyntax(termset) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaGekTermset,
-                    termset,
-                );
-            }
             generated::generated_model::NodeRef::ConnectedLinkedTermContinuationSyntax(
                 continuation,
             ) => {
@@ -5622,8 +5323,8 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 );
             }
             // The normal-flavour (D4) loose tier is the same extension one ladder over: it is
-            // sourced by camxes-exp's `term_1` and rolling Zantufa's `term` and by nothing in
-            // camxes-standard, which has no term-level connective at any position. Its
+            // sourced by camxes-exp's `term_1` and by nothing in camxes-standard, which has no
+            // term-level connective at any position. Its
             // continuations own no token of their own for the same reason the sibling tiers'
             // do not, so it is diagnosed here under the same category.
             generated::generated_model::NodeRef::ConnectedNormalTermContinuationSyntax(
@@ -5634,74 +5335,18 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     continuation,
                 );
             }
-            generated::generated_model::NodeRef::ZantufaTagSyntax(tag) => {
-                self.remove_nested_zantufa_warnings(tag);
-                self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaTag, tag);
-                self.zantufa_tag_depth
-                    .set(self.zantufa_tag_depth.get() + 1);
-            }
-            generated::generated_model::NodeRef::ZantufaRelativeSelbriSyntax(selbri) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
-                    selbri.relative_clauses.as_ref(),
-                );
-            }
-            generated::generated_model::NodeRef::ZantufaBareRelativeClauseTailSyntax(tail) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
-                    tail.0.as_ref(),
-                );
-            }
-            generated::generated_model::NodeRef::FragmentStatementSyntaxZantufaMeksoFragment(
-                fragment,
-            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, fragment),
-            generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(
-                quantifier,
-            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
-            generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
-                quantifier,
-            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
-            // The two with-relatives variants ride the same category (#830 D3c): the trailing
-            // relative list is rolling Zantufa's own quantifier shape, so the construct a reader
-            // is being warned about is the Zantufa mex quantifier, not a second thing.
-            generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifierWithRelatives(
-                quantifier,
-            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
-            generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifierWithRelatives(
-                quantifier,
-            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
-            generated::generated_model::NodeRef::ZantufaMexContinuationSyntax(continuation)
-                if continuation.right_expression.is_none()
-                    && matches!(
-                        continuation.operators.last().as_ref(),
-                        generated::generated_model::ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
-                    ) =>
-            {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaMex,
-                    continuation,
-                );
-            }
             generated::generated_model::NodeRef::AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator(
                 operator,
             ) => self.warn_first_token(
                 ExperimentalConstruct::ExperimentalMexOperatorConnective,
                 operator,
             ),
-            // The two epoch-9 description-leading routes warn at the LEADING SUMTI's own first
+            // The camxes-exp description-leading route warns at the LEADING SUMTI's own first
             // token rather than at the descriptor head: the head is shared with the baseline
             // route, and what is experimental is the leading element the route admits after it.
             generated::generated_model::NodeRef::ExpFullSumtiDescriptionTailSyntax(tail) => {
                 self.warn_first_token(
                     ExperimentalConstruct::ExperimentalExpDescriptionLeadingSumti,
-                    tail.leading_sumti.as_ref(),
-                );
-            }
-            generated::generated_model::NodeRef::ZantufaRelativesFirstDescriptionTailSyntax(
-                tail,
-            ) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaDescriptionLeadingSumti,
                     tail.leading_sumti.as_ref(),
                 );
             }
@@ -5729,53 +5374,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             }
             _ => {}
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_node(&mut self, node: Self::Node) {
-        if matches!(
-            node,
-            generated::generated_model::NodeRef::ZantufaTagSyntax(_)
-        ) {
-            assert!(
-                self.zantufa_tag_depth.get() > 0,
-                "Zantufa tag traversal exit must follow its matching entry"
-            );
-            self.zantufa_tag_depth.set(self.zantufa_tag_depth.get() - 1);
-        }
-    }
-}
-
-#[invariant(
-    first
-        .get()
-        .is_none_or(|token| token.core_word().byte_range().is_some()),
-    "captured first token must be source-backed"
-)]
-#[invariant(
-    last
-        .get()
-        .is_none_or(|token| token.core_word().byte_range().is_some()),
-    "captured last token must be source-backed"
-)]
-struct TokenRangeVisitor<'tree> {
-    first: Cell<Option<&'tree Token>>,
-    last: Cell<Option<&'tree Token>>,
-}
-
-impl<'tree> TreeVisitor<'tree> for TokenRangeVisitor<'tree> {
-    type Node = generated::generated_model::NodeRef<'tree>;
-    type Atom = generated::generated_model::AtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        let generated::generated_model::AtomRef::Token(token) = atom;
-        if self.first.get().is_none() {
-            self.first.set(Some(token));
-        }
-        self.last.set(Some(token));
     }
 }
 
@@ -5834,20 +5432,14 @@ fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
-    prepare_syntax_tokens(words.iter().cloned().map(Token::bare).collect(), options)
+pub(crate) fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
+    prepare_syntax_tokens(words.iter().cloned().map(Token::bare).collect())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn prepare_syntax_tokens(tokens: Vec<Token>, options: &ParseOptions) -> Vec<Token> {
-    attach_indicators(
-        attach_bahe(tokens),
-        options
-            .dialect
-            .features
-            .contains(&DialectFeature::ZantufaTerms),
-    )
+fn prepare_syntax_tokens(tokens: Vec<Token>) -> Vec<Token> {
+    attach_indicators(attach_bahe(tokens))
 }
 
 #[requires(true)]
@@ -5883,7 +5475,7 @@ fn is_bahe_word(word: &Token) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token> {
+fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
     let mut out = Vec::with_capacity(words.len());
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
@@ -5905,9 +5497,7 @@ fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token
                         .last()
                         .and_then(modifier_word)
                         .is_some_and(is_indicator_word);
-                if prev_is_leading_indicator_nai
-                    || !should_attach_indicator(&prev, &indicator, preserve_zantufa_iau)
-                {
+                if prev_is_leading_indicator_nai || !should_attach_indicator(&prev, &indicator) {
                     out.push(prev);
                     out.push(word);
                     if let Some((nai_bahe, nai)) = nai {
@@ -5993,10 +5583,7 @@ fn is_indicator_word(word: &Word) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn should_attach_indicator(prev: &Token, indicator: &Word, preserve_zantufa_iau: bool) -> bool {
-    if preserve_zantufa_iau && indicator.is_cmavo(Cmavo::Ihau) {
-        return false;
-    }
+fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
     !(indicator.is_selmaho(Selmaho::Roi)
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
@@ -6036,7 +5623,7 @@ mod tests {
     fn token_cmavo_caches_both_known_cmavo_and_non_cmavo_results() {
         let words = segment_words_with_modifiers("mi klama").unwrap();
         let options = ParseOptions::default();
-        let tokens = syntax_tokens(&words, &options);
+        let tokens = syntax_tokens(&words);
         assert_eq!(tokens.len(), 2);
         let mut state = ParserState::new(&tokens, &options);
         for (index, (token, expected)) in tokens.iter().zip([Some(Cmavo::Mi), None]).enumerate() {
@@ -6071,282 +5658,6 @@ mod tests {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn strict_observe_child_state_is_nested_and_parent_state_is_restored() {
-        let (mut state, _store) = boundary_recovery_test_state();
-        state.syntax_memo_scope = SyntaxMemoScope::DescriptionRelative;
-        state
-            .syntax_memo_in_progress
-            .insert(("parent", 0, SyntaxMemoScope::Ordinary));
-        state.syntax_recovery_memo_in_progress.insert((
-            "parent-recovery",
-            1,
-            SyntaxMemoScope::Ordinary,
-            0,
-        ));
-        let parent_consumed_recovery_directives = state.consumed_recovery_directives;
-        let parent_effective_fail_token_indices = state.effective_fail_token_indices.clone();
-        state.continuation_sentinel_index = Some(3);
-        let parent_frame_id = state.next_syntax_diagnostic_observation_frame_id;
-
-        let outer = state.begin_strict_observe();
-        assert!(state.recovery_memo_trial.is_none());
-        assert!(state.syntax_memo_in_progress.is_empty());
-        assert!(state.syntax_recovery_memo_in_progress.is_empty());
-        assert_eq!(state.consumed_recovery_directives, 0);
-        assert!(state.effective_fail_token_indices.is_empty());
-        assert_eq!(state.continuation_sentinel_index, Some(3));
-        assert!(state.is_strict_observing());
-        assert!(!state.recovery_enabled());
-        assert!(!state.recovery_branch_tracking_enabled());
-        assert_eq!(
-            state.syntax_memo_scope,
-            SyntaxMemoScope::DescriptionRelative
-        );
-
-        state
-            .syntax_memo_in_progress
-            .insert(("outer-child", 4, SyntaxMemoScope::Ordinary));
-        state.consumed_recovery_directives = 1;
-        state.effective_fail_token_indices.push(4);
-        let inner = state.begin_strict_observe();
-        assert!(state.syntax_memo_in_progress.is_empty());
-        state
-            .syntax_memo_in_progress
-            .insert(("inner-child", 5, SyntaxMemoScope::Ordinary));
-        state.consumed_recovery_directives = 1;
-        state.effective_fail_token_indices.push(5);
-        state.end_strict_observe(inner);
-        assert_eq!(state.syntax_memo_in_progress.len(), 1);
-        assert!(state.syntax_memo_in_progress.contains(&(
-            "outer-child",
-            4,
-            SyntaxMemoScope::Ordinary
-        )));
-        assert_eq!(state.consumed_recovery_directives, 1);
-        assert_eq!(state.effective_fail_token_indices, [4]);
-
-        state.end_strict_observe(outer);
-        assert!(!state.is_strict_observing());
-        assert!(state.recovery_memo_trial.is_some());
-        assert!(
-            state
-                .syntax_memo_in_progress
-                .contains(&("parent", 0, SyntaxMemoScope::Ordinary))
-        );
-        assert!(state.syntax_recovery_memo_in_progress.contains(&(
-            "parent-recovery",
-            1,
-            SyntaxMemoScope::Ordinary,
-            0
-        )));
-        assert_eq!(
-            state.consumed_recovery_directives,
-            parent_consumed_recovery_directives
-        );
-        assert_eq!(
-            state.effective_fail_token_indices,
-            parent_effective_fail_token_indices
-        );
-        assert_eq!(state.continuation_sentinel_index, Some(3));
-        assert_eq!(
-            state.next_syntax_diagnostic_observation_frame_id,
-            parent_frame_id
-        );
-        assert_eq!(
-            state.syntax_memo_scope,
-            SyntaxMemoScope::DescriptionRelative
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn strict_observe_parser_rewinds_and_discards_child_state_on_success_and_failure() {
-        use parser_core::{Input as _, Parser as _};
-
-        let words = segment_words_with_modifiers("mi do").expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
-        let spanned = tokens
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(index, inner)| Spanned {
-                inner,
-                span: SimpleSpan::from(index..index + 1),
-            })
-            .collect::<Vec<_>>();
-        let input = spanned
-            .as_slice()
-            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
-
-        for fail_probe in [false, true] {
-            let mut state = ParserState::new(&tokens, &ParseOptions::default());
-            let probe = generated_runtime::strict_observe(parser_core::custom(move |input| {
-                assert!(input.next().is_some());
-                input.state().syntax_memo_in_progress.insert((
-                    "probe",
-                    0,
-                    SyntaxMemoScope::Ordinary,
-                ));
-                if fail_probe {
-                    Err(SyntaxParseError::custom(
-                        (0..0).into(),
-                        "strict observe probe failure".to_owned(),
-                    ))
-                } else {
-                    Ok(())
-                }
-            }));
-            let parser = parser_core::custom(move |input| {
-                let result = input.parse(probe.clone());
-                assert_eq!(result.is_err(), fail_probe);
-                assert_eq!(
-                    ParserInput::cursor_location(input.cursor().inner()),
-                    0,
-                    "strict observation must restore the caller cursor"
-                );
-                assert!(input.state().syntax_memo_in_progress.is_empty());
-                assert!(input.next().is_some(), "caller still owns the first token");
-                assert!(
-                    input.next().is_some(),
-                    "caller can continue after the probe"
-                );
-                Ok(())
-            });
-
-            let result = parser.parse_with_state(input, &mut state);
-            assert!(result.into_result().is_ok());
-            assert!(state.syntax_memo_in_progress.is_empty());
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn strict_observe_rule_entry_is_isolated_from_populated_recovery_state() {
-        use parser_core::{Input as _, Parser as _};
-
-        let source = "mi zo'u do .i mi klama";
-        let words = segment_words_with_modifiers(source).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
-        let spanned = tokens
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(index, inner)| Spanned {
-                inner,
-                span: SimpleSpan::from(index..index + 1),
-            })
-            .collect::<Vec<_>>();
-        let input = spanned
-            .as_slice()
-            .split_spanned(SimpleSpan::from(spanned.len()..spanned.len()));
-
-        for fail_probe in [false, true] {
-            let directive =
-                RecoveryDirective::new("owner", 0, 3, 3, 2, 0, SyntaxError::NotImplemented)
-                    .into_boundary_resync(0);
-            let mut session = SyntaxRecoveryMemoSession::new();
-            let trial = session.begin_trial();
-            let mut state = ParserState::new_with_recovery(
-                &tokens,
-                Some(source),
-                &ParseOptions::default(),
-                &[directive],
-                trial,
-                None,
-                None,
-            );
-            state.consumed_recovery_directives = 1;
-            state.effective_fail_token_indices.push(1);
-            let parent_directives = state.recovery_directives.clone();
-            let parent_targets = state.recovery_rule_parser_targets.clone();
-            let parent_latest_targets = state
-                .syntax_rule_observation_latest_recovery_target_indices
-                .borrow()
-                .clone();
-            let parent_trial = state.recovery_memo_trial.as_ref().unwrap().trial_id;
-
-            let rule = generated_runtime::rule_wrapper(
-                "strict-observed-rule",
-                None,
-                parser_core::custom(move |input| {
-                    assert!(!input.state().recovery_enabled());
-                    assert!(!input.state().recovery_branch_tracking_enabled());
-                    assert_eq!(input.state().syntax_memo_context().recovery_trial_id, None);
-                    assert!(input.next().is_some());
-                    if fail_probe {
-                        Err(SyntaxParseError::custom(
-                            (0..0).into(),
-                            "strict observed rule failure".to_owned(),
-                        ))
-                    } else {
-                        Ok(())
-                    }
-                }),
-            );
-            let probe = generated_runtime::strict_observe(rule);
-            let parser = parser_core::custom(move |input| {
-                assert_eq!(input.parse(probe.clone()).is_err(), fail_probe);
-                assert_eq!(ParserInput::cursor_location(input.cursor().inner()), 0);
-                while input.next().is_some() {}
-                Ok(())
-            });
-            let result = parser.parse_with_state(input, &mut state);
-            assert!(result.into_result().is_ok());
-            assert!(!state.is_strict_observing());
-            assert!(state.recovery_enabled());
-            assert!(state.recovery_branch_tracking_enabled());
-            assert_eq!(state.consumed_recovery_directives, 1);
-            assert_eq!(state.effective_fail_token_indices, [1]);
-            assert_eq!(state.recovery_directives, parent_directives);
-            assert_eq!(state.recovery_rule_parser_targets, parent_targets);
-            assert_eq!(
-                *state
-                    .syntax_rule_observation_latest_recovery_target_indices
-                    .borrow(),
-                parent_latest_targets
-            );
-            assert_eq!(
-                state.recovery_memo_trial.as_ref().unwrap().trial_id,
-                parent_trial
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn strict_observe_keeps_the_completion_cut_unmatchable_and_preserves_time_limit() {
-        use parser_core::{Input as _, Parser as _};
-
-        let sentinel = expected_continuation_sentinel(0);
-        let tokens = vec![sentinel];
-        let spanned = tokens
-            .iter()
-            .cloned()
-            .map(|inner| Spanned {
-                inner,
-                span: SimpleSpan::from(0..1),
-            })
-            .collect::<Vec<_>>();
-        let input = spanned.as_slice().split_spanned(SimpleSpan::from(1..1));
-        let time_limit = ContinuationTimeLimit::new(Duration::from_secs(30));
-        let options = ParseOptions::default();
-        let mut state =
-            ParserState::new_for_expected_continuations(&tokens, &options, 0, Some(time_limit));
-
-        let probe = generated_runtime::strict_observe(tokens::cmavo(Cmavo::Faho));
-        let result = probe.parse_with_state(input, &mut state);
-        assert!(result.into_result().is_err());
-        assert_eq!(state.continuation_sentinel_index, Some(0));
-        assert_eq!(state.continuation_time_limit, Some(time_limit));
-        assert!(!state.is_strict_observing());
-    }
-
-    #[requires(true)]
     #[ensures(ret.0.recovery_directives.len() == 1)]
     fn boundary_recovery_test_state() -> (
         ParserState<'static>,
@@ -6354,7 +5665,7 @@ mod tests {
     ) {
         let source = "mi zo'u do .i mi klama";
         let words = segment_words_with_modifiers(source).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let directive = RecoveryDirective::new("owner", 0, 3, 3, 2, 0, SyntaxError::NotImplemented)
             .into_boundary_resync(0);
         let mut session = SyntaxRecoveryMemoSession::new();
@@ -6807,20 +6118,6 @@ mod tests {
         );
         state.finish_syntax_memo_rule_frame();
 
-        let previous = state.enter_syntax_memo_scope(SyntaxMemoScope::CeiFree);
-        state.begin_syntax_memo_rule_frame();
-        let cei_free_context = state.syntax_memo_context();
-        state.store_syntax_memo_success(
-            "parameterized",
-            0,
-            cei_free_context,
-            0,
-            SyntaxMemoValue::from_shared(Rc::new(2_u8)),
-            Vec::new(),
-        );
-        state.finish_syntax_memo_rule_frame();
-        state.restore_syntax_memo_scope(previous);
-
         let previous = state.enter_syntax_memo_scope(SyntaxMemoScope::DescriptionRelative);
         state.begin_syntax_memo_rule_frame();
         let description_context = state.syntax_memo_context();
@@ -6829,7 +6126,7 @@ mod tests {
             0,
             description_context,
             0,
-            SyntaxMemoValue::from_shared(Rc::new(3_u8)),
+            SyntaxMemoValue::from_shared(Rc::new(2_u8)),
             Vec::new(),
         );
         state.finish_syntax_memo_rule_frame();
@@ -6837,8 +6134,7 @@ mod tests {
 
         for (scope, expected) in [
             (SyntaxMemoScope::Ordinary, 1_u8),
-            (SyntaxMemoScope::CeiFree, 2_u8),
-            (SyntaxMemoScope::DescriptionRelative, 3_u8),
+            (SyntaxMemoScope::DescriptionRelative, 2_u8),
         ] {
             let previous = state.enter_syntax_memo_scope(scope);
             state.begin_syntax_memo_rule_frame();
@@ -7094,7 +6390,7 @@ mod tests {
     fn recovery_observation_target_index_cache_tracks_pending_suffix() {
         let source = "mi klama";
         let words = segment_words_with_modifiers(source).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let directives = [
             RecoveryDirective::new("a", 0, 0, 1, 0, 0, SyntaxError::NotImplemented),
             RecoveryDirective::new("b", 0, 0, 1, 0, 1, SyntaxError::NotImplemented),
@@ -7161,7 +6457,7 @@ mod tests {
     fn boundary_scan_does_not_escape_through_nested_tuhe_i() {
         let source = "tu'e mi ku .i do tu'u .i mi klama";
         let words = segment_words_with_modifiers(source).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let scan = RecoveryTokenScan::new(&tokens);
         let i_anchor = [generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(
             Cmavo::I,
@@ -7201,7 +6497,7 @@ mod tests {
         )
         .expect("valid dialect morphology");
         let options = ParseOptions::default().with_dialect_definition(&dialect);
-        let tokens = syntax_tokens(&words, &options);
+        let tokens = syntax_tokens(&words);
         let first_sibling_index = tokens
             .windows(2)
             .position(|pair| pair[0].source_spans() == pair[1].source_spans())
@@ -7236,7 +6532,7 @@ mod tests {
             let words = segment_words_with_modifiers(prefix)
                 .expect("the owner-document prefix should have valid morphology");
             let options = ParseOptions::default();
-            let mut tokens = syntax_tokens(&words, &options);
+            let mut tokens = syntax_tokens(&words);
             let cut_byte = tokens
                 .last()
                 .and_then(tokens::word_byte_range)
@@ -7314,7 +6610,7 @@ mod tests {
     fn generated_model_strict_parser_parses_basic_text() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
-            let tokens = syntax_tokens(&words, &ParseOptions::default());
+            let tokens = syntax_tokens(&words);
 
             let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect("valid generated-model syntax");
@@ -7334,7 +6630,7 @@ mod tests {
     fn generated_model_strict_parser_keeps_leading_i_statement_marker() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("i mi klama").expect("valid morphology");
-            let tokens = syntax_tokens(&words, &ParseOptions::default());
+            let tokens = syntax_tokens(&words);
 
             let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect("valid generated-model syntax");
@@ -7445,7 +6741,7 @@ mod tests {
     ) {
         let source = "mi";
         let words = segment_words_with_modifiers(source).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let skipped_token = tokens[0].clone();
         let skipped_item = new!(SyntaxRecoveryItem::SkippedTokens {
             error_index: 0,
@@ -7486,7 +6782,7 @@ mod tests {
         run_on_fixture_worker_stack(|| {
             let source = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo ko ce'u xendo ije cnikansa ro lo jmive ta'i lo racli";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
-            let tokens = syntax_tokens(&words, &ParseOptions::default());
+            let tokens = syntax_tokens(&words);
 
             let error = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect_err("syntax should reject the malformed description tail");
@@ -7979,7 +7275,7 @@ mod tests {
             AnchorCmavo(Cmavo::Tuhu),
         );
 
-        assert_first_contains_condition("statement_base", "ZantufaConnectives");
+        assert_first_contains_condition("vocative_free_modifier", "UnrestrictedFree");
         for rule in ["text", "statement", "sumti", "selbri"] {
             assert!(
                 !generated_anchor_metadata(rule).first.is_empty(),
@@ -8007,18 +7303,22 @@ mod tests {
     fn recovery_anchor_conditions_respect_dialect_features() {
         use generated::generated_model::SyntaxGrammarCondition;
 
-        let zantufa_terms = [SyntaxGrammarCondition {
-            feature: "ZantufaTerms",
+        let unrestricted_free = [SyntaxGrammarCondition {
+            feature: "UnrestrictedFree",
         }];
         let baseline_env =
             generated_runtime::SyntaxGrammarEnv::from_options(&ParseOptions::default());
-        let zantufa = parse_dialect_definition("(zantufa)").expect("zantufa dialect parses");
-        let zantufa_env = generated_runtime::SyntaxGrammarEnv::from_options(
-            &ParseOptions::default().with_dialect_definition(&zantufa),
+        let unrestricted = parse_dialect_definition("(+UNRESTRICTED-FREE)")
+            .expect("unrestricted-free dialect parses");
+        let unrestricted_env = generated_runtime::SyntaxGrammarEnv::from_options(
+            &ParseOptions::default().with_dialect_definition(&unrestricted),
         );
 
-        assert!(!recovery_conditions_match(&zantufa_terms, baseline_env));
-        assert!(recovery_conditions_match(&zantufa_terms, zantufa_env));
+        assert!(!recovery_conditions_match(&unrestricted_free, baseline_env));
+        assert!(recovery_conditions_match(
+            &unrestricted_free,
+            unrestricted_env
+        ));
     }
 
     #[test]
@@ -8483,7 +7783,7 @@ mod tests {
             assert!(warning.anchor.is_cmavo(Cmavo::Nohoi));
             assert!(!has_warning_kind(
                 &parsed,
-                ExperimentalConstruct::ExperimentalZantufaCmavo
+                ExperimentalConstruct::ExperimentalCmavo
             ));
         });
     }
@@ -8540,155 +7840,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn accepts_additive_zantufa_quote_relation_units_by_default() {
-        run_on_normal_stack(|| {
-            let words =
-                segment_words_with_modifiers("lu'ei mi klama li'au").expect("valid morphology");
-
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
-                .expect("valid zantufa quote syntax");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit
-            }));
-
-            let words =
-                segment_words_with_modifiers("mi cu mu'oi gy foo gy").expect("valid morphology");
-
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
-                .expect("valid zantufa MUhOI syntax");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit
-            }));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_jai_tag_terms() {
-        run_on_normal_stack(|| {
-            let words =
-                segment_words_with_modifiers("jai pu mi cu klama").expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa JAI tag term");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaJaiTagTerm
-            }));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn accepts_additive_zantufa_poiha_brigahi_ku_by_default() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("noi'a klama ku mi cu broda")
-                .expect("valid morphology");
-
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
-                .expect("valid Zantufa POIhA briga'i");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi
-            }));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn accepts_zantufa_cmavo_table_entries_with_warning() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("mi cu xe'u").expect("valid morphology");
-
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
-                .expect("valid Zantufa cmavo syntax");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo
-            }));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_1_17_gohoi_markers_as_word_quotes() {
-        run_on_normal_stack(|| {
-            for marker in ["go'oi", "ze'oi", "ta'ai", "bo'ei"] {
-                let source = format!("mi cu {marker} coi");
-                let words = segment_words_with_modifiers(&source).expect("valid morphology");
-                let parsed = parse_syntax_tree(&words, &ParseOptions::default())
-                    .expect("valid GOhOI word quote selbri");
-                let debug_tree = format!("{:?}", parsed.parse_tree);
-
-                assert!(debug_tree.contains("QuotedBridiSelbri"));
-                assert!(parsed.warnings.iter().any(|warning| {
-                    warning.kind == ExperimentalConstruct::ExperimentalGohoiSelbriUnit
-                }));
-                assert!(!parsed.warnings.iter().any(|warning| {
-                    warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo
-                }));
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_1_17_lohoi_bridi_descriptions() {
-        run_on_normal_stack(|| {
-            for lohoi in ["lo'oi", "xu'u", "xau'a", "mau'a"] {
-                let source = format!("{lohoi} mi cu broda ku'au");
-                let parsed = parse_source(&source, &ParseOptions::default());
-
-                assert!(format!("{:?}", parsed.parse_tree).contains("BridiDescription"));
-                assert!(has_warning_kind(
-                    &parsed,
-                    ExperimentalConstruct::ExperimentalLohOiBridiDescription
-                ));
-            }
-
-            let ui_parse = parse_source("xau'a mi cu broda", &ParseOptions::default());
-            assert!(!format!("{:?}", ui_parse.parse_tree).contains("BridiDescription"));
-            assert!(!has_warning_kind(
-                &ui_parse,
-                ExperimentalConstruct::ExperimentalLohOiBridiDescription
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_1_17_rahoi_quote_warning() {
-        run_on_normal_stack(|| {
-            let parsed = parse_source("ra'oi broda cu brode", &ParseOptions::default());
-
-            assert!(format!("{:?}", parsed.parse_tree).contains("DelimitedWordQuote"));
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaRahoiQuote
-            ));
-            assert!(!has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZohOiQuote
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_1_17_xoi_as_adverbial_term() {
+    fn parses_xoi_as_adverbial_term() {
         run_on_normal_stack(|| {
             let parsed = parse_source("xoi mi broda", &ParseOptions::default());
 
@@ -8810,39 +7962,9 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_xoi_statement_payloads() {
-        run_on_normal_stack(|| {
-            // Rolling Zantufa's XOI adverbial keeps the statement-width bodies camxes-exp's
-            // subsentence cannot form, under its own tailored statement production.
-            for source in [
-                "xoi mi broda i je do brode se'u",
-                "fi'oi mi broda i je do brode se'u",
-            ] {
-                let parsed = parse_source(source, &ParseOptions::default());
-                assert!(
-                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalSoiAdverbial)
-                        || has_warning_kind(
-                            &parsed,
-                            ExperimentalConstruct::ExperimentalFihoiAdverbial
-                        ),
-                    "{source}"
-                );
-                assert!(
-                    format!("{:?}", parsed.parse_tree)
-                        .contains("ZantufaRelativeConnectedStatement"),
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn rejects_the_unsourced_fihau_statement_hybrid() {
         run_on_normal_stack(|| {
-            // The statement body closed by FIhAU was the Cartesian product of rolling
-            // Zantufa's XOI and the New-FIhOI proposal and is in neither, so it retires.
+            // A statement body closed by FIhAU is in no source, so it retired in epoch 8.
             // The proposal's own shape -- a subsentence closed by an explicit FIhAU -- stays.
             let words =
                 segment_words_with_modifiers("fi'oi mi broda i je do brode fi'au").expect("words");
@@ -8860,409 +7982,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_poiha_brigahi_with_free_modifiers() {
-        run_on_normal_stack(|| {
-            let parsed = parse_source(
-                "noi'a to mi toi klama ku mi cu broda",
-                &ParseOptions::default(),
-            );
-
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi
-            ));
-            assert!(format!("{:?}", parsed.parse_tree).contains("free_modifiers"));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_mex_forms() {
-        run_on_normal_stack(|| {
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-MEX)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-            for source in [
-                "li mo'e broda lo'o",
-                "li ma'o lo broda te'u pa lo'o",
-                "li ke pa re ke'e lo'o",
-            ] {
-                let words = segment_words_with_modifiers(source).expect("valid morphology");
-                assert!(
-                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
-                    "{source}"
-                );
-
-                let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa mex");
-                assert!(
-                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_raw_mekso_quantifier_does_not_shadow_lerfu_sumti_sentence() {
-        run_on_normal_stack(|| {
-            let dialect =
-                parse_dialect_definition("(case-insensitive zantufa)").expect("valid dialect");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let words =
-                segment_words_with_modifiers("lo cukta poi my tcidu").expect("valid morphology");
-
-            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa syntax");
-            let tree = format!("{:#?}", parsed.parse_tree);
-
-            assert!(tree.contains("LerfuStringSumti"), "{tree}");
-            assert!(
-                !tree.contains("ZantufaPriorityRawMeksoQuantifier"),
-                "{tree}"
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_initial_gi_gek() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("gi je mi klama gi do klama")
-                .expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa GI GEK");
-
-            assert!(
-                parsed
-                    .warnings
-                    .iter()
-                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_gihi_forethought_terminator() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("ge mi klama gi do klama gi'i")
-                .expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa GIhI");
-
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
-            }));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_nary_forethought_bridi_branches() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("ge mi klama gi do klama gi ti klama")
-                .expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed =
-                parse_syntax_tree(&words, &options).expect("valid Zantufa n-ary bridi forethought");
-            let debug_tree = format!("{:?}", parsed.parse_tree);
-
-            assert!(debug_tree.contains("additional_branches"));
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaNaryForethought
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_nary_forethought_bridi_branch_count_grid() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-            for (source, extra_branch_count) in [
-                ("ge mi klama gi do klama", 0),
-                ("ge mi klama gi do klama gi ti klama", 1),
-                ("ge mi klama gi do klama gi ti klama gi ta klama", 2),
-                (
-                    "ge mi klama gi do klama gi ti klama gi ta klama gi zo'e klama",
-                    3,
-                ),
-            ] {
-                let parsed = parse_source(source, &options);
-                assert_eq!(
-                    parsed
-                        .warnings
-                        .iter()
-                        .filter(|warning| {
-                            warning.kind
-                                == ExperimentalConstruct::ExperimentalZantufaNaryForethought
-                        })
-                        .count(),
-                    extra_branch_count,
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_nary_forethought_bridi_with_gihi() {
-        run_on_normal_stack(|| {
-            let source = "ge mi klama gi do klama gi ti klama gi'i";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_source(source, &options);
-
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaNaryForethought
-            ));
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_gek_termset_arm() {
-        run_on_normal_stack(|| {
-            // The operand runs are unbalanced, so the sourced NUhI-less `gek_termset` -- which
-            // pairs one term per position -- cannot take this surface and neither can the
-            // NUhI-mandatory arm. Only rolling Zantufa's `gek_term` admits it.
-            let source = "ge mi ko'a gi do klama";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_source(source, &options);
-            let debug_tree = format!("{:?}", parsed.parse_tree);
-
-            assert!(debug_tree.contains("ZantufaGekTermset"), "{debug_tree}");
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaGekTermset
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_gek_termset_arm_on_connectives_not_terms() {
-        run_on_normal_stack(|| {
-            let source = "ge mi ko'a gi do klama";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-TERMS)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-            assert!(parse_syntax_tree(&words, &options).is_err());
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn rejects_unsourced_nuhi_termset_widenings() {
         run_on_normal_stack(|| {
             // Both widenings the optional-NUhI termset node used to carry. Neither camxes parser
-            // nor rolling Zantufa accepts either surface, and rolling Zantufa has no NUhI or NUhU
-            // selma'o at all, so enabling its arm does not restore them.
+            // accepts either surface.
             for source in ["ge mi nu'u gi do klama", "nu'i ge mi gi do gi ti klama"] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");
                 assert!(
                     parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
                     "{source}"
                 );
-
-                let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                    .expect("valid dialect definition");
-                let options = ParseOptions::default().with_dialect_definition(&dialect);
-                assert!(parse_syntax_tree(&words, &options).is_err(), "{source}");
             }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_zantufa_gek_termset_option_grid() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-            // Every row keeps the leading run unbalanced so the sourced `gek_termset` cannot
-            // claim it; what varies is the branch count and the GIhI terminator.
-            for (source, extra_branch_count, has_gihi) in [
-                ("ge mi ko'a gi do klama", 0, false),
-                ("ge mi ko'a gi do gi ti klama", 1, false),
-                ("ge mi ko'a gi do gi ti gi'i klama", 1, true),
-                ("ge mi ko'a gi do gi ti gi ta gi'i klama", 2, true),
-            ] {
-                let parsed = parse_source(source, &options);
-                assert_eq!(
-                    parsed
-                        .warnings
-                        .iter()
-                        .filter(|warning| {
-                            warning.kind
-                                == ExperimentalConstruct::ExperimentalZantufaNaryForethought
-                        })
-                        .count(),
-                    extra_branch_count,
-                    "{source}"
-                );
-                assert_eq!(
-                    has_warning_kind(
-                        &parsed,
-                        ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
-                    ),
-                    has_gihi,
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_nary_forethought_sumti_branches() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("ga lo mlatu gi lo gerku gi lo ractu")
-                .expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed =
-                parse_syntax_tree(&words, &options).expect("valid Zantufa n-ary sumti forethought");
-
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaNaryForethought
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_nary_forethought_selbri_branches() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("mi gu'e klama gi cadzu gi bajra")
-                .expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options)
-                .expect("valid Zantufa n-ary selbri forethought");
-
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaNaryForethought
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn parses_guskant_sourced_nary_juhe_forethought_example() {
-        run_on_normal_stack(|| {
-            // Source: guskant, "{tu'e...tu'u} in NU", Google Groups, 2015-07-15.
-            let source = "lo nu ju'e gi broda gi brode gi brodi gi brodo gi brodu kei";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options)
-                .expect("valid sourced Zantufa n-ary forethought");
-
-            assert_eq!(
-                parsed
-                    .warnings
-                    .iter()
-                    .filter(|warning| {
-                        warning.kind == ExperimentalConstruct::ExperimentalZantufaNaryForethought
-                    })
-                    .count(),
-                3
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn warns_for_jek_gek_and_bo_gek_extensions() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("je gi mi klama gi do klama")
-                .expect("valid morphology");
-            let parsed =
-                parse_syntax_tree(&words, &ParseOptions::default()).expect("valid jek GEK");
-            assert!(
-                parsed
-                    .warnings
-                    .iter()
-                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
-            );
-
-            let words = segment_words_with_modifiers("joi gi bo mi klama gi do klama")
-                .expect("valid morphology");
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid BO GEK");
-            assert!(
-                parsed
-                    .warnings
-                    .iter()
-                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
-            );
         });
     }
 
@@ -9288,28 +8018,6 @@ mod tests {
                     .warnings
                     .iter()
                     .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalFaAsTag)
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gates_zantufa_recursive_tags() {
-        run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("mi cu roi klama").expect("valid morphology");
-
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid recursive tag");
-
-            assert!(
-                parsed.warnings.iter().any(|warning| {
-                    warning.kind == ExperimentalConstruct::ExperimentalZantufaTag
-                })
             );
         });
     }
@@ -9433,606 +8141,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zantufa_mex_priority_reaches_non_ke_extensions_without_stealing_baseline() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-            for source in ["li pa su'i", "li pa bo re", "li pa bi'e su'i"] {
-                let parsed = parse_source(source, &zantufa);
-                assert!(
-                    parse_tree_debug(source, &zantufa).contains("ZantufaPriorityMex"),
-                    "{source}"
-                );
-                assert!(
-                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                    "{source}"
-                );
-            }
-
-            let source = "li pa su'i re";
-            let baseline = parse_source(source, &ParseOptions::default());
-            let extended = parse_source(source, &zantufa);
-            assert_eq!(extended.parse_tree, baseline.parse_tree);
-            assert!(
-                !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
-                "baseline-owned MEX must not carry a Zantufa warning"
-            );
-        });
-    }
-
-    /// The `quantifier` alternative selected at one source position.
-    #[invariant(true)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum QuantifierForm {
-        PaRun,
-        Mekso,
-        ZantufaPriorityRaw,
-        ZantufaRaw,
-    }
-
-    #[invariant(true)]
-    struct QuantifierFormVisitor {
-        forms: Vec<QuantifierForm>,
-    }
-
-    impl<'tree> TreeVisitor<'tree> for QuantifierFormVisitor {
-        type Node = generated::generated_model::NodeRef<'tree>;
-        type Atom = generated::generated_model::AtomRef<'tree>;
-
-        #[requires(true)]
-        #[ensures(true)]
-        fn enter_node(&mut self, node: Self::Node) {
-            let form = match node {
-                generated::generated_model::NodeRef::QuantifierSyntaxPaRunQuantifier(_) => {
-                    QuantifierForm::PaRun
-                }
-                generated::generated_model::NodeRef::QuantifierSyntaxMeksoQuantifier(_) => {
-                    QuantifierForm::Mekso
-                }
-                generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
-                    _,
-                ) => QuantifierForm::ZantufaPriorityRaw,
-                generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(
-                    _,
-                ) => QuantifierForm::ZantufaRaw,
-                _ => return,
-            };
-            self.forms.push(form);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn quantifier_forms(
-        parse_tree: &generated::generated_model::TextSyntax,
-    ) -> Vec<QuantifierForm> {
-        let mut visitor = QuantifierFormVisitor { forms: Vec::new() };
-        generated::generated_model::TreeNode::visit_in_order(parse_tree, &mut visitor);
-        visitor.forms
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn recovered_quantifier_forms(
-        parse_tree: &generated::generated_model::recovered::TextSyntax,
-    ) -> Vec<QuantifierForm> {
-        #[invariant(true)]
-        struct RecoveredVisitor {
-            forms: Vec<QuantifierForm>,
-        }
-
-        impl<'tree> TreeVisitor<'tree> for RecoveredVisitor {
-            type Node = generated::generated_model::recovered::NodeRef<'tree>;
-            type Atom = generated::generated_model::recovered::AtomRef<'tree>;
-
-            #[requires(true)]
-            #[ensures(true)]
-            fn enter_node(&mut self, node: Self::Node) {
-                use generated::generated_model::recovered::NodeRef;
-                let form = match node {
-                    NodeRef::QuantifierSyntaxPaRunQuantifier(_) => QuantifierForm::PaRun,
-                    NodeRef::QuantifierSyntaxMeksoQuantifier(_) => QuantifierForm::Mekso,
-                    NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(_) => {
-                        QuantifierForm::ZantufaPriorityRaw
-                    }
-                    NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(_) => {
-                        QuantifierForm::ZantufaRaw
-                    }
-                    _ => return,
-                };
-                self.forms.push(form);
-            }
-        }
-
-        let mut visitor = RecoveredVisitor { forms: Vec::new() };
-        generated::generated_model::recovered::TreeNode::visit_in_order(parse_tree, &mut visitor);
-        visitor.forms
-    }
-
-    /// Both ways of enabling the extended mex grammar, since the builtin
-    /// dialect and the explicit feature flag reach the same feature gate by
-    /// different configuration paths.
-    #[requires(true)]
-    #[ensures(ret.len() == 2)]
-    fn zantufa_mex_parse_options() -> Vec<ParseOptions> {
-        ["(zantufa)", "(+ZANTUFA-MEX)"]
-            .into_iter()
-            .map(|definition| {
-                let dialect = parse_dialect_definition(definition).expect("valid dialect");
-                ParseOptions::default().with_dialect_definition(&dialect)
-            })
-            .collect()
-    }
-
-    #[requires(!source.is_empty())]
-    #[ensures(true)]
-    fn assert_zantufa_quantifier_forms(source: &str, expected: &[QuantifierForm]) {
-        for options in zantufa_mex_parse_options() {
-            let parsed = parse_source(source, &options);
-            assert_eq!(quantifier_forms(&parsed.parse_tree), expected, "{source}");
-            assert!(
-                !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                "{source}"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_pa_run_keeps_the_baseline_variant() {
-        run_on_normal_stack(|| {
-            // Elided and explicit BOI are both part of the baseline
-            // `pa_run_quantifier` production, so both stay baseline-owned.
-            for source in ["tirna re cmalu se krixa", "tirna re boi cmalu se krixa"] {
-                assert_zantufa_quantifier_forms(source, &[QuantifierForm::PaRun]);
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_vei_keeps_the_baseline_variant() {
-        run_on_normal_stack(|| {
-            // Elided and explicit VEhO are both part of the baseline
-            // `mekso_quantifier` production.
-            for source in [
-                "tirna vei pa su'i re ve'o cmalu",
-                "tirna vei pa su'i re cmalu",
-            ] {
-                assert_zantufa_quantifier_forms(source, &[QuantifierForm::Mekso]);
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_bare_fragments_keep_the_baseline_variant() {
-        run_on_normal_stack(|| {
-            // A quantifier fragment reaches `quantifier` through `mekso_fragment`
-            // rather than through a description, and must not fall through to the
-            // Zantufa mex fragment either.
-            assert_zantufa_quantifier_forms("re", &[QuantifierForm::PaRun]);
-            assert_zantufa_quantifier_forms("vei pa ve'o", &[QuantifierForm::Mekso]);
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_raw_expression_stays_experimental() {
-        run_on_normal_stack(|| {
-            let source = "tirna pa su'i re cmalu";
-            for options in zantufa_mex_parse_options() {
-                let parsed = parse_source(source, &options);
-                assert_eq!(
-                    quantifier_forms(&parsed.parse_tree),
-                    [QuantifierForm::ZantufaPriorityRaw]
-                );
-                assert_eq!(
-                    parsed
-                        .warnings
-                        .iter()
-                        .filter(
-                            |warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex
-                        )
-                        .count(),
-                    1
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_reinterpretation_keeps_the_faithful_zantufa_reading() {
-        run_on_normal_stack(|| {
-            // Under the meaning-changing reinterpretation flag the `mex` route
-            // is the faithful Zantufa projection rather than the baseline
-            // reading, so the surface is not a baseline quantifier and the
-            // priority raw route keeps it — warning included.
-            let dialect = parse_dialect_definition("(+ZANTUFA-MEX +ZANTUFA-MEX-REINTERPRETATION)")
-                .expect("valid dialect");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_source("tirna re cmalu", &options);
-            assert_eq!(
-                quantifier_forms(&parsed.parse_tree),
-                [QuantifierForm::ZantufaPriorityRaw]
-            );
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalZantufaMex
-            ));
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_bo_grouped_vei_keeps_only_the_inner_warning() {
-        run_on_normal_stack(|| {
-            // `vei pa bo re ve'o` is a baseline quantifier surface whose inner mex
-            // is genuinely Zantufa-only, so the outer false positive disappears
-            // while the BO grouping warning stays anchored at `bo`.
-            let source = "tirna vei pa bo re ve'o cmalu";
-            let bo_start = source.find("bo").expect("source contains bo");
-            for options in zantufa_mex_parse_options() {
-                let parsed = parse_source(source, &options);
-                assert_eq!(
-                    quantifier_forms(&parsed.parse_tree),
-                    [QuantifierForm::Mekso]
-                );
-                let anchors = parsed
-                    .warnings
-                    .iter()
-                    .filter(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex)
-                    .map(warning_span)
-                    .collect::<Vec<_>>();
-                assert_eq!(anchors, [[bo_start, bo_start + "bo".len()]]);
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_moi_and_roi_guards_are_unchanged() {
-        run_on_normal_stack(|| {
-            // Neither surface is a quantifier, and both are already excluded by
-            // the raw-mex guard, so enabling the extended mex grammar must leave
-            // them byte-identical.
-            for source in ["re moi broda", "re roi klama"] {
-                let baseline = parse_tree_debug(source, &ParseOptions::default());
-                for options in zantufa_mex_parse_options() {
-                    let parsed = parse_source(source, &options);
-                    assert_eq!(format!("{:?}", parsed.parse_tree), baseline, "{source}");
-                    assert!(quantifier_forms(&parsed.parse_tree).is_empty(), "{source}");
-                    assert!(
-                        !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                        "{source}"
-                    );
-                }
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_recovered_tree_keeps_the_baseline_variant() {
-        run_on_normal_stack(|| {
-            // The recovered generation classifies its own model, so a baseline
-            // quantifier outside the repaired region keeps baseline ownership.
-            let source = "mi ku tirna re cmalu";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-            for options in zantufa_mex_parse_options() {
-                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
-                    &words, source, &options,
-                );
-                assert!(
-                    !recovered.errors.is_empty(),
-                    "recovery repaired the stray ku"
-                );
-                assert_eq!(
-                    recovered_quantifier_forms(&recovered.parse_tree),
-                    [QuantifierForm::PaRun]
-                );
-                assert!(
-                    !recovered.warnings.iter().any(
-                        |warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex
-                    )
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_quantifier_memo_replay_keeps_baseline_ownership() {
-        run_on_normal_stack(|| {
-            // Recovery runs repeated parse trials over a shared syntax memo, so
-            // the same `mex` output is replayed rather than reparsed. Repeating
-            // the strict parse and repeating the same surface within one text
-            // both drive the memo as well. None of those replays may hand the
-            // priority raw route back a baseline quantifier surface.
-            let repeated = "tirna re cmalu .i viska vei pa su'i re ve'o cmalu";
-            for options in zantufa_mex_parse_options() {
-                for _ in 0..2 {
-                    let parsed = parse_source(repeated, &options);
-                    assert_eq!(
-                        quantifier_forms(&parsed.parse_tree),
-                        [QuantifierForm::PaRun, QuantifierForm::Mekso]
-                    );
-                    assert!(!has_warning_kind(
-                        &parsed,
-                        ExperimentalConstruct::ExperimentalZantufaMex
-                    ));
-                }
-            }
-
-            let source = "mi ku tirna re cmalu .i viska re cmalu";
-            let words = segment_words_with_modifiers(source).expect("valid morphology");
-            for options in zantufa_mex_parse_options() {
-                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
-                    &words, source, &options,
-                );
-                assert_eq!(
-                    recovered_quantifier_forms(&recovered.parse_tree),
-                    [QuantifierForm::PaRun, QuantifierForm::PaRun]
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_selbri_assignment_priority_preserves_whole_baseline_candidates() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-            for source in ["mi broda cei brode brodi", "mi broda cei brode cei brodi"] {
-                let baseline = parse_source(source, &ParseOptions::default());
-                let extended = parse_source(source, &zantufa);
-                assert_eq!(extended.parse_tree, baseline.parse_tree, "{source}");
-                assert!(
-                    !has_warning_kind(
-                        &extended,
-                        ExperimentalConstruct::ExperimentalZantufaSelbriAssignment,
-                    ),
-                    "baseline-owned CEI candidate must not warn: {source}"
-                );
-            }
-
-            for source in [
-                "mi broda cei brode cei na brodi",
-                "mi broda cei na brode",
-                "mi broda cei pu brode",
-            ] {
-                let words = segment_words_with_modifiers(source).expect("valid morphology");
-                assert!(
-                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
-                    "{source}"
-                );
-                let parsed = parse_source(source, &zantufa);
-                assert!(
-                    parse_tree_debug(source, &zantufa).contains("ZantufaPriorityAssignedSelbri"),
-                    "{source}"
-                );
-                assert!(
-                    has_warning_kind(
-                        &parsed,
-                        ExperimentalConstruct::ExperimentalZantufaSelbriAssignment,
-                    ),
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_selbri_relative_boundaries_and_reinterpretation_are_explicit() {
-        run_on_normal_stack(|| {
-            let zantufa_definition = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let fidelity_definition =
-                parse_dialect_definition("(zantufa +zantufa-selbri-reinterpretation)")
-                    .expect("valid fidelity dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&zantufa_definition);
-            let fidelity = ParseOptions::default().with_dialect_definition(&fidelity_definition);
-
-            let baseline_owned = parse_source("lo broda poi brode ku", &zantufa);
-            assert!(!format!("{:?}", baseline_owned.parse_tree).contains("ZantufaRelativeSelbri"));
-            assert!(!has_warning_kind(
-                &baseline_owned,
-                ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
-            ));
-
-            let reinterpreted = parse_source("lo broda poi brode ku", &fidelity);
-            assert!(format!("{:?}", reinterpreted.parse_tree).contains("ZantufaRelativeSelbri"));
-            assert_warning_kind(
-                "lo broda poi brode ku",
-                &fidelity,
-                ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
-            );
-
-            let assignment_gap = parse_source("lo broda cei brode brodi ku", &zantufa);
-            assert!(
-                !format!("{:?}", assignment_gap.parse_tree)
-                    .contains("ReinterpretZantufaAssignedSelbri")
-            );
-            let faithful_assignment = parse_source("lo broda cei brode brodi ku", &fidelity);
-            let faithful_assignment_tree = format!("{:?}", faithful_assignment.parse_tree);
-            assert!(
-                faithful_assignment_tree.contains("ReinterpretZantufaAssignedSelbri"),
-                "{faithful_assignment_tree}"
-            );
-
-            let explicit_ku = parse_source("re broda poi brode ku", &zantufa);
-            assert!(format!("{:?}", explicit_ku.parse_tree).contains("ZantufaRelativeSelbri"));
-            let elided_ku = parse_source("re broda poi brode", &zantufa);
-            assert!(!format!("{:?}", elided_ku.parse_tree).contains("ZantufaRelativeSelbri"));
-
-            for source in [
-                "mi broda noi brode",
-                "lo broda poi brode poi brodi ku",
-                "coi broda poi brode do'u",
-            ] {
-                parse_source(source, &zantufa);
-                parse_source(source, &fidelity);
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_ke_co_group_is_flat_disjoint_and_warning_bearing() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-
-            // A description isolates the selbri atom from the pre-existing
-            // Zantufa grouped-bridi-tail owner of top-level KE.
-            let control = "lo ke broda brode ke'e ku";
-            assert_eq!(
-                parse_source(control, &zantufa).parse_tree,
-                parse_source(control, &ParseOptions::default()).parse_tree,
-            );
-
-            for source in [
-                "lo ke broda co brode co brodi ke'e ku",
-                "lo ke broda co brode ke'e cei na brodi ku",
-                "lo na'e ke broda co brode ke'e ku",
-            ] {
-                let words = segment_words_with_modifiers(source).expect("valid morphology");
-                assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-                let parsed = parse_source(source, &zantufa);
-                let tree = parse_tree_debug(source, &zantufa);
-                assert!(
-                    tree.contains("ZantufaKeCoGroupedTanruUnit"),
-                    "{source}: {tree}"
-                );
-                assert!(
-                    has_warning_kind(
-                        &parsed,
-                        ExperimentalConstruct::ExperimentalZantufaKeCoGrouping,
-                    ),
-                    "{source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_mex_priority_preserves_full_baseline_operand_width() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-            for source in [
-                "li la'e pa .e re lu'u",
-                "li na'e bo pa .e re lu'u",
-                "li pa .e ke re ke'e",
-                "li pa .e bo re",
-                "li pa joi bo re",
-                "li pa .e pu bo re",
-            ] {
-                let baseline = parse_source(source, &ParseOptions::default());
-                let extended = parse_source(source, &zantufa);
-                assert_eq!(extended.parse_tree, baseline.parse_tree, "{source}");
-                assert!(
-                    !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
-                    "baseline-owned operand must not carry a Zantufa warning: {source}"
-                );
-            }
-
-            let trailing = "li pa .e";
-            let parsed = parse_source(trailing, &zantufa);
-            assert!(
-                parse_tree_debug(trailing, &zantufa).contains("ZantufaPriorityMex"),
-                "{trailing}"
-            );
-            assert!(
-                has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                "{trailing}"
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_mex_priority_enforces_wide_qualified_union_policy() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-
-            let elided = "li lu'e pa su'i re lo'o";
-            let baseline = parse_source(elided, &ParseOptions::default());
-            let extended = parse_source(elided, &zantufa);
-            assert_eq!(extended.parse_tree, baseline.parse_tree);
-            assert!(
-                !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
-                "the warning union must retain the narrow baseline reading"
-            );
-
-            let explicit = segment_words_with_modifiers("li lu'e pa su'i re lu'u lo'o")
-                .expect("valid morphology");
-            assert!(parse_syntax_tree(&explicit, &zantufa).is_err());
-
-            let zantufa_first = "li lu'e ke pa ke'e lo'o";
-            let parsed = parse_source(zantufa_first, &zantufa);
-            assert!(
-                parse_tree_debug(zantufa_first, &zantufa).contains("ZantufaPriorityMex"),
-                "{zantufa_first}"
-            );
-            assert!(
-                has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                "wide ownership must remain available when the inner starts Zantufa-only"
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_mex_priority_keeps_wide_qualifiers_with_zantufa_only_inner_material() {
-        run_on_normal_stack(|| {
-            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
-
-            for source in [
-                "li lu'e pa bo ci lo'o",
-                "li lu'e pa su'i re bo ci lo'o",
-                "li lu'e pa su'i re .e lo'o",
-                "li na'e bo pa bo ci lo'o",
-            ] {
-                let parsed = parse_source(source, &zantufa);
-                let tree = parse_tree_debug(source, &zantufa);
-                assert!(tree.contains("ZantufaPriorityMex"), "{source}: {tree}");
-                assert!(
-                    tree.contains("ZantufaLaheQualifiedMeksoOperand")
-                        || tree.contains("ZantufaNaheBoQualifiedMeksoOperand"),
-                    "wide qualifier must retain ownership: {source}: {tree}"
-                );
-                assert!(
-                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
-                    "wide Zantufa reading must warn: {source}"
-                );
-            }
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn indefinite_sumti_explicit_ku_precedes_relative_clause() {
         let valid = segment_words_with_modifiers("mi viska ci gerku ku poi barda")
             .expect("valid morphology");
@@ -10079,7 +8187,6 @@ mod tests {
                 "lo gerku poi ke'a barda .e noi ke'a melbi cu klama",
                 "lo gerku poi ke'a barda na ja nai noi ke'a melbi cu klama",
                 "lo gerku poi ke'a barda ja voi'e lo mlatu cu klama",
-                "lo gerku poi ke'a barda ja po'oi lo mlatu cu klama",
                 "lo gerku poi ke'a barda ja sei mi cusku noi ke'a melbi cu klama",
             ] {
                 let parsed = parse_source(source, &ParseOptions::default());
@@ -10276,123 +8383,6 @@ mod tests {
             "do tavla .i ca bo sei mi cusku mi klama",
             &ParseOptions::default(),
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn chrestomathy_ke_termset_parses_alice_table_row() {
-        let parsed = parse_source(
-            "la .alis. cu penmi le cmalu jubme .i cpana le jubme fa ke po'o le cmacma ke solji ckiku",
-            &ParseOptions::default(),
-        );
-        assert!(has_warning_kind(
-            &parsed,
-            ExperimentalConstruct::ExperimentalKeTermset
-        ));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_explicit_ke_grouped_sumti_is_distinct_from_elided_ke_termset() {
-        let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
-        let explicit = parse_source("mi ke ko'a ke'e cu klama", &options);
-        let explicit_debug = format!("{:?}", explicit.parse_tree);
-        assert!(explicit_debug.contains("ZantufaGroupedSumti"));
-        assert!(has_warning_kind(
-            &explicit,
-            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        ));
-
-        let elided = parse_source("mi ke ko'a cu klama", &options);
-        let elided_debug = format!("{:?}", elided.parse_tree);
-        assert!(elided_debug.contains("KeTermset"));
-        assert!(!elided_debug.contains("ZantufaGroupedSumti"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_grouped_sumti_f2_behavior_matrix() {
-        let zantufa = parse_dialect_definition("(zantufa)").expect("valid dialect");
-        let enabled = ParseOptions::default().with_dialect_definition(&zantufa);
-
-        // The extension is feature-gated: without the dialect the same surface remains the
-        // existing KE-termset route and never acquires the Zantufa warning.
-        let baseline = parse_source("mi ke ko'a ke'e cu klama", &ParseOptions::default());
-        assert!(!has_warning_kind(
-            &baseline,
-            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        ));
-
-        // Explicit and elided forms are deliberately distinct at term position.  The grouped
-        // route owns only a complete single-sumti candidate with a real closer; CEhE/non-single
-        // runs and an omitted closer remain on the existing termset/connection paths.
-        let explicit = parse_source("mi ke ko'a ke'e cu klama", &enabled);
-        assert_eq!(
-            format!("{:?}", explicit.parse_tree)
-                .matches("ExperimentalZantufaGroupedSumti")
-                .count(),
-            0
-        );
-        assert!(has_warning_kind(
-            &explicit,
-            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        ));
-        let explicit_debug = format!("{:?}", explicit.parse_tree);
-        assert!(explicit_debug.matches("ZantufaGroupedSumti").count() >= 1);
-
-        let explicit_source = "mi ke ko'a ke'e cu klama";
-        let explicit_words =
-            segment_words_with_modifiers(explicit_source).expect("valid morphology");
-        let explicit_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
-            &explicit_words,
-            explicit_source,
-            &enabled,
-        );
-        assert!(explicit_recovered.errors.is_empty());
-        assert!(format!("{:?}", explicit_recovered.parse_tree).contains("ZantufaGroupedSumti"));
-        assert!(explicit_recovered.warnings.iter().any(|warning| {
-            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        }));
-
-        let elided = parse_source("mi ke ko'a cu klama", &enabled);
-        assert!(!format!("{:?}", elided.parse_tree).contains("ZantufaGroupedSumti"));
-        assert!(format!("{:?}", elided.parse_tree).contains("KeTermset"));
-
-        let elided_source = "mi ke ko'a cu klama";
-        let elided_words = segment_words_with_modifiers(elided_source).expect("valid morphology");
-        let elided_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
-            &elided_words,
-            elided_source,
-            &enabled,
-        );
-        assert!(elided_recovered.errors.is_empty());
-        let elided_recovered_debug = format!("{:?}", elided_recovered.parse_tree);
-        assert!(!elided_recovered_debug.contains("ZantufaGroupedSumti"));
-        assert!(elided_recovered_debug.contains("KeTermset"));
-
-        // A malformed/recovered closer must not reserve the grouped route.  The parser still
-        // produces a normal recovered result, but no grouped warning is emitted.
-        let malformed = parse_source("mi ke ko'a ke cu klama", &enabled);
-        assert!(!has_warning_kind(
-            &malformed,
-            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        ));
-
-        let malformed_source = "mi ke ko'a ke cu klama";
-        let malformed_words =
-            segment_words_with_modifiers(malformed_source).expect("valid morphology");
-        let malformed_recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
-            &malformed_words,
-            malformed_source,
-            &enabled,
-        );
-        assert!(!malformed_recovered.warnings.iter().any(|warning| {
-            warning.kind == ExperimentalConstruct::ExperimentalZantufaGroupedSumti
-        }));
     }
 
     #[test]
