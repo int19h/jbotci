@@ -18,46 +18,6 @@ pub(super) fn current_query() -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn query_param(query: &str, name: &str) -> Option<String> {
-    let trimmed = query.strip_prefix('?').unwrap_or(query);
-    trimmed
-        .split('&')
-        .filter(|part| !part.is_empty())
-        .find_map(|part| {
-            let (key, value) = part.split_once('=').unwrap_or((part, ""));
-            (percent_decode_query_component(key) == name)
-                .then(|| percent_decode_query_component(value))
-        })
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn percent_decode_query_component(input: &str) -> String {
-    let mut output = Vec::with_capacity(input.len());
-    let bytes = input.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'+' {
-            output.push(b' ');
-            index += 1;
-        } else if bytes[index] == b'%' && index + 2 < bytes.len() {
-            if let Ok(value) = u8::from_str_radix(&input[index + 1..index + 3], 16) {
-                output.push(value);
-                index += 3;
-            } else {
-                output.push(bytes[index]);
-                index += 1;
-            }
-        } else {
-            output.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8_lossy(&output).into_owned()
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn load_settings() -> UserSettings {
     let mut settings = UserSettings::default();
     if let Some(theme) = storage_get("jbotci.theme").and_then(|value| parse_theme(&value)) {

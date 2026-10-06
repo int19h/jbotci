@@ -11,18 +11,15 @@ use jbotci_diagnostics::{
 };
 use jbotci_dialect::{
     CustomDialect, DialectSettings, add_dialect_formula_reference, builtin_dialect_names,
-    custom_dialect_definition_to_johau_uri_with_custom_dialects, custom_dialect_is_valid,
-    dialect_definition_to_text, dialect_formula_top_level_references,
-    dialect_name_shows_in_gentufa_picker, find_builtin_dialect, import_johau_dialect_settings,
-    parse_dialect_selection_formula, remove_dialect_formula_reference,
-    replace_dialect_formula_reference,
+    custom_dialect_is_valid, dialect_definition_to_text, dialect_formula_top_level_references,
+    dialect_name_shows_in_gentufa_picker, find_builtin_dialect, parse_dialect_selection_formula,
+    remove_dialect_formula_reference, replace_dialect_formula_reference,
 };
 #[cfg(test)]
 use jbotci_gentufa::ReferenceMarkerKind;
 use jbotci_output::{
-    GlideMark, LujvoFragmentKind, PhonemeRenderOptions, StressMark,
-    qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
-    render_lojban_text_for_script, render_lujvo_fragment_for_script,
+    GlideMark, LujvoFragmentKind, PhonemeRenderOptions, StressMark, render_lojban_text_for_script,
+    render_lujvo_fragment_for_script,
 };
 use jbotci_web_core::CollisionScope;
 use jbotci_web_core::GentufaBlockRole;

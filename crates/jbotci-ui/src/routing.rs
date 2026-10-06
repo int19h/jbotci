@@ -18,13 +18,11 @@ pub(super) const TOPBAR_NAV_ROUTES: [AppRoute; 4] = [
 ];
 
 #[invariant(!self.gentufa_text_explicit || matches!(&self.web_route, WebRoute::Gentufa(_)))]
-#[invariant(self.settings_query.is_empty() || matches!(&self.web_route, WebRoute::Settings))]
 #[invariant(self.hash.as_ref().is_none_or(|hash| !hash.is_empty() && !hash.starts_with('#')))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct JbotciRoute {
     pub(super) web_route: WebRoute,
     pub(super) gentufa_text_explicit: bool,
-    pub(super) settings_query: String,
     pub(super) hash: Option<String>,
 }
 
@@ -35,7 +33,6 @@ impl JbotciRoute {
         new!(JbotciRoute {
             web_route: WebRoute::Vlacku(VlackuWebState::default()),
             gentufa_text_explicit: false,
-            settings_query: String::new(),
             hash: None,
         })
     }
@@ -46,7 +43,6 @@ impl JbotciRoute {
         new!(JbotciRoute {
             web_route: WebRoute::Gentufa(GentufaWebState::default()),
             gentufa_text_explicit: false,
-            settings_query: String::new(),
             hash: None,
         })
     }
@@ -57,7 +53,6 @@ impl JbotciRoute {
         new!(JbotciRoute {
             web_route,
             gentufa_text_explicit,
-            settings_query: String::new(),
             hash: None,
         })
     }
@@ -74,7 +69,6 @@ impl JbotciRoute {
         new!(JbotciRoute {
             web_route: self.web_route.clone(),
             gentufa_text_explicit: self.gentufa_text_explicit,
-            settings_query: self.settings_query.clone(),
             hash: None,
         })
     }
@@ -93,9 +87,6 @@ impl fmt::Display for JbotciRoute {
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut route = match &self.web_route {
-            WebRoute::Settings if !self.settings_query.is_empty() => {
-                format!("/settings?{}", self.settings_query)
-            }
             WebRoute::Gentufa(state) if self.gentufa_text_explicit && state.text.is_empty() => {
                 // An explicitly cleared input must survive display-control/history
                 // writes; an absent text parameter instead restores the saved input.
@@ -443,11 +434,6 @@ pub(super) fn jbotci_route_from_href(base_path: &str, href: &str) -> Option<Jbot
     let app_route = app_route_for_web_route(&web_route);
     Some(new!(JbotciRoute {
         gentufa_text_explicit: app_route == AppRoute::Gentufa && query_has_key(query, "text"),
-        settings_query: if app_route == AppRoute::Settings {
-            query.trim_start_matches('?').to_owned()
-        } else {
-            String::new()
-        },
         hash: hash
             .map(|hash| hash.trim_start_matches('#').to_owned())
             .filter(|hash| !hash.is_empty()),

@@ -179,12 +179,9 @@ pub(super) fn AppShell() -> Element {
     let initial_dialect_settings = load_dialect_settings();
     let initial_settings_dialect_selection =
         initial_dialect_settings_selection(&initial_dialect_settings);
-    let mut dialect_settings = use_signal(move || initial_dialect_settings.clone());
-    let mut settings_dialect_selection =
-        use_signal(move || initial_settings_dialect_selection.clone());
-    let settings_dialect_qr_uri = use_signal(|| None::<String>);
+    let dialect_settings = use_signal(move || initial_dialect_settings.clone());
+    let settings_dialect_selection = use_signal(move || initial_settings_dialect_selection.clone());
     let gentufa_dialect_picker_open = use_signal(|| false);
-    let mut settings_johau_import_seen = use_signal(|| None::<String>);
     let embedding_settings = use_signal(EmbeddingSettingsState::default);
     let activity = use_signal(AsyncActivityState::default);
     let activity_indicator_visible = use_signal(|| false);
@@ -532,30 +529,6 @@ pub(super) fn AppShell() -> Element {
             });
         }
     });
-    let settings_route_location = current_route_location.clone();
-    use_effect(use_reactive(
-        (&settings_route_location,),
-        move |(location,)| {
-            if location.app_route() != AppRoute::Settings {
-                return;
-            }
-            let Some(raw_johau) = query_param(&location.settings_query, "johau") else {
-                return;
-            };
-            if settings_johau_import_seen.read().as_deref() == Some(raw_johau.as_str()) {
-                return;
-            }
-            settings_johau_import_seen.set(Some(raw_johau.clone()));
-            let current_settings = dialect_settings.read().clone();
-            if let Ok((selected_name, next_settings)) =
-                import_johau_dialect_settings(&raw_johau, &current_settings)
-            {
-                save_dialect_settings(&next_settings);
-                dialect_settings.set(next_settings);
-                settings_dialect_selection.set(selected_name);
-            }
-        },
-    ));
     let gentufa_base_path = base_path.clone();
     use_effect(use_reactive((&gentufa_compute_inputs,), move |(inputs,)| {
         if inputs.route != AppRoute::Gentufa {
@@ -1112,7 +1085,6 @@ pub(super) fn AppShell() -> Element {
                                     settings,
                                     dialect_settings,
                                     selected_dialect: settings_dialect_selection,
-                                    qr_uri: settings_dialect_qr_uri,
                                     embedding_settings,
                                     activity,
                                     page_find: page_find_context.clone(),

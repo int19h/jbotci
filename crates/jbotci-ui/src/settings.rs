@@ -30,7 +30,6 @@ pub(super) fn SettingsPage(
     settings: Signal<UserSettings>,
     dialect_settings: Signal<DialectSettings>,
     selected_dialect: Signal<String>,
-    qr_uri: Signal<Option<String>>,
     embedding_settings: Signal<EmbeddingSettingsState>,
     activity: Signal<AsyncActivityState>,
     page_find: PageFindContext,
@@ -43,7 +42,6 @@ pub(super) fn SettingsPage(
         &snapshot,
         dialect_settings,
         selected_dialect,
-        qr_uri,
         embedding_settings,
         activity,
         &page_find,
@@ -57,7 +55,6 @@ pub(super) fn render_settings(
     snapshot: &SettingsPageSnapshot,
     dialect_settings: Signal<DialectSettings>,
     selected_dialect: Signal<String>,
-    qr_uri: Signal<Option<String>>,
     embedding_settings: Signal<EmbeddingSettingsState>,
     activity: Signal<AsyncActivityState>,
     page_find: &PageFindContext,
@@ -72,7 +69,7 @@ pub(super) fn render_settings(
                 { render_embedding_settings(embedding_settings, &snapshot.embedding_state, activity, page_find) }
                 { render_parsing_settings(settings, snapshot.current_settings, page_find) }
                 { render_output_settings(settings, snapshot.current_settings, page_find) }
-                { render_dialect_settings_section(dialect_settings, snapshot.current_dialect_settings.clone(), selected_dialect, qr_uri, page_find) }
+                { render_dialect_settings_section(dialect_settings, snapshot.current_dialect_settings.clone(), selected_dialect, page_find) }
             }
         }
     }
@@ -212,7 +209,6 @@ pub(super) fn render_dialect_settings_section(
     dialect_settings: Signal<DialectSettings>,
     current: DialectSettings,
     mut selected_dialect: Signal<String>,
-    qr_uri: Signal<Option<String>>,
     page_find: &PageFindContext,
 ) -> Element {
     let selected_name = selected_dialect_name(&current, &selected_dialect.read());
@@ -227,7 +223,6 @@ pub(super) fn render_dialect_settings_section(
         .cloned();
     let selected_is_builtin = find_builtin_dialect(&selected_name).is_some();
     let selected_definition = selected_dialect_definition_text(&current, &selected_name);
-    let selected_johau_uri = johau_uri_for_selected_dialect(&current, &selected_name);
     let selected_validation = selected_custom
         .as_ref()
         .and_then(|custom| custom_dialect_is_valid(&current.custom_dialects, custom).err())
@@ -293,9 +288,9 @@ pub(super) fn render_dialect_settings_section(
                 }
                 div { class: "settings-dialect-editor",
                     if selected_is_builtin {
-                        { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), selected_johau_uri.as_deref(), qr_uri, page_find) }
+                        { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), page_find) }
                     } else if let Some(custom) = selected_custom {
-                        { render_custom_dialect_editor(dialect_settings, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri, page_find) }
+                        { render_custom_dialect_editor(dialect_settings, selected_dialect, &custom, selected_validation.as_deref(), page_find) }
                     } else {
                         p { class: "settings-help-text",
                             { render_page_find_text(page_find, "Select a dialect to edit it.") }
@@ -303,7 +298,6 @@ pub(super) fn render_dialect_settings_section(
                     }
                 }
             }
-            { render_dialect_qr_popout(qr_uri) }
         }
     }
 }
@@ -315,13 +309,10 @@ pub(super) fn render_builtin_dialect_editor(
     current: &DialectSettings,
     name: &str,
     definition: Option<&str>,
-    johau_uri: Option<&str>,
-    qr_uri: Signal<Option<String>>,
     page_find: &PageFindContext,
 ) -> Element {
     let show_in_gentufa = builtin_dialect_shows_in_gentufa(current, name);
     let definition = definition.unwrap_or_default();
-    let johau_uri = johau_uri.map(str::to_owned);
     let name_for_toggle = name.to_owned();
     let gentufa_toggle_disabled = !dialect_name_shows_in_gentufa_picker(name);
     let gentufa_toggle_class =
@@ -354,9 +345,6 @@ pub(super) fn render_builtin_dialect_editor(
                     }
                         span { { render_page_find_text(page_find, "Show in gentufa") } }
                     }
-                }
-                div { class: "settings-dialect-name-actions",
-                    { render_dialect_qr_button(johau_uri, qr_uri) }
                 }
             }
             label { class: "settings-field settings-dialect-definition-field",
@@ -391,8 +379,6 @@ pub(super) fn render_custom_dialect_editor(
     selected_dialect: Signal<String>,
     custom: &CustomDialect,
     validation: Option<&str>,
-    johau_uri: Option<&str>,
-    qr_uri: Signal<Option<String>>,
     page_find: &PageFindContext,
 ) -> Element {
     let previous_name = custom.name.trim().to_owned();
@@ -403,7 +389,6 @@ pub(super) fn render_custom_dialect_editor(
     let custom_name = custom.name.clone();
     let custom_definition = custom.definition.clone();
     let show_in_gentufa = custom.show_in_gentufa;
-    let johau_uri = johau_uri.map(str::to_owned);
     let gentufa_toggle_disabled = !dialect_name_shows_in_gentufa_picker(&custom_name);
     let gentufa_toggle_class =
         settings_dialect_gentufa_toggle_class(show_in_gentufa, gentufa_toggle_disabled);
@@ -444,7 +429,6 @@ pub(super) fn render_custom_dialect_editor(
                         onclick: move |_| delete_custom_dialect(dialect_settings, selected_dialect, &name_for_delete),
                         { render_delete_icon() }
                     }
-                    { render_dialect_qr_button(johau_uri, qr_uri) }
                 }
             }
             label { class: "settings-field settings-dialect-definition-field",
@@ -472,37 +456,6 @@ pub(super) fn render_custom_dialect_editor(
                 p { class: "settings-dialect-validation is-ok",
                     { render_page_find_text(page_find, "Definition is valid.") }
                 }
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn render_dialect_qr_button(
-    johau_uri: Option<String>,
-    mut qr_uri: Signal<Option<String>>,
-) -> Element {
-    if let Some(uri) = johau_uri {
-        rsx! {
-            button {
-                class: "settings-dialect-icon-button settings-dialect-qr-button",
-                r#type: "button",
-                aria_label: "Show dialect QR code",
-                title: "Show dialect QR code",
-                onclick: move |_| qr_uri.set(Some(uri.clone())),
-                { render_dialect_qr_icon() }
-            }
-        }
-    } else {
-        rsx! {
-            button {
-                class: "settings-dialect-icon-button settings-dialect-qr-button",
-                r#type: "button",
-                aria_label: "Dialect QR code unavailable",
-                title: "QR export is available for valid non-baseline dialect definitions.",
-                disabled: true,
-                { render_dialect_qr_icon() }
             }
         }
     }
@@ -541,55 +494,6 @@ pub(super) fn render_delete_icon() -> Element {
             path {
                 d: "M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7zM10 11v8h2v-8zM14 11v8h2v-8z",
                 fill: "currentColor",
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn render_dialect_qr_icon() -> Element {
-    rsx! {
-        svg {
-            class: "settings-dialect-button-icon settings-dialect-qr-icon",
-            "viewBox": "0 0 24 24",
-            "aria-hidden": "true",
-            path {
-                d: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z",
-                fill: "currentColor",
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn render_dialect_qr_popout(mut qr_uri: Signal<Option<String>>) -> Element {
-    let current_uri = qr_uri.read().clone();
-    let Some(uri) = current_uri else {
-        return rsx! {};
-    };
-    let qr_svg = encode_qr_alphanumeric_h(&uri)
-        .map(|qr| qr_code_svg(&qr))
-        .unwrap_or_default();
-    rsx! {
-        div { class: "settings-dialect-qr-popout", role: "dialog", aria_label: "Dialect QR code",
-            div { class: "settings-dialect-qr-card",
-                div { class: "settings-dialect-qr-head",
-                    button {
-                        class: "settings-icon-button",
-                        r#type: "button",
-                        aria_label: "Close",
-                        onclick: move |_| qr_uri.set(None),
-                        "×"
-                    }
-                }
-                a {
-                    class: "settings-dialect-qr-link",
-                    href: "{uri}",
-                    title: "{uri}",
-                    div { class: "settings-dialect-qr-svg", dangerous_inner_html: "{qr_svg}" }
-                }
             }
         }
     }
@@ -641,20 +545,6 @@ pub(super) fn selected_dialect_definition_text(
         .iter()
         .find(|custom| custom.name.trim() == name)
         .map(|custom| custom.definition.clone())
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn johau_uri_for_selected_dialect(
-    settings: &DialectSettings,
-    name: &str,
-) -> Option<String> {
-    let definition = selected_dialect_definition_text(settings, name)?;
-    custom_dialect_definition_to_johau_uri_with_custom_dialects(
-        &settings.custom_dialects,
-        &definition,
-    )
-    .ok()
 }
 
 #[requires(true)]

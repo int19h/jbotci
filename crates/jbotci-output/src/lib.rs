@@ -7,7 +7,6 @@ mod diagnostics;
 mod json;
 mod markdown;
 mod places;
-pub mod qr_code;
 mod recovered;
 mod references;
 mod sexpr;
