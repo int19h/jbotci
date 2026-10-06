@@ -5,8 +5,8 @@ tags = ["adhoc", "syntax", "subsentence-epoch"]
 [[provenance]]
 kind = "other"
 name = "epoch-8 subsentence ownership matrix witness"
-description = "R4: a chain cannot mix the two routes' terminators. The KUhO clause is Zantufa's, whose continuation has no KUhOI, and the KUhOI clause is camxes-exp's, which the KUhO reservation keeps out."
+description = "R4: a camxes-exp relative chain cannot mix KUhO and KUhOI terminators, so the surface is a rejection."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [49, 54], source-text = "ku'oi", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 28], source-text = "ku'o", message = "unexpected cmavo" }]

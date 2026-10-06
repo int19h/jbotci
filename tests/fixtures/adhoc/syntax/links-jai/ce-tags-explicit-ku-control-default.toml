@@ -6,7 +6,7 @@ tags = ["adhoc", "syntax", "issue-831", "links-jai-epoch"]
 [[provenance]]
 kind = "other"
 name = "Epoch 10 C-e #831 frozen recovered row JAI guard control: explicit terminator"
-description = "Control for the JAI term-start reservation fix. An explicit KU terminates the quote sumti, so the stray BE fails locally in every dialect. This is the input that first isolated the defect: before the fix, eliding the terminator made ZANTUFA-TAGS report at end of input and discard the whole statement, while the explicit terminator behaved like default. Pinning it keeps that invariance -- terminator-explicit and terminator-elided forms must fail the same way -- so a future regression in the reservation's position shows up here. Default control: byte-identical failure, since no tags route exists here."
+description = "Control for the JAI term-start reservation fix. An explicit KU terminates the quote sumti, so the stray BE fails locally. Terminator-explicit and terminator-elided forms must fail the same way."
 
 [expectations.syntax]
 status = "failure"

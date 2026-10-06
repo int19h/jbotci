@@ -1,13 +1,13 @@
-id = "adhoc.syntax.selbri.issue-840-zantufa-atom-controls-baseline"
+id = "adhoc.syntax.selbri.issue-840-me-tag-and-mex-moi-rejected"
 lojban = "klama mezu'a .i pa su'i re moi"
 dialect = "()"
 tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "matrix", "baseline", "no-delta"]
 
 [[provenance]]
 kind = "other"
-name = "rolling-Zantufa atom survival controls"
-description = "The first statement exercises the Zantufa ME tag body; the second exercises the Zantufa MEX-MOI atom. This row pins their pre-existing baseline-profile behavior across the selbri re-leveling."
+name = "ME tag body and mex MOI rejection"
+description = "The first statement puts a tag inside ME, and the second puts a mex before MOI. camxes-standard and camxes-exp reject both, and so does jbotci."
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 23], source-text = "su'i", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [14, 15], source-text = "i", message = "unexpected cmavo" }]
