@@ -23,7 +23,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprArray, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
-    Ident, LitStr, Meta, Path, PathArguments, Result, Token, Type, braced, bracketed,
+    Ident, Lit, LitStr, Meta, Path, PathArguments, Result, Token, Type, braced, bracketed,
     parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
@@ -734,6 +734,7 @@ impl SyntaxGrammar {
                             GeneratedVariantModel::from_data(data!(GeneratedVariantModel {
                                 attrs: branch.attrs.clone(),
                                 variant,
+                                branch_name: branch.name.clone(),
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
                                 tuple: true,
@@ -804,6 +805,7 @@ impl SyntaxGrammar {
                 ));
             }
         }
+        require_generated_model_documentation(&structs, &enums, &enum_declarations)?;
 
         let mut items = Vec::new();
         items.extend(structs.values().map(GeneratedStructModel::expand));
@@ -1260,6 +1262,91 @@ fn syntax_type_for_rule(name: &Ident) -> Type {
     parse_quote!(#ident)
 }
 
+/// Requires `///` documentation on every generated model type, enum, enum variant and field.
+///
+/// The generated model is the public syntax tree of the crate that declares the grammar, and its
+/// documentation comes only from the grammar declaration. This check reports every undocumented
+/// item at once, so that one build lists all of them. Each error points at the grammar rule,
+/// branch or field that declares the item, because the generated type and variant names have no
+/// source location of their own.
+///
+/// An enum variant's payload field takes its documentation from the same branch, so checking the
+/// variant also covers its field.
+#[requires(enums.keys().all(|name| enum_declarations.contains_key(name)))]
+#[ensures(true)]
+fn require_generated_model_documentation(
+    structs: &BTreeMap<String, GeneratedStructModel>,
+    enums: &BTreeMap<String, Vec<GeneratedVariantModel>>,
+    enum_declarations: &BTreeMap<String, (Vec<Attribute>, Ident)>,
+) -> Result<()> {
+    let mut errors = Vec::new();
+    let mut require = |attrs: &[Attribute], site: &Ident, item: String| {
+        if let Err(error) = require_documentation(attrs, site, &item) {
+            errors.push(error);
+        }
+    };
+    for model in structs.values() {
+        let ty = &model.ident;
+        require(&model.attrs, &model.rule_name, format!("model type `{ty}`"));
+        for field in &model.fields {
+            let name = &field.name;
+            require(
+                &field.attrs,
+                name,
+                format!("model field `{name}` of `{ty}`"),
+            );
+        }
+    }
+    for (name, variants) in enums {
+        let (attrs, rule_name) = &enum_declarations[name];
+        require(attrs, rule_name, format!("model enum `{name}`"));
+        for variant in variants {
+            let variant_name = &variant.variant;
+            require(
+                &variant.attrs,
+                &variant.branch_name,
+                format!("enum variant `{name}::{variant_name}`"),
+            );
+        }
+    }
+    let mut errors = errors.into_iter();
+    match errors.next() {
+        None => Ok(()),
+        Some(mut first) => {
+            for error in errors {
+                first.combine(error);
+            }
+            Err(first)
+        }
+    }
+}
+
+/// Checks that `attrs` hold at least one `///` line with text in it.
+#[requires(!item.is_empty())]
+#[ensures(ret.is_err() || attrs.iter().any(|attr| attr.path().is_ident("doc")))]
+fn require_documentation(attrs: &[Attribute], site: &Ident, item: &str) -> Result<()> {
+    let documented = attrs.iter().any(|attr| {
+        attr.path().is_ident("doc")
+            && matches!(
+                &attr.meta,
+                Meta::NameValue(name_value)
+                    if matches!(
+                        &name_value.value,
+                        Expr::Lit(expr)
+                            if matches!(&expr.lit, Lit::Str(doc) if !doc.value().trim().is_empty())
+                    )
+            )
+    });
+    if documented {
+        Ok(())
+    } else {
+        Err(syn::Error::new_spanned(
+            site,
+            format!("generated {item} needs `///` documentation"),
+        ))
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn generated_constructor_name(output: &Ident) -> String {
@@ -1334,6 +1421,8 @@ impl GeneratedStructModel {
 struct GeneratedVariantModel {
     attrs: Vec<Attribute>,
     variant: Ident,
+    /// The grammar branch that declares this variant; errors about the variant point at it.
+    branch_name: Ident,
     rule_name: Ident,
     fields: Vec<GeneratedFieldModel>,
     tuple: bool,
@@ -10266,7 +10355,6 @@ fn expand_anchor_condition_slice(conditions: &[AnchorCondition]) -> TokenStream2
 mod tests {
     use super::*;
     use quote::quote;
-    use syn::Lit;
 
     #[requires(!name.is_empty())]
     #[ensures(ret.ident == name)]
@@ -10990,6 +11078,117 @@ mod tests {
             expanded.contains("compile_error")
                 && expanded.contains("recursive parser declaration has no matching rule"),
             "missing recursive root rules should be reported: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_model_types_require_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            rule "undocumented" undocumented -> struct {
+                /// The source-ordered `token` component retained by the `undocumented` syntax node.
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains(
+                    "generated model type `UndocumentedSyntax` needs `///` documentation"
+                ),
+            "undocumented model types must be rejected: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_enum_variants_require_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            /// A documented enum.
+            rule "choice" choice -> enum {
+                item,
+            }
+
+            /// A documented item.
+            rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains(
+                    "generated enum variant `ChoiceSyntax::Item` needs `///` documentation"
+                ),
+            "undocumented enum variants must be rejected: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_model_enums_require_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            rule "choice" choice -> enum {
+                /// The item alternative.
+                item,
+            }
+
+            /// A documented item.
+            rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded
+                    .contains("generated model enum `ChoiceSyntax` needs `///` documentation"),
+            "undocumented model enums must be rejected: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_model_fields_require_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            /// A documented item.
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains(
+                    "generated model field `token` of `ItemSyntax` needs `///` documentation"
+                ),
+            "undocumented model fields must be rejected: {expanded}",
         );
     }
 
