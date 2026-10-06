@@ -5084,46 +5084,18 @@ fn recovery_condition_matches(
     condition: generated::generated_model::SyntaxGrammarCondition,
     env: generated_runtime::SyntaxGrammarEnv,
 ) -> bool {
-    use generated::generated_model::SyntaxGrammarConditionKind::{Feature, Policy};
-    match condition.kind {
-        Feature => recovery_feature_condition_matches(condition.name, env.dialect),
-        Policy => recovery_policy_condition_matches(condition.name, env.policy),
-    }
-}
-
-#[requires(!name.is_empty())]
-#[ensures(true)]
-fn recovery_feature_condition_matches(
-    name: &str,
-    dialect: generated_runtime::SyntaxGrammarDialect,
-) -> bool {
-    match name {
+    let dialect = env.dialect;
+    match condition.feature {
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
-        "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,
         "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
         "ZantufaSelbriReinterpretation" => dialect.zantufa_selbri_reinterpretation_enabled,
         "ZantufaSelbri" => dialect.zantufa_selbri_enabled,
         "ZantufaSelbriAtomReinterpretation" => dialect.zantufa_selbri_atom_reinterpretation_enabled,
-        "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
         "ZantufaTags" => dialect.zantufa_tags_enabled,
         "ZantufaTerms" => dialect.zantufa_terms_enabled,
-        _ => false,
-    }
-}
-
-#[requires(!name.is_empty())]
-#[ensures(true)]
-fn recovery_policy_condition_matches(
-    name: &str,
-    policy: generated_runtime::SyntaxGrammarPolicy,
-) -> bool {
-    match name {
-        "SoiAdverbials" => policy.soi_adverbials_enabled,
-        "ZantufaAdverbials" => policy.zantufa_adverbials_enabled,
-        "ZantufaQuotes" => policy.zantufa_quotes_enabled,
         _ => false,
     }
 }
@@ -7649,7 +7621,7 @@ mod tests {
             if index > 0 {
                 rendered.push_str(", ");
             }
-            write!(&mut rendered, "{:?}({})", condition.kind, condition.name)
+            write!(&mut rendered, "Feature({})", condition.feature)
                 .expect("writing to string cannot fail");
         }
         rendered.push(']');
@@ -7751,7 +7723,7 @@ mod tests {
             metadata.first.iter().any(|entry| entry
                 .conditions
                 .iter()
-                .any(|entry_condition| entry_condition.name == condition)),
+                .any(|entry_condition| entry_condition.feature == condition)),
             "{rule} has no FIRST entry conditioned on {condition}",
         );
     }
@@ -7809,7 +7781,7 @@ mod tests {
     /// one nested sum branch. A nested branch would add a public wrapper variant to Debug and
     /// serde output. So nothing else makes the levels agree: this test fails when a leaf is added
     /// to `simple_term` (or `linked_sumti`) and one level is left behind, and when a shared leaf
-    /// has different feature or policy conditions on two levels.
+    /// has different feature conditions on two levels.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -8033,11 +8005,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovery_anchor_conditions_respect_dialect_features() {
-        use generated::generated_model::{SyntaxGrammarCondition, SyntaxGrammarConditionKind};
+        use generated::generated_model::SyntaxGrammarCondition;
 
         let zantufa_terms = [SyntaxGrammarCondition {
-            kind: SyntaxGrammarConditionKind::Feature,
-            name: "ZantufaTerms",
+            feature: "ZantufaTerms",
         }];
         let baseline_env =
             generated_runtime::SyntaxGrammarEnv::from_options(&ParseOptions::default());

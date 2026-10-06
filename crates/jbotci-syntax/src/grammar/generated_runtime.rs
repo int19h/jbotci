@@ -141,11 +141,10 @@ pub struct VocativeMarkerWordsSyntax {
     pub words: Vec<Token>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) struct SyntaxGrammarEnv {
     pub dialect: SyntaxGrammarDialect,
-    pub policy: SyntaxGrammarPolicy,
 }
 
 impl SyntaxGrammarEnv {
@@ -154,18 +153,6 @@ impl SyntaxGrammarEnv {
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         Self {
             dialect: SyntaxGrammarDialect::from_options(options),
-            policy: SyntaxGrammarPolicy::default(),
-        }
-    }
-}
-
-impl Default for SyntaxGrammarEnv {
-    #[requires(true)]
-    #[ensures(true)]
-    fn default() -> Self {
-        Self {
-            dialect: SyntaxGrammarDialect::default(),
-            policy: SyntaxGrammarPolicy::default(),
         }
     }
 }
@@ -175,7 +162,6 @@ impl Default for SyntaxGrammarEnv {
 pub(crate) struct SyntaxGrammarDialect {
     pub cbm_enabled: bool,
     pub unrestricted_free_enabled: bool,
-    pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
     pub zantufa_descriptions_enabled: bool,
     pub zantufa_mex_enabled: bool,
@@ -185,7 +171,6 @@ pub(crate) struct SyntaxGrammarDialect {
     /// its Terms dependency for its existing consumers.
     pub zantufa_selbri_atom_reinterpretation_enabled: bool,
     pub zantufa_selbri_reinterpretation_enabled: bool,
-    pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
     pub zantufa_terms_enabled: bool,
 }
@@ -200,7 +185,6 @@ impl SyntaxGrammarDialect {
         Self {
             cbm_enabled: features.contains(&DialectFeature::Cbm),
             unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
-            zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
             zantufa_descriptions_enabled: features.contains(&DialectFeature::ZantufaDescriptions),
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
@@ -213,7 +197,6 @@ impl SyntaxGrammarDialect {
             zantufa_selbri_atom_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaSelbri)
                 && features.contains(&DialectFeature::ZantufaSelbriReinterpretation),
-            zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
             zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
         }
@@ -226,7 +209,6 @@ impl SyntaxGrammarDialect {
 pub(crate) enum SyntaxGrammarFeature {
     Cbm,
     UnrestrictedFree,
-    ZantufaAdverbials,
     ZantufaConnectives,
     ZantufaDescriptions,
     ZantufaMex,
@@ -234,7 +216,6 @@ pub(crate) enum SyntaxGrammarFeature {
     ZantufaSelbri,
     ZantufaSelbriAtomReinterpretation,
     ZantufaSelbriReinterpretation,
-    ZantufaQuotes,
     ZantufaTags,
     ZantufaTerms,
 }
@@ -246,7 +227,6 @@ impl SyntaxGrammarFeature {
         match self {
             Self::Cbm => dialect.cbm_enabled,
             Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
-            Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
             Self::ZantufaDescriptions => dialect.zantufa_descriptions_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
@@ -256,7 +236,6 @@ impl SyntaxGrammarFeature {
                 dialect.zantufa_selbri_atom_reinterpretation_enabled
             }
             Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
-            Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
             Self::ZantufaTerms => dialect.zantufa_terms_enabled,
         }
@@ -268,7 +247,6 @@ impl SyntaxGrammarFeature {
         match self {
             Self::Cbm => "CBM feature",
             Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
-            Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
             Self::ZantufaDescriptions => "ZANTUFA-DESCRIPTIONS feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
@@ -278,62 +256,8 @@ impl SyntaxGrammarFeature {
                 "Zantufa selbri family and raw reinterpretation features"
             }
             Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
-            Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
             Self::ZantufaTerms => "ZANTUFA-TERMS feature",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub(crate) struct SyntaxGrammarPolicy {
-    pub soi_adverbials_enabled: bool,
-    pub zantufa_adverbials_enabled: bool,
-    pub zantufa_quotes_enabled: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-#[allow(dead_code)]
-pub(crate) enum SyntaxGrammarPolicyFlag {
-    SoiAdverbials,
-    ZantufaAdverbials,
-    ZantufaQuotes,
-}
-
-impl SyntaxGrammarPolicyFlag {
-    #[requires(true)]
-    #[ensures(true)]
-    fn enabled(self, policy: SyntaxGrammarPolicy) -> bool {
-        match self {
-            Self::SoiAdverbials => policy.soi_adverbials_enabled,
-            Self::ZantufaAdverbials => policy.zantufa_adverbials_enabled,
-            Self::ZantufaQuotes => policy.zantufa_quotes_enabled,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn expected_name(self) -> &'static str {
-        match self {
-            Self::SoiAdverbials => "SOI adverbials policy",
-            Self::ZantufaAdverbials => "Zantufa adverbials policy",
-            Self::ZantufaQuotes => "Zantufa quotes policy",
-        }
-    }
-}
-
-impl Default for SyntaxGrammarPolicy {
-    #[requires(true)]
-    #[ensures(ret.soi_adverbials_enabled)]
-    #[ensures(ret.zantufa_adverbials_enabled)]
-    #[ensures(ret.zantufa_quotes_enabled)]
-    fn default() -> Self {
-        Self {
-            soi_adverbials_enabled: true,
-            zantufa_adverbials_enabled: true,
-            zantufa_quotes_enabled: true,
         }
     }
 }
@@ -733,51 +657,17 @@ where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    syntax_gate(
-        parser,
-        move |env| feature.enabled(env.dialect),
-        feature.expected_name(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn policy_gate<'tokens, O, P>(
-    policy: SyntaxGrammarPolicyFlag,
-    parser: P,
-) -> impl Parser<'tokens, O> + Clone
-where
-    O: 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
-    syntax_gate(
-        parser,
-        move |env| policy.enabled(env.policy),
-        policy.expected_name(),
-    )
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-fn syntax_gate<'tokens, O, P, E>(
-    parser: P,
-    enabled: E,
-    expected: &'static str,
-) -> impl Parser<'tokens, O> + Clone
-where
-    O: 'tokens,
-    E: Fn(SyntaxGrammarEnv) -> bool + Clone + 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
     custom::<_, _>(
         #[inline(always)]
         move |input| {
-            let env = input.state().syntax_grammar_env();
-            if enabled(env) {
+            if feature.enabled(input.state().syntax_grammar_env().dialect) {
                 return input.parse(&parser);
             }
 
-            Err(expected_found_named_at_current(input, expected.to_owned()))
+            Err(expected_found_named_at_current(
+                input,
+                feature.expected_name().to_owned(),
+            ))
         },
     )
 }

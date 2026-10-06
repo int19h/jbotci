@@ -3124,7 +3124,7 @@ mod tests {
                     "name": "vlasei",
                     "arguments": {
                         "text": "coi",
-                        "dialect": "gadganzu"
+                        "dialect": "case-insensitive"
                     }
                 }
             }),

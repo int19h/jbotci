@@ -244,7 +244,7 @@ pub struct ToolGentufaRequest {
     #[serde(default)]
     pub format: ToolGentufaFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
-    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
+    /// `cbm`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
@@ -446,7 +446,7 @@ pub struct ToolVlaseiRequest {
     #[serde(default)]
     pub format: ToolVlaseiFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
-    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
+    /// `cbm`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,

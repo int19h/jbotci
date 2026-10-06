@@ -910,7 +910,7 @@ fn parses_gentufa_formats_and_flags() {
     );
 
     let Command::Gentufa(bare_dialect_input) =
-        Cli::try_parse_from(["jbotci", "gentufa", "--dialect", "gadganzu", "coi"])
+        Cli::try_parse_from(["jbotci", "gentufa", "--dialect", "case-insensitive", "coi"])
             .expect("bare dialect name parses")
             .command
     else {
@@ -921,7 +921,7 @@ fn parses_gentufa_formats_and_flags() {
             .dialect_definition()
             .expect("bare dialect definition")
             .features
-            .contains(&DialectFeature::Gadganzu)
+            .contains(&DialectFeature::CaseInsensitive)
     );
 }
 
@@ -992,7 +992,7 @@ fn parses_vlasei_formats_and_rejects_unknown_values() {
     assert_eq!(ipa_input.format, VlaseiFormat::Ipa);
 
     let Command::Vlasei(bare_dialect_input) =
-        Cli::try_parse_from(["jbotci", "vlasei", "--dialect", "gadganzu", "coi"])
+        Cli::try_parse_from(["jbotci", "vlasei", "--dialect", "case-insensitive", "coi"])
             .expect("bare vlasei dialect")
             .command
     else {
@@ -1003,7 +1003,7 @@ fn parses_vlasei_formats_and_rejects_unknown_values() {
             .dialect_definition()
             .expect("bare vlasei dialect definition")
             .features
-            .contains(&DialectFeature::Gadganzu)
+            .contains(&DialectFeature::CaseInsensitive)
     );
 
     assert_eq!(

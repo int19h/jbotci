@@ -3081,7 +3081,6 @@ pub enum ExperimentalConstruct {
     /// siblings in #885.
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
-    ExperimentalGadganzuGadri,
     ExperimentalIauReset,
     ExperimentalGohoiSelbriUnit,
     ExperimentalKeTermset,
@@ -3211,7 +3210,6 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-simpler-description-head-connective"
             }
             Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
-            Self::ExperimentalGadganzuGadri => "syntax.warning.experimental-gadganzu-gadri",
             Self::ExperimentalIauReset => "syntax.warning.experimental-iau-reset",
             Self::ExperimentalGohoiSelbriUnit => "syntax.warning.experimental-gohoi-selbri-unit",
             Self::ExperimentalKeTermset => "syntax.warning.experimental-ke-termset",
@@ -3391,7 +3389,6 @@ impl ExperimentalConstruct {
                 "JA connective used between description heads"
             }
             Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
-            Self::ExperimentalGadganzuGadri => "gadganzu article",
             Self::ExperimentalIauReset => "IhAU bridi-level reset",
             Self::ExperimentalGohoiSelbriUnit => "GOhOI pro-bridi word quote",
             Self::ExperimentalKeTermset => "KE/KEhE termset grouping",
