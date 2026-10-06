@@ -2,8 +2,8 @@
 
 This directory contains the vendored Lensisku cached dictionary exports owned
 and compiled by `jbotci-dictionary-data`. Keeping the build inputs inside the
-crate makes every Cargo source package—and therefore the Python sdist—complete
-without reaching back into a repository checkout.
+crate makes every Cargo source package complete without reaching back into a
+repository checkout.
 
 ## Which export is vendored
 
