@@ -30,7 +30,6 @@ pub mod generated_model {
             #![tree_recovered]
         }
         model;
-        binding_schema __jbotci_syntax_binding_schema;
         env generated_runtime::SyntaxGrammarEnv;
         strict_parsers;
 
@@ -1647,9 +1646,8 @@ pub mod generated_model {
     /// this level, which is exactly the upstream `terms <- terms_1+` shape.
     ///
     /// Like the levels below it, this rule re-lists the leaf inventory instead of nesting a sum
-    /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
-    /// binding-schema drift guard keeps every level's leaf inventory synchronized with
-    /// `simple_term`.
+    /// branch: a nested branch would add a public wrapper variant to Debug and serde output. Keep
+    /// every level's leaf inventory synchronized with `simple_term`.
     rule "term" term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
@@ -1921,8 +1919,8 @@ pub mod generated_model {
     /// The BO-bound precedence level for ordinary terms in the camxes-exp hierarchy.
     ///
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
-    /// nested sum branch would add a public wrapper variant to Debug and serde output. The
-    /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
+    /// nested sum branch would add a public wrapper variant to Debug and serde output. Keep this
+    /// leaf inventory synchronized with `simple_term`.
     rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
@@ -2094,8 +2092,7 @@ pub mod generated_model {
     ///
     /// The leaves are re-listed directly rather than nested behind a sum branch, exactly as every
     /// other ladder level does it (mechanism E): a nested branch would add a public wrapper
-    /// variant to Debug and serde output. The binding-schema drift guard keeps this inventory
-    /// synchronized with `simple_term`.
+    /// variant to Debug and serde output. Keep this inventory synchronized with `simple_term`.
     rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, zantufa_selbri_entry, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, zantufa_tanru_unit_atom_entry) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
@@ -2790,8 +2787,8 @@ pub mod generated_model {
     ///
     /// camxes-standard's `nonabs_term` (camxes.peg:128) is `term_1` without the absorption guard
     /// `!(!tag selbri)`, so a tag with an elided KU may stand directly before the selbri. The
-    /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion, and the
-    /// binding-schema drift guard keeps the flavoured leaf inventories aligned.
+    /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion. Keep the
+    /// flavoured leaf inventories aligned.
     rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, zantufa_selbri_entry, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
         assert !modal_forethought_connective(tense_modal, zantufa_selbri_entry, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
@@ -7647,7 +7644,7 @@ pub mod generated_model {
     /// The recursive operand is an atom, not a linked unit: postposed BE belongs
     /// to the ordinary linked_tanru_unit around the completed FA atom.
     /// These C-e products are declared before their public routes so all three
-    /// parser flavors and Python can be checked against the new model first.
+    /// parser flavors can be checked against the new model first.
     rule "Zantufa FA tanru unit" zantufa_fa_tanru_unit(zantufa_tanru_unit_atom_entry) -> struct {
         assert feature(ZantufaSelbri);
         /// First place marker and the warning anchor for the atom.
@@ -8217,7 +8214,7 @@ pub mod generated_model {
     /// The loose connection level for BE/BEI arguments in the camxes-exp term hierarchy.
     ///
     /// These leaves are listed directly so ordinary links retain their established Debug and
-    /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
+    /// serde shape. Keep them synchronized with `linked_sumti`.
     rule "linked arguments" linked_term(sumti, tense_modal, zantufa_selbri_entry, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand, full_linked_term_candidate) -> enum {
         /// Try the complete new-width payload before a legacy owner can consume its prefix.
         /// The rejection guard rewinds complete legacy and unproven candidates (#793).

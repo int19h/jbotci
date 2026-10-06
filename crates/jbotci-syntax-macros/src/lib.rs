@@ -23,7 +23,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprArray, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
-    Ident, Lit, LitStr, Meta, Path, PathArguments, Result, Token, Type, braced, bracketed,
+    Ident, LitStr, Meta, Path, PathArguments, Result, Token, Type, braced, bracketed,
     parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
@@ -41,7 +41,6 @@ pub fn syntax_grammar(input: TokenStream) -> TokenStream {
 mod kw {
     syn::custom_keyword!(alias);
     syn::custom_keyword!(assert);
-    syn::custom_keyword!(binding_schema);
     syn::custom_keyword!(env);
     syn::custom_keyword!(feature);
     syn::custom_keyword!(field);
@@ -63,7 +62,6 @@ struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
     model_outputs: Option<BTreeSet<String>>,
-    binding_schema: Option<Ident>,
     model_path: Option<Path>,
     env: Option<Type>,
     generate_parsers: bool,
@@ -403,18 +401,6 @@ impl Parse for SyntaxGrammar {
             (false, None)
         };
 
-        let binding_schema = if input.peek(kw::binding_schema) {
-            input.parse::<kw::binding_schema>()?;
-            let binding_schema = input.parse()?;
-            input.parse::<Token![;]>()?;
-            Some(binding_schema)
-        } else {
-            None
-        };
-        if binding_schema.is_some() && !generate_model {
-            return Err(input.error("`binding_schema` requires generated `model` output"));
-        }
-
         let model_path = if input.peek(kw::model_path) {
             input.parse::<kw::model_path>()?;
             let path = input.parse()?;
@@ -464,7 +450,6 @@ impl Parse for SyntaxGrammar {
             tree_model,
             generate_model,
             model_outputs,
-            binding_schema,
             model_path,
             env,
             generate_parsers,
@@ -650,25 +635,16 @@ impl SyntaxGrammar {
                 #(#manual_items)*
                 #(#generated_items)*
             }
-            #(#support_items)*
+            #support_items
         })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<GeneratedTreeModel> {
-        if let Some(binding_schema) = &self.binding_schema
-            && !self.generates_recovered_model()
-        {
-            return Err(syn::Error::new_spanned(
-                binding_schema,
-                "binding schema hooks require `#![tree_recovered]` so every strict model has a recovered counterpart",
-            ));
-        }
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
         let mut enum_declarations = BTreeMap::<String, (Vec<Attribute>, Ident)>::new();
-        let mut model_order = Vec::<String>::new();
         let mut transparent_constructors = BTreeSet::<String>::new();
         let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
@@ -703,7 +679,6 @@ impl SyntaxGrammar {
                             ),
                         ));
                     }
-                    model_order.push(enum_name);
                     let enum_constructor = generated_constructor_name(&output);
                     transparent_constructors.insert(enum_constructor.clone());
                     constructor_labels.insert(enum_constructor.clone(), rule.context.value());
@@ -759,7 +734,6 @@ impl SyntaxGrammar {
                             GeneratedVariantModel::from_data(data!(GeneratedVariantModel {
                                 attrs: branch.attrs.clone(),
                                 variant,
-                                source_name: branch.name.clone(),
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
                                 tuple: true,
@@ -776,7 +750,6 @@ impl SyntaxGrammar {
                 continue;
             }
             let key = output.to_string();
-            model_order.push(key.clone());
             for (field, cmavo) in rule.generated_elidable_terminator_fields()? {
                 if let Some(existing) =
                     elidable_terminator_fields.insert(field.clone(), cmavo.clone())
@@ -831,23 +804,6 @@ impl SyntaxGrammar {
                 ));
             }
         }
-
-        let binding_schema = expand_binding_schema(
-            &model_order,
-            &structs,
-            &enums,
-            &enum_declarations,
-            &transparent_constructors,
-            &transparent_field_pairs,
-            &chain_link_element_fields,
-            &variant_struct_outputs,
-            &constructor_labels,
-            &elidable_terminator_fields,
-        )?;
-        let binding_schema_hook = self
-            .binding_schema
-            .as_ref()
-            .map(|name| expand_binding_schema_hook(name, &binding_schema));
 
         let mut items = Vec::new();
         items.extend(structs.values().map(GeneratedStructModel::expand));
@@ -914,7 +870,7 @@ impl SyntaxGrammar {
                     }))
                 });
         let field_order_items = struct_field_order_items.chain(variant_field_order_items);
-        let mut support_items = vec![quote! {
+        let support_items = quote! {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub struct GeneratedModelFieldOrder {
                 pub constructor: &'static str,
@@ -956,8 +912,7 @@ impl SyntaxGrammar {
             pub const GENERATED_MODEL_FIELD_ORDERS: &[GeneratedModelFieldOrder] = &[
                 #(#field_order_items,)*
             ];
-        }];
-        support_items.extend(binding_schema_hook);
+        };
         Ok(GeneratedTreeModel {
             tree_items: items,
             support_items,
@@ -973,23 +928,12 @@ impl SyntaxGrammar {
             .find(|rule| rule.name().to_string() == name)
             .and_then(Rule::context_label)
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn generates_recovered_model(&self) -> bool {
-        self.tree_model.as_ref().is_some_and(|tree_model| {
-            tree_model
-                .attrs
-                .iter()
-                .any(|attr| attr.path().is_ident("tree_recovered"))
-        })
-    }
 }
 
 #[invariant(true)]
 struct GeneratedTreeModel {
     tree_items: Vec<TokenStream2>,
-    support_items: Vec<TokenStream2>,
+    support_items: TokenStream2,
 }
 
 #[requires(true)]
@@ -1390,7 +1334,6 @@ impl GeneratedStructModel {
 struct GeneratedVariantModel {
     attrs: Vec<Attribute>,
     variant: Ident,
-    source_name: Ident,
     rule_name: Ident,
     fields: Vec<GeneratedFieldModel>,
     tuple: bool,
@@ -1475,934 +1418,6 @@ impl GeneratedFieldModel {
         let attrs = &self.attrs;
         let ty = &self.ty;
         quote!(#(#attrs)* #ty)
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Reference { .. } => true)]
-#[invariant(::Optional { .. } => true)]
-#[invariant(::Repeated { .. } => true)]
-#[invariant(::NonEmptyRepeated { .. } => true)]
-#[invariant(::Boxed { .. } => true)]
-#[invariant(::Shared { .. } => true)]
-#[invariant(::RecoveredField { .. } => true)]
-#[invariant(::WithIndicators { .. } => true)]
-#[invariant(::WithFreeModifiers { free_modifier, .. } => binding_free_modifier_schema_is_canonical(free_modifier))]
-#[invariant(::Chain { .. } => true)]
-#[invariant(::Tuple { .. } => true)]
-#[invariant(::Fixed { .. } => true)]
-enum BindingType {
-    Reference {
-        reference: BindingReference,
-    },
-    Optional {
-        value: Box<BindingType>,
-    },
-    Repeated {
-        value: Box<BindingType>,
-    },
-    NonEmptyRepeated {
-        value: Box<BindingType>,
-    },
-    Boxed {
-        value: Box<BindingType>,
-    },
-    Shared {
-        value: Box<BindingType>,
-    },
-    RecoveredField {
-        value: Box<BindingType>,
-    },
-    WithIndicators {
-        value: Box<BindingType>,
-    },
-    WithFreeModifiers {
-        value: Box<BindingType>,
-        free_modifier: Box<BindingType>,
-    },
-    Chain {
-        first: Box<BindingType>,
-        links: Box<BindingType>,
-    },
-    Tuple {
-        elements: Vec<BindingType>,
-    },
-    Fixed {
-        value: Box<BindingType>,
-        length: usize,
-    },
-}
-
-#[invariant(true)]
-#[invariant(::Model { name } => !name.is_empty())]
-#[invariant(::Leaf { path, .. } => !path.is_empty() && path.iter().all(|component| !component.is_empty()))]
-enum BindingReference {
-    Model {
-        name: String,
-    },
-    Leaf {
-        kind: BindingLeafKind,
-        absolute: bool,
-        path: Vec<String>,
-    },
-}
-
-#[invariant(true)]
-#[derive(Clone, Copy)]
-enum BindingLeafKind {
-    SyntaxToken,
-    MorphologyCmavo,
-    MorphologySelmaho,
-    MorphologyWord,
-    MorphologyWordLike,
-    SourceId,
-    SourceSpan,
-    Boolean,
-    Integer,
-    String,
-    External,
-}
-
-#[invariant(true)]
-#[derive(Clone, Copy)]
-enum BindingWrapperKind {
-    Optional,
-    Repeated,
-    NonEmptyRepeated,
-    Boxed,
-    Shared,
-    RecoveredField,
-    WithIndicators,
-    SmallRepeated,
-    SmallNonEmptyRepeated,
-    WithFreeModifiers,
-    Chain,
-}
-
-impl BindingType {
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_strict(&self) -> TokenStream2 {
-        match self.as_data() {
-            data!(BindingType::Reference { reference }) => reference.expand(),
-            data!(BindingType::Optional { value }) => {
-                let value = value.expand_strict();
-                quote!(optional(#value))
-            }
-            data!(BindingType::Repeated { value }) => {
-                let value = value.expand_strict();
-                quote!(repeated(#value))
-            }
-            data!(BindingType::NonEmptyRepeated { value }) => {
-                let value = value.expand_strict();
-                quote!(non_empty_repeated(#value))
-            }
-            data!(BindingType::Boxed { value }) => {
-                let value = value.expand_strict();
-                quote!(boxed(#value))
-            }
-            data!(BindingType::Shared { value }) => {
-                let value = value.expand_strict();
-                quote!(shared(#value))
-            }
-            data!(BindingType::RecoveredField { value }) => {
-                let value = value.expand_strict();
-                quote!(recovered_field(#value))
-            }
-            data!(BindingType::WithIndicators { value }) => {
-                let value = value.expand_strict();
-                quote!(with_indicators(#value))
-            }
-            data!(BindingType::WithFreeModifiers {
-                value,
-                free_modifier,
-            }) => {
-                let value = value.expand_strict();
-                let free_modifier = free_modifier.expand_strict();
-                quote!(with_free_modifiers(value(#value), free_modifier(#free_modifier)))
-            }
-            data!(BindingType::Chain { first, links }) => {
-                let first = first.expand_strict();
-                let links = links.expand_strict();
-                quote!(chain(first(#first), links(#links)))
-            }
-            data!(BindingType::Tuple { elements }) => {
-                let elements = elements.iter().map(BindingType::expand_strict);
-                quote!(tuple(#(#elements),*))
-            }
-            data!(BindingType::Fixed { value, length }) => {
-                let value = value.expand_strict();
-                quote!(fixed(length(#length), value(#value)))
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_recovered(&self) -> TokenStream2 {
-        match self.as_data() {
-            data!(BindingType::Reference { .. }) | data!(BindingType::WithIndicators { .. }) => {
-                let value = self.expand_strict();
-                quote!(recovered_field(#value))
-            }
-            data!(BindingType::Optional { value }) => {
-                let value = value.expand_recovered();
-                quote!(optional(#value))
-            }
-            data!(BindingType::Repeated { value }) => {
-                let value = value.expand_recovered();
-                quote!(repeated(#value))
-            }
-            data!(BindingType::NonEmptyRepeated { value }) => {
-                let value = value.expand_recovered();
-                quote!(non_empty_repeated(#value))
-            }
-            data!(BindingType::Boxed { value }) => {
-                let value = value.expand_recovered();
-                quote!(boxed(#value))
-            }
-            data!(BindingType::Shared { value }) => {
-                let value = value.expand_recovered();
-                quote!(shared(#value))
-            }
-            data!(BindingType::RecoveredField { value }) => {
-                let value = value.expand_recovered();
-                quote!(recovered_field(#value))
-            }
-            data!(BindingType::WithFreeModifiers {
-                value,
-                free_modifier,
-            }) => {
-                let value = value.expand_recovered();
-                let free_modifier = free_modifier.expand_recovered();
-                quote!(with_free_modifiers(value(#value), free_modifiers(repeated(#free_modifier))))
-            }
-            data!(BindingType::Chain { first, links }) => {
-                let first = first.expand_recovered();
-                let links = links.expand_recovered();
-                quote!(chain(first(#first), links(#links)))
-            }
-            data!(BindingType::Tuple { elements }) => {
-                let elements = elements.iter().map(BindingType::expand_recovered);
-                quote!(tuple(#(#elements),*))
-            }
-            data!(BindingType::Fixed { value, length }) => {
-                let value = value.expand_recovered();
-                quote!(fixed(length(#length), value(#value)))
-            }
-        }
-    }
-}
-
-impl BindingReference {
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand(&self) -> TokenStream2 {
-        match self.as_data() {
-            data!(BindingReference::Model { name }) => quote!(reference(model(#name))),
-            data!(BindingReference::Leaf {
-                kind,
-                absolute,
-                path,
-            }) => {
-                let kind = kind.ident();
-                quote!(reference(leaf(kind(#kind), absolute(#absolute), path(#(#path),*))))
-            }
-        }
-    }
-}
-
-impl BindingLeafKind {
-    #[requires(true)]
-    #[ensures(true)]
-    fn ident(self) -> Ident {
-        format_ident!(
-            "{}",
-            match self {
-                Self::SyntaxToken => "syntax_token",
-                Self::MorphologyCmavo => "morphology_cmavo",
-                Self::MorphologySelmaho => "morphology_selmaho",
-                Self::MorphologyWord => "morphology_word",
-                Self::MorphologyWordLike => "morphology_word_like",
-                Self::SourceId => "source_id",
-                Self::SourceSpan => "source_span",
-                Self::Boolean => "boolean",
-                Self::Integer => "integer",
-                Self::String => "string",
-                Self::External => "external",
-            }
-        )
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_binding_type(
-    ty: &Type,
-    generated_models: &BTreeSet<String>,
-    field: &Ident,
-) -> Result<BindingType> {
-    match ty {
-        Type::Path(path) if path.qself.is_none() => {
-            normalize_binding_path(&path.path, generated_models, field)
-        }
-        Type::Tuple(tuple) => tuple
-            .elems
-            .iter()
-            .map(|element| normalize_binding_type(element, generated_models, field))
-            .collect::<Result<Vec<_>>>()
-            .map(|elements| new!(BindingType::Tuple { elements })),
-        Type::Array(array) => {
-            let Expr::Lit(length) = &array.len else {
-                return Err(unsupported_binding_field(field, ty));
-            };
-            let Lit::Int(length) = &length.lit else {
-                return Err(unsupported_binding_field(field, ty));
-            };
-            let length = length
-                .base10_parse::<usize>()
-                .map_err(|_| unsupported_binding_field(field, ty))?;
-            let value = normalize_binding_type(&array.elem, generated_models, field)?;
-            Ok(new!(BindingType::Fixed {
-                value: Box::new(value),
-                length,
-            }))
-        }
-        Type::Paren(paren) => normalize_binding_type(&paren.elem, generated_models, field),
-        Type::Group(group) => normalize_binding_type(&group.elem, generated_models, field),
-        _ => Err(unsupported_binding_field(field, ty)),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_binding_path(
-    path: &Path,
-    generated_models: &BTreeSet<String>,
-    field: &Ident,
-) -> Result<BindingType> {
-    let segment = path
-        .segments
-        .last()
-        .ok_or_else(|| syn::Error::new_spanned(field, "model fields need a non-empty type path"))?;
-    let name = segment.ident.to_string();
-    if matches!(segment.arguments, PathArguments::None) {
-        if path
-            .segments
-            .iter()
-            .any(|segment| !matches!(segment.arguments, PathArguments::None))
-        {
-            return Err(unsupported_binding_field(
-                field,
-                &Type::Path(syn::TypePath {
-                    qself: None,
-                    path: path.clone(),
-                }),
-            ));
-        }
-        if path.segments.len() == 1 && generated_models.contains(&name) {
-            return Ok(new!(BindingType::Reference {
-                reference: new!(BindingReference::Model { name }),
-            }));
-        }
-        let kind = binding_leaf_kind(path);
-        let absolute = path.leading_colon.is_some();
-        let path = path
-            .segments
-            .iter()
-            .map(|segment| segment.ident.to_string())
-            .collect();
-        return Ok(new!(BindingType::Reference {
-            reference: new!(BindingReference::Leaf {
-                kind,
-                absolute,
-                path,
-            }),
-        }));
-    }
-
-    let args = binding_type_arguments(&segment.arguments)
-        .ok_or_else(|| unsupported_binding_path(field, path))?;
-    let unary = |constructor: fn(Box<BindingType>) -> BindingType| -> Result<BindingType> {
-        if args.len() != 1 {
-            return Err(unsupported_binding_path(field, path));
-        }
-        let value = normalize_binding_type(args[0], generated_models, field)?;
-        Ok(constructor(Box::new(value)))
-    };
-    match binding_wrapper_kind(path).ok_or_else(|| unsupported_binding_path(field, path))? {
-        BindingWrapperKind::Optional => unary(|value| new!(BindingType::Optional { value })),
-        BindingWrapperKind::Repeated => unary(|value| new!(BindingType::Repeated { value })),
-        BindingWrapperKind::NonEmptyRepeated => {
-            unary(|value| new!(BindingType::NonEmptyRepeated { value }))
-        }
-        BindingWrapperKind::Boxed => unary(|value| new!(BindingType::Boxed { value })),
-        BindingWrapperKind::Shared => unary(|value| new!(BindingType::Shared { value })),
-        BindingWrapperKind::RecoveredField => {
-            unary(|value| new!(BindingType::RecoveredField { value }))
-        }
-        BindingWrapperKind::WithIndicators => {
-            unary(|value| new!(BindingType::WithIndicators { value }))
-        }
-        kind @ (BindingWrapperKind::SmallRepeated | BindingWrapperKind::SmallNonEmptyRepeated) => {
-            if args.len() != 1 {
-                return Err(unsupported_binding_path(field, path));
-            }
-            let Type::Array(array) = args[0] else {
-                return Err(unsupported_binding_path(field, path));
-            };
-            let value = normalize_binding_type(&array.elem, generated_models, field)?;
-            if matches!(kind, BindingWrapperKind::SmallRepeated) {
-                Ok(new!(BindingType::Repeated {
-                    value: Box::new(value),
-                }))
-            } else {
-                Ok(new!(BindingType::NonEmptyRepeated {
-                    value: Box::new(value),
-                }))
-            }
-        }
-        BindingWrapperKind::WithFreeModifiers => {
-            if args.len() != 2 {
-                return Err(unsupported_binding_path(field, path));
-            }
-            if !binding_free_modifier_type_is_canonical(args[1]) {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    format!(
-                        "unsupported generated model field shape `{}`; the second `WithFreeModifiers` type argument must be `FreeModifierSyntax`, optionally behind pointer wrappers",
-                        compact_tokens(&Type::Path(syn::TypePath {
-                            qself: None,
-                            path: path.clone(),
-                        })),
-                    ),
-                ));
-            }
-            if !generated_models.contains("FreeModifierSyntax") {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    "unsupported generated model field shape; `WithFreeModifiers` requires a generated `FreeModifierSyntax` model so its binding schema does not contain a dangling model reference",
-                ));
-            }
-            Ok(new!(BindingType::WithFreeModifiers {
-                value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
-                free_modifier: Box::new(normalize_binding_type(args[1], generated_models, field)?),
-            }))
-        }
-        BindingWrapperKind::Chain => {
-            if args.len() != 2 {
-                return Err(unsupported_binding_path(field, path));
-            }
-            Ok(new!(BindingType::Chain {
-                first: Box::new(normalize_binding_type(args[0], generated_models, field)?),
-                links: Box::new(normalize_binding_type(args[1], generated_models, field)?),
-            }))
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn binding_free_modifier_type_is_canonical(ty: &Type) -> bool {
-    if let Type::Path(path) = ty
-        && matches!(
-            binding_wrapper_kind(&path.path),
-            Some(BindingWrapperKind::Shared | BindingWrapperKind::Boxed)
-        )
-        && let Some(segment) = path.path.segments.last()
-        && let Some(inner) = first_type_argument(&segment.arguments)
-    {
-        return binding_free_modifier_type_is_canonical(inner);
-    }
-    let Type::Path(path) = ty else {
-        return false;
-    };
-    path.qself.is_none()
-        && path
-            .path
-            .segments
-            .iter()
-            .all(|segment| matches!(segment.arguments, PathArguments::None))
-        && binding_path_matches(
-            &path.path,
-            &[
-                &["FreeModifierSyntax"],
-                &["crate", "tree", "FreeModifierSyntax"],
-                &["jbotci_syntax", "tree", "FreeModifierSyntax"],
-            ],
-        )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn binding_free_modifier_schema_is_canonical(ty: &BindingType) -> bool {
-    match ty.as_data() {
-        data!(BindingType::Shared { value }) | data!(BindingType::Boxed { value }) => {
-            binding_free_modifier_schema_is_canonical(value)
-        }
-        data!(BindingType::Reference { reference }) => {
-            matches!(reference.as_data(), data!(BindingReference::Model { name }) if name == "FreeModifierSyntax")
-        }
-        _ => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn binding_wrapper_kind(path: &Path) -> Option<BindingWrapperKind> {
-    if binding_path_matches(
-        path,
-        &[
-            &["Option"],
-            &["core", "option", "Option"],
-            &["std", "option", "Option"],
-        ],
-    ) {
-        Some(BindingWrapperKind::Optional)
-    } else if binding_path_matches(
-        path,
-        &[&["Vec"], &["alloc", "vec", "Vec"], &["std", "vec", "Vec"]],
-    ) {
-        Some(BindingWrapperKind::Repeated)
-    } else if binding_path_matches(path, &[&["Vec1"], &["vec1", "Vec1"]]) {
-        Some(BindingWrapperKind::NonEmptyRepeated)
-    } else if binding_path_matches(
-        path,
-        &[
-            &["Box"],
-            &["alloc", "boxed", "Box"],
-            &["std", "boxed", "Box"],
-        ],
-    ) {
-        Some(BindingWrapperKind::Boxed)
-    } else if binding_path_matches(
-        path,
-        &[&["Arc"], &["alloc", "sync", "Arc"], &["std", "sync", "Arc"]],
-    ) {
-        Some(BindingWrapperKind::Shared)
-    } else if binding_path_matches(path, &[&["Recovered"]]) {
-        Some(BindingWrapperKind::RecoveredField)
-    } else if binding_path_matches(
-        path,
-        &[
-            &["WithIndicators"],
-            &["crate", "tree", "WithIndicators"],
-            &["jbotci_syntax", "tree", "WithIndicators"],
-        ],
-    ) {
-        Some(BindingWrapperKind::WithIndicators)
-    } else if binding_path_matches(path, &[&["SmallVec"], &["smallvec", "SmallVec"]]) {
-        Some(BindingWrapperKind::SmallRepeated)
-    } else if binding_path_matches(
-        path,
-        &[&["SmallVec1"], &["vec1", "smallvec_v1", "SmallVec1"]],
-    ) {
-        Some(BindingWrapperKind::SmallNonEmptyRepeated)
-    } else if binding_path_matches(
-        path,
-        &[
-            &["WithFreeModifiers"],
-            &["crate", "tree", "WithFreeModifiers"],
-            &["jbotci_syntax", "tree", "WithFreeModifiers"],
-        ],
-    ) {
-        Some(BindingWrapperKind::WithFreeModifiers)
-    } else if binding_path_matches(path, &[&["Chain"], &["jbotci_tree", "Chain"]]) {
-        Some(BindingWrapperKind::Chain)
-    } else {
-        None
-    }
-}
-
-#[requires(candidates.iter().all(|candidate| {
-    !candidate.is_empty() && candidate.iter().all(|component| !component.is_empty())
-}))]
-#[ensures(true)]
-fn binding_path_matches(path: &Path, candidates: &[&[&str]]) -> bool {
-    candidates.iter().any(|candidate| {
-        candidate.len() == path.segments.len()
-            && path.segments.iter().zip(candidate.iter()).enumerate().all(
-                |(index, (segment, expected))| {
-                    segment.ident == *expected
-                        && (index + 1 == candidate.len()
-                            || matches!(segment.arguments, PathArguments::None))
-                },
-            )
-    })
-}
-
-#[requires(!names.is_empty())]
-#[ensures(true)]
-fn binding_primitive_path_matches(path: &Path, names: &[&str]) -> bool {
-    let mut segments = path.segments.iter();
-    match (
-        segments.next(),
-        segments.next(),
-        segments.next(),
-        segments.next(),
-    ) {
-        (Some(name), None, None, None) => names.iter().any(|expected| name.ident == *expected),
-        (Some(root), Some(primitive), Some(name), None)
-            if (root.ident == "core" || root.ident == "std") && primitive.ident == "primitive" =>
-        {
-            names.iter().any(|expected| name.ident == *expected)
-        }
-        _ => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn binding_type_arguments(arguments: &PathArguments) -> Option<Vec<&Type>> {
-    let PathArguments::AngleBracketed(arguments) = arguments else {
-        return None;
-    };
-    arguments
-        .args
-        .iter()
-        .map(|argument| match argument {
-            GenericArgument::Type(ty) => Some(ty),
-            _ => None,
-        })
-        .collect()
-}
-
-#[requires(path.segments.iter().all(|segment| matches!(segment.arguments, PathArguments::None)))]
-#[ensures(true)]
-fn binding_leaf_kind(path: &Path) -> BindingLeafKind {
-    if binding_path_matches(
-        path,
-        &[&["Token"], &["crate", "Token"], &["jbotci_syntax", "Token"]],
-    ) {
-        BindingLeafKind::SyntaxToken
-    } else if binding_path_matches(path, &[&["Cmavo"], &["jbotci_morphology", "Cmavo"]]) {
-        BindingLeafKind::MorphologyCmavo
-    } else if binding_path_matches(path, &[&["Selmaho"], &["jbotci_morphology", "Selmaho"]]) {
-        BindingLeafKind::MorphologySelmaho
-    } else if binding_path_matches(path, &[&["Word"], &["jbotci_morphology", "Word"]]) {
-        BindingLeafKind::MorphologyWord
-    } else if binding_path_matches(path, &[&["WordLike"], &["jbotci_morphology", "WordLike"]]) {
-        BindingLeafKind::MorphologyWordLike
-    } else if binding_path_matches(path, &[&["SourceId"], &["jbotci_source", "SourceId"]]) {
-        BindingLeafKind::SourceId
-    } else if binding_path_matches(path, &[&["SourceSpan"], &["jbotci_source", "SourceSpan"]]) {
-        BindingLeafKind::SourceSpan
-    } else if binding_primitive_path_matches(path, &["bool"]) {
-        BindingLeafKind::Boolean
-    } else if binding_primitive_path_matches(
-        path,
-        &[
-            "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize",
-        ],
-    ) {
-        BindingLeafKind::Integer
-    } else if binding_path_matches(
-        path,
-        &[
-            &["String"],
-            &["alloc", "string", "String"],
-            &["std", "string", "String"],
-        ],
-    ) {
-        BindingLeafKind::String
-    } else {
-        BindingLeafKind::External
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn unsupported_binding_path(field: &Ident, path: &Path) -> syn::Error {
-    unsupported_binding_field(
-        field,
-        &Type::Path(syn::TypePath {
-            qself: None,
-            path: path.clone(),
-        }),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn unsupported_binding_field(field: &Ident, ty: &Type) -> syn::Error {
-    syn::Error::new_spanned(
-        field,
-        format!(
-            "unsupported generated model field shape `{}`; binding schema fields must use plain model/leaf paths or the supported Option, Vec, Vec1, SmallVec, SmallVec1, Box, Arc, Recovered, WithIndicators, WithFreeModifiers, Chain, tuple, and fixed-array shapes",
-            compact_tokens(ty),
-        ),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|docs| docs.iter().any(|doc| !doc.value().trim().is_empty())))]
-fn canonical_documentation(
-    attrs: &[Attribute],
-    target: &Ident,
-    description: &str,
-) -> Result<Vec<LitStr>> {
-    let mut docs = Vec::new();
-    for attr in attrs.iter().filter(|attr| attr.path().is_ident("doc")) {
-        if let Meta::NameValue(name_value) = &attr.meta
-            && let Expr::Lit(expr) = &name_value.value
-            && let Lit::Str(doc) = &expr.lit
-        {
-            docs.push(doc.clone());
-        }
-    }
-    if !docs.iter().any(|doc| !doc.value().trim().is_empty()) {
-        return Err(syn::Error::new_spanned(
-            target,
-            format!("generated {description} needs canonical `///` documentation"),
-        ));
-    }
-    Ok(docs)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_schema(
-    model_order: &[String],
-    structs: &BTreeMap<String, GeneratedStructModel>,
-    enums: &BTreeMap<String, Vec<GeneratedVariantModel>>,
-    enum_declarations: &BTreeMap<String, (Vec<Attribute>, Ident)>,
-    transparent_constructors: &BTreeSet<String>,
-    transparent_field_pairs: &BTreeSet<(String, String)>,
-    chain_link_element_fields: &BTreeSet<(String, String)>,
-    variant_struct_outputs: &BTreeSet<(String, String)>,
-    constructor_labels: &BTreeMap<String, String>,
-    elidable_terminator_fields: &BTreeMap<String, String>,
-) -> Result<TokenStream2> {
-    let generated_models = structs
-        .keys()
-        .chain(enums.keys())
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    let models = model_order
-        .iter()
-        .map(|name| {
-            if let Some(model) = structs.get(name) {
-                expand_binding_product(model, &generated_models, constructor_labels)
-            } else {
-                let variants = enums
-                    .get(name)
-                    .expect("model order contains only collected structs and enums");
-                let (attrs, rule_name) = enum_declarations
-                    .get(name)
-                    .expect("generated enum declaration metadata is complete");
-                expand_binding_sum(
-                    name,
-                    attrs,
-                    rule_name,
-                    variants,
-                    &generated_models,
-                    constructor_labels,
-                )
-            }
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    let transparent_constructors = transparent_constructors.iter();
-    let transparent_fields = transparent_field_pairs
-        .iter()
-        .map(|(constructor, field)| quote!(transparent_field(#constructor, #field)));
-    let chain_link_fields = chain_link_element_fields
-        .iter()
-        .map(|(constructor, field)| quote!(chain_link_element_field(#constructor, #field)));
-    let constructor_labels = constructor_labels
-        .iter()
-        .map(|(constructor, label)| quote!(constructor_label(#constructor, #label)));
-    let elidable_terminators = elidable_terminator_fields
-        .iter()
-        .map(|(field, cmavo)| quote!(elidable_terminator(#field, #cmavo)));
-    let struct_field_orders =
-        structs
-            .values()
-            .filter(|model| model.fields.len() > 1)
-            .map(|model| {
-                let constructor = generated_constructor_name(&model.ident);
-                let fields = model.fields.iter().map(|field| field.name.to_string());
-                quote!(field_order(#constructor, [#(#fields),*]))
-            });
-    let variant_field_orders = variant_struct_outputs
-        .iter()
-        .filter_map(|(constructor, output)| {
-            let model = structs.get(output)?;
-            if model.fields.len() <= 1 {
-                return None;
-            }
-            let fields = model.fields.iter().map(|field| field.name.to_string());
-            Some(quote!(field_order(#constructor, [#(#fields),*])))
-        });
-    let field_orders = struct_field_orders.chain(variant_field_orders);
-
-    Ok(quote! {
-        syntax_binding_schema {
-            version(1),
-            models [#(#models),*],
-            metadata {
-                transparent_constructors [#(#transparent_constructors),*],
-                transparent_fields [#(#transparent_fields),*],
-                chain_link_element_fields [#(#chain_link_fields),*],
-                constructor_labels [#(#constructor_labels),*],
-                elidable_terminators [#(#elidable_terminators),*],
-                field_orders [#(#field_orders),*]
-            }
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_product(
-    model: &GeneratedStructModel,
-    generated_models: &BTreeSet<String>,
-    constructor_labels: &BTreeMap<String, String>,
-) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&model.attrs, &model.ident, "model type")?;
-    let name = model.ident.to_string();
-    let rule = model.rule_name.to_string();
-    let constructor = generated_constructor_name(&model.ident);
-    let label = constructor_labels
-        .get(&constructor)
-        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
-    let shape = if model.fields.len() == 1 {
-        format_ident!("tuple")
-    } else {
-        format_ident!("named")
-    };
-    let fields = model
-        .fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| {
-            expand_binding_field(field, index, model.fields.len() != 1, generated_models)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(quote! {
-        product {
-            names(strict(#name), recovered(#name)),
-            rule(#rule),
-            docs [#(#docs),*],
-            constructor(name(#constructor), label(#label)),
-            shape(#shape),
-            fields [#(#fields),*]
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_sum(
-    name: &str,
-    attrs: &[Attribute],
-    rule_name: &Ident,
-    variants: &[GeneratedVariantModel],
-    generated_models: &BTreeSet<String>,
-    constructor_labels: &BTreeMap<String, String>,
-) -> Result<TokenStream2> {
-    let ident = format_ident!("{name}");
-    let docs = canonical_documentation(attrs, &ident, "model enum")?;
-    let rule = rule_name.to_string();
-    let constructor = generated_constructor_name(&ident);
-    let label = constructor_labels
-        .get(&constructor)
-        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
-    let variants = variants
-        .iter()
-        .map(|variant| expand_binding_variant(variant, generated_models, constructor_labels))
-        .collect::<Result<Vec<_>>>()?;
-    Ok(quote! {
-        sum {
-            names(strict(#name), recovered(#name)),
-            rule(#rule),
-            docs [#(#docs),*],
-            constructor(name(#constructor), label(#label)),
-            variants [#(#variants),*]
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_variant(
-    variant: &GeneratedVariantModel,
-    generated_models: &BTreeSet<String>,
-    constructor_labels: &BTreeMap<String, String>,
-) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&variant.attrs, &variant.variant, "enum variant")?;
-    let name = variant.variant.to_string();
-    let source_rule = variant.source_name.to_string();
-    let owner_rule = variant.rule_name.to_string();
-    let label = constructor_labels
-        .get(&name)
-        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
-    let shape = if variant.tuple {
-        format_ident!("tuple")
-    } else {
-        format_ident!("named")
-    };
-    let fields = variant
-        .fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| expand_binding_field(field, index, !variant.tuple, generated_models))
-        .collect::<Result<Vec<_>>>()?;
-    Ok(quote! {
-        variant {
-            name(#name),
-            owner_rule(#owner_rule),
-            source_rule(#source_rule),
-            docs [#(#docs),*],
-            constructor(name(#name), label(#label)),
-            shape(#shape),
-            fields [#(#fields),*]
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_field(
-    field: &GeneratedFieldModel,
-    index: usize,
-    named: bool,
-    generated_models: &BTreeSet<String>,
-) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&field.attrs, &field.name, "model field")?;
-    let source_name = field.name.to_string();
-    let rust_name = if named {
-        quote!(named(#source_name))
-    } else {
-        quote!(tuple(#index))
-    };
-    let ty = normalize_binding_type(&field.ty, generated_models, &field.name)?;
-    let strict = ty.expand_strict();
-    let recovered = ty.expand_recovered();
-    Ok(quote! {
-        field {
-            source_name(#source_name),
-            rust_name(#rust_name),
-            index(#index),
-            docs [#(#docs),*],
-            strict(#strict),
-            recovered(#recovered)
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn expand_binding_schema_hook(name: &Ident, schema: &TokenStream2) -> TokenStream2 {
-    quote! {
-        #[doc(hidden)]
-        #[macro_export]
-        macro_rules! #name {
-            ($consumer:ident) => {
-                $consumer! { #schema }
-            };
-        }
     }
 }
 
@@ -11251,6 +10266,7 @@ fn expand_anchor_condition_slice(conditions: &[AnchorCondition]) -> TokenStream2
 mod tests {
     use super::*;
     use quote::quote;
+    use syn::Lit;
 
     #[requires(!name.is_empty())]
     #[ensures(ret.ident == name)]
@@ -11725,11 +10741,28 @@ mod tests {
             &field.ty.to_token_stream(),
             &quote!(Token),
         ));
-        let docs = canonical_documentation(&field.attrs, &item.ident, "model field")
-            .expect("generated tuple-newtype field retains canonical documentation");
-        assert_eq!(docs.len(), 1);
+        let docs = field
+            .attrs
+            .iter()
+            .filter_map(|attr| {
+                if let Meta::NameValue(name_value) = &attr.meta
+                    && name_value.path.is_ident("doc")
+                    && let Expr::Lit(expr) = &name_value.value
+                    && let Lit::Str(doc) = &expr.lit
+                {
+                    Some(doc.value())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
-            docs[0].value().trim(),
+            docs.len(),
+            1,
+            "generated tuple-newtype field retains its documentation"
+        );
+        assert_eq!(
+            docs[0].trim(),
             "The source-ordered `token` component retained by the `item` syntax node."
         );
 
@@ -11963,81 +10996,6 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn generated_model_types_require_canonical_documentation() {
-        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
-            tree_model {}
-            model;
-
-            rule "undocumented" undocumented -> struct {
-                /// The source-ordered `token` component retained by the `undocumented` syntax node.
-                field token <- cmavo(Be);
-            }
-        })
-        .expect("grammar parses before documentation validation");
-
-        let expanded = grammar.expand().to_string();
-        assert!(
-            expanded.contains("compile_error")
-                && expanded.contains("generated model type needs canonical"),
-            "undocumented model types must be rejected: {expanded}"
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn generated_enum_variants_require_canonical_documentation() {
-        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
-            tree_model {}
-            model;
-
-            /// A documented enum.
-            rule "choice" choice -> enum {
-                item,
-            }
-
-            /// A documented item.
-            rule "item" item -> struct {
-                /// The source-ordered `token` component retained by the `item` syntax node.
-                field token <- cmavo(Be);
-            }
-        })
-        .expect("grammar parses before documentation validation");
-
-        let expanded = grammar.expand().to_string();
-        assert!(
-            expanded.contains("compile_error")
-                && expanded.contains("generated enum variant needs canonical"),
-            "undocumented enum variants must be rejected: {expanded}"
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn generated_model_fields_require_canonical_documentation() {
-        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
-            tree_model {}
-            model;
-
-            /// A documented item.
-            rule "item" item -> struct {
-                field token <- cmavo(Be);
-            }
-        })
-        .expect("grammar parses before documentation validation");
-
-        let expanded = grammar.expand().to_string();
-        assert!(
-            expanded.contains("compile_error")
-                && expanded.contains("generated model field needs canonical"),
-            "undocumented model fields must be rejected: {expanded}",
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
     fn generated_models_preserve_non_text_rustdoc_attributes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             tree_model {}
@@ -12088,107 +11046,6 @@ mod tests {
         assert!(
             has_schema_item_alias,
             "the literal-preserving Rustdoc alias must survive model expansion"
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn qualified_leaf_basename_collisions_remain_external() {
-        let generated_models = BTreeSet::new();
-        let field = format_ident!("value");
-
-        for (ty, expected) in [
-            (
-                parse_quote!(foreign::Token),
-                "reference(leaf(kind(external),absolute(false),path(\"foreign\",\"Token\")))",
-            ),
-            (
-                parse_quote!(::foreign::Token),
-                "reference(leaf(kind(external),absolute(true),path(\"foreign\",\"Token\")))",
-            ),
-            (
-                parse_quote!(foreign::SourceSpan),
-                "reference(leaf(kind(external),absolute(false),path(\"foreign\",\"SourceSpan\")))",
-            ),
-            (
-                parse_quote!(jbotci_source::SourceSpan),
-                "reference(leaf(kind(source_span),absolute(false),path(\"jbotci_source\",\"SourceSpan\")))",
-            ),
-            (
-                parse_quote!(std::sync::Arc<jbotci_source::SourceSpan>),
-                "shared(reference(leaf(kind(source_span),absolute(false),path(\"jbotci_source\",\"SourceSpan\"))))",
-            ),
-        ] {
-            let normalized = normalize_binding_type(&ty, &generated_models, &field)
-                .expect("supported leaf or canonical wrapper path normalizes");
-            assert_eq!(compact_tokens(&normalized.expand_strict()), expected);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn qualified_wrapper_basename_collisions_are_rejected() {
-        let generated_models = BTreeSet::new();
-        let field = format_ident!("collision");
-
-        for ty in [
-            parse_quote!(foreign::Option<Token>),
-            parse_quote!(foreign::Vec<Token>),
-        ] {
-            let error = match normalize_binding_type(&ty, &generated_models, &field) {
-                Ok(_) => panic!("foreign generic wrappers must be unsupported"),
-                Err(error) => error,
-            };
-            assert!(
-                error
-                    .to_string()
-                    .contains("unsupported generated model field shape"),
-                "unexpected collision error: {error}"
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn with_free_modifiers_rejects_noncanonical_free_modifier_types() {
-        let generated_models = BTreeSet::new();
-        let field = format_ident!("collision");
-        let ty = parse_quote!(WithFreeModifiers<Token, foreign::FreeModifierSyntax>);
-
-        let error = match normalize_binding_type(&ty, &generated_models, &field) {
-            Ok(_) => panic!("recovered free modifiers have one canonical syntax type"),
-            Err(error) => error,
-        };
-
-        assert!(
-            error
-                .to_string()
-                .contains("second `WithFreeModifiers` type argument must be `FreeModifierSyntax`"),
-            "unexpected free-modifier type error: {error}",
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn with_free_modifiers_requires_generated_free_modifier_model() {
-        let generated_models = BTreeSet::new();
-        let field = format_ident!("missing_model");
-        let ty = parse_quote!(WithFreeModifiers<Token, FreeModifierSyntax>);
-
-        let error = match normalize_binding_type(&ty, &generated_models, &field) {
-            Ok(_) => panic!("a canonical name must not create a dangling model reference"),
-            Err(error) => error,
-        };
-
-        assert!(
-            error
-                .to_string()
-                .contains("requires a generated `FreeModifierSyntax` model"),
-            "unexpected missing free-modifier model error: {error}",
         );
     }
 }
