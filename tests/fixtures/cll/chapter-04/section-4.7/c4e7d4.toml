@@ -1,0 +1,38 @@
+id = "cll.4.47.c4e7d4"
+lojban = "acer"
+translation-en = "Acer (the scientific name of maple trees)"
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.7"
+section-id = "fuhivla"
+example-number = "4.47"
+example-id = "c4e7d4"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "acer" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })]'
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "acer" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = ".acer."
+tree = """
+[
+  Cmevla @[0‥4) "acer",
+]"""
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"acer","span":[0,4]}}}]'
+
+[expectations.output.gentufa]
+brackets = ".acer."
+tree = 'Cmevla @[0‥4) "acer"'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"acer","span":[0,4]}}}}]}}'

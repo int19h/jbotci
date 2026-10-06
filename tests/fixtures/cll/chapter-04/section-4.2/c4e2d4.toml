@@ -1,0 +1,29 @@
+id = "cll.4.4.c4e2d4"
+lojban = "ki'e'u'e"
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.2"
+section-id = "cmavo"
+example-number = "4.4"
+example-id = "c4e2d4"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ki'e'u'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } })]"""
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [0, 8], source-text = "ki'e'u'e", message = "unexpected cmavo" }]
+
+[expectations.output.vlasei]
+brackets = "ki'e'u'e"
+tree = """
+[
+  Cmavo @[0‥8) "ki'e'u'e",
+]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"ki'e'u'e","span":[0,8]}}}]"""

@@ -1,0 +1,50 @@
+id = "cll.4.8.c4e2d8"
+lojban = "le RE. NANmu"
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.2"
+section-id = "cmavo"
+example-number = "4.8"
+example-id = "c4e2d8"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ré" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "nánmu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } })]'
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(TermsFragment(TermsFragmentSyntax { terms: [SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(DescriptorWithGadriSumti(DescriptorWithGadriSumtiSyntax { description: DescriptionHeadSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }), tail: DescriptionTailSyntax { leading_tail_elements: LeadingDescriptionTailElementsSyntax { tail_sumti: None, relative_clauses: None }, tail: QuantifierRelationDescriptionTail(QuantifierRelationDescriptionTailSyntax { quantifier: PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ré" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }), selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "nánmu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), relative_clauses: None }) }, ku: None })), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None }))], vau: None }))), following: [], trailing: [] })), additional_niho: [] })) })'
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":7,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":7,"length":5},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":7,"length":5},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":7,"length":5},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":7,"length":5},"kind":"compound","selbri":{"offset":7,"length":5},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[]}},{"index":3,"node":{"offset":7,"length":5},"kind":"forwarding","selbri":{"offset":7,"length":5},"tanru-unit":null,"propagation":{"kind":"forward","inner":2}}],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = "(le ré nánmu)"
+tree = """
+[
+  Cmavo @[0‥2) "le",
+  Cmavo @[3‥5) "ré",
+  Gismu @[7‥12) "nánmu",
+]"""
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ré","span":[3,5]}}},{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[7,12]}}}]'
+
+[expectations.output.gentufa]
+brackets = "(le [ré nánmu])"
+tree = """
+DescriptorWithGadriSumti @[0‥12) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[3‥12) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: QuantifierRelationDescriptionTail @[3‥12) {
+      quantifier: Cmavo @[3‥5) "ré",
+      selbri: Gismu @[7‥12) "nánmu",
+    },
+  },
+}"""
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ré","span":[3,5]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[7,12]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

@@ -1,0 +1,38 @@
+id = "cll.3.2.c3e3d4"
+lojban = ".i'ai'i'ai'on."
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 3
+section-number = "3.3"
+section-id = "lojban-characters"
+example-number = "3.2"
+example-id = "c3e3d4"
+source-path = "vendor/cll/chapters/03.xml"
+
+[expectations.morphology]
+status = "success"
+raw = """[PlainWord(Cmevla { phonemes: Phonemes { text: "i'aĭ'i'aĭ'on" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 13, char_start: 1, char_end: 13, start: None, end: None } })]"""
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "i'aĭ'i'aĭ'on" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 13, char_start: 1, char_end: 13, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })"""
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = ".i'aĭ'i'aĭ'on."
+tree = """
+[
+  Cmevla @[1‥13) "i'aĭ'i'aĭ'on",
+]"""
+json = """[{"PlainWord":{"Cmevla":{"phonemes":"i'aĭ'i'aĭ'on","span":[1,13]}}}]"""
+
+[expectations.output.gentufa]
+brackets = ".i'aĭ'i'aĭ'on."
+tree = """Cmevla @[1‥13) "i'aĭ'i'aĭ'on""""
+json = """{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"i'aĭ'i'aĭ'on","span":[1,13]}}}}]}}"""

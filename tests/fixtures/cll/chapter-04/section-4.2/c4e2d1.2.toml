@@ -1,0 +1,31 @@
+id = "cll.4.1.c4e2d1.2"
+lojban = ".i se ci'i"
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.2"
+section-id = "cmavo"
+example-number = "4.1"
+example-id = "c4e2d1"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ci'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None } })]"""
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-selbri", byte-span = [10, 10], source-text = "", message = "incomplete selbri" }]
+
+[expectations.output.vlasei]
+brackets = "(.i se ci'i)"
+tree = """
+[
+  Cmavo @[1‥2) "i",
+  Cmavo @[3‥5) "se",
+  Cmavo @[6‥10) "ci'i",
+]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"ci'i","span":[6,10]}}}]"""

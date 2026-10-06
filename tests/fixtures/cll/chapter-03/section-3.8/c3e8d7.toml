@@ -1,0 +1,18 @@
+id = "cll.3.13.c3e8d7"
+lojban = "bongnanba"
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 3
+section-number = "3.8"
+section-id = "buffer-vowels"
+example-number = "3.13"
+example-id = "c3e8d7"
+source-path = "vendor/cll/chapters/03.xml"
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "error", code = "morphology.unrecognized-word", byte-span = [0, 9], source-text = "bongnanba", message = "word is not a valid Lojban word" }]
+xfail = { source = "cll", reason = "CLL 3.8 calls bongnanba a possible borrowing. The BPFK morphology that jbotci reads, like camxes, rejects it: in the cluster ngn the last pair gn is not a permissible initial pair.", accepted-status = "failure" }

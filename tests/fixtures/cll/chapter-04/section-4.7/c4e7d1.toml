@@ -1,0 +1,53 @@
+id = "cll.4.44.c4e7d1"
+lojban = "me la'o ly. spaghetti .ly."
+translation-en = ""
+gloss-en = ""
+
+[[provenance]]
+kind = "cll"
+chapter = 4
+section-number = "4.7"
+section-id = "fuhivla"
+example-number = "4.44"
+example-id = "c4e7d1"
+source-path = "vendor/cll/chapters/04.xml"
+
+[expectations.morphology]
+status = "success"
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "me" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 21, char_start: 12, char_end: 21, start: None, end: None }, text: "spaghetti" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None } } }]"""
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: SumtiSelbriTanruUnit(SumtiSelbriTanruUnitSyntax { me: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "me" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, sumti: Sumti(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(QuotedSumti(QuotedSumtiSyntax(GenericCompoundQuote(GenericCompoundQuoteSyntax(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 21, char_start: 12, char_end: 21, start: None, end: None }, text: "spaghetti" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None } } }), free_modifiers: [] }))))), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None }), mehu: None, moi_marker: None }) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] })), additional_niho: [] })) })"""
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":0,"length":25},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":0,"length":25},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":0,"length":25},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":0,"length":25},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":0,"length":25},"kind":"compound","selbri":{"offset":0,"length":25},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[]}},{"index":3,"node":{"offset":0,"length":25},"kind":"forwarding","selbri":{"offset":0,"length":25},"tanru-unit":null,"propagation":{"kind":"forward","inner":2}},{"index":4,"node":{"offset":0,"length":25},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":3}},{"index":5,"node":{"offset":0,"length":25},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}},{"index":6,"node":{"offset":0,"length":25},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[5]}},{"index":7,"node":{"offset":0,"length":25},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":0,"length":25},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}}],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.vlasei]
+brackets = "(me [la'o ly spaghetti ly])"
+tree = """
+[
+  Cmavo @[0‥2) "me",
+  DelimitedNonLojbanQuote @[3‥25) {
+    zoi: Cmavo @[3‥7) "la'o",
+    opening_delimiter: Cmavo @[8‥10) "ly",
+    quoted_text: Verbatim @[12‥21) "spaghetti",
+    closing_delimiter: Cmavo @[23‥25) "ly",
+  },
+]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[8,10]}},"quoted_text":{"span":[12,21],"text":"spaghetti"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[23,25]}}}}]"""
+
+[expectations.output.gentufa]
+brackets = "(me [la'o ly spaghetti ly])"
+tree = """
+SumtiSelbriTanruUnit @[0‥25) {
+  me: Cmavo @[0‥2) "me",
+  sumti: DelimitedNonLojbanQuote @[3‥25) {
+    zoi: Cmavo @[3‥7) "la'o",
+    opening_delimiter: Cmavo @[8‥10) "ly",
+    quoted_text: Verbatim @[12‥21) "spaghetti",
+    closing_delimiter: Cmavo @[23‥25) "ly",
+  },
+}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[0,2]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[8,10]}},"quoted_text":{"span":[12,21],"text":"spaghetti"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[23,25]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
