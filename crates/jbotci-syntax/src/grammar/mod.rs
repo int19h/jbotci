@@ -6040,6 +6040,7 @@ mod tests {
     };
     use jbotci_tree::RecoveredFieldState;
     use std::{
+        collections::{BTreeMap, BTreeSet},
         fmt::Write as _,
         fs,
         path::Path,
@@ -7782,6 +7783,124 @@ mod tests {
         assert_eq!(container.closer_field, closer_field);
         assert!(anchor_tokens_contain(container.opener_tokens, opener));
         assert!(anchor_tokens_contain(container.closer_tokens, closer));
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn enum_rule_branches(
+        rule: &str,
+    ) -> BTreeMap<&'static str, &'static [generated::generated_model::SyntaxGrammarCondition]> {
+        let metadata = generated::generated_model::syntax_grammar_rule_by_name(rule)
+            .unwrap_or_else(|| panic!("grammar rule `{rule}` exists"));
+        assert_eq!(metadata.kind, "enum", "`{rule}` is an enum rule");
+        metadata
+            .fields
+            .iter()
+            .map(|field| {
+                assert_eq!(field.kind, "variant", "`{rule}` lists only branches");
+                (field.name, field.conditions)
+            })
+            .collect()
+    }
+
+    /// Guards the composed term hierarchy from #791.
+    ///
+    /// Each level of the ladder lists the leaf branches of the level below it again, instead of
+    /// one nested sum branch. A nested branch would add a public wrapper variant to Debug and
+    /// serde output. So nothing else makes the levels agree: this test fails when a leaf is added
+    /// to `simple_term` (or `linked_sumti`) and one level is left behind, and when a shared leaf
+    /// has different feature or policy conditions on two levels.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn term_hierarchy_levels_repeat_their_leaf_branches() {
+        let assert_level = |level: &str,
+                            expected: &BTreeSet<&'static str>,
+                            leaves: &BTreeMap<
+            &'static str,
+            &'static [generated::generated_model::SyntaxGrammarCondition],
+        >| {
+            let branches = enum_rule_branches(level);
+            assert_eq!(
+                &branches.keys().copied().collect::<BTreeSet<_>>(),
+                expected,
+                "`{level}` branches drifted from the term hierarchy",
+            );
+            for (leaf, conditions) in leaves {
+                if let Some(level_conditions) = branches.get(leaf) {
+                    assert_eq!(
+                        level_conditions, conditions,
+                        "`{level}` gates leaf `{leaf}` differently from its source level",
+                    );
+                }
+            }
+        };
+
+        // From the tightest level outward: simple_term (leaves), bound_term (+ BO),
+        // loose_term (+ loose connective), cehe_term (+ CEhE), term (+ PEhE).
+        let simple_terms = enum_rule_branches("simple_term");
+        let leaves = simple_terms.keys().copied().collect::<BTreeSet<_>>();
+
+        let mut bound_terms = leaves.clone();
+        bound_terms.insert("stag_bound_term_connection");
+        assert_level("bound_term", &bound_terms, &simple_terms);
+
+        let mut loose_terms = bound_terms.clone();
+        loose_terms.insert("connected_term");
+        assert_level("loose_term", &loose_terms, &simple_terms);
+
+        let mut cehe_terms = loose_terms.clone();
+        cehe_terms.insert("termset_group");
+        assert_level("cehe_term", &cehe_terms, &simple_terms);
+
+        let mut terms = cehe_terms.clone();
+        terms.insert("pehe_termset_connection");
+        assert_level("term", &terms, &simple_terms);
+
+        // nonabs_term is the unguarded flavour of loose_term: it swaps exactly the
+        // absorption-guarded tag leaf for its unguarded twin.
+        let mut nonabs_terms = loose_terms.clone();
+        assert!(
+            nonabs_terms.remove("tagged_sumti_term"),
+            "simple_term keeps the guarded tag leaf",
+        );
+        nonabs_terms.insert("nonabs_tagged_sumti_term");
+        assert_level("nonabs_term", &nonabs_terms, &simple_terms);
+
+        // The normal_term family (the GOI payload and the NUhI-less termset operands) builds
+        // its own ladder over the unguarded leaves: the same leaf swap as nonabs_term, then
+        // its own BO and loose connection levels.
+        let mut normal_term_atoms = leaves.clone();
+        normal_term_atoms.remove("tagged_sumti_term");
+        normal_term_atoms.insert("nonabs_tagged_sumti_term");
+        assert_level("normal_term_atom", &normal_term_atoms, &simple_terms);
+
+        let mut bound_normal_terms = normal_term_atoms.clone();
+        bound_normal_terms.insert("bound_normal_term_connection");
+        assert_level("bound_normal_term", &bound_normal_terms, &simple_terms);
+
+        let mut normal_terms = bound_normal_terms.clone();
+        normal_terms.insert("connected_normal_term");
+        assert_level("normal_term", &normal_terms, &simple_terms);
+
+        // The BE/BEI site has its own leaf inventory.
+        let linked_sumti = enum_rule_branches("linked_sumti");
+        assert_eq!(
+            linked_sumti.keys().copied().collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "place_tagged_linked_sumti",
+                "tense_tagged_linked_sumti",
+                "plain_linked_sumti",
+            ]),
+            "`linked_sumti` leaves changed",
+        );
+        let mut linked_terms = linked_sumti.keys().copied().collect::<BTreeSet<_>>();
+        linked_terms.extend([
+            "connected_linked_term",
+            "bound_linked_term_connection",
+            "full_linked_term_candidate",
+        ]);
+        assert_level("linked_term", &linked_terms, &linked_sumti);
     }
 
     #[test]
