@@ -649,9 +649,9 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         match node {
-            GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => {
-                generated_regular_text_tree_value(text, source, options, syntax_index)
-            }
+            GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => Some(
+                generated_regular_text_tree_value(text, source, options, syntax_index),
+            ),
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
                 generated_multiple_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
@@ -695,7 +695,7 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
 fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str {
     let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
     match constructor {
-        "ExplicitXauhaLohoi" | "Regular" => "TextSyntax",
+        "Regular" => "TextSyntax",
         "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
         "FollowingParagraphStatement"
         | "IParagraphStatement"
@@ -895,10 +895,8 @@ fn generated_regular_text_tree_value(
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Option<TreeValue> {
-    let GeneratedTextSyntax::RegularText(regular_text) = text else {
-        return None;
-    };
+) -> TreeValue {
+    let GeneratedTextSyntax::RegularText(regular_text) = text;
     let generated_model::RegularTextSyntax {
         leading_nai,
         leading_cmevla,
@@ -991,10 +989,10 @@ fn generated_regular_text_tree_value(
             .map(|value| TreeEntry { label: None, value }),
     );
 
-    Some(TreeValue::Node(TreeNode {
+    TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
-    }))
+    })
 }
 
 #[requires(true)]

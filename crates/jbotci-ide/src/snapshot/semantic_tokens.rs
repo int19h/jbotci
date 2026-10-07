@@ -253,9 +253,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::I
             | Selmaho::Jai
             | Selmaho::Johi
-            | Selmaho::Lihau
             | Selmaho::Lohoi
-            | Selmaho::Luhei
             | Selmaho::Mai
             | Selmaho::Mohe
             | Selmaho::Na
@@ -264,7 +262,6 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Niho
             | Selmaho::Nohoi
             | Selmaho::Noi
-            | Selmaho::Noiha
             | Selmaho::Sa
             | Selmaho::Se
             | Selmaho::Sei

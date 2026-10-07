@@ -5099,7 +5099,6 @@ fn regular_text_mut(
         generated::generated_model::recovered::TextSyntax::RegularText(regular_text) => {
             recovered_value_mut(std::sync::Arc::make_mut(regular_text))
         }
-        generated::generated_model::recovered::TextSyntax::ExplicitXauhaLohoiText(_) => None,
     }
 }
 

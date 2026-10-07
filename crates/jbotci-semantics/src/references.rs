@@ -3183,9 +3183,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
         match node {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.walk_node(&text.0);
-            }
             generated::TextSyntax::RegularText(text) => {
                 for free_modifier in &text.leading_free_modifiers {
                     self.walk_node(free_modifier);
@@ -6666,9 +6663,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
         match node {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.walk_node(&text.0);
-            }
             generated::TextSyntax::RegularText(text) => {
                 for free_modifier in &text.leading_free_modifiers {
                     self.walk_node(free_modifier);

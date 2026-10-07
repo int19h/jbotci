@@ -420,10 +420,7 @@ fn is_general_experimental_cmavo_for_context(
             cmavo,
             Cmavo::Bohai | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi) => matches!(
-            cmavo,
-            Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha | Cmavo::Xuhu
-        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi) => matches!(cmavo, Cmavo::Lohoi),
         ExperimentalCmavoContext::Selmaho(Selmaho::Lu) => {
             matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai)
         }

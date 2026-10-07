@@ -140,25 +140,10 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai));
     }
 
-    /// Top-level text syntax, distinguishing XAUhA…KUhAU framing from ordinary text.
+    /// Top-level text syntax.
     rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, selbri, letter_tokens) -> enum {
-        /// Text introduced by XAUhA and closed by KUhAU; the payload retains the framed paragraphs.
-        explicit_xauha_lohoi_text,
         /// Ordinary text, retaining its leading material and optional paragraph tree.
         regular_text,
-    }
-
-    alias "word" word_before_kuhau = word_not_cmavo(Kuhau);
-
-    /// XAUhA…KUhAU-framed text; framing words are consumed while paragraphs remain public.
-    rule "text" explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> struct {
-        assert [
-            cmavo(Xauha);
-            zero_or_more word_before_kuhau();
-            cmavo(Kuhau);
-        ].ignored();
-        /// The paragraphs enclosed by the ignored XAUhA…KUhAU framing sequence.
-        field paragraphs <- text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
     }
 
     /// Ordinary text with source-ordered leading material and an optional paragraph tree.
