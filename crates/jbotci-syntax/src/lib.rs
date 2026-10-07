@@ -972,6 +972,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "place tag continuation",
+        parent: Some("place tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "NA KU term",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1015,6 +1021,18 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     },
     SyntaxConstructMetadata {
         name: "converted sumti",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mex selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "bridi description",
         parent: Some("sumti"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
@@ -2724,6 +2742,9 @@ pub enum ExperimentalConstruct {
     /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
+    ExperimentalLohOiBridiDescription,
+    ExperimentalMexMeSelbriUnit,
+    ExperimentalMexMoiSelbriUnit,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -2799,6 +2820,11 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
             Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
+            Self::ExperimentalLohOiBridiDescription => {
+                "syntax.warning.experimental-loh-oi-bridi-description"
+            }
+            Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
+            Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -2914,6 +2940,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
+            Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
+            Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
+            Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
@@ -4390,13 +4419,15 @@ mod tests {
     // structure and skips only the construct that could not be completed.
     // Each input degrades to one invalid item when the fallback is disabled
     // (#927). Issue #968 replaced the second and third inputs, which reached
-    // the fallback only through Zantufa routes.
+    // the fallback only through Zantufa routes. Issue #969 changed `fa je fa` to
+    // `fa je pu` in the first and third: the JOIK-chained FA tag term now
+    // completes `fa je fa`, which moved the error away from the fallback.
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
-        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je fa me ku", 18);
+        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je pu me ku", 18);
 
         assert_eq!(probe.error_byte_starts, [18]);
         assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
@@ -4442,7 +4473,7 @@ mod tests {
         // is needed only at the second error (`me`), so this pins
         // that the final selector is consulted at every error, not just the
         // first.
-        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je fa me ku", 3);
+        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je pu me ku", 3);
 
         assert_eq!(probe.error_byte_starts, [3, 27]);
         assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda"]);
@@ -4457,12 +4488,14 @@ mod tests {
     // of it. That late success is a complete recovery and must be kept even
     // though no earlier error was recovered (#935); without that rule this
     // input degrades. Issue #968 replaced the earlier input, which reached the
-    // path only with a Zantufa mex feature.
+    // path only with a Zantufa mex feature. Issue #969 replaced `pa le so'u`:
+    // with the camxes-exp mex-before-MOI selbri back, that input no longer
+    // reaches the path. This one degrades when the rule is disabled.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_late_natural_stop_retains_first_error_structure() {
-        let source = "pa le so'u";
+        let source = "lo mi cu";
         let words =
             jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
         let options = ParseOptions::default();
@@ -4477,7 +4510,7 @@ mod tests {
         );
 
         assert_eq!(recovered.errors, vec![strict_error]);
-        assert_eq!(visitor.valid_tokens, ["pa", "le", "so'u"]);
+        assert_eq!(visitor.valid_tokens, ["lo", "mi"]);
         assert!(recovered_syntax_parse_conserves_word_spans(
             &words, &recovered
         ));

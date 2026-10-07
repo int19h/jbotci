@@ -7139,6 +7139,11 @@ mod tests {
             "simple_term keeps the guarded tag leaf",
         );
         nonabs_terms.insert("nonabs_tagged_sumti_term");
+        assert!(
+            nonabs_terms.remove("fa_chain_tagged_sumti_term"),
+            "simple_term keeps the guarded FA chain leaf",
+        );
+        nonabs_terms.insert("nonabs_fa_chain_tagged_sumti_term");
         assert_level("nonabs_term", &nonabs_terms, &simple_terms);
 
         // The normal_term family (the GOI payload and the NUhI-less termset operands) builds
@@ -7147,6 +7152,8 @@ mod tests {
         let mut normal_term_atoms = leaves.clone();
         normal_term_atoms.remove("tagged_sumti_term");
         normal_term_atoms.insert("nonabs_tagged_sumti_term");
+        normal_term_atoms.remove("fa_chain_tagged_sumti_term");
+        normal_term_atoms.insert("nonabs_fa_chain_tagged_sumti_term");
         assert_level("normal_term_atom", &normal_term_atoms, &simple_terms);
 
         let mut bound_normal_terms = normal_term_atoms.clone();

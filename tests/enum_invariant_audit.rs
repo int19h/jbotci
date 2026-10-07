@@ -2028,6 +2028,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FaChainTaggedSumtiTerm",
+        "borrowed FA chain view delegates validity to the invariant-bearing guarded or unguarded FA chain term it was built from",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing SumtiTermSyntax node",
     ),

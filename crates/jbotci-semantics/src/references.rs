@@ -1957,6 +1957,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_none(),
                 )
             }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
                 self.add_frame(
@@ -2050,6 +2070,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             ),
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2382,6 +2422,13 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     AssignmentSource::FaTerm,
                 );
+            }
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                // A JOIK-chained FA tag names several places at once, which no lowering reads
+                // yet; the payload is still walked so its own references are recorded.
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.walk_node(sumti);
+                }
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
@@ -3134,6 +3181,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                 self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                self.walk_node(term.sumti);
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
@@ -5417,6 +5467,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_quote(&sumti.0);
                 false
             }
+            generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
+                self.visit_subbridi(&sumti.subbridi);
+                false
+            }
             generated::SumtiBaseSyntax::LaheSumti(sumti) => {
                 if let Some(clauses) = &sumti.relative_clauses {
                     self.visit_relative_clause_list(argument_id, argument_id, clauses);
@@ -6039,6 +6093,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
             }
@@ -6089,6 +6149,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
             }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
@@ -6617,6 +6683,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match node {
             GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.visit_argument(sumti);
+                }
+            }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
                 self.walk_node(term.sumti);

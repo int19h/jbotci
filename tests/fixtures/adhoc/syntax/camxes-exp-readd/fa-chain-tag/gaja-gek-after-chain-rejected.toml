@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.gaja-gek-after-chain-rejected"
+lojban = "fa je fe ga je broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text (error at offset 24). ga je is camxes-exp's gak SE? joik_jek opener (camxes-exp.peg:361, :364), so ga je broda gi brode is a gek_sentence and the !gek_sentence guard of the FA chain refuses the chain. camxes-exp then has no reading. jbotci's product grammar has no ga je opener, so the error is at ga."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "ga", message = "unexpected cmavo" }]

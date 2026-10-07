@@ -401,6 +401,7 @@ fn is_general_experimental_cmavo_for_context(
                 | Cmavo::Xai
                 | Cmavo::Zuhai
         ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Kuhau) => matches!(cmavo, Cmavo::Kuhau),
         ExperimentalCmavoContext::Selmaho(Selmaho::Kuhoi) => matches!(cmavo, Cmavo::Kuhoi),
         ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(cmavo, Cmavo::Zohei),
         ExperimentalCmavoContext::Selmaho(Selmaho::Le) => matches!(

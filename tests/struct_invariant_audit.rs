@@ -1176,6 +1176,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed selbri-tail view delegates validity to the invariant-bearing sourced or camxes-exp-prefixed tail it was built from",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedFaChainTermRef",
+        "borrowed FA chain view delegates validity to the invariant-bearing guarded or unguarded FA chain term it was built from",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTaggedTermRef",
         "borrowed tag-term view delegates validity to the invariant-bearing guarded or unguarded tag term it was built from",
     ),

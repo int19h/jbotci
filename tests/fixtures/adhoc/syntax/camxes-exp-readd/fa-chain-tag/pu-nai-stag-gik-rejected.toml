@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.pu-nai-stag-gik-rejected"
+lojban = "fa je fe pu nai gi broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) gives (BRIDI: [{<FA:fa (¹JA:je [FA:fe {PU:pu NAI:nai}]¹)> GI:gi} {BRIDI: <SELBRI: G:broda>} GI:gi {BRIDI: <SELBRI: G:brode>}]): the whole of fa je fe pu nai opens one forethought sentence, a camxes-exp-only form (#980). jbotci's own tag parser reads pu nai, so the !gek_sentence guard of the FA chain recognizes pu nai gi broda gi brode as a forethought sentence and refuses the chain fa je fe with an elided KU before it. Without the guard, the bridi tail would take pu nai gi as its opener, a split that camxes-exp never derives."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 15], source-text = "nai", message = "unexpected cmavo" }]

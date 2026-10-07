@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.mex-me.operator-body-rejected"
+lojban = "mi me su'i me'u"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. The old Zantufa ME took a bare operator body; camxes-exp's ME takes a sumti or a mex."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [11, 15], source-text = "me'u", message = "unexpected cmavo" }]

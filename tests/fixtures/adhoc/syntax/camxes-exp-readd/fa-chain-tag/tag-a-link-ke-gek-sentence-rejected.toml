@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.tag-a-link-ke-gek-sentence-rejected"
+lojban = "fa je fe pu .a ba ke ge broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) gives (BRIDI: [{FA:fa <(¹JA:je [FA:fe PU:pu]¹) (¹A:a PU:ba¹)>} KE:ke {GA:ge <BRIDI: (¹SELBRI: G:broda¹)> GI:gi <BRIDI: (¹SELBRI: G:brode¹)>}]). The tags fa je fe pu .a ba are one camxes-exp tag (camxes-exp.peg:372), linked by A, so camxes-exp reads one FA-tagged gek_sentence, a camxes-exp-only form (#980). The !gek_sentence guard of the FA chain recognizes the A-linked tag before KE, so jbotci refuses the chain fa je fe here and the error is at the A link."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [13, 14], source-text = "a", message = "unexpected cmavo" }]

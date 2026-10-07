@@ -807,10 +807,12 @@ mod tests {
     fn strict_only_local_warning_before_following_recovery_error_fails_the_gate() {
         // The paragraph's own parse carries a local experimental-fa-as-tag warning, which the
         // confirmed analysis of the whole document does not report, so the gate must refuse.
+        // The FA tag chain parses since #969, so the paragraph puts the chain after BE, where
+        // no linked-argument rule takes it.
         let prepared = prepare_replacement(
-            "mi klama\nni'o\nfa je fe ko'a broda\nni'o\nmi ku i do",
-            "fa je fe ko'a broda",
-            "fa je fe ko'a broda ui",
+            "mi klama\nni'o\nmi broda be fa je fe ko'a\nni'o\nmi ku i do",
+            "mi broda be fa je fe ko'a",
+            "mi broda be fa je fe ko'a ui",
         );
         assert_eq!(
             prepared.gate(),
@@ -919,11 +921,11 @@ mod tests {
         }
         // A sample passes when its diagnostics stay inside its paragraph and it carries no local
         // experimental warning. Without Zantufa, each sample either parses with the baseline
-        // grammar or fails with plain diagnostics inside its paragraph, except two:
-        // `connectorless-bo-sumti-tagged` recovers with a local
-        // `experimental-term-bo-connection` warning, and `fa-joik-chained-place-tag` takes the
-        // FA-as-tag route with its local `experimental-fa-as-tag` warning. The gate must be
-        // conservative about both.
+        // grammar or fails with plain diagnostics inside its paragraph, except one:
+        // `fa-joik-chained-place-tag` takes the FA tag chain with its local
+        // `experimental-fa-as-tag` warning, and the gate must be conservative about it. Since the
+        // mex-before-MOI selbri came back (#969), `connectorless-bo-sumti-tagged` recovers
+        // without its local `experimental-term-bo-connection` warning and passes.
         assert_eq!(
             passed_ids,
             [
@@ -937,6 +939,7 @@ mod tests {
                 "nary-gek-termset",
                 "connectorless-bo-term",
                 "connectorless-bo-sumti",
+                "connectorless-bo-sumti-tagged",
                 "jai-term-explicit-ku",
                 "jai-selbri-not-term",
                 "cehe-stays-a-cehe-termset",

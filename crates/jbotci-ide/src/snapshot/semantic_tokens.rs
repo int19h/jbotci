@@ -202,6 +202,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             Selmaho::Beho
             | Selmaho::Faho
             | Selmaho::Ku
+            | Selmaho::Kuhau
             | Selmaho::Kuhoi
             | Selmaho::Loho
             | Selmaho::Sehu

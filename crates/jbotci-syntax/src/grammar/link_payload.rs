@@ -67,6 +67,7 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
             | model::NormalTermSyntax::ElidedNaheFihoTagTerm(_)
             | model::NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::NormalTermSyntax::NonabsTaggedSumtiTerm(_)
+            | model::NormalTermSyntax::NonabsFaChainTaggedSumtiTerm(_)
             | model::NormalTermSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
@@ -93,6 +94,7 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
             | model::BoundNormalTermSyntax::ElidedNaheFihoTagTerm(_)
             | model::BoundNormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::BoundNormalTermSyntax::NonabsTaggedSumtiTerm(_)
+            | model::BoundNormalTermSyntax::NonabsFaChainTaggedSumtiTerm(_)
             | model::BoundNormalTermSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
@@ -116,6 +118,7 @@ impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
             | model::NormalTermAtomSyntax::ElidedNaheFihoTagTerm(_)
             | model::NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(_)
             | model::NormalTermAtomSyntax::NonabsTaggedSumtiTerm(_)
+            | model::NormalTermAtomSyntax::NonabsFaChainTaggedSumtiTerm(_)
             | model::NormalTermAtomSyntax::SumtiTerm(_) => {
                 self.observe(LinkPayloadBreadth::LegacyLinked)
             }
@@ -251,6 +254,9 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::NormalTermSyntax::NonabsTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
+            recovered::NormalTermSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
+                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
+            }
             recovered::NormalTermSyntax::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
@@ -297,6 +303,9 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
             recovered::BoundNormalTermSyntax::NonabsTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
+            recovered::BoundNormalTermSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
+                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
+            }
             recovered::BoundNormalTermSyntax::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
@@ -338,6 +347,9 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
             recovered::NormalTermAtomSyntax::NonabsTaggedSumtiTerm(value) => {
+                self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
+            }
+            recovered::NormalTermAtomSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
             recovered::NormalTermAtomSyntax::SumtiTerm(value) => {

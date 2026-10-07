@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "382e6eda484c0da3e530527c9356824e1e6639ac1508c04bc6c2b8f61b9affc7" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["lo", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 20], [21, 26], [27, 29], [30, 35]] }] }
+raw = { sha256 = "068a04a24423e6a2b16fe795163549df808a5717691327f9ed299b6a6ce843d1" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-fa-as-tag", byte-span = [9, 11], source-text = "fa", message = "experimental syntax: FA place tag used as a tag/stag atom", word-index = 2 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lo", "bróda", "fa", "je"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[15, 17], [18, 20], [21, 26], [27, 29], [30, 35]] }, { kind = "missing", error-index = 0, byte-spans = [[15, 15]] }] }

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.lohoi.i-statement-body-rejected"
+lojban = "lo'oi mi klama .i do klama ku'au cu melbi"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. The old Zantufa route took a statement body with I; camxes-exp takes only a subsentence."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [27, 32], source-text = "ku'au", message = "unexpected cmavo" }]

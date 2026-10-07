@@ -10,10 +10,10 @@ description = "FR2: the same fully proven FA candidate, classified Present at an
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "440280ed72849dbec4d9716781364419b709a37584257d9400c87400bf6eae79" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
-tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 23], [24, 26]] }] }
+raw = { sha256 = "86722f751f25f9895c90658eaf8cc8e7c217ba6133bab6f705d058f5e6906433" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }]
+tree = { valid-tokens = ["mi", "bróda", "fa"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[12, 14], [15, 17], [18, 23], [24, 26]] }] }

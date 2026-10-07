@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.fa-tagged-gek-sentence-split-rejected"
+lojban = "fa je fe fa ke ge broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) gives (BRIDI: [{FA:fa <JA:je (¹FA:fe FA:fa¹)>} KE:ke {GA:ge <BRIDI: (¹SELBRI: G:broda¹)> GI:gi <BRIDI: (¹SELBRI: G:brode¹)>}]): all of fa je fe fa is the tag prefix of one gek_sentence (camxes-exp.peg:112). jbotci has no FA-tagged gek_sentence, which is a camxes-exp-only form (#980). The !gek_sentence guard of the FA chain (camxes-exp.peg:160), which recognizes forethought sentences with FA among the tags before KE, refuses the split into the chain fa je fe, a plain FA term and a KE bridi tail, which camxes-exp never derives. So jbotci rejects the text."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "ge", message = "unexpected cmavo" }]

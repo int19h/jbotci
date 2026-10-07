@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.na-wrapped-fa-tagged-gek-sentence-rejected"
+lojban = "fa je fe na fa ke ge broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. camxes-exp's abs_tag_term refuses the FA chain here through !gek_sentence, because NA wraps a gek_sentence whose KE carries the tag fa (camxes-exp.peg:112, :160). With the chain refused, camxes-exp has no other reading. jbotci's guard keeps FA tags in its recursive NA and KE arms, so it refuses the split into the chain fa je fe, a NA term, a plain FA term and a KE bridi tail."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ge", message = "unexpected cmavo" }]
