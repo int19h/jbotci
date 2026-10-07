@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.gek-sentence-after-chain-rejected"
+lojban = "fa je fe ge broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. camxes-exp's abs_tag_term has !gek_sentence after the tag (camxes-exp.peg:160), so the FA chain cannot take an elided KU before a forethought bridi tail."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "ge", message = "unexpected cmavo" }]

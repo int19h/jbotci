@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.chain-opens-gek-rejected"
+lojban = "ge fa je fe gi ko'a cu broda"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. camxes-exp's tag_term begins with !gek (camxes-exp.peg:149 and :160), and fa je fe gi is a GEK, so the FA chain cannot be the first operand of the NUhI-less termset."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-selbri", byte-span = [28, 28], source-text = "", message = "incomplete selbri" }]

@@ -1176,7 +1176,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 12 forms including `place_tagged_sumti_term`, `elided_nahe_fiho_tag_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
+    rule "term" simple_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom, forethought_bridi_connection) -> enum {
         /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1212,7 +1212,7 @@ pub mod generated_model {
     /// sum branch would add a public wrapper variant to Debug and serde output. The
     /// `term_hierarchy_levels_repeat_their_leaf_branches` test in `grammar/mod.rs` checks that this
     /// leaf inventory stays synchronized with `simple_term`.
-    rule "term" bound_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
+    rule "term" bound_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom, forethought_bridi_connection) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
@@ -1251,12 +1251,12 @@ pub mod generated_model {
     /// diagnosed. The operands intentionally remain `simple_term`: sumti greediness must continue
     /// to own chains whose trailing operand is a bare sumti, rather than silently changing their
     /// term-level grouping.
-    rule "term connection" stag_bound_term_connection(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
+    rule "term connection" stag_bound_term_connection(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> struct {
         assert term_guard();
         /// The first simple term at the BO-bound precedence level.
         field leading_term <- arc(simple_term);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier)];
+        field continuations <- [one_or_more bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection)];
     }
 
     /// The BO continuation shape at the absorption-safe term level.
@@ -1264,13 +1264,13 @@ pub mod generated_model {
     /// camxes-exp's `abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*`
     /// (camxes-exp.peg:154) requires both the connective and the stag. The sum has one arm
     /// only; it stays so that the trees keep their shape.
-    rule "term connection continuation" bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> enum {
+    rule "term connection continuation" bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> enum {
         /// Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.
         stag_bound_term_continuation,
     }
 
     /// One mandatory-stag BO continuation at the absorption-safe term level.
-    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
+    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> struct {
         /// The connective joining the adjacent simple terms.
         field connective <- term_afterthought_connective;
         /// The mandatory camxes-exp `stag` before BO.
@@ -1694,22 +1694,28 @@ pub mod generated_model {
     /// `tag <- tense_modal (joik_jek tense_modal)*` (:372) and FA inside `tense_modal` (:378).
     ///
     /// The connected run is required, so a plain `fa ko'a` never reaches this arm and stays the
-    /// baseline FA term. As the guarded `tagged_sumti_term` does, the arm refuses a selbri after
-    /// the tag (camxes-exp's `abs_tag_term`, :160), so `fa je fe broda` stays camxes-exp's tagged
-    /// selbri. Each FA is a tag atom here and warns as one.
-    rule "place tag" fa_chain_tagged_sumti_term(sumti, normal_term, selbri) -> struct {
+    /// baseline FA term. This is the guarded twin, camxes-exp's `abs_tag_term <- !gek tag free*
+    /// !selbri !gek_sentence (sumti / KU_elidible free*)` (:160). `!gek` refuses a chain that
+    /// opens a forethought connective, as in `fa je fe gi`. `!selbri` keeps `fa je fe broda`
+    /// camxes-exp's tagged selbri, and `!gek_sentence` refuses `fa je fe ge broda gi brode`.
+    /// Each FA is a tag atom here and warns as one.
+    rule "place tag" fa_chain_tagged_sumti_term(sumti, normal_term, tense_modal, selbri, letter_tokens, forethought_bridi_connection) -> struct {
+        assert !modal_forethought_connective(tense_modal, selbri, letter_tokens);
         /// The first FA tag atom.
         field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
         /// Non-empty source-ordered connective-led FA continuations.
         field continuations <- [one_or_more fa_chain_tag_continuation()];
         assert !selbri;
+        assert !forethought_bridi_connection;
         /// The shared sumti child syntax node, overt or KU-terminated.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
-    /// The unguarded twin of [`fa_chain_tagged_sumti_term`], for the `nonabs_term` ladder, where
-    /// camxes-exp's `tag_term` (:149) has no selbri guard.
-    rule "place tag" nonabs_fa_chain_tagged_sumti_term(sumti, normal_term) -> struct {
+    /// The unguarded twin of [`fa_chain_tagged_sumti_term`], for the `nonabs_term` ladder:
+    /// camxes-exp's `tag_term <- !gek tag free* (sumti / KU_elidible free*)` (:149), which keeps
+    /// `!gek` but has no selbri or forethought-sentence guard.
+    rule "place tag" nonabs_fa_chain_tagged_sumti_term(sumti, normal_term, tense_modal, selbri, letter_tokens) -> struct {
+        assert !modal_forethought_connective(tense_modal, selbri, letter_tokens);
         /// The first FA tag atom.
         field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
         /// Non-empty source-ordered connective-led FA continuations.
