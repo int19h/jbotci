@@ -1118,7 +1118,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         let tail = generated_bridi_tail(bridi);
         let branch_initial_place =
             next_generated_place_after_common_terms(initial_place, leading_terms);
-        let tail = self.analyze_bridi_tail(tail, branch_initial_place);
+        let tail = self.analyze_sentence_bridi_tail(tail, branch_initial_place);
         let predicate_raw = self.raw_for_node(bridi);
         let shared_branch_terms = tail.branch_cursors.is_some() || tail.frames.len() > 1;
         let predicate_frame = self.add_frame(
@@ -1147,6 +1147,61 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         };
         self.assign_term_refs(&mut cursors, &tail.terms, tail_source);
         predicate_frame
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_sentence_bridi_tail(
+        &mut self,
+        tail: &'tree generated::SentenceBridiTailSyntax,
+        gek_branch_initial_place: u8,
+    ) -> GeneratedBridiTailAnalysis<'tree> {
+        match tail {
+            generated::SentenceBridiTailSyntax::ExpIntervalConnectedBridiTail(tail) => {
+                self.analyze_interval_connected_bridi_tail(tail, gek_branch_initial_place)
+            }
+            generated::SentenceBridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
+                self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
+            }
+            generated::SentenceBridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
+                self.analyze_bridi_tail_without_tail_terms(tail, gek_branch_initial_place)
+            }
+        }
+    }
+
+    /// Every joint of camxes-exp's sentence-level interval connection is a branch of one
+    /// connection, as the operands of an afterthought GIhA chain are. No terms follow a joint,
+    /// so only the terms inside each operand reach its own branch.
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_interval_connected_bridi_tail(
+        &mut self,
+        tail: &'tree generated::ExpIntervalConnectedBridiTailSyntax,
+        gek_branch_initial_place: u8,
+    ) -> GeneratedBridiTailAnalysis<'tree> {
+        let mut analysis = self.analyze_bridi_tail(&tail.first, gek_branch_initial_place);
+        let mut branch_cursors = self.consume_branch_tail_cursors(&mut analysis);
+        for joint in interval_bridi_tail_joints(tail) {
+            if let Some(tense_modal) = joint.tense_modal {
+                self.walk_node(tense_modal);
+            }
+            let mut next = self.analyze_bridi_tail(joint.bridi_tail, gek_branch_initial_place);
+            let next_cursors = self.consume_branch_tail_cursors(&mut next);
+            branch_cursors.extend(next_cursors);
+            analysis.frames.extend(next.frames);
+        }
+        let frame = self.add_frame(
+            self.raw_for_node(tail),
+            PlaceFrameKind::BridiTail,
+            None,
+            None,
+            propagation_connective_branches(analysis.frames),
+        );
+        GeneratedBridiTailAnalysis {
+            frames: vec![frame],
+            terms: analysis.terms,
+            branch_cursors: Some(branch_cursors),
+        }
     }
 
     #[requires(true)]
@@ -4948,13 +5003,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 for term in &bridi.leading_terms {
                     self.walk_node(term);
                 }
-                self.visit_bridi_tail(&bridi.bridi_tail);
+                self.visit_sentence_bridi_tail(&bridi.bridi_tail);
             }
             generated::BridiSyntax::BareCuBridi(bridi) => {
-                self.visit_bridi_tail(&bridi.bridi_tail);
+                self.visit_sentence_bridi_tail(&bridi.bridi_tail);
             }
             generated::BridiSyntax::RelationOnlyBridi(bridi) => {
-                self.visit_bridi_tail(&bridi.0);
+                self.visit_sentence_bridi_tail(&bridi.0);
             }
         }
         if !is_in_abstraction {
@@ -4971,32 +5026,75 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn visit_sentence_bridi_tail(&mut self, tail: &'tree generated::SentenceBridiTailSyntax) {
+        match tail {
+            generated::SentenceBridiTailSyntax::ExpIntervalConnectedBridiTail(tail) => {
+                self.visit_bridi_tail(&tail.first);
+                for joint in interval_bridi_tail_joints(tail) {
+                    if let Some(tense_modal) = joint.tense_modal {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_bridi_tail(joint.bridi_tail);
+                }
+            }
+            generated::SentenceBridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
+                self.visit_bridi_tail_with_possible_tail_terms(tail);
+            }
+            generated::SentenceBridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
+                self.visit_bridi_tail_without_tail_terms(tail);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn visit_bridi_tail(&mut self, tail: &'tree generated::BridiTailSyntax) {
         match tail {
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
-                self.visit_afterthought_bridi_tail(&tail.first);
-                if let Some(continuation) = tail.ke_continuation.as_deref() {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_bridi_tail(&continuation.bridi_tail);
-                    for term in &continuation.tail_terms {
-                        self.walk_node(term);
-                    }
-                }
+                self.visit_bridi_tail_with_possible_tail_terms(tail);
             }
             generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
-                self.visit_afterthought_bridi_tail_without_tail_terms(&tail.first);
-                if let Some(continuation) = tail.ke_continuation.as_deref() {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_bridi_tail(&continuation.bridi_tail);
-                    for term in &continuation.tail_terms {
-                        self.walk_node(term);
-                    }
-                }
+                self.visit_bridi_tail_without_tail_terms(tail);
             }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_bridi_tail_with_possible_tail_terms(
+        &mut self,
+        tail: &'tree generated::BridiTailWithPossibleTailTermsSyntax,
+    ) {
+        self.visit_afterthought_bridi_tail(&tail.first);
+        if let Some(continuation) = tail.ke_continuation.as_deref() {
+            self.visit_gihek_bridi_tail_ke_continuation(continuation);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_bridi_tail_without_tail_terms(
+        &mut self,
+        tail: &'tree generated::BridiTailWithoutTailTermsSyntax,
+    ) {
+        self.visit_afterthought_bridi_tail_without_tail_terms(&tail.first);
+        if let Some(continuation) = tail.ke_continuation.as_deref() {
+            self.visit_gihek_bridi_tail_ke_continuation(continuation);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_gihek_bridi_tail_ke_continuation(
+        &mut self,
+        continuation: &'tree generated::GihekBridiTailKeContinuationSyntax,
+    ) {
+        if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+            self.walk_node(tense_modal);
+        }
+        self.visit_bridi_tail(&continuation.bridi_tail);
+        for term in &continuation.tail_terms {
+            self.walk_node(term);
         }
     }
 
@@ -7282,9 +7380,79 @@ fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[Arc<genera
     }
 }
 
+/// One joint of camxes-exp's sentence-level interval connection: the tag before its BO or KE,
+/// if any, and the bridi tail it joins.
+#[invariant(true)]
+#[derive(Clone, Copy)]
+struct IntervalBridiTailJointRef<'tree> {
+    tense_modal: Option<&'tree generated::TenseModalSyntax>,
+    bridi_tail: &'tree generated::BridiTailSyntax,
+}
+
+/// The joints of an interval connection after its first tail, in source order.
 #[requires(true)]
 #[ensures(true)]
-fn generated_bridi_tail(bridi: &generated::BridiSyntax) -> &generated::BridiTailSyntax {
+fn interval_bridi_tail_joints(
+    tail: &generated::ExpIntervalConnectedBridiTailSyntax,
+) -> impl Iterator<Item = IntervalBridiTailJointRef<'_>> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn ke(joint: &generated::ExpIntervalKeBridiTailJointSyntax) -> IntervalBridiTailJointRef<'_> {
+        IntervalBridiTailJointRef {
+            tense_modal: joint.tense_modal.as_deref(),
+            bridi_tail: &joint.bridi_tail,
+        }
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn flat(
+        joint: &generated::ExpIntervalFlatBridiTailJointSyntax,
+    ) -> IntervalBridiTailJointRef<'_> {
+        IntervalBridiTailJointRef {
+            tense_modal: None,
+            bridi_tail: &joint.bridi_tail,
+        }
+    }
+    let leading = match tail.first_joint.as_ref() {
+        generated::ExpIntervalLeadingBridiTailJointSyntax::ExpIntervalBoLedBridiTailJoints(
+            joints,
+        ) => [
+            Some(IntervalBridiTailJointRef {
+                tense_modal: joints.bo_joint.tense_modal.as_deref(),
+                bridi_tail: &joints.bo_joint.bridi_tail,
+            }),
+            joints.ke_joint.as_deref().map(ke),
+        ],
+        generated::ExpIntervalLeadingBridiTailJointSyntax::ExpIntervalKeBridiTailJoint(joint) => {
+            [Some(ke(joint)), None]
+        }
+        generated::ExpIntervalLeadingBridiTailJointSyntax::ExpIntervalFlatBridiTailJoint(joint) => {
+            [Some(flat(joint)), None]
+        }
+    };
+    #[requires(true)]
+    #[ensures(true)]
+    fn further(
+        joint: &generated::ExpIntervalFurtherBridiTailJointSyntax,
+    ) -> IntervalBridiTailJointRef<'_> {
+        match joint {
+            generated::ExpIntervalFurtherBridiTailJointSyntax::ExpIntervalFlatBridiTailJoint(
+                joint,
+            ) => flat(joint),
+            generated::ExpIntervalFurtherBridiTailJointSyntax::ExpIntervalKeBridiTailJoint(
+                joint,
+            ) => ke(joint),
+        }
+    }
+    leading
+        .into_iter()
+        .flatten()
+        .chain(tail.further_joints.iter().map(|joint| further(joint)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_tail(bridi: &generated::BridiSyntax) -> &generated::SentenceBridiTailSyntax {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.bridi_tail,
         generated::BridiSyntax::BareCuBridi(bridi) => &bridi.bridi_tail,

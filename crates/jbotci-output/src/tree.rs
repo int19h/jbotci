@@ -710,6 +710,8 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
         | "ParagraphJoiConnective"
         | "VuhuNonlogicalConnective" => "NonLogical",
         "ClosedIntervalConnective"
+        | "ExpSentenceClosedIntervalConnective"
+        | "ExpSentenceSimpleIntervalConnective"
         | "ParagraphClosedIntervalConnective"
         | "ParagraphSimpleIntervalConnective"
         | "SimpleIntervalConnective" => "Interval",

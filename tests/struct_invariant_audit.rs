@@ -1264,6 +1264,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "visitor accumulator whose open-node stack and leaf cursor are legitimately mid-flight during traversal; the index it produces is audited by the jbotci-semantics syntax index and projection tests",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:IntervalBridiTailJointRef",
+        "borrowed view of one sentence-level interval joint: any tag with any bridi tail of a parsed interval connection is valid",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:LinkedNormalTermAssigner",
         "temporary pass borrows an independently valid builder and place cursor; either assigned flag is valid at any cursor state, and source order and monotonic assignment are enforced by walker method contracts and Full-link cursor tests",
     ),
