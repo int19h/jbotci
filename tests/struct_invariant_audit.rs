@@ -1520,6 +1520,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ProbedFailureReport",
+        "test report holding two rendered strings; any pair of strings is a valid report",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",
         "mutable checkpoint arena state uses impl invariants for arena, identity, observation, and replay-node relationships",
     ),
