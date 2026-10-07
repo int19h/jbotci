@@ -2088,7 +2088,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) -> enum {
+    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -2126,12 +2126,12 @@ pub mod generated_model {
     /// camxes-exp's LOhOI bridi description, the `sumti_6` arm
     /// `LOhOI_clause free* subsentence KUhAU_elidible free*` (camxes-exp.peg:189). The body is a
     /// subsentence: camxes-exp has no joik chain of LOhOI heads and no I-connected statement body.
-    rule "bridi description" bridi_description_sumti(subbridi) -> struct {
+    rule "bridi description" bridi_description_sumti(exp_subsentence) -> struct {
         /// The LOhOI marker, which carries the warning for the whole construct.
         field lohoi <- cmavo(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
         #[tree_child(primary)]
-        /// The described subsentence.
-        field subbridi <- arc(subbridi);
+        /// The described subsentence, through the camxes-exp `subsentence` entry.
+        field subbridi <- arc(exp_subsentence);
         /// The optional `Kuhau` cmavo marker.
         field kuhau <- opt(cmavo(Kuhau).wf()).elidable_terminator(Kuhau);
     }
