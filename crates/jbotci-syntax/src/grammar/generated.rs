@@ -1007,6 +1007,8 @@ pub mod generated_model {
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
+        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1043,6 +1045,8 @@ pub mod generated_model {
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
+        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1078,6 +1082,8 @@ pub mod generated_model {
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
+        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1119,6 +1125,8 @@ pub mod generated_model {
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
+        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1169,6 +1177,8 @@ pub mod generated_model {
 
     /// Sum node for term; selects among 12 forms including `place_tagged_sumti_term`, `elided_nahe_fiho_tag_term`, and `tagged_sumti_before_tag_term`.
     rule "term" simple_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
+        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1205,6 +1215,8 @@ pub mod generated_model {
     rule "term" bound_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
+        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1335,6 +1347,8 @@ pub mod generated_model {
         connected_normal_term,
         /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         bound_normal_term_connection,
+        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1384,6 +1398,8 @@ pub mod generated_model {
     rule "term" bound_normal_term(gek_termset, statement, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
+        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1453,6 +1469,8 @@ pub mod generated_model {
     /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
     /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
     rule "term" normal_term_atom(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom) -> enum {
+        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
+        nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1669,6 +1687,43 @@ pub mod generated_model {
     rule "term" sumti_term(sumti, term, tense_modal, baseline_term_tense_modal, selbri, letter_tokens) -> struct {
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
+    }
+
+    /// camxes-exp's tag term whose tag is a JOIK- or JEK-connected run of FA place tags:
+    /// `tag_term <- !gek tag free* (sumti / KU_elidible free*)` (camxes-exp.peg:149), with
+    /// `tag <- tense_modal (joik_jek tense_modal)*` (:372) and FA inside `tense_modal` (:378).
+    ///
+    /// The connected run is required, so a plain `fa ko'a` never reaches this arm and stays the
+    /// baseline FA term. As the guarded `tagged_sumti_term` does, the arm refuses a selbri after
+    /// the tag (camxes-exp's `abs_tag_term`, :160), so `fa je fe broda` stays camxes-exp's tagged
+    /// selbri. Each FA is a tag atom here and warns as one.
+    rule "place tag" fa_chain_tagged_sumti_term(sumti, normal_term, selbri) -> struct {
+        /// The first FA tag atom.
+        field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
+        /// Non-empty source-ordered connective-led FA continuations.
+        field continuations <- [one_or_more fa_chain_tag_continuation()];
+        assert !selbri;
+        /// The shared sumti child syntax node, overt or KU-terminated.
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
+    }
+
+    /// The unguarded twin of [`fa_chain_tagged_sumti_term`], for the `nonabs_term` ladder, where
+    /// camxes-exp's `tag_term` (:149) has no selbri guard.
+    rule "place tag" nonabs_fa_chain_tagged_sumti_term(sumti, normal_term) -> struct {
+        /// The first FA tag atom.
+        field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
+        /// Non-empty source-ordered connective-led FA continuations.
+        field continuations <- [one_or_more fa_chain_tag_continuation()];
+        /// The shared sumti child syntax node, overt or KU-terminated.
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
+    }
+
+    /// One `joik_jek tense_modal` continuation of a FA tag chain whose atom is FA.
+    rule "place tag continuation" fa_chain_tag_continuation -> struct {
+        /// The JOIK or JEK connective between adjacent FA tags.
+        field connective <- tense_modal_connective;
+        /// The next FA tag atom.
+        field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
     }
 
     /// Product node for place tag; preserves `fa` and `sumti` in source order.

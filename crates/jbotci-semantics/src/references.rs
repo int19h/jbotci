@@ -2383,6 +2383,13 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::FaTerm,
                 );
             }
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                // A JOIK-chained FA tag names several places at once, which no lowering reads
+                // yet; the payload is still walked so its own references are recorded.
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.walk_node(sumti);
+                }
+            }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
                 let slot = Some(modal_slot(Some(
@@ -3134,6 +3141,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                 self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                self.walk_node(term.sumti);
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
@@ -6621,6 +6631,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match node {
             GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(term) => {
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.visit_argument(sumti);
+                }
+            }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(term.tense_modal);
                 self.walk_node(term.sumti);

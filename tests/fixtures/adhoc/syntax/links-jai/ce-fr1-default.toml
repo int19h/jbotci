@@ -10,10 +10,10 @@ description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner disc
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }]
 
 [expectations.syntax.recovered]
 status = "failure"
 raw = { sha256 = "82a4b8e4b3371b510a23bd4e2b5cbc31f06eb50b19e161ff85b2a7eb1c7baddf" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
 tree = { valid-tokens = ["mi", "bróda", "fa", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[12, 14], [15, 17], [18, 23]] }, { kind = "invalid", error-index = 1, byte-spans = [[30, 32], [33, 38]] }] }

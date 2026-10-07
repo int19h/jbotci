@@ -972,6 +972,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "place tag continuation",
+        parent: Some("place tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "NA KU term",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -4401,13 +4407,15 @@ mod tests {
     // structure and skips only the construct that could not be completed.
     // Each input degrades to one invalid item when the fallback is disabled
     // (#927). Issue #968 replaced the second and third inputs, which reached
-    // the fallback only through Zantufa routes.
+    // the fallback only through Zantufa routes. Issue #969 changed `fa je fa` to
+    // `fa je pu` in the first and third: the JOIK-chained FA tag term now
+    // completes `fa je fa`, which moved the error away from the fallback.
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
-        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je fa me ku", 18);
+        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je pu me ku", 18);
 
         assert_eq!(probe.error_byte_starts, [18]);
         assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
@@ -4453,7 +4461,7 @@ mod tests {
         // is needed only at the second error (`me`), so this pins
         // that the final selector is consulted at every error, not just the
         // first.
-        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je fa me ku", 3);
+        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je pu me ku", 3);
 
         assert_eq!(probe.error_byte_starts, [3, 27]);
         assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda"]);

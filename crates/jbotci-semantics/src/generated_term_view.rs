@@ -17,9 +17,10 @@ use jbotci_syntax::generated_model::{
     BareNaTermSyntax, BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax,
     BoundTermContinuationSyntax, BoundTermSyntax, BridiTailBoJointSyntax,
     BridiTailBoJointWithoutTailTermsSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
-    ExpSoiAdverbialTermSyntax, ExpTailTermsPrefixSyntax, FihoiProposalAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, GekTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
-    LooseTermSyntax, NaKuTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax,
+    ExpSoiAdverbialTermSyntax, ExpTailTermsPrefixSyntax, FaChainTaggedSumtiTermSyntax,
+    FihoiProposalAdverbialTermSyntax, ForethoughtTermsetSyntax, GekTermsetSyntax,
+    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
+    NonabsFaChainTaggedSumtiTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax,
     NormalTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
     PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSimpleBridiTailWithoutTailTermsSyntax, SimpleBridiTailSyntax,
@@ -60,6 +61,33 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
             tense_modal: &term.tense_modal,
             sumti: &term.sumti,
         }
+    }
+}
+
+/// A borrowed JOIK-chained FA tag term leaf.
+///
+/// The guarded and unguarded twins differ only by the `!selbri` assertion that decides where
+/// the term ends, so reference analysis sees one shape for both. A chain names several places
+/// at once, which no lowering reads yet, so the view exposes only the payload.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedFaChainTermRef<'syntax> {
+    pub(crate) sumti: &'syntax Arc<TaggedOrElidedSumtiSyntax>,
+}
+
+impl<'syntax> GeneratedFaChainTermRef<'syntax> {
+    /// Borrow the absorption-guarded FA chain term.
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_guarded(term: &'syntax FaChainTaggedSumtiTermSyntax) -> Self {
+        Self { sumti: &term.sumti }
+    }
+
+    /// Borrow the unguarded `nonabs` FA chain term.
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_unguarded(term: &'syntax NonabsFaChainTaggedSumtiTermSyntax) -> Self {
+        Self { sumti: &term.sumti }
     }
 }
 
@@ -251,6 +279,7 @@ pub(crate) fn bound_term_continuation_operand(
 
 /// A borrowed simple-term leaf shared by every level of the composed term hierarchy.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
+#[invariant(::FaChainTaggedSumtiTerm(_) => true)]
 #[invariant(::ElidedNaheFihoTagTerm(_) => true)]
 #[invariant(::TaggedSumtiBeforeTagTerm(_) => true)]
 #[invariant(::TaggedSumtiTerm(_) => true)]
@@ -265,6 +294,7 @@ pub(crate) fn bound_term_continuation_operand(
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     PlaceTaggedSumtiTerm(&'syntax PlaceTaggedSumtiTermSyntax),
+    FaChainTaggedSumtiTerm(GeneratedFaChainTermRef<'syntax>),
     ElidedNaheFihoTagTerm(&'syntax ElidedNaheFihoTagTermSyntax),
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
     TaggedSumtiTerm(GeneratedTaggedTermRef<'syntax>),
@@ -285,6 +315,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     pub(crate) fn from_simple(term: &'syntax SimpleTermSyntax) -> Self {
         match term {
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
+            SimpleTermSyntax::FaChainTaggedSumtiTerm(term) => {
+                Self::FaChainTaggedSumtiTerm(GeneratedFaChainTermRef::from_guarded(term))
+            }
             SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
             SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Self::TaggedSumtiBeforeTagTerm(term)
@@ -312,6 +345,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             BoundTermSyntax::StagBoundTermConnection(_) => None,
             BoundTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            BoundTermSyntax::FaChainTaggedSumtiTerm(term) => Some(Self::FaChainTaggedSumtiTerm(
+                GeneratedFaChainTermRef::from_guarded(term),
+            )),
             BoundTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             BoundTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -342,6 +378,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | TermSyntax::ConnectedTerm(_)
             | TermSyntax::StagBoundTermConnection(_) => None,
             TermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            TermSyntax::FaChainTaggedSumtiTerm(term) => Some(Self::FaChainTaggedSumtiTerm(
+                GeneratedFaChainTermRef::from_guarded(term),
+            )),
             TermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             TermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -371,6 +410,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | CeheTermSyntax::ConnectedTerm(_)
             | CeheTermSyntax::StagBoundTermConnection(_) => None,
             CeheTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            CeheTermSyntax::FaChainTaggedSumtiTerm(term) => Some(Self::FaChainTaggedSumtiTerm(
+                GeneratedFaChainTermRef::from_guarded(term),
+            )),
             CeheTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             CeheTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -398,6 +440,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             LooseTermSyntax::ConnectedTerm(_) | LooseTermSyntax::StagBoundTermConnection(_) => None,
             LooseTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            LooseTermSyntax::FaChainTaggedSumtiTerm(term) => Some(Self::FaChainTaggedSumtiTerm(
+                GeneratedFaChainTermRef::from_guarded(term),
+            )),
             LooseTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             LooseTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -429,6 +474,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 None
             }
             NonabsTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NonabsTermSyntax::NonabsFaChainTaggedSumtiTerm(term) => Some(
+                Self::FaChainTaggedSumtiTerm(GeneratedFaChainTermRef::from_unguarded(term)),
+            ),
             NonabsTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
             }
@@ -463,6 +511,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NormalTermSyntax::ConnectedNormalTerm(_)
             | NormalTermSyntax::BoundNormalTermConnection(_) => None,
             NormalTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NormalTermSyntax::NonabsFaChainTaggedSumtiTerm(term) => Some(
+                Self::FaChainTaggedSumtiTerm(GeneratedFaChainTermRef::from_unguarded(term)),
+            ),
             NormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
             }
@@ -517,7 +568,8 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => Some(Self::Tagged(term)),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTagged(term)),
             GeneratedSimpleTermRef::NaKuTerm(_) => Some(Self::NaKu),
-            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
+            GeneratedSimpleTermRef::FaChainTaggedSumtiTerm(_)
+            | GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
             | GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(_)
             | GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(_)
             | GeneratedSimpleTermRef::ExpSoiAdverbialTerm(_)
