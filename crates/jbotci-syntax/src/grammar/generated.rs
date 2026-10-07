@@ -1707,8 +1707,24 @@ pub mod generated_model {
         field continuations <- [one_or_more fa_chain_tag_continuation()];
         assert !selbri;
         assert !forethought_bridi_connection;
+        assert !exp_tagged_grouped_forethought_guard(tense_modal, forethought_bridi_connection);
         /// The shared sumti child syntax node, overt or KU-terminated.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
+    }
+
+    /// The tagged KE arm of camxes-exp's `gek_sentence <- ... / tag* KE_clause free* gek_sentence
+    /// KEhE_elidible free*` (camxes-exp.peg:112), whose tags may include FA. It exists only for
+    /// the `!gek_sentence` guard of [`fa_chain_tagged_sumti_term`]. jbotci's own grouped
+    /// forethought connection takes only the standard tags, so without this rule the guard
+    /// would miss `fa je fe fa ke ge broda gi brode`, which camxes-exp reads as one forethought
+    /// sentence with the tags `fa je fe fa`. The rule never builds a tree.
+    rule "forethought bridi connection" exp_tagged_grouped_forethought_guard(tense_modal, forethought_bridi_connection) -> struct {
+        /// The tags before KE, FA included.
+        field tense_modals <- [one_or_more arc(tense_modal)];
+        /// The `Ke` cmavo marker.
+        field ke <- cmavo(Ke).wf();
+        /// The grouped forethought sentence.
+        field inner <- arc(forethought_bridi_connection);
     }
 
     /// The unguarded twin of [`fa_chain_tagged_sumti_term`], for the `nonabs_term` ladder:
