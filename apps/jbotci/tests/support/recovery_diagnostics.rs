@@ -16,9 +16,10 @@ const MORPHOLOGY_MULTI_ERROR_SOURCE: &str = "mi @@@ do ### mi";
 // Both constants below omit `selbri`, although a selbri may follow `mi` here. Since the
 // Zantufa removal (#968) no alternative that offers it survives `select_parser_error`'s
 // discard. Issue #926 tracks that expectation-reporting defect; once it lands, `selbri`
-// should appear in both.
+// should appear in both. `{pe'o}` is right: a mex before MOI, a selbri since #969, may
+// begin with PEhO.
 const SYNTAX_EXPECTED_LABEL: &str = "expected: free modifier, space interval, sumti association phrase, time interval, interval, space tense, time tense, sumti relative phrase, termset connection continuation, place tag, tag, paragraph statement, prenex, or paragraph";
-const SYNTAX_DETAILED_NOTE: &str = "needs one of:\n- replacement phrase ({lo'ai})\n- space interval (VEhA)\n- sumti association phrase (GOI)\n- time interval (ZEhA)\n- interval (GAhO)\n- space tense (FAhA or VA)\n- time tense (PU or ZI)\n- sumti relative phrase ({vu'o})\n- termset connection continuation ({pe'e})\n- place tag (FA)\n- tag (NAhE or {fi'o})\n- term connection (NA, NAhE, SE, {cu}, or {vau})\n- paragraph statement ({i})\n- {zo'u} [continues prenex]\n- paragraph (NIhO)";
+const SYNTAX_DETAILED_NOTE: &str = "needs one of:\n- replacement phrase ({lo'ai})\n- space interval (VEhA)\n- sumti association phrase (GOI)\n- time interval (ZEhA)\n- interval (GAhO)\n- space tense (FAhA or VA)\n- time tense (PU or ZI)\n- sumti relative phrase ({vu'o})\n- termset connection continuation ({pe'e})\n- place tag (FA)\n- tag (NAhE or {fi'o})\n- term connection (NA, NAhE, SE, {cu}, {pe'o}, or {vau})\n- paragraph statement ({i})\n- {zo'u} [continues prenex]\n- paragraph (NIhO)";
 
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
 struct CapturedCli {

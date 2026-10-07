@@ -2620,9 +2620,9 @@ fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
         assert!(stderr.contains("needs one of:"));
         assert!(stderr.contains("replacement phrase"));
         assert!(stderr.contains("tag"));
-        // NA and a selbri may follow `cu`, but the note lists neither. Issue #926 tracks
-        // that expectation-reporting defect; once it lands, NA should appear here again.
-        assert!(stderr.contains("NAhE, SE, or {cu}"));
+        assert!(stderr.contains("NA, NAhE, SE"));
+        // A mex before MOI, a selbri since #969, may begin with PEhO.
+        assert!(stderr.contains("{pe'o}"));
         assert!(stderr.contains("bridi"));
         let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(compact_stderr.contains("[continues bridi tail]"));
@@ -2650,6 +2650,7 @@ fn gentufa_syntax_error_labels_unique_current_construct() {
         assert!(stderr.contains("syntax.incomplete-statement"), "{stderr}");
         assert!(stderr.contains("needs one of:"), "{stderr}");
         assert!(stderr.contains("replacement phrase"), "{stderr}");
+        assert!(stderr.contains("{pe'o}"), "{stderr}");
         assert!(stderr.contains("while parsing bridi"), "{stderr}");
         assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");
     });

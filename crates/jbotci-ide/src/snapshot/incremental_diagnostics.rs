@@ -921,11 +921,11 @@ mod tests {
         }
         // A sample passes when its diagnostics stay inside its paragraph and it carries no local
         // experimental warning. Without Zantufa, each sample either parses with the baseline
-        // grammar or fails with plain diagnostics inside its paragraph, except two:
-        // `connectorless-bo-sumti-tagged` recovers with a local
-        // `experimental-term-bo-connection` warning, and `fa-joik-chained-place-tag` takes the
-        // FA-as-tag route with its local `experimental-fa-as-tag` warning. The gate must be
-        // conservative about both.
+        // grammar or fails with plain diagnostics inside its paragraph, except one:
+        // `fa-joik-chained-place-tag` takes the FA tag chain with its local
+        // `experimental-fa-as-tag` warning, and the gate must be conservative about it. Since the
+        // mex-before-MOI selbri came back (#969), `connectorless-bo-sumti-tagged` recovers
+        // without its local `experimental-term-bo-connection` warning and passes.
         assert_eq!(
             passed_ids,
             [
@@ -939,6 +939,7 @@ mod tests {
                 "nary-gek-termset",
                 "connectorless-bo-term",
                 "connectorless-bo-sumti",
+                "connectorless-bo-sumti-tagged",
                 "jai-term-explicit-ku",
                 "jai-selbri-not-term",
                 "cehe-stays-a-cehe-termset",

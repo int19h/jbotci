@@ -1026,6 +1026,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "mex selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "bridi description",
         parent: Some("sumti"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -2737,6 +2743,8 @@ pub enum ExperimentalConstruct {
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
+    ExperimentalMexMeSelbriUnit,
+    ExperimentalMexMoiSelbriUnit,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -2815,6 +2823,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
             }
+            Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
+            Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -2931,6 +2941,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
+            Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
+            Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
@@ -4476,12 +4488,14 @@ mod tests {
     // of it. That late success is a complete recovery and must be kept even
     // though no earlier error was recovered (#935); without that rule this
     // input degrades. Issue #968 replaced the earlier input, which reached the
-    // path only with a Zantufa mex feature.
+    // path only with a Zantufa mex feature. Issue #969 replaced `pa le so'u`:
+    // with the camxes-exp mex-before-MOI selbri back, that input no longer
+    // reaches the path. This one degrades when the rule is disabled.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_late_natural_stop_retains_first_error_structure() {
-        let source = "pa le so'u";
+        let source = "lo mi cu";
         let words =
             jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
         let options = ParseOptions::default();
@@ -4496,7 +4510,7 @@ mod tests {
         );
 
         assert_eq!(recovered.errors, vec![strict_error]);
-        assert_eq!(visitor.valid_tokens, ["pa", "le", "so'u"]);
+        assert_eq!(visitor.valid_tokens, ["lo", "mi"]);
         assert!(recovered_syntax_parse_conserves_word_spans(
             &words, &recovered
         ));

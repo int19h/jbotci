@@ -4908,15 +4908,15 @@ pub mod generated_model {
 
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_base, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_base, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
     }
 
     /// Sum node for tanru unit; selects among the standard and experimental forms.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_base, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -4931,6 +4931,10 @@ pub mod generated_model {
         abstraction_tanru_unit,
         /// Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.
         sumti_selbri_tanru_unit,
+        /// Uses camxes-exp's `exp_mekso_selbri_tanru_unit` form, whose payload preserves `me`, `mekso`, `mehu`, and `moi_marker`.
+        exp_mekso_selbri_tanru_unit,
+        /// Uses camxes-exp's `exp_mekso_moi_tanru_unit` form, whose payload preserves `mekso` and `moi`.
+        exp_mekso_moi_tanru_unit,
         /// Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.
         operator_selbri_tanru_unit,
         /// A completed one-word MEhOI quote is a direct atom, never a quoted sumti.
@@ -5024,6 +5028,42 @@ pub mod generated_model {
         field goha <- selmaho(Goha).wf();
         /// The optional `Raho` cmavo marker.
         field raho <- opt(cmavo(Raho).wf());
+    }
+
+    /// camxes-exp's `ME_clause free* (sumti / mex) MEhU_elidible free* MOI_clause? free*`
+    /// (camxes-exp.peg:248), mex half. camxes-exp tries the sumti first, and so does jbotci:
+    /// `sumti_selbri_tanru_unit` comes earlier in the tanru-unit choice, so a ME body that a
+    /// sumti covers stays the baseline sumti-to-selbri.
+    ///
+    /// The body is jbotci's own mex. Like CLL and unlike camxes-exp, it keeps the PEhO-less
+    /// forethought call; that is the retained standard MEX design (I12 in the camxes-exp
+    /// reconciliation).
+    rule "sumti-to-selbri" exp_mekso_selbri_tanru_unit(mekso) -> struct {
+        /// The `Me` cmavo marker, which carries the warning for the whole construct.
+        field me <- cmavo(Me).warn(ExperimentalMexMeSelbriUnit).wf();
+        #[tree_child(primary)]
+        /// The mex body.
+        field mekso <- arc(mekso);
+        /// The optional `Mehu` cmavo marker.
+        field mehu <- opt(cmavo(Mehu).wf()).elidable_terminator(Mehu);
+        /// The optional moi marker component.
+        field moi_marker <- opt(selmaho(Moi).wf());
+    }
+
+    /// camxes-exp's `mex MOI_clause free*` (camxes-exp.peg:248). The baseline
+    /// `ordinal_tanru_unit` comes first in the tanru-unit choice, so a lone number or lerfu
+    /// string before MOI stays an ordinal; this arm takes the mex that the ordinal cannot. As in
+    /// the ME arm, the mex is jbotci's own.
+    ///
+    /// A number operand refuses a following MOI (#813), so a mex that ends in a number before
+    /// MOI (`pa su'i re moi`) does not reach this arm.
+    rule "mex selbri" exp_mekso_moi_tanru_unit(mekso) -> struct {
+        #[tree_child(primary)]
+        /// The mex before MOI. The mex must end right before the MOI word; a mex that does not is
+        /// rewound with its diagnostics, so trying this arm leaves no trace where it fails.
+        field mekso: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_before_selmaho(Moi));
+        /// The MOI word, which carries the warning for the whole construct.
+        field moi <- selmaho(Moi).warn(ExperimentalMexMoiSelbriUnit).wf();
     }
 
     /// Product node for sumti-to-selbri; preserves `me`, `sumti`, `mehu`, and `moi_marker` in source order.

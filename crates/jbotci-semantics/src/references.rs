@@ -1957,6 +1957,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_none(),
                 )
             }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
                 self.add_frame(
@@ -2050,6 +2070,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             ),
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -6053,6 +6093,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);
             }
@@ -6103,6 +6149,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.sumti);
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoSelbriTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
+            }
+            generated::TanruUnitAtomBaseSyntax::ExpMeksoMoiTanruUnit(unit) => {
+                self.walk_node(&unit.mekso);
             }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.walk_node(&unit.mekso_operator);

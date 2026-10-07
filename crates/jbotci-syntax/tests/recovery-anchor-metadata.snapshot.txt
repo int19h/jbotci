@@ -1,4 +1,4 @@
-rules: 461
+rules: 463
 rule leading_indicator
   first [Selmaho(Cai), Selmaho(Ui)] conditions []
   field 0 indicator
@@ -3808,6 +3808,26 @@ rule pro_bridi_tanru_unit
     resume 1 origin LiteralRun start [Cmavo(Raho)] conditions []
   field 1 raho
     resume 1 origin LiteralRun start [Cmavo(Raho)] conditions []
+rule exp_mekso_selbri_tanru_unit
+  first [Cmavo(Me)] conditions []
+  field 0 me
+    resume 0 origin LiteralRun start [Cmavo(Me)] conditions []
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Johi), Cmavo(Ke), Cmavo(Ki), Cmavo(Maho), Cmavo(Mohe), Cmavo(Nahu), Cmavo(Nihe), Cmavo(Peho), Cmavo(Tei), Cmavo(Vei), Selmaho(A), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Ga), Selmaho(Gaho), Selmaho(Guha), Selmaho(Ja), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Vuhu), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 2 origin LiteralRun start [Cmavo(Mehu), Selmaho(Moi)] conditions []
+  field 1 mekso
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Johi), Cmavo(Ke), Cmavo(Ki), Cmavo(Maho), Cmavo(Mohe), Cmavo(Nahu), Cmavo(Nihe), Cmavo(Peho), Cmavo(Tei), Cmavo(Vei), Selmaho(A), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Ga), Selmaho(Gaho), Selmaho(Guha), Selmaho(Ja), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Vuhu), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 2 origin LiteralRun start [Cmavo(Mehu), Selmaho(Moi)] conditions []
+  field 2 mehu
+    resume 2 origin LiteralRun start [Cmavo(Mehu), Selmaho(Moi)] conditions []
+  field 3 moi_marker
+    resume 3 origin LiteralRun start [Selmaho(Moi)] conditions []
+rule exp_mekso_moi_tanru_unit
+  field 0 mekso
+    resume 1 origin LiteralRun start [Selmaho(Moi)] conditions []
+  field 1 moi
+    resume 1 origin LiteralRun start [Selmaho(Moi)] conditions []
 rule sumti_selbri_tanru_unit
   first [Cmavo(Me)] conditions []
   field 0 me
