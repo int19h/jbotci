@@ -807,10 +807,12 @@ mod tests {
     fn strict_only_local_warning_before_following_recovery_error_fails_the_gate() {
         // The paragraph's own parse carries a local experimental-fa-as-tag warning, which the
         // confirmed analysis of the whole document does not report, so the gate must refuse.
+        // The FA tag chain parses since #969, so the paragraph puts the chain after BE, where
+        // no linked-argument rule takes it.
         let prepared = prepare_replacement(
-            "mi klama\nni'o\nfa je fe ko'a broda\nni'o\nmi ku i do",
-            "fa je fe ko'a broda",
-            "fa je fe ko'a broda ui",
+            "mi klama\nni'o\nmi broda be fa je fe ko'a\nni'o\nmi ku i do",
+            "mi broda be fa je fe ko'a",
+            "mi broda be fa je fe ko'a ui",
         );
         assert_eq!(
             prepared.gate(),
