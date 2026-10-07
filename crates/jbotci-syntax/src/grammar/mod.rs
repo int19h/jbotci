@@ -5762,6 +5762,124 @@ mod tests {
         }
     }
 
+    /// What a failed parse reports after a probe ran: the furthest-failure diagnostic
+    /// candidates and the parser errors, both rendered as text.
+    #[invariant(true)]
+    struct ProbedFailureReport {
+        candidates: String,
+        errors: String,
+    }
+
+    /// Parses "mi klama do" as: an abandoned alternative that fails at the first token, then the
+    /// probe that `probed` builds, then a parser that fails at the first token.
+    ///
+    /// Errors at one position are merged by keeping the one whose span starts furthest, and the
+    /// earlier one on a tie, so the pending alternative is what a correct parse reports, and a
+    /// leaked probe error would win over it.
+    ///
+    /// `probed` receives two inner parsers. Both record a diagnostic candidate at the last token
+    /// and leave an alternative error there; the first then matches one token, the second fails.
+    #[requires(true)]
+    #[ensures(true)]
+    fn probed_failure_report(
+        probed: impl Fn(Boxed<'static, ()>, Boxed<'static, ()>) -> Boxed<'static, ()>,
+    ) -> ProbedFailureReport {
+        use super::parser_core::{Input, Parser, custom, empty};
+        use super::tokens::spanned_tokens;
+
+        let words = segment_words_with_modifiers("mi klama do").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let first = tokens[0].span;
+        let far = tokens[2].span;
+        let eoi = SimpleSpan::from(far.end..far.end);
+        let options = ParseOptions::default();
+        let mut state = ParserState::new(words, &options);
+        let far_failure = custom(move |input| {
+            input
+                .state()
+                .record_diagnostic_candidate(SyntaxParseError::custom(
+                    far,
+                    "probe candidate".to_owned(),
+                ));
+            Err::<(), _>(SyntaxParseError::custom(
+                far,
+                "probe alternative".to_owned(),
+            ))
+        })
+        .boxed();
+        let matching = far_failure
+            .clone()
+            .or(custom(|input| {
+                input.skip();
+                Ok(())
+            }))
+            .boxed();
+        let pending = custom(move |_| {
+            Err::<(), _>(SyntaxParseError::custom(
+                first,
+                "pending alternative".to_owned(),
+            ))
+        })
+        .or(empty())
+        .boxed();
+        let failure = custom(move |_| {
+            Err::<(), _>(SyntaxParseError::custom(first, "real failure".to_owned()))
+        });
+        let parser = pending
+            .ignore_then(probed(matching, far_failure))
+            .ignore_then(failure);
+        let errors = parser
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the parse fails after the probe");
+        ProbedFailureReport {
+            candidates: format!("{:?}", state.diagnostic_candidates_snapshot()),
+            errors: format!("{errors:?}"),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookahead_probes_leave_no_diagnostics_behind() {
+        use super::generated_runtime::{followed_by, lookahead, not};
+        use super::parser_core::{Parser, empty};
+
+        let reports = [
+            (
+                "lookahead",
+                probed_failure_report(|matching, _| lookahead(matching).boxed()),
+            ),
+            (
+                "not",
+                probed_failure_report(|_, failing| not(failing).boxed()),
+            ),
+            (
+                "followed_by",
+                // An empty `inner` keeps the real failure at the first token.
+                probed_failure_report(|matching, _| followed_by(empty(), matching).boxed()),
+            ),
+        ];
+        for (probe, report) in reports {
+            assert!(
+                !report.candidates.contains("probe"),
+                "{probe}: probe candidates leaked: {}",
+                report.candidates
+            );
+            assert!(
+                !report.errors.contains("probe"),
+                "{probe}: probe errors leaked: {}",
+                report.errors
+            );
+            assert!(
+                report.errors.contains("pending alternative"),
+                "{probe}: the alternative pending before the probe survives: {}",
+                report.errors
+            );
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
