@@ -1057,7 +1057,7 @@ mod tests {
         let empty_primary = publish(
             DiscordRequest::Gentufa(GentufaRequest {
                 text: text(""),
-                dialect: Some(text("zantufa")),
+                dialect: Some(text("cbm")),
                 options: GentufaOptions::default(),
             }),
             2,
@@ -1067,7 +1067,7 @@ mod tests {
             &borrowed_fields(&empty_primary.request),
             "gentufa",
         );
-        assert_eq!(block, "-# dialect\nzantufa\n-# gentufa");
+        assert_eq!(block, "-# dialect\ncbm\n-# gentufa");
         assert_round_trip(&empty_primary);
     }
 

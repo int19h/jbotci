@@ -2457,9 +2457,6 @@ fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag> {
         Cmavo::Lahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("LAhOI")),
         Cmavo::Rahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("RAhOI")),
         Cmavo::Mehoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("MEhOI")),
-        Cmavo::Gohoi | Cmavo::Zehoi | Cmavo::Tahai | Cmavo::Bohei => {
-            Some(SAMatchTag::ExperimentalQuoteSelmaho("GOhOI"))
-        }
         _ => None,
     }
 }
@@ -3502,7 +3499,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_unclosed_zoi_quote_after_opening_delimiter_at_eof() {
-        for source in ["zoi gy", "la'o gy", "mu'oi gy"] {
+        for source in ["zoi gy", "la'o gy"] {
             assert_unterminated_zoi_quote(source, "gy");
         }
     }
@@ -3511,7 +3508,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_unclosed_zoi_quote_after_opening_delimiter_with_payload() {
-        for source in ["zoi gy foo", "la'o gy foo", "mu'oi gy foo"] {
+        for source in ["zoi gy foo", "la'o gy foo"] {
             assert_unterminated_zoi_quote(source, "gy");
         }
     }

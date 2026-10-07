@@ -10,10 +10,10 @@ description = "Real mixed BO connection with Added NA KU and an internally damag
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { "sha256" = "8f790d6a22f95abcdd36c3971a089880ab1f36f3d43e31ef48c98091ff6b551f" }
-diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [18, 20], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [35, 37], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [52, 54], "source-text" = "ku", "message" = "unexpected cmavo" }]
-tree = { "valid-tokens" = ["mi", "bróda", "be", "lu", "mi", "li'u", "i", "mi", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[18, 20]] }, { "kind" = "invalid", "error-index" = 1, "byte-spans" = [[27, 28], [29, 31], [32, 34], [35, 37], [38, 40], [41, 45]] }, { "kind" = "invalid", "error-index" = 2, "byte-spans" = [[52, 54]] }] }
+raw = { sha256 = "8f790d6a22f95abcdd36c3971a089880ab1f36f3d43e31ef48c98091ff6b551f" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "ku", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "na", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [52, 54], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "be", "lu", "mi", "li'u", "i", "mi", "i", "do", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[18, 20]] }, { kind = "invalid", error-index = 1, byte-spans = [[27, 28], [29, 31], [32, 34], [35, 37], [38, 40], [41, 45]] }, { kind = "invalid", error-index = 2, byte-spans = [[52, 54]] }] }

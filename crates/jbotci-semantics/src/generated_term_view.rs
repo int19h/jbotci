@@ -18,17 +18,15 @@ use jbotci_syntax::generated_model::{
     BoundTermContinuationSyntax, BoundTermSyntax, BridiTailBoJointSyntax,
     BridiTailBoJointWithoutTailTermsSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
     ExpSoiAdverbialTermSyntax, ExpTailTermsPrefixSyntax, FihoiProposalAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
-    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
-    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermSyntax,
-    NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
+    ForethoughtTermsetSyntax, GekTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
+    LooseTermSyntax, NaKuTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax,
+    NormalTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
     PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSimpleBridiTailWithoutTailTermsSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleTermSyntax, SumtiBoundSyntax,
-    SumtiBoundTailSyntax, SumtiConnectiveSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    SumtiBoundTailSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
     TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseModalSyntax,
-    TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
-    ZantufaJoikChainedPlaceTagTermSyntax, ZantufaXoiAdverbialTermSyntax,
+    TenseTaggedLinkedSumtiSyntax, TermSyntax,
 };
 
 /// A borrowed tag-led term leaf.
@@ -65,34 +63,28 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
     }
 }
 
-/// A borrowed BO-bound sumti tail, sourced or Zantufa-connectorless.
+/// A borrowed BO-bound sumti tail.
 ///
-/// The two arms of `sumti_bound_tail` differ by exactly one field: the sourced tail carries the
-/// connective its sources require, and rolling Zantufa's connectorless tail carries none
-/// (zantufa-1.9999.peg:35). Everything a traversal needs — the optional tag and the trailing
-/// operand — is shared, so structural passes take this view and only callers that read a
-/// connective have to ask for it.
+/// The view exposes the optional tag and the trailing operand, so the reference passes do not
+/// have to match the tail's sum.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBoundSumtiTailRef<'syntax> {
-    pub(crate) connective: Option<&'syntax SumtiConnectiveSyntax>,
     pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
     pub(crate) trailing_sumti: &'syntax Arc<SumtiBoundSyntax>,
 }
 
 impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
-    /// Borrow either BO-bound tail shape.
+    /// Borrow the BO-bound tail.
     #[requires(true)]
-    #[ensures(ret.connective.is_some() == matches!(tail, SumtiBoundTailSyntax::BoundSumtiTail(_)))]
+    #[ensures(match tail {
+        SumtiBoundTailSyntax::BoundSumtiTail(tail) => {
+            ret.tense_modal.is_some() == tail.tense_modal.is_some()
+        }
+    })]
     pub(crate) fn from_tail(tail: &'syntax SumtiBoundTailSyntax) -> Self {
         match tail {
             SumtiBoundTailSyntax::BoundSumtiTail(tail) => Self {
-                connective: Some(tail.connective.as_ref()),
-                tense_modal: tail.tense_modal.as_deref(),
-                trailing_sumti: &tail.trailing_sumti,
-            },
-            SumtiBoundTailSyntax::ZantufaBoundSumtiTail(tail) => Self {
-                connective: None,
                 tense_modal: tail.tense_modal.as_deref(),
                 trailing_sumti: &tail.trailing_sumti,
             },
@@ -100,12 +92,10 @@ impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
     }
 }
 
-/// A borrowed BO-level bridi-tail joint, sourced or Zantufa-connectorless.
+/// A borrowed BO-level bridi-tail joint.
 ///
-/// The arms of `bridi_tail_bo_joint` differ by their connective, which the sourced joint requires
-/// and rolling Zantufa's connectorless `tag BO` opening spells not at all
-/// (zantufa-1.9999.peg:22). Everything the surviving passes need — the tag, the operand and the
-/// trailing terms — is shared, so they take this view and never have to match the arms.
+/// The view exposes what the reference passes need -- the tag, the operand and the trailing
+/// terms -- so they do not have to match the joint's sum.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
@@ -115,18 +105,17 @@ pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
 }
 
 impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
-    /// Borrow either BO-joint shape.
+    /// Borrow the BO joint.
     #[requires(true)]
-    #[ensures(matches!(joint, BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
+    #[ensures(match joint {
+        BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => {
+            ret.tense_modal.is_some() == continuation.tense_modal.is_some()
+        }
+    })]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointSyntax) -> Self {
         match joint {
             BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => Self {
                 tense_modal: continuation.tense_modal.as_deref(),
-                bridi_tail: &continuation.bridi_tail,
-                tail_terms: &continuation.tail_terms,
-            },
-            BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(continuation) => Self {
-                tense_modal: Some(&continuation.tense_modal),
                 bridi_tail: &continuation.bridi_tail,
                 tail_terms: &continuation.tail_terms,
             },
@@ -143,21 +132,19 @@ pub(crate) struct GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
 }
 
 impl<'syntax> GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
-    /// Borrow either BO-joint shape.
+    /// Borrow the BO joint.
     #[requires(true)]
-    #[ensures(matches!(joint, BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
+    #[ensures(match joint {
+        BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(continuation) => {
+            ret.tense_modal.is_some() == continuation.tense_modal.is_some()
+        }
+    })]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointWithoutTailTermsSyntax) -> Self {
         match joint {
             BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(
                 continuation,
             ) => Self {
                 tense_modal: continuation.tense_modal.as_deref(),
-                bridi_tail: &continuation.bridi_tail,
-            },
-            BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(
-                continuation,
-            ) => Self {
-                tense_modal: Some(&continuation.tense_modal),
                 bridi_tail: &continuation.bridi_tail,
             },
         }
@@ -259,51 +246,36 @@ pub(crate) fn bound_term_continuation_operand(
         BoundTermContinuationSyntax::StagBoundTermContinuation(continuation) => {
             &continuation.trailing_term
         }
-        BoundTermContinuationSyntax::ZantufaBoundTermContinuation(continuation) => {
-            &continuation.trailing_term
-        }
     }
 }
 
 /// A borrowed simple-term leaf shared by every level of the composed term hierarchy.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
-#[invariant(::ZantufaJoikChainedPlaceTagTerm(_) => true)]
-#[invariant(::JaiTaggedSumtiTerm(_) => true)]
 #[invariant(::ElidedNaheFihoTagTerm(_) => true)]
 #[invariant(::TaggedSumtiBeforeTagTerm(_) => true)]
 #[invariant(::TaggedSumtiTerm(_) => true)]
-#[invariant(::NoihaAdverbialTerm(_) => true)]
 #[invariant(::FihoiProposalAdverbialTerm(_) => true)]
-#[invariant(::ZantufaXoiAdverbialTerm(_) => true)]
 #[invariant(::ExpSoiAdverbialTerm(_) => true)]
 #[invariant(::NaKuTerm(_) => true)]
 #[invariant(::SumtiTerm(_) => true)]
 #[invariant(::BareNaTerm(_) => true)]
 #[invariant(::GekTermset(_) => true)]
-#[invariant(::ZantufaGekTermset(_) => true)]
 #[invariant(::ForethoughtTermset(_) => true)]
 #[invariant(::NuhiTermset(_) => true)]
-#[invariant(::KeTermset(_) => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     PlaceTaggedSumtiTerm(&'syntax PlaceTaggedSumtiTermSyntax),
-    ZantufaJoikChainedPlaceTagTerm(&'syntax ZantufaJoikChainedPlaceTagTermSyntax),
-    JaiTaggedSumtiTerm(&'syntax JaiTaggedSumtiTermSyntax),
     ElidedNaheFihoTagTerm(&'syntax ElidedNaheFihoTagTermSyntax),
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
     TaggedSumtiTerm(GeneratedTaggedTermRef<'syntax>),
-    NoihaAdverbialTerm(&'syntax NoihaAdverbialTermSyntax),
     FihoiProposalAdverbialTerm(&'syntax FihoiProposalAdverbialTermSyntax),
-    ZantufaXoiAdverbialTerm(&'syntax ZantufaXoiAdverbialTermSyntax),
     ExpSoiAdverbialTerm(&'syntax ExpSoiAdverbialTermSyntax),
     NaKuTerm(&'syntax NaKuTermSyntax),
     SumtiTerm(&'syntax SumtiTermSyntax),
     BareNaTerm(&'syntax BareNaTermSyntax),
     GekTermset(&'syntax GekTermsetSyntax),
-    ZantufaGekTermset(&'syntax ZantufaGekTermsetSyntax),
     ForethoughtTermset(&'syntax ForethoughtTermsetSyntax),
     NuhiTermset(&'syntax NuhiTermsetSyntax),
-    KeTermset(&'syntax KeTermsetSyntax),
 }
 
 impl<'syntax> GeneratedSimpleTermRef<'syntax> {
@@ -313,10 +285,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     pub(crate) fn from_simple(term: &'syntax SimpleTermSyntax) -> Self {
         match term {
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
-            SimpleTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Self::ZantufaJoikChainedPlaceTagTerm(term)
-            }
-            SimpleTermSyntax::JaiTaggedSumtiTerm(term) => Self::JaiTaggedSumtiTerm(term),
             SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
             SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Self::TaggedSumtiBeforeTagTerm(term)
@@ -324,20 +292,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             SimpleTermSyntax::TaggedSumtiTerm(term) => {
                 Self::TaggedSumtiTerm(GeneratedTaggedTermRef::from_guarded(term))
             }
-            SimpleTermSyntax::NoihaAdverbialTerm(term) => Self::NoihaAdverbialTerm(term),
             SimpleTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Self::FihoiProposalAdverbialTerm(term)
             }
-            SimpleTermSyntax::ZantufaXoiAdverbialTerm(term) => Self::ZantufaXoiAdverbialTerm(term),
             SimpleTermSyntax::ExpSoiAdverbialTerm(term) => Self::ExpSoiAdverbialTerm(term),
             SimpleTermSyntax::NaKuTerm(term) => Self::NaKuTerm(term),
             SimpleTermSyntax::SumtiTerm(term) => Self::SumtiTerm(term),
             SimpleTermSyntax::BareNaTerm(term) => Self::BareNaTerm(term),
             SimpleTermSyntax::GekTermset(term) => Self::GekTermset(term),
-            SimpleTermSyntax::ZantufaGekTermset(term) => Self::ZantufaGekTermset(term),
             SimpleTermSyntax::ForethoughtTermset(term) => Self::ForethoughtTermset(term),
             SimpleTermSyntax::NuhiTermset(term) => Self::NuhiTermset(term),
-            SimpleTermSyntax::KeTermset(term) => Self::KeTermset(term),
         }
     }
 
@@ -348,10 +312,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             BoundTermSyntax::StagBoundTermConnection(_) => None,
             BoundTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            BoundTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            BoundTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             BoundTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             BoundTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -359,22 +319,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
-            BoundTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             BoundTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
-            }
-            BoundTermSyntax::ZantufaXoiAdverbialTerm(term) => {
-                Some(Self::ZantufaXoiAdverbialTerm(term))
             }
             BoundTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             BoundTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             BoundTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             BoundTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             BoundTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            BoundTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             BoundTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             BoundTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            BoundTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
@@ -388,10 +342,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | TermSyntax::ConnectedTerm(_)
             | TermSyntax::StagBoundTermConnection(_) => None,
             TermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            TermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            TermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             TermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             TermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -399,20 +349,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             TermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
-            TermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             TermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
             }
-            TermSyntax::ZantufaXoiAdverbialTerm(term) => Some(Self::ZantufaXoiAdverbialTerm(term)),
             TermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             TermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             TermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             TermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             TermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            TermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             TermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             TermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            TermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
@@ -425,10 +371,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | CeheTermSyntax::ConnectedTerm(_)
             | CeheTermSyntax::StagBoundTermConnection(_) => None,
             CeheTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            CeheTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            CeheTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             CeheTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             CeheTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -436,22 +378,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             CeheTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
-            CeheTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             CeheTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
-            }
-            CeheTermSyntax::ZantufaXoiAdverbialTerm(term) => {
-                Some(Self::ZantufaXoiAdverbialTerm(term))
             }
             CeheTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             CeheTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             CeheTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             CeheTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             CeheTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            CeheTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             CeheTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             CeheTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            CeheTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
@@ -462,10 +398,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             LooseTermSyntax::ConnectedTerm(_) | LooseTermSyntax::StagBoundTermConnection(_) => None,
             LooseTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            LooseTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            LooseTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             LooseTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             LooseTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
@@ -473,22 +405,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             LooseTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
-            LooseTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             LooseTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
-            }
-            LooseTermSyntax::ZantufaXoiAdverbialTerm(term) => {
-                Some(Self::ZantufaXoiAdverbialTerm(term))
             }
             LooseTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             LooseTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             LooseTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             LooseTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             LooseTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            LooseTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             LooseTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             LooseTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            LooseTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
@@ -503,10 +429,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 None
             }
             NonabsTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            NonabsTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            NonabsTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             NonabsTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
             }
@@ -516,22 +438,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NonabsTermSyntax::NonabsTaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_unguarded(term),
             )),
-            NonabsTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             NonabsTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
-            }
-            NonabsTermSyntax::ZantufaXoiAdverbialTerm(term) => {
-                Some(Self::ZantufaXoiAdverbialTerm(term))
             }
             NonabsTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             NonabsTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             NonabsTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NonabsTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             NonabsTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            NonabsTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             NonabsTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             NonabsTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            NonabsTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
@@ -547,10 +463,6 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NormalTermSyntax::ConnectedNormalTerm(_)
             | NormalTermSyntax::BoundNormalTermConnection(_) => None,
             NormalTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
-            NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
-                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
-            }
-            NormalTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             NormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
             }
@@ -560,31 +472,25 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NormalTermSyntax::NonabsTaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
                 GeneratedTaggedTermRef::from_unguarded(term),
             )),
-            NormalTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             NormalTermSyntax::FihoiProposalAdverbialTerm(term) => {
                 Some(Self::FihoiProposalAdverbialTerm(term))
-            }
-            NormalTermSyntax::ZantufaXoiAdverbialTerm(term) => {
-                Some(Self::ZantufaXoiAdverbialTerm(term))
             }
             NormalTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             NormalTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             NormalTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NormalTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             NormalTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
-            NormalTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             NormalTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             NormalTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
-            NormalTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 }
 
 /// A borrowed sumti-association payload: the shapes a GOI-family relative phrase can carry.
 ///
-/// The payload constituent is the shared normal-flavour term, because that is what all three
-/// sources spell at `relative_clause_1` (camxes.peg:168, camxes-exp.peg:207,
-/// zantufa-1.9999.peg:43). A sumti-association phrase relates its head to a SUMTI, so only the
+/// The payload constituent is the shared normal-flavour term, because that is what both
+/// sources spell at `relative_clause_1` (camxes.peg:168, camxes-exp.peg:207). A
+/// sumti-association phrase relates its head to a SUMTI, so only the
 /// leaves that carry one have a reading, plus `NA KU`, which deliberately carries none and
 /// negates the phrase instead. Every other leaf of the shared inventory — a termset, an
 /// adverbial, a bare NA, or a term connection — reaches this projection as `None` and is
@@ -611,20 +517,14 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => Some(Self::Tagged(term)),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTagged(term)),
             GeneratedSimpleTermRef::NaKuTerm(_) => Some(Self::NaKu),
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(_)
-            | GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(_)
-            | GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
             | GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(_)
-            | GeneratedSimpleTermRef::NoihaAdverbialTerm(_)
             | GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(_)
-            | GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(_)
             | GeneratedSimpleTermRef::ExpSoiAdverbialTerm(_)
             | GeneratedSimpleTermRef::BareNaTerm(_)
             | GeneratedSimpleTermRef::GekTermset(_)
-            | GeneratedSimpleTermRef::ZantufaGekTermset(_)
             | GeneratedSimpleTermRef::ForethoughtTermset(_)
-            | GeneratedSimpleTermRef::NuhiTermset(_)
-            | GeneratedSimpleTermRef::KeTermset(_) => None,
+            | GeneratedSimpleTermRef::NuhiTermset(_) => None,
         }
     }
 

@@ -2,7 +2,6 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use jbotci_dialect::parse_dialect_definition;
 use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -39,30 +38,6 @@ fn syntax_assignment_includes_zoi_raw_quoted_text() {
 #[ensures(true)]
 fn syntax_assignment_handles_non_ascii_spans() {
     assert_source_assignment("zoi gy café gy");
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
-    assert_source_assignment("mi cu mu'oi gy foo gy");
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn syntax_assignment_handles_zantufa_jai_tag_term() {
-    let dialect = parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
-    let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-    assert_source_assignment_with_options("jai pu mi cu klama", &options);
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn syntax_assignment_handles_zantufa_poiha_brigahi() {
-    assert_source_assignment("noi'a klama ku mi cu broda");
 }
 
 #[test]
@@ -118,22 +93,6 @@ fn recovered_assignment_conserves_rejected_empty_linkargs_source_spans() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
-    let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect definition");
-    let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-    for source in [
-        "mi klama noi'a broda ku",
-        "mi mu'oi gy Alice gy",
-        "mi lu'ei do klama li'au",
-    ] {
-        assert_source_assignment_with_options(source, &options);
-    }
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
 fn generated_syntax_assignment_handles_folded_source_islands() {
     for source in [
         "li re gu'e su'i gi pi'i re du li vo",
@@ -155,12 +114,7 @@ fn range_order_check_rejects_inverted_final_range() {
 #[requires(!source.is_empty())]
 #[ensures(true)]
 fn assert_source_assignment(source: &str) {
-    assert_source_assignment_with_options(source, &ParseOptions::default());
-}
-
-#[requires(!source.is_empty())]
-#[ensures(true)]
-fn assert_source_assignment_with_options(source: &str, options: &ParseOptions) {
+    let options = &ParseOptions::default();
     let words = segment_words_with_options(source);
     let parse = parse_syntax_tree_with_source_and_options(&words, source, options)
         .expect("source should parse");

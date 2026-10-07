@@ -73,15 +73,6 @@ define_dialect_features! {
     CaseInsensitive => "case-insensitive",
     PermissiveLexer => "permissive-lexer",
     UnrestrictedFree => "unrestricted-free",
-    ZantufaConnectives => "zantufa-connectives",
-    ZantufaDescriptions => "zantufa-descriptions",
-    ZantufaMex => "zantufa-mex",
-    ZantufaMexReinterpretation => "zantufa-mex-reinterpretation",
-    ZantufaSelbri => "zantufa-selbri",
-    ZantufaSelbriReinterpretation => "zantufa-selbri-reinterpretation",
-    ZantufaMorphology => "zantufa-morphology",
-    ZantufaTags => "zantufa-tags",
-    ZantufaTerms => "zantufa-terms",
 }
 
 impl fmt::Display for DialectFeature {
@@ -966,10 +957,6 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
-        (
-            "zantufa",
-            "(cbm +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY +ZANTUFA-SELBRI)",
-        ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
             "ce-ki-tau",
@@ -1300,34 +1287,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_package_without_feature_dialect_references() {
-        let zantufa = parse_dialect_definition("(zantufa)").expect("dialect");
-        assert!(zantufa.features.contains(&DialectFeature::Cbm));
-        assert!(
-            zantufa
-                .features
-                .contains(&DialectFeature::ZantufaMorphology)
-        );
-        assert!(zantufa.features.contains(&DialectFeature::ZantufaMex));
-        assert!(zantufa.features.contains(&DialectFeature::ZantufaSelbri));
-        assert!(
-            !zantufa
-                .features
-                .contains(&DialectFeature::ZantufaSelbriReinterpretation)
-        );
-        assert!(
-            !builtin_dialect_names()
-                .into_iter()
-                .any(|name| name.starts_with("zantufa/"))
-        );
-        assert!(parse_dialect_definition("(zantufa/connectives)").is_err());
-        assert!(parse_dialect_definition("(zantufa-connectives)").is_err());
-        assert!(parse_dialect_definition("(zantufa-cmavo)").is_err());
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn builtin_dialect_table_initializes_all_definitions() {
         let dialects = builtin_dialects();
         assert_eq!(dialects.len(), builtin_dialect_sources().len());
@@ -1408,7 +1367,7 @@ mod tests {
         };
         assert!(custom_dialect_is_valid(&[custom.clone(), duplicate.clone()], &duplicate).is_err());
         let builtin_alias = CustomDialect {
-            name: "zantufa".to_owned(),
+            name: "cbm".to_owned(),
             definition: "()".to_owned(),
             show_in_gentufa: true,
         };
@@ -1430,7 +1389,7 @@ mod tests {
         );
     }
 
-    /// Issue #965 deleted these names without aliases. A stored custom dialect that still uses
+    /// Issues #965 and #968 deleted these names without aliases. A stored custom dialect that still uses
     /// one must fail validation with a message that names the unknown word, because the settings
     /// page shows this message to the user.
     #[test]
@@ -1459,6 +1418,12 @@ mod tests {
             (
                 "(-ZANTUFA-QUOTES)",
                 "Unknown dialect feature: ZANTUFA-QUOTES",
+            ),
+            ("(zantufa)", "Unknown dialect reference: zantufa"),
+            ("(+ZANTUFA-TERMS)", "Unknown dialect feature: ZANTUFA-TERMS"),
+            (
+                "(-ZANTUFA-MORPHOLOGY)",
+                "Unknown dialect feature: ZANTUFA-MORPHOLOGY",
             ),
         ] {
             let custom = CustomDialect {

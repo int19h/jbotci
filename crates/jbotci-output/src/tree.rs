@@ -649,9 +649,9 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         match node {
-            GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => {
-                generated_regular_text_tree_value(text, source, options, syntax_index)
-            }
+            GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => Some(
+                generated_regular_text_tree_value(text, source, options, syntax_index),
+            ),
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
                 generated_multiple_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
@@ -695,7 +695,7 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
 fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str {
     let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
     match constructor {
-        "ExplicitXauhaLohoi" | "Regular" => "TextSyntax",
+        "Regular" => "TextSyntax",
         "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
         "FollowingParagraphStatement"
         | "IParagraphStatement"
@@ -895,10 +895,8 @@ fn generated_regular_text_tree_value(
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Option<TreeValue> {
-    let GeneratedTextSyntax::RegularText(regular_text) = text else {
-        return None;
-    };
+) -> TreeValue {
+    let GeneratedTextSyntax::RegularText(regular_text) = text;
     let generated_model::RegularTextSyntax {
         leading_nai,
         leading_cmevla,
@@ -991,10 +989,10 @@ fn generated_regular_text_tree_value(
             .map(|value| TreeEntry { label: None, value }),
     );
 
-    Some(TreeValue::Node(TreeNode {
+    TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
-    }))
+    })
 }
 
 #[requires(true)]
@@ -2300,27 +2298,6 @@ fn generated_joik_connective_constructor(
         generated_model::JoikConnectiveSyntax::JoiConnective { .. } => "NonLogical",
         generated_model::JoikConnectiveSyntax::SimpleIntervalConnective { .. }
         | generated_model::JoikConnectiveSyntax::ClosedIntervalConnective { .. } => "Interval",
-        generated_model::JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
-            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
-        generated_model::JoikConnectiveSyntax::ZantufaNaJoikConnective(connective) => {
-            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
-        generated_model::JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(connective) => {
-            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
     }
 }
 
@@ -2357,27 +2334,6 @@ fn generated_paragraph_standard_statement_connective_constructor(
         generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective {
             ..
         } => "Selbri",
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaGahoJoikConnective(connective) => {
-            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaNaJoikConnective(connective) => {
-            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaRightGahoJoikConnective(connective) => {
-            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
-                "Interval"
-            } else {
-                "NonLogical"
-            }
-        }
     }
 }
 

@@ -11,9 +11,8 @@ use jbotci_diagnostics::{Diagnostic, DiagnosticLabel, DiagnosticPhase, Diagnosti
 use jbotci_morphology::{WordLike, map_word_like_spans};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
-    ParseOptions, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData,
-    SyntaxTextUnitGranularity, Token, generated_model, partition_syntax_text_units,
-    syntax_text_structure, syntax_tokens_with_options,
+    SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData, SyntaxTextUnitGranularity,
+    Token, generated_model, partition_syntax_text_units, syntax_text_structure, syntax_tokens,
 };
 use jbotci_tree::TreeVisitor;
 use jbotci_web_core::{
@@ -277,10 +276,8 @@ fn provisional_diagnostics(
         return (IncrementalDiagnosticGate::FlankMismatch, None);
     };
     let old_paragraph_tokens = &old_tokens[paragraph.token_start..paragraph.token_end];
-    let new_paragraph_tokens = syntax_tokens_with_options(
-        &morphology.morphology().words[new_word_range.clone()],
-        &ParseOptions::default(),
-    );
+    let new_paragraph_tokens =
+        syntax_tokens(&morphology.morphology().words[new_word_range.clone()]);
     if syntax_text_structure(old_paragraph_tokens) != syntax_text_structure(&new_paragraph_tokens) {
         return (IncrementalDiagnosticGate::BoundaryStructureChanged, None);
     }
@@ -808,10 +805,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn strict_only_local_warning_before_following_recovery_error_fails_the_gate() {
+        // The paragraph's own parse carries a local experimental-fa-as-tag warning, which the
+        // confirmed analysis of the whole document does not report, so the gate must refuse.
         let prepared = prepare_replacement(
-            "mi klama\nni'o\nsu'i re\nni'o\nmi ku i do",
-            "su'i re",
-            "su'i re ui",
+            "mi klama\nni'o\nfa je fe ko'a broda\nni'o\nmi ku i do",
+            "fa je fe ko'a broda",
+            "fa je fe ko'a broda ui",
         );
         assert_eq!(
             prepared.gate(),
@@ -823,7 +822,7 @@ mod tests {
             confirmed
                 .diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code != "syntax.warning.experimental-zantufa-mex")
+                .all(|diagnostic| diagnostic.code != "syntax.warning.experimental-fa-as-tag")
         );
     }
 
@@ -872,78 +871,72 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fixture_sample_gate_passes_match_the_reviewed_set_and_imply_confirmation_equivalence() {
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../tests/fixtures/zantufa/upstream-parity.json"
-        ))
-        .expect("checked-in fixture JSON");
+        // Paragraph samples that stress the gate: several do not parse in the default profile,
+        // and several carry a local experimental warning. They were first collected for the
+        // Zantufa parity check, which issue #968 removed; they stay here as gate samples.
+        const SAMPLES: [(&str, &str); 15] = [
+            ("bare-mex-fragment", "su'i re"),
+            (
+                "i-connected-relative-body",
+                "mi poi broda i je do brode kuho cu klama",
+            ),
+            ("ke-bridi-tail", "ke broda gi'e brode ke'e mi"),
+            (
+                "nary-forethought-statement",
+                "ga broda gi brode gi brodi gi'i",
+            ),
+            (
+                "i-connected-abstraction-body",
+                "lo nu mi broda i je do brode kei cu fasnu",
+            ),
+            (
+                "trailing-operator-mex-quantifier",
+                "pa su'i re mai mi broda",
+            ),
+            ("xi-mex-free-with-statement-terms", "xi pa su'i re mi broda"),
+            (
+                "nary-gek-termset",
+                "ge ko'a ko'e gi ko'i gi ko'u gi'i broda",
+            ),
+            ("connectorless-bo-term", "pu ko'a bo ca ko'e broda"),
+            ("connectorless-bo-sumti", "ko'a bo ko'e broda"),
+            ("connectorless-bo-sumti-tagged", "ko'a ba bo ko'e broda"),
+            ("jai-term-explicit-ku", "jai pu ku broda"),
+            ("jai-selbri-not-term", "mi jai pu broda"),
+            ("fa-joik-chained-place-tag", "fa je fe ko'a broda"),
+            ("cehe-stays-a-cehe-termset", "ko'a ce'e ko'e broda"),
+        ];
         let mut passed_ids = Vec::new();
-        for case in fixture["cases"]
-            .as_array()
-            .expect("fixture cases")
-            .iter()
-            .take(32)
-        {
-            let sample = case["source"].as_str().expect("fixture source");
+        for (id, sample) in SAMPLES {
             let old_source = format!("mi klama\nni'o\n{sample}\nni'o\nmi ku i do");
             let new_source = format!("mi klama\nni'o\n{sample} ui\nni'o\nmi ku i do");
             let confirmed = DocumentSnapshot::new(old_source, 1);
             let prepared = PreparedDocumentAnalysis::prepare(Some(&confirmed), new_source, 2);
             if prepared.gate() == IncrementalDiagnosticGate::Passed {
-                passed_ids.push(case["id"].as_str().expect("fixture id"));
+                passed_ids.push(id);
                 assert_provisional_matches_confirmation(prepared);
             }
         }
-        // The bare Zantufa MEX fragment is deliberately absent: epoch 4's
-        // VUhU-as-sumti route gives it a local experimental warning, which the
-        // cross-paragraph-diagnostic gate must conservatively reject.
-        //
-        // `nary-gek-termset` joined the set with epoch 6b's `forethought_termset`
-        // split (#806): rolling Zantufa's NUhI-less `gek_term` is now its own
-        // feature-gated arm, so in the default profile the sample rejects with a
-        // plain `syntax.unexpected-cmavo` and carries no local experimental
-        // warning for the gate to be conservative about.
-        //
-        // `nary-forethought-statement` joined with epoch 7's D1 boundary (#805).
-        // At the base its trailing `gi'i` was consumed as an incomplete
-        // `bridi_statement_continuation`, and that diagnostic's context label ran
-        // from inside the sample's paragraph across the following `ni'o` -- a
-        // boundary-crossing diagnostic the gate must reject. With the unsourced
-        // I-less statement continuation deleted, the sample rejects with plain
-        // in-paragraph diagnostics and no local warning.
-        //
-        // Epoch 6c's samples (#827) join it for the same two reasons. The three
-        // connectorless BO joints and the explicit-KU JAI term are ZANTUFA-gated,
-        // so the default profile rejects each with a plain diagnostic and no local
-        // warning; `mi jai pu broda` and `ko'a ce'e ko'e broda` are ordinary
-        // baseline parses in every profile -- the JAI selbri and the CEhE termset
-        // group -- so they carry no warning either. `fa-joik-chained-place-tag` is
-        // deliberately absent: `fa je fe` takes epoch 5's FA-as-tag route in the
-        // default profile, whose local experimental warning the gate must be
-        // conservative about.
-        // `statement-relative-clause` LEFT the set with epoch 8's D1 (#818). At the base its
-        // `poi ... i je ... kuho` body was reachable only under ZANTUFA-TERMS, so the default
-        // profile rejected the sample with plain diagnostics and no local warning. The Zantufa
-        // statement arms are default-enabled now, so the sample parses and carries a local
-        // `experimental-zantufa-statement-relative-clause` -- which the gate must be
-        // conservative about, exactly as it is about the bare Zantufa MEX fragment.
-        // `trailing-operator-mex-quantifier` LEFT the set with epoch 10's C-e (#831, first
-        // present at 7a18ce022d). The default profile still rejects `pa su'i re mai mi broda`
-        // at the same `su'i`, but recovery now reads that `su'i` as the experimental VUhU
-        // connective instead of skipping it. The claim sits on a parsed token, so it complies
-        // with the recovered-claim policy, but it carries a local
-        // `experimental-vuhu-connective` warning, which the gate must conservatively reject,
-        // as for the bare Zantufa MEX fragment.
+        // A sample passes when its diagnostics stay inside its paragraph and it carries no local
+        // experimental warning. Without Zantufa, each sample either parses with the baseline
+        // grammar or fails with plain diagnostics inside its paragraph, except two:
+        // `connectorless-bo-sumti-tagged` recovers with a local
+        // `experimental-term-bo-connection` warning, and `fa-joik-chained-place-tag` takes the
+        // FA-as-tag route with its local `experimental-fa-as-tag` warning. The gate must be
+        // conservative about both.
         assert_eq!(
             passed_ids,
             [
-                "grouped-bridi-tail",
+                "bare-mex-fragment",
+                "i-connected-relative-body",
+                "ke-bridi-tail",
                 "nary-forethought-statement",
-                "statement-abstraction",
+                "i-connected-abstraction-body",
+                "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",
                 "nary-gek-termset",
                 "connectorless-bo-term",
                 "connectorless-bo-sumti",
-                "connectorless-bo-sumti-tagged",
                 "jai-term-explicit-ku",
                 "jai-selbri-not-term",
                 "cehe-stays-a-cehe-termset",

@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-spa
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "b4a5ad22ea4f06dc9a1fc88a94bbcb0cc5bd9011ed7fdec9aac5d9be5c433ee5" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [17, 22], source-text = "broda", message = "unexpected brivla" }]
-tree = { valid-tokens = ["mi", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 13], [14, 16], [17, 22], [23, 25], [26, 28], [29, 34]] }] }
+raw = { sha256 = "88805b126dad04aec1e2976c65cf7ddaa9e3e1363f86e77232c021a922bc1884" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-nahe-sumti-without-bo", byte-span = [9, 13], source-text = "na'e", message = "experimental syntax: NAhE argument without BO", word-index = 2 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [17, 22], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bródi", "na'e", "ga"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[17, 22], [23, 25], [26, 28], [29, 34]] }, { kind = "missing", error-index = 0, byte-spans = [[17, 17]] }] }

@@ -246,17 +246,8 @@ fn experimental_construct_for_cmavo(
         (ExperimentalCmavoContext::Selmaho(Selmaho::Ui | Selmaho::Ui3a), Cmavo::Lihoi) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator)
         }
-        (ExperimentalCmavoContext::Selmaho(Selmaho::Noiha), Cmavo::Noihoha) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
-        }
-        (ExperimentalCmavoContext::Selmaho(Selmaho::Noiha), _) => {
-            Some(ExperimentalConstruct::ExperimentalNoihaAdverbial)
-        }
         (ExperimentalCmavoContext::Selmaho(Selmaho::Soi), _) => {
             Some(ExperimentalConstruct::ExperimentalSoiAdverbial)
-        }
-        (ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi), _) => {
-            Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription)
         }
         (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Fihoi) => {
             Some(ExperimentalConstruct::ExperimentalFihoiAdverbial)
@@ -264,27 +255,8 @@ fn experimental_construct_for_cmavo(
         (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
             Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
         }
-        (
-            ExperimentalCmavoContext::Label("cmavo"),
-            Cmavo::Bohei | Cmavo::Gohoi | Cmavo::Tahai | Cmavo::Zehoi,
-        ) => Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit),
-        (ExperimentalCmavoContext::Selmaho(Selmaho::Lihau | Selmaho::Luhei), _) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit)
-        }
-        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Luhei) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit)
-        }
-        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Muhoi) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit)
-        }
-        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Xohi) => {
-            Some(ExperimentalConstruct::ExperimentalXohiTagSelbri)
-        }
         _ if is_general_experimental_cmavo_for_context(context, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalCmavo)
-        }
-        _ if is_zantufa_experimental_cmavo_for_context(context, cmavo) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
         }
         _ => None,
     }
@@ -385,6 +357,9 @@ fn is_general_experimental_cmavo_for_context(
                 | Cmavo::Kahai
                 | Cmavo::Kihoi
                 | Cmavo::Kohau
+                | Cmavo::Muhai
+                | Cmavo::Tihuha
+                | Cmavo::Tihuhi
         ),
         ExperimentalCmavoContext::Selmaho(Selmaho::By) => matches!(
             cmavo,
@@ -394,196 +369,6 @@ fn is_general_experimental_cmavo_for_context(
         ExperimentalCmavoContext::Selmaho(Selmaho::Coi) => matches!(
             cmavo,
             Cmavo::Cohoi | Cmavo::Dihai | Cmavo::Kihai | Cmavo::Sahei
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Koha) => matches!(
-            cmavo,
-            Cmavo::Mihai | Cmavo::Nauho | Cmavo::Nauhu | Cmavo::Xai | Cmavo::Zuhai
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(cmavo, Cmavo::Zohei),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Le) => matches!(
-            cmavo,
-            Cmavo::Leihe
-                | Cmavo::Leihi
-                | Cmavo::Loihe
-                | Cmavo::Loihi
-                | Cmavo::Mohoi
-                | Cmavo::Moihoi
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Me) => matches!(cmavo, Cmavo::Mehau),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Moi) => matches!(cmavo, Cmavo::Ceiha),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Nai) => matches!(cmavo, Cmavo::Jahai),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Nahe) => matches!(cmavo, Cmavo::Nahei),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Nu) => {
-            matches!(cmavo, Cmavo::Kaihu | Cmavo::Poihi | Cmavo::Xehei)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Pa) => {
-            matches!(cmavo, Cmavo::Rohoi | Cmavo::Suhoi | Cmavo::Xohe)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Roi) => {
-            matches!(cmavo, Cmavo::Muhei | Cmavo::Vahei)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Se) => matches!(
-            cmavo,
-            Cmavo::Suhei | Cmavo::Tohai | Cmavo::Vohai | Cmavo::Xohai
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Ui) => matches!(
-            cmavo,
-            Cmavo::Aihi
-                | Cmavo::Ehei
-                | Cmavo::Fuhau
-                | Cmavo::Juhoi
-                | Cmavo::Kohoi
-                | Cmavo::Oiha
-                | Cmavo::Sihau
-                | Cmavo::Uehi
-                | Cmavo::Xoho
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Vuhu) => matches!(cmavo, Cmavo::Joihi),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Xi) => matches!(cmavo, Cmavo::Tehai),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Zaho) => matches!(
-            cmavo,
-            Cmavo::Cohaha
-                | Cmavo::Cohauha
-                | Cmavo::Cohuha
-                | Cmavo::Sauha
-                | Cmavo::Xaho
-                | Cmavo::Xohu
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Zo) => matches!(cmavo, Cmavo::Mahoi),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Zohu) => matches!(cmavo, Cmavo::Cehai),
-        _ => false,
-    }
-}
-#[requires(true)]
-#[ensures(true)]
-fn is_zantufa_experimental_cmavo_for_context(
-    context: ExperimentalCmavoContext,
-    cmavo: Cmavo,
-) -> bool {
-    match context {
-        ExperimentalCmavoContext::Selmaho(Selmaho::Bai) => matches!(
-            cmavo,
-            Cmavo::Baihau
-                | Cmavo::Behau
-                | Cmavo::Buhuhe
-                | Cmavo::Cuhei
-                | Cmavo::Dauha
-                | Cmavo::Dauho
-                | Cmavo::Dauhu
-                | Cmavo::Dehahu
-                | Cmavo::Ehuhi
-                | Cmavo::Eihei
-                | Cmavo::Fauhu
-                | Cmavo::Gahei
-                | Cmavo::Jahau
-                | Cmavo::Jahoi
-                | Cmavo::Jahui
-                | Cmavo::Jihehe
-                | Cmavo::Jihiha
-                | Cmavo::Kihai
-                | Cmavo::Kihohe
-                | Cmavo::Kihuhe
-                | Cmavo::Kihuhi
-                | Cmavo::Lahai
-                | Cmavo::Lahei
-                | Cmavo::Lahoho
-                | Cmavo::Lihehe
-                | Cmavo::Lihei
-                | Cmavo::Mahei
-                | Cmavo::Mauhi
-                | Cmavo::Mauhu
-                | Cmavo::Muhai
-                | Cmavo::Muhei
-                | Cmavo::Muhoi
-                | Cmavo::Nehahi
-                | Cmavo::Nihihi
-                | Cmavo::Pahahi
-                | Cmavo::Pehahi
-                | Cmavo::Puhehi
-                | Cmavo::Puhiha
-                | Cmavo::Puhihi
-                | Cmavo::Puhohi
-                | Cmavo::Raihe
-                | Cmavo::Rihiha
-                | Cmavo::Rihihe
-                | Cmavo::Rihihi
-                | Cmavo::Rihiho
-                | Cmavo::Rihihu
-                | Cmavo::Tahiha
-                | Cmavo::Tahihe
-                | Cmavo::Tahihi
-                | Cmavo::Tahiho
-                | Cmavo::Tahihu
-                | Cmavo::Tahuhi
-                | Cmavo::Tehai
-                | Cmavo::Tihiha
-                | Cmavo::Tihuha
-                | Cmavo::Tihuhi
-                | Cmavo::Tihuhu
-                | Cmavo::Tuhiha
-                | Cmavo::Tuhihe
-                | Cmavo::Tuhihi
-                | Cmavo::Tuhiho
-                | Cmavo::Tuhihu
-                | Cmavo::Vahohi
-                | Cmavo::Xuhai
-                | Cmavo::Zauha
-                | Cmavo::Zauhe
-                | Cmavo::Zauhi
-                | Cmavo::Zauho
-                | Cmavo::Zauhu
-                | Cmavo::Zuhai
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::By) => matches!(
-            cmavo,
-            Cmavo::A
-                | Cmavo::Cauhe
-                | Cmavo::Cauhi
-                | Cmavo::Daiha
-                | Cmavo::Daihe
-                | Cmavo::Daihi
-                | Cmavo::Daiho
-                | Cmavo::Daihu
-                | Cmavo::Daihy
-                | Cmavo::Dauhe
-                | Cmavo::Dauhi
-                | Cmavo::E
-                | Cmavo::Fauha
-                | Cmavo::Fauhe
-                | Cmavo::Fauhi
-                | Cmavo::Fauho
-                | Cmavo::Fauhu
-                | Cmavo::Gaiha
-                | Cmavo::Gaihe
-                | Cmavo::Gaihi
-                | Cmavo::Gaiho
-                | Cmavo::Gaihu
-                | Cmavo::I
-                | Cmavo::Jauha
-                | Cmavo::Jauhe
-                | Cmavo::Jauhi
-                | Cmavo::Jauho
-                | Cmavo::Jauhu
-                | Cmavo::Joiho
-                | Cmavo::Joihu
-                | Cmavo::Kauha
-                | Cmavo::Kauhe
-                | Cmavo::Kauhi
-                | Cmavo::Kauho
-                | Cmavo::Kauhu
-                | Cmavo::O
-                | Cmavo::U
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Coi) => matches!(
-            cmavo,
-            Cmavo::Feihe
-                | Cmavo::Gauhi
-                | Cmavo::Jeihe
-                | Cmavo::Mihei
-                | Cmavo::Pehei
-                | Cmavo::Peihe
-                | Cmavo::Rehei
-                | Cmavo::Xuhei
         ),
         ExperimentalCmavoContext::Selmaho(Selmaho::Cuhe) => {
             matches!(cmavo, Cmavo::Bahau | Cmavo::Puhau)
@@ -595,216 +380,117 @@ fn is_zantufa_experimental_cmavo_for_context(
         ExperimentalCmavoContext::Selmaho(Selmaho::Faha) => {
             matches!(cmavo, Cmavo::Duhoi | Cmavo::Zuhau)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Goi) => matches!(cmavo, Cmavo::Voihe),
         ExperimentalCmavoContext::Selmaho(Selmaho::Goha) => {
             matches!(cmavo, Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Xehu)
         }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Goi) => matches!(cmavo, Cmavo::Voihe),
         ExperimentalCmavoContext::Selmaho(Selmaho::Jai) => {
             matches!(cmavo, Cmavo::Jahei | Cmavo::Johai)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Joi) => matches!(
-            cmavo,
-            Cmavo::Jauhu
-                | Cmavo::Jehau
-                | Cmavo::Jeihi
-                | Cmavo::Jeiho
-                | Cmavo::Johau
-                | Cmavo::Johiha
-                | Cmavo::Johuhu
-                | Cmavo::Joihe
-        ),
         ExperimentalCmavoContext::Selmaho(Selmaho::Koha) => matches!(
             cmavo,
-            Cmavo::Dahei
-                | Cmavo::Deiha
-                | Cmavo::Dihei
+            Cmavo::Dihei
                 | Cmavo::Foha
-                | Cmavo::Fohai
                 | Cmavo::Fohe
                 | Cmavo::Fohi
                 | Cmavo::Foho
                 | Cmavo::Fohu
-                | Cmavo::Kihaha
-                | Cmavo::Kiheha
-                | Cmavo::Kihiha
-                | Cmavo::Kihoha
-                | Cmavo::Kihuha
-                | Cmavo::Mahau
-                | Cmavo::Mahei
-                | Cmavo::Mahoi
-                | Cmavo::Mihau
-                | Cmavo::Moho
-                | Cmavo::Mohu
-                | Cmavo::Rahai
-                | Cmavo::Rauhi
-                | Cmavo::Rohei
-                | Cmavo::Sehe
-                | Cmavo::Sohai
-                | Cmavo::Tihau
-                | Cmavo::Tohohe
-                | Cmavo::Tuhau
-                | Cmavo::Zohei
+                | Cmavo::Mihai
+                | Cmavo::Nauho
+                | Cmavo::Nauhu
+                | Cmavo::Xai
+                | Cmavo::Zuhai
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(
-            cmavo,
-            Cmavo::Loihe
-                | Cmavo::Loihi
-                | Cmavo::Mehohe
-                | Cmavo::Pihei
-                | Cmavo::Pohoi
-                | Cmavo::Poihei
-                | Cmavo::Tehoi
-                | Cmavo::Voihe
-        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Kuhoi) => matches!(cmavo, Cmavo::Kuhoi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(cmavo, Cmavo::Zohei),
         ExperimentalCmavoContext::Selmaho(Selmaho::Le) => matches!(
             cmavo,
-            Cmavo::Lahei | Cmavo::Lehei | Cmavo::Lohei | Cmavo::Mehei | Cmavo::Rihoi | Cmavo::Zohau
+            Cmavo::Lehei
+                | Cmavo::Leihe
+                | Cmavo::Leihi
+                | Cmavo::Lohei
+                | Cmavo::Loihe
+                | Cmavo::Loihi
+                | Cmavo::Mehei
+                | Cmavo::Mohoi
+                | Cmavo::Moihoi
+                | Cmavo::Rihoi
         ),
         ExperimentalCmavoContext::Selmaho(Selmaho::Li) => matches!(
             cmavo,
             Cmavo::Bohai | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi) => matches!(
-            cmavo,
-            Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha | Cmavo::Xuhu
-        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi) => matches!(cmavo, Cmavo::Lohoi),
         ExperimentalCmavoContext::Selmaho(Selmaho::Lu) => {
             matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Me) => matches!(cmavo, Cmavo::Xohi),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Moi) => matches!(cmavo, Cmavo::Moiho),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Mohe) => matches!(cmavo, Cmavo::Boihau),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Nahe) => {
-            matches!(cmavo, Cmavo::Dehai | Cmavo::Nohei)
+        ExperimentalCmavoContext::Selmaho(Selmaho::Me) => matches!(cmavo, Cmavo::Mehau),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Moi) => {
+            matches!(cmavo, Cmavo::Ceiha | Cmavo::Moiho)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Noi) => {
-            matches!(cmavo, Cmavo::Nohoi | Cmavo::Pohoi | Cmavo::Voihi)
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nahe) => matches!(cmavo, Cmavo::Nahei),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nai) => matches!(cmavo, Cmavo::Jahai),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nohoi) => {
+            matches!(cmavo, Cmavo::Nohoi | Cmavo::Pohoi)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Noiha) => matches!(cmavo, Cmavo::Noihoha),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Nu) => matches!(
-            cmavo,
-            Cmavo::Jahoi
-                | Cmavo::Kahai
-                | Cmavo::Kaihai
-                | Cmavo::Kihi
-                | Cmavo::Paihe
-                | Cmavo::Suhai
-                | Cmavo::Zahai
-        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Noi) => matches!(cmavo, Cmavo::Voihi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nu) => {
+            matches!(cmavo, Cmavo::Kaihu | Cmavo::Poihi | Cmavo::Xehei)
+        }
         ExperimentalCmavoContext::Selmaho(Selmaho::Pa) => matches!(
             cmavo,
-            Cmavo::Duhei
-                | Cmavo::Faihu
-                | Cmavo::Mehei
-                | Cmavo::Sohai
-                | Cmavo::Sohei
-                | Cmavo::Sohoi
-                | Cmavo::Xaihe
-                | Cmavo::Xauhe
-                | Cmavo::Xohai
-                | Cmavo::Xohu
-                | Cmavo::Xoihi
-                | Cmavo::Zahai
+            Cmavo::Faihu | Cmavo::Rohoi | Cmavo::Sohai | Cmavo::Suhoi | Cmavo::Xohe
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Roi) => {
-            matches!(cmavo, Cmavo::Bahoi | Cmavo::Dehei | Cmavo::Xuhau)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Se) => {
-            matches!(cmavo, Cmavo::Dehai | Cmavo::Nahoi)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Sei) => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Roi) => matches!(
             cmavo,
-            Cmavo::Saihe | Cmavo::Seihe | Cmavo::Soihe | Cmavo::Suhoi
+            Cmavo::Bahoi | Cmavo::Dehei | Cmavo::Muhei | Cmavo::Vahei
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Sehu) => matches!(cmavo, Cmavo::Xehau),
-        ExperimentalCmavoContext::Selmaho(Selmaho::To) => {
-            matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Toi) => {
-            matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho)
-        }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Ui | Selmaho::Ui3a) => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Se) => matches!(
             cmavo,
-            Cmavo::Ahai
-                | Cmavo::Auhau
-                | Cmavo::Bahei
-                | Cmavo::Buhei
+            Cmavo::Suhai | Cmavo::Suhei | Cmavo::Tohai | Cmavo::Vohai | Cmavo::Xohai
+        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Sei) => matches!(cmavo, Cmavo::Seihe),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Ui) => matches!(
+            cmavo,
+            Cmavo::Aihi
                 | Cmavo::Cuhei
-                | Cmavo::Eihai
-                | Cmavo::Fahai
-                | Cmavo::Gahihi
-                | Cmavo::Gahuhi
-                | Cmavo::Gehai
-                | Cmavo::Iahau
-                | Cmavo::Ihau
-                | Cmavo::Ihei
-                | Cmavo::Ihihi
-                | Cmavo::Jahohe
-                | Cmavo::Jahoho
-                | Cmavo::Jihai
+                | Cmavo::Ehei
+                | Cmavo::Fuhau
                 | Cmavo::Jihei
-                | Cmavo::Jihohe
-                | Cmavo::Jihoho
-                | Cmavo::Kehihai
-                | Cmavo::Kihai
-                | Cmavo::Lahei
-                | Cmavo::Lahoi
-                | Cmavo::Lehohe
-                | Cmavo::Mahai
-                | Cmavo::Muhei
-                | Cmavo::Nihei
-                | Cmavo::Nohoi
-                | Cmavo::Oihoi
-                | Cmavo::Pohai
-                | Cmavo::Saihi
-                | Cmavo::Seiha
+                | Cmavo::Juhoi
+                | Cmavo::Kohoi
+                | Cmavo::Oiha
                 | Cmavo::Seihi
-                | Cmavo::Sohahu
+                | Cmavo::Sihau
                 | Cmavo::Sohei
-                | Cmavo::Suhei
-                | Cmavo::Uhohe
-                | Cmavo::Uhohi
-                | Cmavo::Uhoho
-                | Cmavo::Uhohu
-                | Cmavo::Uhoi
-                | Cmavo::Uihai
-                | Cmavo::Vaihe
-                | Cmavo::Xauha
-                | Cmavo::Xauhe
-                | Cmavo::Xauhi
-                | Cmavo::Xauho
-                | Cmavo::Xauhu
-                | Cmavo::Xehiha
-                | Cmavo::Xehihe
-                | Cmavo::Xehihi
-                | Cmavo::Xehiho
-                | Cmavo::Xehihu
-                | Cmavo::Zahei
-                | Cmavo::Zahoha
-                | Cmavo::Zohoi
+                | Cmavo::Uehi
+                | Cmavo::Xoho
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Vuhu) => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Vuhu) => matches!(cmavo, Cmavo::Joihi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Xi) => matches!(
             cmavo,
-            Cmavo::Dehoha
-                | Cmavo::Fehaha
-                | Cmavo::Fehahe
-                | Cmavo::Fehahi
-                | Cmavo::Fehaho
-                | Cmavo::Geiha
-                | Cmavo::Pihai
-                | Cmavo::Sahiha
+            Cmavo::Fauhe | Cmavo::Tehai | Cmavo::Xihe | Cmavo::Xihi
         ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Xi) => {
-            matches!(cmavo, Cmavo::Fauhe | Cmavo::Xihe | Cmavo::Xihi)
-        }
         ExperimentalCmavoContext::Selmaho(Selmaho::Y) => matches!(cmavo, Cmavo::Ieho),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zohoi) => {
+            matches!(cmavo, Cmavo::Lahoi | Cmavo::Zohoi)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zaho) => matches!(
+            cmavo,
+            Cmavo::Cohaha
+                | Cmavo::Cohauha
+                | Cmavo::Cohuha
+                | Cmavo::Sauha
+                | Cmavo::Xaho
+                | Cmavo::Xohu
+        ),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zo) => matches!(cmavo, Cmavo::Mahoi),
         ExperimentalCmavoContext::Selmaho(Selmaho::Zohu) => {
-            matches!(cmavo, Cmavo::Gehai | Cmavo::Kehau)
+            matches!(cmavo, Cmavo::Cehai | Cmavo::Gehai | Cmavo::Kehau)
         }
         _ => false,
     }
 }
-
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_koha_argument(word: &Token) -> bool {

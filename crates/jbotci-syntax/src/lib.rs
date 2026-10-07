@@ -111,8 +111,8 @@ pub enum SyntaxTextBoundaryKind {
 /// Normalize morphology words into the exact token stream consumed by syntax parsing.
 #[requires(true)]
 #[ensures(true)]
-pub fn syntax_tokens_with_options(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
-    grammar::syntax_tokens(words, options)
+pub fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
+    grammar::syntax_tokens(words)
 }
 
 /// Partition syntax tokens at formal top-level text boundaries.
@@ -972,12 +972,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "place tag continuation",
-        parent: Some("place tag"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "NA KU term",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1021,12 +1015,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     },
     SyntaxConstructMetadata {
         name: "converted sumti",
-        parent: Some("sumti"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "bridi description",
         parent: Some("sumti"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
@@ -1229,20 +1217,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
-    parser_construct_metadata!("Zantufa standalone atom", "tanru unit"),
-    parser_construct_metadata!("Zantufa FA tanru unit", "tanru unit"),
-    parser_construct_metadata!("Zantufa FA continuation", "Zantufa FA tanru unit"),
-    parser_construct_metadata!("Zantufa atom GEK", "Zantufa standalone atom"),
-    parser_construct_metadata!("Zantufa atom GEK body", "Zantufa atom GEK"),
-    parser_construct_metadata!("Zantufa atom GA opener", "Zantufa atom GEK body"),
-    parser_construct_metadata!("Zantufa atom initial GI", "Zantufa atom GEK body"),
-    parser_construct_metadata!("Zantufa atom final GI", "Zantufa atom GEK body"),
-    parser_construct_metadata!("Zantufa atom GEK payload", "Zantufa atom GEK body"),
-    parser_construct_metadata!("Zantufa atom GI branch", "Zantufa standalone atom"),
-    parser_construct_metadata!("Zantufa atom JOIK", "Zantufa atom GEK payload"),
-    parser_construct_metadata!("Zantufa atom tag", "Zantufa atom GEK payload"),
-    parser_construct_metadata!("Zantufa atom tag continuation", "Zantufa atom tag"),
-    parser_construct_metadata!("Zantufa grouped sumti", "sumti"),
     SyntaxConstructMetadata {
         name: "abstraction",
         parent: Some("tanru unit"),
@@ -1361,15 +1335,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         "experimental ROI interval"
     ),
     parser_construct_metadata!("experimental prefixed tag atom", "experimental tag atom"),
-    parser_construct_metadata!("Zantufa tag", "tag"),
-    parser_construct_metadata!("Zantufa tag continuation", "Zantufa tag"),
-    parser_construct_metadata!("Zantufa tag atom", "Zantufa tag"),
-    parser_construct_metadata!("Zantufa BAI tag atom", "Zantufa tag atom"),
-    parser_construct_metadata!("Zantufa FIhO tag atom", "Zantufa tag atom"),
-    parser_construct_metadata!("Zantufa ROI tag atom", "Zantufa tag atom"),
-    parser_construct_metadata!("Zantufa bare ROI tag atom", "Zantufa ROI tag atom"),
-    parser_construct_metadata!("Zantufa mex ROI tag atom", "Zantufa ROI tag atom"),
-    parser_construct_metadata!("Zantufa prefixed tag atom", "Zantufa tag atom"),
     SyntaxConstructMetadata {
         name: "modal tag",
         parent: Some("simple tense/modal"),
@@ -1491,12 +1456,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "statement branch",
-        parent: Some("statement"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "text connective",
         parent: Some("text"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1569,12 +1528,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "NOIhA adverbial",
-        parent: Some("term"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "FIhOI adverbial",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1582,12 +1535,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     },
     SyntaxConstructMetadata {
         name: "SOI adverbial",
-        parent: Some("term"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "XOI adverbial",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
@@ -1701,156 +1648,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "Zantufa mex",
-        parent: Some("mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex reinterpretation",
-        parent: Some("Zantufa mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa priority mex",
-        parent: Some("Zantufa mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex precedence",
-        parent: Some("Zantufa mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex precedence tail",
-        parent: Some("Zantufa mex precedence"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex continuation",
-        parent: Some("Zantufa mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex atom",
-        parent: Some("Zantufa mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa operand",
-        parent: Some("Zantufa mex atom"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa operator",
-        parent: Some("Zantufa mex atom"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex group",
-        parent: Some("Zantufa mex precedence"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa KE-grouped mex",
-        parent: Some("Zantufa mex group"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa BO-grouped mex",
-        parent: Some("Zantufa mex group"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa BO-grouped mex continuation",
-        parent: Some("Zantufa BO-grouped mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa forethought mex",
-        parent: Some("Zantufa mex atom"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa reverse Polish mex",
-        parent: Some("Zantufa mex atom"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa reverse Polish mex tail",
-        parent: Some("Zantufa reverse Polish mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa parenthesized mex",
-        parent: Some("Zantufa operand"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa sumti operand",
-        parent: Some("Zantufa operand"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa scalar-negated operand",
-        parent: Some("Zantufa operand"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa LAhE-qualified operand",
-        parent: Some("Zantufa operand"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa NAhE BO-qualified operand",
-        parent: Some("Zantufa operand"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa primitive operator",
-        parent: Some("Zantufa operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa converted operator",
-        parent: Some("Zantufa operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa scalar-negated operator",
-        parent: Some("Zantufa operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa mex-to-operator",
-        parent: Some("Zantufa operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "operand connective",
         parent: Some("operand"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1911,18 +1708,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "sumti-to-operator",
-        parent: Some("operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "connective operator",
-        parent: Some("operator"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "selbri connection",
         parent: Some("selbri"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1943,72 +1728,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "tagged selbri",
         parent: Some("selbri"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa priority assigned selbri",
-        parent: Some("selbri"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa assigned selbri",
-        parent: Some("Zantufa priority assigned selbri"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa selbri assignment",
-        parent: Some("Zantufa assigned selbri"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    parser_construct_metadata!("Zantufa reinterpreted assigned selbri", "selbri"),
-    parser_construct_metadata!("Zantufa relative selbri", "selbri"),
-    parser_construct_metadata!("Zantufa KEhE-linked selbri", "selbri"),
-    parser_construct_metadata!("selbri without terminal relative", "selbri"),
-    parser_construct_metadata!(
-        "Zantufa priority assigned selbri without terminal relative",
-        "selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "Zantufa assigned selbri without terminal relative",
-        "Zantufa priority assigned selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "Zantufa selbri assignment without terminal relative",
-        "Zantufa assigned selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "tagged selbri without terminal relative",
-        "selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "untagged selbri without terminal relative",
-        "selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "negated selbri without terminal relative",
-        "untagged selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "Zantufa KEhE-linked selbri without terminal relative",
-        "untagged selbri without terminal relative"
-    ),
-    parser_construct_metadata!(
-        "Zantufa bare relative clause continuation",
-        "relative clauses"
-    ),
-    SyntaxConstructMetadata {
-        name: "Zantufa KE/CO grouped tanru",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa KE/CO grouped tanru continuation",
-        parent: Some("Zantufa KE/CO grouped tanru"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
@@ -2067,36 +1786,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "quoted bridi selbri",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "text selbri",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "quoted text selbri",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "tag selbri",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "mex selbri",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "sumti selbri",
         parent: Some("tanru unit"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -2135,12 +1824,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "joik",
         parent: Some("selbri connective"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
-        name: "Zantufa joik",
-        parent: Some("joik"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
         wiring: SyntaxConstructWiring::Parser,
     },
@@ -3041,11 +2724,6 @@ pub enum ExperimentalConstruct {
     /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
-    ExperimentalZantufaFaTanruUnit,
-    ExperimentalZantufaForethoughtTanruUnit,
-    ExperimentalZantufaGroupedSumti,
-    ExperimentalZantufaKeheLinkargs,
-    ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -3081,9 +2759,6 @@ pub enum ExperimentalConstruct {
     /// siblings in #885.
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
-    ExperimentalIauReset,
-    ExperimentalGohoiSelbriUnit,
-    ExperimentalKeTermset,
     ExperimentalCuTermsSelbri,
     ExperimentalLaheNaheTermWrapper,
     ExperimentalForethoughtRelativeClauseConnective,
@@ -3100,7 +2775,6 @@ pub enum ExperimentalConstruct {
     ExperimentalDictionaryPaNumber,
     ExperimentalDictionaryFahaTag,
     ExperimentalDictionaryUiIndicator,
-    ExperimentalNoihaAdverbial,
     ExperimentalFihoiAdverbial,
     ExperimentalSoiAdverbial,
     ExperimentalPreposedLinkargs,
@@ -3112,32 +2786,7 @@ pub enum ExperimentalConstruct {
     ExperimentalTermBoConnection,
     ExperimentalTermLooseConnection,
     ExperimentalBareNaTerm,
-    ExperimentalXohiTagSelbri,
-    ExperimentalZantufaCmavo,
-    ExperimentalZantufaForethoughtGihi,
-    ExperimentalZantufaNaryForethought,
-    ExperimentalZantufaGekTermset,
-    ExperimentalZantufaGek,
-    ExperimentalZantufaPoihaBrigahi,
-    ExperimentalZantufaJaiTagTerm,
-    ExperimentalZantufaConnectorlessBo,
-    ExperimentalZantufaJoikChainedPlaceTag,
-    ExperimentalZantufaTag,
-    ExperimentalZantufaGroupedBridiTail,
-    ExperimentalZantufaTailContinuation,
-    ExperimentalZantufaStatementTerms,
-    ExperimentalZantufaStatementRelativeClause,
-    ExperimentalZantufaStatementFreeModifier,
-    ExperimentalZantufaStatementAbstraction,
     ExperimentalExpDescriptionLeadingSumti,
-    ExperimentalZantufaDescriptionLeadingSumti,
-    ExperimentalZantufaMex,
-    ExperimentalZantufaRahoiQuote,
-    ExperimentalZantufaMuhoiSelbriUnit,
-    ExperimentalZantufaLuheiSelbriUnit,
-    ExperimentalZantufaSelbriAssignment,
-    ExperimentalZantufaKeCoGrouping,
-    ExperimentalZantufaSelbriRelativePlacement,
     CllProhibitedFreeModifierPlacement,
 }
 
@@ -3150,21 +2799,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
             Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
-            Self::ExperimentalZantufaFaTanruUnit => {
-                "syntax.warning.experimental-zantufa-fa-tanru-unit"
-            }
-            Self::ExperimentalZantufaForethoughtTanruUnit => {
-                "syntax.warning.experimental-zantufa-forethought-tanru-unit"
-            }
-            Self::ExperimentalZantufaGroupedSumti => {
-                "syntax.warning.experimental-zantufa-grouped-sumti"
-            }
-            Self::ExperimentalZantufaKeheLinkargs => {
-                "syntax.warning.experimental-zantufa-kehe-linkargs"
-            }
-            Self::ExperimentalLohOiBridiDescription => {
-                "syntax.warning.experimental-loh-oi-bridi-description"
-            }
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -3210,9 +2844,6 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-simpler-description-head-connective"
             }
             Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
-            Self::ExperimentalIauReset => "syntax.warning.experimental-iau-reset",
-            Self::ExperimentalGohoiSelbriUnit => "syntax.warning.experimental-gohoi-selbri-unit",
-            Self::ExperimentalKeTermset => "syntax.warning.experimental-ke-termset",
             Self::ExperimentalCuTermsSelbri => "syntax.warning.experimental-cu-terms-selbri",
             Self::ExperimentalLaheNaheTermWrapper => {
                 "syntax.warning.experimental-lahe-nahe-term-wrapper"
@@ -3251,7 +2882,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalDictionaryUiIndicator => {
                 "syntax.warning.experimental-dictionary-ui-indicator"
             }
-            Self::ExperimentalNoihaAdverbial => "syntax.warning.experimental-noiha-adverbial",
             Self::ExperimentalFihoiAdverbial => "syntax.warning.experimental-fihoi-adverbial",
             Self::ExperimentalSoiAdverbial => "syntax.warning.experimental-soi-adverbial",
             Self::ExperimentalPreposedLinkargs => "syntax.warning.experimental-preposed-linkargs",
@@ -3267,73 +2897,8 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-term-loose-connection"
             }
             Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
-            Self::ExperimentalXohiTagSelbri => "syntax.warning.experimental-xohi-tag-selbri",
-            Self::ExperimentalZantufaCmavo => "syntax.warning.experimental-zantufa-cmavo",
-            Self::ExperimentalZantufaForethoughtGihi => {
-                "syntax.warning.experimental-zantufa-forethought-gihi"
-            }
-            Self::ExperimentalZantufaNaryForethought => {
-                "syntax.warning.experimental-zantufa-nary-forethought"
-            }
-            Self::ExperimentalZantufaGekTermset => {
-                "syntax.warning.experimental-zantufa-gek-termset"
-            }
-            Self::ExperimentalZantufaGek => "syntax.warning.experimental-zantufa-gek",
-            Self::ExperimentalZantufaPoihaBrigahi => {
-                "syntax.warning.experimental-zantufa-poiha-brigahi"
-            }
-            Self::ExperimentalZantufaJaiTagTerm => {
-                "syntax.warning.experimental-zantufa-jai-tag-term"
-            }
-            Self::ExperimentalZantufaConnectorlessBo => {
-                "syntax.warning.experimental-zantufa-connectorless-bo"
-            }
-            Self::ExperimentalZantufaJoikChainedPlaceTag => {
-                "syntax.warning.experimental-zantufa-joik-chained-place-tag"
-            }
-            Self::ExperimentalZantufaTag => "syntax.warning.experimental-zantufa-tag",
-            Self::ExperimentalZantufaGroupedBridiTail => {
-                "syntax.warning.experimental-zantufa-grouped-bridi-tail"
-            }
-            Self::ExperimentalZantufaTailContinuation => {
-                "syntax.warning.experimental-zantufa-tail-continuation"
-            }
-            Self::ExperimentalZantufaStatementTerms => {
-                "syntax.warning.experimental-zantufa-statement-terms"
-            }
-            Self::ExperimentalZantufaStatementRelativeClause => {
-                "syntax.warning.experimental-zantufa-statement-relative-clause"
-            }
-            Self::ExperimentalZantufaStatementFreeModifier => {
-                "syntax.warning.experimental-zantufa-statement-free-modifier"
-            }
-            Self::ExperimentalZantufaStatementAbstraction => {
-                "syntax.warning.experimental-zantufa-statement-abstraction"
-            }
             Self::ExperimentalExpDescriptionLeadingSumti => {
                 "syntax.warning.experimental-exp-description-leading-sumti"
-            }
-            Self::ExperimentalZantufaDescriptionLeadingSumti => {
-                "syntax.warning.experimental-zantufa-description-leading-sumti"
-            }
-            Self::ExperimentalZantufaMex => "syntax.warning.experimental-zantufa-mex",
-            Self::ExperimentalZantufaRahoiQuote => {
-                "syntax.warning.experimental-zantufa-rahoi-quote"
-            }
-            Self::ExperimentalZantufaMuhoiSelbriUnit => {
-                "syntax.warning.experimental-zantufa-muhoi-selbri-unit"
-            }
-            Self::ExperimentalZantufaLuheiSelbriUnit => {
-                "syntax.warning.experimental-zantufa-luhei-selbri-unit"
-            }
-            Self::ExperimentalZantufaSelbriAssignment => {
-                "syntax.warning.experimental-zantufa-selbri-assignment"
-            }
-            Self::ExperimentalZantufaKeCoGrouping => {
-                "syntax.warning.experimental-zantufa-ke-co-grouping"
-            }
-            Self::ExperimentalZantufaSelbriRelativePlacement => {
-                "syntax.warning.experimental-zantufa-selbri-relative-placement"
             }
             Self::CllProhibitedFreeModifierPlacement => {
                 "syntax.warning.cll-prohibited-free-modifier-placement"
@@ -3349,13 +2914,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
-            Self::ExperimentalZantufaFaTanruUnit => "Zantufa FA-prefixed tanru unit",
-            Self::ExperimentalZantufaForethoughtTanruUnit => "Zantufa forethought tanru unit",
-            Self::ExperimentalZantufaGroupedSumti => "Zantufa KE-grouped sumti",
-            Self::ExperimentalZantufaKeheLinkargs => {
-                "Zantufa selbri closed by an unmatched KEhE before linked arguments"
-            }
-            Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
@@ -3389,9 +2947,6 @@ impl ExperimentalConstruct {
                 "JA connective used between description heads"
             }
             Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
-            Self::ExperimentalIauReset => "IhAU bridi-level reset",
-            Self::ExperimentalGohoiSelbriUnit => "GOhOI pro-bridi word quote",
-            Self::ExperimentalKeTermset => "KE/KEhE termset grouping",
             Self::ExperimentalCuTermsSelbri => "CU followed by terms before the main selbri",
             Self::ExperimentalLaheNaheTermWrapper => "LAhE/NAhE term wrapper",
             Self::ExperimentalForethoughtRelativeClauseConnective => {
@@ -3420,7 +2975,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalDictionaryUiIndicator => {
                 "dictionary-first UI3a experimental indicator"
             }
-            Self::ExperimentalNoihaAdverbial => "NOIhA adverbial relative-clause term",
             Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subbridi adverbial term",
             Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subbridi adverbial term",
             Self::ExperimentalPreposedLinkargs => "BE linkargs before a selbri unit",
@@ -3434,49 +2988,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalTermBoConnection => "BO-bound term or linked-argument connection",
             Self::ExperimentalTermLooseConnection => "loose term or linked-argument connection",
             Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
-            Self::ExperimentalXohiTagSelbri => "XOhI tag-to-selbri conversion",
-            Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
-            Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
-            Self::ExperimentalZantufaNaryForethought => "Zantufa n-ary forethought branch",
-            Self::ExperimentalZantufaGekTermset => "Zantufa NUhI-less GEK term-sequence termset",
-            Self::ExperimentalZantufaGek => "Zantufa connective form",
-            Self::ExperimentalZantufaPoihaBrigahi => {
-                "Zantufa POIhA briga'i term with KU terminator"
-            }
-            Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
-            Self::ExperimentalZantufaConnectorlessBo => {
-                "Zantufa connectorless BO term or sumti connection"
-            }
-            Self::ExperimentalZantufaJoikChainedPlaceTag => "Zantufa JOIK-chained place tag",
-            Self::ExperimentalZantufaTag => "experimental Zantufa tag form",
-            Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
-            Self::ExperimentalZantufaTailContinuation => "Zantufa JOIK/tag bridi-tail continuation",
-            Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",
-            Self::ExperimentalZantufaStatementRelativeClause => {
-                "Zantufa statement payload in relative clause"
-            }
-            Self::ExperimentalZantufaStatementFreeModifier => {
-                "Zantufa statement payload in SEI free modifier"
-            }
-            Self::ExperimentalZantufaStatementAbstraction => {
-                "Zantufa statement payload in abstraction"
-            }
             Self::ExperimentalExpDescriptionLeadingSumti => {
                 "full sumti as the leading element of a description tail"
-            }
-            Self::ExperimentalZantufaDescriptionLeadingSumti => {
-                "relative clauses before the leading sumti of a description tail"
-            }
-            Self::ExperimentalZantufaMex => "Zantufa mex grammar form",
-            Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",
-            Self::ExperimentalZantufaMuhoiSelbriUnit => {
-                "Zantufa MUhOI delimited foreign selbri unit"
-            }
-            Self::ExperimentalZantufaLuheiSelbriUnit => "Zantufa LUhEI/LIhAU text selbri unit",
-            Self::ExperimentalZantufaSelbriAssignment => "Zantufa full-selbri CEI assignment",
-            Self::ExperimentalZantufaKeCoGrouping => "Zantufa flat KE/CO selbri grouping",
-            Self::ExperimentalZantufaSelbriRelativePlacement => {
-                "Zantufa selbri-relative placement or bare relative continuation"
             }
             Self::CllProhibitedFreeModifierPlacement => {
                 "free modifier placement prohibited by CLL grammar"
@@ -3834,20 +3347,6 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options(
     grammar::parse_generated_model_syntax_tree_with_source(words, Some(source), options)
 }
 
-#[doc(hidden)]
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
-    generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
-}))]
-pub fn parse_syntax_tree_generated_model_with_source_and_options_attempt(
-    words: &[WordLike],
-    source: &str,
-    options: &ParseOptions,
-) -> SyntaxParseAttempt {
-    grammar::parse_generated_model_syntax_tree_with_source_attempt(words, Some(source), options)
-}
-
 #[requires(true)]
 #[ensures(true)]
 pub fn syntax_tree_eq_ignoring_spans(left: &TextSyntax, right: &TextSyntax) -> bool {
@@ -3896,7 +3395,7 @@ mod tests {
     fn formal_tokens(source: &str) -> Vec<Token> {
         let words = jbotci_morphology::segment_words_with_modifiers(source)
             .expect("formal-boundary fixture has valid morphology");
-        syntax_tokens_with_options(&words, &ParseOptions::default())
+        syntax_tokens(&words)
     }
 
     #[test]
@@ -4448,7 +3947,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn li_nu_error_reports_mex_expectation() {
+    fn li_nu_error_reports_detailed_expectations() {
         let source = "li nu";
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         let error = parse_syntax_tree(&words).expect_err("li requires a mex");
@@ -4463,11 +3962,14 @@ mod tests {
             panic!("expected syntax parse error");
         };
 
+        // Only the Zantufa mex route labelled this position "mex" (issue #968). The baseline
+        // mex grammar reports the forethought operand that can start there.
         assert!(reason.contains("free modifier"), "{reason}");
-        assert!(reason.contains("mex"), "{reason}");
+        assert!(reason.contains("forethought connective"), "{reason}");
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
-            data!(SyntaxExpectationReason::StartNested { construct }) if construct.contains("mex")
+            data!(SyntaxExpectationReason::StartNested { construct })
+                if construct.contains("forethought connective")
         )));
 
         let diagnostic = error.to_diagnostic(None, source);
@@ -4543,11 +4045,11 @@ mod tests {
 
         assert_eq!(
             elidable_terminator_for_absent_field_ref(jbotci_tree::FieldRef::new(
-                Some("lihau"),
+                Some("kuhoi"),
                 0,
                 false,
             )),
-            Some(Cmavo::Lihau)
+            Some(Cmavo::Kuhoi)
         );
         assert_eq!(
             elidable_terminator_for_absent_field_ref(jbotci_tree::FieldRef::new(
@@ -4886,6 +4388,9 @@ mod tests {
     // final candidates, exactly as it does when the first phase offers none,
     // instead of degrading the whole text: each keeps the valid prefix as
     // structure and skips only the construct that could not be completed.
+    // Each input degrades to one invalid item when the fallback is disabled
+    // (#927). Issue #968 replaced the second and third inputs, which reached
+    // the fallback only through Zantufa routes.
 
     #[test]
     #[requires(true)]
@@ -4906,17 +4411,26 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_forethought_connective() {
-        let probe = recovered_syntax_probe_at_strict_error("mi na'e ga broda gi brode ku", 11);
+        let probe = recovered_syntax_probe_at_strict_error("ga pu bo mi klama gi do cadzu", 6);
 
-        assert_eq!(probe.error_byte_starts, [11]);
-        assert_eq!(probe.valid_tokens, ["mi", "na'e", "ga"]);
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(probe.valid_tokens, ["ga", "pu"]);
         assert_eq!(
             probe.recovery_spans,
-            [(11, 16), (17, 19), (20, 25), (26, 28), (11, 11), (11, 11)]
+            [
+                (6, 8),
+                (9, 11),
+                (12, 17),
+                (18, 20),
+                (21, 23),
+                (24, 29),
+                (6, 6),
+                (6, 6)
+            ]
         );
         assert_eq!(
             probe.missing_count, 2,
-            "the forethought connection keeps `ga` and marks both missing operands"
+            "the forethought connection keeps `ga pu` and marks both missing operands"
         );
     }
 
@@ -4924,34 +4438,36 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_falls_back_at_later_error() {
-        // The first error (`gi`) recovers from the first phase; the fallback
-        // is needed only at the second error (`broda`), so this pins that the
-        // final selector is consulted at every error, not just the first.
-        let probe = recovered_syntax_probe_at_strict_error("mi gi je broda gi brode ku", 3);
+        // The first error (`ku`) recovers from the first phase; the fallback
+        // is needed only at the second error (`me`), so this pins
+        // that the final selector is consulted at every error, not just the
+        // first.
+        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je fa me ku", 3);
 
-        assert_eq!(probe.error_byte_starts, [3, 9]);
-        assert_eq!(probe.valid_tokens, ["mi"]);
+        assert_eq!(probe.error_byte_starts, [3, 27]);
+        assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda"]);
         assert_eq!(
             probe.recovery_spans,
-            [(3, 5), (6, 8), (9, 14), (15, 17), (18, 23), (24, 26)]
+            [(3, 5), (18, 20), (21, 23), (24, 26), (27, 29), (30, 32)]
         );
         assert_eq!(probe.missing_count, 0);
     }
 
+    // A natural-stop trial can succeed at the first error without firing left
+    // of it. That late success is a complete recovery and must be kept even
+    // though no earlier error was recovered (#935); without that rule this
+    // input degrades. Issue #968 replaced the earlier input, which reached the
+    // path only with a Zantufa mex feature.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_late_natural_stop_retains_first_error_structure() {
-        let source = "tirna re poi cmalu";
+        let source = "pa le so'u";
         let words =
             jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
-        let options = ParseOptions {
-            dialect: jbotci_dialect::parse_dialect_definition("(+zantufa-mex)")
-                .expect("valid dialect"),
-            ..ParseOptions::default()
-        };
+        let options = ParseOptions::default();
         let strict_error = parse_syntax_tree_with_source_and_options(&words, source, &options)
-            .expect_err("the relative clause leaves the sumti incomplete");
+            .expect_err("the description has no selbri");
         let recovered =
             parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
@@ -4961,7 +4477,7 @@ mod tests {
         );
 
         assert_eq!(recovered.errors, vec![strict_error]);
-        assert_eq!(visitor.valid_tokens, ["tírna", "re", "poĭ", "cmálu"]);
+        assert_eq!(visitor.valid_tokens, ["pa", "le", "so'u"]);
         assert!(recovered_syntax_parse_conserves_word_spans(
             &words, &recovered
         ));

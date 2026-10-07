@@ -12,9 +12,7 @@ use jbotci_syntax::{
         InitialParagraphStatementSyntax, InnerMeksoOperatorSyntax, LetterStringSyntax,
         MeksoOperandSyntax, MeksoOperatorSyntax, MeksoSyntax, NumberWordsSyntax, ParagraphSyntax,
         QuoteSyntax, SelbriSyntax, SimpleMeksoOperandSyntax, StatementSyntax, SumtiSyntax,
-        TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextSyntax, ZantufaForethoughtMeksoSyntax,
-        ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexSyntax, ZantufaOperandSyntax,
-        ZantufaOperatorSyntax, ZantufaPriorityMexSyntax,
+        TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextSyntax,
     },
     tree::WithFreeModifiers,
 };
@@ -75,19 +73,6 @@ fn ast_node_sizes_stay_within_stack_budget() {
         (
             "AtomicMeksoOperatorSyntax",
             size_of::<AtomicMeksoOperatorSyntax>(),
-        ),
-        ("ZantufaMexSyntax", size_of::<ZantufaMexSyntax>()),
-        (
-            "ZantufaPriorityMexSyntax",
-            size_of::<ZantufaPriorityMexSyntax>(),
-        ),
-        ("ZantufaMex1Syntax", size_of::<ZantufaMex1Syntax>()),
-        ("ZantufaMex2Syntax", size_of::<ZantufaMex2Syntax>()),
-        ("ZantufaOperandSyntax", size_of::<ZantufaOperandSyntax>()),
-        ("ZantufaOperatorSyntax", size_of::<ZantufaOperatorSyntax>()),
-        (
-            "ZantufaForethoughtMeksoSyntax",
-            size_of::<ZantufaForethoughtMeksoSyntax>(),
         ),
         ("SelbriSyntax", size_of::<SelbriSyntax>()),
         ("TenseModalSyntax", size_of::<TenseModalSyntax>()),

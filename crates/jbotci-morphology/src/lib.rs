@@ -5049,10 +5049,9 @@ mod tests {
         assert!(Selmaho::Nahe.contains(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.primary_selmaho(), Some(Selmaho::Nahe));
 
-        assert!(Selmaho::Bai.contains(Cmavo::Lahei));
-        assert!(Selmaho::Le.contains(Cmavo::Lahei));
-        assert!(Selmaho::Ui.contains(Cmavo::Lahei));
-        assert_eq!(Cmavo::Lahei.primary_selmaho(), Some(Selmaho::Bai));
+        assert!(Selmaho::Ja.contains(Cmavo::Je));
+        assert!(Selmaho::Jehi.contains(Cmavo::Je));
+        assert_eq!(Cmavo::Je.primary_selmaho(), Some(Selmaho::Ja));
 
         let word = test_word(WordKind::Cmavo, "na'e", 0);
         assert_eq!(word.selmaho_kind(), Some(Selmaho::Nahe));
@@ -5087,17 +5086,12 @@ mod tests {
             Cmavo::Lohu,
             Cmavo::Zoi,
             Cmavo::Laho,
-            Cmavo::Muhoi,
             Cmavo::Zo,
             Cmavo::Mahoi,
             Cmavo::Zohoi,
             Cmavo::Lahoi,
             Cmavo::Rahoi,
             Cmavo::Mehoi,
-            Cmavo::Gohoi,
-            Cmavo::Zehoi,
-            Cmavo::Tahai,
-            Cmavo::Bohei,
         ]);
 
         assert_eq!(actual, expected);
@@ -5133,36 +5127,6 @@ mod tests {
                 "{selmaho:?} appears more than once in Selmaho::ALL"
             );
         }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn zantufa_1_17_terminal_reference_for_gohoi_and_lohoi() {
-        let gohoi = [
-            (Cmavo::Gohoi, "go'oi"),
-            (Cmavo::Zehoi, "ze'oi"),
-            (Cmavo::Tahai, "ta'ai"),
-            (Cmavo::Bohei, "bo'ei"),
-        ];
-        for (cmavo, text) in gohoi {
-            assert_eq!(Cmavo::from_text(text), Some(cmavo));
-            assert!(!Selmaho::Goha.contains(cmavo));
-        }
-
-        let lohoi = [
-            (Cmavo::Lohoi, "lo'oi"),
-            (Cmavo::Xuhu, "xu'u"),
-            (Cmavo::Xauha, "xau'a"),
-            (Cmavo::Mauha, "mau'a"),
-        ];
-        for (cmavo, text) in lohoi {
-            assert_eq!(Cmavo::from_text(text), Some(cmavo));
-            assert!(Selmaho::Lohoi.contains(cmavo));
-        }
-
-        assert!(Selmaho::Soi.contains(Cmavo::Xoi));
-        assert!(!Selmaho::Sei.contains(Cmavo::Xoi));
     }
 
     #[test]

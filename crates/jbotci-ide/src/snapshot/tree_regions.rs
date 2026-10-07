@@ -10,7 +10,7 @@ use jbotci_syntax::{
     ParseOptions, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData,
     SyntaxTextUnitGranularity, Token, generated_model,
     parse_syntax_tokens_with_recovery_with_source_and_options_attempt, partition_syntax_text_units,
-    syntax_tokens_with_options,
+    syntax_tokens,
 };
 use jbotci_tree::{RecoveryItemState, TreeVisitor};
 
@@ -108,7 +108,7 @@ impl TreeRegionProjection {
         line_index: &LineIndex,
     ) -> Self {
         let mut regions = collect_parse_regions(parse, line_index);
-        let tokens = syntax_tokens_with_options(words, &ParseOptions::default());
+        let tokens = syntax_tokens(words);
         append_paragraph_regions(&mut regions, &tokens, line_index);
 
         if let SyntaxRecoveryParseData::Recovered { parse } = parse.as_data() {
@@ -607,18 +607,14 @@ fn foldable_constructor(constructor: &str, contains_lohu_quote: bool) -> bool {
             | "BridiTailSyntax"
             | "RelativeClauseListSyntax"
             | "SumtiAssociationRelativeClauseSyntax"
-            | "ZantufaRestrictiveStatementRelativeClauseSyntax"
-            | "ZantufaIncidentalStatementRelativeClauseSyntax"
             | "RestrictiveBridiRelativeClauseSyntax"
             | "IncidentalBridiRelativeClauseSyntax"
             | "AbstractionTanruUnitSyntax"
-            | "ZantufaStatementAbstractionTanruUnitSyntax"
             | "TextQuoteSyntax"
             | "ParentheticalTextSyntax"
             | "TermsetGroupSyntax"
             | "ForethoughtTermsetSyntax"
             | "NuhiTermsetSyntax"
-            | "KeTermsetSyntax"
             | "GroupedTanruUnitSyntax"
     ) || (constructor == "GenericCompoundQuoteSyntax" && contains_lohu_quote)
 }

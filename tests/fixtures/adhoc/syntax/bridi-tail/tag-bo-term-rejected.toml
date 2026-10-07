@@ -1,0 +1,13 @@
+id = "adhoc.syntax.bridi-tail.tag-bo-term-rejected"
+lojban = "pu bo ko'a broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "bridi-tail-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "A bare tag with an elided KU before BO cannot be a term. camxes-standard and camxes-exp reject this surface too."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "bo", message = "unexpected cmavo" }]

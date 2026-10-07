@@ -212,9 +212,8 @@ fn vuho_marker_is_parsed(
 
 /// Whether a recovered BO-bound tail proves its own BO marker was parsed.
 ///
-/// BO is the marker both tail shapes share and the one the baseline leading operand can never
-/// reproduce; the sourced tail's connective is optional in the Zantufa arm, so BO rather than the
-/// connective is what makes the tail a tail.
+/// BO is the marker that the baseline leading operand can never reproduce, so a parsed BO is what
+/// makes the tail a tail.
 #[requires(true)]
 #[ensures(true)]
 fn bound_tail_bo_is_parsed(tail: &recovered::Recovered<recovered::SumtiBoundTailSyntax>) -> bool {
@@ -223,9 +222,6 @@ fn bound_tail_bo_is_parsed(tail: &recovered::Recovered<recovered::SumtiBoundTail
     };
     match tail {
         recovered::SumtiBoundTailSyntax::BoundSumtiTail(tail) => {
-            valid(tail).is_some_and(|tail| valid(&tail.bo.value).is_some())
-        }
-        recovered::SumtiBoundTailSyntax::ZantufaBoundSumtiTail(tail) => {
             valid(tail).is_some_and(|tail| valid(&tail.bo.value).is_some())
         }
     }
@@ -547,7 +543,6 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
     use vec1::vec1;
 
-    use crate::ParseOptions;
     use crate::grammar::{SyntaxRecoveryItemData, syntax_tokens};
     use crate::tree::SyntaxRecoveryItem;
 
@@ -572,7 +567,7 @@ mod tests {
     #[ensures(true)]
     fn recovered_bare_pro_sumti() -> recovered::SumtiSyntax {
         let words = segment_words_with_modifiers("mi").expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let [token] = tokens.as_slice() else {
             panic!("`mi` must be exactly one word");
         };
@@ -629,7 +624,7 @@ mod tests {
     #[ensures(true)]
     fn one_token(text: &str) -> crate::tree::Token {
         let words = segment_words_with_modifiers(text).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let tokens = syntax_tokens(&words);
         let [token] = tokens.as_slice() else {
             panic!("text must be exactly one word");
         };

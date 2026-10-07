@@ -1,0 +1,13 @@
+id = "adhoc.syntax.bridi-tail.tag-bo-joint-vau-less-rejected"
+lojban = "mi broda pu bo brode"
+dialect = "()"
+tags = ["adhoc", "syntax", "bridi-tail-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "A connectiveless tag-BO joint without VAU. camxes-standard and camxes-exp both require a connective before BO, so the surface is a rejection."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "bo", message = "unexpected cmavo" }]

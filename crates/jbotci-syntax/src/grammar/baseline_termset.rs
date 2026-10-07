@@ -21,9 +21,6 @@
 //! than one GIK-joined operand pair, and a non-sumti operand is precisely what the baseline's sumti
 //! branches cannot accept.
 //!
-//! Rolling Zantufa poses the identical question one branch wider, and `ZantufaBaselineGekSumtiRejection`
-//! answers it the same way for the `ZantufaConnectives`-gated `gek_term` arm; see that type.
-//!
 //! Every candidate product is destructured exhaustively and without `..`, so a model change forces
 //! this proof to be revisited.
 
@@ -31,96 +28,13 @@ use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
     BalancedTermsetOperandsSyntax, GekTermsetCandidateSyntax, GikPairedTermsetOperandsSyntax,
-    NormalTermSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiForethoughtSyntax, SumtiSyntax,
-    TermSyntax, ZantufaForethoughtTermsetBranchSyntax, ZantufaForethoughtTermsetFirstBranchSyntax,
-    ZantufaGekTermsetCandidateSyntax, recovered,
+    NormalTermSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineGekSumtiRejection;
-
-/// The same ownership question for rolling Zantufa's own NUhI-less termset.
-///
-/// Zantufa spells the GEK sumti connection n-ary — `sumti_3 <- (… / gek sumti (gik sumti)+
-/// GIhI_elidible) relative_clauses?` (zantufa-1.9999.peg:36) — and gives `ge ko'a gi ko'e gi ko'i
-/// broda` to it rather than to `gek_term`, exactly as camxes gives the binary case to `sumti_4`.
-/// The extent argument is the one above, one branch wider: when every operand position of the
-/// candidate holds exactly one bare sumti term, `gek sumti (gik sumti)+` reconstructs the identical
-/// extent, and any other shape — a multi-term run in any position, or a non-sumti operand — has no
-/// counterpart in the sumti connection's branches. The GIhI slot does not enter the argument
-/// because Zantufa's sumti connection carries one too.
-#[invariant(true)]
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ZantufaBaselineGekSumtiRejection;
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ZantufaGroupedSumtiTermRejection;
-
-#[contract_trait]
-impl OutputRejection<SumtiSyntax> for ZantufaGroupedSumtiTermRejection {
-    fn rejected_name(&self) -> &'static str {
-        "elided Zantufa grouped-sumti closer at term position"
-    }
-
-    fn rejects(&self, output: &SumtiSyntax) -> bool {
-        let base = &output.base_sumti;
-        let leading = &base.leading_sumti;
-        let bound = &leading.leading_sumti;
-        let forethought = &bound.leading_sumti;
-        let simple = match forethought.as_ref() {
-            SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
-            SumtiForethoughtSyntax::ForethoughtSumti(_) => return false,
-        };
-        matches!(simple.base_sumti.as_ref(), SumtiAtomSyntax::SumtiBase(base) if matches!(base.as_ref(), SumtiBaseSyntax::ZantufaGroupedSumti(grouped) if grouped.kehe.is_none()))
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::SumtiSyntax>>
-    for ZantufaGroupedSumtiTermRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "elided Zantufa grouped-sumti closer at term position"
-    }
-
-    fn rejects(&self, output: &recovered::Recovered<recovered::SumtiSyntax>) -> bool {
-        let Some(sumti) = valid(output) else {
-            return false;
-        };
-        let Some(grouped) = valid(&sumti.base_sumti) else {
-            return false;
-        };
-        let Some(afterthought) = valid(&grouped.leading_sumti) else {
-            return false;
-        };
-        let Some(bound) = valid(&afterthought.leading_sumti) else {
-            return false;
-        };
-        let Some(forethought) = valid(&bound.leading_sumti) else {
-            return false;
-        };
-        let recovered::SumtiForethoughtSyntax::SimpleSumti(simple) = forethought else {
-            return false;
-        };
-        let Some(simple) = valid(simple) else {
-            return false;
-        };
-        let Some(atom) = valid(&simple.base_sumti) else {
-            return false;
-        };
-        let recovered::SumtiAtomSyntax::SumtiBase(base) = atom else {
-            return false;
-        };
-        let Some(base) = valid(base) else {
-            return false;
-        };
-        matches!(base, recovered::SumtiBaseSyntax::ZantufaGroupedSumti(grouped)
-            if valid(grouped).is_some_and(|grouped| grouped.kehe.is_none()))
-    }
-}
 
 #[requires(true)]
 #[ensures(true)]
@@ -130,22 +44,16 @@ fn is_bare_sumti_operand(operand: &NormalTermSyntax) -> bool {
         NormalTermSyntax::ConnectedNormalTerm(_)
         | NormalTermSyntax::BoundNormalTermConnection(_)
         | NormalTermSyntax::PlaceTaggedSumtiTerm(_)
-        | NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
-        | NormalTermSyntax::JaiTaggedSumtiTerm(_)
         | NormalTermSyntax::ElidedNaheFihoTagTerm(_)
         | NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | NormalTermSyntax::NonabsTaggedSumtiTerm(_)
-        | NormalTermSyntax::NoihaAdverbialTerm(_)
         | NormalTermSyntax::FihoiProposalAdverbialTerm(_)
-        | NormalTermSyntax::ZantufaXoiAdverbialTerm(_)
         | NormalTermSyntax::ExpSoiAdverbialTerm(_)
         | NormalTermSyntax::NaKuTerm(_)
         | NormalTermSyntax::BareNaTerm(_)
         | NormalTermSyntax::GekTermset(_)
-        | NormalTermSyntax::ZantufaGekTermset(_)
         | NormalTermSyntax::ForethoughtTermset(_)
-        | NormalTermSyntax::NuhiTermset(_)
-        | NormalTermSyntax::KeTermset(_) => false,
+        | NormalTermSyntax::NuhiTermset(_) => false,
     }
 }
 
@@ -184,22 +92,16 @@ fn recovered_is_bare_sumti_operand(operand: &recovered::NormalTermSyntax) -> boo
         recovered::NormalTermSyntax::ConnectedNormalTerm(_)
         | recovered::NormalTermSyntax::BoundNormalTermConnection(_)
         | recovered::NormalTermSyntax::PlaceTaggedSumtiTerm(_)
-        | recovered::NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
-        | recovered::NormalTermSyntax::JaiTaggedSumtiTerm(_)
         | recovered::NormalTermSyntax::ElidedNaheFihoTagTerm(_)
         | recovered::NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | recovered::NormalTermSyntax::NonabsTaggedSumtiTerm(_)
-        | recovered::NormalTermSyntax::NoihaAdverbialTerm(_)
         | recovered::NormalTermSyntax::FihoiProposalAdverbialTerm(_)
-        | recovered::NormalTermSyntax::ZantufaXoiAdverbialTerm(_)
         | recovered::NormalTermSyntax::ExpSoiAdverbialTerm(_)
         | recovered::NormalTermSyntax::NaKuTerm(_)
         | recovered::NormalTermSyntax::BareNaTerm(_)
         | recovered::NormalTermSyntax::GekTermset(_)
-        | recovered::NormalTermSyntax::ZantufaGekTermset(_)
         | recovered::NormalTermSyntax::ForethoughtTermset(_)
-        | recovered::NormalTermSyntax::NuhiTermset(_)
-        | recovered::NormalTermSyntax::KeTermset(_) => false,
+        | recovered::NormalTermSyntax::NuhiTermset(_) => false,
     }
 }
 
@@ -220,162 +122,6 @@ fn recovered_is_baseline_gek_sumti(candidate: &recovered::GekTermsetCandidateSyn
             }),
         recovered::BalancedTermsetOperandsSyntax::NestedPairedTermsetOperands(_) => false,
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_bare_sumti_term(term: &TermSyntax) -> bool {
-    match term {
-        TermSyntax::SumtiTerm(_) => true,
-        TermSyntax::PeheTermsetConnection(_)
-        | TermSyntax::TermsetGroup(_)
-        | TermSyntax::ConnectedTerm(_)
-        | TermSyntax::StagBoundTermConnection(_)
-        | TermSyntax::PlaceTaggedSumtiTerm(_)
-        | TermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
-        | TermSyntax::JaiTaggedSumtiTerm(_)
-        | TermSyntax::ElidedNaheFihoTagTerm(_)
-        | TermSyntax::TaggedSumtiBeforeTagTerm(_)
-        | TermSyntax::TaggedSumtiTerm(_)
-        | TermSyntax::NoihaAdverbialTerm(_)
-        | TermSyntax::FihoiProposalAdverbialTerm(_)
-        | TermSyntax::ZantufaXoiAdverbialTerm(_)
-        | TermSyntax::ExpSoiAdverbialTerm(_)
-        | TermSyntax::NaKuTerm(_)
-        | TermSyntax::BareNaTerm(_)
-        | TermSyntax::GekTermset(_)
-        | TermSyntax::ZantufaGekTermset(_)
-        | TermSyntax::ForethoughtTermset(_)
-        | TermSyntax::NuhiTermset(_)
-        | TermSyntax::KeTermset(_) => false,
-    }
-}
-
-/// Report whether a `term+` operand run is a single bare sumti term.
-#[requires(true)]
-#[ensures(true)]
-fn is_single_bare_sumti_run(terms: &vec1::Vec1<std::sync::Arc<TermSyntax>>) -> bool {
-    terms.len() == 1 && is_bare_sumti_term(terms.first().as_ref())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_zantufa_baseline_gek_sumti(candidate: &ZantufaGekTermsetCandidateSyntax) -> bool {
-    let ZantufaGekTermsetCandidateSyntax {
-        gek: _,
-        terms,
-        first_branch,
-        additional_branches,
-        gihi: _,
-    } = candidate;
-    let ZantufaForethoughtTermsetFirstBranchSyntax {
-        gik: _,
-        terms: first_branch_terms,
-    } = first_branch.as_ref();
-    is_single_bare_sumti_run(terms)
-        && is_single_bare_sumti_run(first_branch_terms)
-        && additional_branches.iter().all(|branch| {
-            let ZantufaForethoughtTermsetBranchSyntax {
-                gik: _,
-                terms: branch_terms,
-            } = branch.as_ref();
-            is_single_bare_sumti_run(branch_terms)
-        })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_bare_sumti_term(term: &recovered::TermSyntax) -> bool {
-    match term {
-        recovered::TermSyntax::SumtiTerm(_) => true,
-        recovered::TermSyntax::PeheTermsetConnection(_)
-        | recovered::TermSyntax::TermsetGroup(_)
-        | recovered::TermSyntax::ConnectedTerm(_)
-        | recovered::TermSyntax::StagBoundTermConnection(_)
-        | recovered::TermSyntax::PlaceTaggedSumtiTerm(_)
-        | recovered::TermSyntax::ZantufaJoikChainedPlaceTagTerm(_)
-        | recovered::TermSyntax::JaiTaggedSumtiTerm(_)
-        | recovered::TermSyntax::ElidedNaheFihoTagTerm(_)
-        | recovered::TermSyntax::TaggedSumtiBeforeTagTerm(_)
-        | recovered::TermSyntax::TaggedSumtiTerm(_)
-        | recovered::TermSyntax::NoihaAdverbialTerm(_)
-        | recovered::TermSyntax::FihoiProposalAdverbialTerm(_)
-        | recovered::TermSyntax::ZantufaXoiAdverbialTerm(_)
-        | recovered::TermSyntax::ExpSoiAdverbialTerm(_)
-        | recovered::TermSyntax::NaKuTerm(_)
-        | recovered::TermSyntax::BareNaTerm(_)
-        | recovered::TermSyntax::GekTermset(_)
-        | recovered::TermSyntax::ZantufaGekTermset(_)
-        | recovered::TermSyntax::ForethoughtTermset(_)
-        | recovered::TermSyntax::NuhiTermset(_)
-        | recovered::TermSyntax::KeTermset(_) => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_single_bare_sumti_run(
-    terms: &vec1::Vec1<std::sync::Arc<recovered::Recovered<recovered::TermSyntax>>>,
-) -> bool {
-    terms.len() == 1 && valid(terms.first()).is_some_and(recovered_is_bare_sumti_term)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_zantufa_baseline_gek_sumti(
-    candidate: &recovered::ZantufaGekTermsetCandidateSyntax,
-) -> bool {
-    let recovered::ZantufaGekTermsetCandidateSyntax {
-        gek: _,
-        terms,
-        first_branch,
-        additional_branches,
-        gihi: _,
-    } = candidate;
-    recovered_is_single_bare_sumti_run(terms)
-        && valid(first_branch).is_some_and(|first_branch| {
-            let recovered::ZantufaForethoughtTermsetFirstBranchSyntax {
-                gik: _,
-                terms: first_branch_terms,
-            } = first_branch;
-            recovered_is_single_bare_sumti_run(first_branch_terms)
-        })
-        && additional_branches.iter().all(|branch| {
-            valid(branch).is_some_and(|branch| {
-                let recovered::ZantufaForethoughtTermsetBranchSyntax {
-                    gik: _,
-                    terms: branch_terms,
-                } = branch;
-                recovered_is_single_bare_sumti_run(branch_terms)
-            })
-        })
-}
-
-#[contract_trait]
-impl OutputRejection<ZantufaGekTermsetCandidateSyntax> for ZantufaBaselineGekSumtiRejection {
-    fn rejected_name(&self) -> &'static str {
-        "Zantufa GEK sumti connection"
-    }
-
-    fn rejects(&self, value: &ZantufaGekTermsetCandidateSyntax) -> bool {
-        is_zantufa_baseline_gek_sumti(value)
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::ZantufaGekTermsetCandidateSyntax>>
-    for ZantufaBaselineGekSumtiRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "Zantufa GEK sumti connection"
-    }
-
-    fn rejects(
-        &self,
-        value: &recovered::Recovered<recovered::ZantufaGekTermsetCandidateSyntax>,
-    ) -> bool {
-        valid(value).is_some_and(recovered_is_zantufa_baseline_gek_sumti)
-    }
 }
 
 #[contract_trait]

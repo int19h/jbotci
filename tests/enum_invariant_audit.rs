@@ -2016,20 +2016,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing GekTermsetSyntax node",
     ),
     (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
-        "borrowed leaf validity is owned by the invariant-bearing JaiTaggedSumtiTermSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::KeTermset",
-        "borrowed leaf validity is owned by the invariant-bearing KeTermsetSyntax node",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NaKuTerm",
         "borrowed leaf validity is owned by the invariant-bearing NaKuTermSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NoihaAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing NoihaAdverbialTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NuhiTermset",
@@ -2050,18 +2038,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiTermSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaGekTermset",
-        "borrowed leaf validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm",
-        "borrowed leaf validity is owned by the invariant-bearing ZantufaJoikChainedPlaceTagTermSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing ZantufaXoiAdverbialTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",
@@ -2233,10 +2209,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Lookahead",
-        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::StrictObserve",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
@@ -2878,22 +2850,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:Command::ServeWebRelease",
         "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::AtomOperand",
-        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::FreeModifier",
-        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::Opener",
-        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ZantufaAtomComponent::Operand",
-        "borrowed generated child classification; every variant holds one already-valid generated node and the generated descent owns which variant a child becomes",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId::Recovered",
