@@ -2453,9 +2453,10 @@ fn sa_match_tag(options: &MorphologyOptions, word: &WordLike) -> Option<SAMatchT
 #[ensures(true)]
 fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag> {
     match marker.cmavo()? {
-        Cmavo::Zohoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("ZOhOI")),
-        Cmavo::Lahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("LAhOI")),
-        Cmavo::Rahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("RAhOI")),
+        // camxes-exp puts all three single-word quote markers in ZOhOI (camxes-exp.peg:1905).
+        Cmavo::Zohoi | Cmavo::Lahoi | Cmavo::Rahoi => {
+            Some(SAMatchTag::ExperimentalQuoteSelmaho("ZOhOI"))
+        }
         Cmavo::Mehoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("MEhOI")),
         _ => None,
     }
@@ -3880,6 +3881,29 @@ mod tests {
             panic!("expected replacement delimited word quote");
         };
         assert_eq!(quoted_text.text, "bar");
+
+        // camxes-exp puts zo'oi, la'oi and ra'oi in one selma'o, ZOhOI, so SA after a quote by
+        // one marker erases back to a quote by another.
+        for (first, second, second_cmavo) in [
+            ("la'oi", "ra'oi", Cmavo::Rahoi),
+            ("ra'oi", "zo'oi", Cmavo::Zohoi),
+            ("zo'oi", "la'oi", Cmavo::Lahoi),
+        ] {
+            let source = format!("lo {first} foo mi sa {second} bar cu broda");
+            let words = segment_words_with_modifiers(&source, &MorphologyOptions::default(), None)
+                .expect("SA should erase back across ZOhOI quote markers");
+            assert_eq!(words.len(), 4, "{source}");
+            let data!(WordLike::DelimitedWordQuote {
+                marker,
+                quoted_text,
+                ..
+            }) = words[1].as_data()
+            else {
+                panic!("expected replacement delimited word quote in {source}");
+            };
+            assert_eq!(marker.cmavo(), Some(second_cmavo), "{source}");
+            assert_eq!(quoted_text.text, "bar", "{source}");
+        }
     }
 
     #[test]

@@ -662,7 +662,7 @@ macro_rules! cmavo_table {
         Rahe => { text: "ra'e", selmaho: [Pa] },
         Rahi => { text: "ra'i", selmaho: [Bai] },
         Raho => { text: "ra'o", selmaho: [] },
-        Rahoi => { text: "ra'oi", selmaho: [] },
+        Rahoi => { text: "ra'oi", selmaho: [Zohoi] },
         Rahu => { text: "ra'u", selmaho: [Ui] },
         Rai => { text: "rai", selmaho: [Bai] },
         Raihe => { text: "rai'e", selmaho: [] },

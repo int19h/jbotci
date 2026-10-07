@@ -2992,6 +2992,7 @@ pub mod generated_model {
         field quote <- choice((
             quote_marker(Zohoi),
             quote_marker(Lahoi),
+            quote_marker(Rahoi),
         )).warn(ExperimentalZohOiQuote).wf();
     }
 
@@ -3000,9 +3001,6 @@ pub mod generated_model {
         // The completed MEhOI token belongs to the dedicated predicate atom,
         // never to the generic quoted-sumti fallback (#820).
         assert !quote_marker(Mehoi);
-        // RAhOI is a camxes-exp ZOhOI quote. Its route, with its own warning, is not part of the
-        // grammar yet (#969), and the generic fallback must not accept it silently.
-        assert !quote_marker(Rahoi);
         /// The `word_category` grammar result in the `quote` structural role of the `generic_compound_quote` production.
         field quote <- word_category(Quote).wf();
     }
