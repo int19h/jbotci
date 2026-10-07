@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.fa-chain-tag.fa-pu-nai-run-stag-gik-rejected"
+lojban = "fa je fe fa pu nai gi broda gi brode"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) gives (BRIDI: [{<FA:fa (¹JA:je [FA:fe FA:fa {PU:pu NAI:nai}]¹)> GI:gi} {BRIDI: <SELBRI: G:broda>} GI:gi {BRIDI: <SELBRI: G:brode>}]), one forethought sentence opened by FA-tagged tags, a camxes-exp-only form (#980). The run after je is fe, fa and pu nai. The guard reads each atom on its own, baseline tenses first, so pu nai keeps its NAI after the FA atom. Both guards then recognize the GEK opener and refuse the FA chain with an elided KU. Without them the bridi would take the chain, a plain FA term and a pu nai gi forethought tail."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 18], source-text = "nai", message = "unexpected cmavo" }]

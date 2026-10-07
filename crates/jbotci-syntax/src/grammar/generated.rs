@@ -1728,8 +1728,8 @@ pub mod generated_model {
     // in jbotci's own language, extended only by what the FA chain itself adopts from
     // camxes-exp:
     //
-    // - FA atoms among the tag atoms, through jbotci's own tag-atom parser `tense_modal_atom`,
-    //   which also reads the baseline tense forms such as `pu nai`;
+    // - FA atoms among the tag atoms: an operand between connectives is a run of jbotci's
+    //   baseline tag atoms (which read forms such as `pu nai`) and single camxes-exp atoms;
     // - the merged tag connectives of camxes-exp's `joik` and `joik_jek` (:347, :358): JOI, JA
     //   and A with optional NA, SE and NAI, the simple and the GAhO-closed intervals, and VUhU,
     //   both between tags and in the JOIK-GI and `ga` + JOIK-JEK openers of `gek` (:361, :364).
@@ -1847,12 +1847,12 @@ pub mod generated_model {
         field gik <- gik_connective;
     }
 
-    /// An extended tag: jbotci tag atoms, FA atoms included, linked by the merged connectives,
-    /// in the shape of camxes-exp's `tag` and `stag` (:372, :375).
+    /// An extended tag: runs of jbotci tag atoms, FA atoms included, linked by the merged
+    /// connectives, in the shape of camxes-exp's `tag` and `stag` (:372, :375).
     rule "connected tag" exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
-        /// The first tag atom, read by jbotci's own tag-atom parser, FA included.
-        field first <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
-        /// The linked tag atoms after it.
+        /// The first run of adjacent tag atoms.
+        field first <- exp_guard_tag_run(selbri, sumti, mekso, letter_tokens, letter_string);
+        /// The linked runs after it.
         field continuations <- [zero_or_more exp_guard_tag_continuation(selbri, sumti, mekso, letter_tokens, letter_string)];
     }
 
@@ -1860,8 +1860,37 @@ pub mod generated_model {
     rule "connected tag continuation" exp_guard_tag_continuation(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
         /// The merged connective.
         field connective <- exp_guard_joik_jek;
-        /// The next tag atom, read by jbotci's own tag-atom parser, FA included.
-        field tense_modal <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
+        /// The next run of adjacent tag atoms.
+        field run <- exp_guard_tag_run(selbri, sumti, mekso, letter_tokens, letter_string);
+    }
+
+    /// One operand of [`exp_guard_tag`]: one or more adjacent tag atoms with no connective
+    /// between them, as camxes-exp's `tense_modal` is a run of atoms (:378). So `pu nai`, FA
+    /// atoms and BAI may follow one another, as in `fa je fe pu nai bau gi` and
+    /// `fa je fe fa pu nai gi`.
+    rule "connected tag" exp_guard_tag_run(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        /// The first tag atom.
+        field first <- exp_guard_tag_atom(selbri, sumti, mekso, letter_tokens, letter_string);
+        /// The adjacent tag atoms after it.
+        field additional <- [zero_or_more exp_guard_tag_atom(selbri, sumti, mekso, letter_tokens, letter_string)];
+    }
+
+    /// One tag atom of [`exp_guard_tag_run`]. The baseline arms of jbotci's `tense_modal_atom`
+    /// come first, so a baseline tense keeps its NAI (`pu nai`) and its compound forms. Then one
+    /// prefixed camxes-exp atom, which adds FA. The atom is single on purpose: the camxes-exp arm
+    /// of `tense_modal_atom` reads a whole run of atoms without NAI, so it would take `fa pu` in
+    /// `fa pu nai gi` and leave the NAI behind.
+    rule "tag" exp_guard_tag_atom(selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
+        /// A baseline composite tense.
+        composite_tense,
+        /// A baseline FIhO modal.
+        fiho_tense,
+        /// A baseline BAI modal.
+        modal_tense,
+        /// A baseline KI marker.
+        sticky_tense,
+        /// One prefixed camxes-exp tag atom, FA included.
+        exp_prefixed_tag_atom,
     }
 
     /// The merged connectives between tags: [`exp_guard_joik`] or VUhU, as in camxes-exp's
