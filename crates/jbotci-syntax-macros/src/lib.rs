@@ -46,7 +46,6 @@ mod kw {
     syn::custom_keyword!(field);
     syn::custom_keyword!(model);
     syn::custom_keyword!(model_path);
-    syn::custom_keyword!(policy);
     syn::custom_keyword!(recursive);
     syn::custom_keyword!(rule);
     syn::custom_keyword!(strict_parsers);
@@ -241,14 +240,7 @@ impl SyntaxGrammar {
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub(crate) struct SyntaxGrammarCondition {
-                pub kind: SyntaxGrammarConditionKind,
-                pub name: &'static str,
-            }
-
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            pub(crate) enum SyntaxGrammarConditionKind {
-                Feature,
-                Policy,
+                pub feature: &'static str,
             }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -5901,35 +5893,6 @@ fn strict_call_parser_expr_tokens(
                 generated_runtime::empty(),
             )))
         }
-        ("policy", 2) => {
-            let policy = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "policy() requires a policy path",
-            )?;
-            let policy = format_ident!("{policy}");
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(generated_runtime::policy_gate(
-                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
-                #inner,
-            )))
-        }
-        ("policy", 1) => {
-            let policy = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "policy() requires a policy path",
-            )?;
-            let policy = format_ident!("{policy}");
-            Ok(quote!(generated_runtime::policy_gate(
-                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
-                generated_runtime::empty(),
-            )))
-        }
         ("relation_word", 0) => Ok(quote!(relation_word())),
         ("tanru_unit_relation_word", 0) => {
             Ok(quote!(generated_runtime::tanru_unit_relation_word()))
@@ -6894,35 +6857,6 @@ fn recovered_call_parser_expr_tokens(
                 generated_runtime::empty(),
             )))
         }
-        ("policy", 2) => {
-            let policy = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "policy() requires a policy path",
-            )?;
-            let policy = format_ident!("{policy}");
-            let inner = recovered_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Ok(quote!(generated_runtime::policy_gate(
-                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
-                #inner,
-            )))
-        }
-        ("policy", 1) => {
-            let policy = required_path_expr_last_segment(
-                call.args.first().expect("length checked"),
-                "policy() requires a policy path",
-            )?;
-            let policy = format_ident!("{policy}");
-            Ok(quote!(generated_runtime::policy_gate(
-                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
-                generated_runtime::empty(),
-            )))
-        }
         ("relation_word", 0) => {
             Ok(quote!(relation_word().map(#recovered_module::Recovered::valid)))
         }
@@ -7719,7 +7653,7 @@ fn call_rust_parser_output_type(
             0,
         ) => Some(quote!(Token)),
         ("word_not_cmavo", _) if !call.args.is_empty() => Some(quote!(Token)),
-        ("feature" | "policy", 1) => Some(quote!(())),
+        ("feature", 1) => Some(quote!(())),
         ("opt", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -7745,7 +7679,7 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(std::sync::Arc<#inner>))
         }
-        ("feature" | "policy", 2) => rust_parser_output_type(
+        ("feature", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
             type_env,
             arguments,
@@ -8684,7 +8618,7 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
                 ("arc" | "boxed", 1) => {
                     elidable_terminator_terminal_cmavo(call.args.first().expect("length checked"))
                 }
-                ("feature" | "policy", 2) => elidable_terminator_terminal_cmavo(
+                ("feature", 2) => elidable_terminator_terminal_cmavo(
                     call.args.iter().nth(1).expect("length checked"),
                 ),
                 _ => None,
@@ -8724,26 +8658,21 @@ impl FieldKind {
     }
 }
 
+/// A `when feature(Name)` condition. `Name` is a `SyntaxGrammarFeature` variant.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Condition {
-    kind: ConditionKind,
-    name: Ident,
+    feature: Ident,
 }
 
 impl Condition {
     #[requires(true)]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
-        let kind = match self.kind {
-            ConditionKind::Feature => quote!(SyntaxGrammarConditionKind::Feature),
-            ConditionKind::Policy => quote!(SyntaxGrammarConditionKind::Policy),
-        };
-        let name = self.name.to_string();
+        let feature = self.feature.to_string();
         quote! {
             SyntaxGrammarCondition {
-                kind: #kind,
-                name: #name,
+                feature: #feature,
             }
         }
     }
@@ -8751,20 +8680,12 @@ impl Condition {
     #[requires(true)]
     #[ensures(true)]
     fn expand_strict_gate(&self, parser: TokenStream2) -> TokenStream2 {
-        let name = &self.name;
-        match self.kind {
-            ConditionKind::Feature => quote! {
-                generated_runtime::feature_gate(
-                    generated_runtime::SyntaxGrammarFeature::#name,
-                    #parser,
-                )
-            },
-            ConditionKind::Policy => quote! {
-                generated_runtime::policy_gate(
-                    generated_runtime::SyntaxGrammarPolicyFlag::#name,
-                    #parser,
-                )
-            },
+        let feature = &self.feature;
+        quote! {
+            generated_runtime::feature_gate(
+                generated_runtime::SyntaxGrammarFeature::#feature,
+                #parser,
+            )
         }
     }
 }
@@ -8772,33 +8693,16 @@ impl Condition {
 impl Parse for Condition {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         input.parse::<kw::when>()?;
-        if input.peek(kw::feature) {
-            input.parse::<kw::feature>()?;
-            let content;
-            parenthesized!(content in input);
-            Ok(Self {
-                kind: ConditionKind::Feature,
-                name: content.parse()?,
-            })
-        } else if input.peek(kw::policy) {
-            input.parse::<kw::policy>()?;
-            let content;
-            parenthesized!(content in input);
-            Ok(Self {
-                kind: ConditionKind::Policy,
-                name: content.parse()?,
-            })
-        } else {
-            Err(input.error("expected `feature` or `policy` condition"))
+        if !input.peek(kw::feature) {
+            return Err(input.error("expected `feature` condition"));
         }
+        input.parse::<kw::feature>()?;
+        let content;
+        parenthesized!(content in input);
+        Ok(Self {
+            feature: content.parse()?,
+        })
     }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum ConditionKind {
-    Feature,
-    Policy,
 }
 
 #[invariant(true)]
@@ -9231,7 +9135,7 @@ fn classify_call_recovery_expr(
             arguments,
             type_env,
         )?)),
-        ("feature" | "policy", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
+        ("feature", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
         ("boxed", 1) => RecoveryExpr::Boxed(Box::new(classify_recovery_expr(
             &call.args[0],
             arguments,
@@ -9322,12 +9226,11 @@ fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result
 }
 
 #[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|condition| condition.kind == ConditionKind::Feature && !condition.name.is_empty()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|condition| !condition.feature.is_empty()))]
 fn wf_when_anchor_condition(expr: &Expr) -> Result<AnchorCondition> {
-    let name = required_path_expr_last_segment(expr, "wf_when() requires a feature path")?;
+    let feature = required_path_expr_last_segment(expr, "wf_when() requires a feature path")?;
     Ok(AnchorCondition::from_data(data!(AnchorCondition {
-        kind: ConditionKind::Feature,
-        name,
+        feature
     })))
 }
 
@@ -9393,42 +9296,35 @@ impl AnchorToken {
     }
 }
 
-#[invariant(!name.is_empty())]
+#[invariant(!feature.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AnchorCondition {
-    kind: ConditionKind,
-    name: String,
+    feature: String,
 }
 
 impl AnchorCondition {
     #[requires(true)]
-    #[ensures(!ret.name.is_empty())]
+    #[ensures(!ret.feature.is_empty())]
     fn from_condition(condition: &Condition) -> Self {
         Self::from_data(data!(AnchorCondition {
-            kind: condition.kind,
-            name: condition.name.to_string(),
+            feature: condition.feature.to_string(),
         }))
     }
 
-    #[requires(!self.name.is_empty())]
+    #[requires(!self.feature.is_empty())]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
-        let kind = match self.kind {
-            ConditionKind::Feature => quote!(SyntaxGrammarConditionKind::Feature),
-            ConditionKind::Policy => quote!(SyntaxGrammarConditionKind::Policy),
-        };
-        let name = &self.name;
+        let feature = &self.feature;
         quote! {
             SyntaxGrammarCondition {
-                kind: #kind,
-                name: #name,
+                feature: #feature,
             }
         }
     }
 }
 
 #[invariant(!tokens.is_empty())]
-#[invariant(conditions.iter().all(|condition| !condition.name.is_empty()))]
+#[invariant(conditions.iter().all(|condition| !condition.feature.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FirstEntry {
     tokens: BTreeSet<AnchorToken>,
@@ -9488,7 +9384,7 @@ impl AnchorRunOrigin {
 }
 
 #[invariant(!start_tokens.is_empty())]
-#[invariant(conditions.iter().all(|condition| !condition.name.is_empty()))]
+#[invariant(conditions.iter().all(|condition| !condition.feature.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AnchorRunSpec {
     start_tokens: BTreeSet<AnchorToken>,
@@ -10202,7 +10098,7 @@ fn expr_is_rule_reference(expr: &RecoveryExpr, rule_name: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|condition| !condition.name.is_empty()))]
+#[ensures(ret.iter().all(|condition| !condition.feature.is_empty()))]
 fn anchor_conditions_from(conditions: &[Condition]) -> Vec<AnchorCondition> {
     conditions
         .iter()
@@ -10708,7 +10604,7 @@ mod tests {
         .expect("feature-controlled free-modifier suffix parses");
 
         let expanded = grammar.expand().to_string();
-        let feature_condition_count = expanded.matches("name : \"UnrestrictedFree\"").count();
+        let feature_condition_count = expanded.matches("feature : \"UnrestrictedFree\"").count();
         assert!(
             expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
                 && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers")

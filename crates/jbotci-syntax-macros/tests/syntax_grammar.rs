@@ -171,9 +171,9 @@ jbotci_syntax_macros::syntax_grammar! {
         /// The source-ordered `tagged` component retained by the `linkargs` syntax node.
         when feature(ZantufaTags) field tagged <- boxed(sumti);
         assert feature(ZantufaTags);
-        assert !policy(ZantufaQuotes);
-        when policy(ZantufaQuotes) assert !word_category(Quote);
-        when policy(ZantufaQuotes) let folded = fold_chain(head, tail);
+        assert !feature(UnrestrictedFree);
+        when feature(UnrestrictedFree) assert !word_category(Quote);
+        when feature(UnrestrictedFree) let folded = fold_chain(head, tail);
         /// The computed `computed` component retained by the `linkargs` syntax node.
         field computed: usize = 0usize;
     }
@@ -257,8 +257,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[4].conditions[0],
         SyntaxGrammarCondition {
-            kind: SyntaxGrammarConditionKind::Feature,
-            name: "ZantufaTags",
+            feature: "ZantufaTags",
         }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].kind, "require");
@@ -271,22 +270,22 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "require");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[6].recovery,
-        SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Opaque("policy(ZantufaQuotes)"))
+        SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Opaque(
+            "feature(UnrestrictedFree)"
+        ))
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "require");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[7].conditions[0],
         SyntaxGrammarCondition {
-            kind: SyntaxGrammarConditionKind::Policy,
-            name: "ZantufaQuotes",
+            feature: "UnrestrictedFree",
         }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "let");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[8].conditions[0],
         SyntaxGrammarCondition {
-            kind: SyntaxGrammarConditionKind::Policy,
-            name: "ZantufaQuotes",
+            feature: "UnrestrictedFree",
         }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].kind, "field");
@@ -586,8 +585,7 @@ mod anchor_metadata {
         assert_eq!(
             gated_first.conditions,
             &[SyntaxGrammarCondition {
-                kind: SyntaxGrammarConditionKind::Feature,
-                name: "ZantufaTags",
+                feature: "ZantufaTags",
             }]
         );
         let gated = anchors_for("gated_item");
@@ -604,8 +602,7 @@ mod anchor_metadata {
         assert_eq!(
             gated_field_anchor.conditions,
             &[SyntaxGrammarCondition {
-                kind: SyntaxGrammarConditionKind::Feature,
-                name: "ZantufaTags",
+                feature: "ZantufaTags",
             }]
         );
 
@@ -974,7 +971,7 @@ mod new_dsl {
             field computed: usize = 1usize;
             let temp = 2usize;
             assert feature(ZantufaTags);
-            assert !policy(ZantufaQuotes);
+            assert !feature(UnrestrictedFree);
             assert !cmavo(Bo);
         }
 
@@ -1107,7 +1104,7 @@ mod new_dsl {
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[0].fields[4].recovery,
             SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Opaque(
-                "policy(ZantufaQuotes)"
+                "feature(UnrestrictedFree)"
             ))
         );
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[5].kind, "require");
@@ -1143,8 +1140,7 @@ mod new_dsl {
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[5].fields[2].conditions,
             &[SyntaxGrammarCondition {
-                kind: SyntaxGrammarConditionKind::Feature,
-                name: "ZantufaTags",
+                feature: "ZantufaTags",
             }]
         );
 

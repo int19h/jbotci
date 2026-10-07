@@ -45,10 +45,7 @@ fn syntax_assignment_handles_non_ascii_spans() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
-    let dialect = parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
-    let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-    assert_source_assignment_with_options("mi cu mu'oi gy foo gy", &options);
+    assert_source_assignment("mi cu mu'oi gy foo gy");
 }
 
 #[test]
@@ -65,11 +62,7 @@ fn syntax_assignment_handles_zantufa_jai_tag_term() {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_zantufa_poiha_brigahi() {
-    let dialect =
-        parse_dialect_definition("(+ZANTUFA-ADVERBIALS)").expect("valid dialect definition");
-    let options = ParseOptions::default().with_dialect_definition(&dialect);
-
-    assert_source_assignment_with_options("noi'a klama ku mi cu broda", &options);
+    assert_source_assignment("noi'a klama ku mi cu broda");
 }
 
 #[test]

@@ -1577,11 +1577,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarEnv",
-        "generated grammar environment pairs independent dialect and policy snapshots",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarPolicy",
-        "generated grammar policy flags are independent parser behavior switches",
+        "generated grammar environment holds only the dialect snapshot",
     ),
     (
         "crates/jbotci-syntax/src/grammar/link_payload.rs:AttemptedParse",

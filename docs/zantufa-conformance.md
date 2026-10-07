@@ -38,16 +38,16 @@ constructs may emit their own construct-specific warning as well.
 | `bridi_tail_2 <- bridi_tail_3 (tag BO_clause CU_elidible bridi_tail_3 tail_terms)*`, connective ABSENT | `ZantufaConnectives` | `feature-required` | Accepted as the second arm of the new `bridi_tail_bo_joint` sum; the two arms are structurally disjoint, the connective being mandatory in the sourced one and absent here |
 | `term_2 <- KE !(sumti KEhE) term+ KEhE?` | `ZantufaTerms` | `default-warning` | Accepted by default as KE term grouping |
 | `gek_term <- gek term+ (gik term+)+ GIhI?` | `ZantufaTerms`, `ZantufaConnectives` | `feature-required` for extra branches and `GIhI` | Accepted through `forethought_termset` |
-| `term_2 <- XOI statement SEhU?` and `FIhOI statement` | `ZantufaAdverbials` | `default-warning` | Accepted with full generated `statement` payloads |
-| `brigahi <- POIhA free* selbri KU? / NA ... KU?` | `ZantufaTerms`, `ZantufaAdverbials` | `default-warning` where distinguishable | POIhA/NOIhA and NA briga'i forms are accepted by the generated term grammar |
+| `term_2 <- XOI statement SEhU?` and `FIhOI statement` | — | `default-warning` | Accepted with full generated `statement` payloads |
+| `brigahi <- POIhA free* selbri KU? / NA ... KU?` | `ZantufaTerms` | `default-warning` where distinguishable | POIhA/NOIhA and NA briga'i forms are accepted by the generated term grammar |
 | `tag_term` with `tag`, `FA (joik FA)*`, and `JAI tag?` | `ZantufaTags` | `feature-required` for conflicting tag behavior | Accepted under `ZantufaTags`, including the JOIK-chained place tag and the `(sumti / KU_elidible)` payload in both halves, with `!tanru_unit_1` asserted structurally so `jai broda` and `fa je fe broda` stay selbri |
 | `term_1 <- term_2 (joik_ek? BO_clause term_2)*`, connective ABSENT | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` as a continuation of the sourced BO connection, so one node may mix connectorless and connective-present joints as upstream does; the connective-present stag-less form stays the sourced camxes-exp arm's |
 | `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*`, connective ABSENT | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` at the BASELINE BO-precedence level, tag optional |
 | `BO <- ce'e / bo` | — | documented gap | `ko'a ce'e ko'e broda` keeps the baseline CEhE termset group in every configuration, including `(zantufa)`; the Zantufa BO-connection reading is a fidelity-flag candidate, recorded and not minted |
 | `tag <- tcita_selci+ (joik tcita_selci+)*`, recursive `tcita_selci` | `ZantufaTags` | `feature-required` | Accepted by v1 connected tag grammar plus Zantufa recursive prefix atoms |
 | `relative_clause <- NOI statement KUhO?` | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms`; default keeps ordinary bridi relatives because an elided baseline `KUhO` can otherwise take the same prefix |
-| `LOhOI (joik LOhOI)* statement KUhAU?` | `ZantufaQuotes` | `default-warning` | Accepted by default for bridi-description sumti |
-| `RAhOI`, `MUhOI`, `GOhOI`, `LUhEI ... LIhAU?` quote surfaces | `ZantufaQuotes` | `default-warning` | Accepted by default |
+| `LOhOI (joik LOhOI)* statement KUhAU?` | — | `default-warning` | Accepted by default for bridi-description sumti |
+| `RAhOI`, `MUhOI`, `GOhOI`, `LUhEI ... LIhAU?` quote surfaces | — | `default-warning` | Accepted by default |
 | `NU (joik NU)* statement KEI?` | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` before ordinary NU so baseline abstractions do not warn |
 | `ME (sumti / operator+ / mex / tag) MEhU? MOI?`, `mex MOI` | `ZantufaMex` | mixed | Accepted; fork-only payloads warn as `ExperimentalZantufaMex` |
 | `mex`, `mex_1`, `mex_2`, `mex_rp`, `mex_forethought` | `ZantufaMex` | mixed | Accepted for default-warning raw mex fragments and feature-required raw mex quantifiers, BO-grouped mex, KE-grouped operand sequences, reverse-Polish tails, operator-first mex, and optional trailing operator forms |

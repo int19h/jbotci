@@ -70,12 +70,9 @@ macro_rules! define_dialect_features {
 
 define_dialect_features! {
     Cbm => "cbm",
-    Gadganzu => "gadganzu",
     CaseInsensitive => "case-insensitive",
     PermissiveLexer => "permissive-lexer",
-    SoiAdverbials => "soi-adverbials",
     UnrestrictedFree => "unrestricted-free",
-    ZantufaAdverbials => "zantufa-adverbials",
     ZantufaConnectives => "zantufa-connectives",
     ZantufaDescriptions => "zantufa-descriptions",
     ZantufaMex => "zantufa-mex",
@@ -83,7 +80,6 @@ define_dialect_features! {
     ZantufaSelbri => "zantufa-selbri",
     ZantufaSelbriReinterpretation => "zantufa-selbri-reinterpretation",
     ZantufaMorphology => "zantufa-morphology",
-    ZantufaQuotes => "zantufa-quotes",
     ZantufaTags => "zantufa-tags",
     ZantufaTerms => "zantufa-terms",
 }
@@ -969,17 +965,10 @@ static BUILTIN_DIALECT_BY_NAME: LazyLock<BTreeMap<&'static str, &'static Builtin
 fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
-        ("gadganzu", "(+GADGANZU)"),
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
-        ("soi-adverbials", "(+SOI-ADVERBIALS)"),
-        // Deprecated no-op. The camxes-exp term hierarchy is no longer a dialect feature: its
-        // levels are default-enabled diagnosed extensions of the composed term grammar, so the
-        // former `TERM-HIERARCHY` feature has been retired. The name is retained so existing
-        // dialect strings keep resolving instead of failing on an unknown atom.
-        ("term-hierarchy", "()"),
         (
             "zantufa",
-            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY +ZANTUFA-SELBRI)",
+            "(cbm +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY +ZANTUFA-SELBRI)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
@@ -1173,10 +1162,10 @@ mod tests {
             BTreeSet::from([DialectFeature::Cbm])
         );
         assert_eq!(
-            parse_dialect_definition("(+CBM +GADGANZU -CBM)")
+            parse_dialect_definition("(+CBM +CASE-INSENSITIVE -CBM)")
                 .expect("dialect")
                 .features,
-            BTreeSet::from([DialectFeature::Gadganzu])
+            BTreeSet::from([DialectFeature::CaseInsensitive])
         );
     }
 
@@ -1358,11 +1347,14 @@ mod tests {
         let swap = format!("((ce'u {DIALECT_SWAP_OPERATOR} ce))");
         assert_eq!(add_dialect_formula_reference("cbm", ""), "(cbm)");
         assert_eq!(
-            add_dialect_formula_reference("gadganzu", &format!("(cbm {swap})")),
-            format!("(cbm {swap} gadganzu)")
+            add_dialect_formula_reference("case-insensitive", &format!("(cbm {swap})")),
+            format!("(cbm {swap} case-insensitive)")
         );
         assert_eq!(
-            remove_dialect_formula_reference("gadganzu", &format!("(cbm {swap} gadganzu)")),
+            remove_dialect_formula_reference(
+                "case-insensitive",
+                &format!("(cbm {swap} case-insensitive)")
+            ),
             format!("(cbm {swap})")
         );
         assert_eq!(
@@ -1370,7 +1362,9 @@ mod tests {
             "(ce-ki-tau renamed -CBM)"
         );
         assert_eq!(
-            dialect_formula_top_level_references(&format!("(cbm {swap} +GADGANZU renamed)")),
+            dialect_formula_top_level_references(&format!(
+                "(cbm {swap} +CASE-INSENSITIVE renamed)"
+            )),
             vec!["cbm".to_owned(), "renamed".to_owned()]
         );
     }
@@ -1394,7 +1388,7 @@ mod tests {
         };
         let referencing = CustomDialect {
             name: "custom-derived".to_owned(),
-            definition: "(custom-base gadganzu)".to_owned(),
+            definition: "(custom-base case-insensitive)".to_owned(),
             show_in_gentufa: true,
         };
         assert!(custom_dialect_is_valid(&[custom.clone(), referencing.clone()], &custom).is_ok());
@@ -1404,7 +1398,7 @@ mod tests {
         )
         .expect("custom dialect");
         assert!(resolved.features.contains(&DialectFeature::Cbm));
-        assert!(resolved.features.contains(&DialectFeature::Gadganzu));
+        assert!(resolved.features.contains(&DialectFeature::CaseInsensitive));
         assert_eq!(resolved.cmavo_entries.len(), 1);
 
         let duplicate = CustomDialect {
@@ -1434,6 +1428,48 @@ mod tests {
             parse_dialect_definition_with_custom_dialects(&[first_cycle, second_cycle], "(first)")
                 .is_err()
         );
+    }
+
+    /// Issue #965 deleted these names without aliases. A stored custom dialect that still uses
+    /// one must fail validation with a message that names the unknown word, because the settings
+    /// page shows this message to the user.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reports_deleted_dialect_names_as_unknown() {
+        for (definition, message) in [
+            ("(gadganzu)", "Unknown dialect reference: gadganzu"),
+            (
+                "(soi-adverbials)",
+                "Unknown dialect reference: soi-adverbials",
+            ),
+            (
+                "(term-hierarchy)",
+                "Unknown dialect reference: term-hierarchy",
+            ),
+            ("(+GADGANZU)", "Unknown dialect feature: GADGANZU"),
+            (
+                "(+SOI-ADVERBIALS)",
+                "Unknown dialect feature: SOI-ADVERBIALS",
+            ),
+            (
+                "(+ZANTUFA-ADVERBIALS)",
+                "Unknown dialect feature: ZANTUFA-ADVERBIALS",
+            ),
+            (
+                "(-ZANTUFA-QUOTES)",
+                "Unknown dialect feature: ZANTUFA-QUOTES",
+            ),
+        ] {
+            let custom = CustomDialect {
+                name: "stored".to_owned(),
+                definition: definition.to_owned(),
+                show_in_gentufa: true,
+            };
+            let error = custom_dialect_is_valid(std::slice::from_ref(&custom), &custom)
+                .expect_err("a deleted dialect name must not resolve");
+            assert_eq!(error.message(), message, "{definition}");
+        }
     }
 
     #[test]
