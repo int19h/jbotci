@@ -1724,6 +1724,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
                     continuation,
                 ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
+                generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
+                    continuation,
+                ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
             });
         }
         self.add_frame(
@@ -5950,6 +5953,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     continuation,
                 ) => self.visit_bound_selbri(&continuation.trailing_selbri),
                 generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
+                    continuation,
+                ) => self.visit_tanru_selbri(&continuation.inner_selbri),
+                generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
                     continuation,
                 ) => self.visit_tanru_selbri(&continuation.inner_selbri),
             }

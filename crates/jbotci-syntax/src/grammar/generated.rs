@@ -877,13 +877,13 @@ pub mod generated_model {
         field inner <- arc(forethought_bridi_connection_without_tail_terms);
     }
 
-    /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.
     /// Product node for bridi tail connective; camxes-standard's one top-level tail join,
     /// `gihek stag? KE_clause bridi_tail KEhE_clause? tail_terms` (camxes.peg:76). Its connective
-    /// is GIhA alone in both families.
+    /// is the shared bridi-tail connective, so camxes-exp's JA and JOI arms reach this joint as
+    /// they reach the flat and BO joints (camxes-exp.peg:97).
     rule "bridi tail connective" gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
-        /// The `gihek_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.
-        field connective <- gihek_connective();
+        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.
+        field connective <- bridi_tail_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Ke` cmavo marker.
@@ -4033,12 +4033,39 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// Sum node for bridi tail connective. The sourced inventory at every bridi-tail joint is
-    /// GIhA alone (camxes.peg:77-79). The sum has one arm only; it stays so that the trees keep
-    /// their shape.
+    /// Sum node for bridi tail connective. camxes-standard's inventory at every bridi-tail joint is
+    /// GIhA alone (camxes.peg:77-79). camxes-exp's `gihek_1` adds JA and JOI (camxes-exp.peg:340).
+    ///
+    /// The JA/JOI arm cannot take an extent that the baseline derives. Every joint is tried
+    /// only after its left operand is complete, and that operand's selbri has already taken
+    /// any JA or JOI that can start a tanru continuation (`klama je cadzu`, `klama je bo cadzu`,
+    /// `klama joi ke cadzu ke'e`). So the arm only sees a JA or JOI that the selbri could not
+    /// use: after VAU or tail terms, or before CU, a tag, BO or KE that no tanru can follow.
     rule "bridi tail connective" bridi_tail_connective -> enum {
         /// Uses the `gihek_connective` product form, whose payload preserves `na`, `se`, `giha`, and `nai`.
         gihek_connective,
+        /// camxes-exp's JA and JOI arms of `gihek_1`.
+        exp_ja_joi_bridi_tail_connective,
+    }
+
+    /// camxes-exp's JA and JOI arms of `gihek_1 <- NA_clause? SE_clause? (JA_clause / JOI_clause /
+    /// GIhA_clause / ...) NAI_clause?` (camxes-exp.peg:340). The GI-led arms of the same rule are
+    /// not part of jbotci.
+    rule "bridi tail connective" exp_ja_joi_bridi_tail_connective -> struct {
+        // The JA or JOI head must be present in strict lookahead before recovery may enter the
+        // arm, so missing-token recovery never invents a JA/JOI joint.
+        assert (opt(selmaho(Na)), opt(selmaho(Se)), choice((selmaho(Ja), selmaho(Joi)))).lookahead();
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA or JOI word, which carries the warning for the joint.
+        field connective <- choice((selmaho(Ja), selmaho(Joi)))
+            .warn(ExperimentalJacuPredicateTailConnective)
+            .wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Forethought connective family.
@@ -4891,6 +4918,8 @@ pub mod generated_model {
         simple_connected_selbri_continuation,
         /// The joik-only tagged KE continuation from camxes selbri level 4.
         grouped_connected_selbri_continuation,
+        /// camxes-exp's JA-led KE continuation at selbri level 4.
+        exp_ja_grouped_connected_selbri_continuation,
     }
 
     /// Product node for an ordinary level-4 selbri continuation.
@@ -4899,6 +4928,43 @@ pub mod generated_model {
         field connective <- arc(selbri_afterthought_connective);
         /// The following level-5 selbri.
         field trailing_selbri <- arc(bound_selbri);
+    }
+
+    /// camxes-exp's `joik stag? KE_clause free* selbri_3 KEhE_elidible free*` at selbri level 4
+    /// (camxes-exp.peg:234) with a JA head, which camxes-exp's merged `joik` admits
+    /// (camxes-exp.peg:347). camxes-standard's KE continuation takes JOIK alone. A JA followed
+    /// by a selbri_5 is the ordinary continuation, which comes first, so this arm only takes
+    /// `JA stag KE`, as in `mi broda je pu ke brode ke'e`. Without it that text would reach the
+    /// bridi-tail KE joint, which is not camxes-exp's reading.
+    rule "grouped selbri connection continuation" exp_ja_grouped_connected_selbri_continuation(tanru_selbri, tense_modal) -> struct {
+        // The JA head and the KE must be present in strict lookahead before recovery may enter
+        // the arm; otherwise missing-token recovery synthesizes both and turns any stray KEhE
+        // after a selbri into this group.
+        assert (
+            opt(selmaho(Na)),
+            opt(selmaho(Se)),
+            selmaho(Ja),
+            opt(cmavo(Nai)),
+            opt(tense_modal),
+            cmavo(Ke),
+        ).lookahead();
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA word, which carries the warning for the whole construct.
+        field ja <- selmaho(Ja).warn(ExperimentalJaKeTanruConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
+        /// The optional tag between JA and KE.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The KE group opener.
+        field ke <- cmavo(Ke).wf();
+        /// The level-3 group body.
+        field inner_selbri <- arc(tanru_selbri);
+        /// The optional KEhE group terminator.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for the joik-only tagged KE arm at selbri level 4.
