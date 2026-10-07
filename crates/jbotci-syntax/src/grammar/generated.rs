@@ -40,8 +40,8 @@ pub mod generated_model {
         statement: StatementSyntax;
         bridi: BridiSyntax;
         bridi_tail: BridiTailSyntax;
-        // Guard-only transcriptions of camxes-exp's `gek_sentence` and `gek`; see the
-        // "guard-only camxes-exp recognizers" section.
+        // Guard-only recognizers for the FA chain's reservations; see the "guard-only
+        // recognizers for the FA chain" section.
         exp_gek_sentence_guard: ExpGekSentenceGuardSyntax;
         exp_guard_gek: ExpGuardGekSyntax;
         bo_grouped_bridi_tail: BoGroupedBridiTailSyntax;
@@ -1702,7 +1702,7 @@ pub mod generated_model {
     /// !selbri !gek_sentence (sumti / KU_elidible free*)` (:160). `!gek` refuses a chain that
     /// opens a forethought connective, as in `fa je fe gi`. `!selbri` keeps `fa je fe broda`
     /// camxes-exp's tagged selbri, and `!gek_sentence` refuses `fa je fe ge broda gi brode`.
-    /// Both guards use the guard-only camxes-exp recognizers below.
+    /// Both guards use the guard-only recognizers below.
     /// Each FA is a tag atom here and warns as one.
     rule "place tag" fa_chain_tagged_sumti_term(sumti, normal_term, selbri, exp_guard_gek, exp_gek_sentence_guard) -> struct {
         assert !exp_guard_gek;
@@ -1716,55 +1716,51 @@ pub mod generated_model {
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
-    // ---- guard-only camxes-exp recognizers ----------------------------------------------
+    // ---- guard-only recognizers for the FA chain ------------------------------------------
     //
-    // The FA chain tag terms carry camxes-exp's `!gek` and `!gek_sentence` guards
-    // (camxes-exp.peg:149, :160). The rules in this section transcribe the camxes-exp rules that
-    // those guards need, so that the guards refuse exactly what camxes-exp refuses:
+    // camxes-exp's tag terms refuse to start at a GEK and refuse an elided KU before a GEK
+    // sentence (`!gek` and `!gek_sentence`, camxes-exp.peg:149, :160). Without those
+    // reservations the FA chain would take an elided KU and leave a forethought sentence for the
+    // bridi tail, a split that camxes-exp never derives (`fa je fe ge broda gi brode`).
     //
-    //   joik         <- NA_clause? SE_clause? (JOI_clause / JA_clause / A_clause) NAI_clause?
-    //                   / interval / GAhO_clause interval GAhO_clause              (:347)
-    //   joik_jek     <- joik free* / jek free* / VUhU_clause free*               (:358)
-    //   gek          <- gak SE_clause? joik_jek / SE_clause? GA_clause free*
-    //                   / joik GI_clause free* / stag gik                         (:361)
-    //   gak          <- ga_clause !gek free*                                     (:364)
-    //   tag, stag    <- tense_modal (joik_jek tense_modal)*                       (:372, :375)
-    //   gek_sentence <- gek subsentence gik subsentence tail_terms
-    //                   / tag* KE_clause free* gek_sentence KEhE_elidible free*
-    //                   / NA_clause free* gek_sentence                            (:112)
+    // The rules in this section own that reservation for jbotci. They refuse a FA chain with an
+    // elided KU wherever the rest of the input reads as a GEK opener or a forethought sentence
+    // in jbotci's own language, extended only by what the FA chain itself adopts from
+    // camxes-exp:
     //
-    // They are used only inside negative assertions. They only look ahead and never build a
-    // tree. jbotci's product grammar is narrower on purpose: it has no A or VUhU between tags,
-    // no NA before JOI, no JOIK or JA before GI, no `ga` + JOIK-JEK opener, and no FA tag before
-    // a KE forethought sentence. Those forms are either re-added by #982 or recorded as
-    // camxes-exp-only in #980, so the guards cannot reuse the product rules. When #982 adds a
-    // form, a product rule that then reads the same language as a recognizer here replaces it.
+    // - FA atoms among the tag atoms, through jbotci's own tag-atom parser `tense_modal_atom`,
+    //   which also reads the baseline tense forms such as `pu nai`;
+    // - the merged tag connectives of camxes-exp's `joik` and `joik_jek` (:347, :358): JOI, JA
+    //   and A with optional NA, SE and NAI, the simple and the GAhO-closed intervals, and VUhU,
+    //   both between tags and in the JOIK-GI and `ga` + JOIK-JEK openers of `gek` (:361, :364).
     //
-    // Where a jbotci rule already reads exactly the camxes-exp language, the section reuses it:
-    // `exp_tag_atom_run_body` is camxes-exp's `tense_modal` (:378), `simple_interval_connective`
-    // and `closed_interval_connective` are the two interval arms of `joik`,
-    // `vuhu_nonlogical_connective` is `VUhU_clause free*`, `gik_connective` is `gik` (:370), and
-    // `subbridi` is `subsentence`. camxes-exp reads NAI as an indicator after any word (:391), so
-    // the GA and GI openers take an optional NAI, as jbotci's own openers do.
+    // The sentence recognizer follows the arms of camxes-exp's `gek_sentence` (:112): a GEK pair,
+    // tags before KE, and NA, with the KE and NA arms recursing through the guard so that the
+    // extended domain holds at every depth. Its subsentences are jbotci's own `subbridi`.
+    //
+    // The section does not rebuild camxes-exp's clause, indicator or free-modifier language.
+    // Indicators, NAI and free modifiers are read as the surrounding jbotci grammar reads them,
+    // under jbotci's own policies (#847, #848). The rules only look ahead inside negative
+    // assertions and never build a tree. The product grammar does not take the extended forms:
+    // they belong to #982 or are camxes-exp-only (#980). When #982 adds one of them, a product
+    // rule that then reads the same language replaces the recognizer here.
 
-    /// camxes-exp's whole `gek_sentence` (camxes-exp.peg:112), for the `!gek_sentence` guard of
-    /// [`fa_chain_tagged_sumti_term`]. It recognizes a camxes-exp GEK (with the JOIK, JA and
-    /// `ga` openers that jbotci's own forethought connection lacks) followed by a subsentence, a
-    /// GIK, a subsentence and tail terms; any number of camxes-exp tags (FA, A and VUhU links
-    /// included) before KE and a recognized `gek_sentence`; or NA before a recognized
-    /// `gek_sentence`. The KE and NA arms recurse through this rule.
-    rule "forethought bridi connection" exp_gek_sentence_guard(exp_gek_sentence_guard, exp_guard_gek, subbridi, term, selbri, sumti, mekso) -> enum {
-        /// `gek subsentence gik subsentence tail_terms`.
+    /// A forethought sentence as the FA chain's `!gek_sentence` guard reads it: a GEK opener
+    /// from [`exp_guard_gek`], a `subbridi`, a GIK, a `subbridi` and tail terms; any number of
+    /// extended tags from [`exp_guard_tag`] before KE and a recognized sentence; or NA before a
+    /// recognized sentence. The KE and NA arms recurse through this rule.
+    rule "forethought bridi connection" exp_gek_sentence_guard(exp_gek_sentence_guard, exp_guard_gek, subbridi, term, selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
+        /// The GEK pair.
         exp_gek_sentence_guard_pair,
-        /// `tag* KE_clause free* gek_sentence KEhE_elidible free*`.
+        /// Tags before KE and a recognized sentence.
         exp_gek_sentence_guard_grouped,
-        /// `NA_clause free* gek_sentence`.
+        /// NA before a recognized sentence.
         exp_gek_sentence_guard_negated,
     }
 
-    /// The GEK arm of [`exp_gek_sentence_guard`].
+    /// The GEK pair of [`exp_gek_sentence_guard`].
     rule "forethought bridi connection" exp_gek_sentence_guard_pair(exp_guard_gek, subbridi, term) -> struct {
-        /// The camxes-exp GEK.
+        /// The GEK opener.
         field gek <- arc(exp_guard_gek);
         /// The first subsentence.
         field first <- arc(subbridi);
@@ -1779,9 +1775,9 @@ pub mod generated_model {
     }
 
     /// The KE arm of [`exp_gek_sentence_guard`].
-    rule "forethought bridi connection" exp_gek_sentence_guard_grouped(exp_gek_sentence_guard, selbri, sumti, mekso) -> struct {
-        /// The camxes-exp tags before KE.
-        field tags <- [zero_or_more exp_guard_tag(selbri, sumti, mekso)];
+    rule "forethought bridi connection" exp_gek_sentence_guard_grouped(exp_gek_sentence_guard, selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        /// The extended tags before KE.
+        field tags <- [zero_or_more exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string)];
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The grouped forethought sentence.
@@ -1798,98 +1794,97 @@ pub mod generated_model {
         field inner <- arc(exp_gek_sentence_guard);
     }
 
-    /// camxes-exp's `gek` (camxes-exp.peg:361), in its order. The `ga` arm's `!gek` recurses
-    /// through this rule.
-    rule "forethought connective" exp_guard_gek(exp_guard_gek, selbri, sumti, mekso, free_modifier) -> enum {
-        /// `gak SE_clause? joik_jek`.
+    /// A GEK opener as the FA chain's guards read it, in the arm order of camxes-exp's `gek`
+    /// (:361): `ga` + JOIK-JEK, SE? GA, JOIK GI, and an extended tag before GIK. The `ga` arm
+    /// refuses a following opener, as camxes-exp's `gak` does (:364), through this rule.
+    rule "forethought connective" exp_guard_gek(exp_guard_gek, selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
+        /// `ga` + JOIK-JEK.
         exp_guard_gaja_gek,
-        /// `SE_clause? GA_clause free*`.
+        /// SE? GA.
         exp_guard_ga_gek,
-        /// `joik GI_clause free*`.
+        /// JOIK GI.
         exp_guard_joik_gi_gek,
-        /// `stag gik`.
+        /// An extended tag before GIK.
         exp_guard_stag_gik_gek,
     }
 
-    /// `gak SE_clause? joik_jek`, with `gak <- ga_clause !gek free*` (camxes-exp.peg:364).
-    rule "forethought connective" exp_guard_gaja_gek(exp_guard_gek, free_modifier) -> struct {
+    /// `ga` + JOIK-JEK.
+    rule "forethought connective" exp_guard_gaja_gek(exp_guard_gek) -> struct {
         /// The cmavo `ga` itself, not the whole GA selma'o.
-        field ga <- cmavo(Ga);
+        field ga <- cmavo(Ga).wf();
         assert !exp_guard_gek;
-        /// The free modifiers after `ga`, which camxes-exp takes after its `!gek` check.
-        field free_modifiers <- [zero_or_more free_modifier];
         /// The optional se component.
         field se <- opt(selmaho(Se));
         /// The connective.
         field connective <- exp_guard_joik_jek;
     }
 
-    /// `SE_clause? GA_clause free*`.
+    /// SE? GA, with the optional NAI that jbotci's own GA opener takes.
     rule "forethought connective" exp_guard_ga_gek -> struct {
         /// The optional se component.
         field se <- opt(selmaho(Se));
         /// A word from selmaho `Ga`.
         field ga <- selmaho(Ga).wf();
-        /// The optional `Nai` cmavo marker, an indicator in camxes-exp.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// `joik GI_clause free*`.
+    /// JOIK GI, with the optional NAI that jbotci's own tag-GI opener takes.
     rule "forethought connective" exp_guard_joik_gi_gek -> struct {
         /// The JOIK.
         field joik <- exp_guard_joik;
         /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
-        /// The optional `Nai` cmavo marker, an indicator in camxes-exp.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// `stag gik`.
-    rule "forethought connective" exp_guard_stag_gik_gek(selbri, sumti, mekso) -> struct {
-        /// The camxes-exp stag, which is the same rule as its tag.
-        field stag <- exp_guard_tag(selbri, sumti, mekso);
+    /// An extended tag before GIK.
+    rule "forethought connective" exp_guard_stag_gik_gek(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        /// The extended tag.
+        field stag <- exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string);
         /// The GIK.
         field gik <- gik_connective;
     }
 
-    /// camxes-exp's `tag` and `stag`, which are the same rule:
-    /// `tense_modal (joik_jek tense_modal)*` (camxes-exp.peg:372, :375).
-    rule "connected tag" exp_guard_tag(selbri, sumti, mekso) -> struct {
-        /// The first camxes-exp tense_modal.
-        field first <- arc(exp_tag_atom_run_body(selbri, sumti, mekso));
-        /// The JOIK-JEK-linked tense_modals after it.
-        field continuations <- [zero_or_more exp_guard_tag_continuation(selbri, sumti, mekso)];
+    /// An extended tag: jbotci tag atoms, FA atoms included, linked by the merged connectives,
+    /// in the shape of camxes-exp's `tag` and `stag` (:372, :375).
+    rule "connected tag" exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        /// The first tag atom, read by jbotci's own tag-atom parser, FA included.
+        field first <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
+        /// The linked tag atoms after it.
+        field continuations <- [zero_or_more exp_guard_tag_continuation(selbri, sumti, mekso, letter_tokens, letter_string)];
     }
 
-    /// One `joik_jek tense_modal` link of [`exp_guard_tag`].
-    rule "connected tag continuation" exp_guard_tag_continuation(selbri, sumti, mekso) -> struct {
-        /// The connective.
+    /// One link of [`exp_guard_tag`].
+    rule "connected tag continuation" exp_guard_tag_continuation(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        /// The merged connective.
         field connective <- exp_guard_joik_jek;
-        /// The next camxes-exp tense_modal.
-        field tense_modal <- arc(exp_tag_atom_run_body(selbri, sumti, mekso));
+        /// The next tag atom, read by jbotci's own tag-atom parser, FA included.
+        field tense_modal <- arc(tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string));
     }
 
-    /// camxes-exp's `joik_jek <- joik free* / jek free* / VUhU_clause free*`
-    /// (camxes-exp.peg:358). `jek` (:344) is a subset of the merged `joik`'s first arm, so the
-    /// JOIK arm covers it.
+    /// The merged connectives between tags: [`exp_guard_joik`] or VUhU, as in camxes-exp's
+    /// `joik_jek` (:358). JA, the `jek` of that rule, is in the JOIK arm.
     rule "joik" exp_guard_joik_jek -> enum {
-        /// `joik free*`, which also covers `jek free*`.
+        /// The merged JOIK.
         exp_guard_joik,
-        /// `VUhU_clause free*`.
+        /// VUhU.
         vuhu_nonlogical_connective,
     }
 
-    /// camxes-exp's merged `joik` (camxes-exp.peg:347).
+    /// The merged JOIK of camxes-exp's `joik` (:347): JOI, JA or A with optional NA, SE and
+    /// NAI, the simple interval, and the GAhO-closed interval.
     rule "joik" exp_guard_joik -> enum {
-        /// `NA_clause? SE_clause? (JOI_clause / JA_clause / A_clause) NAI_clause?`.
+        /// JOI, JA or A with optional NA, SE and NAI.
         exp_guard_logical_connective,
-        /// `interval <- SE_clause? BIhI_clause NAI_clause?` (:349).
+        /// The simple interval.
         simple_interval_connective,
-        /// `GAhO_clause interval GAhO_clause`.
+        /// The GAhO-closed interval.
         closed_interval_connective,
     }
 
-    /// The first arm of camxes-exp's merged `joik` (camxes-exp.peg:347).
+    /// JOI, JA or A with optional NA, SE and NAI.
     rule "joik" exp_guard_logical_connective -> struct {
         /// The optional na component.
         field na <- opt(selmaho(Na));
