@@ -2085,12 +2085,9 @@ where
                 return Err(error);
             }
         };
-        let after_inner = input.save();
-        match input.parse(&guard) {
-            Ok(_) => {
-                input.rewind(after_inner);
-                Ok(value)
-            }
+        // The guard is a lookahead: it only checks what follows `inner`.
+        match input.probe(&guard) {
+            Ok(_) => Ok(value),
             Err(error) => {
                 input.rewind(before);
                 Err(error)
@@ -2213,6 +2210,8 @@ fn expected_found_tokens_at_current<'tokens>(
     SyntaxParseError::expected_found(span, expected, found)
 }
 
+/// Succeeds where `parser` matches, without consuming input. Nothing that `parser` collects on
+/// the way outlives the probe; see `InputRef::probe`.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn lookahead<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, O>
@@ -2220,19 +2219,7 @@ where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let before = input.save();
-        let value = match input.parse(&parser) {
-            Ok(value) => value,
-            Err(error) => {
-                input.rewind(before);
-                return Err(error);
-            }
-        };
-        input.rewind(before);
-        Ok(value)
-    })
-    .boxed()
+    custom::<_, _>(move |input| input.probe(&parser).map(|(value, _)| value)).boxed()
 }
 
 thread_local! {
@@ -2395,6 +2382,8 @@ where
     .boxed()
 }
 
+/// Succeeds where `parser` does not match, without consuming input. Nothing that `parser`
+/// collects on the way outlives the probe; see `InputRef::probe`.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
@@ -2402,26 +2391,15 @@ where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| {
-        let before = input.save();
-        let cursor = input.cursor();
-        match input.parse(&parser) {
-            Ok(_) => {
-                let span = input.span_since(&cursor);
-                input.rewind(before);
-                Err(SyntaxParseError::expected_found(
-                    span,
-                    vec![new!(SyntaxExpectedToken::Named(
-                        "negative predicate".to_owned()
-                    ))],
-                    new!(SyntaxFound::EndOfInput),
-                ))
-            }
-            Err(_) => {
-                input.rewind(before);
-                Ok(())
-            }
-        }
+    custom::<_, _>(move |input| match input.probe(&parser) {
+        Ok((_, span)) => Err(SyntaxParseError::expected_found(
+            span,
+            vec![new!(SyntaxExpectedToken::Named(
+                "negative predicate".to_owned()
+            ))],
+            new!(SyntaxFound::EndOfInput),
+        )),
+        Err(_) => Ok(()),
     })
     .boxed()
 }

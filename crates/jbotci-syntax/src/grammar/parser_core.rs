@@ -521,6 +521,39 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
         }
     }
 
+    /// Runs `parser` as a lookahead probe and keeps nothing of it but its result.
+    ///
+    /// A probe only asks whether `parser` would match here. Whatever it does on the way is not
+    /// part of the parse, so this rewinds the input and the inspector state, and also restores
+    /// the two error channels that a plain rewind deliberately keeps: the furthest-failure
+    /// diagnostic candidates in the parser state, and the pending alternative error. Without
+    /// this, expectations that the probe collected deeper in the input outlive it, and a later
+    /// failure report points at the probe's position instead of the real one. The alternative
+    /// error that was pending before the probe is put back, so the probe cannot drop it either.
+    ///
+    /// On success the result carries the span that `parser` matched; on failure it carries the
+    /// error of `parser`, for the caller to report as its own.
+    #[requires(true)]
+    #[ensures(self.cursor.index == old(self.cursor.index))]
+    pub(crate) fn probe<O, P>(
+        &mut self,
+        parser: P,
+    ) -> Result<(O, SimpleSpan), SyntaxParseError<'tokens>>
+    where
+        P: Parser<'tokens, O>,
+    {
+        let before = self.save();
+        let pending_alternative = self.take_alternative();
+        let diagnostics = self.state.diagnostic_checkpoint();
+        let result = self
+            .parse(parser)
+            .map(|output| (output, self.span_since(before.cursor())));
+        self.rewind(before);
+        self.state.restore_diagnostics(diagnostics);
+        self.errors.alternative = pending_alternative;
+        result
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn add_expected<L, E>(
