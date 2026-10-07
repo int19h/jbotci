@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-readd.lohoi.empty-body-rejected"
+lojban = "lo'oi ku'au cu melbi"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#969 camxes-exp re-add"
+description = "camxes-exp (ilmentufa 778ea13) rejects this text. The subsentence is required."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 11], source-text = "ku'au", message = "unexpected cmavo" }]

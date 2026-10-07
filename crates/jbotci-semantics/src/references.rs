@@ -5417,6 +5417,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_quote(&sumti.0);
                 false
             }
+            generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
+                self.visit_subbridi(&sumti.subbridi);
+                false
+            }
             generated::SumtiBaseSyntax::LaheSumti(sumti) => {
                 if let Some(clauses) = &sumti.relative_clauses {
                     self.visit_relative_clause_list(argument_id, argument_id, clauses);

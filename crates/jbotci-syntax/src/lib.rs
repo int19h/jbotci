@@ -1020,6 +1020,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "bridi description",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "forethought sumti connection",
         parent: Some("sumti"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -2724,6 +2730,7 @@ pub enum ExperimentalConstruct {
     /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
+    ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -2799,6 +2806,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
             Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
+            Self::ExperimentalLohOiBridiDescription => {
+                "syntax.warning.experimental-loh-oi-bridi-description"
+            }
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -2914,6 +2924,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
+            Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"

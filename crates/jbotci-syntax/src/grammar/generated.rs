@@ -2046,6 +2046,8 @@ pub mod generated_model {
         scalar_negated_term_wrapper_with_bo,
         /// Uses the `scalar_negated_term_wrapper` product form, whose payload preserves `nahe`, `inner_term`, and `luhu`.
         scalar_negated_term_wrapper,
+        /// Uses the camxes-exp `bridi_description_sumti` product form, whose payload preserves `lohoi`, `subbridi`, and `kuhau`.
+        bridi_description_sumti,
         /// Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.
         name_sumti,
         /// Uses the `descriptor_with_outer_quantifier_sumti` product form, whose payload preserves `outer_quantifier`, `description`, `tail`, and `ku`.
@@ -2064,6 +2066,19 @@ pub mod generated_model {
         quoted_sumti,
         /// Uses the `pro_sumti` product form, whose payload preserves `koha`.
         pro_sumti,
+    }
+
+    /// camxes-exp's LOhOI bridi description, the `sumti_6` arm
+    /// `LOhOI_clause free* subsentence KUhAU_elidible free*` (camxes-exp.peg:189). The body is a
+    /// subsentence: camxes-exp has no joik chain of LOhOI heads and no I-connected statement body.
+    rule "bridi description" bridi_description_sumti(subbridi) -> struct {
+        /// The LOhOI marker, which carries the warning for the whole construct.
+        field lohoi <- cmavo(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
+        #[tree_child(primary)]
+        /// The described subsentence.
+        field subbridi <- arc(subbridi);
+        /// The optional `Kuhau` cmavo marker.
+        field kuhau <- opt(cmavo(Kuhau).wf()).elidable_terminator(Kuhau);
     }
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
