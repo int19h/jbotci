@@ -1154,17 +1154,17 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_sentence_bridi_tail(
         &mut self,
         tail: &'tree generated::SentenceBridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SentenceBridiTailSyntax::ExpIntervalConnectedBridiTail(tail) => {
-                self.analyze_interval_connected_bridi_tail(tail, gek_branch_initial_place)
+                self.analyze_interval_connected_bridi_tail(tail, branch_initial_place)
             }
             generated::SentenceBridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
-                self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
+                self.analyze_bridi_tail_with_possible_tail_terms(tail, branch_initial_place)
             }
             generated::SentenceBridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
-                self.analyze_bridi_tail_without_tail_terms(tail, gek_branch_initial_place)
+                self.analyze_bridi_tail_without_tail_terms(tail, branch_initial_place)
             }
         }
     }
@@ -1177,16 +1177,17 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_interval_connected_bridi_tail(
         &mut self,
         tail: &'tree generated::ExpIntervalConnectedBridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis = self.analyze_bridi_tail(&tail.first, gek_branch_initial_place);
-        let mut branch_cursors = self.consume_branch_tail_cursors(&mut analysis);
+        let mut analysis = self.analyze_bridi_tail(&tail.first, branch_initial_place);
+        let mut branch_cursors =
+            self.consume_branch_tail_cursors(&mut analysis, branch_initial_place);
         for joint in interval_bridi_tail_joints(tail) {
             if let Some(tense_modal) = joint.tense_modal {
                 self.walk_node(tense_modal);
             }
-            let mut next = self.analyze_bridi_tail(joint.bridi_tail, gek_branch_initial_place);
-            let next_cursors = self.consume_branch_tail_cursors(&mut next);
+            let mut next = self.analyze_bridi_tail(joint.bridi_tail, branch_initial_place);
+            let next_cursors = self.consume_branch_tail_cursors(&mut next, branch_initial_place);
             branch_cursors.extend(next_cursors);
             analysis.frames.extend(next.frames);
         }
@@ -1209,14 +1210,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail(
         &mut self,
         tail: &'tree generated::BridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
-                self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
+                self.analyze_bridi_tail_with_possible_tail_terms(tail, branch_initial_place)
             }
             generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
-                self.analyze_bridi_tail_without_tail_terms(tail, gek_branch_initial_place)
+                self.analyze_bridi_tail_without_tail_terms(tail, branch_initial_place)
             }
         }
     }
@@ -1226,12 +1227,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::BridiTailWithoutTailTermsSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let first = self.analyze_afterthought_bridi_tail_without_tail_terms(
-            &tail.first,
-            gek_branch_initial_place,
-        );
+        let first = self
+            .analyze_afterthought_bridi_tail_without_tail_terms(&tail.first, branch_initial_place);
         let mut branches = first.frames;
         let mut terms = first.terms;
         let mut branch_cursors = first.branch_cursors;
@@ -1239,7 +1238,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             let mut first_branch_cursors = if let Some(cursors) = branch_cursors.take() {
                 cursors
             } else {
-                let mut cursors = self.branch_tail_cursors(&branches);
+                let mut cursors = self.branch_tail_cursors(&branches, branch_initial_place);
                 self.assign_term_refs(&mut cursors, &terms, AssignmentSource::SequentialTerm);
                 terms.clear();
                 cursors
@@ -1248,8 +1247,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.walk_node(tense_modal);
             }
             let mut continuation =
-                self.analyze_bridi_tail(&ke_continuation.bridi_tail, gek_branch_initial_place);
-            let continuation_cursors = self.consume_branch_tail_cursors(&mut continuation);
+                self.analyze_bridi_tail(&ke_continuation.bridi_tail, branch_initial_place);
+            let continuation_cursors =
+                self.consume_branch_tail_cursors(&mut continuation, branch_initial_place);
             branches.extend(continuation.frames);
             first_branch_cursors.extend(continuation_cursors);
             self.assign_terms(
@@ -1278,9 +1278,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail_with_possible_tail_terms(
         &mut self,
         tail: &'tree generated::BridiTailWithPossibleTailTermsSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let first = self.analyze_afterthought_bridi_tail(&tail.first, gek_branch_initial_place);
+        let first = self.analyze_afterthought_bridi_tail(&tail.first, branch_initial_place);
         let mut branches = first.frames;
         let mut terms = first.terms;
         let mut branch_cursors = first.branch_cursors;
@@ -1288,7 +1288,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             let mut first_branch_cursors = if let Some(cursors) = branch_cursors.take() {
                 cursors
             } else {
-                let mut cursors = self.branch_tail_cursors(&branches);
+                let mut cursors = self.branch_tail_cursors(&branches, branch_initial_place);
                 self.assign_term_refs(&mut cursors, &terms, AssignmentSource::SequentialTerm);
                 terms.clear();
                 cursors
@@ -1297,8 +1297,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.walk_node(tense_modal);
             }
             let mut continuation =
-                self.analyze_bridi_tail(&ke_continuation.bridi_tail, gek_branch_initial_place);
-            let continuation_cursors = self.consume_branch_tail_cursors(&mut continuation);
+                self.analyze_bridi_tail(&ke_continuation.bridi_tail, branch_initial_place);
+            let continuation_cursors =
+                self.consume_branch_tail_cursors(&mut continuation, branch_initial_place);
             branches.extend(continuation.frames);
             first_branch_cursors.extend(continuation_cursors);
             self.assign_terms(
@@ -1327,24 +1328,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_afterthought_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::AfterthoughtBridiTailWithoutTailTermsSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis = self.analyze_bo_grouped_bridi_tail_without_tail_terms(
-            &tail.0.first,
-            gek_branch_initial_place,
-        );
+        let mut analysis = self
+            .analyze_bo_grouped_bridi_tail_without_tail_terms(&tail.0.first, branch_initial_place);
         let mut branch_cursors = if tail.0.links.is_empty() {
             analysis.branch_cursors.take()
         } else {
-            Some(self.consume_branch_tail_cursors(&mut analysis))
+            Some(self.consume_branch_tail_cursors(&mut analysis, branch_initial_place))
         };
         for continuation in &tail.0.links {
             let mut next = self.analyze_bo_grouped_bridi_tail_without_tail_terms(
                 &continuation.bridi_tail,
-                gek_branch_initial_place,
+                branch_initial_place,
             );
             if let Some(cursors) = branch_cursors.as_mut() {
-                let next_cursors = self.consume_branch_tail_cursors(&mut next);
+                let next_cursors =
+                    self.consume_branch_tail_cursors(&mut next, branch_initial_place);
                 cursors.extend(next_cursors);
             }
             analysis.frames.extend(next.frames);
@@ -1368,20 +1368,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_afterthought_bridi_tail(
         &mut self,
         tail: &'tree generated::AfterthoughtBridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis =
-            self.analyze_bo_grouped_bridi_tail(&tail.0.first, gek_branch_initial_place);
+        let mut analysis = self.analyze_bo_grouped_bridi_tail(&tail.0.first, branch_initial_place);
         let mut branch_cursors = if tail.0.links.is_empty() {
             analysis.branch_cursors.take()
         } else {
-            Some(self.consume_branch_tail_cursors(&mut analysis))
+            Some(self.consume_branch_tail_cursors(&mut analysis, branch_initial_place))
         };
         for continuation in &tail.0.links {
-            let mut next = self
-                .analyze_bo_grouped_bridi_tail(&continuation.bridi_tail, gek_branch_initial_place);
+            let mut next =
+                self.analyze_bo_grouped_bridi_tail(&continuation.bridi_tail, branch_initial_place);
             if let Some(cursors) = branch_cursors.as_mut() {
-                let next_cursors = self.consume_branch_tail_cursors(&mut next);
+                let next_cursors =
+                    self.consume_branch_tail_cursors(&mut next, branch_initial_place);
                 cursors.extend(next_cursors);
                 self.assign_terms(
                     cursors,
@@ -1410,16 +1410,16 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bo_grouped_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::BoGroupedBridiTailWithoutTailTermsSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis = self
-            .analyze_simple_bridi_tail_without_tail_terms(&tail.first, gek_branch_initial_place);
+        let mut analysis =
+            self.analyze_simple_bridi_tail_without_tail_terms(&tail.first, branch_initial_place);
         let mut branch_cursors = analysis.branch_cursors.take();
         if let Some(continuation) = tail.bo_continuation.as_deref() {
             let mut active_cursors = if let Some(cursors) = branch_cursors.take() {
                 cursors
             } else {
-                self.consume_branch_tail_cursors(&mut analysis)
+                self.consume_branch_tail_cursors(&mut analysis, branch_initial_place)
             };
             let continuation =
                 GeneratedBridiTailBoJointWithoutTailTermsRef::from_joint(continuation);
@@ -1428,9 +1428,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             let mut next = self.analyze_bo_grouped_bridi_tail_without_tail_terms(
                 continuation.bridi_tail,
-                gek_branch_initial_place,
+                branch_initial_place,
             );
-            let next_cursors = self.consume_branch_tail_cursors(&mut next);
+            let next_cursors = self.consume_branch_tail_cursors(&mut next, branch_initial_place);
             analysis.frames.extend(next.frames);
             active_cursors.extend(next_cursors);
             branch_cursors = Some(active_cursors);
@@ -1454,23 +1454,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bo_grouped_bridi_tail(
         &mut self,
         tail: &'tree generated::BoGroupedBridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
-        let mut analysis = self.analyze_simple_bridi_tail(&tail.first, gek_branch_initial_place);
+        let mut analysis = self.analyze_simple_bridi_tail(&tail.first, branch_initial_place);
         let mut branch_cursors = analysis.branch_cursors.take();
         if let Some(continuation) = tail.bo_continuation.as_deref() {
             let mut active_cursors = if let Some(cursors) = branch_cursors.take() {
                 cursors
             } else {
-                self.consume_branch_tail_cursors(&mut analysis)
+                self.consume_branch_tail_cursors(&mut analysis, branch_initial_place)
             };
             let continuation = GeneratedBridiTailBoJointRef::from_joint(continuation);
             if let Some(tense_modal) = continuation.tense_modal {
                 self.walk_node(tense_modal);
             }
-            let mut next = self
-                .analyze_bo_grouped_bridi_tail(continuation.bridi_tail, gek_branch_initial_place);
-            let next_cursors = self.consume_branch_tail_cursors(&mut next);
+            let mut next =
+                self.analyze_bo_grouped_bridi_tail(continuation.bridi_tail, branch_initial_place);
+            let next_cursors = self.consume_branch_tail_cursors(&mut next, branch_initial_place);
             analysis.frames.extend(next.frames);
             active_cursors.extend(next_cursors);
             self.assign_terms(
@@ -1499,7 +1499,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_simple_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
@@ -1530,7 +1530,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(tail) => {
                 let frames = self.analyze_forethought_bridi_connection_without_tail_terms(
                     &tail.0,
-                    gek_branch_initial_place,
+                    branch_initial_place,
                 );
                 GeneratedBridiTailAnalysis {
                     frames,
@@ -1546,7 +1546,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_simple_bridi_tail(
         &mut self,
         tail: &'tree generated::SimpleBridiTailSyntax,
-        gek_branch_initial_place: u8,
+        branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
@@ -1584,7 +1584,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             generated::SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(tail) => {
                 let frames =
-                    self.analyze_forethought_bridi_connection(&tail.0, gek_branch_initial_place);
+                    self.analyze_forethought_bridi_connection(&tail.0, branch_initial_place);
                 GeneratedBridiTailAnalysis {
                     frames,
                     terms: Vec::new(),
@@ -2933,13 +2933,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         }
     }
 
-    #[requires(true)]
-    #[ensures(true)]
-    fn branch_tail_cursors(&self, frames: &[SelbriPlaceFrameId]) -> Vec<PlaceCursor> {
+    /// Cursors for the terms of each branch of a connected bridi tail. A branch's own terms
+    /// start at `branch_initial_place`, the place after the leading terms that all branches
+    /// share, so that `mi do klama gi'e cadzu ko'a` gives ko'a cadzu's x3 (CLL 2.6). They never
+    /// start at x1, which belongs to the leading position even when it is empty.
+    #[requires(branch_initial_place > 0)]
+    #[ensures(ret.len() == frames.len())]
+    #[ensures(ret.iter().all(|cursor| cursor.next_place >= 2))]
+    fn branch_tail_cursors(
+        &self,
+        frames: &[SelbriPlaceFrameId],
+        branch_initial_place: u8,
+    ) -> Vec<PlaceCursor> {
+        let start = branch_initial_place.max(2);
         frames
             .iter()
             .copied()
-            .map(|frame| self.tail_cursor_with_existing_assignments(frame, 2))
+            .map(|frame| self.tail_cursor_with_existing_assignments(frame, start))
             .collect()
     }
 
@@ -3179,11 +3189,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn consume_branch_tail_cursors(
         &mut self,
         analysis: &mut GeneratedBridiTailAnalysis<'tree>,
+        branch_initial_place: u8,
     ) -> Vec<PlaceCursor> {
         if let Some(cursors) = analysis.branch_cursors.take() {
             return cursors;
         }
-        let mut cursors = self.branch_tail_cursors(&analysis.frames);
+        let mut cursors = self.branch_tail_cursors(&analysis.frames, branch_initial_place);
         self.assign_term_refs(
             &mut cursors,
             &analysis.terms,
