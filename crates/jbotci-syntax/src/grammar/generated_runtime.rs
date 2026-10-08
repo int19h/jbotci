@@ -982,6 +982,37 @@ pub(crate) fn choice_cons<P, Rest>(head: P, rest: Rest) -> ChoiceCons<P, Rest> {
     ChoiceCons { head, rest }
 }
 
+/// One alternative that exists only under dialect features (an enum arm under
+/// `when feature(...)`), followed by the remaining alternatives.
+///
+/// While a feature is off, the alternative is not part of the grammar. The choice then skips
+/// it without running it, so a disabled alternative adds no expectation to the choice's
+/// error. If it ran and failed instead, its "feature" expectation would join the errors of
+/// the other alternatives at the same position, and as the earlier error it would win a tie
+/// against them. Only when every alternative of the choice is skipped does the choice report
+/// the first disabled feature, because it then has no other error to report.
+#[invariant(!features.is_empty(), "a feature-gated alternative names at least one feature")]
+#[derive(Clone)]
+pub(crate) struct ChoiceFeatureCons<P, Rest> {
+    features: &'static [SyntaxGrammarFeature],
+    head: P,
+    rest: Rest,
+}
+
+#[requires(!features.is_empty())]
+#[ensures(true)]
+pub(crate) fn choice_feature_cons<P, Rest>(
+    features: &'static [SyntaxGrammarFeature],
+    head: P,
+    rest: Rest,
+) -> ChoiceFeatureCons<P, Rest> {
+    new!(ChoiceFeatureCons {
+        features,
+        head,
+        rest,
+    })
+}
+
 /// Ordered-choice driving over a typed alternative list.
 ///
 /// `Err(())` means every alternative failed and `abandoned` holds the merged error of
@@ -995,6 +1026,11 @@ pub(crate) trait OrderedChoiceAlternatives<'tokens, O> {
         input: &mut InputRef<'tokens, '_>,
         abandoned: &mut Option<SyntaxParseError<'tokens>>,
     ) -> Result<O, ()>;
+
+    /// Whether the list has no alternative left.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_empty(&self) -> bool;
 }
 
 /// The empty tail is only driven after a preceding alternative failed, so the abandoned
@@ -1012,6 +1048,11 @@ impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
             "the empty tail follows a failed alternative"
         );
         Err(())
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        true
     }
 }
 
@@ -1039,6 +1080,60 @@ where
                 self.rest.drive_emit_alternatives(input, abandoned)
             }
         }
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        false
+    }
+}
+
+#[contract_trait]
+impl<'tokens, O, P, Rest> OrderedChoiceAlternatives<'tokens, O> for ChoiceFeatureCons<P, Rest>
+where
+    P: Parser<'tokens, O>,
+    Rest: OrderedChoiceAlternatives<'tokens, O>,
+{
+    #[inline(always)]
+    fn drive_emit_alternatives(
+        &self,
+        input: &mut InputRef<'tokens, '_>,
+        abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    ) -> Result<O, ()> {
+        let dialect = input.state().syntax_grammar_env().dialect;
+        let disabled = self
+            .features
+            .iter()
+            .copied()
+            .find(|feature| !feature.enabled(dialect));
+        let Some(disabled) = disabled else {
+            let checkpoint = input.save();
+            return match input.parse(&self.head) {
+                Ok(output) => {
+                    record_abandoned_choice_error(input, abandoned);
+                    Ok(output)
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    merge_abandoned_choice_error(abandoned, error);
+                    self.rest.drive_emit_alternatives(input, abandoned)
+                }
+            };
+        };
+        if self.rest.is_empty() && abandoned.is_none() {
+            // Every alternative of the choice was skipped.
+            *abandoned = Some(expected_found_named_at_current(
+                input,
+                disabled.expected_name().to_owned(),
+            ));
+            return Err(());
+        }
+        self.rest.drive_emit_alternatives(input, abandoned)
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        false
     }
 }
 
@@ -1071,19 +1166,28 @@ fn merge_abandoned_choice_error<'tokens>(
     });
 }
 
+/// A typed alternative list that starts with a cons cell, so it is never empty.
+#[contract_trait]
+pub(crate) trait NonEmptyChoiceAlternatives {}
+
+#[contract_trait]
+impl<P, Rest> NonEmptyChoiceAlternatives for ChoiceCons<P, Rest> {}
+
+#[contract_trait]
+impl<P, Rest> NonEmptyChoiceAlternatives for ChoiceFeatureCons<P, Rest> {}
+
 /// Ordered choice over a typed alternative list; see [`ChoiceCons`].
 ///
-/// Taking the first cons cell makes an empty choice unrepresentable: an empty list would
-/// have no abandoned error to report.
+/// Taking a list that starts with a cons cell makes an empty choice unrepresentable: an
+/// empty list would have no abandoned error to report.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_ordered_choice<'tokens, O, P, Rest>(
-    alternatives: ChoiceCons<P, Rest>,
+pub(crate) fn strict_ordered_choice<'tokens, O, L>(
+    alternatives: L,
 ) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-    Rest: OrderedChoiceAlternatives<'tokens, O> + Clone + 'tokens,
+    L: OrderedChoiceAlternatives<'tokens, O> + NonEmptyChoiceAlternatives + Clone + 'tokens,
 {
     custom::<_, _>(
         #[inline(always)]

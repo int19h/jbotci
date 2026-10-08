@@ -2873,13 +2873,6 @@ impl EnumRule {
                         StrictParserCallMode::Local,
                     )?
                 };
-                let branch_parser = branch
-                    .conditions
-                    .iter()
-                    .rev()
-                    .fold(branch_parser, |parser, condition| {
-                        condition.expand_strict_gate(parser)
-                    });
                 let value = if output_is_generated_model(generate_model, model_outputs, &self.output) {
                     branch.containment(branch_output, type_env)
                         .lower(quote!(#field), &quote!(WithFreeModifiers))
@@ -2889,10 +2882,13 @@ impl EnumRule {
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
-                Ok(quote!(#branch_parser.map(|#field| #body)))
+                Ok(EnumChoiceAlternative {
+                    parser: quote!(#branch_parser.map(|#field| #body)),
+                    conditions: &branch.conditions,
+                })
             })
             .collect::<Result<Vec<_>>>()?;
-        let parser = strict_choice_chain(alternatives, &self.name)?;
+        let parser = enum_choice_chain(alternatives, &self.name)?;
         let name = flavor.rule_parser_name(&self.name.to_string());
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
@@ -3009,13 +3005,6 @@ impl EnumRule {
                         true,
                     )?
                 };
-                let branch_parser = branch
-                    .conditions
-                    .iter()
-                    .rev()
-                    .fold(branch_parser, |parser, condition| {
-                        condition.expand_strict_gate(parser)
-                    });
                 let value = if output_is_generated_model(true, model_outputs, &self.output) {
                     branch.containment(branch_output, type_env)
                         .lower(quote!(#field), &quote!(#recovered_module::WithFreeModifiers))
@@ -3025,10 +3014,13 @@ impl EnumRule {
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
-                Ok(quote!(#branch_parser.map(|#field| #body)))
+                Ok(EnumChoiceAlternative {
+                    parser: quote!(#branch_parser.map(|#field| #body)),
+                    conditions: &branch.conditions,
+                })
             })
             .collect::<Result<Vec<_>>>()?;
-        let parser = strict_choice_chain(alternatives, &self.name)?;
+        let parser = enum_choice_chain(alternatives, &self.name)?;
         let name = format_ident!("recovered_{}_parser", self.name);
         let argument_tokens = recovered_parser_argument_tokens(
             &self.arguments,
@@ -6257,6 +6249,63 @@ fn strict_choice_alternative_parser_tokens(
             })
         })
         .collect()
+}
+
+/// One arm of a generated enum parser, with the dialect conditions that it exists under.
+#[invariant(true)]
+struct EnumChoiceAlternative<'a> {
+    parser: TokenStream2,
+    conditions: &'a [Condition],
+}
+
+/// The ordered choice over the arms of a generated enum parser.
+///
+/// An arm under `when feature(...)` becomes a `choice_feature_cons` cell, which skips the arm
+/// while a feature is off instead of running a gate that fails: a disabled arm is not part of
+/// the grammar, so it must not add an expectation to the choice's error. A lone arm keeps its
+/// gate, because it is the whole choice.
+#[requires(true)]
+#[ensures(true)]
+fn enum_choice_chain(
+    mut alternatives: Vec<EnumChoiceAlternative<'_>>,
+    span: impl ToTokens,
+) -> Result<TokenStream2> {
+    if alternatives.is_empty() {
+        return Err(syn::Error::new_spanned(
+            span,
+            "strict parser choice must have at least one alternative",
+        ));
+    }
+    if alternatives.len() == 1 {
+        let alternative = alternatives.pop().expect("length checked");
+        return Ok(alternative
+            .conditions
+            .iter()
+            .rev()
+            .fold(alternative.parser, |parser, condition| {
+                condition.expand_strict_gate(parser)
+            }));
+    }
+    let list = alternatives.into_iter().rev().fold(
+        quote!(generated_runtime::choice_nil()),
+        |rest, alternative| {
+            let parser = alternative.parser;
+            if alternative.conditions.is_empty() {
+                quote!(generated_runtime::choice_cons(#parser, #rest))
+            } else {
+                let features = alternative
+                    .conditions
+                    .iter()
+                    .map(|condition| &condition.feature);
+                quote!(generated_runtime::choice_feature_cons(
+                    &[#(generated_runtime::SyntaxGrammarFeature::#features),*],
+                    #parser,
+                    #rest,
+                ))
+            }
+        },
+    );
+    Ok(quote!(generated_runtime::strict_ordered_choice(#list)))
 }
 
 #[requires(true)]

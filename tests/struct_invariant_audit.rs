@@ -1376,6 +1376,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumChoiceAlternative",
+        "a generated enum arm pairs its emitted parser with its parsed dialect conditions, and every pair is valid",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:GeneratedStructModel",
         "syntax macro generated model state is assembled from typed grammar metadata",
     ),

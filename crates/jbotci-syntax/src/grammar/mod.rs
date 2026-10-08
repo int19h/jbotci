@@ -6029,6 +6029,83 @@ mod tests {
         }
     }
 
+    /// An ordered-choice alternative under a disabled dialect feature is skipped, so it adds no
+    /// expectation to the choice's error. With the feature on, it runs as usual. When every
+    /// alternative is skipped, the choice reports the disabled feature.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn disabled_feature_alternatives_add_no_expectation() {
+        use super::generated_runtime::{
+            SyntaxGrammarFeature, choice_cons, choice_feature_cons, choice_nil,
+            strict_ordered_choice,
+        };
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::spanned_tokens;
+
+        let words = segment_words_with_modifiers("mi").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let first = tokens[0].span;
+        let eoi = SimpleSpan::from(first.end..first.end);
+        let failing = |message: &'static str| {
+            custom(move |_| Err::<(), _>(SyntaxParseError::custom(first, message.to_owned())))
+                .boxed()
+        };
+        let report = |parser: Boxed<'static, ()>, options: &ParseOptions| {
+            let mut state = ParserState::new(words, options);
+            let errors = parser
+                .parse_with_state(tokens.split_spanned(eoi), &mut state)
+                .into_result()
+                .expect_err("every alternative fails");
+            format!("{errors:?}")
+        };
+        let gated_first = || {
+            strict_ordered_choice(choice_feature_cons(
+                &[SyntaxGrammarFeature::Cbm],
+                failing("gated alternative"),
+                choice_cons(failing("plain alternative"), choice_nil()),
+            ))
+            .boxed()
+        };
+        let default_options = ParseOptions::default();
+        let off = report(gated_first(), &default_options);
+        assert!(
+            off.contains("plain alternative") && !off.contains("gated alternative"),
+            "a disabled alternative is skipped: {off}"
+        );
+        assert!(
+            !off.contains("CBM feature"),
+            "a disabled alternative adds no expectation: {off}"
+        );
+        let feature_options = ParseOptions::default().with_dialect_definition(
+            &jbotci_dialect::DialectDefinition::new(
+                Vec::new(),
+                [jbotci_dialect::DialectFeature::Cbm].into(),
+            ),
+        );
+        let on = report(gated_first(), &feature_options);
+        assert!(
+            on.contains("gated alternative"),
+            "an enabled alternative runs, and as the earlier error it wins the tie: {on}"
+        );
+        let only_gated = strict_ordered_choice(choice_feature_cons(
+            &[SyntaxGrammarFeature::Cbm],
+            failing("gated alternative"),
+            choice_feature_cons(
+                &[SyntaxGrammarFeature::NaJoik],
+                failing("second gated alternative"),
+                choice_nil(),
+            ),
+        ))
+        .boxed();
+        let all_skipped = report(only_gated, &default_options);
+        assert!(
+            all_skipped.contains("NA-JOIK feature") && !all_skipped.contains("gated alternative"),
+            "a choice whose alternatives are all skipped reports a disabled feature: {all_skipped}"
+        );
+    }
+
     /// A failing `not` names the token at the probe position as the one found, not the end
     /// of input.
     #[test]
