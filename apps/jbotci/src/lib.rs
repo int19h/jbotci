@@ -12,7 +12,7 @@ mod tool;
 
 /// Help for `--dialect`, shared by every command that takes it. The list of grammar features
 /// must name every `DialectFeature`; a test checks it.
-const DIALECT_HELP: &str = "Dialect to use. Give a builtin dialect name, such as cbm or ce-ki-tau, or a formula in parentheses that combines names, such as (cbm ce-ki-tau). In a formula, +NAME turns on one grammar feature, such as (+na-joik). The grammar features are cbm, case-insensitive, permissive-lexer, unrestricted-free and na-joik. With na-joik, NA before JOI is one connective, as in camxes-exp, at every connective site: ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term. Omit the option for standard Lojban.";
+const DIALECT_HELP: &str = "Dialect to use. Give a builtin dialect name, such as cbm or ce-ki-tau, or a formula in parentheses that combines names, such as (cbm ce-ki-tau). In a formula, +NAME turns on one grammar feature, such as (+na-joik). The grammar features are cbm, case-insensitive, permissive-lexer, unrestricted-free, na-joik and mex-quantifier. With na-joik, NA before JOI is one connective, as in camxes-exp, at every connective site: ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term. With mex-quantifier, a mex without VEI can be a quantifier, as in camxes-exp: ci su'i re prenu cu klama has the quantifier ci su'i re. Without it, a quantifier is a number or a VEI mex. The feature also changes the reading of some texts that standard Lojban accepts. Omit the option for standard Lojban.";
 
 #[cfg(test)]
 mod windows_stack;
