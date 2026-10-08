@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-forms.na-joik.sumti-ke-default"
+lojban = "ko'a na joi ke ko'e ke'e broda"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "Without the na-joik feature, jbotci rejects this text, because the default grammar has no NA before JOI here. The na-joik twin gives camxes-exp's reading, (BRIDI: [SUMTI {KOhA:ko'a <(¹NA:na JOI:joi¹) KE:ke (¹SUMTI: KOhA:ko'e¹) KEhE:ke'e>}] [SELBRI: G:broda])."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ke", message = "unexpected cmavo" }]

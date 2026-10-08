@@ -9,6 +9,11 @@ mod commands;
 mod lsp;
 mod output;
 mod tool;
+
+/// Help for `--dialect`, shared by every command that takes it. The list of grammar features
+/// must name every `DialectFeature`; a test checks it.
+const DIALECT_HELP: &str = "Dialect to use. Give a builtin dialect name, such as cbm or ce-ki-tau, or a formula in parentheses that combines names, such as (cbm ce-ki-tau). In a formula, +NAME turns on one grammar feature, such as (+na-joik). The grammar features are cbm, case-insensitive, permissive-lexer, unrestricted-free and na-joik. With na-joik, NA before JOI is one connective, as in camxes-exp, at every connective site: ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term. Omit the option for standard Lojban.";
+
 #[cfg(test)]
 mod windows_stack;
 
@@ -601,7 +606,7 @@ pub struct VlaseiInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect")]
+    #[arg(long = "dialect", help = DIALECT_HELP)]
     pub dialect: Option<String>,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
@@ -653,7 +658,7 @@ pub struct VlataiInput {
     pub format: VlataiFormat,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
-    #[arg(long = "dialect")]
+    #[arg(long = "dialect", help = DIALECT_HELP)]
     pub dialect: Option<String>,
     #[arg(long = "mark-stress", value_enum)]
     pub mark_stress: Option<CliStressMark>,
@@ -684,7 +689,7 @@ pub struct TextInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect")]
+    #[arg(long = "dialect", help = DIALECT_HELP)]
     pub dialect: Option<String>,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
@@ -746,7 +751,7 @@ pub struct GentufaInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect")]
+    #[arg(long = "dialect", help = DIALECT_HELP)]
     pub dialect: Option<String>,
     #[arg(long = "show-defs")]
     pub show_defs: bool,
@@ -2012,4 +2017,21 @@ fn command_not_implemented(command: &str) -> Result<()> {
     Err(anyhow!(
         "`{command}` is scaffolded but its implementation has not been ported yet"
     ))
+}
+
+#[cfg(test)]
+mod dialect_help_tests {
+    use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dialect_help_names_every_grammar_feature() {
+        for feature in jbotci_dialect::DialectFeature::all() {
+            assert!(
+                super::DIALECT_HELP.contains(feature.name()),
+                "--dialect help does not name {feature}"
+            );
+        }
+    }
 }

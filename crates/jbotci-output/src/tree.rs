@@ -706,6 +706,7 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
         "JekConnective" | "ParagraphJekConnective" => "Selbri",
         "GihekConnective" => "BridiTail",
         "CeheConnective"
+        | "ExpNaJoiConnective"
         | "JoiConnective"
         | "ParagraphJoiConnective"
         | "VuhuNonlogicalConnective" => "NonLogical",
@@ -2297,7 +2298,8 @@ fn generated_joik_connective_constructor(
     connective: &generated_model::JoikConnectiveSyntax,
 ) -> &'static str {
     match connective {
-        generated_model::JoikConnectiveSyntax::JoiConnective { .. } => "NonLogical",
+        generated_model::JoikConnectiveSyntax::JoiConnective { .. }
+        | generated_model::JoikConnectiveSyntax::ExpNaJoiConnective { .. } => "NonLogical",
         generated_model::JoikConnectiveSyntax::SimpleIntervalConnective { .. }
         | generated_model::JoikConnectiveSyntax::ClosedIntervalConnective { .. } => "Interval",
     }

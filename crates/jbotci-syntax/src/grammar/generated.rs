@@ -2135,6 +2135,11 @@ pub mod generated_model {
                 selmaho(Giha),
             ).ignored(),
         ));
+        // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), and its merged
+        // `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective, so `na joi` and
+        // `na se je` never begin a bare NA term there. The default grammar keeps its bare NA
+        // term before JOI; the `na-joik` feature gives it camxes-exp's guard.
+        assert !feature(NaJoik, (opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
     }
 
     /// Transparent product node for tag; preserves the `tense_modal` component.
@@ -3927,6 +3932,26 @@ pub mod generated_model {
         joi_connective,
         /// Uses the `simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.
         simple_interval_connective,
+        /// camxes-exp's NA before JOI, under the `na-joik` dialect feature. No other arm starts
+        /// with NA, so its place in the order does not decide any reading.
+        when feature(NaJoik) exp_na_joi_connective,
+    }
+
+    /// camxes-exp's merged `joik` with NA before JOI: `NA_clause SE_clause? JOI_clause NAI_clause?`
+    /// (camxes-exp.peg:347). It reads NA JOI as one connective, so it changes the reading of
+    /// texts that the default grammar parses with a bare NA term before a JOI connection, such
+    /// as `ko'a na joi ko'e broda`. It is therefore reached only under the `na-joik` dialect
+    /// feature, which also gives the bare NA term camxes-exp's `!joik_jek` guard.
+    rule "joik" exp_na_joi_connective -> struct {
+        /// A word from selmaho `Na`.
+        field na <- selmaho(Na);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI word, which carries the warning for the construct.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for joik; preserves `se`, `joi`, and `nai` in source order.

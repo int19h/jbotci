@@ -91,17 +91,20 @@ impl SyntaxGrammarEnv {
 pub(crate) struct SyntaxGrammarDialect {
     pub cbm_enabled: bool,
     pub unrestricted_free_enabled: bool,
+    pub na_joik_enabled: bool,
 }
 
 impl SyntaxGrammarDialect {
     #[requires(true)]
     #[ensures(ret.cbm_enabled == options.dialect.features.contains(&DialectFeature::Cbm))]
     #[ensures(ret.unrestricted_free_enabled == options.dialect.features.contains(&DialectFeature::UnrestrictedFree))]
+    #[ensures(ret.na_joik_enabled == options.dialect.features.contains(&DialectFeature::NaJoik))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
             cbm_enabled: features.contains(&DialectFeature::Cbm),
             unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
+            na_joik_enabled: features.contains(&DialectFeature::NaJoik),
         }
     }
 }
@@ -112,6 +115,7 @@ impl SyntaxGrammarDialect {
 pub(crate) enum SyntaxGrammarFeature {
     Cbm,
     UnrestrictedFree,
+    NaJoik,
 }
 
 impl SyntaxGrammarFeature {
@@ -121,6 +125,7 @@ impl SyntaxGrammarFeature {
         match self {
             Self::Cbm => dialect.cbm_enabled,
             Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
+            Self::NaJoik => dialect.na_joik_enabled,
         }
     }
 
@@ -130,6 +135,7 @@ impl SyntaxGrammarFeature {
         match self {
             Self::Cbm => "CBM feature",
             Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
+            Self::NaJoik => "NA-JOIK feature",
         }
     }
 }

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-forms.na-joik.tag-selbri-default"
+lojban = "pu na joi ca broda"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "Without the na-joik feature, jbotci rejects this text, because the default grammar has no NA before JOI here. The na-joik twin gives camxes-exp's reading, (BRIDI: [SELBRI {PU:pu <(¹NA:na JOI:joi¹) PU:ca>} G:broda])."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [13, 18], source-text = "broda", message = "unexpected brivla" }]

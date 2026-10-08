@@ -1,0 +1,32 @@
+id = "adhoc.syntax.camxes-exp-forms.na-joik.text-leading-i-na-joik"
+lojban = "na joi .i broda"
+dialect = "(+na-joik)"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "With the na-joik dialect feature, NA SE? JOI NAI? is one connective, as in camxes-exp's merged joik (camxes-exp.peg:347), and the bare NA term refuses to start at it (:160). camxes-exp (ilmentufa 778ea13) gives ([NA:na JOI:joi] [I:i {BRIDI: <SELBRI: G:broda>}]). The jbotci tree has the same structure. NA before JOI warns experimental-na-joi-connective."
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(StandardStatementConnective(JoikConnective(ExpNaJoiConnective(ExpNaJoiConnectiveSyntax { na: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), se: None, joi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), free_modifiers: [] }, nai: None })))), leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } })), connective: None, free_modifiers: [] }], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] })), additional_niho: [] })) })'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-na-joi-connective", byte-span = [3, 6], source-text = "joi", message = "experimental syntax: NA before JOI as one connective", word-index = 1 }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[{"index":0,"node":{"offset":10,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":10,"length":5},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":10,"length":5},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":10,"length":5},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":10,"length":5},"kind":"compound","selbri":{"offset":10,"length":5},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[]}},{"index":3,"node":{"offset":10,"length":5},"kind":"forwarding","selbri":{"offset":10,"length":5},"tanru-unit":null,"propagation":{"kind":"forward","inner":2}},{"index":4,"node":{"offset":10,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":3}},{"index":5,"node":{"offset":10,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}},{"index":6,"node":{"offset":10,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[5]}},{"index":7,"node":{"offset":10,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":10,"length":5},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}}],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥15) {
+  leading_connective: NonLogical @[0‥6) {
+    na: Cmavo @[0‥2) "na",
+    Cmavo @[3‥6) "joĭ",
+  },
+  ParagraphStatement @[8‥15) {
+    i: Cmavo @[8‥9) "i",
+    Gismu @[10‥15) "bróda",
+  },
+}"""
+json = '{"RegularText":{"leading_connective":{"StandardStatementConnective":{"JoikConnective":{"ExpNaJoiConnective":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[0,2]}}}},"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}}}}}}},"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'
