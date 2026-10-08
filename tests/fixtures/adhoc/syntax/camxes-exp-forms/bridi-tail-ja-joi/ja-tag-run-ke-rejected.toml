@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-forms.bridi-tail-ja-joi.ja-tag-run-ke-rejected"
+lojban = "mi broda je pu nai bau ke brode ke'e"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "camxes-exp (ilmentufa 778ea13) gives (BRIDI: [SUMTI: KOhA:mi] [SELBRI: {G:broda <JA:je (¹[PU:pu NAI:nai] BAI:bau¹) KE:ke G:brode KEhE:ke'e>}]), with pu nai bau as one stag. jbotci's tag stops after pu nai, so it cannot build that stag. The flat JA joint is refused when the whole run reaches KE, so jbotci rejects the text instead of splitting pu nai off as a term before a BAI-tagged KE selbri, which camxes-exp never derives. Tag runs that jbotci cannot read are a camxes-exp-only difference."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 22], source-text = "bau", message = "unexpected cmavo" }]
