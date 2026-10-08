@@ -3590,6 +3590,19 @@ impl NodeRule {
     }
 }
 
+/// The expectation that a failing positive probe reports; see
+/// `GrammarTypeEnv::probe_expected_tokens`.
+#[invariant(::Rule(label) => !label.is_empty())]
+#[derive(Debug, Clone)]
+enum ProbeLabel<'a> {
+    /// The label of the labelled rule or alias that the probe tests.
+    Rule(&'a str),
+    /// The probe tests a `not`.
+    NegativePredicate,
+    /// The probe tests anything else.
+    PositivePredicate,
+}
+
 #[invariant(true)]
 struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
@@ -3597,6 +3610,8 @@ struct GrammarTypeEnv {
     rule_arguments: BTreeMap<String, Vec<String>>,
     generated_struct_fields: BTreeMap<String, BTreeMap<String, Type>>,
     model_nodes: BTreeSet<String>,
+    /// The context label of every labelled rule and alias, by name.
+    rule_labels: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3852,6 +3867,10 @@ impl GrammarTypeEnv {
                     simple_type_ident(rule.declared_output()?).map(ToString::to_string)
                 })
                 .collect(),
+            rule_labels: rules
+                .iter()
+                .filter_map(|rule| Some((rule.name().to_string(), rule.context_label()?)))
+                .collect(),
         };
 
         for rule in rules {
@@ -3919,6 +3938,93 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
+    /// The expectation that a failing positive probe of `target` reports at the probe position.
+    ///
+    /// It is the label of the rule or alias that `target` names. A `not` target reports the
+    /// same fixed label that `not` itself reports, and any other target reports the fixed
+    /// positive-predicate label. `lookahead` and `ignored` do not change the construct that a
+    /// probe tests, so the label is looked up through them. This keeps
+    /// `assert rule.lookahead();`, which wraps one lookahead in another, reporting the rule
+    /// label.
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_expected_tokens(&self, target: &ParserExpr) -> TokenStream2 {
+        self.probe_label_tokens(self.parser_expr_probe_label(target))
+    }
+
+    /// The same as `probe_expected_tokens`, for a probe target written as a plain Rust
+    /// expression.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rust_probe_expected_tokens(&self, target: &Expr) -> TokenStream2 {
+        self.probe_label_tokens(self.rust_expr_probe_label(target))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_label_tokens(&self, label: ProbeLabel<'_>) -> TokenStream2 {
+        match label.as_data() {
+            data!(ProbeLabel::Rule(label)) => quote!(#label),
+            data!(ProbeLabel::NegativePredicate) => {
+                quote!(generated_runtime::NEGATIVE_PREDICATE_LABEL)
+            }
+            data!(ProbeLabel::PositivePredicate) => {
+                quote!(generated_runtime::POSITIVE_PREDICATE_LABEL)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_expr_probe_label(&self, target: &ParserExpr) -> ProbeLabel<'_> {
+        match target {
+            ParserExpr::Rust(expr) => self.rust_expr_probe_label(expr),
+            ParserExpr::Postfix {
+                receiver,
+                method,
+                args,
+            } if args.is_empty() && (method == "lookahead" || method == "ignored") => {
+                self.parser_expr_probe_label(receiver)
+            }
+            ParserExpr::Postfix { method, args, .. } if args.is_empty() && method == "not" => {
+                new!(ProbeLabel::NegativePredicate)
+            }
+            ParserExpr::Vector(_) | ParserExpr::Chain(_) | ParserExpr::Postfix { .. } => {
+                new!(ProbeLabel::PositivePredicate)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rust_expr_probe_label(&self, target: &Expr) -> ProbeLabel<'_> {
+        let rule = match target {
+            Expr::Paren(paren) => return self.rust_expr_probe_label(&paren.expr),
+            Expr::MethodCall(method)
+                if method.args.is_empty()
+                    && (method.method == "lookahead" || method.method == "ignored") =>
+            {
+                return self.rust_expr_probe_label(&method.receiver);
+            }
+            Expr::MethodCall(method) if method.args.is_empty() && method.method == "not" => {
+                return new!(ProbeLabel::NegativePredicate);
+            }
+            Expr::Path(path) => path.path.get_ident(),
+            Expr::Call(call) => match call.func.as_ref() {
+                Expr::Path(path) => path.path.get_ident(),
+                _ => None,
+            },
+            _ => None,
+        };
+        match rule
+            .and_then(|rule| self.rule_labels.get(&rule.to_string()))
+            .filter(|label| !label.is_empty())
+        {
+            Some(label) => new!(ProbeLabel::Rule(label.as_str())),
+            None => new!(ProbeLabel::PositivePredicate),
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn rule_known_for_recovery(&self, name: &str, arguments: &BTreeSet<String>) -> bool {
@@ -4719,7 +4825,10 @@ fn strict_postfix_parser_expr_tokens(
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
-        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("lookahead", 0) => {
+            let expected = generation.type_env.probe_expected_tokens(receiver);
+            Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
+        }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
         ("recursive_output", 1) => {
@@ -5049,7 +5158,10 @@ fn recovered_postfix_parser_expr_tokens(
         recovered_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
-        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("lookahead", 0) => {
+            let expected = generation.type_env.probe_expected_tokens(receiver);
+            Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
+        }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
         ("recursive_output", 1) => {
@@ -5509,7 +5621,8 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
+        let guard_expected = generation.type_env.rust_probe_expected_tokens(guard_expr);
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -5548,7 +5661,10 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::lookahead(#inner)))
+        let expected = generation
+            .type_env
+            .rust_probe_expected_tokens(&method.receiver);
+        Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6415,7 +6531,8 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
+        let guard_expected = generation.type_env.rust_probe_expected_tokens(guard_expr);
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -6454,7 +6571,10 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::lookahead(#inner)))
+        let expected = generation
+            .type_env
+            .rust_probe_expected_tokens(&method.receiver);
+        Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,

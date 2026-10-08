@@ -5850,16 +5850,30 @@ mod tests {
         let reports = [
             (
                 "lookahead",
-                probed_failure_report(|matching, _| lookahead(matching).boxed()),
+                probed_failure_report(|matching, _| lookahead(matching, "probed").boxed()),
+            ),
+            (
+                "failing lookahead",
+                probed_failure_report(|_, failing| lookahead(failing, "probed").boxed()),
             ),
             (
                 "not",
                 probed_failure_report(|_, failing| not(failing).boxed()),
             ),
             (
+                "failing not",
+                probed_failure_report(|matching, _| not(matching).boxed()),
+            ),
+            (
                 "followed_by",
                 // An empty `inner` keeps the real failure at the first token.
-                probed_failure_report(|matching, _| followed_by(empty(), matching).boxed()),
+                probed_failure_report(|matching, _| {
+                    followed_by(empty(), matching, "probed").boxed()
+                }),
+            ),
+            (
+                "failing followed_by",
+                probed_failure_report(|_, failing| followed_by(empty(), failing, "probed").boxed()),
             ),
         ];
         for (probe, report) in reports {
@@ -5877,6 +5891,87 @@ mod tests {
                 report.errors.contains("pending alternative"),
                 "{probe}: the alternative pending before the probe survives: {}",
                 report.errors
+            );
+        }
+    }
+
+    /// A failing positive probe reports its own failure at the probe position, as an
+    /// expectation of the label that it was given, and nothing from inside the probe. Here the
+    /// probe runs at the second token of "mi klama do", and its parser fails at the third.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failing_positive_probes_report_their_label_at_the_probe_position() {
+        use super::generated_runtime::{followed_by, lookahead};
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::spanned_tokens;
+
+        let words = segment_words_with_modifiers("mi klama do").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let probe_position = tokens[1].span;
+        let far = tokens[2].span;
+        let eoi = SimpleSpan::from(far.end..far.end);
+        let failing = custom(move |input| {
+            input.skip();
+            input
+                .state()
+                .record_diagnostic_candidate(SyntaxParseError::custom(
+                    far,
+                    "probe candidate".to_owned(),
+                ));
+            Err::<(), _>(SyntaxParseError::custom(
+                far,
+                "probe alternative".to_owned(),
+            ))
+        })
+        .boxed();
+        let first_token = custom(|input| {
+            input.skip();
+            Ok(())
+        })
+        .boxed();
+        let probes: [(&str, Boxed<'static, ()>); 2] = [
+            (
+                "lookahead",
+                first_token
+                    .clone()
+                    .ignore_then(lookahead(failing.clone(), "probed construct"))
+                    .boxed(),
+            ),
+            (
+                "followed_by",
+                followed_by(first_token, failing, "probed construct").boxed(),
+            ),
+        ];
+        for (probe, parser) in probes {
+            let options = ParseOptions::default();
+            let mut state = ParserState::new(words, &options);
+            let errors = parser
+                .parse_with_state(tokens.split_spanned(eoi), &mut state)
+                .into_result()
+                .expect_err("the probe fails");
+            let candidates = format!("{:?}", state.diagnostic_candidates_snapshot());
+            assert!(
+                !candidates.contains("probe"),
+                "{probe}: probe candidates leaked: {candidates}"
+            );
+            let [error] = errors.as_slice() else {
+                panic!("{probe}: one error expected: {errors:?}");
+            };
+            assert_eq!(
+                *error.span(),
+                probe_position,
+                "{probe}: the failure is reported at the probe position: {error:?}"
+            );
+            let error = format!("{error:?}");
+            assert!(
+                error.contains("Named(\"probed construct\")"),
+                "{probe}: the failure names the probed construct: {error}"
+            );
+            assert!(
+                !error.contains("probe alternative"),
+                "{probe}: the inner error leaked: {error}"
             );
         }
     }

@@ -14,7 +14,8 @@ use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
     SyntaxMemoContext, SyntaxParseError,
     parser_core::{
-        Checkpoint, InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end,
+        Checkpoint, InputRef, LabelError, MapExtra, Parser, custom, empty as parser_empty,
+        end as parser_end,
     },
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
@@ -2073,9 +2074,25 @@ where
     .boxed()
 }
 
-#[requires(true)]
+/// The expectation that `not` reports where its parser matches.
+pub(crate) const NEGATIVE_PREDICATE_LABEL: &str = "negative predicate";
+
+/// The expectation that a failing positive probe (`lookahead`, or the guard of `followed_by`)
+/// reports when the construct that it tests is not a labelled rule or alias. Generated code
+/// passes the rule or alias label instead where there is one.
+pub(crate) const POSITIVE_PREDICATE_LABEL: &str = "positive predicate";
+
+/// Parses `inner` where `guard` matches right after it, without consuming what `guard`
+/// matched. The guard is a probe (see `lookahead`): if it fails, the failure is reported at the
+/// position after `inner` as an expectation of `guard_expected`, the label of the construct
+/// that `guard` tests.
+#[requires(!guard_expected.is_empty())]
 #[ensures(true)]
-pub(crate) fn followed_by<'tokens, O, GO, G, P>(inner: P, guard: G) -> BoxedParser<'tokens, O>
+pub(crate) fn followed_by<'tokens, O, GO, G, P>(
+    inner: P,
+    guard: G,
+    guard_expected: &'static str,
+) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
     GO: 'tokens,
@@ -2091,10 +2108,10 @@ where
                 return Err(error);
             }
         };
-        // The guard is a lookahead: it only checks what follows `inner`.
         match input.probe(&guard) {
-            Ok(_) => Ok(value),
-            Err(error) => {
+            Some(_) => Ok(value),
+            None => {
+                let error = failed_probe_error(input, guard_expected);
                 input.rewind(before);
                 Err(error)
             }
@@ -2218,14 +2235,41 @@ fn expected_found_tokens_at_current<'tokens>(
 
 /// Succeeds where `parser` matches, without consuming input. Nothing that `parser` collects on
 /// the way outlives the probe; see `InputRef::probe`.
-#[requires(true)]
+///
+/// Where `parser` does not match, the failure is reported at the probe position as an
+/// expectation of `expected`, the label of the construct that `parser` tests, as `not` reports
+/// its own failure. The error of `parser` itself is never reported: it can point far past the
+/// probe position, at input that the probe only looked at.
+#[requires(!expected.is_empty())]
 #[ensures(true)]
-pub(crate) fn lookahead<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, O>
+pub(crate) fn lookahead<'tokens, O, P>(parser: P, expected: &'static str) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| input.probe(&parser).map(|(value, _)| value)).boxed()
+    custom::<_, _>(move |input| match input.probe(&parser) {
+        Some((value, _)) => Ok(value),
+        None => Err(failed_probe_error(input, expected)),
+    })
+    .boxed()
+}
+
+/// The error of a positive probe that failed at the current position: an expectation of
+/// `expected`, the label of the probed construct, labelled as a labelled rule labels a failure
+/// at its own start. A probe of a rule or alias that is a diagnostic context so reports that
+/// construct, as the probed rule itself would if it failed where the probe started.
+#[requires(!expected.is_empty())]
+#[ensures(
+    ParserInput::cursor_location(input.cursor().inner())
+        == old(ParserInput::cursor_location(input.cursor().inner()))
+)]
+fn failed_probe_error<'tokens>(
+    input: &mut InputRef<'tokens, '_>,
+    expected: &'static str,
+) -> SyntaxParseError<'tokens> {
+    let mut error = expected_found_named_at_current(input, expected.to_owned());
+    LabelError::label_with(&mut error, expected);
+    error
 }
 
 thread_local! {
@@ -2398,14 +2442,14 @@ where
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(move |input| match input.probe(&parser) {
-        Ok((_, span)) => Err(SyntaxParseError::expected_found(
+        Some((_, span)) => Err(SyntaxParseError::expected_found(
             span,
             vec![new!(SyntaxExpectedToken::Named(
-                "negative predicate".to_owned()
+                NEGATIVE_PREDICATE_LABEL.to_owned()
             ))],
             new!(SyntaxFound::EndOfInput),
         )),
-        Err(_) => Ok(()),
+        None => Ok(()),
     })
     .boxed()
 }
