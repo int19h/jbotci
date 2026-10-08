@@ -4873,6 +4873,7 @@ fn recovery_condition_matches(
     match condition.feature {
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
+        "NaJoik" => dialect.na_joik_enabled,
         _ => false,
     }
 }

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-forms.na-joik.text-leading-i-default"
+lojban = "na joi .i broda"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "Without the na-joik feature, jbotci rejects this text, because the default grammar has no NA before JOI here. The na-joik twin gives camxes-exp's reading, ([NA:na JOI:joi] [I:i {BRIDI: <SELBRI: G:broda>}])."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 9], source-text = "i", message = "unexpected cmavo" }]

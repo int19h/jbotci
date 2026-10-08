@@ -73,6 +73,7 @@ define_dialect_features! {
     CaseInsensitive => "case-insensitive",
     PermissiveLexer => "permissive-lexer",
     UnrestrictedFree => "unrestricted-free",
+    NaJoik => "na-joik",
 }
 
 impl fmt::Display for DialectFeature {

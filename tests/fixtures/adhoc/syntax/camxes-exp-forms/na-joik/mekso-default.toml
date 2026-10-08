@@ -1,0 +1,12 @@
+id = "adhoc.syntax.camxes-exp-forms.na-joik.mekso-default"
+lojban = "li pa na joi re"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "Without the na-joik feature, jbotci rejects this text, because the default grammar has no NA before JOI here. The na-joik twin gives camxes-exp's reading, (SUMTI: [LI:li {PA:pa <(¹NA:na JOI:joi¹) PA:re>}])."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-term", byte-span = [15, 15], source-text = "", message = "incomplete term" }]

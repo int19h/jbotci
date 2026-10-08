@@ -2118,6 +2118,12 @@ pub mod generated_model {
 
     /// Transparent product node for NA term; preserves the `na` component.
     rule "NA term" bare_na_term(selbri, tense_modal, letter_tokens) -> struct {
+        // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), checked before
+        // NA, and its merged `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective. So
+        // `na joi` and `na se je` never begin a bare NA term there, but a free modifier between
+        // NA and JOI does, because NA_clause takes no free modifier. The default grammar keeps
+        // its bare NA term before JOI; the `na-joik` feature gives it camxes-exp's guard.
+        assert !feature(NaJoik, (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
         assert !choice((
@@ -3927,6 +3933,26 @@ pub mod generated_model {
         joi_connective,
         /// Uses the `simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.
         simple_interval_connective,
+        /// camxes-exp's NA before JOI, under the `na-joik` dialect feature. No other arm starts
+        /// with NA, so its place in the order does not decide any reading.
+        when feature(NaJoik) exp_na_joi_connective,
+    }
+
+    /// camxes-exp's merged `joik` with NA before JOI: `NA_clause SE_clause? JOI_clause NAI_clause?`
+    /// (camxes-exp.peg:347). It reads NA JOI as one connective, so it changes the reading of
+    /// texts that the default grammar parses with a bare NA term before a JOI connection, such
+    /// as `ko'a na joi ko'e broda`. It is therefore reached only under the `na-joik` dialect
+    /// feature, which also gives the bare NA term camxes-exp's `!joik_jek` guard.
+    rule "joik" exp_na_joi_connective -> struct {
+        /// A word from selmaho `Na`.
+        field na <- selmaho(Na);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI word, which carries the warning for the construct.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for joik; preserves `se`, `joi`, and `nai` in source order.
@@ -4084,6 +4110,22 @@ pub mod generated_model {
         paragraph_simple_interval_connective,
         /// Uses the `paragraph_jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
         paragraph_jek_connective,
+        /// camxes-exp's NA before JOI, under the `na-joik` dialect feature.
+        when feature(NaJoik) exp_paragraph_na_joi_connective,
+    }
+
+    /// The paragraph family's form of [`exp_na_joi_connective`], for the connective after a
+    /// leading I, with this family's handling of free modifiers.
+    rule "joik" exp_paragraph_na_joi_connective -> struct {
+        /// A word from selmaho `Na`.
+        field na <- selmaho(Na);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI word, which carries the warning for the construct.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.
@@ -4230,6 +4272,8 @@ pub mod generated_model {
         joik_jek_gi_forethought_connective,
         /// Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `nai`.
         modal_gi_forethought_connective,
+        /// camxes-exp's JA before GI.
+        exp_ja_gi_forethought_connective,
     }
 
     /// Product node for forethought connective; preserves `se`, `ga`, and `nai` in source order.
@@ -4247,6 +4291,26 @@ pub mod generated_model {
     rule "forethought connective" joik_jek_gi_forethought_connective -> struct {
         /// The shared connective child syntax node.
         field connective <- arc(joik_connective);
+        /// The `Gi` cmavo marker.
+        field gi <- cmavo(Gi).wf();
+    }
+
+    /// camxes-exp's `gek <- ... / joik GI_clause free* / ...` (camxes-exp.peg:361) with a JA head,
+    /// which camxes-exp's merged `joik` admits (:347): `NA? SE? JA NAI? GI`. camxes-standard's
+    /// JOIK before GI takes JOI and the intervals only, which `joik_jek_gi_forethought_connective`
+    /// keeps. camxes-exp also admits A here, but jbotci never accepted A before GI (#980). Free
+    /// modifiers follow each word as they do in that JOI arm. The arm is last, so it is reached
+    /// only where no other opener applies.
+    rule "forethought connective" exp_ja_gi_forethought_connective -> struct {
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA word, which carries the warning for the construct.
+        field ja <- selmaho(Ja).warn(ExperimentalJaGiForethoughtConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
         /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
     }

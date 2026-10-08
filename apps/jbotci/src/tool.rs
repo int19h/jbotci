@@ -245,7 +245,9 @@ pub struct ToolGentufaRequest {
     pub format: ToolGentufaFormat,
     /// Optional dialect selector: a builtin dialect name (e.g.
     /// `cbm`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
-    /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
+    /// `(cbm ce-ki-tau)`. In a formula, `+NAME` turns on one grammar feature:
+    /// for example, `(+na-joik)` reads NA before JOI as one connective, as
+    /// camxes-exp does. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
     /// Prepend full dictionary definitions to the human-readable `tree`,
