@@ -2377,10 +2377,12 @@ pub mod generated_model {
     }
 
     /// camxes-exp's `quantifier <- !selbri !sumti_6 mex` (camxes-exp.peg:273), with jbotci's own
-    /// mex (the retained standard design, I12). The two guards are camxes-exp's, read by
-    /// jbotci's own parsers: a selbri such as `re moi broda` and a `sumti_6` such as the letter
-    /// string in `by su'i cy` stay what they are. The construct is diagnosed post-parse as
-    /// `experimental-mex-quantifier`.
+    /// mex limited to camxes-exp's mex language: a forethought call without PEhO, which
+    /// jbotci's mex keeps (the retained standard design, I12) but camxes-exp's does not
+    /// (camxes-exp.peg:282), is refused anywhere in the mex's own structure. The two guards are
+    /// camxes-exp's, read by jbotci's own parsers: a selbri such as `re moi broda` and a
+    /// `sumti_6` such as the letter string in `by su'i cy` stay what they are. The construct is
+    /// diagnosed post-parse as `experimental-mex-quantifier`.
     rule "quantifier" exp_mekso_quantifier(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) -> struct {
         assert !selbri;
         assert !exp_sumti_6_guard(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier);
@@ -2388,10 +2390,14 @@ pub mod generated_model {
         // single number operand or a single VEI operand (#843). `number_mekso` wraps the same
         // `pa_run_quantifier` rule as the baseline arm, and `parenthesized_mekso_operand` is the
         // same `VEI mex [VEhO]` surface as `mekso_quantifier`, so both read the same extent and
-        // the refusal cannot change the accepted language. The test is a strict lookahead, so
-        // an abandoned attempt reports nothing from inside the mex (#988) and recovery never
-        // enters the arm to invent a mex.
-        assert mekso.reject_output(crate::grammar::baseline_quantifier::BaselineQuantifierRejection).lookahead();
+        // the refusal cannot change the accepted language. The mex must also not hold a
+        // forethought call without PEhO, which camxes-exp's mex cannot read (#982). The test is
+        // a strict lookahead, so an abandoned attempt reports nothing from inside the mex (#988)
+        // and recovery never enters the arm to invent a mex.
+        assert mekso
+            .reject_output(crate::grammar::baseline_quantifier::BaselineQuantifierRejection)
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .lookahead();
         #[tree_child(primary)]
         /// The quantity.
         field mekso <- arc(mekso);
