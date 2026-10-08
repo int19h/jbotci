@@ -74,6 +74,7 @@ define_dialect_features! {
     PermissiveLexer => "permissive-lexer",
     UnrestrictedFree => "unrestricted-free",
     NaJoik => "na-joik",
+    MexQuantifier => "mex-quantifier",
 }
 
 impl fmt::Display for DialectFeature {

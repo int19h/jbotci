@@ -1416,6 +1416,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_quantifier.rs:BaselineQuantifierRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineReciprocalSoiRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),

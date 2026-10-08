@@ -3683,6 +3683,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
                 self.walk_node(&quantifier.mekso);
             }
+            generated::QuantifierSyntax::ExpMeksoQuantifier(quantifier) => {
+                self.walk_node(&quantifier.0);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }

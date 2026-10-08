@@ -32,6 +32,7 @@ use crate::{
     syntax_immediate_child_under,
 };
 
+mod baseline_quantifier;
 mod baseline_relative;
 mod baseline_tag;
 mod baseline_termset;
@@ -4922,6 +4923,7 @@ fn recovery_condition_matches(
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "NaJoik" => dialect.na_joik_enabled,
+        "MexQuantifier" => dialect.mex_quantifier_enabled,
         _ => false,
     }
 }
@@ -5271,6 +5273,11 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     ExperimentalConstruct::ExperimentalPreposedLinkargs,
                     &unit.linkargs,
                 );
+            }
+            // camxes-exp's raw-mex quantifier has no marker word of its own, so it is diagnosed
+            // post-parse at its first token.
+            generated::generated_model::NodeRef::QuantifierSyntaxExpMeksoQuantifier(quantifier) => {
+                self.warn_first_token(ExperimentalConstruct::ExperimentalMexQuantifier, quantifier);
             }
             generated::generated_model::NodeRef::ExpTagAtomRunSyntax(run)
                 if !generated_exp_run_is_single_unprefixed_fa(run) =>
