@@ -2745,6 +2745,7 @@ pub enum ExperimentalConstruct {
     ExperimentalLohOiBridiDescription,
     ExperimentalJaKeTanruConnective,
     ExperimentalIntervalSentenceConnective,
+    ExperimentalJaGiForethoughtConnective,
     ExperimentalMexMeSelbriUnit,
     ExperimentalMexMoiSelbriUnit,
     ExperimentalLohAiReplacementFree,
@@ -2830,6 +2831,9 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalIntervalSentenceConnective => {
                 "syntax.warning.experimental-interval-sentence-connective"
+            }
+            Self::ExperimentalJaGiForethoughtConnective => {
+                "syntax.warning.experimental-ja-gi-forethought-connective"
             }
             Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
             Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
@@ -2953,6 +2957,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalIntervalSentenceConnective => {
                 "BIhI interval connective joining bridi tails"
             }
+            Self::ExperimentalJaGiForethoughtConnective => "JA connective before GI",
             Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
             Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",

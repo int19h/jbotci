@@ -4230,6 +4230,8 @@ pub mod generated_model {
         joik_jek_gi_forethought_connective,
         /// Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `nai`.
         modal_gi_forethought_connective,
+        /// camxes-exp's JA before GI.
+        exp_ja_gi_forethought_connective,
     }
 
     /// Product node for forethought connective; preserves `se`, `ga`, and `nai` in source order.
@@ -4247,6 +4249,26 @@ pub mod generated_model {
     rule "forethought connective" joik_jek_gi_forethought_connective -> struct {
         /// The shared connective child syntax node.
         field connective <- arc(joik_connective);
+        /// The `Gi` cmavo marker.
+        field gi <- cmavo(Gi).wf();
+    }
+
+    /// camxes-exp's `gek <- ... / joik GI_clause free* / ...` (camxes-exp.peg:361) with a JA head,
+    /// which camxes-exp's merged `joik` admits (:347): `NA? SE? JA NAI? GI`. camxes-standard's
+    /// JOIK before GI takes JOI and the intervals only, which `joik_jek_gi_forethought_connective`
+    /// keeps. camxes-exp also admits A here, but jbotci never accepted A before GI (#980). Free
+    /// modifiers follow each word as they do in that JOI arm. The arm is last, so it is reached
+    /// only where no other opener applies.
+    rule "forethought connective" exp_ja_gi_forethought_connective -> struct {
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA word, which carries the warning for the construct.
+        field ja <- selmaho(Ja).warn(ExperimentalJaGiForethoughtConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
         /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
     }
