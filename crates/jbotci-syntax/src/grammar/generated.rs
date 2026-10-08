@@ -2118,6 +2118,12 @@ pub mod generated_model {
 
     /// Transparent product node for NA term; preserves the `na` component.
     rule "NA term" bare_na_term(selbri, tense_modal, letter_tokens) -> struct {
+        // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), checked before
+        // NA, and its merged `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective. So
+        // `na joi` and `na se je` never begin a bare NA term there, but a free modifier between
+        // NA and JOI does, because NA_clause takes no free modifier. The default grammar keeps
+        // its bare NA term before JOI; the `na-joik` feature gives it camxes-exp's guard.
+        assert !feature(NaJoik, (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
         assert !choice((
@@ -2135,11 +2141,6 @@ pub mod generated_model {
                 selmaho(Giha),
             ).ignored(),
         ));
-        // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), and its merged
-        // `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective, so `na joi` and
-        // `na se je` never begin a bare NA term there. The default grammar keeps its bare NA
-        // term before JOI; the `na-joik` feature gives it camxes-exp's guard.
-        assert !feature(NaJoik, (opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
     }
 
     /// Transparent product node for tag; preserves the `tense_modal` component.
@@ -4109,6 +4110,22 @@ pub mod generated_model {
         paragraph_simple_interval_connective,
         /// Uses the `paragraph_jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
         paragraph_jek_connective,
+        /// camxes-exp's NA before JOI, under the `na-joik` dialect feature.
+        when feature(NaJoik) exp_paragraph_na_joi_connective,
+    }
+
+    /// The paragraph family's form of [`exp_na_joi_connective`], for the connective after a
+    /// leading I, with this family's handling of free modifiers.
+    rule "joik" exp_paragraph_na_joi_connective -> struct {
+        /// A word from selmaho `Na`.
+        field na <- selmaho(Na);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI word, which carries the warning for the construct.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.

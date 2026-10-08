@@ -707,6 +707,7 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
         "GihekConnective" => "BridiTail",
         "CeheConnective"
         | "ExpNaJoiConnective"
+        | "ExpParagraphNaJoiConnective"
         | "JoiConnective"
         | "ParagraphJoiConnective"
         | "VuhuNonlogicalConnective" => "NonLogical",
@@ -2327,6 +2328,9 @@ fn generated_paragraph_standard_statement_connective_constructor(
 ) -> &'static str {
     match connective {
         generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJoiConnective {
+            ..
+        }
+        | generated_model::ParagraphStandardStatementConnectiveSyntax::ExpParagraphNaJoiConnective {
             ..
         } => "NonLogical",
         generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphSimpleIntervalConnective {

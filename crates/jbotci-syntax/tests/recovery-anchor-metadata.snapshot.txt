@@ -1,4 +1,4 @@
-rules: 494
+rules: 495
 rule leading_indicator
   first [Selmaho(Cai), Selmaho(Ui)] conditions []
   field 0 indicator
@@ -94,11 +94,13 @@ rule leading_i_statement
   field 0 i
     resume 0 origin LiteralRun start [Cmavo(I)] conditions []
     resume 1 origin FieldFirst start [Cmavo(Bo), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Na)] conditions [Feature(NaJoik)]
     resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
     resume 2 origin RepetitionElementFirst start [Cmavo(Lehai), Cmavo(Lohai), Cmavo(Sahai), Cmavo(Soi), Selmaho(Sei), Selmaho(To), Selmaho(Xi)] conditions []
     resume 2 origin RepetitionElementFirst start [Cmavo(Doi), Selmaho(Coi)] conditions [Feature(UnrestrictedFree)]
   field 1 connective
     resume 1 origin FieldFirst start [Cmavo(Bo), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Na)] conditions [Feature(NaJoik)]
     resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
     resume 2 origin RepetitionElementFirst start [Cmavo(Lehai), Cmavo(Lohai), Cmavo(Sahai), Cmavo(Soi), Selmaho(Sei), Selmaho(To), Selmaho(Xi)] conditions []
     resume 2 origin RepetitionElementFirst start [Cmavo(Doi), Selmaho(Coi)] conditions [Feature(UnrestrictedFree)]
@@ -1823,8 +1825,8 @@ rule na_ku_term
     resume 1 origin LiteralRun start [Cmavo(Ku)] conditions []
 rule bare_na_term
   first [Selmaho(Na)] conditions []
-  field 0 na
-    resume 0 origin LiteralRun start [Selmaho(Na)] conditions []
+  field 1 na
+    resume 1 origin LiteralRun start [Selmaho(Na)] conditions []
 rule tagged_sumti_before_tag_term
   first [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
   field 1 tense_modal
@@ -3662,11 +3664,14 @@ rule i_standard_statement_connective
     resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
 rule i_paragraph_statement_connective
   first [Cmavo(Bo), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+  first [Selmaho(Na)] conditions [Feature(NaJoik)]
   first [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
 rule i_standard_paragraph_statement_connective
   first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Na)] conditions [Feature(NaJoik)]
   field 0 connective
     resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Na)] conditions [Feature(NaJoik)]
     resume 1 origin FieldFirst start [Cmavo(Bo), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
     resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
   field 1 tag_bo
@@ -3674,6 +3679,21 @@ rule i_standard_paragraph_statement_connective
     resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
 rule paragraph_standard_statement_connective
   first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Na)] conditions [Feature(NaJoik)]
+rule exp_paragraph_na_joi_connective
+  first [Selmaho(Na)] conditions []
+  field 0 na
+    resume 0 origin LiteralRun start [Selmaho(Na)] conditions []
+    resume 1 origin LiteralRun start [Selmaho(Joi), Selmaho(Se)] conditions []
+    resume 3 origin LiteralRun start [Cmavo(Nai)] conditions []
+  field 1 se
+    resume 1 origin LiteralRun start [Selmaho(Joi), Selmaho(Se)] conditions []
+    resume 3 origin LiteralRun start [Cmavo(Nai)] conditions []
+  field 2 joi
+    resume 2 origin LiteralRun start [Selmaho(Joi)] conditions []
+    resume 3 origin LiteralRun start [Cmavo(Nai)] conditions []
+  field 3 nai
+    resume 3 origin LiteralRun start [Cmavo(Nai)] conditions []
 rule paragraph_jek_connective
   first [Selmaho(Ja), Selmaho(Na), Selmaho(Se)] conditions []
   field 0 na
