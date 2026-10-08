@@ -10,10 +10,10 @@ description = "FR1: a top-level Valid FA candidate with every FA/JOIK/inner disc
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "82a4b8e4b3371b510a23bd4e2b5cbc31f06eb50b19e161ff85b2a7eb1c7baddf" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [18, 23], source-text = "brode", message = "unexpected word" }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["mi", "bróda", "fa", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[12, 14], [15, 17], [18, 23]] }, { kind = "invalid", error-index = 1, byte-spans = [[30, 32], [33, 38]] }] }
+raw = { sha256 = "c65584e381265105984e9ab2cd19235c0153173f2b7c8a8ac23ce9ba41ef51eb" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-jacu-bridi-tail-connective", byte-span = [12, 14], source-text = "je", message = "experimental syntax: JA/JOI connective used in a bridi-tail connective slot", word-index = 3 }, { severity = "warning", code = "syntax.warning.experimental-fa-as-tag", byte-span = [15, 17], source-text = "fa", message = "experimental syntax: FA place tag used as a tag/stag atom", word-index = 4 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "bróda", "fa", "je", "fa", "bróde", "i", "mi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[30, 32], [33, 38]] }] }

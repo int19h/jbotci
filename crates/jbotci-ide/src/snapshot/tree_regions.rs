@@ -605,6 +605,7 @@ fn foldable_constructor(constructor: &str, contains_lohu_quote: bool) -> bool {
             | "NihoParagraphSyntax"
             | "BridiStatementSyntax"
             | "BridiTailSyntax"
+            | "SentenceBridiTailSyntax"
             | "RelativeClauseListSyntax"
             | "SumtiAssociationRelativeClauseSyntax"
             | "RestrictiveBridiRelativeClauseSyntax"

@@ -2743,6 +2743,8 @@ pub enum ExperimentalConstruct {
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
+    ExperimentalJaKeTanruConnective,
+    ExperimentalIntervalSentenceConnective,
     ExperimentalMexMeSelbriUnit,
     ExperimentalMexMoiSelbriUnit,
     ExperimentalLohAiReplacementFree,
@@ -2822,6 +2824,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
+            }
+            Self::ExperimentalJaKeTanruConnective => {
+                "syntax.warning.experimental-ja-ke-tanru-connective"
+            }
+            Self::ExperimentalIntervalSentenceConnective => {
+                "syntax.warning.experimental-interval-sentence-connective"
             }
             Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
             Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
@@ -2941,6 +2949,10 @@ impl ExperimentalConstruct {
             Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
+            Self::ExperimentalJaKeTanruConnective => "JA connective before a KE tanru group",
+            Self::ExperimentalIntervalSentenceConnective => {
+                "BIhI interval connective joining bridi tails"
+            }
             Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
             Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
@@ -4422,20 +4434,24 @@ mod tests {
     // the fallback only through Zantufa routes. Issue #969 changed `fa je fa` to
     // `fa je pu` in the first and third: the JOIK-chained FA tag term now
     // completes `fa je fa`, which moved the error away from the fallback.
+    // Issue #982 replaced the first and third inputs again: the camxes-exp
+    // JA joint after a bridi tail now completes `broda fa je pu me ku`. With
+    // the lookahead diagnostics fix (#984), the third input's later error
+    // stopped needing the fallback, so it was replaced once more.
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
-        let probe = recovered_syntax_probe_at_strict_error("mi broda fa je pu me ku", 18);
+        let probe = recovered_syntax_probe_at_strict_error("mi broda .e pu cu brode", 12);
 
-        assert_eq!(probe.error_byte_starts, [18]);
-        assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
+        assert_eq!(probe.error_byte_starts, [12]);
+        assert_eq!(probe.valid_tokens, ["mi", "bróda", "e"]);
         assert_eq!(
             probe.recovery_spans,
-            [(9, 11), (12, 14), (15, 17), (18, 20), (21, 23)]
+            [(12, 14), (15, 17), (18, 23), (12, 12), (12, 12)]
         );
-        assert_eq!(probe.missing_count, 0);
+        assert_eq!(probe.missing_count, 2);
     }
 
     #[test]
@@ -4470,17 +4486,14 @@ mod tests {
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_falls_back_at_later_error() {
         // The first error (`ku`) recovers from the first phase; the fallback
-        // is needed only at the second error (`me`), so this pins
-        // that the final selector is consulted at every error, not just the
-        // first.
-        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda fa je pu me ku", 3);
+        // is needed only at a later error, so this pins that the final
+        // selector is consulted at every error, not just the first. With the
+        // fallback disabled, the whole text degrades.
+        let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda ke'e be be'o", 3);
 
-        assert_eq!(probe.error_byte_starts, [3, 27]);
+        assert_eq!(probe.error_byte_starts, [3, 18, 26]);
         assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda"]);
-        assert_eq!(
-            probe.recovery_spans,
-            [(3, 5), (18, 20), (21, 23), (24, 26), (27, 29), (30, 32)]
-        );
+        assert_eq!(probe.recovery_spans, [(3, 5), (18, 22), (23, 25), (26, 30)]);
         assert_eq!(probe.missing_count, 0);
     }
 

@@ -40,6 +40,7 @@ pub mod generated_model {
         statement: StatementSyntax;
         bridi: BridiSyntax;
         bridi_tail: BridiTailSyntax;
+        sentence_bridi_tail: SentenceBridiTailSyntax;
         // Guard-only recognizers for the FA chain's reservations; see the "guard-only
         // recognizers for the FA chain" section.
         exp_gek_sentence_guard: ExpGekSentenceGuardSyntax;
@@ -578,7 +579,7 @@ pub mod generated_model {
     /// (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
     /// second outer group jbotci used to model here as `bridi_with_post_cu_terms` /
     /// `bare_cu_terms_bridi` over a shared `cu_terms_bridi_tail` is now the tail's own prefix.
-    rule "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> enum {
+    rule "bridi" bridi(term, selbri, subbridi, tense_modal, sentence_bridi_tail) -> enum {
         /// Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.
         bridi_with_leading_terms,
         /// Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.
@@ -588,13 +589,13 @@ pub mod generated_model {
     }
 
     /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.
-    rule "bridi" bridi_with_leading_terms(term, bridi_tail) -> struct {
+    rule "bridi" bridi_with_leading_terms(term, sentence_bridi_tail) -> struct {
         /// Non-empty ordered sequence of leading terms components.
         field leading_terms <- [one_or_more term];
         /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
         /// The shared bridi tail child syntax node.
-        field bridi_tail <- arc(bridi_tail);
+        field bridi_tail <- arc(sentence_bridi_tail);
     }
 
     /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
@@ -604,17 +605,170 @@ pub mod generated_model {
     /// slot at all. The cell is therefore adopted rather than baseline, and R2 gives every
     /// non-baseline cell a warning, so the CU carries one. `mi cu broda` is untouched: its
     /// leading term sends it to `bridi_with_leading_terms`, whose CU is the sourced one.
-    rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
+    rule "bridi" bare_cu_bridi(sentence_bridi_tail) -> struct {
         /// The `Cu` cmavo marker, camxes-exp's leading-termless CU.
         field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
         /// The shared bridi tail child syntax node.
-        field bridi_tail <- arc(bridi_tail);
+        field bridi_tail <- arc(sentence_bridi_tail);
     }
 
     /// Transparent product node for bridi; preserves the `bridi_tail` component.
-    rule "bridi" relation_only_bridi(bridi_tail) -> struct {
+    rule "bridi" relation_only_bridi(sentence_bridi_tail) -> struct {
         /// The shared bridi tail child syntax node.
+        field bridi_tail <- arc(sentence_bridi_tail);
+    }
+
+    /// Sum node for the bridi tail of a whole bridi. camxes-exp joins whole bridi tails at the
+    /// sentence level with `joik_jek` (camxes-exp.peg:81-87); camxes-standard has no such joint.
+    /// Of that `joik_jek` inventory, jbotci takes only the intervals, because the other arms
+    /// are either reached first by the bridi-tail joints (JA, JOI) or were never part of jbotci
+    /// (A, VUhU).
+    ///
+    /// The baseline arms are the two arms of [`bridi_tail`], so a bridi without an interval
+    /// joint keeps its tree. The interval arm comes first because PEG choice does not backtrack
+    /// into a completed arm: it fails, and gives way to the baseline arms, unless an interval
+    /// joint follows the first tail. Its operands are [`bridi_tail`], so a KE group or an
+    /// operand never takes a sentence-level joint of its own, as in camxes-exp.
+    rule "bridi tail" sentence_bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+        /// camxes-exp's sentence-level interval joints.
+        exp_interval_connected_bridi_tail,
+        /// Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
+        bridi_tail_with_possible_tail_terms,
+        /// Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
+        bridi_tail_without_tail_terms,
+    }
+
+    /// camxes-exp's sentence-level joints with an interval connective (camxes-exp.peg:81-87):
+    ///
+    /// ```text
+    /// sentence      <- terms? bridi_tail_t1 (joik_jek bridi_tail
+    ///                  / joik_jek stag? KE_clause free* bridi_tail KEhE_elidible free*)* ...
+    /// bridi_tail_t1 <- bridi_tail_t2 (joik_jek stag? KE_clause free* bridi_tail KEhE_elidible free*)?
+    /// bridi_tail_t2 <- bridi_tail (joik_jek stag? BO_clause free* bridi_tail)?
+    /// ```
+    ///
+    /// Every joint groups to the left. A BO joint can only come first, and only directly after
+    /// it can a KE joint come before the flat one, so the first joint carries that order.
+    rule "bridi tail" exp_interval_connected_bridi_tail(bridi_tail, tense_modal) -> struct {
+        /// The first bridi tail.
+        field first <- arc(bridi_tail);
+        /// The first joint: camxes-exp's BO level, its KE level, or the first flat joint.
+        field first_joint <- exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal);
+        /// The later joints, in source order.
+        field further_joints <- [zero_or_more exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal)];
+    }
+
+    /// The first joint of [`exp_interval_connected_bridi_tail`], in camxes-exp's order:
+    /// `bridi_tail_t2`'s BO joint, then `bridi_tail_t1`'s KE joint, then the flat joint.
+    rule "bridi tail connective" exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal) -> enum {
+        /// The BO joint, with the KE joint that may follow it at `bridi_tail_t1`.
+        exp_interval_bo_led_bridi_tail_joints,
+        /// The KE joint of `bridi_tail_t1`.
+        exp_interval_ke_bridi_tail_joint,
+        /// The flat joint.
+        exp_interval_flat_bridi_tail_joint,
+    }
+
+    /// A later joint of [`exp_interval_connected_bridi_tail`]: camxes-exp's repeated
+    /// `(joik_jek bridi_tail / joik_jek stag? KE_clause ...)`, flat first.
+    rule "bridi tail connective" exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal) -> enum {
+        /// The flat joint.
+        exp_interval_flat_bridi_tail_joint,
+        /// The KE joint.
+        exp_interval_ke_bridi_tail_joint,
+    }
+
+    /// camxes-exp's `bridi_tail_t2` BO joint, then the optional `bridi_tail_t1` KE joint that
+    /// camxes-exp tries before its flat joints.
+    rule "bridi tail connective" exp_interval_bo_led_bridi_tail_joints(bridi_tail, tense_modal) -> struct {
+        /// The BO joint.
+        field bo_joint <- exp_interval_bo_bridi_tail_joint(bridi_tail, tense_modal);
+        /// The optional KE joint after it.
+        field ke_joint <- opt(exp_interval_ke_bridi_tail_joint(bridi_tail, tense_modal));
+    }
+
+    /// `joik_jek stag? BO_clause free* bridi_tail` with an interval connective.
+    rule "bridi tail connective" exp_interval_bo_bridi_tail_joint(bridi_tail, tense_modal) -> struct {
+        // The interval must be present in strict lookahead before recovery may enter the
+        // joint, so missing-token recovery never invents an interval joint.
+        assert choice((selmaho(Gaho).ignored(), (opt(selmaho(Se)), selmaho(Bihi)).ignored())).lookahead();
+        #[tree_child(primary)]
+        /// The interval connective.
+        field connective <- exp_interval_sentence_connective;
+        /// The optional tense modal component.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The `Bo` cmavo marker.
+        field bo <- cmavo(Bo).wf();
+        /// The bridi tail after BO.
         field bridi_tail <- arc(bridi_tail);
+    }
+
+    /// `joik_jek stag? KE_clause free* bridi_tail KEhE_elidible free*` with an interval
+    /// connective. camxes-exp has no tail terms after KEhE here.
+    rule "bridi tail connective" exp_interval_ke_bridi_tail_joint(bridi_tail, tense_modal) -> struct {
+        // See `exp_interval_bo_bridi_tail_joint`.
+        assert choice((selmaho(Gaho).ignored(), (opt(selmaho(Se)), selmaho(Bihi)).ignored())).lookahead();
+        #[tree_child(primary)]
+        /// The interval connective.
+        field connective <- exp_interval_sentence_connective;
+        /// The optional tense modal component.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The `Ke` cmavo marker.
+        field ke <- cmavo(Ke).wf();
+        /// The grouped bridi tail.
+        field bridi_tail <- arc(bridi_tail);
+        /// The optional `Kehe` cmavo marker.
+        field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
+    }
+
+    /// `joik_jek bridi_tail` with an interval connective.
+    rule "bridi tail connective" exp_interval_flat_bridi_tail_joint(bridi_tail) -> struct {
+        // See `exp_interval_bo_bridi_tail_joint`.
+        assert choice((selmaho(Gaho).ignored(), (opt(selmaho(Se)), selmaho(Bihi)).ignored())).lookahead();
+        #[tree_child(primary)]
+        /// The interval connective.
+        field connective <- exp_interval_sentence_connective;
+        /// The joined bridi tail.
+        field bridi_tail <- arc(bridi_tail);
+    }
+
+    /// The interval arms of camxes-exp's `joik` (camxes-exp.peg:347-349):
+    /// `interval / GAhO_clause interval GAhO_clause`. They mirror `simple_interval_connective`
+    /// and `closed_interval_connective`, but their BIhI carries the warning for the
+    /// sentence-level joint.
+    rule "interval" exp_interval_sentence_connective -> enum {
+        /// `GAhO_clause interval GAhO_clause`.
+        exp_sentence_closed_interval_connective,
+        /// `interval`.
+        exp_sentence_simple_interval_connective,
+    }
+
+    /// `SE_clause? BIhI_clause NAI_clause?` at camxes-exp's sentence-level joint.
+    rule "interval" exp_sentence_simple_interval_connective -> struct {
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The BIhI word, which carries the warning for the joint.
+        field bihi <- selmaho(Bihi).warn(ExperimentalIntervalSentenceConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
+    }
+
+    /// `GAhO_clause interval GAhO_clause` at camxes-exp's sentence-level joint.
+    rule "interval" exp_sentence_closed_interval_connective -> struct {
+        #[tree_child(primary)]
+        /// A word from selmaho `Gaho`.
+        field left_interval <- selmaho(Gaho);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The BIhI word, which carries the warning for the joint.
+        field bihi <- selmaho(Bihi).warn(ExperimentalIntervalSentenceConnective);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+        #[tree_child(primary)]
+        /// A word from selmaho `Gaho`.
+        field right_interval <- selmaho(Gaho).wf();
     }
 
     /// Sum node for bridi tail; selects among the `bridi_tail_with_possible_tail_terms` and
@@ -877,13 +1031,13 @@ pub mod generated_model {
         field inner <- arc(forethought_bridi_connection_without_tail_terms);
     }
 
-    /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.
     /// Product node for bridi tail connective; camxes-standard's one top-level tail join,
     /// `gihek stag? KE_clause bridi_tail KEhE_clause? tail_terms` (camxes.peg:76). Its connective
-    /// is GIhA alone in both families.
+    /// is the shared bridi-tail connective, so camxes-exp's JA and JOI arms reach this joint as
+    /// they reach the flat and BO joints (camxes-exp.peg:97).
     rule "bridi tail connective" gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
-        /// The `gihek_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.
-        field connective <- gihek_connective();
+        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.
+        field connective <- bridi_tail_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Ke` cmavo marker.
@@ -4033,12 +4187,39 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// Sum node for bridi tail connective. The sourced inventory at every bridi-tail joint is
-    /// GIhA alone (camxes.peg:77-79). The sum has one arm only; it stays so that the trees keep
-    /// their shape.
+    /// Sum node for bridi tail connective. camxes-standard's inventory at every bridi-tail joint is
+    /// GIhA alone (camxes.peg:77-79). camxes-exp's `gihek_1` adds JA and JOI (camxes-exp.peg:340).
+    ///
+    /// The JA/JOI arm cannot take an extent that the baseline derives. Every joint is tried
+    /// only after its left operand is complete, and that operand's selbri has already taken
+    /// any JA or JOI that can start a tanru continuation (`klama je cadzu`, `klama je bo cadzu`,
+    /// `klama joi ke cadzu ke'e`). So the arm only sees a JA or JOI that the selbri could not
+    /// use: after VAU or tail terms, or before CU, a tag, BO or KE that no tanru can follow.
     rule "bridi tail connective" bridi_tail_connective -> enum {
         /// Uses the `gihek_connective` product form, whose payload preserves `na`, `se`, `giha`, and `nai`.
         gihek_connective,
+        /// camxes-exp's JA and JOI arms of `gihek_1`.
+        exp_ja_joi_bridi_tail_connective,
+    }
+
+    /// camxes-exp's JA and JOI arms of `gihek_1 <- NA_clause? SE_clause? (JA_clause / JOI_clause /
+    /// GIhA_clause / ...) NAI_clause?` (camxes-exp.peg:340). The GI-led arms of the same rule are
+    /// not part of jbotci.
+    rule "bridi tail connective" exp_ja_joi_bridi_tail_connective -> struct {
+        // The JA or JOI head must be present in strict lookahead before recovery may enter the
+        // arm, so missing-token recovery never invents a JA/JOI joint.
+        assert (opt(selmaho(Na)), opt(selmaho(Se)), choice((selmaho(Ja), selmaho(Joi)))).lookahead();
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA or JOI word, which carries the warning for the joint.
+        field connective <- choice((selmaho(Ja), selmaho(Joi)))
+            .warn(ExperimentalJacuPredicateTailConnective)
+            .wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Forethought connective family.
@@ -4891,6 +5072,8 @@ pub mod generated_model {
         simple_connected_selbri_continuation,
         /// The joik-only tagged KE continuation from camxes selbri level 4.
         grouped_connected_selbri_continuation,
+        /// camxes-exp's JA-led KE continuation at selbri level 4.
+        exp_ja_grouped_connected_selbri_continuation,
     }
 
     /// Product node for an ordinary level-4 selbri continuation.
@@ -4899,6 +5082,43 @@ pub mod generated_model {
         field connective <- arc(selbri_afterthought_connective);
         /// The following level-5 selbri.
         field trailing_selbri <- arc(bound_selbri);
+    }
+
+    /// camxes-exp's `joik stag? KE_clause free* selbri_3 KEhE_elidible free*` at selbri level 4
+    /// (camxes-exp.peg:234) with a JA head, which camxes-exp's merged `joik` admits
+    /// (camxes-exp.peg:347). camxes-standard's KE continuation takes JOIK alone. A JA followed
+    /// by a selbri_5 is the ordinary continuation, which comes first, so this arm only takes
+    /// `JA stag KE`, as in `mi broda je pu ke brode ke'e`. Without it that text would reach the
+    /// bridi-tail KE joint, which is not camxes-exp's reading.
+    rule "grouped selbri connection continuation" exp_ja_grouped_connected_selbri_continuation(tanru_selbri, tense_modal) -> struct {
+        // The JA head and the KE must be present in strict lookahead before recovery may enter
+        // the arm; otherwise missing-token recovery synthesizes both and turns any stray KEhE
+        // after a selbri into this group.
+        assert (
+            opt(selmaho(Na)),
+            opt(selmaho(Se)),
+            selmaho(Ja),
+            opt(cmavo(Nai)),
+            opt(tense_modal),
+            cmavo(Ke),
+        ).lookahead();
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JA word, which carries the warning for the whole construct.
+        field ja <- selmaho(Ja).warn(ExperimentalJaKeTanruConnective).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
+        /// The optional tag between JA and KE.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The KE group opener.
+        field ke <- cmavo(Ke).wf();
+        /// The level-3 group body.
+        field inner_selbri <- arc(tanru_selbri);
+        /// The optional KEhE group terminator.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for the joik-only tagged KE arm at selbri level 4.
