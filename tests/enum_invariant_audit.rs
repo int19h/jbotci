@@ -2228,10 +2228,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextRule",
-        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextSelmaho",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
@@ -2342,6 +2338,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Candidate",
         "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ProbeFirstToken::Cmavo",
+        "a FIRST token carries a validated Cmavo value; every cmavo can start a probed construct",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ProbeFirstToken::Selmaho",
+        "a FIRST token carries a validated Selmaho value; every selma'o can start a probed construct",
     ),
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Fail",

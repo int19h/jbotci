@@ -267,7 +267,6 @@ impl SyntaxGrammar {
                 Ignored(&'static SyntaxGrammarRecoveryExpr),
                 NotNextSelmaho(Selmaho),
                 NotNextToken(SyntaxGrammarTokenPredicate),
-                NotNextRule(&'static str),
                 Lookahead(&'static SyntaxGrammarRecoveryExpr),
                 Not(&'static SyntaxGrammarRecoveryExpr),
                 Choice(&'static [SyntaxGrammarRecoveryExpr]),
@@ -3603,6 +3602,119 @@ enum ProbeLabel<'a> {
     PositivePredicate,
 }
 
+/// A token that can start the construct that a positive probe tests, as the macro writes
+/// it into generated code.
+#[invariant(::Cmavo(cmavo) => !cmavo.is_empty())]
+#[invariant(::Selmaho(selmaho) => !selmaho.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ProbeFirstToken {
+    Cmavo(String),
+    Selmaho(String),
+}
+
+impl ProbeFirstToken {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        match self.as_data() {
+            data!(ProbeFirstToken::Cmavo(cmavo)) => {
+                let cmavo = format_ident!("{cmavo}");
+                quote!(generated_runtime::ProbeFirstToken::Cmavo(Cmavo::#cmavo))
+            }
+            data!(ProbeFirstToken::Selmaho(selmaho)) => {
+                let selmaho = format_ident!("{selmaho}");
+                quote!(generated_runtime::ProbeFirstToken::Selmaho(Selmaho::#selmaho))
+            }
+        }
+    }
+}
+
+/// The FIRST set of a positive probe target, if the macro can compute it exactly: every
+/// token that can start a match of `target`, so that a probe whose next token is not in the
+/// set certainly fails at that token.
+///
+/// The set is computed only from single-token parsers (`cmavo`, `selmaho`, `pa_word`) and the
+/// combinators over them. Free modifiers (`wf`) come after their token, so they do not change
+/// the set. A rule reference, a word category or an opaque parser (which includes a dialect
+/// `feature`) makes the set unknown, and so does a target that can match without consuming a
+/// token. `lookahead` and `ignored` around the whole target do not change the set.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|first| !first.is_empty()))]
+fn exact_probe_first(target: &RecoveryExpr) -> Option<Vec<ProbeFirstToken>> {
+    match target {
+        RecoveryExpr::Lookahead(inner) | RecoveryExpr::Ignored(inner) => exact_probe_first(inner),
+        _ => {
+            let mut first = Vec::new();
+            let nullable = extend_exact_probe_first(target, &mut first)?;
+            (!nullable && !first.is_empty()).then_some(first)
+        }
+    }
+}
+
+/// Adds the FIRST tokens of `expr` to `first` and returns whether `expr` can match without
+/// consuming a token, or `None` when the FIRST set of `expr` is not exactly known.
+///
+/// A `lookahead` or a `not` inside a sequence consumes nothing. It only narrows what the rest
+/// of the sequence can start with, so the union with the rest is still a superset of the
+/// real FIRST set: a token outside it still cannot start a match.
+#[requires(true)]
+#[ensures(true)]
+fn extend_exact_probe_first(expr: &RecoveryExpr, first: &mut Vec<ProbeFirstToken>) -> Option<bool> {
+    let mut push = |token: ProbeFirstToken| {
+        if !first.contains(&token) {
+            first.push(token);
+        }
+    };
+    match expr {
+        RecoveryExpr::Cmavo(cmavo) => {
+            push(new!(ProbeFirstToken::Cmavo(cmavo.clone())));
+            Some(false)
+        }
+        RecoveryExpr::Selmaho(selmaho) => {
+            push(new!(ProbeFirstToken::Selmaho(selmaho.clone())));
+            Some(false)
+        }
+        RecoveryExpr::Opt(inner) | RecoveryExpr::Many(inner) => {
+            extend_exact_probe_first(inner, first)?;
+            Some(true)
+        }
+        RecoveryExpr::Many1(inner)
+        | RecoveryExpr::Boxed(inner)
+        | RecoveryExpr::Arc(inner)
+        | RecoveryExpr::PayloadStart(inner)
+        | RecoveryExpr::Ignored(inner)
+        | RecoveryExpr::WithFreeModifiers { inner, .. } => extend_exact_probe_first(inner, first),
+        RecoveryExpr::Lookahead(inner) => {
+            extend_exact_probe_first(inner, first)?;
+            Some(true)
+        }
+        RecoveryExpr::Not(_) => Some(true),
+        RecoveryExpr::Choice(alternatives) => {
+            let mut nullable = false;
+            for alternative in alternatives {
+                nullable |= extend_exact_probe_first(alternative, first)?;
+            }
+            Some(nullable)
+        }
+        RecoveryExpr::Sequence(parts) => {
+            for part in parts {
+                if !extend_exact_probe_first(part, first)? {
+                    return Some(false);
+                }
+            }
+            Some(true)
+        }
+        RecoveryExpr::WordCategory(_)
+        | RecoveryExpr::NotNextSelmaho(_)
+        | RecoveryExpr::NotNextToken(_)
+        | RecoveryExpr::BareNegationTerm
+        | RecoveryExpr::RelationWord
+        | RecoveryExpr::Rule(_)
+        | RecoveryExpr::Opaque(_)
+        | RecoveryExpr::Eof => None,
+    }
+}
+
 #[invariant(true)]
 struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
@@ -3938,40 +4050,63 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
-    /// The expectation that a failing positive probe of `target` reports at the probe position.
+    /// The `ProbeExpectation` that a failing positive probe of `target` reports at the probe
+    /// position.
     ///
-    /// It is the label of the rule or alias that `target` names. A `not` target reports the
-    /// same fixed label that `not` itself reports, and any other target reports the fixed
-    /// positive-predicate label. `lookahead` and `ignored` do not change the construct that a
-    /// probe tests, so the label is looked up through them. This keeps
-    /// `assert rule.lookahead();`, which wraps one lookahead in another, reporting the rule
-    /// label.
+    /// A labelled rule or alias reports its own label. A `not` target reports the same fixed
+    /// label that `not` itself reports. Any other target reports its FIRST set when
+    /// `exact_probe_first` can compute it, and the fixed positive-predicate label otherwise.
+    /// `lookahead` and `ignored` do not change the construct that a probe tests, so the label
+    /// is looked up through them. This keeps `assert rule.lookahead();`, which wraps one
+    /// lookahead in another, reporting the rule label.
     #[requires(true)]
     #[ensures(true)]
-    fn probe_expected_tokens(&self, target: &ParserExpr) -> TokenStream2 {
-        self.probe_label_tokens(self.parser_expr_probe_label(target))
+    fn probe_expected_tokens(
+        &self,
+        target: &ParserExpr,
+        arguments: &BTreeSet<String>,
+    ) -> Result<TokenStream2> {
+        let label = self.parser_expr_probe_label(target);
+        self.probe_expectation_tokens(label, || classify_parser_expr(target, arguments, self))
     }
 
     /// The same as `probe_expected_tokens`, for a probe target written as a plain Rust
     /// expression.
     #[requires(true)]
     #[ensures(true)]
-    fn rust_probe_expected_tokens(&self, target: &Expr) -> TokenStream2 {
-        self.probe_label_tokens(self.rust_expr_probe_label(target))
+    fn rust_probe_expected_tokens(
+        &self,
+        target: &Expr,
+        arguments: &BTreeSet<String>,
+    ) -> Result<TokenStream2> {
+        let label = self.rust_expr_probe_label(target);
+        self.probe_expectation_tokens(label, || classify_recovery_expr(target, arguments, self))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn probe_label_tokens(&self, label: ProbeLabel<'_>) -> TokenStream2 {
-        match label.as_data() {
-            data!(ProbeLabel::Rule(label)) => quote!(#label),
+    fn probe_expectation_tokens(
+        &self,
+        label: ProbeLabel<'_>,
+        classify: impl FnOnce() -> Result<RecoveryExpr>,
+    ) -> Result<TokenStream2> {
+        Ok(match label.as_data() {
+            data!(ProbeLabel::Rule(label)) => quote!(generated_runtime::probe_label(#label)),
             data!(ProbeLabel::NegativePredicate) => {
-                quote!(generated_runtime::NEGATIVE_PREDICATE_LABEL)
+                quote!(generated_runtime::probe_label(
+                    generated_runtime::NEGATIVE_PREDICATE_LABEL
+                ))
             }
-            data!(ProbeLabel::PositivePredicate) => {
-                quote!(generated_runtime::POSITIVE_PREDICATE_LABEL)
-            }
-        }
+            data!(ProbeLabel::PositivePredicate) => match exact_probe_first(&classify()?) {
+                Some(first) => {
+                    let first = first.iter().map(ProbeFirstToken::expand);
+                    quote!(generated_runtime::probe_first(&[#(#first),*]))
+                }
+                None => quote!(generated_runtime::probe_label(
+                    generated_runtime::POSITIVE_PREDICATE_LABEL
+                )),
+            },
+        })
     }
 
     #[requires(true)]
@@ -4826,7 +4961,9 @@ fn strict_postfix_parser_expr_tokens(
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
-            let expected = generation.type_env.probe_expected_tokens(receiver);
+            let expected = generation
+                .type_env
+                .probe_expected_tokens(receiver, arguments)?;
             Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
         }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
@@ -5159,7 +5296,9 @@ fn recovered_postfix_parser_expr_tokens(
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
-            let expected = generation.type_env.probe_expected_tokens(receiver);
+            let expected = generation
+                .type_env
+                .probe_expected_tokens(receiver, arguments)?;
             Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
         }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
@@ -5536,75 +5675,6 @@ fn strict_method_parser_expr_tokens(
                 .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
                 .map(|(value, _)| value)
         })
-    } else if method.method == "not_next_rule" && method.args.len() == 1 {
-        let inner = strict_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let rule_arg = method.args.first().expect("length checked");
-        let rule = required_path_expr_last_segment(
-            rule_arg,
-            "not_next_rule() requires a grammar rule path",
-        )?;
-        if !generation.type_env.rules.contains_key(&rule) {
-            return Err(syn::Error::new_spanned(
-                rule_arg,
-                "not_next_rule() names an unknown grammar rule",
-            ));
-        }
-        let parser_arguments = generation
-            .type_env
-            .rule_arguments
-            .get(&rule)
-            .into_iter()
-            .flatten()
-            .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
-            .collect::<Result<Vec<_>>>()?;
-        let normal_parser_arguments = if generation.flavor.records_recovery_checkpoints() {
-            generation
-                .type_env
-                .rule_arguments
-                .get(&rule)
-                .into_iter()
-                .flatten()
-                .map(|argument| {
-                    let argument = format_ident!("__strict_{argument}");
-                    quote!(#argument.clone())
-                })
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
-        let parser_name = generation.flavor.rule_parser_name(&rule);
-        let parser_name = if mode == StrictParserCallMode::External
-            || (generation.generate_model && !generation.rule_has_local_parser(&rule))
-        {
-            quote!(super::#parser_name)
-        } else {
-            quote!(#parser_name)
-        };
-        let free_modifier =
-            strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
-        let normal_free_modifier = generation
-            .flavor
-            .records_recovery_checkpoints()
-            .then(|| quote!(__generated_strict_free_modifier.clone()));
-        let expected = format!("not {rule}");
-        Ok(quote! {
-            generated_runtime::not_next_rule_after(
-                #inner,
-                #parser_name(
-                    #(#parser_arguments,)*
-                    #(#normal_parser_arguments,)*
-                    #free_modifier,
-                    #normal_free_modifier
-                ),
-                #expected,
-            )
-        })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first().expect("length checked");
         let inner = strict_rust_parser_expr_tokens(
@@ -5621,7 +5691,9 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let guard_expected = generation.type_env.rust_probe_expected_tokens(guard_expr);
+        let guard_expected = generation
+            .type_env
+            .rust_probe_expected_tokens(guard_expr, arguments)?;
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
@@ -5663,7 +5735,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         let expected = generation
             .type_env
-            .rust_probe_expected_tokens(&method.receiver);
+            .rust_probe_expected_tokens(&method.receiver, arguments)?;
         Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
@@ -6531,7 +6603,9 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let guard_expected = generation.type_env.rust_probe_expected_tokens(guard_expr);
+        let guard_expected = generation
+            .type_env
+            .rust_probe_expected_tokens(guard_expr, arguments)?;
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
@@ -6573,7 +6647,7 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let expected = generation
             .type_env
-            .rust_probe_expected_tokens(&method.receiver);
+            .rust_probe_expected_tokens(&method.receiver, arguments)?;
         Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
@@ -7554,7 +7628,6 @@ fn method_rust_parser_output_type(
         || method.method == "elidable_terminator"
         || method.method == "not_next_selmaho"
         || method.method == "not_next_token"
-        || method.method == "not_next_rule"
         || method.method == "followed_by"
         || method.method == "lookahead"
         || method.method == "reject_output"
@@ -8677,7 +8750,6 @@ impl Parse for Condition {
 #[invariant(::Many(_) => true)]
 #[invariant(::Many1(_) => true)]
 #[invariant(::Not(_) => true)]
-#[invariant(::NotNextRule(_) => true)]
 #[invariant(::NotNextSelmaho(_) => true)]
 #[invariant(::NotNextToken(_) => true)]
 #[invariant(::Opaque(_) => true)]
@@ -8706,7 +8778,6 @@ enum RecoveryExpr {
     Ignored(Box<RecoveryExpr>),
     NotNextSelmaho(String),
     NotNextToken(String),
-    NotNextRule(String),
     Lookahead(Box<RecoveryExpr>),
     Not(Box<RecoveryExpr>),
     Choice(Vec<RecoveryExpr>),
@@ -8784,9 +8855,6 @@ impl RecoveryExpr {
             RecoveryExpr::NotNextToken(predicate) => {
                 let predicate = syn::Ident::new(&predicate, proc_macro2::Span::call_site());
                 quote!(SyntaxGrammarRecoveryExpr::NotNextToken(SyntaxGrammarTokenPredicate::#predicate))
-            }
-            RecoveryExpr::NotNextRule(rule) => {
-                quote!(SyntaxGrammarRecoveryExpr::NotNextRule(#rule))
             }
             RecoveryExpr::Lookahead(inner) => {
                 let inner = inner.expand();
@@ -9010,33 +9078,9 @@ fn classify_method_recovery_expr(
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextToken)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
-        ("not_next_rule", 1) => classify_not_next_rule_recovery_expr(method, arguments, type_env),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         _ => Ok(RecoveryExpr::Opaque(compact_tokens(method))),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn classify_not_next_rule_recovery_expr(
-    method: &ExprMethodCall,
-    arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
-) -> Result<RecoveryExpr> {
-    let Some(argument) = method.args.first() else {
-        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
-    };
-    let Some(rule) = path_expr_last_segment(argument) else {
-        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
-    };
-    if type_env.rule_known_for_recovery(&rule, arguments) {
-        Ok(RecoveryExpr::NotNextRule(rule))
-    } else {
-        Err(syn::Error::new_spanned(
-            argument,
-            format!("unknown grammar rule `{rule}` in recovery metadata"),
-        ))
     }
 }
 
@@ -9805,7 +9849,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::NotNextRule(_)
             | RecoveryExpr::BareNegationTerm
             | RecoveryExpr::RelationWord
             | RecoveryExpr::Opaque(_)
@@ -9846,7 +9889,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::NotNextRule(_)
             | RecoveryExpr::Eof => true,
             RecoveryExpr::Rule(rule) => self.rule_nullable(rule)?,
             RecoveryExpr::Cmavo(_)
@@ -9996,7 +10038,6 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         | RecoveryExpr::Not(_)
         | RecoveryExpr::NotNextSelmaho(_)
         | RecoveryExpr::NotNextToken(_)
-        | RecoveryExpr::NotNextRule(_)
         | RecoveryExpr::Sequence(_)
         | RecoveryExpr::WordCategory(_)
         | RecoveryExpr::BareNegationTerm

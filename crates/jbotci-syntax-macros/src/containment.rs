@@ -505,7 +505,6 @@ impl ContainmentData {
             | "then_ignore"
             | "not_next_selmaho"
             | "not_next_token"
-            | "not_next_rule"
             | "followed_by" => self.apply_policy(receiver)?,
             _ => {}
         }

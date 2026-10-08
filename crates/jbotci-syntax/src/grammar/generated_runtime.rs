@@ -1,6 +1,6 @@
 //! Generic runtime primitives for declarative generated syntax parsers.
 
-use bityzba::{contract_trait, invariant, new, requires};
+use bityzba::{contract_trait, data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
@@ -19,8 +19,8 @@ use super::{
     },
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
-        is_koha_argument, is_letter_word, is_relation_word, token_matching,
-        token_matching_with_experimental_context,
+        is_koha_argument, is_letter_word, is_relation_word, parser_word_is_cmavo,
+        parser_word_is_selmaho, token_matching, token_matching_with_experimental_context,
     },
 };
 use crate::{
@@ -2031,67 +2031,83 @@ pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens
     .boxed()
 }
 
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn not_next_rule_after<'tokens, O, GO, G, P>(
-    inner: P,
-    guard: G,
-    expected: &'static str,
-) -> BoxedParser<'tokens, O>
-where
-    O: 'tokens,
-    GO: 'tokens,
-    G: Parser<'tokens, GO> + Clone + 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
-    custom::<_, _>(move |input| {
-        let before = input.save();
-        let value = match input.parse(&inner) {
-            Ok(value) => value,
-            Err(error) => {
-                input.rewind(before);
-                return Err(error);
-            }
-        };
-        let after_inner = input.save();
-        let cursor = input.cursor();
-        match input.parse(&guard) {
-            Ok(_) => {
-                let span = input.span_since(&cursor);
-                input.rewind(before);
-                Err(SyntaxParseError::expected_found(
-                    span,
-                    vec![new!(SyntaxExpectedToken::Named(expected.to_owned()))],
-                    new!(SyntaxFound::EndOfInput),
-                ))
-            }
-            Err(_) => {
-                input.rewind(after_inner);
-                Ok(value)
-            }
-        }
-    })
-    .boxed()
-}
-
 /// The expectation that `not` reports where its parser matches.
 pub(crate) const NEGATIVE_PREDICATE_LABEL: &str = "negative predicate";
 
 /// The expectation that a failing positive probe (`lookahead`, or the guard of `followed_by`)
-/// reports when the construct that it tests is not a labelled rule or alias. Generated code
-/// passes the rule or alias label instead where there is one.
+/// reports when the construct that it tests has neither a label nor a known FIRST set, or
+/// when the probe failed after its first token. Generated code passes the rule or alias label
+/// instead where there is one.
 pub(crate) const POSITIVE_PREDICATE_LABEL: &str = "positive predicate";
+
+/// A token that can start the construct that a positive probe tests: one entry of the FIRST
+/// set that the grammar macro computes for the probe target.
+#[invariant(true)]
+#[invariant(::Cmavo(_) => true)]
+#[invariant(::Selmaho(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProbeFirstToken {
+    Cmavo(Cmavo),
+    Selmaho(Selmaho),
+}
+
+impl ProbeFirstToken {
+    /// Whether `word` is this token, by the same test as the `cmavo` or `selmaho` parser.
+    #[requires(true)]
+    #[ensures(true)]
+    fn matches(self, state: &mut super::ParserState<'_>, word: &Token) -> bool {
+        match self {
+            Self::Cmavo(cmavo) => parser_word_is_cmavo(state, word, cmavo),
+            Self::Selmaho(selmaho) => parser_word_is_selmaho(state, word, selmaho),
+        }
+    }
+
+    /// The expectation that the `cmavo` or `selmaho` parser reports for this token.
+    #[requires(true)]
+    #[ensures(true)]
+    fn expected(self) -> SyntaxExpectedToken {
+        match self {
+            Self::Cmavo(cmavo) => new!(SyntaxExpectedToken::Cmavo(cmavo)),
+            Self::Selmaho(selmaho) => new!(SyntaxExpectedToken::Selmaho(selmaho)),
+        }
+    }
+}
+
+/// What a failing positive probe reports at the probe position.
+#[invariant(::Label(label) => !label.is_empty())]
+#[invariant(::First(first) => !first.is_empty())]
+#[derive(Debug, Clone)]
+pub(crate) enum ProbeExpectation {
+    /// The label of the probed construct: the label of a probed rule or alias, or a fixed
+    /// predicate label.
+    Label(&'static str),
+    /// The FIRST set of a probed construct that has no label of its own.
+    First(&'static [ProbeFirstToken]),
+}
+
+/// The expectation of a probe whose construct has the label `label`.
+#[requires(!label.is_empty())]
+#[ensures(true)]
+pub(crate) fn probe_label(label: &'static str) -> ProbeExpectation {
+    new!(ProbeExpectation::Label(label))
+}
+
+/// The expectation of a probe whose construct has no label but has the FIRST set `first`.
+#[requires(!first.is_empty())]
+#[ensures(true)]
+pub(crate) fn probe_first(first: &'static [ProbeFirstToken]) -> ProbeExpectation {
+    new!(ProbeExpectation::First(first))
+}
 
 /// Parses `inner` where `guard` matches right after it, without consuming what `guard`
 /// matched. The guard is a probe (see `lookahead`): if it fails, the failure is reported at the
-/// position after `inner` as an expectation of `guard_expected`, the label of the construct
-/// that `guard` tests.
-#[requires(!guard_expected.is_empty())]
+/// position after `inner`, as `guard_expected` describes.
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn followed_by<'tokens, O, GO, G, P>(
     inner: P,
     guard: G,
-    guard_expected: &'static str,
+    guard_expected: ProbeExpectation,
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
@@ -2111,7 +2127,7 @@ where
         match input.probe(&guard) {
             Some(_) => Ok(value),
             None => {
-                let error = failed_probe_error(input, guard_expected);
+                let error = failed_probe_error(input, &guard_expected);
                 input.rewind(before);
                 Err(error)
             }
@@ -2236,40 +2252,95 @@ fn expected_found_tokens_at_current<'tokens>(
 /// Succeeds where `parser` matches, without consuming input. Nothing that `parser` collects on
 /// the way outlives the probe; see `InputRef::probe`.
 ///
-/// Where `parser` does not match, the failure is reported at the probe position as an
-/// expectation of `expected`, the label of the construct that `parser` tests, as `not` reports
-/// its own failure. The error of `parser` itself is never reported: it can point far past the
-/// probe position, at input that the probe only looked at.
-#[requires(!expected.is_empty())]
+/// Where `parser` does not match, the failure is reported at the probe position, as
+/// `expected` describes (see `failed_probe_error`), as `not` reports its own failure. The error
+/// of `parser` itself is never reported: it can point far past the probe position, at input
+/// that the probe only looked at.
+#[requires(true)]
 #[ensures(true)]
-pub(crate) fn lookahead<'tokens, O, P>(parser: P, expected: &'static str) -> BoxedParser<'tokens, O>
+pub(crate) fn lookahead<'tokens, O, P>(
+    parser: P,
+    expected: ProbeExpectation,
+) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(move |input| match input.probe(&parser) {
         Some((value, _)) => Ok(value),
-        None => Err(failed_probe_error(input, expected)),
+        None => Err(failed_probe_error(input, &expected)),
     })
     .boxed()
 }
 
-/// The error of a positive probe that failed at the current position: an expectation of
-/// `expected`, the label of the probed construct, labelled as a labelled rule labels a failure
-/// at its own start. A probe of a rule or alias that is a diagnostic context so reports that
-/// construct, as the probed rule itself would if it failed where the probe started.
-#[requires(!expected.is_empty())]
+/// The error of a positive probe that failed at the current position.
+///
+/// If the probed construct has a FIRST set and the next token is not in it, the probe failed
+/// at that token, so the error expects one of the FIRST tokens. Otherwise the error is an
+/// expectation of the construct label (the positive-predicate label for a construct with a
+/// FIRST set, whose probe then failed after its first token). A label is applied as a
+/// labelled rule applies its label to a failure at its own start, so a probe of a rule or
+/// alias that is a diagnostic context reports that construct, as the probed rule itself would
+/// if it failed where the probe started.
+#[requires(true)]
 #[ensures(
     ParserInput::cursor_location(input.cursor().inner())
         == old(ParserInput::cursor_location(input.cursor().inner()))
 )]
 fn failed_probe_error<'tokens>(
     input: &mut InputRef<'tokens, '_>,
-    expected: &'static str,
+    expected: &ProbeExpectation,
 ) -> SyntaxParseError<'tokens> {
-    let mut error = expected_found_named_at_current(input, expected.to_owned());
-    LabelError::label_with(&mut error, expected);
+    let label = match expected.as_data() {
+        data!(ProbeExpectation::First(first)) if !next_token_is_one_of(input, first) => {
+            return expected_found_tokens_at_current(
+                input,
+                first.iter().map(|token| token.expected()).collect(),
+            );
+        }
+        data!(ProbeExpectation::First(_)) => POSITIVE_PREDICATE_LABEL,
+        data!(ProbeExpectation::Label(label)) => label,
+    };
+    let mut error = expected_found_named_at_current(input, label.to_owned());
+    LabelError::label_with(&mut error, label);
     error
+}
+
+/// Whether the next token is one of `first`, by the test of the token parsers. A token
+/// parser never matches the continuation sentinel or the end of input.
+#[requires(!first.is_empty())]
+#[ensures(
+    ParserInput::cursor_location(input.cursor().inner())
+        == old(ParserInput::cursor_location(input.cursor().inner()))
+)]
+fn next_token_is_one_of(input: &mut InputRef<'_, '_>, first: &[ProbeFirstToken]) -> bool {
+    if input.next_is_continuation_sentinel() {
+        return false;
+    }
+    let checkpoint = input.save();
+    let word = input.next();
+    input.rewind(checkpoint);
+    let Some(word) = word else {
+        return false;
+    };
+    let state = input.state();
+    first.iter().any(|token| token.matches(state, &word))
+}
+
+/// What a probe found at the current position: the next token, or the end of input.
+#[requires(true)]
+#[ensures(
+    ParserInput::cursor_location(input.cursor().inner())
+        == old(ParserInput::cursor_location(input.cursor().inner()))
+)]
+fn found_at_current(input: &mut InputRef<'_, '_>) -> SyntaxFound {
+    let checkpoint = input.save();
+    let found = input
+        .next()
+        .map(|token| new!(SyntaxFound::Token(token)))
+        .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
+    input.rewind(checkpoint);
+    found
 }
 
 thread_local! {
@@ -2434,6 +2505,9 @@ where
 
 /// Succeeds where `parser` does not match, without consuming input. Nothing that `parser`
 /// collects on the way outlives the probe; see `InputRef::probe`.
+///
+/// Where `parser` matches, the failure covers what `parser` matched and names the token at
+/// the probe position as the one found.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
@@ -2447,7 +2521,7 @@ where
             vec![new!(SyntaxExpectedToken::Named(
                 NEGATIVE_PREDICATE_LABEL.to_owned()
             ))],
-            new!(SyntaxFound::EndOfInput),
+            found_at_current(input),
         )),
         None => Ok(()),
     })
