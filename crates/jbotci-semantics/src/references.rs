@@ -1781,7 +1781,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
                 generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
                     continuation,
-                ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.analyze_tanru_selbri(&continuation.inner_selbri)
+                }
             });
         }
         self.add_frame(
@@ -6055,7 +6060,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 ) => self.visit_tanru_selbri(&continuation.inner_selbri),
                 generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
                     continuation,
-                ) => self.visit_tanru_selbri(&continuation.inner_selbri),
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_tanru_selbri(&continuation.inner_selbri);
+                }
             }
         }
     }
