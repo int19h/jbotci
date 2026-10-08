@@ -531,28 +531,55 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
     /// failure report points at the probe's position instead of the real one. The alternative
     /// error that was pending before the probe is put back, so the probe cannot drop it either.
     ///
-    /// On success the result carries the span that `parser` matched. On failure it carries
-    /// nothing: the error of `parser` describes where `parser` stopped, which can be far past
-    /// the probe, so a caller that reported it would again leak an expectation from inside the
-    /// probe. A failing probe is reported by its caller at the probe position instead, with a
-    /// label for the construct that it tested.
+    /// On success the result carries the span that `parser` matched. On failure it carries a
+    /// `ProbeFailure`, never the error of `parser` itself: that error describes where `parser`
+    /// stopped, which can be far past the probe, and a caller that reported it would leak an
+    /// expectation from inside the probe. The failure only says whether `parser` failed at the
+    /// probe position, with the expectations that it tried there, or further in.
     #[requires(true)]
     #[ensures(self.cursor.index == old(self.cursor.index))]
-    pub(crate) fn probe<O, P>(&mut self, parser: P) -> Option<(O, SimpleSpan)>
+    pub(crate) fn probe<O, P>(
+        &mut self,
+        parser: P,
+    ) -> Result<(O, SimpleSpan), ProbeFailure<'tokens>>
     where
         P: Parser<'tokens, O>,
     {
         let before = self.save();
         let pending_alternative = self.take_alternative();
         let diagnostics = self.state.diagnostic_checkpoint();
-        let result = parser
-            .drive_emit(self)
-            .ok()
-            .map(|output| (output, self.span_since(before.cursor())));
+        let result = match parser.drive_emit(self) {
+            Ok(output) => Ok((output, self.span_since(before.cursor()))),
+            Err(()) => Err(self
+                .take_alternative()
+                .expect("failed parsers register a primary error")
+                .error),
+        };
         self.rewind(before);
         self.state.restore_diagnostics(diagnostics);
         self.errors.alternative = pending_alternative;
-        result
+        result.map_err(|error| {
+            let probe_start = self.next_token_span().start;
+            // A parser that starts at the probe position reports no error before it, so an
+            // error that does not start at the probe position starts further in.
+            if error.span().start == probe_start {
+                ProbeFailure::AtProbePosition(new!(ProbePositionFailure { probe_start, error }))
+            } else {
+                ProbeFailure::FurtherIn
+            }
+        })
+    }
+
+    /// The span of the next token, or the end-of-input span, as a token parser reports it.
+    #[requires(true)]
+    #[ensures(self.cursor.index == old(self.cursor.index))]
+    fn next_token_span(&mut self) -> SimpleSpan {
+        let checkpoint = self.save();
+        let cursor = self.cursor();
+        self.next();
+        let span = self.span_since(&cursor);
+        self.rewind(checkpoint);
+        span
     }
 
     #[requires(true)]
@@ -612,6 +639,43 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
     #[ensures(true)]
     fn take_alternative(&mut self) -> Option<LocatedError<'tokens>> {
         self.errors.alternative.take()
+    }
+}
+
+/// How a probe failed (see `InputRef::probe`).
+///
+/// It never exposes the error of the probed parser itself. That error can describe input far
+/// past the probe position, which the probe only looked at.
+#[invariant(true)]
+#[invariant(::AtProbePosition(_) => true)]
+pub(crate) enum ProbeFailure<'tokens> {
+    /// The probed parser failed at the probe position, so it did not consume the token there.
+    /// Merging keeps the furthest failure, so the failure holds the expectations that the
+    /// alternatives of the parser tried at that position.
+    AtProbePosition(ProbePositionFailure<'tokens>),
+    /// The probed parser consumed the token at the probe position and failed further in. The
+    /// expectations at the probe position were dropped when the further failure won the merge.
+    FurtherIn,
+}
+
+/// The failure of a probed parser at the probe position. Its only use is `into_report`.
+#[invariant(error.span().start == *probe_start, "the failure is at the probe position")]
+pub(crate) struct ProbePositionFailure<'tokens> {
+    probe_start: usize,
+    error: SyntaxParseError<'tokens>,
+}
+
+impl<'tokens> ProbePositionFailure<'tokens> {
+    /// The probe's own error: the expectations at the probe position, labelled with
+    /// `construct` as a labelled rule labels a failure at its own start.
+    #[requires(construct.is_none_or(|label| !label.is_empty()))]
+    #[ensures(ret.span().start == old(self.probe_start))]
+    pub(crate) fn into_report(self, construct: Option<&'static str>) -> SyntaxParseError<'tokens> {
+        let mut error = self.into_data().error;
+        if let Some(construct) = construct {
+            LabelError::label_with(&mut error, construct);
+        }
+        error
     }
 }
 

@@ -5844,21 +5844,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn lookahead_probes_leave_no_diagnostics_behind() {
-        use super::generated_runtime::{followed_by, lookahead, not, probe_label};
+        use super::generated_runtime::{followed_by, lookahead, not};
         use super::parser_core::{Parser, empty};
 
         let reports = [
             (
                 "lookahead",
-                probed_failure_report(|matching, _| {
-                    lookahead(matching, probe_label("probed")).boxed()
-                }),
+                probed_failure_report(|matching, _| lookahead(matching, Some("probed")).boxed()),
             ),
             (
                 "failing lookahead",
-                probed_failure_report(|_, failing| {
-                    lookahead(failing, probe_label("probed")).boxed()
-                }),
+                probed_failure_report(|_, failing| lookahead(failing, Some("probed")).boxed()),
             ),
             (
                 "not",
@@ -5872,13 +5868,13 @@ mod tests {
                 "followed_by",
                 // An empty `inner` keeps the real failure at the first token.
                 probed_failure_report(|matching, _| {
-                    followed_by(empty(), matching, probe_label("probed")).boxed()
+                    followed_by(empty(), matching, Some("probed")).boxed()
                 }),
             ),
             (
                 "failing followed_by",
                 probed_failure_report(|_, failing| {
-                    followed_by(empty(), failing, probe_label("probed")).boxed()
+                    followed_by(empty(), failing, Some("probed")).boxed()
                 }),
             ),
         ];
@@ -5901,19 +5897,20 @@ mod tests {
         }
     }
 
-    /// A failing positive probe reports its own failure at the probe position, as its
-    /// `ProbeExpectation` describes, and nothing from inside the probe. Here the probe runs at
-    /// the second token of "mi ku do", and its parser fails at the third.
+    /// A failing positive probe reports its own failure at the probe position, and nothing
+    /// from inside the probe. Here the probe runs at the second token of "mi ku do".
+    ///
+    /// A parser that consumes `ku` and fails at `do` failed further in, so the probe reports
+    /// its construct label, or the positive-predicate label. A parser that fails at `ku`
+    /// itself failed at the probe position, so the probe reports what the parser expected
+    /// there, under the construct label if there is one.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn failing_positive_probes_report_their_expectation_at_the_probe_position() {
-        use super::generated_runtime::{
-            POSITIVE_PREDICATE_LABEL, ProbeExpectation, ProbeFirstToken, followed_by, lookahead,
-            probe_construct_first, probe_first, probe_label,
-        };
+    fn failing_positive_probes_report_at_the_probe_position() {
+        use super::generated_runtime::{POSITIVE_PREDICATE_LABEL, followed_by, lookahead};
         use super::parser_core::{Input, Parser, custom};
-        use super::tokens::spanned_tokens;
+        use super::tokens::{cmavo, spanned_tokens};
 
         let words = segment_words_with_modifiers("mi ku do").unwrap();
         let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
@@ -5921,7 +5918,7 @@ mod tests {
         let probe_position = tokens[1].span;
         let far = tokens[2].span;
         let eoi = SimpleSpan::from(far.end..far.end);
-        let failing = custom(move |input| {
+        let further_in = custom(move |input| {
             input.skip();
             input
                 .state()
@@ -5935,59 +5932,52 @@ mod tests {
             ))
         })
         .boxed();
+        let at_probe_position = cmavo(Cmavo::Kei).map(|_| ()).boxed();
         let first_token = custom(|input| {
             input.skip();
             Ok(())
         })
         .boxed();
-        // (expectation, text that the error must contain, text that it must not contain)
-        let expectations: [(ProbeExpectation, String, &str); 5] = [
-            // A labelled construct reports its label.
+        // (probed parser, construct label, text that the error must contain, text that it
+        // must not contain)
+        let cases: [(&Boxed<'static, ()>, Option<&'static str>, String, &str); 4] = [
             (
-                probe_label("probed construct"),
+                &further_in,
+                Some("probed construct"),
                 "Named(\"probed construct\")".to_owned(),
                 "Cmavo(",
             ),
-            // The probe position holds `ku`, which is not in the FIRST set {kei}: the probe
-            // failed at its first token, so the error expects the FIRST set.
             (
-                probe_first(&[ProbeFirstToken::Cmavo(Cmavo::Kei)]),
-                format!("{:?}", Cmavo::Kei),
-                "Named(",
-            ),
-            // `ku` is in the FIRST set {ku}, so the probe failed further in, and the error
-            // reports the positive-predicate label.
-            (
-                probe_first(&[ProbeFirstToken::Cmavo(Cmavo::Ku)]),
+                &further_in,
+                None,
                 format!("Named({POSITIVE_PREDICATE_LABEL:?})"),
                 "Cmavo(",
             ),
-            // A labelled construct with a FIRST set that does not hold `ku` expects the FIRST
-            // set, labelled with the construct.
             (
-                probe_construct_first("tag", &[ProbeFirstToken::Cmavo(Cmavo::Kei)]),
+                &at_probe_position,
+                None,
                 format!("{:?}", Cmavo::Kei),
                 "Named(",
             ),
-            // A labelled construct with a FIRST set that holds `ku` reports its label.
             (
-                probe_construct_first("tag", &[ProbeFirstToken::Cmavo(Cmavo::Ku)]),
-                "Named(\"tag\")".to_owned(),
-                "Cmavo(",
+                &at_probe_position,
+                Some("tag"),
+                format!("{:?}", Cmavo::Kei),
+                "Named(",
             ),
         ];
-        for (expectation, wanted, unwanted) in expectations {
+        for (probed, construct, wanted, unwanted) in cases {
             let probes: [(&str, Boxed<'static, ()>); 2] = [
                 (
                     "lookahead",
                     first_token
                         .clone()
-                        .ignore_then(lookahead(failing.clone(), expectation.clone()))
+                        .ignore_then(lookahead(probed.clone(), construct))
                         .boxed(),
                 ),
                 (
                     "followed_by",
-                    followed_by(first_token.clone(), failing.clone(), expectation.clone()).boxed(),
+                    followed_by(first_token.clone(), probed.clone(), construct).boxed(),
                 ),
             ];
             for (probe, parser) in probes {
@@ -6000,15 +5990,15 @@ mod tests {
                 let candidates = format!("{:?}", state.diagnostic_candidates_snapshot());
                 assert!(
                     !candidates.contains("probe"),
-                    "{probe} {expectation:?}: probe candidates leaked: {candidates}"
+                    "{probe} {construct:?}: probe candidates leaked: {candidates}"
                 );
                 let [error] = errors.as_slice() else {
-                    panic!("{probe} {expectation:?}: one error expected: {errors:?}");
+                    panic!("{probe} {construct:?}: one error expected: {errors:?}");
                 };
                 assert_eq!(
-                    *error.span(),
-                    probe_position,
-                    "{probe} {expectation:?}: the failure is reported at the probe position: \
+                    error.span().start,
+                    probe_position.start,
+                    "{probe} {construct:?}: the failure is reported at the probe position: \
                      {error:?}"
                 );
                 assert!(
@@ -6016,18 +6006,25 @@ mod tests {
                         error.found().map(|found| found.as_data()),
                         Some(data!(SyntaxFound::Token(_)))
                     ),
-                    "{probe} {expectation:?}: the failure names the token at the probe \
+                    "{probe} {construct:?}: the failure names the token at the probe \
                      position: {error:?}"
                 );
                 let error = format!("{error:?}");
                 assert!(
                     error.contains(&wanted) && !error.contains(unwanted),
-                    "{probe} {expectation:?}: the failure expects {wanted}: {error}"
+                    "{probe} {construct:?}: the failure expects {wanted}: {error}"
                 );
                 assert!(
                     !error.contains("probe alternative"),
-                    "{probe} {expectation:?}: the inner error leaked: {error}"
+                    "{probe} {construct:?}: the inner error leaked: {error}"
                 );
+                if let Some(construct) = construct.filter(|_| unwanted == "Named(") {
+                    assert!(
+                        error.contains(&format!("{construct:?}")),
+                        "{probe}: the expectations at the probe position are labelled with \
+                         the construct: {error}"
+                    );
+                }
             }
         }
     }

@@ -329,17 +329,13 @@ fn parser_word_cmavo(state: &mut ParserState, word: &Token) -> Option<Cmavo> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn parser_word_is_cmavo(state: &mut ParserState, word: &Token, cmavo: Cmavo) -> bool {
+fn parser_word_is_cmavo(state: &mut ParserState, word: &Token, cmavo: Cmavo) -> bool {
     parser_word_cmavo(state, word) == Some(cmavo)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn parser_word_is_selmaho(
-    state: &mut ParserState,
-    word: &Token,
-    selmaho: Selmaho,
-) -> bool {
+fn parser_word_is_selmaho(state: &mut ParserState, word: &Token, selmaho: Selmaho) -> bool {
     parser_word_cmavo(state, word).is_some_and(|cmavo| selmaho.contains(cmavo))
 }
 

@@ -2340,14 +2340,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ProbeFirstToken::Cmavo",
-        "a FIRST token carries a validated Cmavo value; every cmavo can start a probed construct",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:ProbeFirstToken::Selmaho",
-        "a FIRST token carries a validated Selmaho value; every selma'o can start a probed construct",
-    ),
-    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Fail",
         "a memoized rule failure delegates validity to the replayed parse error",
     ),
@@ -2358,6 +2350,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Run",
         "a rule run delegates validity to its bookkeeping snapshot",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:ProbeFailure::AtProbePosition",
+        "a probe failure at the probe position delegates validity to the invariant of ProbePositionFailure",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Ref",

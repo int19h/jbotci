@@ -3589,265 +3589,13 @@ impl NodeRule {
     }
 }
 
-/// The expectation that a failing positive probe reports; see
-/// `GrammarTypeEnv::probe_expected_tokens`.
-#[invariant(::Rule(label) => !label.is_empty())]
-#[derive(Debug, Clone)]
-enum ProbeLabel<'a> {
-    /// The label of the labelled rule or alias that the probe tests.
-    Rule(&'a str),
-    /// The probe tests a `not`.
-    NegativePredicate,
-    /// The probe tests anything else.
-    PositivePredicate,
-}
-
-/// A token that can start the construct that a positive probe tests, as the macro writes
-/// it into generated code.
-#[invariant(::Cmavo(cmavo) => !cmavo.is_empty())]
-#[invariant(::Selmaho(selmaho) => !selmaho.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum ProbeFirstToken {
-    Cmavo(String),
-    Selmaho(String),
-}
-
-impl ProbeFirstToken {
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand(&self) -> TokenStream2 {
-        match self.as_data() {
-            data!(ProbeFirstToken::Cmavo(cmavo)) => {
-                let cmavo = format_ident!("{cmavo}");
-                quote!(generated_runtime::ProbeFirstToken::Cmavo(Cmavo::#cmavo))
-            }
-            data!(ProbeFirstToken::Selmaho(selmaho)) => {
-                let selmaho = format_ident!("{selmaho}");
-                quote!(generated_runtime::ProbeFirstToken::Selmaho(Selmaho::#selmaho))
-            }
-        }
-    }
-}
-
-/// The FIRST set of a grammar construct, as far as the macro knows it exactly: a superset of
-/// the tokens that can start a match, so that a token outside it cannot start one, and
-/// whether the construct can match without consuming a token.
-#[invariant(
-    tokens.iter().enumerate().all(|(index, token)| !tokens[..index].contains(token)),
-    "FIRST tokens are distinct"
-)]
-#[derive(Debug, Clone)]
-struct ExactFirst {
-    tokens: Vec<ProbeFirstToken>,
-    nullable: bool,
-}
-
-/// Where `extend_exact_first` finds the FIRST set of a referenced rule.
-#[contract_trait]
-trait RuleFirstSource {
-    #[requires(!rule.is_empty())]
-    #[ensures(true)]
-    fn rule_first(&self, rule: &str) -> Option<ExactFirst>;
-}
-
-/// The FIRST sets of every rule, computed once from the rule definitions.
-///
-/// A rule's FIRST set is unknown (`None`) when its definition reaches, before its first
-/// consumed token, a parser that is not a `cmavo`, `selmaho` or `pa_word` token, a rule whose
-/// FIRST set is unknown, or a cycle (which a PEG grammar cannot have, so it is only a guard).
-/// An enum's FIRST set is the union of its arms, and a field or arm under a dialect
-/// condition counts as optional. Both keep the set a superset of the real one.
-#[invariant(rules.keys().all(|name| !name.is_empty()))]
-struct RuleFirstAnalysis<'a> {
-    rules: BTreeMap<String, &'a Rule>,
-    type_env: &'a GrammarTypeEnv,
-    known: RefCell<BTreeMap<String, Option<ExactFirst>>>,
-    visiting: RefCell<BTreeSet<String>>,
-}
-
-impl<'a> RuleFirstAnalysis<'a> {
-    /// The FIRST set of every rule in `rules`, by name.
-    #[requires(true)]
-    #[ensures(ret.len() == rules.len())]
-    fn run(
-        rules: &'a [Rule],
-        type_env: &'a GrammarTypeEnv,
-    ) -> BTreeMap<String, Option<ExactFirst>> {
-        let analysis = Self::from_data(data!(RuleFirstAnalysis {
-            rules: rules
-                .iter()
-                .map(|rule| (rule.name().to_string(), rule))
-                .collect(),
-            type_env,
-            known: RefCell::new(BTreeMap::new()),
-            visiting: RefCell::new(BTreeSet::new()),
-        }));
-        for name in analysis.rules.keys() {
-            analysis.rule_first(name);
-        }
-        analysis.into_data().known.into_inner()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn compute(&self, rule: &'a Rule) -> Option<ExactFirst> {
-        let mut tokens = Vec::new();
-        let nullable = match rule {
-            Rule::Alias(rule) => {
-                let expr =
-                    classify_parser_expr(&rule.parser, &rule.argument_name_set(), self.type_env)
-                        .ok()?;
-                extend_exact_first(&expr, &mut tokens, self)?
-            }
-            Rule::Struct(rule) => {
-                let arguments = rule.argument_name_set();
-                let mut nullable = true;
-                for field in &rule.fields {
-                    match field.kind {
-                        FieldKind::Field | FieldKind::Require => {}
-                        FieldKind::Computed | FieldKind::TempLet => return None,
-                    }
-                    let expr =
-                        classify_parser_expr(&field.parser, &arguments, self.type_env).ok()?;
-                    let field_nullable = extend_exact_first(&expr, &mut tokens, self)?;
-                    if !field_nullable && field.conditions.is_empty() {
-                        nullable = false;
-                        break;
-                    }
-                }
-                nullable
-            }
-            Rule::Enum(rule) => {
-                let mut nullable = false;
-                for branch in &rule.branches {
-                    let arm = self.rule_first(&branch.name.to_string())?;
-                    let data!(ExactFirst {
-                        tokens: arm_tokens,
-                        nullable: arm_nullable,
-                    }) = arm.into_data();
-                    for token in arm_tokens {
-                        push_first_token(&mut tokens, token);
-                    }
-                    nullable |= arm_nullable || !branch.conditions.is_empty();
-                }
-                nullable
-            }
-        };
-        Some(new!(ExactFirst { tokens, nullable }))
-    }
-}
-
-#[contract_trait]
-impl RuleFirstSource for RuleFirstAnalysis<'_> {
-    fn rule_first(&self, rule: &str) -> Option<ExactFirst> {
-        if let Some(known) = self.known.borrow().get(rule) {
-            return known.clone();
-        }
-        let definition = *self.rules.get(rule)?;
-        if !self.visiting.borrow_mut().insert(rule.to_owned()) {
-            return None;
-        }
-        let first = self.compute(definition);
-        self.visiting.borrow_mut().remove(rule);
-        self.known
-            .borrow_mut()
-            .insert(rule.to_owned(), first.clone());
-        first
-    }
-}
-
-/// The finished FIRST sets of every rule, as `RuleFirstAnalysis::run` returns them.
-#[contract_trait]
-impl RuleFirstSource for BTreeMap<String, Option<ExactFirst>> {
-    fn rule_first(&self, rule: &str) -> Option<ExactFirst> {
-        self.get(rule).cloned().flatten()
-    }
-}
-
-#[requires(true)]
-#[ensures(tokens.len() == old(tokens.len()) + usize::from(!old(tokens.contains(&token))))]
-fn push_first_token(tokens: &mut Vec<ProbeFirstToken>, token: ProbeFirstToken) {
-    if !tokens.contains(&token) {
-        tokens.push(token);
-    }
-}
-
-/// Adds the FIRST tokens of `expr` to `tokens` and returns whether `expr` can match without
-/// consuming a token, or `None` when the FIRST set of `expr` is not exactly known.
-///
-/// The set is computed only from single-token parsers (`cmavo`, `selmaho`, `pa_word`), rules
-/// with a known FIRST set (see `RuleFirstAnalysis`), and the combinators over them. Free
-/// modifiers (`wf`) come after their token, so they do not change the set. A word category,
-/// an opaque parser (which includes a dialect `feature`) or a guard such as
-/// `not_next_selmaho`, which classification records without its receiver, makes the set
-/// unknown.
-///
-/// A `lookahead` or a `not` inside a sequence consumes nothing. It only narrows what the rest
-/// of the sequence can start with, so the union with the rest is still a superset of the
-/// real FIRST set: a token outside it still cannot start a match.
-#[requires(true)]
+/// Generated code for a probe's construct label: `Some(label)` or `None`.
+#[requires(label.is_none_or(|label| !label.is_empty()))]
 #[ensures(true)]
-fn extend_exact_first(
-    expr: &RecoveryExpr,
-    tokens: &mut Vec<ProbeFirstToken>,
-    rules: &impl RuleFirstSource,
-) -> Option<bool> {
-    match expr {
-        RecoveryExpr::Cmavo(cmavo) => {
-            push_first_token(tokens, new!(ProbeFirstToken::Cmavo(cmavo.clone())));
-            Some(false)
-        }
-        RecoveryExpr::Selmaho(selmaho) => {
-            push_first_token(tokens, new!(ProbeFirstToken::Selmaho(selmaho.clone())));
-            Some(false)
-        }
-        RecoveryExpr::Opt(inner) | RecoveryExpr::Many(inner) => {
-            extend_exact_first(inner, tokens, rules)?;
-            Some(true)
-        }
-        RecoveryExpr::Many1(inner)
-        | RecoveryExpr::Boxed(inner)
-        | RecoveryExpr::Arc(inner)
-        | RecoveryExpr::PayloadStart(inner)
-        | RecoveryExpr::Ignored(inner)
-        | RecoveryExpr::WithFreeModifiers { inner, .. } => extend_exact_first(inner, tokens, rules),
-        RecoveryExpr::Lookahead(inner) => {
-            extend_exact_first(inner, tokens, rules)?;
-            Some(true)
-        }
-        RecoveryExpr::Not(_) => Some(true),
-        RecoveryExpr::Choice(alternatives) => {
-            let mut nullable = false;
-            for alternative in alternatives {
-                nullable |= extend_exact_first(alternative, tokens, rules)?;
-            }
-            Some(nullable)
-        }
-        RecoveryExpr::Sequence(parts) => {
-            for part in parts {
-                if !extend_exact_first(part, tokens, rules)? {
-                    return Some(false);
-                }
-            }
-            Some(true)
-        }
-        RecoveryExpr::Rule(rule) => {
-            let data!(ExactFirst {
-                tokens: rule_tokens,
-                nullable,
-            }) = rules.rule_first(rule)?.into_data();
-            for token in rule_tokens {
-                push_first_token(tokens, token);
-            }
-            Some(nullable)
-        }
-        RecoveryExpr::WordCategory(_)
-        | RecoveryExpr::NotNextSelmaho(_)
-        | RecoveryExpr::NotNextToken(_)
-        | RecoveryExpr::BareNegationTerm
-        | RecoveryExpr::RelationWord
-        | RecoveryExpr::Opaque(_)
-        | RecoveryExpr::Eof => None,
+fn construct_label_tokens(label: Option<&str>) -> TokenStream2 {
+    match label {
+        Some(label) => quote!(Some(#label)),
+        None => quote!(None),
     }
 }
 
@@ -3860,8 +3608,6 @@ struct GrammarTypeEnv {
     model_nodes: BTreeSet<String>,
     /// The context label of every labelled rule and alias, by name.
     rule_labels: BTreeMap<String, String>,
-    /// The FIRST set of every rule, by name; see `RuleFirstAnalysis`.
-    rule_first: BTreeMap<String, Option<ExactFirst>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4121,7 +3867,6 @@ impl GrammarTypeEnv {
                 .iter()
                 .filter_map(|rule| Some((rule.name().to_string(), rule.context_label()?)))
                 .collect(),
-            rule_first: BTreeMap::new(),
         };
 
         for rule in rules {
@@ -4184,103 +3929,34 @@ impl GrammarTypeEnv {
             })
             .collect();
 
-        let rule_first = RuleFirstAnalysis::run(rules, &type_env);
-        type_env.rule_first = rule_first;
         type_env
     }
 }
 
 impl GrammarTypeEnv {
-    /// The `ProbeExpectation` that a failing positive probe of `target` reports at the probe
-    /// position.
+    /// The construct label that a failing positive probe of `target` reports, as generated
+    /// code: `Some(label)` when `target` names a labelled rule or alias, and `None` otherwise.
     ///
-    /// The construct label is the label of the rule or alias that `target` names. A `not`
-    /// target reports the same fixed label that `not` itself reports. When the FIRST set of
-    /// any other target is known (see `exact_probe_first`), the probe reports it if the next
-    /// token is not in it, and the construct label, or the fixed positive-predicate label for
-    /// an unlabelled target, if the token is in it. Otherwise the probe reports the construct
-    /// label or the positive-predicate label. `lookahead` and `ignored` do not change the
-    /// construct that a probe tests, so the label is looked up through them. This keeps
-    /// `assert rule.lookahead();`, which wraps one lookahead in another, reporting the rule
-    /// label.
+    /// `lookahead` and `ignored` do not change the construct that a probe tests, so the label
+    /// is looked up through them. This keeps `assert rule.lookahead();`, which wraps one
+    /// lookahead in another, reporting the rule label.
     #[requires(true)]
     #[ensures(true)]
-    fn probe_expected_tokens(
-        &self,
-        target: &ParserExpr,
-        arguments: &BTreeSet<String>,
-    ) -> Result<TokenStream2> {
-        let label = self.parser_expr_probe_label(target);
-        self.probe_expectation_tokens(label, || classify_parser_expr(target, arguments, self))
+    fn probe_construct_tokens(&self, target: &ParserExpr) -> TokenStream2 {
+        construct_label_tokens(self.parser_expr_probe_label(target))
     }
 
-    /// The same as `probe_expected_tokens`, for a probe target written as a plain Rust
+    /// The same as `probe_construct_tokens`, for a probe target written as a plain Rust
     /// expression.
     #[requires(true)]
     #[ensures(true)]
-    fn rust_probe_expected_tokens(
-        &self,
-        target: &Expr,
-        arguments: &BTreeSet<String>,
-    ) -> Result<TokenStream2> {
-        let label = self.rust_expr_probe_label(target);
-        self.probe_expectation_tokens(label, || classify_recovery_expr(target, arguments, self))
+    fn rust_probe_construct_tokens(&self, target: &Expr) -> TokenStream2 {
+        construct_label_tokens(self.rust_expr_probe_label(target))
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn probe_expectation_tokens(
-        &self,
-        label: ProbeLabel<'_>,
-        classify: impl FnOnce() -> Result<RecoveryExpr>,
-    ) -> Result<TokenStream2> {
-        let construct = match label.as_data() {
-            data!(ProbeLabel::NegativePredicate) => {
-                return Ok(quote!(generated_runtime::probe_label(
-                    generated_runtime::NEGATIVE_PREDICATE_LABEL
-                )));
-            }
-            data!(ProbeLabel::Rule(label)) => Some(*label),
-            data!(ProbeLabel::PositivePredicate) => None,
-        };
-        Ok(match (self.exact_probe_first(&classify()?), construct) {
-            (Some(first), Some(construct)) => {
-                let first = first.iter().map(ProbeFirstToken::expand);
-                quote!(generated_runtime::probe_construct_first(#construct, &[#(#first),*]))
-            }
-            (Some(first), None) => {
-                let first = first.iter().map(ProbeFirstToken::expand);
-                quote!(generated_runtime::probe_first(&[#(#first),*]))
-            }
-            (None, Some(construct)) => quote!(generated_runtime::probe_label(#construct)),
-            (None, None) => quote!(generated_runtime::probe_label(
-                generated_runtime::POSITIVE_PREDICATE_LABEL
-            )),
-        })
-    }
-
-    /// The FIRST set of a positive probe target, if it is known and the target cannot match
-    /// without consuming a token: then a probe whose next token is not in the set certainly
-    /// fails at that token. `lookahead` and `ignored` around the whole target do not change
-    /// the set.
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_none_or(|first| !first.is_empty()))]
-    fn exact_probe_first(&self, target: &RecoveryExpr) -> Option<Vec<ProbeFirstToken>> {
-        match target {
-            RecoveryExpr::Lookahead(inner) | RecoveryExpr::Ignored(inner) => {
-                self.exact_probe_first(inner)
-            }
-            _ => {
-                let mut tokens = Vec::new();
-                let nullable = extend_exact_first(target, &mut tokens, &self.rule_first)?;
-                (!nullable && !tokens.is_empty()).then_some(tokens)
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn parser_expr_probe_label(&self, target: &ParserExpr) -> ProbeLabel<'_> {
+    #[ensures(ret.is_none_or(|label| !label.is_empty()))]
+    fn parser_expr_probe_label(&self, target: &ParserExpr) -> Option<&str> {
         match target {
             ParserExpr::Rust(expr) => self.rust_expr_probe_label(expr),
             ParserExpr::Postfix {
@@ -4290,18 +3966,13 @@ impl GrammarTypeEnv {
             } if args.is_empty() && (method == "lookahead" || method == "ignored") => {
                 self.parser_expr_probe_label(receiver)
             }
-            ParserExpr::Postfix { method, args, .. } if args.is_empty() && method == "not" => {
-                new!(ProbeLabel::NegativePredicate)
-            }
-            ParserExpr::Vector(_) | ParserExpr::Chain(_) | ParserExpr::Postfix { .. } => {
-                new!(ProbeLabel::PositivePredicate)
-            }
+            ParserExpr::Vector(_) | ParserExpr::Chain(_) | ParserExpr::Postfix { .. } => None,
         }
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn rust_expr_probe_label(&self, target: &Expr) -> ProbeLabel<'_> {
+    #[ensures(ret.is_none_or(|label| !label.is_empty()))]
+    fn rust_expr_probe_label(&self, target: &Expr) -> Option<&str> {
         let rule = match target {
             Expr::Paren(paren) => return self.rust_expr_probe_label(&paren.expr),
             Expr::MethodCall(method)
@@ -4310,23 +3981,17 @@ impl GrammarTypeEnv {
             {
                 return self.rust_expr_probe_label(&method.receiver);
             }
-            Expr::MethodCall(method) if method.args.is_empty() && method.method == "not" => {
-                return new!(ProbeLabel::NegativePredicate);
-            }
-            Expr::Path(path) => path.path.get_ident(),
+            Expr::Path(path) => path.path.get_ident()?,
             Expr::Call(call) => match call.func.as_ref() {
-                Expr::Path(path) => path.path.get_ident(),
-                _ => None,
+                Expr::Path(path) => path.path.get_ident()?,
+                _ => return None,
             },
-            _ => None,
+            _ => return None,
         };
-        match rule
-            .and_then(|rule| self.rule_labels.get(&rule.to_string()))
+        self.rule_labels
+            .get(&rule.to_string())
+            .map(String::as_str)
             .filter(|label| !label.is_empty())
-        {
-            Some(label) => new!(ProbeLabel::Rule(label.as_str())),
-            None => new!(ProbeLabel::PositivePredicate),
-        }
     }
 
     #[requires(true)]
@@ -5130,9 +4795,7 @@ fn strict_postfix_parser_expr_tokens(
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
-            let expected = generation
-                .type_env
-                .probe_expected_tokens(receiver, arguments)?;
+            let expected = generation.type_env.probe_construct_tokens(receiver);
             Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
         }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
@@ -5465,9 +5128,7 @@ fn recovered_postfix_parser_expr_tokens(
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
-            let expected = generation
-                .type_env
-                .probe_expected_tokens(receiver, arguments)?;
+            let expected = generation.type_env.probe_construct_tokens(receiver);
             Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
         }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
@@ -5860,9 +5521,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let guard_expected = generation
-            .type_env
-            .rust_probe_expected_tokens(guard_expr, arguments)?;
+        let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
@@ -5904,7 +5563,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         let expected = generation
             .type_env
-            .rust_probe_expected_tokens(&method.receiver, arguments)?;
+            .rust_probe_construct_tokens(&method.receiver);
         Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
@@ -6772,9 +6431,7 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let guard_expected = generation
-            .type_env
-            .rust_probe_expected_tokens(guard_expr, arguments)?;
+        let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
@@ -6816,7 +6473,7 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let expected = generation
             .type_env
-            .rust_probe_expected_tokens(&method.receiver, arguments)?;
+            .rust_probe_construct_tokens(&method.receiver);
         Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
