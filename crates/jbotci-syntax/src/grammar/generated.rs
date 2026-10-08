@@ -45,9 +45,6 @@ pub mod generated_model {
         // recognizers for the FA chain" section.
         exp_gek_sentence_guard: ExpGekSentenceGuardSyntax;
         exp_guard_gek: ExpGuardGekSyntax;
-        // The extended tag of the same section. It is recursive so that the reservations of the
-        // camxes-exp joints can read it by name, without threading its arguments.
-        exp_guard_tag: ExpGuardTagSyntax;
         bo_grouped_bridi_tail: BoGroupedBridiTailSyntax;
         bo_grouped_bridi_tail_without_tail_terms: BoGroupedBridiTailWithoutTailTermsSyntax;
         forethought_bridi_connection: ForethoughtBridiConnectionSyntax;
@@ -632,7 +629,7 @@ pub mod generated_model {
     /// into a completed arm: it fails, and gives way to the baseline arms, unless an interval
     /// joint follows the first tail. Its operands are [`bridi_tail`], so a KE group or an
     /// operand never takes a sentence-level joint of its own, as in camxes-exp.
-    rule "bridi tail" sentence_bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal, exp_guard_tag) -> enum {
+    rule "bridi tail" sentence_bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
         /// camxes-exp's sentence-level interval joints.
         exp_interval_connected_bridi_tail,
         /// Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
@@ -652,18 +649,18 @@ pub mod generated_model {
     ///
     /// Every joint groups to the left. A BO joint can only come first, and only directly after
     /// it can a KE joint come before the flat one, so the first joint carries that order.
-    rule "bridi tail" exp_interval_connected_bridi_tail(bridi_tail, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail" exp_interval_connected_bridi_tail(bridi_tail, tense_modal) -> struct {
         /// The first bridi tail.
         field first <- arc(bridi_tail);
         /// The first joint: camxes-exp's BO level, its KE level, or the first flat joint.
-        field first_joint <- exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal, exp_guard_tag);
+        field first_joint <- exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal);
         /// The later joints, in source order.
-        field further_joints <- [zero_or_more exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal, exp_guard_tag)];
+        field further_joints <- [zero_or_more exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal)];
     }
 
     /// The first joint of [`exp_interval_connected_bridi_tail`], in camxes-exp's order:
     /// `bridi_tail_t2`'s BO joint, then `bridi_tail_t1`'s KE joint, then the flat joint.
-    rule "bridi tail connective" exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal, exp_guard_tag) -> enum {
+    rule "bridi tail connective" exp_interval_leading_bridi_tail_joint(bridi_tail, tense_modal) -> enum {
         /// The BO joint, with the KE joint that may follow it at `bridi_tail_t1`.
         exp_interval_bo_led_bridi_tail_joints,
         /// The KE joint of `bridi_tail_t1`.
@@ -674,7 +671,7 @@ pub mod generated_model {
 
     /// A later joint of [`exp_interval_connected_bridi_tail`]: camxes-exp's repeated
     /// `(joik_jek bridi_tail / joik_jek stag? KE_clause ...)`, flat first.
-    rule "bridi tail connective" exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal, exp_guard_tag) -> enum {
+    rule "bridi tail connective" exp_interval_further_bridi_tail_joint(bridi_tail, tense_modal) -> enum {
         /// The flat joint.
         exp_interval_flat_bridi_tail_joint,
         /// The KE joint.
@@ -725,19 +722,9 @@ pub mod generated_model {
     }
 
     /// `joik_jek bridi_tail` with an interval connective.
-    rule "bridi tail connective" exp_interval_flat_bridi_tail_joint(bridi_tail, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail connective" exp_interval_flat_bridi_tail_joint(bridi_tail) -> struct {
         // See `exp_interval_bo_bridi_tail_joint`.
         assert choice((selmaho(Gaho).ignored(), (opt(selmaho(Se)), selmaho(Bihi)).ignored())).lookahead();
-        // camxes-exp reads a whole run of tag atoms before BO or KE as one stag (camxes-exp.peg:375,
-        // :378). When that run reaches BO or KE but jbotci's tag does not, as in `bi'i pu nai bau
-        // ke`, the BO and KE joints cannot take it, and the flat joint would split the run into a
-        // term and a tagged selbri, which camxes-exp never derives. So the flat joint is refused.
-        assert !(
-            (exp_interval_sentence_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not(),
-            exp_interval_sentence_connective,
-            arc(exp_guard_tag),
-            choice((cmavo(Bo), cmavo(Ke))),
-        );
         #[tree_child(primary)]
         /// The interval connective.
         field connective <- exp_interval_sentence_connective;
@@ -786,7 +773,7 @@ pub mod generated_model {
 
     /// Sum node for bridi tail; selects among the `bridi_tail_with_possible_tail_terms` and
     /// `bridi_tail_without_tail_terms` forms.
-    rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal, exp_guard_tag) -> enum {
+    rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
         /// Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
         bridi_tail_with_possible_tail_terms,
         /// Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
@@ -794,37 +781,37 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
-    rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal, exp_guard_tag));
+        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
         /// The optional ke continuation component.
         field ke_continuation <- opt(arc(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
-    rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal, exp_guard_tag));
+        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
         /// The optional ke continuation component.
         field ke_continuation <- opt(arc(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
-    rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail_without_tail_terms` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail_without_tail_terms),
-            zero_or_more: bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal, exp_guard_tag),
+            zero_or_more: bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal),
             element: bridi_tail,
         );
     }
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
-    rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail),
-            zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal, exp_guard_tag),
+            zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal),
             element: bridi_tail,
         );
     }
@@ -1094,19 +1081,8 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail connective; preserves `connective` and `bridi_tail` in source order.
-    rule "bridi tail connective" bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail connective" bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
         assert !(bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
-        // camxes-exp reads a whole run of tag atoms before BO or KE as one stag (camxes-exp.peg:375,
-        // :378), for example `pu nai bau`. jbotci's tag stops after `pu nai`, so without this
-        // reservation a JA or JOI joint would take `pu nai` as a term and leave a tagged KE
-        // selbri, a split that camxes-exp never derives. When the extended tag reaches BO or KE
-        // but jbotci's tag does not, the flat joint is refused. GIhA keeps its baseline reading.
-        assert !(
-            (exp_ja_joi_bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not(),
-            exp_ja_joi_bridi_tail_connective,
-            arc(exp_guard_tag),
-            choice((cmavo(Bo), cmavo(Ke))),
-        );
         /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation_without_tail_terms` production.
         field connective <- bridi_tail_connective;
         /// The shared bridi tail child syntax node.
@@ -1114,15 +1090,8 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `bridi_tail`, `tail_terms`, and `vau` in source order.
-    rule "bridi tail connective" bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal, exp_guard_tag) -> struct {
+    rule "bridi tail connective" bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
         assert !(bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
-        // See `bridi_tail_continuation_without_tail_terms`.
-        assert !(
-            (exp_ja_joi_bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not(),
-            exp_ja_joi_bridi_tail_connective,
-            arc(exp_guard_tag),
-            choice((cmavo(Bo), cmavo(Ke))),
-        );
         /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation` production.
         field connective <- bridi_tail_connective;
         /// The shared bridi tail child syntax node.
@@ -1934,7 +1903,7 @@ pub mod generated_model {
     /// from [`exp_guard_gek`], a `subbridi`, a GIK, a `subbridi` and tail terms; any number of
     /// extended tags from [`exp_guard_tag`] before KE and a recognized sentence; or NA before a
     /// recognized sentence. The KE and NA arms recurse through this rule.
-    rule "forethought bridi connection" exp_gek_sentence_guard(exp_gek_sentence_guard, exp_guard_gek, exp_guard_tag, subbridi, term) -> enum {
+    rule "forethought bridi connection" exp_gek_sentence_guard(exp_gek_sentence_guard, exp_guard_gek, subbridi, term, selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
         /// The GEK pair.
         exp_gek_sentence_guard_pair,
         /// Tags before KE and a recognized sentence.
@@ -1960,9 +1929,9 @@ pub mod generated_model {
     }
 
     /// The KE arm of [`exp_gek_sentence_guard`].
-    rule "forethought bridi connection" exp_gek_sentence_guard_grouped(exp_gek_sentence_guard, exp_guard_tag) -> struct {
+    rule "forethought bridi connection" exp_gek_sentence_guard_grouped(exp_gek_sentence_guard, selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
         /// The extended tags before KE.
-        field tags <- [zero_or_more arc(exp_guard_tag)];
+        field tags <- [zero_or_more exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string)];
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The grouped forethought sentence.
@@ -1982,7 +1951,7 @@ pub mod generated_model {
     /// A GEK opener as the FA chain's guards read it, in the arm order of camxes-exp's `gek`
     /// (:361): `ga` + JOIK-JEK, SE? GA, JOIK GI, and an extended tag before GIK. The `ga` arm
     /// refuses a following opener, as camxes-exp's `gak` does (:364), through this rule.
-    rule "forethought connective" exp_guard_gek(exp_guard_gek, exp_guard_tag) -> enum {
+    rule "forethought connective" exp_guard_gek(exp_guard_gek, selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
         /// `ga` + JOIK-JEK.
         exp_guard_gaja_gek,
         /// SE? GA.
@@ -2025,9 +1994,9 @@ pub mod generated_model {
     }
 
     /// An extended tag before GIK.
-    rule "forethought connective" exp_guard_stag_gik_gek(exp_guard_tag) -> struct {
+    rule "forethought connective" exp_guard_stag_gik_gek(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
         /// The extended tag.
-        field stag <- arc(exp_guard_tag);
+        field stag <- exp_guard_tag(selbri, sumti, mekso, letter_tokens, letter_string);
         /// The GIK.
         field gik <- gik_connective;
     }
