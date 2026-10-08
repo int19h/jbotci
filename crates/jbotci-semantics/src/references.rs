@@ -1778,7 +1778,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 ) => self.analyze_bound_selbri(&continuation.trailing_selbri),
                 generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
                     continuation,
-                ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.analyze_tanru_selbri(&continuation.inner_selbri)
+                }
                 generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
                     continuation,
                 ) => {
@@ -6057,7 +6062,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 ) => self.visit_bound_selbri(&continuation.trailing_selbri),
                 generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
                     continuation,
-                ) => self.visit_tanru_selbri(&continuation.inner_selbri),
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_tanru_selbri(&continuation.inner_selbri);
+                }
                 generated::ConnectedSelbriContinuationSyntax::ExpJaGroupedConnectedSelbriContinuation(
                     continuation,
                 ) => {
