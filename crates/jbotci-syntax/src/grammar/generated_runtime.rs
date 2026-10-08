@@ -2075,14 +2075,17 @@ impl ProbeFirstToken {
 
 /// What a failing positive probe reports at the probe position.
 #[invariant(::Label(label) => !label.is_empty())]
-#[invariant(::First(first) => !first.is_empty())]
+#[invariant(::First => !first.is_empty() && construct.is_none_or(|construct| !construct.is_empty()))]
 #[derive(Debug, Clone)]
 pub(crate) enum ProbeExpectation {
     /// The label of the probed construct: the label of a probed rule or alias, or a fixed
     /// predicate label.
     Label(&'static str),
-    /// The FIRST set of a probed construct that has no label of its own.
-    First(&'static [ProbeFirstToken]),
+    /// The FIRST set of the probed construct, and its label if it is a labelled rule or alias.
+    First {
+        construct: Option<&'static str>,
+        first: &'static [ProbeFirstToken],
+    },
 }
 
 /// The expectation of a probe whose construct has the label `label`.
@@ -2096,7 +2099,25 @@ pub(crate) fn probe_label(label: &'static str) -> ProbeExpectation {
 #[requires(!first.is_empty())]
 #[ensures(true)]
 pub(crate) fn probe_first(first: &'static [ProbeFirstToken]) -> ProbeExpectation {
-    new!(ProbeExpectation::First(first))
+    new!(ProbeExpectation::First {
+        construct: None,
+        first,
+    })
+}
+
+/// The expectation of a probe whose construct has the label `construct` and the FIRST set
+/// `first`.
+#[requires(!construct.is_empty())]
+#[requires(!first.is_empty())]
+#[ensures(true)]
+pub(crate) fn probe_construct_first(
+    construct: &'static str,
+    first: &'static [ProbeFirstToken],
+) -> ProbeExpectation {
+    new!(ProbeExpectation::First {
+        construct: Some(construct),
+        first,
+    })
 }
 
 /// Parses `inner` where `guard` matches right after it, without consuming what `guard`
@@ -2277,11 +2298,10 @@ where
 ///
 /// If the probed construct has a FIRST set and the next token is not in it, the probe failed
 /// at that token, so the error expects one of the FIRST tokens. Otherwise the error is an
-/// expectation of the construct label (the positive-predicate label for a construct with a
-/// FIRST set, whose probe then failed after its first token). A label is applied as a
-/// labelled rule applies its label to a failure at its own start, so a probe of a rule or
-/// alias that is a diagnostic context reports that construct, as the probed rule itself would
-/// if it failed where the probe started.
+/// expectation of the construct label, or of the positive-predicate label for an unlabelled
+/// construct. A construct label is applied as a labelled rule applies its label to a failure
+/// at its own start, so a probe of a rule or alias that is a diagnostic context reports that
+/// construct, as the probed rule itself would if it failed where the probe started.
 #[requires(true)]
 #[ensures(
     ParserInput::cursor_location(input.cursor().inner())
@@ -2291,18 +2311,31 @@ fn failed_probe_error<'tokens>(
     input: &mut InputRef<'tokens, '_>,
     expected: &ProbeExpectation,
 ) -> SyntaxParseError<'tokens> {
-    let label = match expected.as_data() {
-        data!(ProbeExpectation::First(first)) if !next_token_is_one_of(input, first) => {
-            return expected_found_tokens_at_current(
+    let (mut error, label) = match expected.as_data() {
+        data!(ProbeExpectation::First { construct, first })
+            if !next_token_is_one_of(input, first) =>
+        {
+            let error = expected_found_tokens_at_current(
                 input,
                 first.iter().map(|token| token.expected()).collect(),
             );
+            (error, *construct)
         }
-        data!(ProbeExpectation::First(_)) => POSITIVE_PREDICATE_LABEL,
-        data!(ProbeExpectation::Label(label)) => label,
+        data!(ProbeExpectation::First { construct, .. }) => {
+            let label = construct.unwrap_or(POSITIVE_PREDICATE_LABEL);
+            (
+                expected_found_named_at_current(input, label.to_owned()),
+                Some(label),
+            )
+        }
+        data!(ProbeExpectation::Label(label)) => (
+            expected_found_named_at_current(input, (*label).to_owned()),
+            Some(*label),
+        ),
     };
-    let mut error = expected_found_named_at_current(input, label.to_owned());
-    LabelError::label_with(&mut error, label);
+    if let Some(label) = label {
+        LabelError::label_with(&mut error, label);
+    }
     error
 }
 

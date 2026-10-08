@@ -5910,7 +5910,7 @@ mod tests {
     fn failing_positive_probes_report_their_expectation_at_the_probe_position() {
         use super::generated_runtime::{
             POSITIVE_PREDICATE_LABEL, ProbeExpectation, ProbeFirstToken, followed_by, lookahead,
-            probe_first, probe_label,
+            probe_construct_first, probe_first, probe_label,
         };
         use super::parser_core::{Input, Parser, custom};
         use super::tokens::spanned_tokens;
@@ -5941,7 +5941,7 @@ mod tests {
         })
         .boxed();
         // (expectation, text that the error must contain, text that it must not contain)
-        let expectations: [(ProbeExpectation, String, &str); 3] = [
+        let expectations: [(ProbeExpectation, String, &str); 5] = [
             // A labelled construct reports its label.
             (
                 probe_label("probed construct"),
@@ -5960,6 +5960,19 @@ mod tests {
             (
                 probe_first(&[ProbeFirstToken::Cmavo(Cmavo::Ku)]),
                 format!("Named({POSITIVE_PREDICATE_LABEL:?})"),
+                "Cmavo(",
+            ),
+            // A labelled construct with a FIRST set that does not hold `ku` expects the FIRST
+            // set, labelled with the construct.
+            (
+                probe_construct_first("tag", &[ProbeFirstToken::Cmavo(Cmavo::Kei)]),
+                format!("{:?}", Cmavo::Kei),
+                "Named(",
+            ),
+            // A labelled construct with a FIRST set that holds `ku` reports its label.
+            (
+                probe_construct_first("tag", &[ProbeFirstToken::Cmavo(Cmavo::Ku)]),
+                "Named(\"tag\")".to_owned(),
                 "Cmavo(",
             ),
         ];
