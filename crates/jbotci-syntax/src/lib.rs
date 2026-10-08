@@ -2763,6 +2763,8 @@ pub enum ExperimentalConstruct {
     ExperimentalMexQuantifier,
     ExperimentalMexMeSelbriUnit,
     ExperimentalMexMoiSelbriUnit,
+    ExperimentalMexSubscript,
+    ExperimentalMexUtteranceOrdinal,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -2854,6 +2856,10 @@ impl ExperimentalConstruct {
             Self::ExperimentalMexQuantifier => "syntax.warning.experimental-mex-quantifier",
             Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
             Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
+            Self::ExperimentalMexSubscript => "syntax.warning.experimental-mex-subscript",
+            Self::ExperimentalMexUtteranceOrdinal => {
+                "syntax.warning.experimental-mex-utterance-ordinal"
+            }
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -2979,6 +2985,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalMexQuantifier => "mex quantifier without VEI",
             Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
             Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
+            Self::ExperimentalMexSubscript => "XI with a mex that is not a number or VEI",
+            Self::ExperimentalMexUtteranceOrdinal => "mex before MAI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
@@ -4262,7 +4270,11 @@ mod tests {
             SyntaxErrorKind::IncompleteForethoughtConnection,
         );
         assert_error_kind("po li ce", SyntaxErrorKind::IncompleteMekso);
-        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteSumti);
+        // At the end of `voi ce`, the free modifiers after the JOI of `ce gi` are tried. The
+        // utterance ordinal `mex_2 MAI` then lists the starts of a `mex_2` there, for example
+        // `voi ce la'e pa lu'u mai gi mi broda gi do brode`. These mex constructs now decide
+        // the kind.
+        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteMekso);
     }
 
     #[test]
@@ -4554,7 +4566,10 @@ mod tests {
     // Issue #982 replaced the first and third inputs again: the camxes-exp
     // JA joint after a bridi tail now completes `broda fa je pu me ku`. With
     // the lookahead diagnostics fix (#984), the third input's later error
-    // stopped needing the fallback, so it was replaced once more.
+    // stopped needing the fallback, so it was replaced once more. Group 5 of #982
+    // replaced the second input: with the utterance ordinal `mex_2 MAI`, `ga pu bo mi klama
+    // gi do cadzu` recovers in the first phase (see
+    // `recovered_syntax_inserts_a_missing_term_connection_before_bo`).
 
     #[test]
     #[requires(true)]
@@ -4575,19 +4590,19 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_forethought_connective() {
-        let probe = recovered_syntax_probe_at_strict_error("ga pu bo mi klama gi do cadzu", 6);
+        let probe = recovered_syntax_probe_at_strict_error("ga pu ke'e mi klama gi do cadzu", 6);
 
         assert_eq!(probe.error_byte_starts, [6]);
         assert_eq!(probe.valid_tokens, ["ga", "pu"]);
         assert_eq!(
             probe.recovery_spans,
             [
-                (6, 8),
-                (9, 11),
-                (12, 17),
-                (18, 20),
-                (21, 23),
-                (24, 29),
+                (6, 10),
+                (11, 13),
+                (14, 19),
+                (20, 22),
+                (23, 25),
+                (26, 31),
                 (6, 6),
                 (6, 6)
             ]
@@ -4595,6 +4610,27 @@ mod tests {
         assert_eq!(
             probe.missing_count, 2,
             "the forethought connection keeps `ga pu` and marks both missing operands"
+        );
+    }
+
+    /// `ga pu bo mi klama gi do cadzu` recovers in the first phase: recovery inserts the
+    /// missing connective and tag of a BO term connection before `bo`, as in the valid
+    /// `ga pu .e ca bo mi klama gi do cadzu`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_inserts_a_missing_term_connection_before_bo() {
+        let probe = recovered_syntax_probe_at_strict_error("ga pu bo mi klama gi do cadzu", 6);
+
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(
+            probe.valid_tokens,
+            ["ga", "pu", "bo", "mi", "kláma", "gi", "do", "cádzu"]
+        );
+        assert_eq!(probe.recovery_spans, [(6, 6), (6, 6)]);
+        assert_eq!(
+            probe.missing_count, 2,
+            "the connective and the tag are missing"
         );
     }
 
