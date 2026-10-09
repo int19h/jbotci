@@ -7549,6 +7549,116 @@ mod tests {
             .collect()
     }
 
+    /// The calls of a parser expression `choice((rule(arguments).ignored(), ...))`, written
+    /// without whitespace as the rule metadata records it: each called rule with its argument
+    /// names, in order. Any other shape of the expression fails the calling test.
+    #[requires(!parser.chars().any(char::is_whitespace))]
+    #[ensures(ret.iter().all(|(rule, _)| !rule.is_empty()))]
+    fn ignored_choice_calls(parser: &str) -> Vec<(&str, Vec<&str>)> {
+        let arms = parser
+            .strip_prefix("choice((")
+            .and_then(|rest| rest.strip_suffix("))"))
+            .unwrap_or_else(|| panic!("`{parser}` is a `choice((...))` expression"));
+        let mut calls = Vec::new();
+        let mut depth = 0usize;
+        let mut start = 0;
+        for (index, character) in arms.char_indices() {
+            match character {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                ',' if depth == 0 => {
+                    calls.push(&arms[start..index]);
+                    start = index + 1;
+                }
+                _ => {}
+            }
+        }
+        calls.push(&arms[start..]);
+        calls
+            .into_iter()
+            .filter(|call| !call.is_empty())
+            .map(|call| {
+                let call = call
+                    .strip_suffix(").ignored()")
+                    .unwrap_or_else(|| panic!("`{call}` is an ignored rule call"));
+                let (rule, arguments) = call
+                    .split_once('(')
+                    .unwrap_or_else(|| panic!("`{call}` calls a rule"));
+                let arguments = if arguments.is_empty() {
+                    Vec::new()
+                } else {
+                    arguments.split(',').collect()
+                };
+                (rule, arguments)
+            })
+            .collect()
+    }
+
+    /// Guards the copy of camxes-exp's `sumti_6` tier in `exp_sumti_6_guard` (#982).
+    ///
+    /// The guard of the raw-mex quantifier calls the arms of `sumti_base` that carry no outer
+    /// quantifier. It cannot splice them: the two quantifier-bearing arms sit between them in
+    /// `sumti_base`, and moving those arms to the front changes recovered readings. So the guard
+    /// lists the arms itself, and this test keeps the list in step with `sumti_base`. It fails
+    /// when the guard misses an arm, has an extra arm, calls the arms in another order, or calls
+    /// an arm with other parser arguments than `sumti_base` passes. An arm under a feature
+    /// condition fails it too, because the guard has no way to gate one arm.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exp_sumti_6_guard_calls_the_sumti_6_arms_of_sumti_base() {
+        const QUANTIFIER_BEARING_ARMS: [&str; 2] = [
+            "descriptor_with_outer_quantifier_sumti",
+            "descriptor_without_gadri_sumti",
+        ];
+        let rule = |name: &str| {
+            generated::generated_model::syntax_grammar_rule_by_name(name)
+                .unwrap_or_else(|| panic!("grammar rule `{name}` exists"))
+        };
+        let sumti_base = rule("sumti_base");
+        assert_eq!(sumti_base.kind, "enum");
+        for excluded in QUANTIFIER_BEARING_ARMS {
+            assert!(
+                sumti_base.fields.iter().any(|field| field.name == excluded),
+                "`sumti_base` still has the excluded arm `{excluded}`",
+            );
+        }
+        let expected = sumti_base
+            .fields
+            .iter()
+            .filter(|field| !QUANTIFIER_BEARING_ARMS.contains(&field.name))
+            .map(|field| {
+                assert!(
+                    field.conditions.is_empty(),
+                    "the guard cannot gate the `sumti_base` arm `{}`",
+                    field.name,
+                );
+                assert!(
+                    !sumti_base.arguments.contains(&field.name),
+                    "the `sumti_base` arm `{}` is a rule call, not a parser argument",
+                    field.name,
+                );
+                // An enum branch calls its rule with the rule's declared arguments, by name.
+                (field.name, rule(field.name).arguments.to_vec())
+            })
+            .collect::<Vec<_>>();
+
+        let guard = rule("exp_sumti_6_guard");
+        assert_eq!(guard.kind, "alias");
+        assert_eq!(
+            guard.arguments, sumti_base.arguments,
+            "the guard has the parser arguments of `sumti_base`",
+        );
+        let [parser] = guard.fields else {
+            panic!("an alias has one parser field");
+        };
+        assert_eq!(
+            ignored_choice_calls(parser.parser),
+            expected,
+            "`exp_sumti_6_guard` drifted from the `sumti_6` arms of `sumti_base`",
+        );
+    }
+
     /// Guards the one leaf inventory of the term hierarchy that a splice cannot share.
     ///
     /// Every level of the term ladders gets the variants of the level below it through a

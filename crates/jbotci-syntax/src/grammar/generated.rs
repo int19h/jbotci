@@ -2407,7 +2407,11 @@ pub mod generated_model {
     // the arms of jbotci's `sumti_base` that camxes reads at the `sumti_6` tier, in their order.
     // The two quantifier-bearing arms are the `sumti_5` tier, so they are left out. Reading the
     // guard through `sumti_base` itself would not work: its quantifier-bearing arms would take
-    // the extent first and hide a `sumti_6` reading such as the letter string `by`.
+    // the extent first and hide a `sumti_6` reading such as the letter string `by`. A `splice`
+    // cannot share the list either: the two left-out arms sit between the others in
+    // `sumti_base`, and moving them to the front changes recovered readings (#990). The
+    // `exp_sumti_6_guard_calls_the_sumti_6_arms_of_sumti_base` test in `grammar/mod.rs` keeps
+    // this list in step with `sumti_base`.
     alias "sumti" exp_sumti_6_guard(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) = choice((
         scalar_negated_sumti_with_bo(sumti, subbridi, tense_modal, normal_term).ignored(),
         scalar_negated_sumti(sumti).ignored(),
