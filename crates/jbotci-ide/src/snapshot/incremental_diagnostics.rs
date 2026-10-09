@@ -868,6 +868,19 @@ mod tests {
                 " su ni'o do",
                 IncrementalDiagnosticGate::FlankMismatch,
             ),
+            (
+                // The confirmed text has no syntax error, so no diagnostic crosses the
+                // paragraph. The edited middle paragraph ends before its required sumti, so
+                // its parse fails at its end of input, where the document has the next NIhO.
+                // The edit changes `brode`, so that it lies inside the paragraph: an edit that
+                // only appends ` .e` starts after the last byte of the paragraph, and no
+                // confirmed paragraph covers it.
+                "paragraph-end-error",
+                "mi klama ni'o mi brode ni'o do cadzu",
+                "mi brode",
+                "mi broda .e",
+                IncrementalDiagnosticGate::ParagraphEndError,
+            ),
         ];
         for (name, old_source, old_fragment, new_fragment, expected) in cases {
             let prepared = prepare_replacement(old_source, old_fragment, new_fragment);
