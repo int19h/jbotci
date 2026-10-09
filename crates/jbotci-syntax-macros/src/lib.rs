@@ -446,8 +446,7 @@ impl Parse for SyntaxGrammar {
             }
         }
         validate_unique_recursive_rules(&recursive)?;
-        validate_unique_rules(parsed_rules.iter().map(ParsedRule::name))?;
-        let rules = resolve_enum_splices(parsed_rules)?;
+        let rules = resolve_enum_splices(UniqueParsedRules::new(parsed_rules)?)?;
 
         Ok(Self {
             tree_model,
@@ -686,11 +685,7 @@ impl SyntaxGrammar {
                     constructor_labels.insert(enum_constructor.clone(), rule.context.value());
                     for branch in &rule.branches {
                         let branch_name = branch.name.to_string();
-                        let Some(branch_output) = type_env
-                            .rules
-                            .get(&branch_name)
-                            .or_else(|| type_env.recursive.get(&branch_name))
-                        else {
+                        let Some(branch_output) = rule.branch_output(branch, type_env) else {
                             return Err(syn::Error::new_spanned(
                                 &branch.name,
                                 "enum branches must reference a known type-producing rule or recursive parser argument",
@@ -2841,19 +2836,21 @@ fn parse_enum_splice(
 /// a branch that calls a rule in the spliced rule must not become a call of a same-named parser
 /// argument in the splicing rule.
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rules| rules.len() == old(parsed.len())) || ret.is_err())]
-fn resolve_enum_splices(parsed: Vec<ParsedRule>) -> Result<Vec<Rule>> {
+#[ensures(ret.as_ref().is_ok_and(|rules| rules.len() == old(parsed.rules.len())) || ret.is_err())]
+fn resolve_enum_splices(parsed: UniqueParsedRules) -> Result<Vec<Rule>> {
     let mut resolved = BTreeMap::new();
     {
         let declarations = SpliceDeclarations::new(&parsed);
         let mut visiting = Vec::new();
-        for rule in &parsed {
+        for rule in &parsed.rules {
             if let data!(ParsedRule::Enum(declaration)) = rule.as_data() {
                 resolve_enum_branches(declaration, &declarations, &mut resolved, &mut visiting)?;
             }
         }
     }
     Ok(parsed
+        .into_data()
+        .rules
         .into_iter()
         .map(|rule| match rule.into_data() {
             data!(ParsedRule::Resolved(rule)) => rule,
@@ -2875,6 +2872,44 @@ fn resolve_enum_splices(parsed: Vec<ParsedRule>) -> Result<Vec<Rule>> {
         .collect())
 }
 
+/// The parsed rules of a grammar, in declaration order.
+///
+/// Rule names are unique, and so are the syntax types that the names denote; see
+/// [`validate_unique_rules`]. The splice resolver indexes the rules by name, so it takes this type
+/// rather than a plain list.
+#[invariant(
+    rules
+        .iter()
+        .map(|rule| rule.name().to_string())
+        .collect::<BTreeSet<_>>()
+        .len()
+        == rules.len(),
+    "rule names are unique"
+)]
+#[invariant(
+    rules
+        .iter()
+        .map(|rule| syntax_type_ident_for_rule(rule.name()).to_string())
+        .collect::<BTreeSet<_>>()
+        .len()
+        == rules.len(),
+    "the syntax types that rule names denote are unique"
+)]
+struct UniqueParsedRules {
+    rules: Vec<ParsedRule>,
+}
+
+impl UniqueParsedRules {
+    /// Checks that the rule names and the syntax types they denote are unique, with an error at
+    /// the first rule that repeats one.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|unique| unique.rules.len() == old(rules.len())) || ret.is_err())]
+    fn new(rules: Vec<ParsedRule>) -> Result<Self> {
+        validate_unique_rules(rules.iter().map(ParsedRule::name))?;
+        Ok(Self::from_data(data!(UniqueParsedRules { rules })))
+    }
+}
+
 /// The rules that a `splice` entry can name, by rule name.
 #[invariant(
     enums.keys().all(|name| !other_rule_kinds.contains_key(name)),
@@ -2888,11 +2923,11 @@ struct SpliceDeclarations<'a> {
 
 impl<'a> SpliceDeclarations<'a> {
     #[requires(true)]
-    #[ensures(ret.enums.len() + ret.other_rule_kinds.len() <= parsed.len())]
-    fn new(parsed: &'a [ParsedRule]) -> Self {
+    #[ensures(ret.enums.len() + ret.other_rule_kinds.len() == parsed.rules.len())]
+    fn new(parsed: &'a UniqueParsedRules) -> Self {
         let mut enums = BTreeMap::new();
         let mut other_rule_kinds = BTreeMap::new();
-        for rule in parsed {
+        for rule in &parsed.rules {
             match rule.as_data() {
                 data!(ParsedRule::Enum(declaration)) => {
                     enums.insert(declaration.name.to_string(), declaration);
@@ -3070,11 +3105,7 @@ fn validate_spliced_variants(rules: &[Rule], type_env: &GrammarTypeEnv) -> Resul
         let mut variants = BTreeMap::<String, &EnumBranch>::new();
         for branch in &rule.branches {
             let branch_name = branch.name.to_string();
-            let Some(output) = type_env
-                .rules
-                .get(&branch_name)
-                .or_else(|| type_env.recursive.get(&branch_name))
-            else {
+            let Some(output) = rule.branch_output(branch, type_env) else {
                 // An unknown branch is reported where the enum rule is expanded.
                 continue;
             };
@@ -3153,6 +3184,32 @@ impl EnumBranch {
 }
 
 impl EnumRule {
+    /// The output type of `branch`, resolved the way the parsers call the branch: a parser
+    /// argument of this rule first, then a grammar rule, then a recursive parser.
+    ///
+    /// The model, the parsers and the splice collision check all name a variant for this type, so
+    /// they must resolve it in the same order. A branch name can denote both a parser argument and
+    /// a rule, and the two can have different types, for example when the rule is an alias.
+    #[requires(self.branches.iter().any(|candidate| candidate.name == branch.name))]
+    #[ensures(
+        !self.arguments.contains(&branch.name)
+            || ret.is_none_or(|output| type_env.recursive.get(&branch.name.to_string()) == Some(output))
+    )]
+    fn branch_output<'a>(
+        &self,
+        branch: &EnumBranch,
+        type_env: &'a GrammarTypeEnv,
+    ) -> Option<&'a Type> {
+        let name = branch.name.to_string();
+        if self.arguments.contains(&branch.name) {
+            return type_env.recursive.get(&name);
+        }
+        type_env
+            .rules
+            .get(&name)
+            .or_else(|| type_env.recursive.get(&name))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
@@ -3234,25 +3291,16 @@ impl EnumRule {
             .map(|branch| {
                 let branch_name = branch.name.to_string();
                 let branch_is_argument = argument_names.contains(&branch_name);
-                let branch_output = if branch_is_argument {
-                    argument_types.get(&branch_name).ok_or_else(|| {
-                        syn::Error::new_spanned(
-                            &branch.name,
-                            "enum branch argument is not declared for this rule",
-                        )
-                    })?
-                } else {
-                    type_env
-                        .rules
-                        .get(&branch_name)
-                        .or_else(|| type_env.recursive.get(&branch_name))
-                        .ok_or_else(|| {
-                            syn::Error::new_spanned(
-                                &branch.name,
-                                "enum branch does not name a rule, recursive parser, or rule argument",
-                            )
-                        })?
-                };
+                let branch_output = self.branch_output(branch, type_env).ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        &branch.name,
+                        if branch_is_argument {
+                            "enum branch argument is not declared for this rule"
+                        } else {
+                            "enum branch does not name a rule, recursive parser, or rule argument"
+                        },
+                    )
+                })?;
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                 let field = &branch.field_name(branch_output, type_env);
                 let branch_parser = if branch_is_argument {
@@ -3265,12 +3313,14 @@ impl EnumRule {
                 } else if type_env.rules.contains_key(&branch_name) {
                     strict_rule_call_by_argument_names(
                         &branch.name,
-                        type_env.rule_arguments_for_call(&branch_name).ok_or_else(|| {
-                            syn::Error::new_spanned(
-                                &branch.name,
-                                "cannot find argument list for enum branch rule",
-                            )
-                        })?,
+                        type_env
+                            .rule_arguments_for_call(&branch_name)
+                            .ok_or_else(|| {
+                                syn::Error::new_spanned(
+                                    &branch.name,
+                                    "cannot find argument list for enum branch rule",
+                                )
+                            })?,
                         &argument_names,
                         &generation,
                         &free_modifier_parser,
@@ -3284,10 +3334,14 @@ impl EnumRule {
                         StrictParserCallMode::Local,
                     )?
                 };
-                let value = if output_is_generated_model(generate_model, model_outputs, &self.output) {
-                    branch.containment(branch_output, type_env)
-                        .lower(quote!(#field), &quote!(WithFreeModifiers))
-                } else { quote!(#field) };
+                let value =
+                    if output_is_generated_model(generate_model, model_outputs, &self.output) {
+                        branch
+                            .containment(branch_output, type_env)
+                            .lower(quote!(#field), &quote!(WithFreeModifiers))
+                    } else {
+                        quote!(#field)
+                    };
                 let body = if use_model_construction {
                     quote!(#output_tokens::#variant(#value))
                 } else {
@@ -3364,25 +3418,16 @@ impl EnumRule {
             .map(|branch| {
                 let branch_name = branch.name.to_string();
                 let branch_is_argument = argument_names.contains(&branch_name);
-                let branch_output = if branch_is_argument {
-                    argument_types.get(&branch_name).ok_or_else(|| {
-                        syn::Error::new_spanned(
-                            &branch.name,
-                            "enum branch argument is not declared for this rule",
-                        )
-                    })?
-                } else {
-                    type_env
-                        .rules
-                        .get(&branch_name)
-                        .or_else(|| type_env.recursive.get(&branch_name))
-                        .ok_or_else(|| {
-                            syn::Error::new_spanned(
-                                &branch.name,
-                                "enum branch does not name a rule, recursive parser, or rule argument",
-                            )
-                        })?
-                };
+                let branch_output = self.branch_output(branch, type_env).ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        &branch.name,
+                        if branch_is_argument {
+                            "enum branch argument is not declared for this rule"
+                        } else {
+                            "enum branch does not name a rule, recursive parser, or rule argument"
+                        },
+                    )
+                })?;
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                 let field = &branch.field_name(branch_output, type_env);
                 let branch_parser = if branch_is_argument {
@@ -3396,12 +3441,14 @@ impl EnumRule {
                 } else if type_env.rules.contains_key(&branch_name) {
                     recovered_rule_call_by_argument_names(
                         &branch.name,
-                        type_env.rule_arguments_for_call(&branch_name).ok_or_else(|| {
-                            syn::Error::new_spanned(
-                                &branch.name,
-                                "cannot find argument list for enum branch rule",
-                            )
-                        })?,
+                        type_env
+                            .rule_arguments_for_call(&branch_name)
+                            .ok_or_else(|| {
+                                syn::Error::new_spanned(
+                                    &branch.name,
+                                    "cannot find argument list for enum branch rule",
+                                )
+                            })?,
                         &argument_names,
                         &generation,
                         &free_modifier_parser,
@@ -3417,9 +3464,13 @@ impl EnumRule {
                     )?
                 };
                 let value = if output_is_generated_model(true, model_outputs, &self.output) {
-                    branch.containment(branch_output, type_env)
-                        .lower(quote!(#field), &quote!(#recovered_module::WithFreeModifiers))
-                } else { quote!(#field) };
+                    branch.containment(branch_output, type_env).lower(
+                        quote!(#field),
+                        &quote!(#recovered_module::WithFreeModifiers),
+                    )
+                } else {
+                    quote!(#field)
+                };
                 let body = if use_model_construction {
                     quote!(#output_tokens::#variant(#value))
                 } else {
@@ -11618,6 +11669,98 @@ mod tests {
         });
         assert!(
             error.contains("a `splice` entry has no field to rename"),
+            "{error}"
+        );
+    }
+
+    /// Expands a grammar without a generated model, with strict parsers, an `item` rule, an alias
+    /// `p` of it, and a recursive parser argument `p` of the qualified type `crate::ItemSyntax`.
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_argument_branch_grammar(rules: TokenStream2) -> String {
+        syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            recursive {
+                p: crate::ItemSyntax;
+            }
+
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+
+            alias "item" p = item;
+
+            rule "leaf" leaf(p) -> enum {
+                p,
+            }
+
+            #rules
+        })
+        .map_or_else(syn::Error::into_compile_error, |grammar| grammar.expand())
+        .to_string()
+    }
+
+    /// A spliced branch that calls a parser argument names its variant for the argument type, as
+    /// the parsers do, and not for a rule of the same name. Here the argument `p` has the qualified
+    /// type `crate::ItemSyntax`, so its variant is `P`, while the alias `p` would give `Item`, the
+    /// variant of the `item` branch.
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn splice_names_an_argument_branch_variant_for_the_argument_type() {
+        let spliced = expand_argument_branch_grammar(quote! {
+            rule "parent" parent(p) -> enum {
+                item,
+                splice leaf,
+            }
+        });
+        let written_out = expand_argument_branch_grammar(quote! {
+            rule "parent" parent(p) -> enum {
+                item,
+                p,
+            }
+        });
+        assert!(
+            !spliced.contains("compile_error"),
+            "the grammar expands: {spliced}"
+        );
+        assert!(
+            spliced.contains("ParentSyntax :: P {") && spliced.contains("ParentSyntax :: Item {"),
+            "the parser builds the variants `Item` and `P`: {spliced}"
+        );
+        assert_eq!(spliced, written_out);
+    }
+
+    /// Two branches that give the same variant collide when one of them calls a parser argument.
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn splice_rejects_a_collision_through_an_argument_branch() {
+        let expanded = expand_splice_test_grammar_with_recursive(
+            quote!(p: ItemSyntax;),
+            quote! {
+                /// Syntax model for p leaf parsed by the `p_leaf` grammar rule.
+                rule "p leaf" p_leaf(p) -> enum {
+                    /// The recursive parser `p`.
+                    p,
+                }
+
+                /// Syntax model for parent parsed by the `parent` grammar rule.
+                rule "parent" parent(p) -> enum {
+                    /// The `item` rule.
+                    item,
+                    splice p_leaf,
+                }
+            },
+        );
+        let error = expanded.to_string();
+        assert!(
+            error.contains(
+                "enum rule `parent` gets variant `Item` from both the branch `item` and the branch \
+                 `p` from `splice p_leaf`"
+            ),
             "{error}"
         );
     }
