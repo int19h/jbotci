@@ -5879,13 +5879,17 @@ mod tests {
             ),
         ];
         for (probe, report) in reports {
+            // The probe's own failure ("probed") may join the pending alternative at the same
+            // position; what must not appear is anything from inside the probe.
             assert!(
-                !report.candidates.contains("probe"),
+                !report.candidates.contains("probe candidate")
+                    && !report.candidates.contains("probe alternative"),
                 "{probe}: probe candidates leaked: {}",
                 report.candidates
             );
             assert!(
-                !report.errors.contains("probe"),
+                !report.errors.contains("probe candidate")
+                    && !report.errors.contains("probe alternative"),
                 "{probe}: probe errors leaked: {}",
                 report.errors
             );
@@ -5932,39 +5936,32 @@ mod tests {
             ))
         })
         .boxed();
-        let at_probe_position = cmavo(Cmavo::Kei).map(|_| ()).boxed();
+        // Two token alternatives fail at the probe position. Both are expectations there, so
+        // the report holds both (#926).
+        let at_probe_position = cmavo(Cmavo::Kei).or(cmavo(Cmavo::Vau)).map(|_| ()).boxed();
         let first_token = custom(|input| {
             input.skip();
             Ok(())
         })
         .boxed();
-        // (probed parser, construct label, text that the error must contain, text that it
+        // (probed parser, construct label, texts that the error must contain, text that it
         // must not contain)
-        let cases: [(&Boxed<'static, ()>, Option<&'static str>, String, &str); 4] = [
+        let both_tokens = vec![format!("{:?}", Cmavo::Kei), format!("{:?}", Cmavo::Vau)];
+        let cases: [(&Boxed<'static, ()>, Option<&'static str>, Vec<String>, &str); 4] = [
             (
                 &further_in,
                 Some("probed construct"),
-                "Named(\"probed construct\")".to_owned(),
+                vec!["Named(\"probed construct\")".to_owned()],
                 "Cmavo(",
             ),
             (
                 &further_in,
                 None,
-                format!("Named({POSITIVE_PREDICATE_LABEL:?})"),
+                vec![format!("Named({POSITIVE_PREDICATE_LABEL:?})")],
                 "Cmavo(",
             ),
-            (
-                &at_probe_position,
-                None,
-                format!("{:?}", Cmavo::Kei),
-                "Named(",
-            ),
-            (
-                &at_probe_position,
-                Some("tag"),
-                format!("{:?}", Cmavo::Kei),
-                "Named(",
-            ),
+            (&at_probe_position, None, both_tokens.clone(), "Named("),
+            (&at_probe_position, Some("tag"), both_tokens, "Named("),
         ];
         for (probed, construct, wanted, unwanted) in cases {
             let probes: [(&str, Boxed<'static, ()>); 2] = [
@@ -6011,8 +6008,8 @@ mod tests {
                 );
                 let error = format!("{error:?}");
                 assert!(
-                    error.contains(&wanted) && !error.contains(unwanted),
-                    "{probe} {construct:?}: the failure expects {wanted}: {error}"
+                    wanted.iter().all(|wanted| error.contains(wanted)) && !error.contains(unwanted),
+                    "{probe} {construct:?}: the failure expects {wanted:?}: {error}"
                 );
                 assert!(
                     !error.contains("probe alternative"),

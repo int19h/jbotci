@@ -1209,12 +1209,9 @@ fn merge_choice_errors<'tokens>(
     previous: SyntaxParseError<'tokens>,
     error: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
-    match error.span().start.cmp(&previous.span().start) {
-        std::cmp::Ordering::Greater => error,
-        std::cmp::Ordering::Less => previous,
-        std::cmp::Ordering::Equal if previous.same_report_content(&error) => previous,
-        std::cmp::Ordering::Equal => previous.merge_for_parser(error),
-    }
+    // The parser merge keeps the furthest failure, and unions the expectations of two
+    // failures at the same position.
+    previous.merge_for_parser(error)
 }
 
 #[requires(true)]

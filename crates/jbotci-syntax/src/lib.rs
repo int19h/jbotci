@@ -4011,10 +4011,11 @@ mod tests {
             panic!("expected syntax parse error");
         };
 
-        // Only the Zantufa mex route labelled this position "mex" (issue #968). The baseline
-        // mex grammar reports the forethought operand that can start there.
+        // The mex alternatives that fail at `nu` all report here (#926), so the one-line
+        // summary names their common construct, mex. The detailed expectations still name the
+        // forethought operand that can start there.
         assert!(reason.contains("free modifier"), "{reason}");
-        assert!(reason.contains("forethought connective"), "{reason}");
+        assert!(reason.contains("mex"), "{reason}");
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct })
