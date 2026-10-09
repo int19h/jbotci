@@ -12,7 +12,8 @@ use super::tokens::{
 };
 use super::{
     BoxedParser, ContinuationTimeLimit, ParserState, RecoveryCheckpointIndex, RecoveryDirective,
-    RecoveryFrameRank, SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
+    RecoveryFrameRank, SpannedToken, SyntaxFrameRank, SyntaxParseError, SyntaxRecoveryMemoSession,
+    SyntaxRuleFrame,
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxParseEntry, SyntaxWarning, SyntaxWordCategory,
@@ -6125,9 +6126,14 @@ pub mod generated_model {
         let Some(furthest) = errors.iter().map(|error| error.span().start).max() else {
             return (None, Vec::new());
         };
-        let mut ranks = std::collections::HashMap::<SyntaxRuleFrame, usize>::new();
-        for error in errors.iter().filter(|error| error.span().start == furthest) {
+        let mut ranks = std::collections::HashMap::<SyntaxRuleFrame, SyntaxFrameRank>::new();
+        for (order, error) in errors
+            .iter()
+            .filter(|error| error.span().start == furthest)
+            .enumerate()
+        {
             for (rank, frame) in error.active_rule_frames_inner_to_outer().enumerate() {
+                let rank = SyntaxFrameRank { rank, order };
                 ranks
                     .entry(frame.clone())
                     .and_modify(|existing| *existing = (*existing).min(rank))

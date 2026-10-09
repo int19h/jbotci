@@ -4579,7 +4579,7 @@ mod tests {
         // fallback disabled, the whole text degrades.
         let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda ke'e be be'o", 3);
 
-        assert_eq!(probe.error_byte_starts, [3, 18, 23]);
+        assert_eq!(probe.error_byte_starts, [3, 18, 26]);
         assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda", "ke'e"]);
         assert_eq!(
             probe.recovery_spans,
