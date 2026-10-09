@@ -4973,6 +4973,7 @@ fn strict_vector_parser_expr_tokens(
                 });
             }
             VectorItem::Assert { negated, parser } => {
+                let construct = generation.type_env.probe_construct_tokens(parser);
                 let parser = strict_parser_expr_tokens(
                     parser,
                     arguments,
@@ -4983,7 +4984,7 @@ fn strict_vector_parser_expr_tokens(
                 let parser = if *negated {
                     quote!(generated_runtime::not(#parser))
                 } else {
-                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                    quote!(generated_runtime::lookahead(#parser, #construct).map(|_| ()))
                 };
                 parsers.push(parser);
                 bindings.push(quote!(_));
@@ -5318,6 +5319,7 @@ fn recovered_vector_parser_expr_tokens(
                 });
             }
             VectorItem::Assert { negated, parser } => {
+                let construct = generation.type_env.probe_construct_tokens(parser);
                 let parser = recovered_parser_expr_tokens(
                     parser,
                     arguments,
@@ -5328,7 +5330,7 @@ fn recovered_vector_parser_expr_tokens(
                 let parser = if *negated {
                     quote!(generated_runtime::not(#parser))
                 } else {
-                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                    quote!(generated_runtime::lookahead(#parser, #construct).map(|_| ()))
                 };
                 parsers.push(parser);
                 bindings.push(quote!(_));
@@ -10546,6 +10548,91 @@ mod tests {
         assert!(
             expanded.contains("WrapperSyntax :: Item (:: std :: sync :: Arc :: new (item))"),
             "enum branch should construct the wrapper from the parser argument: {expanded}"
+        );
+    }
+
+    /// A positive assertion inside a vector is a probe like any other: both the strict and the
+    /// recovered generators pass the probed construct's label to `lookahead`.
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn vector_assertions_pass_the_construct_label_to_lookahead() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            /// Syntax model for item parsed by the `item` grammar rule.
+            rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
+                field token <- cmavo(Be);
+            }
+
+            /// Syntax model for token list parsed by the `token_list` grammar rule.
+            rule "token list" token_list -> struct {
+                /// The source-ordered `tokens` component retained by the `token_list` syntax node.
+                field tokens <- [
+                    assert item;
+                    cmavo(Be);
+                    assert cmavo(Bo);
+                    cmavo(Bo);
+                ];
+            }
+        })
+        .expect("grammar parses before expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            !expanded.contains("compile_error"),
+            "the grammar expands: {expanded}"
+        );
+        let calls = expanded
+            .match_indices("generated_runtime :: lookahead (")
+            .map(|(start, _)| {
+                // The call's arguments run to the matching closing parenthesis.
+                let arguments = &expanded[start + "generated_runtime :: lookahead (".len()..];
+                let mut depth = 1usize;
+                let end = arguments
+                    .char_indices()
+                    .find(|(_, character)| {
+                        match character {
+                            '(' => depth += 1,
+                            ')' => depth -= 1,
+                            _ => {}
+                        }
+                        depth == 0
+                    })
+                    .map(|(index, _)| index)
+                    .expect("the lookahead call is closed");
+                arguments[..end].to_owned()
+            })
+            .collect::<Vec<_>>();
+        let labelled = calls
+            .iter()
+            .filter(|arguments| arguments.ends_with(", Some (\"item\")"))
+            .count();
+        let unlabelled = calls
+            .iter()
+            .filter(|arguments| arguments.ends_with(", None"))
+            .count();
+        assert_eq!(
+            labelled + unlabelled,
+            calls.len(),
+            "every lookahead call passes a construct label: {calls:#?}"
+        );
+        let recovered = expanded
+            .find("fn recovered_token_list_parser")
+            .expect("the recovered parser is generated");
+        let strict_labelled = expanded[..recovered].matches(", Some (\"item\")").count();
+        let recovered_labelled = expanded[recovered..].matches(", Some (\"item\")").count();
+        assert!(
+            strict_labelled >= 1 && recovered_labelled >= 1,
+            "the strict and the recovered generators both label the probe: {expanded}"
+        );
+        assert!(
+            unlabelled >= 2,
+            "an unlabelled probe passes None: {calls:#?}"
         );
     }
 
