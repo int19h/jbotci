@@ -1380,6 +1380,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a generated enum arm pairs its emitted parser with its parsed dialect conditions, and every pair is valid",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumSplice",
+        "any condition list and rule name form a splice entry; splice resolution rejects a rule name that is not an enum rule",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:GeneratedStructModel",
         "syntax macro generated model state is assembled from typed grammar metadata",
     ),

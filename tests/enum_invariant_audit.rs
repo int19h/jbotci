@@ -2176,6 +2176,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unary wrapper kind and one named child plan encode the required arity by construction",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumBranchOrigin::Own",
+        "a branch that the rule body declares itself carries no data",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumBranchOrigin::Spliced",
+        "the splice resolver sets both names from the splice entry and a declared enum rule; any such pair is valid",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumItem::Branch",
+        "an enum body entry delegates validity to its branch payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumItem::Splice",
+        "an enum body entry delegates validity to its splice payload; splice resolution rejects a target that is not an enum rule",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Chain",
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),
@@ -2190,6 +2206,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Vector",
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:ParsedRule::Enum",
+        "an enum rule declaration carries its own invariant that it has at least one entry",
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Arc",
