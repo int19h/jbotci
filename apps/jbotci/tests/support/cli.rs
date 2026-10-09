@@ -2518,13 +2518,16 @@ fn gentufa_syntax_errors_go_to_stderr() {
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
         assert!(stderr.contains("unexpected cmavo"));
-        // The frontier this surface reaches moved with epoch 8: the tanru unit now offers a
-        // camxes-exp relative clause after its CEI chain, so the deepest expectation at the KU
-        // is the tanru unit's rather than the statement connection's. What the test is for --
-        // that the rendered diagnostic goes to stderr with its code, its message and its
-        // context -- is unchanged.
+        // Every alternative that fails at the KU adds what it expected there, so the label
+        // lists each construct that can continue the tanru unit, and the end of input. What the
+        // test is for -- that the rendered diagnostic goes to stderr with its code, its message
+        // and its context -- is unchanged.
         assert!(
-            stderr.contains("expected: free modifier, linked arguments, or pro-bridi assignment"),
+            stderr.contains(
+                "expected: free modifier, abstraction, grouped tanru, linked arguments, modal \
+                 conversion, operator-to-selbri, pro-bridi, pro-bridi assignment, scalar-negated \
+                 tanru unit, sumti-to-selbri, or end of input"
+            ),
             "{stderr}"
         );
         assert!(stderr.contains("while parsing tanru unit"), "{stderr}");
@@ -2560,7 +2563,7 @@ fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         let stdout = std::str::from_utf8(&output).expect("stdout utf8");
         assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("expected: free modifier, space interval"));
+        assert!(stderr.contains("expected: free modifier, forethought operator connective"));
         assert!(stderr.contains("bridi tail"));
         assert!(stderr.contains("while parsing bridi"));
         assert!(!stderr.contains("expected one of:"));
