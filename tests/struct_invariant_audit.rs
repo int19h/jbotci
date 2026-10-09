@@ -1416,6 +1416,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_quantifier.rs:BaselineQuantifierRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineReciprocalSoiRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
@@ -1714,6 +1718,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Then",
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/peho_forethought.rs:PehoLessForethoughtFinder",
+        "walker accumulator: every value of the single flag is a valid walk state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/peho_forethought.rs:PehoLessForethoughtRejection",
+        "stateless parser rejection policy has exactly one valid value",
     ),
     (
         "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",

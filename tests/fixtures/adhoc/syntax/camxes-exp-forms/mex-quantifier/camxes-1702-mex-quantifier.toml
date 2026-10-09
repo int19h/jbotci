@@ -1,0 +1,42 @@
+id = "adhoc.syntax.camxes-exp-forms.mex-quantifier.camxes-1702-mex-quantifier"
+lojban = "pa pi'e no ju'u reno"
+dialect = "(+mex-quantifier)"
+tags = ["camxes-exp-readd"]
+
+[[provenance]]
+kind = "other"
+name = "#982 camxes-exp form"
+description = "With the mex-quantifier dialect feature, a mex without VEI can be a quantifier, as in camxes-exp (camxes-exp.peg:273). camxes-exp (ilmentufa 778ea13) gives ([PA:pa {PA:pi'e PA:no}] [VUhU:ju'u {PA:re PA:no}]). The jbotci tree has the same structure. Without the feature, jbotci rejects this text (corpus fixture camxes/1702)."
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(MeksoFragment(MeksoFragmentSyntax(ExpMeksoQuantifier(ExpMeksoQuantifierSyntax(InfixMekso(InfixMeksoSyntax { first_expression: MeksoPrecedenceSyntax { left_expression: MeksoOperand(MeksoOperandSyntax { connected_expression: AfterthoughtMeksoOperandSyntax(Chain { first: SimpleMeksoOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), continuations: [NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pi'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })))), NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }))))] }, boi: None, free_modifiers: [] }))), links: [] }), grouped_continuation: None }), tail: None }, continuations: [InfixMeksoContinuationSyntax { operator: MeksoOperatorSyntax { leading_operator: SimpleMeksoOperator(AtomicMeksoOperator(PrimitiveMeksoOperator(PrimitiveMeksoOperatorSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ju'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None } })), free_modifiers: [] })))), continuations: [] }, right_expression: MeksoPrecedenceSyntax { left_expression: MeksoOperand(MeksoOperandSyntax { connected_expression: AfterthoughtMeksoOperandSyntax(Chain { first: SimpleMeksoOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None } })), continuations: [NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } }))))] }, boi: None, free_modifiers: [] }))), links: [] }), grouped_continuation: None }), tail: None } }] }))))))), following: [], trailing: [] })), additional_niho: [] })) })"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-mex-quantifier", byte-span = [0, 2], source-text = "pa", message = "experimental syntax: mex quantifier without VEI", word-index = 0 }]
+
+[expectations.semantics.refs]
+status = "success"
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+
+[expectations.output.gentufa]
+tree = """
+InfixMekso @[0‥20) {
+  first_expression: NumberWords @[0‥10) {
+    first_number: Cmavo @[0‥2) "pa",
+    continuations: [
+      Cmavo @[3‥7) "pi'e",
+      Cmavo @[8‥10) "no",
+    ],
+  },
+  continuations: [
+    InfixMeksoContinuation @[11‥20) {
+      operator: Cmavo @[11‥15) "ju'u",
+      right_expression: NumberWords @[16‥20) {
+        first_number: Cmavo @[16‥18) "re",
+        continuations: [
+          Cmavo @[18‥20) "no",
+        ],
+      },
+    },
+  ],
+}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"ExpMeksoQuantifier":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"connected_expression":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[3,7]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[8,10]}}}}}]}}}}}}}},"continuations":[{"operator":{"leading_operator":{"SimpleMeksoOperator":{"AtomicMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'u","span":[11,15]}}}}}}}},"right_expression":{"left_expression":{"MeksoOperand":{"connected_expression":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[16,18]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[18,20]}}}}}]}}}}}}}}}]}}}}}}}}}}}"""

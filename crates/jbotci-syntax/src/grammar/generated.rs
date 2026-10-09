@@ -2363,12 +2363,71 @@ pub mod generated_model {
     }
 
     /// Sum node for quantifier; selects among the `mekso_quantifier` and `pa_run_quantifier` forms.
-    rule "quantifier" quantifier(mekso, letter_tokens, free_modifier) -> enum {
+    rule "quantifier" quantifier(mekso, letter_tokens, free_modifier, quantifier, sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, tense_modal, letter_string, statement, normal_term) -> enum {
+        /// camxes-exp's raw-mex quantifier, under the `mex-quantifier` dialect feature, because
+        /// it changes the reading of some texts that the default grammar accepts (#982). It is
+        /// tried first, but it never owns a baseline surface: it refuses a mex that is exactly
+        /// one number operand or one VEI operand, so those reach the baseline arms below by
+        /// their structure, not by order.
+        when feature(MexQuantifier) exp_mekso_quantifier,
         /// Uses the `mekso_quantifier` product form, whose payload preserves `vei`, `mekso`, and `veho`.
         mekso_quantifier,
         /// Uses the `pa_run_quantifier` product form, whose payload preserves `number` and `boi`.
         pa_run_quantifier,
     }
+
+    /// camxes-exp's `quantifier <- !selbri !sumti_6 mex` (camxes-exp.peg:273), with jbotci's own
+    /// mex limited to camxes-exp's mex language: a forethought call without PEhO, which
+    /// jbotci's mex keeps (the retained standard design, I12) but camxes-exp's does not
+    /// (camxes-exp.peg:282), is refused anywhere in the mex's own structure. The two guards are
+    /// camxes-exp's, read by jbotci's own parsers: a selbri such as `re moi broda` and a
+    /// `sumti_6` such as the letter string in `by su'i cy` stay what they are. The construct is
+    /// diagnosed post-parse as `experimental-mex-quantifier`.
+    rule "quantifier" exp_mekso_quantifier(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) -> struct {
+        assert !selbri;
+        assert !exp_sumti_6_guard(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier);
+        // The mex must complete and must not be exactly one baseline quantifier surface: a
+        // single number operand or a single VEI operand (#843). `number_mekso` wraps the same
+        // `pa_run_quantifier` rule as the baseline arm, and `parenthesized_mekso_operand` is the
+        // same `VEI mex [VEhO]` surface as `mekso_quantifier`, so both read the same extent and
+        // the refusal cannot change the accepted language. The mex must also not hold a
+        // forethought call without PEhO, which camxes-exp's mex cannot read (#982). The test is
+        // a strict lookahead, so an abandoned attempt reports nothing from inside the mex (#988)
+        // and recovery never enters the arm to invent a mex.
+        assert mekso
+            .reject_output(crate::grammar::baseline_quantifier::BaselineQuantifierRejection)
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .lookahead();
+        #[tree_child(primary)]
+        /// The quantity.
+        field mekso <- arc(mekso);
+    }
+
+    // camxes-exp's `sumti_6` (camxes-exp.peg:189) for the raw-mex quantifier's `!sumti_6` guard:
+    // the arms of jbotci's `sumti_base` that camxes reads at the `sumti_6` tier, in their order.
+    // The two quantifier-bearing arms are the `sumti_5` tier, so they are left out. Reading the
+    // guard through `sumti_base` itself would not work: its quantifier-bearing arms would take
+    // the extent first and hide a `sumti_6` reading such as the letter string `by`. A `splice`
+    // cannot share the list either: the two left-out arms sit between the others in
+    // `sumti_base`, and moving them to the front changes recovered readings (#990). The
+    // `exp_sumti_6_guard_calls_the_sumti_6_arms_of_sumti_base` test in `grammar/mod.rs` keeps
+    // this list in step with `sumti_base`.
+    alias "sumti" exp_sumti_6_guard(sumti, description_leading_operand, term, subbridi, exp_subsentence, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, normal_term, quantifier) = choice((
+        scalar_negated_sumti_with_bo(sumti, subbridi, tense_modal, normal_term).ignored(),
+        scalar_negated_sumti(sumti).ignored(),
+        lahe_sumti(sumti, subbridi, tense_modal, normal_term).ignored(),
+        lahe_term_wrapper(term).ignored(),
+        scalar_negated_term_wrapper_with_bo(term).ignored(),
+        scalar_negated_term_wrapper(term).ignored(),
+        bridi_description_sumti(exp_subsentence).ignored(),
+        name_sumti(sumti, subbridi, tense_modal, normal_term).ignored(),
+        descriptor_with_gadri_sumti(sumti, description_leading_operand, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement, free_modifier, normal_term, quantifier).ignored(),
+        exp_descriptor_with_leading_sumti_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier, normal_term, quantifier).ignored(),
+        number_sumti(mekso).ignored(),
+        lerfu_string_sumti(letter_string, free_modifier).ignored(),
+        quoted_sumti(text).ignored(),
+        pro_sumti().ignored(),
+    ));
 
     /// Transparent product node for number mex; preserves the `quantifier` component.
     rule "number mex" number_mekso(letter_tokens, free_modifier) -> struct {
