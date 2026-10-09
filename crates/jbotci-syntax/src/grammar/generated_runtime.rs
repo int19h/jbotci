@@ -1209,8 +1209,8 @@ fn merge_choice_errors<'tokens>(
     previous: SyntaxParseError<'tokens>,
     error: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
-    // The parser merge keeps the furthest failure, and unions the expectations of two
-    // failures at the same position.
+    // The parser merge keeps the furthest failure by logical position, and unions the
+    // expectations of two failures at the same position.
     previous.merge_for_parser(error)
 }
 
@@ -2280,6 +2280,7 @@ fn expected_found_tokens_at_current<'tokens>(
     input: &mut InputRef<'tokens, '_>,
     expected: Vec<SyntaxExpectedToken>,
 ) -> SyntaxParseError<'tokens> {
+    let position = input.position();
     let checkpoint = input.save();
     let cursor = input.cursor();
     let found = input
@@ -2288,7 +2289,7 @@ fn expected_found_tokens_at_current<'tokens>(
         .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
     let span = input.span_since(&cursor);
     input.rewind(checkpoint);
-    SyntaxParseError::expected_found(span, expected, found)
+    SyntaxParseError::expected_found(span, expected, found).at_position(position)
 }
 
 /// Succeeds where `parser` matches, without consuming input. Nothing that `parser` collects on
@@ -2543,7 +2544,8 @@ where
                 NEGATIVE_PREDICATE_LABEL.to_owned()
             ))],
             found_at_current(input),
-        )),
+        )
+        .at_position(input.position())),
         Err(_) => Ok(()),
     })
     .boxed()

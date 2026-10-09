@@ -6026,6 +6026,62 @@ mod tests {
         }
     }
 
+    /// Dialect expansion gives several tokens the same source span: `jboponei` expands `po` to
+    /// co-spanned LO and SUhU. A probe at LO that consumes LO and fails at SUhU failed further
+    /// in, although both failures start at the same byte, so it reports its construct label
+    /// and not the SUhU-position expectation.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn probes_classify_failures_by_logical_position_over_co_spanned_tokens() {
+        use super::generated_runtime::lookahead;
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::{cmavo, spanned_tokens};
+
+        let dialect = parse_dialect_definition("(jboponei)").expect("built-in dialect parses");
+        let source = "mi cusku po do klama";
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default().with_dialect_definition(&dialect),
+            None,
+        )
+        .expect("valid dialect morphology");
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let lo_index = words
+            .windows(2)
+            .position(|pair| pair[0].source_spans() == pair[1].source_spans())
+            .expect("jboponei po expands to co-spanned lo and su'u");
+        let last = tokens.last().expect("the text has tokens").span;
+        let eoi = SimpleSpan::from(last.end..last.end);
+        let parser = custom(move |input| {
+            for _ in 0..lo_index {
+                input.skip();
+            }
+            Ok(())
+        })
+        .ignore_then(lookahead(
+            cmavo(Cmavo::Lo).ignore_then(cmavo(Cmavo::Kei)),
+            Some("probed construct"),
+        ))
+        .boxed();
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let mut state = ParserState::new(words, &options);
+        let errors = parser
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the probe fails at su'u");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        assert_eq!(error.position(), Some(lo_index), "{error:?}");
+        let error = format!("{error:?}");
+        assert!(
+            error.contains("Named(\"probed construct\")") && !error.contains("Kei"),
+            "a failure past the probe position reports the construct label: {error}"
+        );
+    }
+
     /// An ordered-choice alternative under a disabled dialect feature is skipped, so it adds no
     /// expectation to the choice's error. With the feature on, it runs as usual. When every
     /// alternative is skipped, the choice reports the disabled feature.

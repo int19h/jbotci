@@ -238,6 +238,11 @@ pub(super) struct SyntaxParseError<'tokens> {
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseErrorData<'tokens> {
     span: Span,
+    /// The logical token position (the parser cursor index) at which the parser reported the
+    /// failure, or `None` for an error that the parser did not create, such as a report-level
+    /// error. Dialect expansion can give several tokens the same source span, so the span
+    /// start alone does not identify the position.
+    position: Option<usize>,
     reason: SyntaxRichReason<'tokens>,
     expected_groups: SharedVec<ExpectedTokenGroup>,
     context_paths: SharedVec<Vec<SyntaxConstructContext>>,
@@ -340,6 +345,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn custom(span: Span, message: String) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -361,6 +367,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -384,6 +391,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
@@ -415,6 +423,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
@@ -431,6 +440,21 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(true)]
     pub(super) fn span(&self) -> &Span {
         &self.span
+    }
+
+    /// The logical token position of the failure; see `SyntaxParseErrorData::position`.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn position(&self) -> Option<usize> {
+        self.position
+    }
+
+    /// Records the logical token position at which the parser reports this failure.
+    #[requires(true)]
+    #[ensures(ret.position() == Some(position))]
+    pub(super) fn at_position(mut self, position: usize) -> Self {
+        self.position = Some(position);
+        self
     }
 
     #[requires(true)]
@@ -723,6 +747,7 @@ where
         let expected_groups = expected_token_groups_from_labels(expected);
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
             reason,
             expected_groups,
             context_paths: empty_context_paths(),
@@ -1122,7 +1147,7 @@ fn select_parser_error<'tokens>(
     left: SyntaxParseError<'tokens>,
     right: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
-    match right.span.start.cmp(&left.span.start) {
+    match compare_failure_positions(&left, &right) {
         std::cmp::Ordering::Greater => right,
         std::cmp::Ordering::Less => left,
         std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
@@ -1145,6 +1170,22 @@ fn select_parser_error<'tokens>(
             append_unique_groups(&mut selected.expected_groups, groups);
             selected
         }
+    }
+}
+
+/// How the failure position of `later` compares with that of `earlier`: `Greater` when
+/// `later` is further in. Two errors that both carry a logical token position compare by it,
+/// because tokens that dialect expansion created share a source span. Otherwise the span
+/// starts decide.
+#[requires(true)]
+#[ensures(true)]
+fn compare_failure_positions(
+    earlier: &SyntaxParseError<'_>,
+    later: &SyntaxParseError<'_>,
+) -> std::cmp::Ordering {
+    match (earlier.position, later.position) {
+        (Some(earlier), Some(later)) => later.cmp(&earlier),
+        _ => later.span.start.cmp(&earlier.span.start),
     }
 }
 
@@ -1873,6 +1914,29 @@ mod tests {
         let merged = far.merge_for_parser(near);
         assert_eq!(merged.span.start, 8);
         assert_eq!(merged.expectations().len(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_compares_logical_positions_before_byte_offsets() {
+        // Dialect expansion can give two tokens the same source span. Two failures at those
+        // tokens share a byte offset but not a logical position, so the later one wins alone
+        // and does not absorb the earlier one's expectations.
+        let mut earlier =
+            SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]).at_position(1);
+        label_with(&mut earlier, "sumti");
+        let mut later =
+            SyntaxParseError::expected(Span::from(4..6), vec![named_token("su'u")]).at_position(2);
+        label_with(&mut later, "selbri");
+
+        for merged in [
+            earlier.clone().merge_for_parser(later.clone()),
+            later.clone().merge_for_parser(earlier.clone()),
+        ] {
+            assert_eq!(merged.position(), Some(2));
+            assert_eq!(merged.expectations().len(), 1);
+        }
     }
 
     #[requires(!text.is_empty())]
