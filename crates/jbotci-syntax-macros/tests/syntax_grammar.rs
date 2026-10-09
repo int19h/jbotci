@@ -1173,3 +1173,191 @@ mod new_dsl {
         );
     }
 }
+
+/// A `splice` entry gives an enum the variants of another enum rule, with no wrapper variant.
+mod spliced_enum {
+    use crate::{Cmavo, Selmaho};
+    use std::sync::Arc;
+
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {}
+        model;
+        env SyntaxGrammarEnv;
+
+        /// Syntax model for own item parsed by the `own_item` grammar rule.
+        rule "own item" own_item -> struct {
+            /// The source-ordered `token` component retained by the `own_item` syntax node.
+            field token <- cmavo(Bo);
+        }
+
+        /// Syntax model for leaf first parsed by the `leaf_first` grammar rule.
+        rule "leaf first" leaf_first -> struct {
+            /// The source-ordered `token` component retained by the `leaf_first` syntax node.
+            field token <- selmaho(Fa);
+        }
+
+        /// Syntax model for leaf second parsed by the `leaf_second` grammar rule.
+        rule "leaf second" leaf_second -> struct {
+            /// The source-ordered `token` component retained by the `leaf_second` syntax node.
+            field token <- cmavo(Be);
+        }
+
+        /// Syntax model for leaf parsed by the `leaf` grammar rule.
+        rule "leaf" leaf -> enum {
+            /// The first leaf.
+            leaf_first,
+            /// The second leaf, which exists only under `Cbm`.
+            when feature(Cbm) leaf_second,
+        }
+
+        /// Syntax model for parent parsed by the `parent` grammar rule.
+        rule "parent" parent -> enum {
+            /// The branch of the parent's own.
+            own_item,
+            // The leaves.
+            splice leaf,
+        }
+
+        /// Syntax model for outer parsed by the `outer` grammar rule.
+        rule "outer" outer -> enum {
+            when feature(UnrestrictedFree) splice parent,
+        }
+    }
+
+    /// Names a variant of the spliced enum. The match is exhaustive, so this function compiles only
+    /// while `ParentSyntax` has exactly these three variants and no wrapper for `leaf`.
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(!ret.is_empty())]
+    fn parent_variant(parent: &ParentSyntax) -> &'static str {
+        match parent {
+            ParentSyntax::OwnItem(_) => "OwnItem",
+            ParentSyntax::LeafFirst(_) => "LeafFirst",
+            ParentSyntax::LeafSecond(_) => "LeafSecond",
+        }
+    }
+
+    /// The same check for the enum that splices `parent`, which in turn splices `leaf`.
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(!ret.is_empty())]
+    fn outer_variant(outer: &OuterSyntax) -> &'static str {
+        match outer {
+            OuterSyntax::OwnItem(_) => "OwnItem",
+            OuterSyntax::LeafFirst(_) => "LeafFirst",
+            OuterSyntax::LeafSecond(_) => "LeafSecond",
+        }
+    }
+
+    /// The branches of the enum rule `rule`, with their conditions, in order.
+    #[bityzba::requires(!rule.is_empty())]
+    #[bityzba::ensures(!ret.is_empty())]
+    fn rule_branches(rule: &str) -> Vec<(&'static str, Vec<&'static str>)> {
+        let metadata = syntax_grammar_rule_by_name(rule).expect("the rule exists");
+        assert_eq!(metadata.kind, "enum");
+        metadata
+            .fields
+            .iter()
+            .map(|field| {
+                assert_eq!(field.kind, "variant");
+                (
+                    field.name,
+                    field
+                        .conditions
+                        .iter()
+                        .map(|condition| condition.feature)
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn splice_copies_the_spliced_variants_without_a_wrapper() {
+        let first = LeafFirstSyntax(Token);
+        let parent = ParentSyntax::LeafFirst(Arc::new(first.clone()));
+        let leaf = LeafSyntax::LeafFirst(Arc::new(first.clone()));
+        let outer = OuterSyntax::LeafFirst(Arc::new(first));
+        assert_eq!(parent_variant(&parent), "LeafFirst");
+        assert_eq!(outer_variant(&outer), "LeafFirst");
+        assert_eq!(
+            parent_variant(&ParentSyntax::OwnItem(Arc::new(OwnItemSyntax(Token)))),
+            "OwnItem"
+        );
+        assert_eq!(
+            outer_variant(&OuterSyntax::LeafSecond(Arc::new(LeafSecondSyntax(Token)))),
+            "LeafSecond"
+        );
+        // The spliced variant prints like the variant of the spliced rule itself.
+        assert_eq!(format!("{parent:?}"), format!("{leaf:?}"));
+        assert_eq!(format!("{outer:?}"), format!("{leaf:?}"));
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn splice_keeps_the_branches_and_conditions_in_the_rule_metadata() {
+        assert_eq!(
+            rule_branches("leaf"),
+            [("leaf_first", vec![]), ("leaf_second", vec!["Cbm"])],
+        );
+        assert_eq!(
+            rule_branches("parent"),
+            [
+                ("own_item", vec![]),
+                ("leaf_first", vec![]),
+                ("leaf_second", vec!["Cbm"]),
+            ],
+        );
+        assert_eq!(
+            rule_branches("outer"),
+            [
+                ("own_item", vec!["UnrestrictedFree"]),
+                ("leaf_first", vec!["UnrestrictedFree"]),
+                ("leaf_second", vec!["UnrestrictedFree", "Cbm"]),
+            ],
+        );
+        // The FIRST set of a spliced level is the union of its own branches and the spliced ones.
+        let first_tokens = |rule: &str| {
+            syntax_grammar_anchor_metadata_by_rule_name(rule)
+                .expect("anchor metadata exists")
+                .first
+                .iter()
+                .map(|entry| {
+                    (
+                        entry.tokens.to_vec(),
+                        entry
+                            .conditions
+                            .iter()
+                            .map(|condition| condition.feature)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            first_tokens("parent"),
+            [
+                (
+                    vec![
+                        SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+                        SyntaxGrammarAnchorToken::Selmaho(Selmaho::Fa),
+                    ],
+                    vec![],
+                ),
+                (
+                    vec![SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be)],
+                    vec!["Cbm"]
+                ),
+            ],
+        );
+    }
+}
