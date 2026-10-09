@@ -868,17 +868,36 @@ struct SyntaxDiagnosticReplay<'tokens> {
 #[invariant(::Candidate(_) => true)]
 #[invariant(::Nested(replay) => !replay.observations.observations.is_empty())]
 #[invariant(::Restricted { observations, .. } => !observations.is_empty())]
+#[invariant(::Preserved(_) => true)]
 #[derive(Debug, Clone)]
 enum SyntaxDiagnosticObservation<'tokens> {
     Candidate(SyntaxParseError<'tokens>),
     Nested(SyntaxDiagnosticReplay<'tokens>),
     /// Observations that a diagnostic restore removed, of which only the candidates at
     /// `start` were kept (`restore_diagnostics_preserving_start`). They belong to the same
-    /// rule evaluation as the observations around them.
+    /// rule evaluation as the observations around them. The restore records the kept
+    /// candidates again with the rule stack `restored_at` of the restore, so that stack is
+    /// one more path to a candidate at `start` when the region has one.
     Restricted {
         start: usize,
         observations: Rc<[SyntaxDiagnosticObservation<'tokens>]>,
+        restored_at: SharedStack<SyntaxRuleFrame>,
     },
+    /// A candidate that a restore kept and recorded again for the report. A memo replay
+    /// merges it into the report like a candidate. It is not a path for the recovery frame
+    /// ranks: the restore keeps every candidate at the start in the candidate list, also
+    /// those recorded before its checkpoint by other evaluations, so the number of them
+    /// depends on what the parse did before. The `Restricted` region before it holds the
+    /// paths.
+    Preserved(SyntaxParseError<'tokens>),
+}
+
+/// How a recorded diagnostic candidate is observed: see [`SyntaxDiagnosticObservation`].
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecordedCandidateKind {
+    Candidate,
+    Preserved,
 }
 
 /// A frame's smallest distance from the innermost frame of a candidate at one position, and
@@ -1946,7 +1965,8 @@ impl<'tokens> ParserState<'tokens> {
         let mut pending = observations.observations.iter().rev().collect::<Vec<_>>();
         while let Some(observation) = pending.pop() {
             match observation.as_data() {
-                data!(SyntaxDiagnosticObservation::Candidate(error)) => {
+                data!(SyntaxDiagnosticObservation::Candidate(error))
+                | data!(SyntaxDiagnosticObservation::Preserved(error)) => {
                     if self.recovery_memo_trial.is_some() {
                         self.merge_diagnostic_candidate(error.clone());
                     } else {
@@ -1959,7 +1979,7 @@ impl<'tokens> ParserState<'tokens> {
                     }
                 }
                 // The kept candidates of a restricted region were recorded again as
-                // candidates, so the report has them already.
+                // preserved candidates, so the report has them already.
                 data!(SyntaxDiagnosticObservation::Restricted { .. }) => {}
             }
         }
@@ -2518,6 +2538,17 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        self.record_diagnostic_candidate_as(error, RecordedCandidateKind::Candidate);
+    }
+
+    /// Records a candidate with the current context and rule stacks, observed as `kind`.
+    #[requires(true)]
+    #[ensures(true)]
+    fn record_diagnostic_candidate_as(
+        &mut self,
+        error: SyntaxParseError<'tokens>,
+        kind: RecordedCandidateKind,
+    ) {
         let error = error
             .with_active_contexts(self.active_syntax_context_stack.clone())
             .with_active_rule_contexts(self.active_syntax_rule_stack.clone());
@@ -2529,7 +2560,14 @@ impl<'tokens> ParserState<'tokens> {
         {
             self.continuation_diagnostic_candidates.push(error.clone());
         }
-        let observation = new!(SyntaxDiagnosticObservation::Candidate(error.clone()));
+        let observation = match kind {
+            RecordedCandidateKind::Candidate => {
+                new!(SyntaxDiagnosticObservation::Candidate(error.clone()))
+            }
+            RecordedCandidateKind::Preserved => {
+                new!(SyntaxDiagnosticObservation::Preserved(error.clone()))
+            }
+        };
         match self.syntax_memo_rule_frames.last_mut() {
             Some(frame) => frame.diagnostic_observations.push(observation),
             None => self.root_diagnostic_observations.push(observation),
@@ -2792,6 +2830,7 @@ impl<'tokens> ParserState<'tokens> {
             let restricted = new!(SyntaxDiagnosticObservation::Restricted {
                 start,
                 observations: Rc::from(removed),
+                restored_at: self.active_syntax_rule_stack.clone(),
             });
             match self.syntax_memo_rule_frames.last_mut() {
                 Some(frame) => frame.diagnostic_observations.push(restricted),
@@ -2799,7 +2838,7 @@ impl<'tokens> ParserState<'tokens> {
             }
         }
         for candidate in preserved {
-            self.record_diagnostic_candidate(candidate);
+            self.record_diagnostic_candidate_as(candidate, RecordedCandidateKind::Preserved);
         }
     }
 
@@ -5840,10 +5879,12 @@ fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) ->
             }
             data!(SyntaxDiagnosticObservation::Restricted {
                 start,
-                observations
+                observations,
+                ..
             }) => furthest_candidate_start(observations)
                 .filter(|furthest| furthest >= start)
                 .map(|_| *start),
+            data!(SyntaxDiagnosticObservation::Preserved(_)) => None,
         })
         .max()
 }
@@ -5959,6 +6000,7 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
                 data!(SyntaxDiagnosticObservation::Restricted {
                     start,
                     observations: restricted,
+                    restored_at,
                 }) => {
                     if *start != self.position {
                         continue;
@@ -5972,7 +6014,17 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
                         rank: extent.min_inner.rank,
                         order: first + extent.min_inner.order,
                     });
+                    // The restore records the kept candidates again under its own rule stack.
+                    let order = candidates;
+                    candidates += 1;
+                    let inner = restored_at.len().saturating_sub(base);
+                    for (rank, frame) in restored_at.inner_to_outer().take(inner).enumerate() {
+                        let order = offset + order;
+                        self.offer(frame, SyntaxFrameRank { rank, order });
+                    }
+                    found(SyntaxFrameRank { rank: inner, order });
                 }
+                data!(SyntaxDiagnosticObservation::Preserved(_)) => {}
             }
         }
         min_inner.map(|min_inner| {
@@ -7044,7 +7096,8 @@ mod tests {
             assert_eq!(state.diagnostic_candidates.len(), 1);
             assert!(state.diagnostic_candidates[0].same_report_content(&retained));
             // The removed child stays as a region restricted to the kept start, for the
-            // recovery frame ranks, and the retained candidate is recorded again.
+            // recovery frame ranks, and the retained candidate is recorded again for the
+            // report.
             let frame = state.syntax_memo_rule_frames.last().unwrap();
             assert_eq!(frame.diagnostic_observations.len(), 2);
             assert!(matches!(
@@ -7052,7 +7105,7 @@ mod tests {
                 data!(SyntaxDiagnosticObservation::Restricted { start: 2, .. })
             ));
             match frame.diagnostic_observations[1].as_data() {
-                data!(SyntaxDiagnosticObservation::Candidate(error)) => {
+                data!(SyntaxDiagnosticObservation::Preserved(error)) => {
                     assert!(error.same_report_content(&retained))
                 }
                 _ => panic!("must recapture only retained leaf"),
