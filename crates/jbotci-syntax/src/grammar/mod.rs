@@ -26,9 +26,10 @@ use vec1::Vec1;
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, TokenIdentity};
 use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
-    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse,
-    SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token, WithIndicators,
-    WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxParseEntry,
+    SyntaxRecoveryParse, SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token,
+    WithIndicators, WithIndicatorsData, syntax_construct_is_descendant_of,
+    syntax_immediate_child_under,
 };
 
 mod baseline_relative;
@@ -3425,8 +3426,18 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     _source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
+    parse_generated_model_syntax_entry_attempt(SyntaxParseEntry::Text, words, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_entry_attempt(
+    entry: SyntaxParseEntry,
+    words: &[WordLike],
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
-    let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
+    let parsed = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
         add_generated_construct_warnings(
@@ -3453,7 +3464,12 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> RecoveredSyntaxParseAttempt {
-    let attempt = parse_generated_model_syntax_tree_with_recovery_attempt(words, source, options);
+    let attempt = parse_generated_model_syntax_tree_with_recovery_attempt(
+        SyntaxParseEntry::Text,
+        words,
+        source,
+        options,
+    );
     let result = match attempt.result.into_data() {
         data!(SyntaxRecoveryParse::Valid { parse }) => {
             let parse = parse.into_data();
@@ -3531,6 +3547,7 @@ pub(crate) fn expected_continuations(
         return continuation_expectations;
     }
     let recovered = recover_after_strict_failure(
+        SyntaxParseEntry::Text,
         tokens,
         None,
         options,
@@ -3578,12 +3595,13 @@ fn syntax_error_expectations(error: &SyntaxError) -> Vec<SyntaxExpectation> {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
+    entry: SyntaxParseEntry,
     words: &[WordLike],
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
     let tokens = syntax_tokens(words);
-    parse_generated_model_syntax_tokens_with_recovery_attempt(tokens, source, options)
+    parse_generated_model_syntax_entry_tokens_with_recovery_attempt(entry, tokens, source, options)
 }
 
 #[requires(true)]
@@ -3593,13 +3611,29 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
-    let strict_attempt = generated::generated_model::parse_text_attempt(&tokens, options);
+    parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
+        SyntaxParseEntry::Text,
+        tokens,
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
+    entry: SyntaxParseEntry,
+    tokens: Vec<Token>,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    let strict_attempt = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
     if let Ok(parsed) = strict_attempt.result {
         return valid_syntax_recovery_attempt(parsed, &tokens, options, strict_attempt.trace);
     }
 
     let tracked_attempt =
-        generated::generated_model::parse_text_detailed_tracked_attempt(&tokens, options);
+        generated::generated_model::parse_entry_detailed_tracked_attempt(entry, &tokens, options);
     let data!(
         generated::generated_model::GeneratedParsedTextDetailedAttempt {
             result,
@@ -3615,7 +3649,7 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
     };
 
     let recovered =
-        recover_after_strict_failure(tokens, source, options, failure, trace, None, None);
+        recover_after_strict_failure(entry, tokens, source, options, failure, trace, None, None);
     let data!(RecoveryParseOutcome {
         recovered,
         continuation_expectations: _,
@@ -3660,6 +3694,7 @@ fn valid_syntax_recovery_attempt(
 #[ensures(!ret.recovered.result.errors.is_empty())]
 #[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn recover_after_strict_failure(
+    entry: SyntaxParseEntry,
     tokens: Vec<Token>,
     source: Option<&str>,
     options: &ParseOptions,
@@ -3679,6 +3714,7 @@ fn recover_after_strict_failure(
     // capture its expectations in isolation.
     let mut recovery_session =
         generated::generated_model::GeneratedRecoveryParseSession::new_with_continuation_time_limit(
+            entry,
             continuation_time_limit,
         );
     let mut errors = vec![failure.public_error.clone()];
@@ -3883,6 +3919,7 @@ fn recover_after_strict_failure(
                                     if let Some(sentinel_index) = continuation_sentinel_index {
                                         let expectations =
                                             replay_winning_continuation_success_expectations(
+                                                entry,
                                                 &tokens,
                                                 &parser_tokens,
                                                 source,
@@ -4003,6 +4040,7 @@ fn recover_after_strict_failure(
             }) = success.into_data();
             let winning_expectations = if let Some(sentinel_index) = continuation_sentinel_index {
                 let expectations = replay_winning_continuation_success_expectations(
+                    entry,
                     &tokens,
                     &parser_tokens,
                     source,
@@ -4051,6 +4089,7 @@ fn recover_after_strict_failure(
             continuation_sentinel_index.filter(|_| trial_reached_continuation_cut)
         {
             let replayed_expectations = replay_winning_continuation_expectations(
+                entry,
                 &tokens,
                 &parser_tokens,
                 source,
@@ -4100,6 +4139,7 @@ fn recover_after_strict_failure(
         && errors_in_statement < per_statement_cap
     {
         if let Some(recovered) = try_final_recovery_from_current_failure(
+            entry,
             &tokens,
             source,
             options,
@@ -4174,6 +4214,7 @@ fn recovered_success(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
 fn replay_winning_continuation_expectations<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4186,6 +4227,7 @@ fn replay_winning_continuation_expectations<'tokens>(
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
+        entry,
         tokens,
         parser_tokens,
         source,
@@ -4225,6 +4267,7 @@ fn replay_winning_continuation_expectations<'tokens>(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
 fn replay_winning_continuation_success_expectations<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4236,6 +4279,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
+        entry,
         tokens,
         parser_tokens,
         source,
@@ -4265,6 +4309,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.recovery_directives == directives)]
 fn replay_winning_continuation_attempt<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4275,6 +4320,7 @@ fn replay_winning_continuation_attempt<'tokens>(
 ) -> generated::generated_model::GeneratedRecoveredParsedTextAttempt {
     let mut recovery_session =
         generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
+            entry,
             continuation_sentinel_index,
             continuation_time_limit,
         );
@@ -4388,6 +4434,7 @@ fn classify_recovery_trial(
 #[requires(errors.last().is_some_and(|error| error == &failure.public_error))]
 #[ensures(ret.as_ref().is_none_or(|attempt| !attempt.recovered.result.errors.is_empty()))]
 fn try_final_recovery_from_current_failure<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
@@ -4433,6 +4480,7 @@ fn try_final_recovery_from_current_failure<'tokens>(
             let continuation_expectations =
                 if let Some(sentinel_index) = continuation_sentinel_index {
                     let expectations = replay_winning_continuation_success_expectations(
+                        entry,
                         tokens,
                         parser_tokens,
                         source,
@@ -6933,6 +6981,7 @@ mod tests {
                 Err(failure) => failure,
             };
             let recovered = recover_after_strict_failure(
+                SyntaxParseEntry::Text,
                 tokens,
                 None,
                 &options,

@@ -91,7 +91,8 @@ use jbotci_semantics::references::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, RecoveredSyntaxParse, SyntaxRecoveryParse, SyntaxRecoveryParseData,
+    ParseOptions, RecoveredSyntaxParse, SyntaxParseEntry, SyntaxRecoveryParse,
+    SyntaxRecoveryParseData, parse_syntax_entry_with_recovery_with_source_and_options_attempt,
     parse_syntax_tree_with_recovery_with_source_and_options_attempt,
 };
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
@@ -600,7 +601,8 @@ fn assemble_gentufa_diagnostics_for_parse(
     }
 }
 
-/// Parse one morphology-owned word slice and return its syntax diagnostics.
+/// Parse one morphology-owned word slice from the grammar rule `entry` and return its
+/// syntax diagnostics.
 ///
 /// The source remains the complete document so every diagnostic span stays in
 /// document coordinates. Callers are responsible for offsetting the returned
@@ -609,6 +611,7 @@ fn assemble_gentufa_diagnostics_for_parse(
 #[requires(morphology.morphology.errors.is_empty())]
 #[ensures(ret.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Syntax))]
 pub fn analyze_gentufa_syntax_diagnostics_for_words(
+    entry: SyntaxParseEntry,
     source: &str,
     options: &GentufaWebOptions,
     morphology: &GentufaMorphologyAnalysis,
@@ -618,7 +621,8 @@ pub fn analyze_gentufa_syntax_diagnostics_for_words(
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&morphology.dialect)
         .with_error_context_depth(options.error_context_depth);
-    let parse = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+    let parse = parse_syntax_entry_with_recovery_with_source_and_options_attempt(
+        entry,
         words,
         source,
         &parse_options,
@@ -7180,6 +7184,7 @@ mod tests {
         );
 
         let syntax_only = analyze_gentufa_syntax_diagnostics_for_words(
+            SyntaxParseEntry::Text,
             SOURCE,
             &options,
             &morphology,
@@ -7222,6 +7227,7 @@ mod tests {
         assert!(morphology.diagnostics().is_empty());
         assert!(
             analyze_gentufa_syntax_diagnostics_for_words(
+                SyntaxParseEntry::Text,
                 SOURCE,
                 &options,
                 &morphology,
@@ -7258,6 +7264,7 @@ mod tests {
         );
 
         let syntax_only = analyze_gentufa_syntax_diagnostics_for_words(
+            SyntaxParseEntry::Text,
             SOURCE,
             &options,
             &morphology,

@@ -503,6 +503,19 @@ impl Default for SyntaxRecoveryErrorPolicy {
     }
 }
 
+/// The grammar rule that a parse starts from.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxParseEntry {
+    /// A whole text.
+    Text,
+    /// A run of NIhO-led paragraphs, read as a text reads the paragraphs that follow a NIhO:
+    /// the input starts with the NIhO of its first paragraph. At every position, the parser
+    /// tries the same alternatives as when it reaches these paragraphs inside a whole text.
+    /// The parse tree is the text that consists of this run only.
+    NihoParagraphs,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParseOptions {
@@ -3363,7 +3376,46 @@ pub fn parse_syntax_tree_with_recovery_with_source_and_options_attempt(
     source: &str,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
-    grammar::parse_generated_model_syntax_tree_with_recovery_attempt(words, Some(source), options)
+    parse_syntax_entry_with_recovery_with_source_and_options_attempt(
+        SyntaxParseEntry::Text,
+        words,
+        source,
+        options,
+    )
+}
+
+/// Parse `words` from the grammar rule `entry`, strictly and then with recovery, as
+/// [`parse_syntax_tree_with_recovery_with_source_and_options_attempt`] does for a text.
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(syntax_recovery_parse_conserves_word_spans(words, &ret.result))]
+pub fn parse_syntax_entry_with_recovery_with_source_and_options_attempt(
+    entry: SyntaxParseEntry,
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    grammar::parse_generated_model_syntax_tree_with_recovery_attempt(
+        entry,
+        words,
+        Some(source),
+        options,
+    )
+}
+
+/// Parse `words` strictly from the grammar rule `entry`, as
+/// [`parse_syntax_tree_with_source_and_options_attempt`] does for a text.
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+pub fn parse_syntax_entry_with_source_and_options_attempt(
+    entry: SyntaxParseEntry,
+    words: &[WordLike],
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
+    grammar::parse_generated_model_syntax_entry_attempt(entry, words, options)
 }
 
 /// Parse an already-normalized syntax-token slice with recovery.
@@ -3991,6 +4043,59 @@ mod tests {
         let text = segment_text(&notes[0].segments);
         assert!(text.starts_with("needs one of:"));
         assert!(!text.contains("expected one of:"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn niho_paragraphs_entry_parses_as_the_text_parses_after_niho() {
+        let options = ParseOptions::default();
+        // An error inside a later paragraph has the same position and expectations as in the
+        // whole text, also right after the NIhO and after a leading free modifier.
+        for source in [
+            "mi klama ni'o su'i re",
+            "mi klama ni'o xi pa su'i re mi broda",
+        ] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+            let text_error =
+                parse_syntax_tree_with_source_and_options_attempt(&words, source, &options)
+                    .result
+                    .expect_err("the text has a syntax error");
+            let entry_error = parse_syntax_entry_with_source_and_options_attempt(
+                SyntaxParseEntry::NihoParagraphs,
+                &words[2..],
+                &options,
+            )
+            .result
+            .expect_err("the paragraph has a syntax error");
+            assert_eq!(entry_error, text_error, "{source}");
+        }
+        // A valid run of NIhO paragraphs gives the tree that the text rule gives for the same
+        // words.
+        let source = "ni'o mi klama ni'o do cadzu";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        let text = parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect("valid text");
+        let entry = parse_syntax_entry_with_source_and_options_attempt(
+            SyntaxParseEntry::NihoParagraphs,
+            &words,
+            &options,
+        )
+        .result
+        .expect("valid paragraphs");
+        assert_eq!(entry.parse_tree, text.parse_tree);
+        // The entry reads only NIhO-led paragraphs.
+        let words = jbotci_morphology::segment_words_with_modifiers("mi klama").expect("words");
+        assert!(
+            parse_syntax_entry_with_source_and_options_attempt(
+                SyntaxParseEntry::NihoParagraphs,
+                &words,
+                &options,
+            )
+            .result
+            .is_err()
+        );
     }
 
     #[test]
