@@ -17,7 +17,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -267,7 +267,6 @@ impl SyntaxGrammar {
                 Ignored(&'static SyntaxGrammarRecoveryExpr),
                 NotNextSelmaho(Selmaho),
                 NotNextToken(SyntaxGrammarTokenPredicate),
-                NotNextRule(&'static str),
                 Lookahead(&'static SyntaxGrammarRecoveryExpr),
                 Not(&'static SyntaxGrammarRecoveryExpr),
                 Choice(&'static [SyntaxGrammarRecoveryExpr]),
@@ -2874,13 +2873,6 @@ impl EnumRule {
                         StrictParserCallMode::Local,
                     )?
                 };
-                let branch_parser = branch
-                    .conditions
-                    .iter()
-                    .rev()
-                    .fold(branch_parser, |parser, condition| {
-                        condition.expand_strict_gate(parser)
-                    });
                 let value = if output_is_generated_model(generate_model, model_outputs, &self.output) {
                     branch.containment(branch_output, type_env)
                         .lower(quote!(#field), &quote!(WithFreeModifiers))
@@ -2890,10 +2882,13 @@ impl EnumRule {
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
-                Ok(quote!(#branch_parser.map(|#field| #body)))
+                Ok(EnumChoiceAlternative {
+                    parser: quote!(#branch_parser.map(|#field| #body)),
+                    conditions: &branch.conditions,
+                })
             })
             .collect::<Result<Vec<_>>>()?;
-        let parser = strict_choice_chain(alternatives, &self.name)?;
+        let parser = enum_choice_chain(alternatives, &self.name)?;
         let name = flavor.rule_parser_name(&self.name.to_string());
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
@@ -3010,13 +3005,6 @@ impl EnumRule {
                         true,
                     )?
                 };
-                let branch_parser = branch
-                    .conditions
-                    .iter()
-                    .rev()
-                    .fold(branch_parser, |parser, condition| {
-                        condition.expand_strict_gate(parser)
-                    });
                 let value = if output_is_generated_model(true, model_outputs, &self.output) {
                     branch.containment(branch_output, type_env)
                         .lower(quote!(#field), &quote!(#recovered_module::WithFreeModifiers))
@@ -3026,10 +3014,13 @@ impl EnumRule {
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field: #value }))
                 };
-                Ok(quote!(#branch_parser.map(|#field| #body)))
+                Ok(EnumChoiceAlternative {
+                    parser: quote!(#branch_parser.map(|#field| #body)),
+                    conditions: &branch.conditions,
+                })
             })
             .collect::<Result<Vec<_>>>()?;
-        let parser = strict_choice_chain(alternatives, &self.name)?;
+        let parser = enum_choice_chain(alternatives, &self.name)?;
         let name = format_ident!("recovered_{}_parser", self.name);
         let argument_tokens = recovered_parser_argument_tokens(
             &self.arguments,
@@ -3590,6 +3581,16 @@ impl NodeRule {
     }
 }
 
+/// Generated code for a probe's construct label: `Some(label)` or `None`.
+#[requires(label.is_none_or(|label| !label.is_empty()))]
+#[ensures(true)]
+fn construct_label_tokens(label: Option<&str>) -> TokenStream2 {
+    match label {
+        Some(label) => quote!(Some(#label)),
+        None => quote!(None),
+    }
+}
+
 #[invariant(true)]
 struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
@@ -3597,6 +3598,8 @@ struct GrammarTypeEnv {
     rule_arguments: BTreeMap<String, Vec<String>>,
     generated_struct_fields: BTreeMap<String, BTreeMap<String, Type>>,
     model_nodes: BTreeSet<String>,
+    /// The context label of every labelled rule and alias, by name.
+    rule_labels: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3852,6 +3855,10 @@ impl GrammarTypeEnv {
                     simple_type_ident(rule.declared_output()?).map(ToString::to_string)
                 })
                 .collect(),
+            rule_labels: rules
+                .iter()
+                .filter_map(|rule| Some((rule.name().to_string(), rule.context_label()?)))
+                .collect(),
         };
 
         for rule in rules {
@@ -3919,6 +3926,66 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
+    /// The construct label that a failing positive probe of `target` reports, as generated
+    /// code: `Some(label)` when `target` names a labelled rule or alias, and `None` otherwise.
+    ///
+    /// `lookahead` and `ignored` do not change the construct that a probe tests, so the label
+    /// is looked up through them. This keeps `assert rule.lookahead();`, which wraps one
+    /// lookahead in another, reporting the rule label.
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_construct_tokens(&self, target: &ParserExpr) -> TokenStream2 {
+        construct_label_tokens(self.parser_expr_probe_label(target))
+    }
+
+    /// The same as `probe_construct_tokens`, for a probe target written as a plain Rust
+    /// expression.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rust_probe_construct_tokens(&self, target: &Expr) -> TokenStream2 {
+        construct_label_tokens(self.rust_expr_probe_label(target))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|label| !label.is_empty()))]
+    fn parser_expr_probe_label(&self, target: &ParserExpr) -> Option<&str> {
+        match target {
+            ParserExpr::Rust(expr) => self.rust_expr_probe_label(expr),
+            ParserExpr::Postfix {
+                receiver,
+                method,
+                args,
+            } if args.is_empty() && (method == "lookahead" || method == "ignored") => {
+                self.parser_expr_probe_label(receiver)
+            }
+            ParserExpr::Vector(_) | ParserExpr::Chain(_) | ParserExpr::Postfix { .. } => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|label| !label.is_empty()))]
+    fn rust_expr_probe_label(&self, target: &Expr) -> Option<&str> {
+        let rule = match target {
+            Expr::Paren(paren) => return self.rust_expr_probe_label(&paren.expr),
+            Expr::MethodCall(method)
+                if method.args.is_empty()
+                    && (method.method == "lookahead" || method.method == "ignored") =>
+            {
+                return self.rust_expr_probe_label(&method.receiver);
+            }
+            Expr::Path(path) => path.path.get_ident()?,
+            Expr::Call(call) => match call.func.as_ref() {
+                Expr::Path(path) => path.path.get_ident()?,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        self.rule_labels
+            .get(&rule.to_string())
+            .map(String::as_str)
+            .filter(|label| !label.is_empty())
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn rule_known_for_recovery(&self, name: &str, arguments: &BTreeSet<String>) -> bool {
@@ -4719,7 +4786,10 @@ fn strict_postfix_parser_expr_tokens(
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
-        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("lookahead", 0) => {
+            let expected = generation.type_env.probe_construct_tokens(receiver);
+            Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
+        }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
         ("recursive_output", 1) => {
@@ -4903,6 +4973,7 @@ fn strict_vector_parser_expr_tokens(
                 });
             }
             VectorItem::Assert { negated, parser } => {
+                let construct = generation.type_env.probe_construct_tokens(parser);
                 let parser = strict_parser_expr_tokens(
                     parser,
                     arguments,
@@ -4913,7 +4984,7 @@ fn strict_vector_parser_expr_tokens(
                 let parser = if *negated {
                     quote!(generated_runtime::not(#parser))
                 } else {
-                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                    quote!(generated_runtime::lookahead(#parser, #construct).map(|_| ()))
                 };
                 parsers.push(parser);
                 bindings.push(quote!(_));
@@ -5049,7 +5120,10 @@ fn recovered_postfix_parser_expr_tokens(
         recovered_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
-        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("lookahead", 0) => {
+            let expected = generation.type_env.probe_construct_tokens(receiver);
+            Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
+        }
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
         ("recursive_output", 1) => {
@@ -5245,6 +5319,7 @@ fn recovered_vector_parser_expr_tokens(
                 });
             }
             VectorItem::Assert { negated, parser } => {
+                let construct = generation.type_env.probe_construct_tokens(parser);
                 let parser = recovered_parser_expr_tokens(
                     parser,
                     arguments,
@@ -5255,7 +5330,7 @@ fn recovered_vector_parser_expr_tokens(
                 let parser = if *negated {
                     quote!(generated_runtime::not(#parser))
                 } else {
-                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                    quote!(generated_runtime::lookahead(#parser, #construct).map(|_| ()))
                 };
                 parsers.push(parser);
                 bindings.push(quote!(_));
@@ -5424,75 +5499,6 @@ fn strict_method_parser_expr_tokens(
                 .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
                 .map(|(value, _)| value)
         })
-    } else if method.method == "not_next_rule" && method.args.len() == 1 {
-        let inner = strict_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let rule_arg = method.args.first().expect("length checked");
-        let rule = required_path_expr_last_segment(
-            rule_arg,
-            "not_next_rule() requires a grammar rule path",
-        )?;
-        if !generation.type_env.rules.contains_key(&rule) {
-            return Err(syn::Error::new_spanned(
-                rule_arg,
-                "not_next_rule() names an unknown grammar rule",
-            ));
-        }
-        let parser_arguments = generation
-            .type_env
-            .rule_arguments
-            .get(&rule)
-            .into_iter()
-            .flatten()
-            .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
-            .collect::<Result<Vec<_>>>()?;
-        let normal_parser_arguments = if generation.flavor.records_recovery_checkpoints() {
-            generation
-                .type_env
-                .rule_arguments
-                .get(&rule)
-                .into_iter()
-                .flatten()
-                .map(|argument| {
-                    let argument = format_ident!("__strict_{argument}");
-                    quote!(#argument.clone())
-                })
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
-        let parser_name = generation.flavor.rule_parser_name(&rule);
-        let parser_name = if mode == StrictParserCallMode::External
-            || (generation.generate_model && !generation.rule_has_local_parser(&rule))
-        {
-            quote!(super::#parser_name)
-        } else {
-            quote!(#parser_name)
-        };
-        let free_modifier =
-            strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
-        let normal_free_modifier = generation
-            .flavor
-            .records_recovery_checkpoints()
-            .then(|| quote!(__generated_strict_free_modifier.clone()));
-        let expected = format!("not {rule}");
-        Ok(quote! {
-            generated_runtime::not_next_rule_after(
-                #inner,
-                #parser_name(
-                    #(#parser_arguments,)*
-                    #(#normal_parser_arguments,)*
-                    #free_modifier,
-                    #normal_free_modifier
-                ),
-                #expected,
-            )
-        })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first().expect("length checked");
         let inner = strict_rust_parser_expr_tokens(
@@ -5509,7 +5515,8 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
+        let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -5548,7 +5555,10 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::lookahead(#inner)))
+        let expected = generation
+            .type_env
+            .rust_probe_construct_tokens(&method.receiver);
+        Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6243,6 +6253,63 @@ fn strict_choice_alternative_parser_tokens(
         .collect()
 }
 
+/// One arm of a generated enum parser, with the dialect conditions that it exists under.
+#[invariant(true)]
+struct EnumChoiceAlternative<'a> {
+    parser: TokenStream2,
+    conditions: &'a [Condition],
+}
+
+/// The ordered choice over the arms of a generated enum parser.
+///
+/// An arm under `when feature(...)` becomes a `choice_feature_cons` cell, which skips the arm
+/// while a feature is off instead of running a gate that fails: a disabled arm is not part of
+/// the grammar, so it must not add an expectation to the choice's error. A lone arm keeps its
+/// gate, because it is the whole choice.
+#[requires(true)]
+#[ensures(true)]
+fn enum_choice_chain(
+    mut alternatives: Vec<EnumChoiceAlternative<'_>>,
+    span: impl ToTokens,
+) -> Result<TokenStream2> {
+    if alternatives.is_empty() {
+        return Err(syn::Error::new_spanned(
+            span,
+            "strict parser choice must have at least one alternative",
+        ));
+    }
+    if alternatives.len() == 1 {
+        let alternative = alternatives.pop().expect("length checked");
+        return Ok(alternative
+            .conditions
+            .iter()
+            .rev()
+            .fold(alternative.parser, |parser, condition| {
+                condition.expand_strict_gate(parser)
+            }));
+    }
+    let list = alternatives.into_iter().rev().fold(
+        quote!(generated_runtime::choice_nil()),
+        |rest, alternative| {
+            let parser = alternative.parser;
+            if alternative.conditions.is_empty() {
+                quote!(generated_runtime::choice_cons(#parser, #rest))
+            } else {
+                let features = alternative
+                    .conditions
+                    .iter()
+                    .map(|condition| &condition.feature);
+                quote!(generated_runtime::choice_feature_cons(
+                    &[#(generated_runtime::SyntaxGrammarFeature::#features),*],
+                    #parser,
+                    #rest,
+                ))
+            }
+        },
+    );
+    Ok(quote!(generated_runtime::strict_ordered_choice(#list)))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn strict_choice_chain(
@@ -6415,7 +6482,8 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
+        let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -6454,7 +6522,10 @@ fn recovered_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Ok(quote!(generated_runtime::lookahead(#inner)))
+        let expected = generation
+            .type_env
+            .rust_probe_construct_tokens(&method.receiver);
+        Ok(quote!(generated_runtime::lookahead(#inner, #expected)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7434,7 +7505,6 @@ fn method_rust_parser_output_type(
         || method.method == "elidable_terminator"
         || method.method == "not_next_selmaho"
         || method.method == "not_next_token"
-        || method.method == "not_next_rule"
         || method.method == "followed_by"
         || method.method == "lookahead"
         || method.method == "reject_output"
@@ -8557,7 +8627,6 @@ impl Parse for Condition {
 #[invariant(::Many(_) => true)]
 #[invariant(::Many1(_) => true)]
 #[invariant(::Not(_) => true)]
-#[invariant(::NotNextRule(_) => true)]
 #[invariant(::NotNextSelmaho(_) => true)]
 #[invariant(::NotNextToken(_) => true)]
 #[invariant(::Opaque(_) => true)]
@@ -8586,7 +8655,6 @@ enum RecoveryExpr {
     Ignored(Box<RecoveryExpr>),
     NotNextSelmaho(String),
     NotNextToken(String),
-    NotNextRule(String),
     Lookahead(Box<RecoveryExpr>),
     Not(Box<RecoveryExpr>),
     Choice(Vec<RecoveryExpr>),
@@ -8664,9 +8732,6 @@ impl RecoveryExpr {
             RecoveryExpr::NotNextToken(predicate) => {
                 let predicate = syn::Ident::new(&predicate, proc_macro2::Span::call_site());
                 quote!(SyntaxGrammarRecoveryExpr::NotNextToken(SyntaxGrammarTokenPredicate::#predicate))
-            }
-            RecoveryExpr::NotNextRule(rule) => {
-                quote!(SyntaxGrammarRecoveryExpr::NotNextRule(#rule))
             }
             RecoveryExpr::Lookahead(inner) => {
                 let inner = inner.expand();
@@ -8890,33 +8955,9 @@ fn classify_method_recovery_expr(
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextToken)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
-        ("not_next_rule", 1) => classify_not_next_rule_recovery_expr(method, arguments, type_env),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         _ => Ok(RecoveryExpr::Opaque(compact_tokens(method))),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn classify_not_next_rule_recovery_expr(
-    method: &ExprMethodCall,
-    arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
-) -> Result<RecoveryExpr> {
-    let Some(argument) = method.args.first() else {
-        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
-    };
-    let Some(rule) = path_expr_last_segment(argument) else {
-        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
-    };
-    if type_env.rule_known_for_recovery(&rule, arguments) {
-        Ok(RecoveryExpr::NotNextRule(rule))
-    } else {
-        Err(syn::Error::new_spanned(
-            argument,
-            format!("unknown grammar rule `{rule}` in recovery metadata"),
-        ))
     }
 }
 
@@ -9685,7 +9726,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::NotNextRule(_)
             | RecoveryExpr::BareNegationTerm
             | RecoveryExpr::RelationWord
             | RecoveryExpr::Opaque(_)
@@ -9726,7 +9766,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
             | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::NotNextRule(_)
             | RecoveryExpr::Eof => true,
             RecoveryExpr::Rule(rule) => self.rule_nullable(rule)?,
             RecoveryExpr::Cmavo(_)
@@ -9876,7 +9915,6 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         | RecoveryExpr::Not(_)
         | RecoveryExpr::NotNextSelmaho(_)
         | RecoveryExpr::NotNextToken(_)
-        | RecoveryExpr::NotNextRule(_)
         | RecoveryExpr::Sequence(_)
         | RecoveryExpr::WordCategory(_)
         | RecoveryExpr::BareNegationTerm
@@ -10510,6 +10548,91 @@ mod tests {
         assert!(
             expanded.contains("WrapperSyntax :: Item (:: std :: sync :: Arc :: new (item))"),
             "enum branch should construct the wrapper from the parser argument: {expanded}"
+        );
+    }
+
+    /// A positive assertion inside a vector is a probe like any other: both the strict and the
+    /// recovered generators pass the probed construct's label to `lookahead`.
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn vector_assertions_pass_the_construct_label_to_lookahead() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            /// Syntax model for item parsed by the `item` grammar rule.
+            rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
+                field token <- cmavo(Be);
+            }
+
+            /// Syntax model for token list parsed by the `token_list` grammar rule.
+            rule "token list" token_list -> struct {
+                /// The source-ordered `tokens` component retained by the `token_list` syntax node.
+                field tokens <- [
+                    assert item;
+                    cmavo(Be);
+                    assert cmavo(Bo);
+                    cmavo(Bo);
+                ];
+            }
+        })
+        .expect("grammar parses before expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            !expanded.contains("compile_error"),
+            "the grammar expands: {expanded}"
+        );
+        let calls = expanded
+            .match_indices("generated_runtime :: lookahead (")
+            .map(|(start, _)| {
+                // The call's arguments run to the matching closing parenthesis.
+                let arguments = &expanded[start + "generated_runtime :: lookahead (".len()..];
+                let mut depth = 1usize;
+                let end = arguments
+                    .char_indices()
+                    .find(|(_, character)| {
+                        match character {
+                            '(' => depth += 1,
+                            ')' => depth -= 1,
+                            _ => {}
+                        }
+                        depth == 0
+                    })
+                    .map(|(index, _)| index)
+                    .expect("the lookahead call is closed");
+                arguments[..end].to_owned()
+            })
+            .collect::<Vec<_>>();
+        let labelled = calls
+            .iter()
+            .filter(|arguments| arguments.ends_with(", Some (\"item\")"))
+            .count();
+        let unlabelled = calls
+            .iter()
+            .filter(|arguments| arguments.ends_with(", None"))
+            .count();
+        assert_eq!(
+            labelled + unlabelled,
+            calls.len(),
+            "every lookahead call passes a construct label: {calls:#?}"
+        );
+        let recovered = expanded
+            .find("fn recovered_token_list_parser")
+            .expect("the recovered parser is generated");
+        let strict_labelled = expanded[..recovered].matches(", Some (\"item\")").count();
+        let recovered_labelled = expanded[recovered..].matches(", Some (\"item\")").count();
+        assert!(
+            strict_labelled >= 1 && recovered_labelled >= 1,
+            "the strict and the recovered generators both label the probe: {expanded}"
+        );
+        assert!(
+            unlabelled >= 2,
+            "an unlabelled probe passes None: {calls:#?}"
         );
     }
 

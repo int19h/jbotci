@@ -8,11 +8,12 @@ use std::{
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity};
-use jbotci_morphology::{WordLike, map_word_like_spans};
+use jbotci_morphology::{Selmaho, WordLike, map_word_like_spans};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
-    SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData, SyntaxTextUnitGranularity,
-    Token, generated_model, partition_syntax_text_units, syntax_text_structure, syntax_tokens,
+    SyntaxParseEntry, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData,
+    SyntaxTextUnitGranularity, Token, generated_model, partition_syntax_text_units,
+    syntax_text_structure, syntax_tokens,
 };
 use jbotci_tree::TreeVisitor;
 use jbotci_web_core::{
@@ -32,6 +33,9 @@ pub enum IncrementalDiagnosticGate {
     FlankMismatch,
     BoundaryStructureChanged,
     CrossParagraphDiagnostic,
+    /// The paragraph parse has an error at its end of input, but the document continues after
+    /// the paragraph.
+    ParagraphEndError,
 }
 
 /// Wall-clock phase measurements for one prepared document generation.
@@ -189,6 +193,16 @@ struct ConfirmedParagraph {
     byte_end: usize,
 }
 
+/// Where the paragraph parse starts: the grammar rule through which the document parse reaches
+/// the paragraph, and the first byte of the tokens that this rule reads before the paragraph.
+#[invariant(byte_start <= paragraph_byte_start)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ParagraphParseContext {
+    entry: SyntaxParseEntry,
+    byte_start: usize,
+    paragraph_byte_start: usize,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiagnosticParagraphSide {
@@ -282,6 +296,27 @@ fn provisional_diagnostics(
         return (IncrementalDiagnosticGate::BoundaryStructureChanged, None);
     }
 
+    // The paragraph parse starts from the grammar rule through which the document parse reaches
+    // the paragraph. Then, at every position inside the paragraph, it tries the same
+    // alternatives as the document parse, and an error there lists the same expectations.
+    let Some(context) = paragraph_parse_context(&old_tokens, paragraph) else {
+        return (IncrementalDiagnosticGate::NoConfirmedParagraph, None);
+    };
+    let new_words = &morphology.morphology().words;
+    // The words before the paragraph are the same in both versions (the flank gate), so the
+    // context starts at the same word.
+    let context_word_start = new_words.partition_point(|word| {
+        word.byte_range()
+            .is_none_or(|range| range.end <= context.byte_start)
+    });
+    let paragraph_is_last = paragraph.token_end == old_tokens.len();
+    let Some(local_end) = new_words[new_word_range.end - 1]
+        .byte_range()
+        .map(|range| range.end)
+    else {
+        return (IncrementalDiagnosticGate::FlankMismatch, None);
+    };
+
     let word_delta = signed_delta(new_word_range.len(), old_word_range.len());
     let Some(word_delta) = word_delta else {
         return (IncrementalDiagnosticGate::FlankMismatch, None);
@@ -322,14 +357,37 @@ fn provisional_diagnostics(
 
     let local_syntax = if morphology.morphology().errors.is_empty() {
         analyze_gentufa_syntax_diagnostics_for_words(
+            context.entry,
             &text,
             &GentufaWebOptions::default(),
             morphology,
-            &morphology.morphology().words[new_word_range.clone()],
+            &new_words[context_word_start..new_word_range.end],
         )
     } else {
         Vec::new()
     };
+    // The context tokens before the paragraph lie outside the paragraph, where the confirmed
+    // diagnostics are retained. The edit cannot change a diagnostic there, so the paragraph
+    // parse must not report one.
+    if local_syntax
+        .iter()
+        .any(|diagnostic| diagnostic.primary_label().span.byte_start < context.paragraph_byte_start)
+    {
+        return (IncrementalDiagnosticGate::CrossParagraphDiagnostic, None);
+    }
+    // The paragraph parse ends where the paragraph ends. If the document continues, the
+    // document parse finds the next NIhO there instead of the end of input. An error at the
+    // end of the paragraph parse then has another found token and position in the document
+    // parse, or none at all, because the next paragraph can complete what this one left
+    // open. Only at the end of the document do both parses see the same end of input.
+    if !paragraph_is_last
+        && local_syntax.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.primary_label().span.byte_start >= local_end
+        })
+    {
+        return (IncrementalDiagnosticGate::ParagraphEndError, None);
+    }
     // A later syntax error makes the document-wide parser switch to recovery
     // after this locally valid paragraph. Some strict-only warnings are not
     // present in that recovered result. A local parse cannot prove which
@@ -348,7 +406,7 @@ fn provisional_diagnostics(
             global_local_syntax.push(diagnostic);
             continue;
         };
-        let Some(global_word_index) = word_index.checked_add(new_word_range.start) else {
+        let Some(global_word_index) = word_index.checked_add(context_word_start) else {
             return (IncrementalDiagnosticGate::FlankMismatch, None);
         };
         global_local_syntax.push(diagnostic.with_data(data! {
@@ -490,6 +548,43 @@ fn confirmed_paragraph_covering_edit(
         });
     let paragraph = matches.next()?;
     matches.next().is_none().then_some(paragraph)
+}
+
+/// The parse context of a paragraph from the lexical paragraph partition. A paragraph at the
+/// start of the text, after at most a run of NIhO, is read by the text rule from the first
+/// token. Any other paragraph follows a NIhO run outside a quoted or parenthesized text. The
+/// text reads that run with `niho_paragraph`, inside the paragraph run
+/// (`text_niho_paragraphs`, or the `additional_niho` of a first paragraph). The first-paragraph
+/// form `i ni'o` (`i_niho_paragraph`) reads the same parts after its I as `niho_paragraph`,
+/// and the same paragraph run follows it. So the paragraph parse from
+/// `SyntaxParseEntry::NihoParagraphs` at the NIhO run tries the same alternatives as the
+/// document parse in each case. The partition starts a later paragraph only after a NIhO, so
+/// a paragraph without one before it has no known context.
+#[requires(paragraph.token_end <= tokens.len())]
+#[ensures(ret.is_none_or(|context| context.paragraph_byte_start == paragraph.byte_start))]
+fn paragraph_parse_context(
+    tokens: &[Token],
+    paragraph: ConfirmedParagraph,
+) -> Option<ParagraphParseContext> {
+    let run_start = tokens[..paragraph.token_start]
+        .iter()
+        .rposition(|token| !token.is_selmaho(Selmaho::Niho))
+        .map_or(0, |index| index + 1);
+    let (entry, first_token) = if run_start == 0 {
+        (SyntaxParseEntry::Text, tokens.first()?)
+    } else if run_start < paragraph.token_start {
+        (SyntaxParseEntry::NihoParagraphs, &tokens[run_start])
+    } else {
+        return None;
+    };
+    let byte_start = first_token.source_spans().first()?.byte_start;
+    (byte_start <= paragraph.byte_start).then(|| {
+        new!(ParagraphParseContext {
+            entry,
+            byte_start,
+            paragraph_byte_start: paragraph.byte_start,
+        })
+    })
 }
 
 #[requires(byte_start < byte_end)]
@@ -773,6 +868,19 @@ mod tests {
                 " su ni'o do",
                 IncrementalDiagnosticGate::FlankMismatch,
             ),
+            (
+                // The confirmed text has no syntax error, so no diagnostic crosses the
+                // paragraph. The edited middle paragraph ends before its required sumti, so
+                // its parse fails at its end of input, where the document has the next NIhO.
+                // The edit changes `brode`, so that it lies inside the paragraph: an edit that
+                // only appends ` .e` starts after the last byte of the paragraph, and no
+                // confirmed paragraph covers it.
+                "paragraph-end-error",
+                "mi klama ni'o mi brode ni'o do cadzu",
+                "mi brode",
+                "mi broda .e",
+                IncrementalDiagnosticGate::ParagraphEndError,
+            ),
         ];
         for (name, old_source, old_fragment, new_fragment, expected) in cases {
             let prepared = prepare_replacement(old_source, old_fragment, new_fragment);
@@ -876,7 +984,7 @@ mod tests {
         // Paragraph samples that stress the gate: several do not parse in the default profile,
         // and several carry a local experimental warning. They were first collected for the
         // Zantufa parity check, which issue #968 removed; they stay here as gate samples.
-        const SAMPLES: [(&str, &str); 15] = [
+        const SAMPLES: [(&str, &str); 18] = [
             ("bare-mex-fragment", "su'i re"),
             (
                 "i-connected-relative-body",
@@ -907,25 +1015,41 @@ mod tests {
             ("jai-selbri-not-term", "mi jai pu broda"),
             ("fa-joik-chained-place-tag", "fa je fe ko'a broda"),
             ("cehe-stays-a-cehe-termset", "ko'a ce'e ko'e broda"),
+            (
+                "error-after-leading-free-modifier",
+                "sei mi broda se'u su'i re",
+            ),
+            ("error-at-last-token", "mi klama ku"),
+            ("error-at-paragraph-end", "mi broda .e"),
         ];
         let mut passed_ids = Vec::new();
+        let mut gates = Vec::new();
         for (id, sample) in SAMPLES {
             let old_source = format!("mi klama\nni'o\n{sample}\nni'o\nmi ku i do");
             let new_source = format!("mi klama\nni'o\n{sample} ui\nni'o\nmi ku i do");
             let confirmed = DocumentSnapshot::new(old_source, 1);
             let prepared = PreparedDocumentAnalysis::prepare(Some(&confirmed), new_source, 2);
+            gates.push((id, prepared.gate()));
             if prepared.gate() == IncrementalDiagnosticGate::Passed {
                 passed_ids.push(id);
                 assert_provisional_matches_confirmation(prepared);
             }
         }
-        // A sample passes when its diagnostics stay inside its paragraph and it carries no local
-        // experimental warning. Without Zantufa, each sample either parses with the baseline
-        // grammar or fails with plain diagnostics inside its paragraph, except one:
-        // `fa-joik-chained-place-tag` takes the FA tag chain with its local
-        // `experimental-fa-as-tag` warning, and the gate must be conservative about it. Since the
-        // mex-before-MOI selbri came back (#969), `connectorless-bo-sumti-tagged` recovers
-        // without its local `experimental-term-bo-connection` warning and passes.
+        // A sample passes when its diagnostics stay inside its paragraph, it carries no local
+        // experimental warning, and the paragraph parse has no error at its end. Each sample is
+        // the second paragraph, so the paragraph parse starts at its NIhO, from the rule that
+        // the text uses for NIhO-led paragraphs. An error at any position inside the paragraph,
+        // also at its first token (`bare-mex-fragment`), after a leading free modifier
+        // (`xi-mex-free-with-statement-terms`, `error-after-leading-free-modifier`) or at its
+        // last token (`error-at-last-token`), then lists the same expectations as in the
+        // document parse.
+        //
+        // Two samples do not pass. `fa-joik-chained-place-tag` takes the FA tag chain with its
+        // local `experimental-fa-as-tag` warning before a later error, and the gate must be
+        // conservative about it. `error-at-paragraph-end` ends before its required sumti, so the
+        // document parse fails at the next NIhO, and the paragraph parse at its end of input. Since the mex-before-MOI selbri came back (#969),
+        // `connectorless-bo-sumti-tagged` recovers without its local
+        // `experimental-term-bo-connection` warning and passes.
         assert_eq!(
             passed_ids,
             [
@@ -943,8 +1067,40 @@ mod tests {
                 "jai-term-explicit-ku",
                 "jai-selbri-not-term",
                 "cehe-stays-a-cehe-termset",
+                "error-after-leading-free-modifier",
+                "error-at-last-token",
             ]
         );
+        // The document error of `error-at-paragraph-end` is at the next NIhO, and its context
+        // label starts inside the paragraph, so the cross-paragraph condition fails the gate
+        // before the paragraph parse runs. Without that label, the end-of-input error of the
+        // paragraph parse fails it (`ParagraphEndError`).
+        assert!(
+            gates.contains(&(
+                "error-at-paragraph-end",
+                IncrementalDiagnosticGate::CrossParagraphDiagnostic
+            )),
+            "{gates:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn paragraph_parse_contexts_match_confirmation() {
+        // Each case edits a paragraph with an error at its first token. The paragraph parse
+        // starts from the text rule for the first paragraph (also when the text starts with
+        // NIhO), and from the NIhO run otherwise (also after `.i`).
+        let cases = [
+            ("first-paragraph", "su'i re\nni'o\nmi klama"),
+            ("text-starts-with-niho", "ni'o su'i re\nni'o\nmi klama"),
+            ("niho-after-i", "mi klama .i ni'o su'i re\nni'o\nmi klama"),
+        ];
+        for (name, old_source) in cases {
+            let prepared = prepare_replacement(old_source, "su'i re", "su'i re ui");
+            assert_eq!(prepared.gate(), IncrementalDiagnosticGate::Passed, "{name}");
+            assert_provisional_matches_confirmation(prepared);
+        }
     }
 
     #[requires(true)]

@@ -15,7 +15,8 @@ use super::{
     SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
 };
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
+    ExperimentalConstruct, ParseOptions, SyntaxParseEntry, SyntaxWarning, SyntaxWordCategory,
+    Token, TraceReport,
 };
 
 #[doc(hidden)]
@@ -35,6 +36,11 @@ pub mod generated_model {
 
     recursive {
         text: TextSyntax;
+        // The run of NIhO-led paragraphs, as a text reads it after its first paragraph or from
+        // its first NIhO. It is recursive so that the generated parser exposes it as a root in
+        // every flavor: `SyntaxParseEntry::NihoParagraphs` parses from it, so that a paragraph
+        // after a NIhO sees exactly the alternatives that the whole-text parse tries there.
+        text_niho_paragraphs: TextNihoParagraphsSyntax;
         paragraph: ParagraphSyntax;
         statement_or_fragment: StatementOrFragmentSyntax;
         statement: StatementSyntax;
@@ -4336,6 +4342,9 @@ pub mod generated_model {
 
     /// Transparent product node for tag; preserves the `body` component.
     rule "tag" tense_modal(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        // The words that can start a tag. ROI is not one: an interval property is
+        // `number ROI NAI?`, so ROI always follows a number (PA), a NIhE or MOhE operand, or a
+        // VEI mex, which are listed.
         assert choice((
             cmavo(Fiho),
             selmaho(Bai),
@@ -4360,7 +4369,6 @@ pub mod generated_model {
             cmavo(Mohe),
             cmavo(Vei),
             pa_word(),
-            selmaho(Roi),
         ));
         #[tree_child(primary)]
         /// The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.
@@ -5934,7 +5942,7 @@ pub mod generated_model {
         pub(in crate::grammar) fn new() -> Self {
             Self {
                 memo_session: SyntaxRecoveryMemoSession::new(),
-                parser: recovered_generated_text_parser_with_eof(),
+                parser: recovered_generated_entry_parser_with_eof(SyntaxParseEntry::Text),
                 continuation_sentinel_index: None,
                 continuation_time_limit: None,
             }
@@ -5943,11 +5951,12 @@ pub mod generated_model {
         #[bityzba::requires(true)]
         #[bityzba::ensures(ret.continuation_time_limit == continuation_time_limit)]
         pub(in crate::grammar) fn new_with_continuation_time_limit(
+            entry: SyntaxParseEntry,
             continuation_time_limit: Option<ContinuationTimeLimit>,
         ) -> Self {
             Self {
                 memo_session: SyntaxRecoveryMemoSession::new(),
-                parser: recovered_generated_text_parser_with_eof(),
+                parser: recovered_generated_entry_parser_with_eof(entry),
                 continuation_sentinel_index: None,
                 continuation_time_limit,
             }
@@ -5957,12 +5966,13 @@ pub mod generated_model {
         #[bityzba::ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
         #[bityzba::ensures(ret.continuation_time_limit == continuation_time_limit)]
         pub(in crate::grammar) fn new_for_expected_continuations(
+            entry: SyntaxParseEntry,
             sentinel_index: usize,
             continuation_time_limit: Option<ContinuationTimeLimit>,
         ) -> Self {
             Self {
                 memo_session: SyntaxRecoveryMemoSession::new(),
-                parser: recovered_generated_text_parser_with_eof(),
+                parser: recovered_generated_entry_parser_with_eof(entry),
                 continuation_sentinel_index: Some(sentinel_index),
                 continuation_time_limit,
             }
@@ -5981,10 +5991,20 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextAttempt {
+        parse_entry_attempt(SyntaxParseEntry::Text, words, options)
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_entry_attempt(
+        entry: SyntaxParseEntry,
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new(words, options);
-        let result = strict_generated_text_parser_with_eof()
+        let result = strict_generated_entry_parser_with_eof(entry)
             .parse_with_state(
                 tokens
                     .as_slice()
@@ -6038,7 +6058,17 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextDetailedAttempt {
-        parse_text_detailed_tracked_attempt_inner(words, options, None, None)
+        parse_entry_detailed_tracked_attempt(SyntaxParseEntry::Text, words, options)
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_entry_detailed_tracked_attempt(
+        entry: SyntaxParseEntry,
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextDetailedAttempt {
+        parse_text_detailed_tracked_attempt_inner(entry, words, options, None, None)
     }
 
     #[bityzba::requires(sentinel_index < words.len())]
@@ -6050,6 +6080,7 @@ pub mod generated_model {
         continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> GeneratedParsedTextDetailedAttempt {
         parse_text_detailed_tracked_attempt_inner(
+            SyntaxParseEntry::Text,
             words,
             options,
             Some(sentinel_index),
@@ -6060,6 +6091,7 @@ pub mod generated_model {
     #[bityzba::requires(continuation_sentinel_index.is_none_or(|index| index < words.len()))]
     #[bityzba::ensures(continuation_sentinel_index.is_some() -> ret.result.is_err())]
     fn parse_text_detailed_tracked_attempt_inner(
+        entry: SyntaxParseEntry,
         words: &[Token],
         options: &ParseOptions,
         continuation_sentinel_index: Option<usize>,
@@ -6077,7 +6109,7 @@ pub mod generated_model {
         } else {
             ParserState::new_with_recovery_branches(words, options)
         };
-        let result = recovery_checkpoint_strict_generated_text_parser_with_eof()
+        let result = recovery_checkpoint_strict_generated_entry_parser_with_eof(entry)
             .parse_with_state(
                 tokens
                     .as_slice()
@@ -6251,35 +6283,131 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn strict_generated_text_parser_with_eof<'tokens>()
-    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
-        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&strict_generated_text_shared_parser())?;
-            input.parse(end()).map(|()| text)
-        })
-        .boxed()
+    fn strict_generated_entry_parser_with_eof<'tokens>(
+        entry: SyntaxParseEntry,
+    ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
+        match entry {
+            SyntaxParseEntry::Text => {
+                let parser = strict_generated_text_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let text = input.parse(&parser)?;
+                    input.parse(end()).map(|()| text)
+                })
+                .boxed()
+            }
+            SyntaxParseEntry::NihoParagraphs => {
+                let parser = strict_generated_text_niho_paragraphs_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let paragraphs = input.parse(&parser)?;
+                    input.parse(end()).map(|()| {
+                        generated_runtime::SharedSyntaxOutput::new(text_of_niho_paragraphs(
+                            paragraphs.into_owned(),
+                        ))
+                    })
+                })
+                .boxed()
+            }
+        }
     }
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn recovery_checkpoint_strict_generated_text_parser_with_eof<'tokens>()
-    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
-        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&recovery_checkpoint_strict_generated_text_shared_parser())?;
-            input.parse(end()).map(|()| text)
-        })
-        .boxed()
+    fn recovery_checkpoint_strict_generated_entry_parser_with_eof<'tokens>(
+        entry: SyntaxParseEntry,
+    ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
+        match entry {
+            SyntaxParseEntry::Text => {
+                let parser = recovery_checkpoint_strict_generated_text_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let text = input.parse(&parser)?;
+                    input.parse(end()).map(|()| text)
+                })
+                .boxed()
+            }
+            SyntaxParseEntry::NihoParagraphs => {
+                let parser =
+                    recovery_checkpoint_strict_generated_text_niho_paragraphs_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let paragraphs = input.parse(&parser)?;
+                    input.parse(end()).map(|()| {
+                        generated_runtime::SharedSyntaxOutput::new(text_of_niho_paragraphs(
+                            paragraphs.into_owned(),
+                        ))
+                    })
+                })
+                .boxed()
+            }
+        }
     }
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn recovered_generated_text_parser_with_eof<'tokens>()
-    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>> {
-        let parser = recovered_generated_text_shared_parser();
-        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&parser)?;
-            input.parse(end()).map(|()| text)
-        })
-        .boxed()
+    fn recovered_generated_entry_parser_with_eof<'tokens>(
+        entry: SyntaxParseEntry,
+    ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>> {
+        match entry {
+            SyntaxParseEntry::Text => {
+                let parser = recovered_generated_text_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let text = input.parse(&parser)?;
+                    input.parse(end()).map(|()| text)
+                })
+                .boxed()
+            }
+            SyntaxParseEntry::NihoParagraphs => {
+                let parser = recovered_generated_text_niho_paragraphs_shared_parser();
+                custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+                    let paragraphs = input.parse(&parser)?;
+                    input.parse(end()).map(|()| {
+                        generated_runtime::SharedSyntaxOutput::new(
+                            recovered_text_of_niho_paragraphs(paragraphs.into_owned()),
+                        )
+                    })
+                })
+                .boxed()
+            }
+        }
+    }
+
+    /// The text that consists of one run of NIhO-led paragraphs. The text grammar gives this
+    /// same tree for the same tokens: before a NIhO, every leading part of a text is empty,
+    /// and its first paragraph cannot start, so the text takes the `text_niho_paragraphs` arm.
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn text_of_niho_paragraphs(paragraphs: TextNihoParagraphsSyntax) -> TextSyntax {
+        TextSyntax::RegularText(std::sync::Arc::new(RegularTextSyntax {
+            leading_nai: Vec::new(),
+            leading_cmevla: Vec::new(),
+            leading_indicators: Vec::new(),
+            leading_free_modifiers: Vec::new(),
+            leading_connective: None,
+            leading_i_statements: Vec::new(),
+            paragraphs: Some(std::sync::Arc::new(
+                TextParagraphsSyntax::TextNihoParagraphs(std::sync::Arc::new(paragraphs)),
+            )),
+        }))
+    }
+
+    /// The recovered form of [`text_of_niho_paragraphs`].
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_text_of_niho_paragraphs(
+        paragraphs: recovered::TextNihoParagraphsSyntax,
+    ) -> recovered::TextSyntax {
+        recovered::TextSyntax::RegularText(std::sync::Arc::new(recovered::Recovered::valid(
+            recovered::RegularTextSyntax {
+                leading_nai: Vec::new(),
+                leading_cmevla: Vec::new(),
+                leading_indicators: Vec::new(),
+                leading_free_modifiers: Vec::new(),
+                leading_connective: None,
+                leading_i_statements: Vec::new(),
+                paragraphs: Some(std::sync::Arc::new(recovered::Recovered::valid(
+                    recovered::TextParagraphsSyntax::TextNihoParagraphs(std::sync::Arc::new(
+                        recovered::Recovered::valid(paragraphs),
+                    )),
+                ))),
+            },
+        )))
     }
 }

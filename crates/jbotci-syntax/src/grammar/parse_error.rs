@@ -238,6 +238,17 @@ pub(super) struct SyntaxParseError<'tokens> {
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseErrorData<'tokens> {
     span: Span,
+    /// The logical token position (the parser cursor index) at which the parser reported the
+    /// failure, or `None` for an error that the parser did not create, such as a report-level
+    /// error. Dialect expansion can give several tokens the same source span, so the span
+    /// start alone does not identify the position.
+    position: Option<usize>,
+    /// Whether the primary failure is a refusal: a negative probe (`not`) matched, so what
+    /// was found is not allowed here. The refusal itself expects nothing, and the refused
+    /// construct is not something to write. Its expectation groups are only those that
+    /// other alternatives at the same position contributed through the union, and a label
+    /// applies to them as to any group.
+    refusal: bool,
     reason: SyntaxRichReason<'tokens>,
     expected_groups: SharedVec<ExpectedTokenGroup>,
     context_paths: SharedVec<Vec<SyntaxConstructContext>>,
@@ -340,6 +351,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn custom(span: Span, message: String) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
+            refusal: false,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -361,6 +374,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
+            refusal: false,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -384,10 +399,34 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
+            refusal: false,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
             found: None,
+            custom_kind: None,
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
+            preferred_context_hint: None,
+            same_position_branches: SharedVec::empty(),
+        })
+    }
+
+    /// An error that names what was found but expects nothing: a negative probe (`not`) that
+    /// matched. Its parser was refused, and no token is the one to write instead, so the error
+    /// has no expectation group.
+    #[requires(true)]
+    #[ensures(ret.expected_groups.is_empty())]
+    pub(super) fn unexpected_found(span: Span, found: SyntaxFound) -> Self {
+        Self::from_data(SyntaxParseErrorData {
+            span,
+            position: None,
+            refusal: true,
+            reason: unexpected_input_error(),
+            expected_groups: SharedVec::empty(),
+            context_paths: empty_context_paths(),
+            found: Some(found),
             custom_kind: None,
             active_contexts: SharedStack::empty(),
             active_rule_contexts: SharedStack::empty(),
@@ -415,6 +454,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
+            refusal: false,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
@@ -431,6 +472,28 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(true)]
     pub(super) fn span(&self) -> &Span {
         &self.span
+    }
+
+    /// Whether the error expects anything. A matched negative probe expects nothing.
+    #[requires(true)]
+    #[ensures(ret == !self.expected_groups.is_empty())]
+    pub(super) fn has_expectations(&self) -> bool {
+        !self.expected_groups.is_empty()
+    }
+
+    /// The logical token position of the failure; see `SyntaxParseErrorData::position`.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn position(&self) -> Option<usize> {
+        self.position
+    }
+
+    /// Records the logical token position at which the parser reports this failure.
+    #[requires(true)]
+    #[ensures(ret.position() == Some(position))]
+    pub(super) fn at_position(mut self, position: usize) -> Self {
+        self.position = Some(position);
+        self
     }
 
     #[requires(true)]
@@ -723,6 +786,8 @@ where
         let expected_groups = expected_token_groups_from_labels(expected);
         Self::from_data(SyntaxParseErrorData {
             span,
+            position: None,
+            refusal: false,
             reason,
             expected_groups,
             context_paths: empty_context_paths(),
@@ -821,6 +886,12 @@ where
         let Some(pattern) = label.clone().try_into().ok() else {
             return;
         };
+        // A label applies to every expectation group. Without a group, the label itself
+        // becomes the expectation, except for a refusal: it expects nothing, and the refused
+        // construct is not something to write.
+        if self.refusal && self.expected_groups.is_empty() {
+            return;
+        }
         let found = match &mut self.reason {
             RichReason::ExpectedFound { found, .. } => found.take(),
             RichReason::Custom(_) => None,
@@ -1122,16 +1193,45 @@ fn select_parser_error<'tokens>(
     left: SyntaxParseError<'tokens>,
     right: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
-    match right.span.start.cmp(&left.span.start) {
+    match compare_failure_positions(&left, &right) {
         std::cmp::Ordering::Greater => right,
         std::cmp::Ordering::Less => left,
         std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
         std::cmp::Ordering::Equal => {
-            match parser_error_context_depth(&right).cmp(&parser_error_context_depth(&left)) {
-                std::cmp::Ordering::Greater => right,
-                _ => left,
-            }
+            // Both alternatives really were available at this position, so the one that loses
+            // the primary-report selection still contributes what it would have accepted (#926).
+            // Selecting one and discarding the other's expectations would drop a construct that
+            // is genuinely offered here merely because a sibling alternative was recorded first.
+            // Only the expectation groups are merged: the found value, context paths, recovery
+            // provenance and preferred-context ordering all stay with the selected error.
+            let (mut selected, mut other) =
+                match parser_error_context_depth(&right).cmp(&parser_error_context_depth(&left)) {
+                    std::cmp::Ordering::Greater => (right, left),
+                    _ => (left, right),
+                };
+            // Move the groups out of the loser rather than cloning the handle: it is dropped
+            // here, and leaving it empty keeps the shared vector uniquely owned, so the append
+            // does not copy it.
+            let groups = std::mem::take(&mut other.expected_groups);
+            append_unique_groups(&mut selected.expected_groups, groups);
+            selected
         }
+    }
+}
+
+/// How the failure position of `later` compares with that of `earlier`: `Greater` when
+/// `later` is further in. Two errors that both carry a logical token position compare by it,
+/// because tokens that dialect expansion created share a source span. Otherwise the span
+/// starts decide.
+#[requires(true)]
+#[ensures(true)]
+fn compare_failure_positions(
+    earlier: &SyntaxParseError<'_>,
+    later: &SyntaxParseError<'_>,
+) -> std::cmp::Ordering {
+    match (earlier.position, later.position) {
+        (Some(earlier), Some(later)) => later.cmp(&earlier),
+        _ => later.span.start.cmp(&earlier.span.start),
     }
 }
 
@@ -1748,6 +1848,141 @@ mod tests {
 
         assert_eq!(context.construct, "statement");
         assert_eq!([context.byte_start, context.byte_end], [0, 8]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_unions_expectations_of_equal_position_alternatives() {
+        let mut first = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        label_with(&mut first, "sumti");
+        let mut second = SyntaxParseError::expected(Span::from(4..6), vec![named_token("broda")]);
+        label_with(&mut second, "selbri");
+
+        let merged = first.merge_for_parser(second);
+        let constructs = merged
+            .expectations()
+            .iter()
+            .filter_map(|expectation| match expectation.reason.as_data() {
+                data!(SyntaxExpectationReason::StartNested { construct }) => {
+                    Some(construct.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        // Neither alternative is dropped: both were genuinely available at this position.
+        assert_eq!(constructs, vec!["sumti".to_owned(), "selbri".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_keeps_primary_selection_in_both_context_directions_and_ties() {
+        let deeper = || {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+            in_context(&mut error, "sumti");
+            error
+        };
+        let shallower = || {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+            in_context(&mut error, "text");
+            error
+        };
+        let construct = |error: &SyntaxParseError<'_>| {
+            error
+                .preferred_context()
+                .map(|context| context.construct.clone())
+        };
+
+        // The deeper context wins from either side, and the union never changes that.
+        assert_eq!(
+            construct(&shallower().merge_for_parser(deeper())),
+            Some("sumti".to_owned())
+        );
+        assert_eq!(
+            construct(&deeper().merge_for_parser(shallower())),
+            Some("sumti".to_owned())
+        );
+        // A tie keeps the first-recorded error as the primary report.
+        let mut tie_left = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        in_context(&mut tie_left, "sumti");
+        let mut tie_right = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+        in_context(&mut tie_right, "sumti");
+        let merged = tie_left.merge_for_parser(tie_right);
+        assert_eq!(construct(&merged), Some("sumti".to_owned()));
+        assert_eq!(merged.expectations().len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_union_is_ordered_and_deduplicated() {
+        let build = |token: &'static str, construct: &'static str| {
+            let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token(token)]);
+            label_with(&mut error, construct);
+            error
+        };
+
+        // An alternative repeated across merges contributes once, in first-seen order.
+        let merged = build("lo", "sumti")
+            .merge_for_parser(build("broda", "selbri"))
+            .merge_for_parser(build("lo", "sumti"));
+        let constructs = merged
+            .expectations()
+            .iter()
+            .filter_map(|expectation| match expectation.reason.as_data() {
+                data!(SyntaxExpectationReason::StartNested { construct }) => {
+                    Some(construct.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(constructs, vec!["sumti".to_owned(), "selbri".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_at_unequal_positions_still_takes_the_furthest_alone() {
+        let mut near = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        label_with(&mut near, "sumti");
+        let mut far = SyntaxParseError::expected(Span::from(8..10), vec![named_token("broda")]);
+        label_with(&mut far, "selbri");
+
+        // Unequal positions are unchanged: the furthest error wins outright and does NOT absorb
+        // the nearer one's expectations, which describe a different place in the input.
+        let merged = near.clone().merge_for_parser(far.clone());
+        assert_eq!(merged.span.start, 8);
+        assert_eq!(merged.expectations().len(), 1);
+
+        let merged = far.merge_for_parser(near);
+        assert_eq!(merged.span.start, 8);
+        assert_eq!(merged.expectations().len(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_compares_logical_positions_before_byte_offsets() {
+        // Dialect expansion can give two tokens the same source span. Two failures at those
+        // tokens share a byte offset but not a logical position, so the later one wins alone
+        // and does not absorb the earlier one's expectations.
+        let mut earlier =
+            SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]).at_position(1);
+        label_with(&mut earlier, "sumti");
+        let mut later =
+            SyntaxParseError::expected(Span::from(4..6), vec![named_token("su'u")]).at_position(2);
+        label_with(&mut later, "selbri");
+
+        for merged in [
+            earlier.clone().merge_for_parser(later.clone()),
+            later.clone().merge_for_parser(earlier.clone()),
+        ] {
+            assert_eq!(merged.position(), Some(2));
+            assert_eq!(merged.expectations().len(), 1);
+        }
     }
 
     #[requires(!text.is_empty())]

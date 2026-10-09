@@ -14,7 +14,8 @@ use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
     SyntaxMemoContext, SyntaxParseError,
     parser_core::{
-        Checkpoint, InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end,
+        Checkpoint, InputRef, LabelError, MapExtra, Parser, ProbeFailure, custom,
+        empty as parser_empty, end as parser_end,
     },
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
@@ -981,6 +982,37 @@ pub(crate) fn choice_cons<P, Rest>(head: P, rest: Rest) -> ChoiceCons<P, Rest> {
     ChoiceCons { head, rest }
 }
 
+/// One alternative that exists only under dialect features (an enum arm under
+/// `when feature(...)`), followed by the remaining alternatives.
+///
+/// While a feature is off, the alternative is not part of the grammar. The choice then skips
+/// it without running it, so a disabled alternative adds no expectation to the choice's
+/// error. If it ran and failed instead, its "feature" expectation would join the errors of
+/// the other alternatives at the same position, and as the earlier error it would win a tie
+/// against them. Only when every alternative of the choice is skipped does the choice report
+/// the first disabled feature, because it then has no other error to report.
+#[invariant(!features.is_empty(), "a feature-gated alternative names at least one feature")]
+#[derive(Clone)]
+pub(crate) struct ChoiceFeatureCons<P, Rest> {
+    features: &'static [SyntaxGrammarFeature],
+    head: P,
+    rest: Rest,
+}
+
+#[requires(!features.is_empty())]
+#[ensures(true)]
+pub(crate) fn choice_feature_cons<P, Rest>(
+    features: &'static [SyntaxGrammarFeature],
+    head: P,
+    rest: Rest,
+) -> ChoiceFeatureCons<P, Rest> {
+    new!(ChoiceFeatureCons {
+        features,
+        head,
+        rest,
+    })
+}
+
 /// Ordered-choice driving over a typed alternative list.
 ///
 /// `Err(())` means every alternative failed and `abandoned` holds the merged error of
@@ -994,6 +1026,11 @@ pub(crate) trait OrderedChoiceAlternatives<'tokens, O> {
         input: &mut InputRef<'tokens, '_>,
         abandoned: &mut Option<SyntaxParseError<'tokens>>,
     ) -> Result<O, ()>;
+
+    /// Whether the list has no alternative left.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_empty(&self) -> bool;
 }
 
 /// The empty tail is only driven after a preceding alternative failed, so the abandoned
@@ -1011,6 +1048,11 @@ impl<'tokens, O> OrderedChoiceAlternatives<'tokens, O> for ChoiceNil {
             "the empty tail follows a failed alternative"
         );
         Err(())
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        true
     }
 }
 
@@ -1038,6 +1080,60 @@ where
                 self.rest.drive_emit_alternatives(input, abandoned)
             }
         }
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        false
+    }
+}
+
+#[contract_trait]
+impl<'tokens, O, P, Rest> OrderedChoiceAlternatives<'tokens, O> for ChoiceFeatureCons<P, Rest>
+where
+    P: Parser<'tokens, O>,
+    Rest: OrderedChoiceAlternatives<'tokens, O>,
+{
+    #[inline(always)]
+    fn drive_emit_alternatives(
+        &self,
+        input: &mut InputRef<'tokens, '_>,
+        abandoned: &mut Option<SyntaxParseError<'tokens>>,
+    ) -> Result<O, ()> {
+        let dialect = input.state().syntax_grammar_env().dialect;
+        let disabled = self
+            .features
+            .iter()
+            .copied()
+            .find(|feature| !feature.enabled(dialect));
+        let Some(disabled) = disabled else {
+            let checkpoint = input.save();
+            return match input.parse(&self.head) {
+                Ok(output) => {
+                    record_abandoned_choice_error(input, abandoned);
+                    Ok(output)
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    merge_abandoned_choice_error(abandoned, error);
+                    self.rest.drive_emit_alternatives(input, abandoned)
+                }
+            };
+        };
+        if self.rest.is_empty() && abandoned.is_none() {
+            // Every alternative of the choice was skipped.
+            *abandoned = Some(expected_found_named_at_current(
+                input,
+                disabled.expected_name().to_owned(),
+            ));
+            return Err(());
+        }
+        self.rest.drive_emit_alternatives(input, abandoned)
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        false
     }
 }
 
@@ -1070,19 +1166,28 @@ fn merge_abandoned_choice_error<'tokens>(
     });
 }
 
+/// A typed alternative list that starts with a cons cell, so it is never empty.
+#[contract_trait]
+pub(crate) trait NonEmptyChoiceAlternatives {}
+
+#[contract_trait]
+impl<P, Rest> NonEmptyChoiceAlternatives for ChoiceCons<P, Rest> {}
+
+#[contract_trait]
+impl<P, Rest> NonEmptyChoiceAlternatives for ChoiceFeatureCons<P, Rest> {}
+
 /// Ordered choice over a typed alternative list; see [`ChoiceCons`].
 ///
-/// Taking the first cons cell makes an empty choice unrepresentable: an empty list would
-/// have no abandoned error to report.
+/// Taking a list that starts with a cons cell makes an empty choice unrepresentable: an
+/// empty list would have no abandoned error to report.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_ordered_choice<'tokens, O, P, Rest>(
-    alternatives: ChoiceCons<P, Rest>,
+pub(crate) fn strict_ordered_choice<'tokens, O, L>(
+    alternatives: L,
 ) -> impl Parser<'tokens, O> + Clone
 where
     O: 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-    Rest: OrderedChoiceAlternatives<'tokens, O> + Clone + 'tokens,
+    L: OrderedChoiceAlternatives<'tokens, O> + NonEmptyChoiceAlternatives + Clone + 'tokens,
 {
     custom::<_, _>(
         #[inline(always)]
@@ -1104,12 +1209,9 @@ fn merge_choice_errors<'tokens>(
     previous: SyntaxParseError<'tokens>,
     error: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
-    match error.span().start.cmp(&previous.span().start) {
-        std::cmp::Ordering::Greater => error,
-        std::cmp::Ordering::Less => previous,
-        std::cmp::Ordering::Equal if previous.same_report_content(&error) => previous,
-        std::cmp::Ordering::Equal => previous.merge_for_parser(error),
-    }
+    // The parser merge keeps the furthest failure by logical position, and unions the
+    // expectations of two failures at the same position.
+    previous.merge_for_parser(error)
 }
 
 #[requires(true)]
@@ -2030,12 +2132,21 @@ pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens
     .boxed()
 }
 
-#[requires(!expected.is_empty())]
+/// The expectation that a failing positive probe (`lookahead`, or the guard of `followed_by`)
+/// reports when the probed construct has no label of its own and the probe failed after its
+/// first token. Generated code passes the rule or alias label instead where there is one.
+pub(crate) const POSITIVE_PREDICATE_LABEL: &str = "positive predicate";
+
+/// Parses `inner` where `guard` matches right after it, without consuming what `guard`
+/// matched. The guard is a probe (see `lookahead`): if it fails, the failure is reported at the
+/// position after `inner` (see `failed_probe_error`), with `guard_construct`, the label of the
+/// construct that `guard` tests, if it has one.
+#[requires(guard_construct.is_none_or(|label| !label.is_empty()))]
 #[ensures(true)]
-pub(crate) fn not_next_rule_after<'tokens, O, GO, G, P>(
+pub(crate) fn followed_by<'tokens, O, GO, G, P>(
     inner: P,
     guard: G,
-    expected: &'static str,
+    guard_construct: Option<&'static str>,
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
@@ -2052,49 +2163,10 @@ where
                 return Err(error);
             }
         };
-        let after_inner = input.save();
-        let cursor = input.cursor();
-        match input.parse(&guard) {
-            Ok(_) => {
-                let span = input.span_since(&cursor);
-                input.rewind(before);
-                Err(SyntaxParseError::expected_found(
-                    span,
-                    vec![new!(SyntaxExpectedToken::Named(expected.to_owned()))],
-                    new!(SyntaxFound::EndOfInput),
-                ))
-            }
-            Err(_) => {
-                input.rewind(after_inner);
-                Ok(value)
-            }
-        }
-    })
-    .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn followed_by<'tokens, O, GO, G, P>(inner: P, guard: G) -> BoxedParser<'tokens, O>
-where
-    O: 'tokens,
-    GO: 'tokens,
-    G: Parser<'tokens, GO> + Clone + 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
-    custom::<_, _>(move |input| {
-        let before = input.save();
-        let value = match input.parse(&inner) {
-            Ok(value) => value,
-            Err(error) => {
-                input.rewind(before);
-                return Err(error);
-            }
-        };
-        // The guard is a lookahead: it only checks what follows `inner`.
         match input.probe(&guard) {
             Ok(_) => Ok(value),
-            Err(error) => {
+            Err(failure) => {
+                let error = failed_probe_error(input, failure, guard_construct);
                 input.rewind(before);
                 Err(error)
             }
@@ -2205,6 +2277,7 @@ fn expected_found_tokens_at_current<'tokens>(
     input: &mut InputRef<'tokens, '_>,
     expected: Vec<SyntaxExpectedToken>,
 ) -> SyntaxParseError<'tokens> {
+    let position = input.position();
     let checkpoint = input.save();
     let cursor = input.cursor();
     let found = input
@@ -2213,19 +2286,80 @@ fn expected_found_tokens_at_current<'tokens>(
         .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
     let span = input.span_since(&cursor);
     input.rewind(checkpoint);
-    SyntaxParseError::expected_found(span, expected, found)
+    SyntaxParseError::expected_found(span, expected, found).at_position(position)
 }
 
 /// Succeeds where `parser` matches, without consuming input. Nothing that `parser` collects on
 /// the way outlives the probe; see `InputRef::probe`.
-#[requires(true)]
+///
+/// Where `parser` does not match, the failure is reported at the probe position (see
+/// `failed_probe_error`), with `construct`, the label of the construct that `parser` tests, if
+/// it has one. The error of `parser` itself never reaches the caller: it can point far past
+/// the probe position, at input that the probe only looked at.
+#[requires(construct.is_none_or(|label| !label.is_empty()))]
 #[ensures(true)]
-pub(crate) fn lookahead<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, O>
+pub(crate) fn lookahead<'tokens, O, P>(
+    parser: P,
+    construct: Option<&'static str>,
+) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, _>(move |input| input.probe(&parser).map(|(value, _)| value)).boxed()
+    custom::<_, _>(move |input| match input.probe(&parser) {
+        Ok((value, _)) => Ok(value),
+        Err(failure) => Err(failed_probe_error(input, failure, construct)),
+    })
+    .boxed()
+}
+
+/// The error of a positive probe that failed at the current position.
+///
+/// If the probed parser failed at the probe position, the error holds the expectations that
+/// the parser's alternatives tried there: the tokens that can start the construct here, as
+/// the parser itself decides them. If the parser consumed the token at the probe position and
+/// failed further in, those expectations were dropped when the furthest failure won the
+/// merge, so the error is an expectation of the construct label, or of the positive-predicate
+/// label for a construct without one.
+///
+/// A construct label is applied as a labelled rule applies its label to a failure at its own
+/// start, so a probe of a rule or alias that is a diagnostic context reports that construct,
+/// as the probed rule itself would if it failed where the probe started.
+#[requires(construct.is_none_or(|label| !label.is_empty()))]
+#[ensures(
+    ParserInput::cursor_location(input.cursor().inner())
+        == old(ParserInput::cursor_location(input.cursor().inner()))
+)]
+fn failed_probe_error<'tokens>(
+    input: &mut InputRef<'tokens, '_>,
+    failure: ProbeFailure<'tokens>,
+    construct: Option<&'static str>,
+) -> SyntaxParseError<'tokens> {
+    match failure {
+        ProbeFailure::AtProbePosition(failure) => failure.into_report(construct),
+        ProbeFailure::FurtherIn => {
+            let label = construct.unwrap_or(POSITIVE_PREDICATE_LABEL);
+            let mut error = expected_found_named_at_current(input, label.to_owned());
+            LabelError::label_with(&mut error, label);
+            error
+        }
+    }
+}
+
+/// What a probe found at the current position: the next token, or the end of input.
+#[requires(true)]
+#[ensures(
+    ParserInput::cursor_location(input.cursor().inner())
+        == old(ParserInput::cursor_location(input.cursor().inner()))
+)]
+fn found_at_current(input: &mut InputRef<'_, '_>) -> SyntaxFound {
+    let checkpoint = input.save();
+    let found = input
+        .next()
+        .map(|token| new!(SyntaxFound::Token(token)))
+        .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
+    input.rewind(checkpoint);
+    found
 }
 
 thread_local! {
@@ -2390,6 +2524,10 @@ where
 
 /// Succeeds where `parser` does not match, without consuming input. Nothing that `parser`
 /// collects on the way outlives the probe; see `InputRef::probe`.
+///
+/// Where `parser` matches, the failure covers what `parser` matched and names the token at
+/// the probe position as the one found. It has no expectation: the refused construct is not
+/// something to write, and no token is known to be the one to write instead.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
@@ -2398,13 +2536,10 @@ where
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(move |input| match input.probe(&parser) {
-        Ok((_, span)) => Err(SyntaxParseError::expected_found(
-            span,
-            vec![new!(SyntaxExpectedToken::Named(
-                "negative predicate".to_owned()
-            ))],
-            new!(SyntaxFound::EndOfInput),
-        )),
+        Ok((_, span)) => Err(
+            SyntaxParseError::unexpected_found(span, found_at_current(input))
+                .at_position(input.position()),
+        ),
         Err(_) => Ok(()),
     })
     .boxed()
@@ -2470,17 +2605,25 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
         ))],
         move |token, _state| is_brivla_relation_word(token),
     );
-    let cbm_cmevla = feature_gate(
-        SyntaxGrammarFeature::Cbm,
-        cmevla_word().map_with(|word, extra: &mut MapExtra<'tokens, '_>| {
-            extra.state().warn(
-                ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
-                &word,
-            );
-            word
-        }),
-    );
-    brivla.or(cbm_cmevla).boxed()
+    let cbm_cmevla = cmevla_word().map_with(|word, extra: &mut MapExtra<'tokens, '_>| {
+        extra.state().warn(
+            ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
+            &word,
+        );
+        word
+    });
+    let with_cbm = brivla.clone().or(cbm_cmevla);
+    // Without the CBM feature, a cmevla is not a selbri word, so its alternative is not tried
+    // at all: a failed feature gate would add a "CBM feature" expectation that a reader cannot
+    // satisfy (see `choice_feature_cons`).
+    custom::<_, _>(move |input| {
+        if SyntaxGrammarFeature::Cbm.enabled(input.state().syntax_grammar_env().dialect) {
+            input.parse(&with_cbm)
+        } else {
+            input.parse(&brivla)
+        }
+    })
+    .boxed()
 }
 
 #[requires(true)]

@@ -109,6 +109,7 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
 ) -> BoxedParser<'tokens, Token> {
     let expected: Arc<[SyntaxExpectedToken]> = Arc::from(expected);
     custom::<_, Token>(move |input: &mut InputRef<'tokens, '_>| {
+        let position = input.position();
         let checkpoint = input.save();
         let cursor = input.cursor();
         let is_continuation_sentinel = input.next_is_continuation_sentinel();
@@ -152,7 +153,8 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
                     span,
                     Arc::clone(&expected),
                     new!(SyntaxFound::Token(word)),
-                ))
+                )
+                .at_position(position))
             }
             None => {
                 let span = input.span_since(&cursor);
@@ -171,7 +173,8 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
                     span,
                     Arc::clone(&expected),
                     new!(SyntaxFound::EndOfInput),
-                ))
+                )
+                .at_position(position))
             }
         }
     })

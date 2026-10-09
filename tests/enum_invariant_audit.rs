@@ -2228,10 +2228,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextRule",
-        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextSelmaho",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
@@ -2354,6 +2350,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:RuleEntry::Run",
         "a rule run delegates validity to its bookkeeping snapshot",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:ProbeFailure::AtProbePosition",
+        "a probe failure at the probe position delegates validity to the invariant of ProbePositionFailure",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Ref",

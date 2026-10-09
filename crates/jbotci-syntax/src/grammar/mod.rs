@@ -26,9 +26,10 @@ use vec1::Vec1;
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, TokenIdentity};
 use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
-    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse,
-    SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token, WithIndicators,
-    WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxParseEntry,
+    SyntaxRecoveryParse, SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token,
+    WithIndicators, WithIndicatorsData, syntax_construct_is_descendant_of,
+    syntax_immediate_child_under,
 };
 
 mod baseline_relative;
@@ -3425,8 +3426,18 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     _source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
+    parse_generated_model_syntax_entry_attempt(SyntaxParseEntry::Text, words, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_entry_attempt(
+    entry: SyntaxParseEntry,
+    words: &[WordLike],
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
-    let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
+    let parsed = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
         add_generated_construct_warnings(
@@ -3453,7 +3464,12 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> RecoveredSyntaxParseAttempt {
-    let attempt = parse_generated_model_syntax_tree_with_recovery_attempt(words, source, options);
+    let attempt = parse_generated_model_syntax_tree_with_recovery_attempt(
+        SyntaxParseEntry::Text,
+        words,
+        source,
+        options,
+    );
     let result = match attempt.result.into_data() {
         data!(SyntaxRecoveryParse::Valid { parse }) => {
             let parse = parse.into_data();
@@ -3531,6 +3547,7 @@ pub(crate) fn expected_continuations(
         return continuation_expectations;
     }
     let recovered = recover_after_strict_failure(
+        SyntaxParseEntry::Text,
         tokens,
         None,
         options,
@@ -3578,12 +3595,13 @@ fn syntax_error_expectations(error: &SyntaxError) -> Vec<SyntaxExpectation> {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
+    entry: SyntaxParseEntry,
     words: &[WordLike],
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
     let tokens = syntax_tokens(words);
-    parse_generated_model_syntax_tokens_with_recovery_attempt(tokens, source, options)
+    parse_generated_model_syntax_entry_tokens_with_recovery_attempt(entry, tokens, source, options)
 }
 
 #[requires(true)]
@@ -3593,13 +3611,29 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
-    let strict_attempt = generated::generated_model::parse_text_attempt(&tokens, options);
+    parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
+        SyntaxParseEntry::Text,
+        tokens,
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
+    entry: SyntaxParseEntry,
+    tokens: Vec<Token>,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    let strict_attempt = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
     if let Ok(parsed) = strict_attempt.result {
         return valid_syntax_recovery_attempt(parsed, &tokens, options, strict_attempt.trace);
     }
 
     let tracked_attempt =
-        generated::generated_model::parse_text_detailed_tracked_attempt(&tokens, options);
+        generated::generated_model::parse_entry_detailed_tracked_attempt(entry, &tokens, options);
     let data!(
         generated::generated_model::GeneratedParsedTextDetailedAttempt {
             result,
@@ -3615,7 +3649,7 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
     };
 
     let recovered =
-        recover_after_strict_failure(tokens, source, options, failure, trace, None, None);
+        recover_after_strict_failure(entry, tokens, source, options, failure, trace, None, None);
     let data!(RecoveryParseOutcome {
         recovered,
         continuation_expectations: _,
@@ -3660,6 +3694,7 @@ fn valid_syntax_recovery_attempt(
 #[ensures(!ret.recovered.result.errors.is_empty())]
 #[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn recover_after_strict_failure(
+    entry: SyntaxParseEntry,
     tokens: Vec<Token>,
     source: Option<&str>,
     options: &ParseOptions,
@@ -3679,6 +3714,7 @@ fn recover_after_strict_failure(
     // capture its expectations in isolation.
     let mut recovery_session =
         generated::generated_model::GeneratedRecoveryParseSession::new_with_continuation_time_limit(
+            entry,
             continuation_time_limit,
         );
     let mut errors = vec![failure.public_error.clone()];
@@ -3883,6 +3919,7 @@ fn recover_after_strict_failure(
                                     if let Some(sentinel_index) = continuation_sentinel_index {
                                         let expectations =
                                             replay_winning_continuation_success_expectations(
+                                                entry,
                                                 &tokens,
                                                 &parser_tokens,
                                                 source,
@@ -4003,6 +4040,7 @@ fn recover_after_strict_failure(
             }) = success.into_data();
             let winning_expectations = if let Some(sentinel_index) = continuation_sentinel_index {
                 let expectations = replay_winning_continuation_success_expectations(
+                    entry,
                     &tokens,
                     &parser_tokens,
                     source,
@@ -4051,6 +4089,7 @@ fn recover_after_strict_failure(
             continuation_sentinel_index.filter(|_| trial_reached_continuation_cut)
         {
             let replayed_expectations = replay_winning_continuation_expectations(
+                entry,
                 &tokens,
                 &parser_tokens,
                 source,
@@ -4100,6 +4139,7 @@ fn recover_after_strict_failure(
         && errors_in_statement < per_statement_cap
     {
         if let Some(recovered) = try_final_recovery_from_current_failure(
+            entry,
             &tokens,
             source,
             options,
@@ -4174,6 +4214,7 @@ fn recovered_success(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
 fn replay_winning_continuation_expectations<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4186,6 +4227,7 @@ fn replay_winning_continuation_expectations<'tokens>(
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
+        entry,
         tokens,
         parser_tokens,
         source,
@@ -4225,6 +4267,7 @@ fn replay_winning_continuation_expectations<'tokens>(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
 fn replay_winning_continuation_success_expectations<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4236,6 +4279,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
+        entry,
         tokens,
         parser_tokens,
         source,
@@ -4265,6 +4309,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
 #[requires(continuation_sentinel_index < tokens.len())]
 #[ensures(ret.recovery_directives == directives)]
 fn replay_winning_continuation_attempt<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     parser_tokens: &'tokens [SpannedToken],
     source: Option<&str>,
@@ -4275,6 +4320,7 @@ fn replay_winning_continuation_attempt<'tokens>(
 ) -> generated::generated_model::GeneratedRecoveredParsedTextAttempt {
     let mut recovery_session =
         generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
+            entry,
             continuation_sentinel_index,
             continuation_time_limit,
         );
@@ -4388,6 +4434,7 @@ fn classify_recovery_trial(
 #[requires(errors.last().is_some_and(|error| error == &failure.public_error))]
 #[ensures(ret.as_ref().is_none_or(|attempt| !attempt.recovered.result.errors.is_empty()))]
 fn try_final_recovery_from_current_failure<'tokens>(
+    entry: SyntaxParseEntry,
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
@@ -4433,6 +4480,7 @@ fn try_final_recovery_from_current_failure<'tokens>(
             let continuation_expectations =
                 if let Some(sentinel_index) = continuation_sentinel_index {
                     let expectations = replay_winning_continuation_success_expectations(
+                        entry,
                         tokens,
                         parser_tokens,
                         source,
@@ -5850,26 +5898,46 @@ mod tests {
         let reports = [
             (
                 "lookahead",
-                probed_failure_report(|matching, _| lookahead(matching).boxed()),
+                probed_failure_report(|matching, _| lookahead(matching, Some("probed")).boxed()),
+            ),
+            (
+                "failing lookahead",
+                probed_failure_report(|_, failing| lookahead(failing, Some("probed")).boxed()),
             ),
             (
                 "not",
                 probed_failure_report(|_, failing| not(failing).boxed()),
             ),
             (
+                "failing not",
+                probed_failure_report(|matching, _| not(matching).boxed()),
+            ),
+            (
                 "followed_by",
                 // An empty `inner` keeps the real failure at the first token.
-                probed_failure_report(|matching, _| followed_by(empty(), matching).boxed()),
+                probed_failure_report(|matching, _| {
+                    followed_by(empty(), matching, Some("probed")).boxed()
+                }),
+            ),
+            (
+                "failing followed_by",
+                probed_failure_report(|_, failing| {
+                    followed_by(empty(), failing, Some("probed")).boxed()
+                }),
             ),
         ];
         for (probe, report) in reports {
+            // The probe's own failure ("probed") may join the pending alternative at the same
+            // position; what must not appear is anything from inside the probe.
             assert!(
-                !report.candidates.contains("probe"),
+                !report.candidates.contains("probe candidate")
+                    && !report.candidates.contains("probe alternative"),
                 "{probe}: probe candidates leaked: {}",
                 report.candidates
             );
             assert!(
-                !report.errors.contains("probe"),
+                !report.errors.contains("probe candidate")
+                    && !report.errors.contains("probe alternative"),
                 "{probe}: probe errors leaked: {}",
                 report.errors
             );
@@ -5879,6 +5947,400 @@ mod tests {
                 report.errors
             );
         }
+    }
+
+    /// A failing positive probe reports its own failure at the probe position, and nothing
+    /// from inside the probe. Here the probe runs at the second token of "mi ku do".
+    ///
+    /// A parser that consumes `ku` and fails at `do` failed further in, so the probe reports
+    /// its construct label, or the positive-predicate label. A parser that fails at `ku`
+    /// itself failed at the probe position, so the probe reports what the parser expected
+    /// there, under the construct label if there is one.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failing_positive_probes_report_at_the_probe_position() {
+        use super::generated_runtime::{POSITIVE_PREDICATE_LABEL, followed_by, lookahead};
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::{cmavo, spanned_tokens};
+
+        let words = segment_words_with_modifiers("mi ku do").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let probe_position = tokens[1].span;
+        let far = tokens[2].span;
+        let eoi = SimpleSpan::from(far.end..far.end);
+        let further_in = custom(move |input| {
+            input.skip();
+            input
+                .state()
+                .record_diagnostic_candidate(SyntaxParseError::custom(
+                    far,
+                    "probe candidate".to_owned(),
+                ));
+            Err::<(), _>(SyntaxParseError::custom(
+                far,
+                "probe alternative".to_owned(),
+            ))
+        })
+        .boxed();
+        // Two token alternatives fail at the probe position. Both are expectations there, so
+        // the report holds both (#926).
+        let at_probe_position = cmavo(Cmavo::Kei).or(cmavo(Cmavo::Vau)).map(|_| ()).boxed();
+        let first_token = custom(|input| {
+            input.skip();
+            Ok(())
+        })
+        .boxed();
+        // (probed parser, construct label, texts that the error must contain, text that it
+        // must not contain)
+        let both_tokens = vec![format!("{:?}", Cmavo::Kei), format!("{:?}", Cmavo::Vau)];
+        let cases: [(&Boxed<'static, ()>, Option<&'static str>, Vec<String>, &str); 4] = [
+            (
+                &further_in,
+                Some("probed construct"),
+                vec!["Named(\"probed construct\")".to_owned()],
+                "Cmavo(",
+            ),
+            (
+                &further_in,
+                None,
+                vec![format!("Named({POSITIVE_PREDICATE_LABEL:?})")],
+                "Cmavo(",
+            ),
+            (&at_probe_position, None, both_tokens.clone(), "Named("),
+            (&at_probe_position, Some("tag"), both_tokens, "Named("),
+        ];
+        for (probed, construct, wanted, unwanted) in cases {
+            let probes: [(&str, Boxed<'static, ()>); 2] = [
+                (
+                    "lookahead",
+                    first_token
+                        .clone()
+                        .ignore_then(lookahead(probed.clone(), construct))
+                        .boxed(),
+                ),
+                (
+                    "followed_by",
+                    followed_by(first_token.clone(), probed.clone(), construct).boxed(),
+                ),
+            ];
+            for (probe, parser) in probes {
+                let options = ParseOptions::default();
+                let mut state = ParserState::new(words, &options);
+                let errors = parser
+                    .parse_with_state(tokens.split_spanned(eoi), &mut state)
+                    .into_result()
+                    .expect_err("the probe fails");
+                let candidates = format!("{:?}", state.diagnostic_candidates_snapshot());
+                assert!(
+                    !candidates.contains("probe"),
+                    "{probe} {construct:?}: probe candidates leaked: {candidates}"
+                );
+                let [error] = errors.as_slice() else {
+                    panic!("{probe} {construct:?}: one error expected: {errors:?}");
+                };
+                assert_eq!(
+                    error.span().start,
+                    probe_position.start,
+                    "{probe} {construct:?}: the failure is reported at the probe position: \
+                     {error:?}"
+                );
+                assert!(
+                    matches!(
+                        error.found().map(|found| found.as_data()),
+                        Some(data!(SyntaxFound::Token(_)))
+                    ),
+                    "{probe} {construct:?}: the failure names the token at the probe \
+                     position: {error:?}"
+                );
+                let error = format!("{error:?}");
+                assert!(
+                    wanted.iter().all(|wanted| error.contains(wanted)) && !error.contains(unwanted),
+                    "{probe} {construct:?}: the failure expects {wanted:?}: {error}"
+                );
+                assert!(
+                    !error.contains("probe alternative"),
+                    "{probe} {construct:?}: the inner error leaked: {error}"
+                );
+                if let Some(construct) = construct.filter(|_| unwanted == "Named(") {
+                    assert!(
+                        error.contains(&format!("{construct:?}")),
+                        "{probe}: the expectations at the probe position are labelled with \
+                         the construct: {error}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Dialect expansion gives several tokens the same source span: `jboponei` expands `po` to
+    /// co-spanned LO and SUhU. A probe at LO that consumes LO and fails at SUhU failed further
+    /// in, although both failures start at the same byte, so it reports its construct label
+    /// and not the SUhU-position expectation.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn probes_classify_failures_by_logical_position_over_co_spanned_tokens() {
+        use super::generated_runtime::lookahead;
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::{cmavo, spanned_tokens};
+
+        let dialect = parse_dialect_definition("(jboponei)").expect("built-in dialect parses");
+        let source = "mi cusku po do klama";
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default().with_dialect_definition(&dialect),
+            None,
+        )
+        .expect("valid dialect morphology");
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let lo_index = words
+            .windows(2)
+            .position(|pair| pair[0].source_spans() == pair[1].source_spans())
+            .expect("jboponei po expands to co-spanned lo and su'u");
+        let last = tokens.last().expect("the text has tokens").span;
+        let eoi = SimpleSpan::from(last.end..last.end);
+        let parser = custom(move |input| {
+            for _ in 0..lo_index {
+                input.skip();
+            }
+            Ok(())
+        })
+        .ignore_then(lookahead(
+            cmavo(Cmavo::Lo).ignore_then(cmavo(Cmavo::Kei)),
+            Some("probed construct"),
+        ))
+        .boxed();
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let mut state = ParserState::new(words, &options);
+        let errors = parser
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the probe fails at su'u");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        assert_eq!(error.position(), Some(lo_index), "{error:?}");
+        let error = format!("{error:?}");
+        assert!(
+            error.contains("Named(\"probed construct\")") && !error.contains("Kei"),
+            "a failure past the probe position reports the construct label: {error}"
+        );
+    }
+
+    /// An ordered-choice alternative under a disabled dialect feature is skipped, so it adds no
+    /// expectation to the choice's error. With the feature on, it runs as usual. When every
+    /// alternative is skipped, the choice reports the disabled feature.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn disabled_feature_alternatives_add_no_expectation() {
+        use super::generated_runtime::{
+            SyntaxGrammarFeature, choice_cons, choice_feature_cons, choice_nil,
+            strict_ordered_choice,
+        };
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::spanned_tokens;
+
+        let words = segment_words_with_modifiers("mi").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let first = tokens[0].span;
+        let eoi = SimpleSpan::from(first.end..first.end);
+        let failing = |message: &'static str| {
+            custom(move |_| Err::<(), _>(SyntaxParseError::custom(first, message.to_owned())))
+                .boxed()
+        };
+        let report = |parser: Boxed<'static, ()>, options: &ParseOptions| {
+            let mut state = ParserState::new(words, options);
+            let errors = parser
+                .parse_with_state(tokens.split_spanned(eoi), &mut state)
+                .into_result()
+                .expect_err("every alternative fails");
+            format!("{errors:?}")
+        };
+        let gated_first = || {
+            strict_ordered_choice(choice_feature_cons(
+                &[SyntaxGrammarFeature::Cbm],
+                failing("gated alternative"),
+                choice_cons(failing("plain alternative"), choice_nil()),
+            ))
+            .boxed()
+        };
+        let default_options = ParseOptions::default();
+        let off = report(gated_first(), &default_options);
+        assert!(
+            off.contains("plain alternative") && !off.contains("gated alternative"),
+            "a disabled alternative is skipped: {off}"
+        );
+        assert!(
+            !off.contains("CBM feature"),
+            "a disabled alternative adds no expectation: {off}"
+        );
+        let feature_options = ParseOptions::default().with_dialect_definition(
+            &jbotci_dialect::DialectDefinition::new(
+                Vec::new(),
+                [jbotci_dialect::DialectFeature::Cbm].into(),
+            ),
+        );
+        let on = report(gated_first(), &feature_options);
+        assert!(
+            on.contains("gated alternative"),
+            "an enabled alternative runs, and as the earlier error it wins the tie: {on}"
+        );
+        let only_gated = strict_ordered_choice(choice_feature_cons(
+            &[SyntaxGrammarFeature::Cbm],
+            failing("gated alternative"),
+            choice_feature_cons(
+                &[SyntaxGrammarFeature::NaJoik],
+                failing("second gated alternative"),
+                choice_nil(),
+            ),
+        ))
+        .boxed();
+        let all_skipped = report(only_gated, &default_options);
+        assert!(
+            all_skipped.contains("NA-JOIK feature") && !all_skipped.contains("gated alternative"),
+            "a choice whose alternatives are all skipped reports a disabled feature: {all_skipped}"
+        );
+    }
+
+    /// A matched `not` expects nothing. When it is the only error, the diagnostic names what
+    /// was found, with no "needs one of" note and no empty expectation group.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refusal_errors_render_without_expectations() {
+        use super::generated_runtime::not;
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens, syntax_error};
+
+        let source = "mi";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let eoi = SimpleSpan::from(tokens[0].span.end..tokens[0].span.end);
+        let options = ParseOptions::default();
+        let mut state = ParserState::new(words, &options);
+        let errors = not(cmavo(Cmavo::Mi))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the not refuses mi");
+        let error = syntax_error(errors, options.error_context_depth);
+        let SyntaxError::Parse {
+            kind,
+            expectations,
+            expected,
+            ..
+        } = &error
+        else {
+            panic!("a parse error: {error:?}");
+        };
+        assert!(expectations.is_empty(), "{error:?}");
+        assert!(expected.is_empty(), "{error:?}");
+        assert_eq!(*kind, crate::SyntaxErrorKind::UnexpectedCmavo, "{error:?}");
+        let diagnostic = error.to_diagnostic(None, source);
+        assert!(diagnostic.styled_notes.is_empty(), "{diagnostic:?}");
+        let rendered = format!("{diagnostic:?}");
+        assert!(
+            !rendered.contains("needs one of") && !rendered.contains("negative predicate"),
+            "{rendered}"
+        );
+    }
+
+    /// A refusal can stay the primary error and receive the expectation groups of another
+    /// alternative at the same position. A construct label applies to those groups, while a
+    /// lone refusal still gets no expectation from the label.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn labels_apply_to_groups_that_a_refusal_receives() {
+        use super::generated_runtime::{lookahead, not};
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens};
+
+        let words = segment_words_with_modifiers("mi").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let eoi = SimpleSpan::from(tokens[0].span.end..tokens[0].span.end);
+        let options = ParseOptions::default();
+        let probed = not(cmavo(Cmavo::Mi))
+            .or(cmavo(Cmavo::Ku).map(|_| ()))
+            .boxed();
+        let mut state = ParserState::new(words, &options);
+        let errors = lookahead(probed, Some("tag"))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("both alternatives fail at mi");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        let expectations = error.expectations();
+        let [group] = expectations.as_slice() else {
+            panic!("the KU group expected: {error:?}");
+        };
+        assert!(
+            format!("{:?}", group.tokens).contains(&format!("{:?}", Cmavo::Ku)),
+            "{error:?}"
+        );
+        assert!(
+            format!("{:?}", group.reason).contains("\"tag\""),
+            "the KU group carries the tag label: {error:?}"
+        );
+
+        let mut state = ParserState::new(words, &options);
+        let errors = lookahead(not(cmavo(Cmavo::Mi)).boxed(), Some("tag"))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the not refuses mi");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        assert!(!error.has_expectations(), "{error:?}");
+    }
+
+    /// A failing `not` names the token at the probe position as the one found, not the end
+    /// of input.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failing_not_names_the_token_at_the_probe_position() {
+        use super::generated_runtime::not;
+        use super::parser_core::{Input, Parser, custom};
+        use super::tokens::spanned_tokens;
+
+        let words = segment_words_with_modifiers("mi ku do").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let eoi = SimpleSpan::from(tokens[2].span.end..tokens[2].span.end);
+        let skip = || {
+            custom(|input| {
+                input.skip();
+                Ok(())
+            })
+            .boxed()
+        };
+        let parser = skip().ignore_then(not(skip())).boxed();
+        let options = ParseOptions::default();
+        let mut state = ParserState::new(words, &options);
+        let errors = parser
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the not fails");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        assert_eq!(error.span().start, tokens[1].span.start, "{error:?}");
+        let Some(data!(SyntaxFound::Token(found))) = error.found().map(|found| found.as_data())
+        else {
+            panic!("the failure names a token: {error:?}");
+        };
+        assert_eq!(*found, words[1], "{error:?}");
     }
 
     #[test]
@@ -6572,6 +7034,7 @@ mod tests {
                 Err(failure) => failure,
             };
             let recovered = recover_after_strict_failure(
+                SyntaxParseEntry::Text,
                 tokens,
                 None,
                 &options,
