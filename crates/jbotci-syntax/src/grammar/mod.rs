@@ -6251,6 +6251,59 @@ mod tests {
         );
     }
 
+    /// A refusal can stay the primary error and receive the expectation groups of another
+    /// alternative at the same position. A construct label applies to those groups, while a
+    /// lone refusal still gets no expectation from the label.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn labels_apply_to_groups_that_a_refusal_receives() {
+        use super::generated_runtime::{lookahead, not};
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens};
+
+        let words = segment_words_with_modifiers("mi").unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let eoi = SimpleSpan::from(tokens[0].span.end..tokens[0].span.end);
+        let options = ParseOptions::default();
+        let probed = not(cmavo(Cmavo::Mi))
+            .or(cmavo(Cmavo::Ku).map(|_| ()))
+            .boxed();
+        let mut state = ParserState::new(words, &options);
+        let errors = lookahead(probed, Some("tag"))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("both alternatives fail at mi");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        let expectations = error.expectations();
+        let [group] = expectations.as_slice() else {
+            panic!("the KU group expected: {error:?}");
+        };
+        assert!(
+            format!("{:?}", group.tokens).contains(&format!("{:?}", Cmavo::Ku)),
+            "{error:?}"
+        );
+        assert!(
+            format!("{:?}", group.reason).contains("\"tag\""),
+            "the KU group carries the tag label: {error:?}"
+        );
+
+        let mut state = ParserState::new(words, &options);
+        let errors = lookahead(not(cmavo(Cmavo::Mi)).boxed(), Some("tag"))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the not refuses mi");
+        let [error] = errors.as_slice() else {
+            panic!("one error expected: {errors:?}");
+        };
+        assert!(!error.has_expectations(), "{error:?}");
+    }
+
     /// A failing `not` names the token at the probe position as the one found, not the end
     /// of input.
     #[test]

@@ -243,9 +243,11 @@ pub(super) struct SyntaxParseErrorData<'tokens> {
     /// error. Dialect expansion can give several tokens the same source span, so the span
     /// start alone does not identify the position.
     position: Option<usize>,
-    /// Whether the error is a refusal: a negative probe (`not`) matched. A refusal expects
-    /// nothing, and labelling it with a construct adds no expectation, because the refused
-    /// construct is not something to write.
+    /// Whether the primary failure is a refusal: a negative probe (`not`) matched, so what
+    /// was found is not allowed here. The refusal itself expects nothing, and the refused
+    /// construct is not something to write. Its expectation groups are only those that
+    /// other alternatives at the same position contributed through the union, and a label
+    /// applies to them as to any group.
     refusal: bool,
     reason: SyntaxRichReason<'tokens>,
     expected_groups: SharedVec<ExpectedTokenGroup>,
@@ -872,9 +874,6 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn label_with(&mut self, label: L) {
-        if self.refusal {
-            return;
-        }
         if !self.same_position_branches.is_empty() {
             for branch in &mut self.same_position_branches {
                 <SyntaxParseError<'tokens> as LabelError<'tokens, L>>::label_with(
@@ -887,6 +886,12 @@ where
         let Some(pattern) = label.clone().try_into().ok() else {
             return;
         };
+        // A label applies to every expectation group. Without a group, the label itself
+        // becomes the expectation, except for a refusal: it expects nothing, and the refused
+        // construct is not something to write.
+        if self.refusal && self.expected_groups.is_empty() {
+            return;
+        }
         let found = match &mut self.reason {
             RichReason::ExpectedFound { found, .. } => found.take(),
             RichReason::Custom(_) => None,
