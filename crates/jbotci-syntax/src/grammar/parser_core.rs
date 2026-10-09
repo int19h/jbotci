@@ -660,7 +660,12 @@ impl<'tokens> ProbePositionFailure<'tokens> {
     #[ensures(ret.position() == Some(old(self.probe_position)))]
     pub(crate) fn into_report(self, construct: Option<&'static str>) -> SyntaxParseError<'tokens> {
         let mut error = self.into_data().error;
-        if let Some(construct) = construct {
+        // An error that expects nothing, such as a matched `not` inside the probe, stays so:
+        // labelling it would add the label as its only expectation, which a reader cannot
+        // write.
+        if let Some(construct) = construct
+            && error.has_expectations()
+        {
             LabelError::label_with(&mut error, construct);
         }
         error

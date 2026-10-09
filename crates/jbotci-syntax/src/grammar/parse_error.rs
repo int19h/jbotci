@@ -243,6 +243,10 @@ pub(super) struct SyntaxParseErrorData<'tokens> {
     /// error. Dialect expansion can give several tokens the same source span, so the span
     /// start alone does not identify the position.
     position: Option<usize>,
+    /// Whether the error is a refusal: a negative probe (`not`) matched. A refusal expects
+    /// nothing, and labelling it with a construct adds no expectation, because the refused
+    /// construct is not something to write.
+    refusal: bool,
     reason: SyntaxRichReason<'tokens>,
     expected_groups: SharedVec<ExpectedTokenGroup>,
     context_paths: SharedVec<Vec<SyntaxConstructContext>>,
@@ -346,6 +350,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             position: None,
+            refusal: false,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -368,6 +373,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             position: None,
+            refusal: false,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
@@ -392,10 +398,33 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             position: None,
+            refusal: false,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
             found: None,
+            custom_kind: None,
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
+            preferred_context_hint: None,
+            same_position_branches: SharedVec::empty(),
+        })
+    }
+
+    /// An error that names what was found but expects nothing: a negative probe (`not`) that
+    /// matched. Its parser was refused, and no token is the one to write instead, so the error
+    /// has no expectation group.
+    #[requires(true)]
+    #[ensures(ret.expected_groups.is_empty())]
+    pub(super) fn unexpected_found(span: Span, found: SyntaxFound) -> Self {
+        Self::from_data(SyntaxParseErrorData {
+            span,
+            position: None,
+            refusal: true,
+            reason: unexpected_input_error(),
+            expected_groups: SharedVec::empty(),
+            context_paths: empty_context_paths(),
+            found: Some(found),
             custom_kind: None,
             active_contexts: SharedStack::empty(),
             active_rule_contexts: SharedStack::empty(),
@@ -424,6 +453,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             position: None,
+            refusal: false,
             reason: unexpected_input_error(),
             expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
@@ -440,6 +470,13 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(true)]
     pub(super) fn span(&self) -> &Span {
         &self.span
+    }
+
+    /// Whether the error expects anything. A matched negative probe expects nothing.
+    #[requires(true)]
+    #[ensures(ret == !self.expected_groups.is_empty())]
+    pub(super) fn has_expectations(&self) -> bool {
+        !self.expected_groups.is_empty()
     }
 
     /// The logical token position of the failure; see `SyntaxParseErrorData::position`.
@@ -748,6 +785,7 @@ where
         Self::from_data(SyntaxParseErrorData {
             span,
             position: None,
+            refusal: false,
             reason,
             expected_groups,
             context_paths: empty_context_paths(),
@@ -834,6 +872,9 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn label_with(&mut self, label: L) {
+        if self.refusal {
+            return;
+        }
         if !self.same_position_branches.is_empty() {
             for branch in &mut self.same_position_branches {
                 <SyntaxParseError<'tokens> as LabelError<'tokens, L>>::label_with(

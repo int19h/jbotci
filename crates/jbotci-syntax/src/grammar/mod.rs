@@ -6159,6 +6159,50 @@ mod tests {
         );
     }
 
+    /// A matched `not` expects nothing. When it is the only error, the diagnostic names what
+    /// was found, with no "needs one of" note and no empty expectation group.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refusal_errors_render_without_expectations() {
+        use super::generated_runtime::not;
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens, syntax_error};
+
+        let source = "mi";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
+        let tokens: &'static [SpannedToken] = Box::leak(spanned_tokens(words).into_boxed_slice());
+        let eoi = SimpleSpan::from(tokens[0].span.end..tokens[0].span.end);
+        let options = ParseOptions::default();
+        let mut state = ParserState::new(words, &options);
+        let errors = not(cmavo(Cmavo::Mi))
+            .boxed()
+            .parse_with_state(tokens.split_spanned(eoi), &mut state)
+            .into_result()
+            .expect_err("the not refuses mi");
+        let error = syntax_error(errors, options.error_context_depth);
+        let SyntaxError::Parse {
+            kind,
+            expectations,
+            expected,
+            ..
+        } = &error
+        else {
+            panic!("a parse error: {error:?}");
+        };
+        assert!(expectations.is_empty(), "{error:?}");
+        assert!(expected.is_empty(), "{error:?}");
+        assert_eq!(*kind, crate::SyntaxErrorKind::UnexpectedCmavo, "{error:?}");
+        let diagnostic = error.to_diagnostic(None, source);
+        assert!(diagnostic.styled_notes.is_empty(), "{diagnostic:?}");
+        let rendered = format!("{diagnostic:?}");
+        assert!(
+            !rendered.contains("needs one of") && !rendered.contains("negative predicate"),
+            "{rendered}"
+        );
+    }
+
     /// A failing `not` names the token at the probe position as the one found, not the end
     /// of input.
     #[test]

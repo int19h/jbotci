@@ -2132,9 +2132,6 @@ pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens
     .boxed()
 }
 
-/// The expectation that `not` reports where its parser matches.
-pub(crate) const NEGATIVE_PREDICATE_LABEL: &str = "negative predicate";
-
 /// The expectation that a failing positive probe (`lookahead`, or the guard of `followed_by`)
 /// reports when the probed construct has no label of its own and the probe failed after its
 /// first token. Generated code passes the rule or alias label instead where there is one.
@@ -2529,7 +2526,8 @@ where
 /// collects on the way outlives the probe; see `InputRef::probe`.
 ///
 /// Where `parser` matches, the failure covers what `parser` matched and names the token at
-/// the probe position as the one found.
+/// the probe position as the one found. It has no expectation: the refused construct is not
+/// something to write, and no token is known to be the one to write instead.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
@@ -2538,14 +2536,10 @@ where
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     custom::<_, _>(move |input| match input.probe(&parser) {
-        Ok((_, span)) => Err(SyntaxParseError::expected_found(
-            span,
-            vec![new!(SyntaxExpectedToken::Named(
-                NEGATIVE_PREDICATE_LABEL.to_owned()
-            ))],
-            found_at_current(input),
-        )
-        .at_position(input.position())),
+        Ok((_, span)) => Err(
+            SyntaxParseError::unexpected_found(span, found_at_current(input))
+                .at_position(input.position()),
+        ),
         Err(_) => Ok(()),
     })
     .boxed()
