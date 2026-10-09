@@ -25,7 +25,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -2876,8 +2876,9 @@ fn resolve_enum_splices(parsed: UniqueParsedRules) -> Result<Vec<Rule>> {
 ///
 /// Rule names are unique, and so are the syntax types that the names denote; see
 /// [`validate_unique_rules`]. The splice resolver indexes the rules by name, so it takes this type
-/// rather than a plain list.
-#[invariant(
+/// rather than a plain list. Both invariants allocate over the whole grammar, so they are expensive
+/// contracts; the constructor always runs the same check with an error for the user.
+#[expensive_invariant(
     rules
         .iter()
         .map(|rule| rule.name().to_string())
@@ -2886,7 +2887,7 @@ fn resolve_enum_splices(parsed: UniqueParsedRules) -> Result<Vec<Rule>> {
         == rules.len(),
     "rule names are unique"
 )]
-#[invariant(
+#[expensive_invariant(
     rules
         .iter()
         .map(|rule| syntax_type_ident_for_rule(rule.name()).to_string())
