@@ -2751,9 +2751,6 @@ pub struct SyntaxParse {
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
     ExperimentalZohOiQuote,
-    /// Never emitted: the obsolete quoted-sumti route was removed in #820.
-    /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
-    ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
     ExperimentalJaKeTanruConnective,
@@ -2772,31 +2769,9 @@ pub enum ExperimentalConstruct {
     ExperimentalNaheArgumentWithoutBo,
     ExperimentalVuhoScopedAttachment,
     ExperimentalNohoiSelbriRelativeClause,
-    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
-    /// Its route was removed as unsourced; only camxes-standard's own connective tiers
-    /// survive. Retained only for Rust API stability; scheduled for removal with
-    /// its three siblings in #885.
-    ExperimentalSimplerSumtiConnective,
     ExperimentalExplicitCuPredicateTailStarter,
     ExperimentalRelativeClauseConnective,
-    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
-    /// Its route was removed as unsourced; forethought connection keeps its own gated
-    /// categories. Retained only for Rust API stability; scheduled for removal
-    /// with its three siblings in #885.
-    ExperimentalSimplerForethoughtConnective,
-    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
-    /// Its route was removed by epoch 6 (R6: no reference parser and no upstream `.peg`
-    /// admits a bare JA between terms; `docs/grammar-parity-epoch-06-terms.md`).
-    /// Retained only for Rust API stability; scheduled for removal with its three
-    /// siblings in #885.
-    ExperimentalSimplerTermConnective,
     ExperimentalMexOperatorConnective,
-    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
-    /// Its route was removed by epoch 9 / #837 SUM-01 (R6: no reference parser and no
-    /// upstream `.peg` admits a connective between description heads).
-    /// Retained only for Rust API stability; scheduled for removal with its three
-    /// siblings in #885.
-    ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
     ExperimentalCuTermsSelbri,
     ExperimentalLaheNaheTermWrapper,
@@ -2817,9 +2792,6 @@ pub enum ExperimentalConstruct {
     ExperimentalFihoiAdverbial,
     ExperimentalSoiAdverbial,
     ExperimentalPreposedLinkargs,
-    /// Retained public category; never emitted after removal of empty BE/BEI payloads (#807).
-    /// Dedicated public API cleanup is tracked in #911.
-    ExperimentalEmptyLinkargs,
     ExperimentalBroadBoStatementConnective,
     ExperimentalBroadKePredicateContinuation,
     ExperimentalTermBoConnection,
@@ -2836,7 +2808,6 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "syntax.warning.experimental-cmavo",
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
-            Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
@@ -2877,26 +2848,14 @@ impl ExperimentalConstruct {
             Self::ExperimentalNohoiSelbriRelativeClause => {
                 "syntax.warning.experimental-nohoi-selbri-relative-clause"
             }
-            Self::ExperimentalSimplerSumtiConnective => {
-                "syntax.warning.experimental-simpler-sumti-connective"
-            }
             Self::ExperimentalExplicitCuPredicateTailStarter => {
                 "syntax.warning.experimental-explicit-cu-bridi-tail-starter"
             }
             Self::ExperimentalRelativeClauseConnective => {
                 "syntax.warning.experimental-relative-clause-connective"
             }
-            Self::ExperimentalSimplerForethoughtConnective => {
-                "syntax.warning.experimental-simpler-forethought-connective"
-            }
-            Self::ExperimentalSimplerTermConnective => {
-                "syntax.warning.experimental-simpler-term-connective"
-            }
             Self::ExperimentalMexOperatorConnective => {
                 "syntax.warning.experimental-mex-operator-connective"
-            }
-            Self::ExperimentalSimplerDescriptorHeadConnective => {
-                "syntax.warning.experimental-simpler-description-head-connective"
             }
             Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
             Self::ExperimentalCuTermsSelbri => "syntax.warning.experimental-cu-terms-selbri",
@@ -2940,7 +2899,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalFihoiAdverbial => "syntax.warning.experimental-fihoi-adverbial",
             Self::ExperimentalSoiAdverbial => "syntax.warning.experimental-soi-adverbial",
             Self::ExperimentalPreposedLinkargs => "syntax.warning.experimental-preposed-linkargs",
-            Self::ExperimentalEmptyLinkargs => "syntax.warning.experimental-empty-linkargs",
             Self::ExperimentalBroadBoStatementConnective => {
                 "syntax.warning.experimental-broad-bo-statement-connective"
             }
@@ -2967,7 +2925,6 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "experimental cmavo",
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
-            Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalJaKeTanruConnective => "JA connective before a KE tanru group",
@@ -2992,24 +2949,14 @@ impl ExperimentalConstruct {
             Self::ExperimentalNaheArgumentWithoutBo => "NAhE argument without BO",
             Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
             Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
-            Self::ExperimentalSimplerSumtiConnective => {
-                "JA connective used in an sumti connective slot"
-            }
             Self::ExperimentalExplicitCuPredicateTailStarter => {
                 "explicit CU before the right side of a bridi-tail connective"
             }
             Self::ExperimentalRelativeClauseConnective => {
                 "JA/JOI connective used between relative clauses"
             }
-            Self::ExperimentalSimplerForethoughtConnective => {
-                "simpler binary forethought connective form"
-            }
-            Self::ExperimentalSimplerTermConnective => "JA connective used directly between terms",
             Self::ExperimentalMexOperatorConnective => {
                 "camxes-exp BO-bound or connective-atom MEX operator"
-            }
-            Self::ExperimentalSimplerDescriptorHeadConnective => {
-                "JA connective used between description heads"
             }
             Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
             Self::ExperimentalCuTermsSelbri => "CU followed by terms before the main selbri",
@@ -3043,7 +2990,6 @@ impl ExperimentalConstruct {
             Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subbridi adverbial term",
             Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subbridi adverbial term",
             Self::ExperimentalPreposedLinkargs => "BE linkargs before a selbri unit",
-            Self::ExperimentalEmptyLinkargs => "empty BE/BEI linkarg slot",
             Self::ExperimentalBroadBoStatementConnective => {
                 "broad connective with BO in a statement/subbridi continuation"
             }
