@@ -1,10 +1,10 @@
 //! Shared borrowed views over leaf-listed generated term hierarchy levels.
 //!
-//! The syntax grammar deliberately repeats leaf variants in the hierarchy enums so Debug and
-//! serde output remain stable. `GeneratedSimpleTermRef` gives reference analysis one strongly
-//! typed leaf surface over all of them without allocating or cloning the generated nodes. A
-//! `None` conversion identifies a connection node whose grouping the caller must handle
-//! explicitly rather than flatten as a leaf.
+//! Each hierarchy enum carries the leaf variants itself: the grammar splices the level below into
+//! every level, so Debug and serde output show no wrapper level. `GeneratedSimpleTermRef` gives
+//! reference analysis one strongly typed leaf surface over all of them without allocating or
+//! cloning the generated nodes. A `None` conversion identifies a connection node whose grouping
+//! the caller must handle explicitly rather than flatten as a leaf.
 //!
 //! Every view here is `Copy` and borrowed, so no path ever converts a term by copying it into
 //! another level's enum.
