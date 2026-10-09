@@ -2605,17 +2605,25 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
         ))],
         move |token, _state| is_brivla_relation_word(token),
     );
-    let cbm_cmevla = feature_gate(
-        SyntaxGrammarFeature::Cbm,
-        cmevla_word().map_with(|word, extra: &mut MapExtra<'tokens, '_>| {
-            extra.state().warn(
-                ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
-                &word,
-            );
-            word
-        }),
-    );
-    brivla.or(cbm_cmevla).boxed()
+    let cbm_cmevla = cmevla_word().map_with(|word, extra: &mut MapExtra<'tokens, '_>| {
+        extra.state().warn(
+            ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
+            &word,
+        );
+        word
+    });
+    let with_cbm = brivla.clone().or(cbm_cmevla);
+    // Without the CBM feature, a cmevla is not a selbri word, so its alternative is not tried
+    // at all: a failed feature gate would add a "CBM feature" expectation that a reader cannot
+    // satisfy (see `choice_feature_cons`).
+    custom::<_, _>(move |input| {
+        if SyntaxGrammarFeature::Cbm.enabled(input.state().syntax_grammar_env().dialect) {
+            input.parse(&with_cbm)
+        } else {
+            input.parse(&brivla)
+        }
+    })
+    .boxed()
 }
 
 #[requires(true)]
