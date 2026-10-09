@@ -1158,46 +1158,15 @@ pub mod generated_model {
     /// terms_2)*` (camxes.peg:114, camxes-exp.peg:121). Every consumer of a term sequence repeats
     /// this level, which is exactly the upstream `terms <- terms_1+` shape.
     ///
-    /// Like the levels below it, this rule re-lists the leaf inventory instead of nesting a sum
-    /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
-    /// `term_hierarchy_levels_repeat_their_leaf_branches` test in `grammar/mod.rs` checks that
-    /// every level's leaf inventory stays synchronized with `simple_term`.
+    /// Like the levels below it, this rule splices the level below it instead of naming it as a
+    /// branch. A branch would wrap the lower level in a public variant, which Debug and serde
+    /// output would show as an extra level. The splice gives this enum the variants of every
+    /// lower level directly, so each level adds only its own connection.
     rule "term" term(gek_termset, statement, exp_subsentence, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, normal_term, tanru_unit_atom, exp_gek_sentence_guard, exp_guard_gek) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
-        /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
-        termset_group,
-        /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
-        connected_term,
-        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
-        stag_bound_term_connection,
-        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The CEhE level and the levels below it.
+        splice cehe_term,
     }
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
@@ -1205,37 +1174,8 @@ pub mod generated_model {
     rule "term" cehe_term(gek_termset, statement, exp_subsentence, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, normal_term, tanru_unit_atom, exp_gek_sentence_guard, exp_guard_gek) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
-        /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
-        connected_term,
-        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
-        stag_bound_term_connection,
-        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The loose connective level and the levels below it.
+        splice loose_term,
     }
 
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
@@ -1244,35 +1184,8 @@ pub mod generated_model {
     rule "term" loose_term(gek_termset, statement, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, normal_term, tanru_unit_atom, exp_gek_sentence_guard, exp_guard_gek) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
-        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
-        stag_bound_term_connection,
-        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The BO-bound level and the leaves below it.
+        splice bound_term,
     }
 
     /// The unguarded (`nonabs`) operand flavour of the CEhE continuation.
@@ -1289,33 +1202,8 @@ pub mod generated_model {
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
-        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        nonabs_fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        nonabs_tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The unguarded leaves.
+        splice normal_term_atom,
     }
 
     /// Product node for termset connection; preserves `leading_term` and `continuations` in source order.
@@ -1349,7 +1237,7 @@ pub mod generated_model {
         elided_nahe_fiho_tag_term,
         /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
         tagged_sumti_before_tag_term,
-        /// Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
         tagged_sumti_term,
         /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
         fihoi_proposal_adverbial_term,
@@ -1372,40 +1260,13 @@ pub mod generated_model {
 
     /// The BO-bound precedence level for ordinary terms in the camxes-exp hierarchy.
     ///
-    /// The leaf rules are deliberately listed directly rather than through `simple_term`: a nested
-    /// sum branch would add a public wrapper variant to Debug and serde output. The
-    /// `term_hierarchy_levels_repeat_their_leaf_branches` test in `grammar/mod.rs` checks that this
-    /// leaf inventory stays synchronized with `simple_term`.
+    /// The leaves come from a splice of `simple_term`, not from a `simple_term` branch: a branch
+    /// would add a public wrapper variant to Debug and serde output.
     rule "term" bound_term(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom, exp_gek_sentence_guard, exp_guard_gek) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
-        /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The absorption-guarded leaves.
+        splice simple_term,
     }
 
     /// The BO-bound ordinary-term connection with one or more continuations.
@@ -1502,42 +1363,14 @@ pub mod generated_model {
     /// is the four `linked_sumti` forms rather than the shared term leaves; widening that site is
     /// #816's half of the same upstream rule and is not this epoch's scope.
     ///
-    /// The leaves are re-listed directly rather than nested behind a sum branch, exactly as every
-    /// other ladder level does it (mechanism E): a nested branch would add a public wrapper variant
-    /// to Debug and serde output. The `term_hierarchy_levels_repeat_their_leaf_branches` test in
-    /// `grammar/mod.rs` checks that this inventory stays synchronized with `simple_term`.
+    /// Each level of this ladder splices the level below it, exactly as the other ladders do: a
+    /// branch would add a public wrapper variant to Debug and serde output. The leaves are those
+    /// of `normal_term_atom`.
     rule "term" normal_term(gek_termset, statement, exp_subsentence, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, normal_term, tanru_unit_atom, exp_guard_gek) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
-        /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
-        bound_normal_term_connection,
-        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        nonabs_fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        nonabs_tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The BO-bound level and the unguarded leaves below it.
+        splice bound_normal_term,
     }
 
     /// The normal-flavour loose connection with one or more continuations.
@@ -1562,33 +1395,8 @@ pub mod generated_model {
     rule "term" bound_normal_term(gek_termset, statement, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom, exp_guard_gek) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
-        /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
-        nonabs_fa_chain_tagged_sumti_term,
-        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_sumti_term,
-        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
-        elided_nahe_fiho_tag_term,
-        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
-        tagged_sumti_before_tag_term,
-        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
-        nonabs_tagged_sumti_term,
-        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
-        fihoi_proposal_adverbial_term,
-        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
-        exp_soi_adverbial_term,
-        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
-        na_ku_term,
-        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
-        sumti_term,
-        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
-        bare_na_term,
-        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
-        gek_termset,
-        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
-        /// `nuhi`, `gek`, `terms`, and 2 other fields.
-        forethought_termset,
-        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
-        nuhi_termset,
+        // The unguarded leaves.
+        splice normal_term_atom,
     }
 
     /// The diagnosed optional-stag BO connection at the normal-flavour term level.
@@ -1631,7 +1439,10 @@ pub mod generated_model {
     ///
     /// This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
     /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
-    /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
+    /// unguarded `nonabs_tagged_sumti_term` and `nonabs_fa_chain_tagged_sumti_term` in place of
+    /// their absorption-guarded twins. A splice cannot express that swap, so this rule lists its
+    /// leaves itself, and the `normal_term_atom_swaps_only_the_guarded_tag_leaves` test in
+    /// `grammar/mod.rs` checks that the two inventories stay aligned.
     rule "term" normal_term_atom(gek_termset, statement, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, normal_term, tanru_unit_atom, exp_guard_gek) -> enum {
         /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         nonabs_fa_chain_tagged_sumti_term,
@@ -2184,7 +1995,7 @@ pub mod generated_model {
     /// camxes-standard's `nonabs_term` (camxes.peg:128) is `term_1` without the absorption guard
     /// `!(!tag selbri)`, so a tag with an elided KU may stand directly before the selbri. The
     /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion. The
-    /// `term_hierarchy_levels_repeat_their_leaf_branches` test in `grammar/mod.rs` checks that the
+    /// `normal_term_atom_swaps_only_the_guarded_tag_leaves` test in `grammar/mod.rs` checks that the
     /// flavoured leaf inventories stay aligned.
     rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, normal_term) -> struct {
         assert !modal_forethought_connective(tense_modal, selbri, letter_tokens);
@@ -5634,23 +5445,16 @@ pub mod generated_model {
 
     /// The loose connection level for BE/BEI arguments in the camxes-exp term hierarchy.
     ///
-    /// These leaves are listed directly so ordinary links retain their established Debug and serde
-    /// shape. The `term_hierarchy_levels_repeat_their_leaf_branches` test in `grammar/mod.rs`
-    /// checks that they stay synchronized with `linked_sumti`.
+    /// The lower levels and the `linked_sumti` leaves come from splices, so ordinary links keep
+    /// their established Debug and serde shape, with no wrapper variant for a lower level.
     rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand, full_linked_term_candidate) -> enum {
         /// Try the complete new-width payload before a legacy owner can consume its prefix.
         /// The rejection guard rewinds complete legacy and unproven candidates (#793).
         full_linked_term_candidate,
         /// Uses the diagnosed loose connection over BO-bound linked terms.
         connected_linked_term,
-        /// Uses the diagnosed BO-bound linked-term connection.
-        bound_linked_term_connection,
-        /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_linked_sumti,
-        /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
-        tense_tagged_linked_sumti,
-        /// Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.
-        plain_linked_sumti,
+        // The BO-bound level and the linked-sumti leaves below it.
+        splice bound_linked_term,
     }
 
     /// A complete normal-term payload, with no additional warning or copied leaf inventory.
@@ -5687,22 +5491,14 @@ pub mod generated_model {
     rule "linked arguments" bound_linked_term(sumti, tense_modal, normal_term, bound_linked_term_operand) -> enum {
         /// Uses the diagnosed BO-bound linked-term connection.
         bound_linked_term_connection,
-        /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_linked_sumti,
-        /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
-        tense_tagged_linked_sumti,
-        /// Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.
-        plain_linked_sumti,
+        // The nonempty linked-sumti leaves.
+        splice bound_linked_term_operand,
     }
 
     /// A nonempty linked-term operand; the empty BE/BEI marker form is intentionally excluded.
     rule "linked arguments" bound_linked_term_operand(sumti, tense_modal, normal_term) -> enum {
-        /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
-        place_tagged_linked_sumti,
-        /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
-        tense_tagged_linked_sumti,
-        /// Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.
-        plain_linked_sumti,
+        // The three nonempty linked-sumti forms.
+        splice linked_sumti,
     }
 
     /// The diagnosed BO-bound BE/BEI connection with one or more continuations.
