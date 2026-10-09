@@ -850,10 +850,9 @@ struct SyntaxDiagnosticObservations<'tokens> {
     id: SyntaxDiagnosticObservationId,
     caller_rule_len: usize,
     observations: Rc<[SyntaxDiagnosticObservation<'tokens>]>,
-    /// The furthest candidate start in these observations, computed when first needed.
+    /// No candidate in these observations starts after this position (see
+    /// [`furthest_candidate_start`]). Computed when first needed.
     furthest_start: std::cell::OnceCell<Option<usize>>,
-    /// The frame ranks of the candidates at a position, computed when first needed.
-    frame_ranks: RefCell<HashMap<usize, Option<Rc<SyntaxFrameRankSummary>>>>,
 }
 
 /// Observations of a nested rule, with the rule stack at the point where the enclosing
@@ -897,29 +896,19 @@ pub(super) struct SyntaxFrameRank {
     pub(super) order: usize,
 }
 
-/// What one memoized evaluation contributes to the recovery frame ranks at one position,
+/// What one evaluation contributes at one position to the ranks of its caller's frames,
 /// independent of its caller.
 ///
 /// A candidate's frame ranks are the distances of the frames in its rule stack from its
-/// innermost frame. The frames inside the evaluation have ranks that do not depend on the
-/// caller: `ranks` keeps the smallest one of each, over the candidates at `position`. A frame
-/// of the caller lies outside every candidate's inner frames, so its rank is the smallest
-/// inner length, `min_inner`, plus its distance from the top of the caller's stack.
-/// `candidates` is the number of candidate occurrences at the position, and each `order` is
-/// relative to the first of them.
+/// innermost frame. A frame of the caller lies outside every candidate's inner frames, so its
+/// rank is the smallest inner length, `min_inner`, plus its distance from the top of the
+/// caller's stack. `candidates` is the number of candidate occurrences at the position, and
+/// `min_inner.order` is relative to the first of them.
 #[invariant(min_inner.order < *candidates)]
-#[invariant(ranks.iter().all(|(_, rank)| rank.order < *candidates))]
-#[expensive_invariant(
-    ranks.iter().enumerate().all(|(index, (frame, _))| {
-        ranks[..index].iter().all(|(earlier, _)| earlier != frame)
-    }),
-    "each frame has one rank"
-)]
-#[derive(Debug)]
-struct SyntaxFrameRankSummary {
+#[derive(Debug, Clone, Copy)]
+struct SyntaxFrameRankExtent {
     min_inner: SyntaxFrameRank,
     candidates: usize,
-    ranks: Vec<(SyntaxRuleFrame, SyntaxFrameRank)>,
 }
 
 /// A rule frame with its smallest distance from the innermost frame of a furthest
@@ -1605,16 +1594,12 @@ impl<'tokens> ParserState<'tokens> {
             self.syntax_memo_rule_frames.is_empty(),
             "the frame ranks are read after the parse",
         );
-        let Some(summary) = frame_ranks_at(&self.root_diagnostic_observations, 0, furthest) else {
-            return (Some(furthest), Vec::new());
-        };
-        let mut ranks = summary
+        let mut walk = SyntaxFrameRankWalk::new(furthest);
+        walk.observations(&self.root_diagnostic_observations, 0, 0);
+        let mut ranks = walk
             .ranks
-            .iter()
-            .map(|(frame, rank)| RecoveryFrameRank {
-                frame: frame.clone(),
-                rank: *rank,
-            })
+            .into_iter()
+            .map(|(frame, rank)| RecoveryFrameRank { frame, rank })
             .collect::<Vec<_>>();
         ranks.sort_by(|left, right| {
             (left.frame.byte_start, left.frame.rule, left.rank).cmp(&(
@@ -2029,7 +2014,6 @@ impl<'tokens> ParserState<'tokens> {
                 caller_rule_len: frame.caller_rules.len(),
                 observations: Rc::from(frame.diagnostic_observations.clone()),
                 furthest_start: std::cell::OnceCell::new(),
-                frame_ranks: RefCell::new(HashMap::new()),
             })),
             invoked_at: frame.caller_rules.clone(),
         });
@@ -5841,8 +5825,9 @@ fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
 
-/// The furthest candidate start in a run of observations, where a restricted region counts
-/// only its `start`.
+/// The furthest candidate start in a run of observations. It is an upper bound: a restricted
+/// region counts its `start` when it has a candidate at or after it. It serves only to skip
+/// the observations that cannot have a candidate at a position.
 #[requires(true)]
 #[ensures(true)]
 fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) -> Option<usize> {
@@ -5850,149 +5835,180 @@ fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) ->
         .iter()
         .filter_map(|observation| match observation.as_data() {
             data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
-            data!(SyntaxDiagnosticObservation::Nested(nested)) => *nested
-                .observations
-                .furthest_start
-                .get_or_init(|| furthest_candidate_start(&nested.observations.observations)),
+            data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                nested_furthest_candidate_start(&nested.observations)
+            }
             data!(SyntaxDiagnosticObservation::Restricted {
                 start,
                 observations
-            }) => frame_ranks_at(observations, 0, *start).map(|_| *start),
+            }) => furthest_candidate_start(observations)
+                .filter(|furthest| furthest >= start)
+                .map(|_| *start),
         })
         .max()
 }
 
-/// The frame ranks of the candidates at `position` in a run of observations whose rule
-/// stacks extend a caller stack of `base` frames.
-///
-/// A candidate contributes its frames above the caller, by distance from its innermost
-/// frame. A nested rule contributes its own ranks, which do not depend on its caller, and
-/// the frames between the caller and the point where it was invoked, by distance from the
-/// nested rule. `min_inner` is the smallest such distance to the caller's top frame, so a
-/// replay under any caller gives that caller's frames their ranks. The candidate
-/// occurrences are counted in observation order, which is parse order, and a frame keeps
-/// the first occurrence at its smallest distance.
+/// [`furthest_candidate_start`] for the observations of a memoized evaluation, cached in them.
 #[requires(true)]
 #[ensures(true)]
-fn frame_ranks_at(
-    observations: &[SyntaxDiagnosticObservation<'_>],
-    base: usize,
-    position: usize,
-) -> Option<Rc<SyntaxFrameRankSummary>> {
-    let mut ranks = HashMap::<SyntaxRuleFrame, SyntaxFrameRank>::new();
-    let mut offer = |frame: &SyntaxRuleFrame, rank: SyntaxFrameRank| {
-        ranks
-            .entry(frame.clone())
-            .and_modify(|existing| *existing = (*existing).min(rank))
-            .or_insert(rank);
-    };
-    let mut min_inner = None::<SyntaxFrameRank>;
-    let mut found = |inner: SyntaxFrameRank| {
-        min_inner = Some(min_inner.map_or(inner, |current| current.min(inner)));
-    };
-    let mut candidates = 0;
-    for observation in observations {
-        match observation.as_data() {
-            data!(SyntaxDiagnosticObservation::Candidate(error)) => {
-                if error.span().start != position {
-                    continue;
-                }
-                let order = candidates;
-                candidates += 1;
-                let frames = error
-                    .active_rule_frames_inner_to_outer()
-                    .collect::<Vec<_>>();
-                let inner = frames.len().saturating_sub(base);
-                for (rank, frame) in frames.into_iter().take(inner).enumerate() {
-                    offer(frame, SyntaxFrameRank { rank, order });
-                }
-                found(SyntaxFrameRank { rank: inner, order });
-            }
-            data!(SyntaxDiagnosticObservation::Nested(nested)) => {
-                let Some(summary) = nested_frame_ranks_at(&nested.observations, position) else {
-                    continue;
-                };
-                let offset = candidates;
-                candidates += summary.candidates;
-                let shifted = |rank: SyntaxFrameRank, distance: usize| SyntaxFrameRank {
-                    rank: rank.rank + distance,
-                    order: offset + rank.order,
-                };
-                for (frame, rank) in &summary.ranks {
-                    offer(frame, shifted(*rank, 0));
-                }
-                let path = nested.invoked_at.len().saturating_sub(base);
-                for (distance, frame) in nested.invoked_at.inner_to_outer().take(path).enumerate() {
-                    offer(frame, shifted(summary.min_inner, distance));
-                }
-                found(shifted(summary.min_inner, path));
-            }
-            data!(SyntaxDiagnosticObservation::Restricted {
-                start,
-                observations: restricted,
-            }) => {
-                if *start != position {
-                    continue;
-                }
-                let Some(summary) = frame_ranks_at(restricted, base, position) else {
-                    continue;
-                };
-                let offset = candidates;
-                candidates += summary.candidates;
-                let shifted = |rank: SyntaxFrameRank| SyntaxFrameRank {
-                    rank: rank.rank,
-                    order: offset + rank.order,
-                };
-                for (frame, rank) in &summary.ranks {
-                    offer(frame, shifted(*rank));
-                }
-                found(shifted(summary.min_inner));
-            }
-        }
-    }
-    let min_inner = min_inner?;
-    let mut ranks = ranks.into_iter().collect::<Vec<_>>();
-    ranks.sort_by(|(left, _), (right, _)| {
-        (left.byte_start, left.rule, left.recovery_enabled).cmp(&(
-            right.byte_start,
-            right.rule,
-            right.recovery_enabled,
-        ))
-    });
-    Some(Rc::new(new!(SyntaxFrameRankSummary {
-        min_inner,
-        candidates,
-        ranks,
-    })))
+fn nested_furthest_candidate_start(
+    observations: &SyntaxDiagnosticObservations<'_>,
+) -> Option<usize> {
+    *observations
+        .furthest_start
+        .get_or_init(|| furthest_candidate_start(&observations.observations))
 }
 
-/// [`frame_ranks_at`] for the observations of a memoized evaluation, cached in them.
-/// Observations without a candidate at `position` or further are skipped at once.
-#[requires(true)]
-#[ensures(true)]
-fn nested_frame_ranks_at(
-    observations: &Rc<SyntaxDiagnosticObservations<'_>>,
+/// The recovery frame ranks at one position, over every path in a tree of observations.
+///
+/// Memo hits share the observations of one evaluation between callers, so the tree is a
+/// DAG. The walk descends into each evaluation once, at its first occurrence in parse order,
+/// and gives its own frames their ranks there: the frames of its candidates above its caller,
+/// and the frames between its caller and the point where it invoked a nested evaluation.
+/// These ranks do not depend on the caller, and a later occurrence gives the same ranks with
+/// a later order, so one visit gives every minimum. A later occurrence only adds its
+/// candidate count to the order and gives the frames of its own caller their ranks, from the
+/// extent of the evaluation. So the walk is linear in the size of the observations, where
+/// summing a summary of each evaluation into each of its callers was quadratic in the
+/// nesting depth.
+#[invariant(true)]
+struct SyntaxFrameRankWalk<'tokens> {
     position: usize,
-) -> Option<Rc<SyntaxFrameRankSummary>> {
-    let furthest = *observations
-        .furthest_start
-        .get_or_init(|| furthest_candidate_start(&observations.observations));
-    if furthest.is_none_or(|furthest| furthest < position) {
-        return None;
+    ranks: HashMap<SyntaxRuleFrame, SyntaxFrameRank>,
+    /// The extent of each evaluation visited, by the address of its observations. The root
+    /// observations keep every evaluation alive during the walk, so an address is not reused.
+    extents: HashMap<*const SyntaxDiagnosticObservations<'tokens>, Option<SyntaxFrameRankExtent>>,
+}
+
+impl<'tokens> SyntaxFrameRankWalk<'tokens> {
+    #[requires(true)]
+    #[ensures(ret.ranks.is_empty())]
+    fn new(position: usize) -> Self {
+        Self {
+            position,
+            ranks: HashMap::new(),
+            extents: HashMap::new(),
+        }
     }
-    if let Some(summary) = observations.frame_ranks.borrow().get(&position) {
-        return summary.clone();
+
+    #[requires(true)]
+    #[ensures(self.ranks.get(frame).is_some_and(|kept| *kept <= rank))]
+    fn offer(&mut self, frame: &SyntaxRuleFrame, rank: SyntaxFrameRank) {
+        self.ranks
+            .entry(frame.clone())
+            .and_modify(|kept| *kept = (*kept).min(rank))
+            .or_insert(rank);
     }
-    let summary = frame_ranks_at(
-        &observations.observations,
-        observations.caller_rule_len,
-        position,
-    );
-    observations
-        .frame_ranks
-        .borrow_mut()
-        .insert(position, summary.clone());
-    summary
+
+    /// Walks a run of observations whose rule stacks extend a caller stack of `base` frames,
+    /// where the first candidate occurrence has the order `offset`.
+    #[requires(true)]
+    #[ensures(true)]
+    fn observations(
+        &mut self,
+        observations: &[SyntaxDiagnosticObservation<'tokens>],
+        base: usize,
+        offset: usize,
+    ) -> Option<SyntaxFrameRankExtent> {
+        let mut candidates = 0;
+        let mut min_inner = None::<SyntaxFrameRank>;
+        let mut found = |inner: SyntaxFrameRank| {
+            min_inner = Some(min_inner.map_or(inner, |current| current.min(inner)));
+        };
+        for observation in observations {
+            match observation.as_data() {
+                data!(SyntaxDiagnosticObservation::Candidate(error)) => {
+                    if error.span().start != self.position {
+                        continue;
+                    }
+                    let order = candidates;
+                    candidates += 1;
+                    let inner = error.active_rule_frame_count().saturating_sub(base);
+                    for (rank, frame) in error
+                        .active_rule_frames_inner_to_outer()
+                        .take(inner)
+                        .enumerate()
+                    {
+                        let order = offset + order;
+                        self.offer(frame, SyntaxFrameRank { rank, order });
+                    }
+                    found(SyntaxFrameRank { rank: inner, order });
+                }
+                data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                    let start = candidates;
+                    let Some(extent) = self.nested(&nested.observations, offset + start) else {
+                        continue;
+                    };
+                    candidates += extent.candidates;
+                    let order = start + extent.min_inner.order;
+                    let path = nested.invoked_at.len().saturating_sub(base);
+                    for (distance, frame) in
+                        nested.invoked_at.inner_to_outer().take(path).enumerate()
+                    {
+                        let rank = SyntaxFrameRank {
+                            rank: extent.min_inner.rank + distance,
+                            order: offset + order,
+                        };
+                        self.offer(frame, rank);
+                    }
+                    found(SyntaxFrameRank {
+                        rank: extent.min_inner.rank + path,
+                        order,
+                    });
+                }
+                data!(SyntaxDiagnosticObservation::Restricted {
+                    start,
+                    observations: restricted,
+                }) => {
+                    if *start != self.position {
+                        continue;
+                    }
+                    let first = candidates;
+                    let Some(extent) = self.observations(restricted, base, offset + first) else {
+                        continue;
+                    };
+                    candidates += extent.candidates;
+                    found(SyntaxFrameRank {
+                        rank: extent.min_inner.rank,
+                        order: first + extent.min_inner.order,
+                    });
+                }
+            }
+        }
+        min_inner.map(|min_inner| {
+            new!(SyntaxFrameRankExtent {
+                min_inner,
+                candidates,
+            })
+        })
+    }
+
+    /// Walks the observations of a memoized evaluation at its first occurrence, which has
+    /// the order `offset`, and gives its extent at every occurrence.
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested(
+        &mut self,
+        observations: &Rc<SyntaxDiagnosticObservations<'tokens>>,
+        offset: usize,
+    ) -> Option<SyntaxFrameRankExtent> {
+        if nested_furthest_candidate_start(observations)
+            .is_none_or(|furthest| furthest < self.position)
+        {
+            return None;
+        }
+        let key = Rc::as_ptr(observations);
+        if let Some(extent) = self.extents.get(&key) {
+            return *extent;
+        }
+        let extent = self.observations(
+            &observations.observations,
+            observations.caller_rule_len,
+            offset,
+        );
+        self.extents.insert(key, extent);
+        extent
+    }
 }
 
 #[cfg(test)]

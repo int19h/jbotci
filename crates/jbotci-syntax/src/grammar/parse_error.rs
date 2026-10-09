@@ -710,6 +710,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
         self.active_rule_contexts.inner_to_outer()
     }
 
+    #[requires(true)]
+    #[ensures(ret == self.active_rule_frames_inner_to_outer().count())]
+    pub(super) fn active_rule_frame_count(&self) -> usize {
+        self.active_rule_contexts.len()
+    }
+
     /// This error, which a memoized rule reported to the caller whose rule stack had
     /// `caller_len` frames, as the rule reports it to the caller whose rule stack is
     /// `caller`: the rule frames inside the rule move onto `caller`.
