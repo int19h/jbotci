@@ -12,7 +12,7 @@ use super::tokens::{
 };
 use super::{
     BoxedParser, ContinuationTimeLimit, ParserState, RecoveryCheckpointIndex, RecoveryDirective,
-    SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
+    RecoveryFrameRank, SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxParseEntry, SyntaxWarning, SyntaxWordCategory,
@@ -5726,18 +5726,15 @@ pub mod generated_model {
         pub trace: Option<TraceReport>,
     }
 
-    #[bityzba::invariant(true)]
-    #[derive(Debug, Clone)]
-    pub(crate) struct GeneratedRecoveryBranch {
-        pub span_start: usize,
-        pub active_rule_contexts: Vec<SyntaxRuleFrame>,
-    }
-
-    #[bityzba::invariant(true)]
+    /// A failed parse, with what recovery needs: the furthest failure position and the rule
+    /// frames that were active there, each with its smallest distance from the innermost
+    /// frame of a failure at that position.
+    #[bityzba::invariant(frame_ranks.is_empty() || furthest_start.is_some())]
     #[derive(Debug, Clone)]
     pub(crate) struct GeneratedParseFailure {
         pub public_error: crate::SyntaxError,
-        pub branches: Vec<GeneratedRecoveryBranch>,
+        pub furthest_start: Option<usize>,
+        pub frame_ranks: Vec<RecoveryFrameRank>,
         pub checkpoints: RecoveryCheckpointIndex,
     }
 
@@ -5958,6 +5955,7 @@ pub mod generated_model {
             (
                 state.diagnostic_candidate(),
                 state.diagnostic_candidates_snapshot(),
+                state.recovery_frame_ranks(),
             )
         });
         let continuation_expectations = if continuation_sentinel_index.is_some() {
@@ -5972,21 +5970,26 @@ pub mod generated_model {
                 warnings: finish.warnings,
             }),
             Err(errors) => {
-                let (diagnostic_candidate, diagnostic_candidates) =
+                let (diagnostic_candidate, diagnostic_candidates, candidate_frame_ranks) =
                     failure_context.expect("failure context captured for syntax errors");
-                let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
+                let (furthest_start, frame_ranks) = generated_recovery_frame_ranks(
+                    &diagnostic_candidates,
+                    candidate_frame_ranks,
+                    &errors,
+                );
                 let public_error = syntax_error_with_diagnostic_candidate(
                     errors.clone(),
                     diagnostic_candidate,
                     options.error_context_depth,
                 );
-                Err(GeneratedParseFailure {
+                Err(bityzba::new!(GeneratedParseFailure {
                     public_error,
-                    branches,
+                    furthest_start,
+                    frame_ranks,
                     checkpoints: RecoveryCheckpointIndex::from_checkpoints(
                         finish.recovery_checkpoints,
                     ),
-                })
+                }))
             }
         };
         bityzba::new!(GeneratedParsedTextDetailedAttempt {
@@ -6051,6 +6054,7 @@ pub mod generated_model {
             (
                 state.diagnostic_candidate(),
                 state.diagnostic_candidates_snapshot(),
+                state.recovery_frame_ranks(),
             )
         });
         let continuation_expectations = if recovery_session.continuation_sentinel_index.is_some() {
@@ -6066,21 +6070,26 @@ pub mod generated_model {
                 warnings: finish.warnings,
             }),
             Err(errors) => {
-                let (diagnostic_candidate, diagnostic_candidates) =
+                let (diagnostic_candidate, diagnostic_candidates, candidate_frame_ranks) =
                     failure_context.expect("failure context captured for syntax errors");
-                let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
+                let (furthest_start, frame_ranks) = generated_recovery_frame_ranks(
+                    &diagnostic_candidates,
+                    candidate_frame_ranks,
+                    &errors,
+                );
                 let public_error = syntax_error_with_diagnostic_candidate(
                     errors.clone(),
                     diagnostic_candidate,
                     options.error_context_depth,
                 );
-                Err(GeneratedParseFailure {
+                Err(bityzba::new!(GeneratedParseFailure {
                     public_error,
-                    branches,
+                    furthest_start,
+                    frame_ranks,
                     checkpoints: RecoveryCheckpointIndex::from_checkpoints(
                         finish.recovery_checkpoints,
                     ),
-                })
+                }))
             }
         };
         bityzba::new!(GeneratedRecoveredParsedTextAttempt {
@@ -6094,28 +6103,49 @@ pub mod generated_model {
         })
     }
 
+    /// The recovery frame ranks of a failed parse: those of the furthest diagnostic
+    /// candidates, or, when the parse recorded no candidate, those of its furthest errors.
     #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
-    fn generated_recovery_branches(
+    #[bityzba::ensures(ret.1.is_empty() || ret.0.is_some())]
+    fn generated_recovery_frame_ranks(
         diagnostic_candidates: &[SyntaxParseError<'_>],
+        candidate_frame_ranks: (Option<usize>, Vec<RecoveryFrameRank>),
         errors: &[SyntaxParseError<'_>],
-    ) -> Vec<GeneratedRecoveryBranch> {
-        let source = if diagnostic_candidates.is_empty() {
-            errors
-        } else {
-            diagnostic_candidates
+    ) -> (Option<usize>, Vec<RecoveryFrameRank>) {
+        if !diagnostic_candidates.is_empty() {
+            debug_assert_eq!(
+                candidate_frame_ranks.0,
+                diagnostic_candidates
+                    .first()
+                    .map(|candidate| candidate.span().start),
+                "the frame ranks and the candidates share their furthest position",
+            );
+            return candidate_frame_ranks;
+        }
+        let Some(furthest) = errors.iter().map(|error| error.span().start).max() else {
+            return (None, Vec::new());
         };
-        let Some(deepest_start) = source.iter().map(|error| error.span().start).max() else {
-            return Vec::new();
-        };
-        source
-            .iter()
-            .filter(|error| error.span().start == deepest_start)
-            .map(|error| GeneratedRecoveryBranch {
-                span_start: error.span().start,
-                active_rule_contexts: error.active_rule_contexts(),
-            })
-            .collect()
+        let mut ranks = std::collections::HashMap::<SyntaxRuleFrame, usize>::new();
+        for error in errors.iter().filter(|error| error.span().start == furthest) {
+            for (rank, frame) in error.active_rule_frames_inner_to_outer().enumerate() {
+                ranks
+                    .entry(frame.clone())
+                    .and_modify(|existing| *existing = (*existing).min(rank))
+                    .or_insert(rank);
+            }
+        }
+        let mut ranks = ranks
+            .into_iter()
+            .map(|(frame, rank)| RecoveryFrameRank { frame, rank })
+            .collect::<Vec<_>>();
+        ranks.sort_by(|left, right| {
+            (left.frame.byte_start(), left.frame.rule(), left.rank).cmp(&(
+                right.frame.byte_start(),
+                right.frame.rule(),
+                right.rank,
+            ))
+        });
+        (Some(furthest), ranks)
     }
 
     #[bityzba::requires(true)]

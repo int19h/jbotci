@@ -4500,7 +4500,10 @@ mod tests {
     // Issue #982 replaced the first and third inputs again: the camxes-exp
     // JA joint after a bridi tail now completes `broda fa je pu me ku`. With
     // the lookahead diagnostics fix (#984), the third input's later error
-    // stopped needing the fallback, so it was replaced once more.
+    // stopped needing the fallback, so it was replaced once more. Issue #979
+    // replaced the second input: with the recovery frame ranks of every path,
+    // `ga pu bo mi klama gi do cadzu` recovers in the first phase (see
+    // `recovered_syntax_inserts_a_missing_term_connection_before_bo`).
 
     #[test]
     #[requires(true)]
@@ -4521,19 +4524,19 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_rejected_first_phase_retains_forethought_connective() {
-        let probe = recovered_syntax_probe_at_strict_error("ga pu bo mi klama gi do cadzu", 6);
+        let probe = recovered_syntax_probe_at_strict_error("ga pu ke'e mi klama gi do cadzu", 6);
 
         assert_eq!(probe.error_byte_starts, [6]);
         assert_eq!(probe.valid_tokens, ["ga", "pu"]);
         assert_eq!(
             probe.recovery_spans,
             [
-                (6, 8),
-                (9, 11),
-                (12, 17),
-                (18, 20),
-                (21, 23),
-                (24, 29),
+                (6, 10),
+                (11, 13),
+                (14, 19),
+                (20, 22),
+                (23, 25),
+                (26, 31),
                 (6, 6),
                 (6, 6)
             ]
@@ -4541,6 +4544,28 @@ mod tests {
         assert_eq!(
             probe.missing_count, 2,
             "the forethought connection keeps `ga pu` and marks both missing operands"
+        );
+    }
+
+    /// `ga pu bo mi klama gi do cadzu` recovers in the first phase: recovery inserts the
+    /// missing connective and tag of a BO term connection before `bo`, as in the valid
+    /// `ga pu .e ca bo mi klama gi do cadzu`. Before #979, recovery saw this claim only when
+    /// the parser happened to reach the term connection rules first through this path.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_inserts_a_missing_term_connection_before_bo() {
+        let probe = recovered_syntax_probe_at_strict_error("ga pu bo mi klama gi do cadzu", 6);
+
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(
+            probe.valid_tokens,
+            ["ga", "pu", "bo", "mi", "kláma", "gi", "do", "cádzu"]
+        );
+        assert_eq!(probe.recovery_spans, [(6, 6), (6, 6)]);
+        assert_eq!(
+            probe.missing_count, 2,
+            "the connective and the tag are missing"
         );
     }
 
@@ -4554,10 +4579,13 @@ mod tests {
         // fallback disabled, the whole text degrades.
         let probe = recovered_syntax_probe_at_strict_error("mi ku .i mi broda ke'e be be'o", 3);
 
-        assert_eq!(probe.error_byte_starts, [3, 18, 26]);
-        assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda"]);
-        assert_eq!(probe.recovery_spans, [(3, 5), (18, 22), (23, 25), (26, 30)]);
-        assert_eq!(probe.missing_count, 0);
+        assert_eq!(probe.error_byte_starts, [3, 18, 23]);
+        assert_eq!(probe.valid_tokens, ["mi", "i", "mi", "bróda", "ke'e"]);
+        assert_eq!(
+            probe.recovery_spans,
+            [(3, 5), (18, 18), (18, 18), (18, 18), (23, 25), (26, 30)]
+        );
+        assert_eq!(probe.missing_count, 3);
     }
 
     // A natural-stop trial can succeed at the first error without firing left
@@ -4647,11 +4675,11 @@ mod tests {
         assert_eq!(probe.recovery_spans, [(10, 14), (10, 10)]);
         assert_eq!(probe.missing_count, 1);
 
-        let probe = recovered_syntax_probe_at_strict_error("mi tavla zo broda ku be", 18);
-        assert_eq!(probe.error_byte_starts, [18]);
-        assert_eq!(probe.valid_tokens, ["mi", "távla", "zo-<<gismu:bróda>>"]);
-        assert_eq!(probe.recovery_spans, [(18, 20), (21, 23), (18, 18)]);
-        assert_eq!(probe.missing_count, 1);
+        let probe = recovered_syntax_probe_at_strict_error("lu mi ku do li'u i mi klama", 6);
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(probe.valid_tokens, ["lu", "mi", "li'u", "i", "mi", "kláma"]);
+        assert_eq!(probe.recovery_spans, [(6, 8), (9, 11)]);
+        assert_eq!(probe.missing_count, 0);
 
         let probe = recovered_syntax_probe_at_strict_error("mi viska lo .i mi klama le", 13);
         assert_eq!(probe.error_byte_starts, [13, 26]);

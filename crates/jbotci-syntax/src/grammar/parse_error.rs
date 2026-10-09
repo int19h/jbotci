@@ -201,6 +201,40 @@ impl<T> SharedStack<T> {
         self.len
     }
 
+    /// The values from the innermost to the outermost.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn inner_to_outer(&self) -> impl Iterator<Item = &T> {
+        self.iter_inner_to_outer()
+    }
+
+    /// The stack with its `base_len` outermost values replaced by `new_base`.
+    ///
+    /// A memoized rule records stacks that extend the stack of the caller that first
+    /// evaluated it. Moving such a stack onto the stack of another caller gives the stack
+    /// that evaluating the rule under that caller would give. A stack shorter than
+    /// `base_len` does not extend that caller, and it stays as it is.
+    #[requires(true)]
+    #[ensures(self.len() >= base_len -> ret.len() == new_base.len() + (self.len() - base_len))]
+    #[ensures(self.len() < base_len -> ret.len() == self.len())]
+    pub(super) fn rebased(&self, base_len: usize, new_base: &Self) -> Self
+    where
+        T: Clone,
+    {
+        if self.len < base_len {
+            return self.clone();
+        }
+        let suffix = self
+            .iter_inner_to_outer()
+            .take(self.len - base_len)
+            .collect::<Vec<_>>();
+        let mut stack = new_base.clone();
+        for value in suffix.into_iter().rev() {
+            stack = stack.pushed(value.clone());
+        }
+        stack
+    }
+
     #[requires(true)]
     #[ensures(ret == (self.len() == 0))]
     pub(super) fn is_empty(&self) -> bool {
@@ -664,6 +698,29 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if self.active_rule_contexts.len() <= contexts.len() {
             self.active_rule_contexts = contexts;
         }
+        self
+    }
+
+    /// The active rule stack, from the innermost frame to the outermost.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn active_rule_frames_inner_to_outer(
+        &self,
+    ) -> impl Iterator<Item = &SyntaxRuleFrame> {
+        self.active_rule_contexts.inner_to_outer()
+    }
+
+    /// This error, which a memoized rule reported to the caller whose rule stack had
+    /// `caller_len` frames, as the rule reports it to the caller whose rule stack is
+    /// `caller`: the rule frames inside the rule move onto `caller`.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn with_rule_stack_moved(
+        mut self,
+        caller_len: usize,
+        caller: &SharedStack<SyntaxRuleFrame>,
+    ) -> Self {
+        self.active_rule_contexts = self.active_rule_contexts.rebased(caller_len, caller);
         self
     }
 

@@ -115,6 +115,40 @@ impl RecoveryReachabilityTelemetry {
     }
 }
 
+// Test-only reference mode: with memo lookups switched off, every caller evaluates a rule
+// itself, so the recorded failures are by definition independent of which caller reached a
+// rule first. Tests compare the memoized parse with it.
+#[cfg(test)]
+thread_local! {
+    static SYNTAX_MEMO_LOOKUPS_DISABLED: Cell<bool> = const { Cell::new(false) };
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn without_syntax_memo_lookups<T>(operation: impl FnOnce() -> T) -> T {
+    assert!(
+        !SYNTAX_MEMO_LOOKUPS_DISABLED.with(|disabled| disabled.replace(true)),
+        "memo lookups are switched off once at a time"
+    );
+    let result = operation();
+    SYNTAX_MEMO_LOOKUPS_DISABLED.with(|disabled| disabled.set(false));
+    result
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_memo_lookups_disabled() -> bool {
+    #[cfg(test)]
+    {
+        SYNTAX_MEMO_LOOKUPS_DISABLED.with(Cell::get)
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
 #[cfg(feature = "expensive_contracts")]
 thread_local! {
     static RECOVERY_REACHABILITY_FILTER_DISABLED: Cell<bool> = const { Cell::new(false) };
@@ -301,7 +335,7 @@ impl SyntaxContextFrame {
 }
 
 #[invariant(!rule.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct SyntaxRuleFrame {
     rule: &'static str,
     byte_start: usize,
@@ -691,17 +725,27 @@ pub(super) struct SyntaxMemoSuccess<'tokens> {
 struct SyntaxMemoFailure<'tokens> {
     start_location: usize,
     end_location: usize,
+    /// The rule stack of the caller that evaluated the rule. The rule stack of the error and
+    /// of the diagnostic observations extend it.
+    caller_rules: SharedStack<SyntaxRuleFrame>,
     error: SyntaxParseError<'tokens>,
     recovery_checkpoint_observations: Option<Rc<SyntaxRecoveryCheckpointObservations>>,
-    diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
+    diagnostic_observations: Option<SyntaxDiagnosticReplay<'tokens>>,
     rule_observation_node: Option<usize>,
 }
 
 impl<'tokens> SyntaxMemoFailure<'tokens> {
+    /// The memoized error as the rule reports it to the caller whose rule stack is
+    /// `caller_rules`.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn into_error(self) -> SyntaxParseError<'tokens> {
-        self.into_data().error
+    pub(super) fn into_error_for(
+        self,
+        caller_rules: &SharedStack<SyntaxRuleFrame>,
+    ) -> SyntaxParseError<'tokens> {
+        let data = self.into_data();
+        data.error
+            .with_rule_stack_moved(data.caller_rules.len(), caller_rules)
     }
 }
 
@@ -739,7 +783,10 @@ impl BoundaryAbandonedRange {
 struct SyntaxMemoSideEffects<'tokens> {
     warnings: Rc<[SyntaxWarning]>,
     recovery_checkpoint_observations: Option<Rc<SyntaxRecoveryCheckpointObservations>>,
-    diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
+    /// The rule stack of the caller that evaluated the rule; the rule stacks of the
+    /// diagnostic observations extend it.
+    caller_rules: SharedStack<SyntaxRuleFrame>,
+    diagnostic_observations: Option<SyntaxDiagnosticReplay<'tokens>>,
 }
 
 #[invariant(!rule.is_empty())]
@@ -787,22 +834,82 @@ struct SyntaxDiagnosticFrameMark {
 pub(super) struct SyntaxDiagnosticCheckpoint<'tokens> {
     candidates: Vec<SyntaxParseError<'tokens>>,
     replay_log_len: usize,
+    root_observation_len: usize,
     frame: Option<SyntaxDiagnosticFrameMark>,
 }
 
+/// The diagnostic candidates that one evaluation of a memoized rule recorded, with the
+/// nested rules that it called, in order.
+///
+/// The rule stacks of the candidates extend the rule stack of the caller at the start of the
+/// evaluation, which has `caller_rule_len` frames. The frames above it belong to the rule,
+/// and they are the same for every caller.
 #[invariant(!observations.is_empty())]
 #[derive(Debug)]
 struct SyntaxDiagnosticObservations<'tokens> {
     id: SyntaxDiagnosticObservationId,
+    caller_rule_len: usize,
     observations: Rc<[SyntaxDiagnosticObservation<'tokens>]>,
+    /// The furthest candidate start in these observations, computed when first needed.
+    furthest_start: std::cell::OnceCell<Option<usize>>,
+    /// The frame ranks of the candidates at a position, computed when first needed.
+    frame_ranks: RefCell<HashMap<usize, Option<Rc<SyntaxFrameRankSummary>>>>,
+}
+
+/// Observations of a nested rule, with the rule stack at the point where the enclosing
+/// evaluation invoked them. That stack extends the caller of the enclosing observations. The
+/// observations themselves can come from an evaluation under another caller (a memo hit).
+#[invariant(!observations.observations.is_empty())]
+#[derive(Debug, Clone)]
+struct SyntaxDiagnosticReplay<'tokens> {
+    observations: Rc<SyntaxDiagnosticObservations<'tokens>>,
+    invoked_at: SharedStack<SyntaxRuleFrame>,
 }
 
 #[invariant(::Candidate(_) => true)]
-#[invariant(::Nested(observations) => !observations.observations.is_empty())]
+#[invariant(::Nested(replay) => !replay.observations.observations.is_empty())]
+#[invariant(::Restricted { observations, .. } => !observations.is_empty())]
 #[derive(Debug, Clone)]
 enum SyntaxDiagnosticObservation<'tokens> {
     Candidate(SyntaxParseError<'tokens>),
-    Nested(Rc<SyntaxDiagnosticObservations<'tokens>>),
+    Nested(SyntaxDiagnosticReplay<'tokens>),
+    /// Observations that a diagnostic restore removed, of which only the candidates at
+    /// `start` were kept (`restore_diagnostics_preserving_start`). They belong to the same
+    /// rule evaluation as the observations around them.
+    Restricted {
+        start: usize,
+        observations: Rc<[SyntaxDiagnosticObservation<'tokens>]>,
+    },
+}
+
+/// What one memoized evaluation contributes to the recovery frame ranks at one position,
+/// independent of its caller.
+///
+/// A candidate's frame ranks are the distances of the frames in its rule stack from its
+/// innermost frame. The frames inside the evaluation have ranks that do not depend on the
+/// caller: `ranks` keeps the smallest one of each, over the candidates at `position`. A frame
+/// of the caller lies outside every candidate's inner frames, so its rank is the smallest
+/// inner length, `min_inner`, plus its distance from the top of the caller's stack.
+#[invariant(true)]
+#[expensive_invariant(
+    ranks.iter().enumerate().all(|(index, (frame, _))| {
+        ranks[..index].iter().all(|(earlier, _)| earlier != frame)
+    }),
+    "each frame has one rank"
+)]
+#[derive(Debug)]
+struct SyntaxFrameRankSummary {
+    min_inner: usize,
+    ranks: Vec<(SyntaxRuleFrame, usize)>,
+}
+
+/// A rule frame with its smallest distance from the innermost frame of a furthest
+/// diagnostic candidate.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RecoveryFrameRank {
+    pub(super) frame: SyntaxRuleFrame,
+    pub(super) rank: usize,
 }
 
 #[invariant(true)]
@@ -816,8 +923,10 @@ struct SyntaxMemoRuleFrame<'tokens> {
     child_recovery_checkpoint_observations: Vec<ChildRecoveryCheckpointObservations>,
     finalized_recovery_checkpoint_observations: Option<Rc<SyntaxRecoveryCheckpointObservations>>,
     diagnostic_observation_id: SyntaxDiagnosticObservationId,
+    /// The rule stack of the caller at the start of this rule.
+    caller_rules: SharedStack<SyntaxRuleFrame>,
     diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
-    finalized_diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
+    finalized_diagnostic_observations: Option<SyntaxDiagnosticReplay<'tokens>>,
 }
 
 #[invariant(start <= end)]
@@ -1160,6 +1269,8 @@ pub(super) struct ParserState<'tokens> {
     applied_syntax_diagnostic_log: Vec<SyntaxDiagnosticObservationId>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
+    /// Diagnostic observations recorded outside every memoized rule, in order.
+    root_diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
     continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
@@ -1229,6 +1340,7 @@ impl<'tokens> ParserState<'tokens> {
             applied_syntax_diagnostic_log: Vec::new(),
             diagnostic_candidates: Vec::new(),
             diagnostic_candidate_hash_buckets: HashMap::new(),
+            root_diagnostic_observations: Vec::new(),
             continuation_diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
@@ -1435,9 +1547,64 @@ impl<'tokens> ParserState<'tokens> {
             child_recovery_checkpoint_observations: Vec::new(),
             finalized_recovery_checkpoint_observations: None,
             diagnostic_observation_id,
+            caller_rules: self.active_syntax_rule_stack.clone(),
             diagnostic_observations: Vec::new(),
             finalized_diagnostic_observations: None,
         });
+    }
+
+    /// The caller rule stack of the rule whose memo frame is innermost.
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    fn current_memo_rule_caller_rules(&self) -> SharedStack<SyntaxRuleFrame> {
+        self.syntax_memo_rule_frames
+            .last()
+            .expect("syntax memo rule frame is active")
+            .caller_rules
+            .clone()
+    }
+
+    /// The recovery frame ranks of the furthest diagnostic candidates: for each rule frame in
+    /// the rule stack of a candidate at the furthest position, the smallest distance from the
+    /// candidate's innermost frame, over every candidate and every path that reaches it.
+    ///
+    /// The ranks come from the diagnostic observations of the whole parse. A memo hit records
+    /// the replayed observations where the rule was invoked, so the observations hold every
+    /// path, whichever caller evaluated a rule first. The smallest distance over all paths is
+    /// a property of that set, so it does not depend on evaluation order (#979).
+    #[requires(true)]
+    #[ensures(ret.1.is_empty() || ret.0.is_some())]
+    pub(super) fn recovery_frame_ranks(&self) -> (Option<usize>, Vec<RecoveryFrameRank>) {
+        let Some(furthest) = self
+            .diagnostic_candidates
+            .first()
+            .map(|candidate| candidate.span().start)
+        else {
+            return (None, Vec::new());
+        };
+        debug_assert!(
+            self.syntax_memo_rule_frames.is_empty(),
+            "the frame ranks are read after the parse",
+        );
+        let Some(summary) = frame_ranks_at(&self.root_diagnostic_observations, 0, furthest) else {
+            return (Some(furthest), Vec::new());
+        };
+        let mut ranks = summary
+            .ranks
+            .iter()
+            .map(|(frame, rank)| RecoveryFrameRank {
+                frame: frame.clone(),
+                rank: *rank,
+            })
+            .collect::<Vec<_>>();
+        ranks.sort_by(|left, right| {
+            (left.frame.byte_start, left.frame.rule, left.rank).cmp(&(
+                right.frame.byte_start,
+                right.frame.rule,
+                right.rank,
+            ))
+        });
+        (Some(furthest), ranks)
     }
 
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
@@ -1506,8 +1673,8 @@ impl<'tokens> ParserState<'tokens> {
             })
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(&mut frame);
-        if let Some(observations) = &diagnostic_observations {
-            self.mark_syntax_diagnostic_observation_applied(observations.id);
+        if let Some(replay) = &diagnostic_observations {
+            self.mark_syntax_diagnostic_observation_applied(replay.observations.id);
         }
         if let Some(parent) = self.syntax_memo_rule_frames.last_mut() {
             if frame.recovery_sensitive {
@@ -1524,11 +1691,14 @@ impl<'tokens> ParserState<'tokens> {
                     },
                 );
             }
-            if let Some(observations) = diagnostic_observations {
+            if let Some(replay) = diagnostic_observations {
                 parent
                     .diagnostic_observations
-                    .push(new!(SyntaxDiagnosticObservation::Nested(observations)));
+                    .push(new!(SyntaxDiagnosticObservation::Nested(replay)));
             }
+        } else if let Some(replay) = diagnostic_observations {
+            self.root_diagnostic_observations
+                .push(new!(SyntaxDiagnosticObservation::Nested(replay)));
         }
         frame.recovery_sensitive
     }
@@ -1718,35 +1888,50 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     fn current_strict_diagnostic_observations(
         &mut self,
-    ) -> Option<Rc<SyntaxDiagnosticObservations<'tokens>>> {
+    ) -> Option<SyntaxDiagnosticReplay<'tokens>> {
         let observations = Self::finalize_syntax_diagnostic_observations(
             self.syntax_memo_rule_frames
                 .last_mut()
                 .expect("memo frame is active"),
         );
-        if let Some(observations) = &observations {
-            self.mark_syntax_diagnostic_observation_applied(observations.id);
+        if let Some(replay) = &observations {
+            self.mark_syntax_diagnostic_observation_applied(replay.observations.id);
         }
         observations
     }
 
+    /// Replays the diagnostic observations of a memoized rule for the current caller.
+    ///
+    /// `entry_caller_rules` is the rule stack of the caller that evaluated the rule. The
+    /// recovery frame ranks get the ranks that evaluating the rule under the current caller
+    /// would give: the frames inside the rule keep their ranks, and the frames of the current
+    /// caller get theirs from the distance to the rule. The report candidates are merged as
+    /// recorded, once per set of observations.
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
     pub(super) fn replay_syntax_diagnostic_observations(
         &mut self,
-        observations: Option<&Rc<SyntaxDiagnosticObservations<'tokens>>>,
+        replay: Option<&SyntaxDiagnosticReplay<'tokens>>,
+        entry_caller_rules: &SharedStack<SyntaxRuleFrame>,
     ) {
-        let Some(observations) = observations else {
+        let Some(replay) = replay else {
             return;
         };
+        let invoked_at = replay
+            .invoked_at
+            .rebased(entry_caller_rules.len(), &self.active_syntax_rule_stack);
         self.syntax_memo_rule_frames
             .last_mut()
             .expect("syntax memo rule frame is active")
             .diagnostic_observations
-            .push(new!(SyntaxDiagnosticObservation::Nested(Rc::clone(
-                observations
+            .push(new!(SyntaxDiagnosticObservation::Nested(new!(
+                SyntaxDiagnosticReplay {
+                    observations: Rc::clone(&replay.observations),
+                    invoked_at,
+                }
             ))));
 
+        let observations = &replay.observations;
         if !self.mark_syntax_diagnostic_observation_applied(observations.id) {
             return;
         }
@@ -1764,11 +1949,14 @@ impl<'tokens> ParserState<'tokens> {
                         self.merge_strict_diagnostic_candidate(error.clone());
                     }
                 }
-                data!(SyntaxDiagnosticObservation::Nested(observations)) => {
-                    if self.mark_syntax_diagnostic_observation_applied(observations.id) {
-                        pending.extend(observations.observations.iter().rev());
+                data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                    if self.mark_syntax_diagnostic_observation_applied(nested.observations.id) {
+                        pending.extend(nested.observations.observations.iter().rev());
                     }
                 }
+                // The kept candidates of a restricted region were recorded again as
+                // candidates, so the report has them already.
+                data!(SyntaxDiagnosticObservation::Restricted { .. }) => {}
             }
         }
     }
@@ -1798,28 +1986,36 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_none_or(|observations| !observations.observations.is_empty()))]
+    #[ensures(ret.as_ref().is_none_or(|replay| !replay.observations.observations.is_empty()))]
     fn finalize_syntax_diagnostic_observations(
         frame: &mut SyntaxMemoRuleFrame<'tokens>,
-    ) -> Option<Rc<SyntaxDiagnosticObservations<'tokens>>> {
-        if let Some(observations) = &frame.finalized_diagnostic_observations {
-            return Some(Rc::clone(observations));
+    ) -> Option<SyntaxDiagnosticReplay<'tokens>> {
+        if let Some(replay) = &frame.finalized_diagnostic_observations {
+            return Some(replay.clone());
         }
+        // A rule whose only observation is one nested rule replays that rule where this rule
+        // invoked it.
         if frame.diagnostic_observations.len() == 1
-            && let data!(SyntaxDiagnosticObservation::Nested(observations)) =
+            && let data!(SyntaxDiagnosticObservation::Nested(replay)) =
                 frame.diagnostic_observations[0].as_data()
         {
-            return Some(Rc::clone(observations));
+            return Some(replay.clone());
         }
         if frame.diagnostic_observations.is_empty() {
             return None;
         }
-        let observations = Rc::new(new!(SyntaxDiagnosticObservations {
-            id: frame.diagnostic_observation_id,
-            observations: Rc::from(frame.diagnostic_observations.clone()),
-        }));
-        frame.finalized_diagnostic_observations = Some(Rc::clone(&observations));
-        Some(observations)
+        let replay = new!(SyntaxDiagnosticReplay {
+            observations: Rc::new(new!(SyntaxDiagnosticObservations {
+                id: frame.diagnostic_observation_id,
+                caller_rule_len: frame.caller_rules.len(),
+                observations: Rc::from(frame.diagnostic_observations.clone()),
+                furthest_start: std::cell::OnceCell::new(),
+                frame_ranks: RefCell::new(HashMap::new()),
+            })),
+            invoked_at: frame.caller_rules.clone(),
+        });
+        frame.finalized_diagnostic_observations = Some(replay.clone());
+        Some(replay)
     }
 
     #[requires(self.recovery_memo_trial.is_some())]
@@ -1827,10 +2023,7 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.0.is_some() == !self.syntax_memo_rule_is_recovery_sensitive())]
     fn current_syntax_memo_observations(
         &mut self,
-    ) -> (
-        Option<usize>,
-        Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
-    ) {
+    ) -> (Option<usize>, Option<SyntaxDiagnosticReplay<'tokens>>) {
         let store = Rc::clone(
             &self
                 .recovery_memo_trial
@@ -1851,8 +2044,8 @@ impl<'tokens> ParserState<'tokens> {
             )
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(frame);
-        if let Some(observations) = &diagnostic_observations {
-            self.mark_syntax_diagnostic_observation_applied(observations.id);
+        if let Some(replay) = &diagnostic_observations {
+            self.mark_syntax_diagnostic_observation_applied(replay.observations.id);
         }
         (rule_observation_node, diagnostic_observations)
     }
@@ -1941,6 +2134,9 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> Option<SyntaxMemoSuccessHit<'tokens>> {
+        if syntax_memo_lookups_disabled() {
+            return None;
+        }
         let (memo, sensitive) = if let Some(trial) = &self.recovery_memo_trial {
             let store = trial.store.borrow();
             let insensitive = (!self.syntax_memo_rule_is_recovery_sensitive())
@@ -2022,6 +2218,9 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> Option<SyntaxMemoFailure<'tokens>> {
+        if syntax_memo_lookups_disabled() {
+            return None;
+        }
         if let Some(trial) = &self.recovery_memo_trial {
             let hit = {
                 let store = trial.store.borrow();
@@ -2124,6 +2323,7 @@ impl<'tokens> ParserState<'tokens> {
             side_effects: SyntaxMemoSideEffects {
                 warnings: warnings.into(),
                 recovery_checkpoint_observations,
+                caller_rules: self.current_memo_rule_caller_rules(),
                 diagnostic_observations,
             },
             rule_observation_node,
@@ -2177,6 +2377,7 @@ impl<'tokens> ParserState<'tokens> {
             let failure = new!(SyntaxMemoFailure {
                 start_location,
                 end_location,
+                caller_rules: self.current_memo_rule_caller_rules(),
                 error,
                 recovery_checkpoint_observations,
                 diagnostic_observations,
@@ -2205,6 +2406,7 @@ impl<'tokens> ParserState<'tokens> {
             new!(SyntaxMemoFailure {
                 start_location,
                 end_location,
+                caller_rules: self.current_memo_rule_caller_rules(),
                 error,
                 recovery_checkpoint_observations: None,
                 diagnostic_observations,
@@ -2277,7 +2479,10 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(observations) = &side_effects.recovery_checkpoint_observations {
             self.replay_recovery_checkpoint_observations(observations);
         }
-        self.replay_syntax_diagnostic_observations(side_effects.diagnostic_observations.as_ref());
+        self.replay_syntax_diagnostic_observations(
+            side_effects.diagnostic_observations.as_ref(),
+            &side_effects.caller_rules,
+        );
     }
 
     #[requires(true)]
@@ -2321,10 +2526,10 @@ impl<'tokens> ParserState<'tokens> {
         {
             self.continuation_diagnostic_candidates.push(error.clone());
         }
-        if let Some(frame) = self.syntax_memo_rule_frames.last_mut() {
-            frame
-                .diagnostic_observations
-                .push(new!(SyntaxDiagnosticObservation::Candidate(error.clone())));
+        let observation = new!(SyntaxDiagnosticObservation::Candidate(error.clone()));
+        match self.syntax_memo_rule_frames.last_mut() {
+            Some(frame) => frame.diagnostic_observations.push(observation),
+            None => self.root_diagnostic_observations.push(observation),
         }
         if self.recovery_memo_trial.is_some() {
             self.merge_diagnostic_candidate(error);
@@ -2425,6 +2630,7 @@ impl<'tokens> ParserState<'tokens> {
         SyntaxDiagnosticCheckpoint {
             candidates: self.diagnostic_candidates.clone(),
             replay_log_len: self.applied_syntax_diagnostic_log.len(),
+            root_observation_len: self.root_diagnostic_observations.len(),
             frame: self.syntax_memo_rule_frames.last().map(|frame| {
                 new!(SyntaxDiagnosticFrameMark {
                     frame_id: frame.diagnostic_observation_id,
@@ -2538,6 +2744,8 @@ impl<'tokens> ParserState<'tokens> {
             let removed = self.replayed_syntax_diagnostic_observations.remove(&id);
             assert!(removed, "diagnostic journal and applied set agree");
         }
+        self.root_diagnostic_observations
+            .truncate(checkpoint.root_observation_len);
         self.diagnostic_candidates = checkpoint.candidates;
         self.diagnostic_candidate_hash_buckets.clear();
         if self.recovery_memo_trial.is_some() {
@@ -2565,7 +2773,28 @@ impl<'tokens> ParserState<'tokens> {
             .filter(|candidate| candidate.span().start == start)
             .cloned()
             .collect::<Vec<_>>();
+        // The candidate list keeps one rule stack per candidate content, the one that
+        // arrived first. The removed observations keep every path, also those of memo
+        // replays, so they stay as a restricted region for the recovery frame ranks.
+        let removed = match &checkpoint.frame {
+            Some(mark) => self
+                .syntax_memo_rule_frames
+                .last()
+                .map(|frame| frame.diagnostic_observations[mark.observation_len..].to_vec())
+                .unwrap_or_default(),
+            None => self.root_diagnostic_observations[checkpoint.root_observation_len..].to_vec(),
+        };
         self.restore_diagnostics(checkpoint);
+        if !removed.is_empty() {
+            let restricted = new!(SyntaxDiagnosticObservation::Restricted {
+                start,
+                observations: Rc::from(removed),
+            });
+            match self.syntax_memo_rule_frames.last_mut() {
+                Some(frame) => frame.diagnostic_observations.push(restricted),
+                None => self.root_diagnostic_observations.push(restricted),
+            }
+        }
         for candidate in preserved {
             self.record_diagnostic_candidate(candidate);
         }
@@ -4579,7 +4808,6 @@ fn exact_trial_reachable(
 })]
 #[derive(Debug, Clone)]
 struct RecoveryClaim {
-    branch_index: usize,
     inner_rank: usize,
     kind: RecoveryDirectiveKind,
     boundary_unwind_start_token_index: Option<usize>,
@@ -4699,17 +4927,17 @@ fn select_recovery_directives(
 ) -> Vec<RecoveryDirective> {
     let fail_token_index = token_index_for_byte_start(
         tokens,
-        failure.branches.first().map_or_else(
-            || syntax_error_start(&failure.public_error),
-            |branch| branch.span_start,
-        ),
+        failure
+            .furthest_start
+            .unwrap_or_else(|| syntax_error_start(&failure.public_error)),
     );
     let fail_byte_start = recovery_byte_at(tokens, fail_token_index);
     let env = generated_runtime::SyntaxGrammarEnv::from_options(options);
     let mut claims = Vec::new();
 
-    for (branch_index, branch) in failure.branches.iter().enumerate() {
-        for (inner_rank, frame) in branch.active_rule_contexts.iter().rev().enumerate() {
+    for frame_rank in &failure.frame_ranks {
+        let (frame, inner_rank) = (&frame_rank.frame, frame_rank.rank);
+        {
             let Some(metadata) =
                 generated::generated_model::syntax_grammar_anchor_metadata_by_rule_name(
                     frame.rule(),
@@ -4740,7 +4968,6 @@ fn select_recovery_directives(
                         continue;
                     }
                     let claim = new!(RecoveryClaim {
-                        branch_index,
                         inner_rank,
                         kind: if anchor.boundary_resync && frame_token_index < resume_token_index {
                             RecoveryDirectiveKind::BoundaryResync
@@ -4803,8 +5030,9 @@ fn select_final_recovery_directives(
         token_index_for_byte_start(tokens, syntax_error_start(&failure.public_error));
     let fail_byte_start = recovery_byte_at(tokens, fail_token_index);
     let mut claims = Vec::new();
-    for (branch_index, branch) in failure.branches.iter().enumerate() {
-        for (inner_rank, frame) in branch.active_rule_contexts.iter().rev().enumerate() {
+    for frame_rank in &failure.frame_ranks {
+        let (frame, inner_rank) = (&frame_rank.frame, frame_rank.rank);
+        {
             if frame.byte_start() >= fail_byte_start {
                 continue;
             }
@@ -4816,7 +5044,6 @@ fn select_final_recovery_directives(
                 continue;
             };
             claims.push(new!(RecoveryClaim {
-                branch_index,
                 inner_rank,
                 kind: RecoveryDirectiveKind::Local,
                 boundary_unwind_start_token_index: None,
@@ -4852,16 +5079,24 @@ fn select_final_recovery_directives(
 
 #[requires(true)]
 #[ensures(true)]
-fn recovery_claim_sort_key(claim: &RecoveryClaim) -> (usize, usize, bool, usize) {
+fn recovery_claim_sort_key(
+    claim: &RecoveryClaim,
+) -> (usize, usize, bool, usize, &'static str, usize) {
     // A boundary at an enclosing text layer must not preempt a more precise
     // claim from the grammar construct that actually owns the same token
     // (notably connective I inside a statement). Boundary resync wins only
     // after locality has selected the innermost active owner.
+    //
+    // The rest of the key is the claim itself. Every input of the key depends only on the
+    // set of active frames and their ranks, not on the order in which the parser recorded
+    // failures (#979).
     (
         claim.resume_token_index,
         claim.inner_rank,
         matches!(claim.kind, RecoveryDirectiveKind::Local),
-        claim.branch_index,
+        claim.instance_byte_start,
+        claim.rule,
+        claim.resume_field,
     )
 }
 
@@ -5584,6 +5819,139 @@ fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
 
+/// The furthest candidate start in a run of observations, where a restricted region counts
+/// only its `start`.
+#[requires(true)]
+#[ensures(true)]
+fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) -> Option<usize> {
+    observations
+        .iter()
+        .filter_map(|observation| match observation.as_data() {
+            data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
+            data!(SyntaxDiagnosticObservation::Nested(nested)) => *nested
+                .observations
+                .furthest_start
+                .get_or_init(|| furthest_candidate_start(&nested.observations.observations)),
+            data!(SyntaxDiagnosticObservation::Restricted {
+                start,
+                observations
+            }) => frame_ranks_at(observations, 0, *start).map(|_| *start),
+        })
+        .max()
+}
+
+/// The frame ranks of the candidates at `position` in a run of observations whose rule
+/// stacks extend a caller stack of `base` frames.
+///
+/// A candidate contributes its frames above the caller, by distance from its innermost
+/// frame. A nested rule contributes its own ranks, which do not depend on its caller, and
+/// the frames between the caller and the point where it was invoked, by distance from the
+/// nested rule. `min_inner` is the smallest such distance to the caller's top frame, so a
+/// replay under any caller gives that caller's frames their ranks.
+#[requires(true)]
+#[ensures(true)]
+fn frame_ranks_at(
+    observations: &[SyntaxDiagnosticObservation<'_>],
+    base: usize,
+    position: usize,
+) -> Option<Rc<SyntaxFrameRankSummary>> {
+    let mut ranks = HashMap::<SyntaxRuleFrame, usize>::new();
+    let mut offer = |frame: &SyntaxRuleFrame, rank: usize| {
+        ranks
+            .entry(frame.clone())
+            .and_modify(|existing| *existing = (*existing).min(rank))
+            .or_insert(rank);
+    };
+    let mut min_inner = None::<usize>;
+    let mut found = |inner: usize| {
+        min_inner = Some(min_inner.map_or(inner, |current| current.min(inner)));
+    };
+    for observation in observations {
+        match observation.as_data() {
+            data!(SyntaxDiagnosticObservation::Candidate(error)) => {
+                if error.span().start != position {
+                    continue;
+                }
+                let frames = error
+                    .active_rule_frames_inner_to_outer()
+                    .collect::<Vec<_>>();
+                let inner = frames.len().saturating_sub(base);
+                for (rank, frame) in frames.into_iter().take(inner).enumerate() {
+                    offer(frame, rank);
+                }
+                found(inner);
+            }
+            data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                let Some(summary) = nested_frame_ranks_at(&nested.observations, position) else {
+                    continue;
+                };
+                for (frame, rank) in &summary.ranks {
+                    offer(frame, *rank);
+                }
+                let path = nested.invoked_at.len().saturating_sub(base);
+                for (distance, frame) in nested.invoked_at.inner_to_outer().take(path).enumerate() {
+                    offer(frame, summary.min_inner + distance);
+                }
+                found(summary.min_inner + path);
+            }
+            data!(SyntaxDiagnosticObservation::Restricted {
+                start,
+                observations: restricted,
+            }) => {
+                if *start != position {
+                    continue;
+                }
+                let Some(summary) = frame_ranks_at(restricted, base, position) else {
+                    continue;
+                };
+                for (frame, rank) in &summary.ranks {
+                    offer(frame, *rank);
+                }
+                found(summary.min_inner);
+            }
+        }
+    }
+    let min_inner = min_inner?;
+    let mut ranks = ranks.into_iter().collect::<Vec<_>>();
+    ranks.sort_by(|(left, _), (right, _)| {
+        (left.byte_start, left.rule, left.recovery_enabled).cmp(&(
+            right.byte_start,
+            right.rule,
+            right.recovery_enabled,
+        ))
+    });
+    Some(Rc::new(new!(SyntaxFrameRankSummary { min_inner, ranks })))
+}
+
+/// [`frame_ranks_at`] for the observations of a memoized evaluation, cached in them.
+/// Observations without a candidate at `position` or further are skipped at once.
+#[requires(true)]
+#[ensures(true)]
+fn nested_frame_ranks_at(
+    observations: &Rc<SyntaxDiagnosticObservations<'_>>,
+    position: usize,
+) -> Option<Rc<SyntaxFrameRankSummary>> {
+    let furthest = *observations
+        .furthest_start
+        .get_or_init(|| furthest_candidate_start(&observations.observations));
+    if furthest.is_none_or(|furthest| furthest < position) {
+        return None;
+    }
+    if let Some(summary) = observations.frame_ranks.borrow().get(&position) {
+        return summary.clone();
+    }
+    let summary = frame_ranks_at(
+        &observations.observations,
+        observations.caller_rule_len,
+        position,
+    );
+    observations
+        .frame_ranks
+        .borrow_mut()
+        .insert(position, summary.clone());
+    summary
+}
+
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
@@ -5681,6 +6049,154 @@ mod tests {
         )
     }
 
+    /// Evaluates the memoized rule `shared` under the caller frames `caller`, or replays its
+    /// memo when it has one. `shared` records two failures at byte 8, with different inner
+    /// rule stacks.
+    #[requires(true)]
+    #[ensures(true)]
+    fn evaluate_shared_rule(state: &mut ParserState<'_>, caller: &[(&'static str, usize)]) {
+        for (rule, start) in caller {
+            state.push_syntax_rule(rule, *start);
+        }
+        state.begin_syntax_memo_rule_frame();
+        let context = state.syntax_memo_context();
+        if let Some(hit) = state.syntax_memo_failure("shared", 0, context.clone()) {
+            state.replay_syntax_diagnostic_observations(
+                hit.diagnostic_observations.as_ref(),
+                &hit.caller_rules,
+            );
+        } else {
+            state.push_syntax_rule("shared", 4);
+            state.push_syntax_rule("inner", 6);
+            let deep = SyntaxParseError::custom((8..8).into(), "deep".to_owned());
+            state.record_diagnostic_candidate(deep);
+            state.pop_syntax_rule();
+            let shallow = SyntaxParseError::custom((8..8).into(), "shallow".to_owned());
+            state.record_diagnostic_candidate(shallow.clone());
+            state.pop_syntax_rule();
+            state.store_syntax_memo_failure("shared", 0, context, shallow);
+        }
+        state.finish_syntax_memo_rule_frame();
+        for _ in caller {
+            state.pop_syntax_rule();
+        }
+    }
+
+    /// Two evaluation orders of the same callers give the same recovery frame ranks, and they
+    /// equal the ranks of evaluating the rule under each caller (#979).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_frame_ranks_are_the_same_for_both_evaluation_orders() {
+        let first: &[(&'static str, usize)] = &[("text", 0), ("first", 0), ("first_inner", 2)];
+        let second: &[(&'static str, usize)] = &[("text", 0), ("second", 1)];
+        let ranks = |order: [&[(&'static str, usize)]; 2], memo: bool| {
+            let run = || {
+                let mut state = ParserState::new(&[], &ParseOptions::default());
+                for caller in order {
+                    evaluate_shared_rule(&mut state, caller);
+                }
+                state.recovery_frame_ranks()
+            };
+            if memo {
+                run()
+            } else {
+                without_syntax_memo_lookups(run)
+            }
+        };
+        let forward = ranks([first, second], true);
+        let backward = ranks([second, first], true);
+        let reference = ranks([first, second], false);
+        assert_eq!(forward, backward);
+        assert_eq!(forward, reference);
+        let rank_of = |rule: &str| {
+            forward
+                .1
+                .iter()
+                .find(|rank| rank.frame.rule() == rule)
+                .map(|rank| rank.rank)
+        };
+        assert_eq!(forward.0, Some(8));
+        assert_eq!(rank_of("inner"), Some(0));
+        assert_eq!(rank_of("shared"), Some(0));
+        assert_eq!(rank_of("first_inner"), Some(1));
+        assert_eq!(rank_of("first"), Some(2));
+        assert_eq!(rank_of("second"), Some(1));
+        assert_eq!(rank_of("text"), Some(2));
+    }
+
+    /// Asserts that the recovery frame ranks and the recovery claims of the memoized parse
+    /// equal those of the reference parse without memo lookups, where every caller evaluates
+    /// each rule itself (#979). The reference is exponential in the worst case, so it suits
+    /// only short texts.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_recovery_claims_match_reference(sources: &'static [&'static str]) {
+        run_on_fixture_worker_stack(move || {
+            for source in sources {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let tokens = syntax_tokens(&words);
+                let options = ParseOptions::default();
+                let claims = || {
+                    let attempt = generated::generated_model::parse_text_detailed_tracked_attempt(
+                        &tokens, &options,
+                    );
+                    let data!(
+                        generated::generated_model::GeneratedParsedTextDetailedAttempt {
+                            result,
+                            ..
+                        }
+                    ) = attempt.into_data();
+                    let Err(failure) = result else {
+                        panic!("the text has a syntax error");
+                    };
+                    let scan = RecoveryTokenScan::new(&tokens);
+                    let directives =
+                        select_recovery_directives(&tokens, &scan, &failure, &options, 0)
+                            .into_iter()
+                            .map(|directive| format!("{directive:?}"))
+                            .collect::<Vec<_>>();
+                    (
+                        failure.furthest_start,
+                        failure.frame_ranks.clone(),
+                        directives,
+                    )
+                };
+                let memoized = claims();
+                let reference = without_syntax_memo_lookups(claims);
+                assert_eq!(memoized, reference, "{source}");
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_claims_do_not_depend_on_memo_replay() {
+        assert_recovery_claims_match_reference(&[
+            "just use pe",
+            "a very, very simple game",
+            "mi broda .e pu ke do brode ke'e",
+            "mi brodi jai ga broda gi brode be ku",
+        ]);
+    }
+
+    /// The same check on texts whose reference parse takes seconds to minutes. Run it with
+    /// `--ignored` after a change to memoization or to the recovery frame ranks.
+    #[test]
+    #[ignore = "the reference parse without memo lookups takes minutes"]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_claims_do_not_depend_on_memo_replay_on_longer_texts() {
+        assert_recovery_claims_match_reference(&[
+            "mi ku i do",
+            "xaceru",
+            "ro can be no",
+            "mi pu su'i ba broda",
+            "fa je fe ge broda gi brode",
+        ]);
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -5761,6 +6277,7 @@ mod tests {
                             .expect("actual failure cache hit");
                         state.replay_syntax_diagnostic_observations(
                             hit.diagnostic_observations.as_ref(),
+                            &hit.caller_rules,
                         );
                     } else {
                         let hit = state
@@ -5792,20 +6309,21 @@ mod tests {
                 assert!(state.diagnostic_candidates.is_empty());
                 state.begin_syntax_memo_rule_frame();
                 let context = state.syntax_memo_context();
-                let observations = if failure {
-                    state
-                        .syntax_memo_failure("child", 0, context)
-                        .unwrap()
-                        .diagnostic_observations
-                        .clone()
+                let (observations, caller_rules) = if failure {
+                    let hit = state.syntax_memo_failure("child", 0, context).unwrap();
+                    (
+                        hit.diagnostic_observations.clone(),
+                        hit.caller_rules.clone(),
+                    )
                 } else {
                     let hit = state.syntax_memo_success("child", 0, context).unwrap();
-                    state
-                        .apply_syntax_memo_success(hit)
-                        .side_effects
-                        .diagnostic_observations
+                    let side_effects = state.apply_syntax_memo_success(hit).side_effects;
+                    (
+                        side_effects.diagnostic_observations,
+                        side_effects.caller_rules,
+                    )
                 };
-                state.replay_syntax_diagnostic_observations(observations.as_ref());
+                state.replay_syntax_diagnostic_observations(observations.as_ref(), &caller_rules);
                 state.finish_syntax_memo_rule_frame();
                 assert_eq!(state.diagnostic_candidates.len(), fresh.len());
                 assert!(
@@ -6457,15 +6975,19 @@ mod tests {
             state.restore_diagnostics_preserving_start(checkpoint, 2);
             assert_eq!(state.diagnostic_candidates.len(), 1);
             assert!(state.diagnostic_candidates[0].same_report_content(&retained));
+            // The removed child stays as a region restricted to the kept start, for the
+            // recovery frame ranks, and the retained candidate is recorded again.
             let frame = state.syntax_memo_rule_frames.last().unwrap();
-            assert_eq!(frame.diagnostic_observations.len(), 1);
-            match frame.diagnostic_observations[0].as_data() {
+            assert_eq!(frame.diagnostic_observations.len(), 2);
+            assert!(matches!(
+                frame.diagnostic_observations[0].as_data(),
+                data!(SyntaxDiagnosticObservation::Restricted { start: 2, .. })
+            ));
+            match frame.diagnostic_observations[1].as_data() {
                 data!(SyntaxDiagnosticObservation::Candidate(error)) => {
                     assert!(error.same_report_content(&retained))
                 }
-                data!(SyntaxDiagnosticObservation::Nested(_)) => {
-                    panic!("must recapture only retained leaf")
-                }
+                _ => panic!("must recapture only retained leaf"),
             }
             state.finish_syntax_memo_rule_frame();
         }
@@ -6511,7 +7033,7 @@ mod tests {
         );
         let (_, later) = second.current_syntax_memo_observations();
         let later = later.unwrap();
-        match (earlier.id, later.id) {
+        match (earlier.observations.id, later.observations.id) {
             (
                 SyntaxDiagnosticObservationId::Recovered {
                     trial_id: a,
@@ -6530,14 +7052,14 @@ mod tests {
         second.finish_syntax_memo_rule_frame();
         let reset = second.diagnostic_checkpoint();
         second.begin_syntax_memo_rule_frame();
-        second.replay_syntax_diagnostic_observations(Some(&earlier));
+        second.replay_syntax_diagnostic_observations(Some(&earlier), &earlier.invoked_at);
         second.finish_syntax_memo_rule_frame();
         let combined = second.diagnostic_candidates_snapshot();
         assert_eq!(combined.len(), 2);
         second.restore_diagnostics(reset);
         assert_eq!(second.diagnostic_candidates.len(), 1);
         second.begin_syntax_memo_rule_frame();
-        second.replay_syntax_diagnostic_observations(Some(&earlier));
+        second.replay_syntax_diagnostic_observations(Some(&earlier), &earlier.invoked_at);
         second.finish_syntax_memo_rule_frame();
         assert_eq!(second.diagnostic_candidates.len(), 2);
         assert!(
@@ -6596,6 +7118,7 @@ mod tests {
                 side_effects: SyntaxMemoSideEffects {
                     warnings: Rc::from([]),
                     recovery_checkpoint_observations: None,
+                    caller_rules: SharedStack::empty(),
                     diagnostic_observations: None,
                 },
                 rule_observation_node: Some(0),
