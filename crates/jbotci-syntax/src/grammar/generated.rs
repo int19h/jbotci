@@ -312,10 +312,8 @@ pub mod generated_model {
     rule "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> enum {
         /// Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.
         prenex_statement,
-        /// Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.
-        bridi_statement,
-        /// Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.
-        text_group_statement,
+        // The forms without a prenex.
+        splice statement_after_i_connective,
     }
 
     /// Sum node for paragraph statement; selects among the `statement_or_fragment_statement` and `fragment_statement` forms.
@@ -638,10 +636,8 @@ pub mod generated_model {
     rule "bridi tail" sentence_bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
         /// camxes-exp's sentence-level interval joints.
         exp_interval_connected_bridi_tail,
-        /// Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
-        bridi_tail_with_possible_tail_terms,
-        /// Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
-        bridi_tail_without_tail_terms,
+        // The baseline arms.
+        splice bridi_tail,
     }
 
     /// camxes-exp's sentence-level joints with an interval connective (camxes-exp.peg:81-87):
@@ -1852,14 +1848,8 @@ pub mod generated_model {
     /// of `tense_modal_atom` reads a whole run of atoms without NAI, so it would take `fa pu` in
     /// `fa pu nai gi` and leave the NAI behind.
     rule "tag" exp_guard_tag_atom(selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
-        /// A baseline composite tense.
-        composite_tense,
-        /// A baseline FIhO modal.
-        fiho_tense,
-        /// A baseline BAI modal.
-        modal_tense,
-        /// A baseline KI marker.
-        sticky_tense,
+        // The baseline atoms.
+        splice baseline_term_tense_modal_atom,
         /// One prefixed camxes-exp tag atom, FA included.
         exp_prefixed_tag_atom,
     }
@@ -3865,10 +3855,8 @@ pub mod generated_model {
 
     /// Sum node for statement connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
     rule "statement connective" statement_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
-        /// Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
-        jek_connective,
+        // The standard JOI and JA connectives.
+        splice standard_statement_connective,
         /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
         ek_connective,
         /// Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.
@@ -4258,14 +4246,8 @@ pub mod generated_model {
     rule "tag" tense_modal_atom(selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
         /// Uses one complete corrected camxes-exp atom run when it is not a baseline tag.
         exp_tag_atom_run,
-        /// Uses the nested `composite_tense` sum form and preserves its selected alternative.
-        composite_tense,
-        /// Uses the `fiho_tense` product form, whose payload preserves `fiho`, `selbri`, and `fehu`.
-        fiho_tense,
-        /// Uses the `modal_tense` product form, whose payload preserves `nahe`, `se`, `bai`, `nai`, and `ki`.
-        modal_tense,
-        /// Uses the `sticky_tense` product form, whose payload preserves `ki`.
-        sticky_tense,
+        // The baseline atoms.
+        splice baseline_term_tense_modal_atom,
     }
 
     /// Product node for FIhO modal; preserves `fiho`, `selbri`, and `fehu` in source order.
