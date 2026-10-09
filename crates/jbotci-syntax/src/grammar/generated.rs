@@ -4336,6 +4336,9 @@ pub mod generated_model {
 
     /// Transparent product node for tag; preserves the `body` component.
     rule "tag" tense_modal(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+        // The words that can start a tag. ROI is not one: an interval property is
+        // `number ROI NAI?`, so ROI always follows a number (PA), a NIhE or MOhE operand, or a
+        // VEI mex, which are listed.
         assert choice((
             cmavo(Fiho),
             selmaho(Bai),
@@ -4360,7 +4363,6 @@ pub mod generated_model {
             cmavo(Mohe),
             cmavo(Vei),
             pa_word(),
-            selmaho(Roi),
         ));
         #[tree_child(primary)]
         /// The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.
