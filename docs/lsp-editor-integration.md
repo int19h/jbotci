@@ -244,7 +244,7 @@ prefix-filtered against the seed (sorted `word_index` +
 | Expected token | Candidates |
 |---|---|
 | `Cmavo(c)` | that cmavo |
-| `Selmaho(s)` | all cmavo of selma'o `s` (`entries_by_selmaho` / `Cmavo` table) |
+| `Selmaho(s)` | all cmavo of selma'o `s` (`Cmavo::ALL`, filtered by `Selmaho::contains`) |
 | `WordCategory(Brivla)` / `SelbriWord` | dictionary brivla (gismu, lujvo, fu'ivla) |
 | `WordCategory(ProSumti)` / `LetterWord` | KOhA / BY sets |
 | `WordCategory(Cmevla)` | cmevla harvested from the current document (open class; only useful source) |
