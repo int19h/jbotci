@@ -1,0 +1,17 @@
+error: associated functions `unused_default` and `unused_required` are never used
+  --> tests/ui/fail/dead_code_trait.rs:13:8
+   |
+ 6 | trait UsedTrait {
+   |       --------- associated functions in this trait
+...
+13 |     fn unused_default() {}
+   |        ^^^^^^^^^^^^^^
+...
+17 |     fn unused_required();
+   |        ^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> tests/ui/fail/dead_code_trait.rs:1:9
+   |
+ 1 | #![deny(dead_code)]
+   |         ^^^^^^^^^
