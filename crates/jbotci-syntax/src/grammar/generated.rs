@@ -5551,14 +5551,6 @@ pub mod generated_model {
         grouped_tanru_unit,
     }
 
-    /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
-    rule "tagged selbri" tagged_selbri_group_tanru_unit(connected_selbri, tense_modal) -> struct {
-        /// The shared tense modal child syntax node.
-        field tense_modal <- arc(tense_modal);
-        /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(connected_selbri);
-    }
-
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
     rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit_atom, linkargs) -> struct {
         /// The complete exp-sourced linkargs; the strict construct visitor warns at its BE.
