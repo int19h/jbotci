@@ -183,6 +183,7 @@ impl QwenByteBpeTokenizer {
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(groups > 0)]
 #[requires(group_size > 0)]
 #[ensures(ret == groups * group_size)]
@@ -190,6 +191,7 @@ pub(crate) fn q4_padded_row_stride(groups: usize, group_size: usize) -> usize {
     groups * group_size
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(rows > 0)]
 #[requires(groups > 0)]
 #[requires(group_size > 0)]
@@ -198,19 +200,7 @@ pub(crate) fn q4_packed_byte_len(rows: usize, groups: usize, group_size: usize) 
     (rows * q4_padded_row_stride(groups, group_size)).div_ceil(2)
 }
 
-#[requires(col < groups * group_size)]
-#[requires(groups > 0)]
-#[requires(group_size > 0)]
-#[ensures(ret >= row * groups * group_size)]
-pub(crate) fn q4_padded_element_index(
-    row: usize,
-    col: usize,
-    groups: usize,
-    group_size: usize,
-) -> usize {
-    row * q4_padded_row_stride(groups, group_size) + col
-}
-
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(!name.is_empty())]
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
@@ -257,6 +247,7 @@ pub(crate) fn validate_q4_tensor_storage(
     Ok(())
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(!label.is_empty())]
 #[ensures(true)]
 pub(crate) fn validate_chunk_layout(
@@ -301,6 +292,7 @@ pub(crate) fn validate_chunk_layout(
     Ok(())
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(!name.is_empty())]
 #[ensures(true)]
 pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String> {
@@ -311,6 +303,7 @@ pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String>
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(vocab_size > 0)]
 #[ensures(true)]
 pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result<(), String> {
@@ -743,12 +736,6 @@ mod tests {
         let groups = in_cols.div_ceil(group_size);
         assert_eq!(q4_padded_row_stride(groups, group_size), 64);
         assert_eq!(q4_packed_byte_len(rows, groups, group_size), 64);
-        assert_eq!(q4_padded_element_index(0, 32, groups, group_size), 32);
-        assert_eq!(q4_padded_element_index(1, 0, groups, group_size), 64);
-        assert_ne!(
-            q4_padded_element_index(1, 0, groups, group_size),
-            rows.saturating_sub(1) * in_cols
-        );
     }
 
     #[test]

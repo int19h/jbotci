@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use bityzba::{ensures, invariant, requires};
 use serde::Deserialize;
 
+#[cfg(target_arch = "wasm32")]
 use crate::core::{validate_chunk_layout, validate_q4_tensor_storage};
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
@@ -16,7 +17,6 @@ const EXPECTED_SCHEMA_VERSION: u32 = 1;
 #[invariant(!model_key.is_empty())]
 #[invariant(max_sequence_length.as_ref().is_none_or(|length| *length > 0))]
 #[invariant(!tensors.is_empty())]
-#[cfg_attr(test, allow(dead_code))]
 #[derive(Debug, Deserialize)]
 pub(super) struct ArtifactManifest {
     pub(super) schema_version: u32,
@@ -76,7 +76,6 @@ pub(super) struct TokenizerSpec {
 #[invariant((kind == "q4_onnx_gather" || kind == "q4_onnx_matmul") -> shape.len() == 2)]
 #[invariant(group_size.as_ref().is_none_or(|value| *value > 0))]
 #[invariant(groups.as_ref().is_none_or(|value| *value > 0))]
-#[cfg_attr(test, allow(dead_code))]
 #[derive(Debug, Clone, Deserialize)]
 pub(super) struct TensorSpec {
     pub(super) kind: String,
@@ -321,6 +320,7 @@ fn rank2_shape_from_valid_tensor(shape: &[usize]) -> [usize; 2] {
     [shape[0], shape[1]]
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(!name.is_empty())]
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
@@ -348,6 +348,7 @@ pub(super) fn validate_q4_tensor_chunks(
     )
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(!label.is_empty())]
 #[ensures(true)]
 pub(super) fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Result<(), String> {
@@ -366,6 +367,7 @@ pub(super) fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Resul
     validate_chunk_layout(label, chunked.byte_length, &chunks)
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn tensor_byte_length(spec: &TensorSpec) -> usize {
@@ -388,6 +390,7 @@ pub(super) fn tensor_byte_length(spec: &TensorSpec) -> usize {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(!name.is_empty())]
 #[ensures(true)]
 pub(super) fn checked_rank2_shape(name: &str, shape: &[usize]) -> Result<[usize; 2], String> {
