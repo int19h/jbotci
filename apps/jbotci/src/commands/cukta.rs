@@ -218,12 +218,3 @@ fn cukta_target_filter_from_input(input: &CuktaInput) -> Result<CuktaTargetFilte
         examples,
     })
 }
-
-#[requires(true)]
-#[ensures(true)]
-fn cukta_target_flags_present(input: &CuktaInput) -> bool {
-    !input.targets.is_empty()
-        || input.target_sections
-        || input.target_paragraphs
-        || input.target_examples
-}
