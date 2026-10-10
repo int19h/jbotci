@@ -1556,6 +1556,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "every private site-to-field threshold map is a valid existence-query index",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryFrameRank",
+        "any rule frame with any rank and candidate order is a valid recovery frame rank",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityKindTelemetry",
         "raw event counters deliberately admit every intermediate combination while telemetry is accumulated",
     ),
@@ -1566,6 +1570,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticCheckpoint",
         "saved report candidates, journal length and optional frame mark describe transaction snapshots; restoration checks compatibility with live state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxFrameRank",
+        "any distance from an innermost frame and any candidate order form a valid frame rank",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxFrameRankWalk",
+        "walk state: any position with any partial rank map and any cached extents is a valid point of the walk",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",

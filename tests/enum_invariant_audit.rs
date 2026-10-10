@@ -2876,6 +2876,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask command enum delegates validation to clap and option structs",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Preserved",
+        "preserved candidates delegate validity to the private copy-on-write SyntaxParseError payload",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId::Recovered",
         "identity of one observing frame; the nonzero counters are unique by construction within the state that issues them and no combination of them is invalid",
     ),
