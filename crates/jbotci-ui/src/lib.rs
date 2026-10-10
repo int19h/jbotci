@@ -57,7 +57,7 @@ use jbotci_web_core::build_page_head;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_arch = "wasm32")]
