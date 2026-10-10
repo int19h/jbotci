@@ -282,7 +282,10 @@ mod tests {
             ))
         );
         assert_eq!(
-            dictionary.rafsi_claimants("kam").collect::<Vec<_>>(),
+            dictionary
+                .lookup_rafsi("kam")
+                .map(|matched| (matched.entry.word, matched.entry.word_type))
+                .collect::<Vec<_>>(),
             vec![("ka", WordType::Cmavo)]
         );
     }

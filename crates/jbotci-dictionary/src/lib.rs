@@ -319,22 +319,6 @@ impl<'a> Dictionary<'a> {
         })
     }
 
-    /// Return the word and type of every dictionary entry claiming `rafsi`.
-    ///
-    /// Borrowed counterpart of [`Dictionary::short_rafsi_candidates`]: it hands
-    /// back the entry text itself rather than owned copies. Unlike short-rafsi
-    /// availability this keeps every [`RafsiSource`], so a four- or five-letter
-    /// query also reports the gismu whose universal forms spell it.
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn rafsi_claimants<'lookup>(
-        &'lookup self,
-        rafsi: &str,
-    ) -> impl Iterator<Item = (&'a str, WordType)> + 'lookup {
-        self.lookup_rafsi(rafsi)
-            .map(|matched| (matched.entry.word, matched.entry.word_type))
-    }
-
     /// Return every short rafsi `gismu` could claim, with its availability.
     ///
     /// The derivation itself is pure phonotactics
@@ -429,19 +413,6 @@ impl<'a> Dictionary<'a> {
             }),
             Err(_) => new!(RafsiAvailability::Free),
         }
-    }
-
-    /// Return all entries whose raw selma'o string matches exactly.
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn entries_by_selmaho<'lookup>(
-        &'lookup self,
-        selmaho: &str,
-    ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
-        let targets = self
-            .selmaho_index_entry(selmaho)
-            .map_or(&[][..], |entry| entry.targets);
-        targets.iter().map(|index| self.entry_at(*index))
     }
 
     #[requires(true)]
@@ -1610,20 +1581,29 @@ mod tests {
         );
 
         assert_eq!(
-            dictionary.rafsi_claimants("ska").collect::<Vec<_>>(),
+            dictionary
+                .lookup_rafsi("ska")
+                .map(|matched| (matched.entry.word, matched.entry.word_type))
+                .collect::<Vec<_>>(),
             vec![
                 ("skami", WordType::Gismu),
                 ("skeci", WordType::ExperimentalGismu)
             ]
         );
         assert_eq!(
-            dictionary.rafsi_claimants("kli").collect::<Vec<_>>(),
+            dictionary
+                .lookup_rafsi("kli")
+                .map(|matched| (matched.entry.word, matched.entry.word_type))
+                .collect::<Vec<_>>(),
             vec![("kliniko", WordType::Fuivla)]
         );
         // Universal forms share the rafsi index but cannot spell a short
         // rafsi, so availability never has to filter them out on content.
         assert_eq!(
-            dictionary.rafsi_claimants("salc").collect::<Vec<_>>(),
+            dictionary
+                .lookup_rafsi("salc")
+                .map(|matched| (matched.entry.word, matched.entry.word_type))
+                .collect::<Vec<_>>(),
             vec![("salci", WordType::Gismu)]
         );
         assert!(
