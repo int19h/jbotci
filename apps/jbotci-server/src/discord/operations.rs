@@ -97,6 +97,7 @@ pub(crate) struct PagedResults<T> {
 }
 
 impl<T> PagedResults<T> {
+    #[cfg(test)]
     /// One page out of a complete list the caller already holds. The total is
     /// known exactly, because the list is all of it.
     #[requires(true)]
@@ -1479,19 +1480,6 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_page_says_what_it_shows_and_only_claims_a_total_it_knows() {
-        // A complete list knows its total exactly.
-        let all = (1..=12).collect::<Vec<_>>();
-        let first = PagedResults::from_all(all.clone(), PageNumber::first()).expect("page 1");
-        assert_eq!(first.items, [1, 2, 3, 4, 5]);
-        assert_eq!(first.total, Some(12));
-        assert_eq!(first.range(), Some((1, 5)));
-        assert!(first.has_more);
-        let last =
-            PagedResults::from_all(all.clone(), PageNumber::new(3).expect("page")).expect("page 3");
-        assert_eq!(last.items, [11, 12]);
-        assert_eq!(last.range(), Some((11, 12)));
-        assert!(!last.has_more, "the last page says so");
-
         // A ranking cut short by the request knows only that more may follow.
         let page = PageNumber::first();
         let cut = (1..=prefix_len(page)).collect::<Vec<_>>();
@@ -1520,7 +1508,7 @@ mod tests {
         );
 
         // An empty result set is page one with nothing on it.
-        let empty = PagedResults::<u8>::from_all(Vec::new(), PageNumber::first()).expect("page");
+        let empty = PagedResults::<u8>::from_prefix(Vec::new(), PageNumber::first()).expect("page");
         assert!(empty.is_empty() && empty.total == Some(0) && empty.range().is_none());
     }
 

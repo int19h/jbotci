@@ -3,9 +3,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use jbotci_web_core::{
-    GentufaBlockRole, GentufaBracketFragment, GentufaSuccess, GentufaTreeRow, GentufaWebResult,
-};
+use jbotci_web_core::{GentufaBlockRole, GentufaBracketFragment, GentufaTreeRow, GentufaWebResult};
 
 use super::RenderedResult;
 use super::diagnostics::{render_diagnostics, summary};
@@ -243,17 +241,11 @@ pub(crate) fn tree_text(rows: &[GentufaTreeRow]) -> String {
     lines.join("\n")
 }
 
-/// The brackets text of a success, for tests and the overflow attachment.
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn brackets_plain(success: &GentufaSuccess) -> &str {
-    &success.brackets_text
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::request::{GentufaOptions, SourceText};
+    use jbotci_web_core::GentufaSuccess;
     use jbotci_web_core::{GentufaWebOptions, GentufaWebRequest, parse_gentufa_for_web};
 
     #[requires(!text.is_empty())]

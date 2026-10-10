@@ -740,13 +740,6 @@ impl CuktaMode {
     pub(crate) const fn requires_query(self) -> bool {
         !matches!(self, Self::Contents)
     }
-
-    /// Whether the mode is a search whose result-kind filter and page apply.
-    #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Meaning | Self::Word))]
-    pub(crate) const fn is_search(self) -> bool {
-        matches!(self, Self::Meaning | Self::Word)
-    }
 }
 
 /// CLL search result kinds; empty means every kind.

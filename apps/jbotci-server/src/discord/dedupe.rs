@@ -109,6 +109,7 @@ impl RecentInteractions {
         })
     }
 
+    #[cfg(test)]
     /// Number of deliveries currently protected.
     #[requires(true)]
     #[ensures(true)]

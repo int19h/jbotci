@@ -150,6 +150,7 @@ impl MessageLocks {
         }
     }
 
+    #[cfg(test)]
     /// Number of messages with a live lock entry (diagnostics/tests).
     #[requires(true)]
     #[ensures(true)]
