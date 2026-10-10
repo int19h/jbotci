@@ -325,12 +325,6 @@ pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError>
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn compact_json_string<T: Serialize>(value: &T) -> Result<String, OutputError> {
-    compact_json_string_with_options(value, JsonRenderOptions::default())
-}
-
-#[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn render_json_value_with_options(value: &Value, options: JsonRenderOptions) -> String {
     format_standard_json_value(value, 0, options)
@@ -380,21 +374,6 @@ pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, O
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
-pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
-    compact_generated_model_json_value(tree)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn compact_syntax_json_string_with_options(
-    tree: &TextSyntax,
-    options: JsonRenderOptions,
-) -> Result<String, OutputError> {
-    compact_generated_model_json_string_with_options(tree, options)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_generated_model_json_value(
     tree: &jbotci_syntax::generated_model::TextSyntax,
 ) -> Result<Value, OutputError> {
@@ -413,24 +392,6 @@ pub fn compact_generated_model_json_string_with_options(
     }
     json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
     Ok(format_compact_json_value(&value, 0, options))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn pretty_brackets(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
-    pretty_brackets_with_options(tree, source, BracketRenderOptions::default())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn pretty_tree(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
-    pretty_tree_with_options(tree, source, TreeRenderOptions::default())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn pretty_morphology_tree(words: &[WordLike], source: &str) -> Result<String, OutputError> {
-    pretty_morphology_tree_with_options(words, source, TreeRenderOptions::default())
 }
 
 #[requires(true)]
@@ -1134,7 +1095,7 @@ mod tests {
     use bityzba::{data, requires};
     use jbotci_dictionary::WordType;
     use jbotci_morphology::{
-        Word, WordKind, WordLike, WordLikeData, cmavo_phonemes, pronunciation_syllables,
+        Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
         segment_words_with_modifiers,
     };
     use jbotci_source::SourceSpan;
@@ -1143,6 +1104,14 @@ mod tests {
     };
 
     use super::*;
+
+    #[requires(true)]
+    #[bityzba::ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.as_str().is_empty()))]
+    fn cmavo_phonemes(text: &str) -> Option<jbotci_morphology::Phonemes> {
+        let normalized = jbotci_morphology::normalize_cmavo_form(text)?;
+        jbotci_morphology::Cmavo::from_text(&normalized)?;
+        jbotci_morphology::Phonemes::from_canonical(normalized).ok()
+    }
 
     const DICTIONARY_PARSE_XFAILS: &str = include_str!("../tests/dictionary_parse_xfails.tsv");
     const DICTIONARY_CATEGORY_EXCEPTIONS: &str =
@@ -1639,16 +1608,23 @@ mod tests {
     fn default_gentufa_rendering_does_not_show_elided_terminators() {
         let source = "mi klama";
         let parsed = parse(source);
-        assert!(!pretty_tree(&parsed, source).expect("tree").contains("vau"));
         assert!(
-            !pretty_brackets(&parsed, source)
+            !pretty_tree_with_options(&parsed, source, TreeRenderOptions::default())
+                .expect("tree")
+                .contains("vau")
+        );
+        assert!(
+            !pretty_brackets_with_options(&parsed, source, BracketRenderOptions::default())
                 .expect("brackets")
                 .contains("vau")
         );
         assert!(
-            !compact_syntax_json_string_with_options(&parsed, JsonRenderOptions::default())
-                .expect("json")
-                .contains("\"elided\"")
+            !compact_generated_model_json_string_with_options(
+                &parsed,
+                JsonRenderOptions::default()
+            )
+            .expect("json")
+            .contains("\"elided\"")
         );
     }
 
@@ -1755,7 +1731,7 @@ mod tests {
     #[ensures(true)]
     fn json_renderer_marks_elided_terminators_with_zero_length_spans() {
         let parsed = parse("li pa");
-        let json = compact_syntax_json_string_with_options(
+        let json = compact_generated_model_json_string_with_options(
             &parsed,
             JsonRenderOptions {
                 show_elided: true,

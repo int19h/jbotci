@@ -123,12 +123,6 @@ pub fn render_lujvo_fragment_for_script(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn format_word_with_options(word: &Word, options: PhonemeRenderOptions) -> String {
-    format_word_with_options_in_context(word, options, LeadingPauseContext::IndependentWord)
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn format_word_with_options_in_context(
     word: &Word,
     options: PhonemeRenderOptions,
@@ -278,12 +272,6 @@ fn render_display_gap_for_script(script: LojbanScript, gap: &str) -> String {
 #[ensures(true)]
 fn render_word(word: &Word, options: PhonemeRenderOptions, context: LeadingPauseContext) -> String {
     render_visible_word_surface(word, options, context)
-}
-
-#[requires(!phonemes.as_str().is_empty())]
-#[ensures(true)]
-pub(crate) fn render_word_phonemes_without_pause(kind: WordKind, phonemes: &Phonemes) -> String {
-    render_word_phonemes_without_pause_with_options(kind, phonemes, PhonemeRenderOptions::default())
 }
 
 #[requires(true)]
