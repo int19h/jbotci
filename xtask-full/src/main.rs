@@ -4632,20 +4632,6 @@ fn write_json_file(path: &Path, value: &serde_json::Value) -> Result<()> {
     fs::write(path, text).with_context(|| format!("writing JSON file `{}`", path.display()))
 }
 
-#[requires(!model_key.trim().is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|value| value.get("models").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
-fn merge_embedding_catalog(
-    remote_catalog: serde_json::Value,
-    replacement_catalog: serde_json::Value,
-    model_key: &str,
-) -> Result<serde_json::Value> {
-    merge_embedding_catalog_models(
-        remote_catalog,
-        replacement_catalog,
-        &BTreeSet::from([model_key.to_owned()]),
-    )
-}
-
 #[requires(!model_keys.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|value| value.get("models").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
 fn merge_embedding_catalog_models(
@@ -8808,9 +8794,10 @@ struct V0RefsExport {
 struct V0RefsCase {
     id: String,
     lojban: String,
-    #[allow(dead_code)]
+
     #[serde(default)]
-    provenance: Vec<serde_json::Value>,
+    #[serde(rename = "provenance")]
+    _provenance: Vec<serde_json::Value>,
     #[serde(default)]
     dialect: Option<String>,
     #[serde(default, rename = "syntax-refs")]
@@ -8865,8 +8852,9 @@ struct V0SumtiAssignmentFact {
     relation: Option<FixtureSpanKey>,
     #[serde(rename = "place-index")]
     place_index: Option<u8>,
-    #[allow(dead_code)]
-    label: String,
+
+    #[serde(rename = "label")]
+    _label: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -16276,7 +16264,12 @@ const generatedWasmPath = "assets/missing.wasm";"#,
             ]
         });
 
-        let merged = merge_embedding_catalog(remote, replacement, F2LLM_80M_MODEL_KEY).unwrap();
+        let merged = merge_embedding_catalog_models(
+            remote,
+            replacement,
+            &BTreeSet::from([F2LLM_80M_MODEL_KEY.to_owned()]),
+        )
+        .unwrap();
         let models = merged["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);

@@ -5,6 +5,7 @@ mod support;
 use std::fs;
 use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -18,12 +19,20 @@ use support::fixtures::{
     FixtureExport, FixtureSelector, GentufaOutputExpectation, JvozbaExpectation,
     JvozbaFixtureInput, JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectations, Provenance, ProvenanceData, RecoveredExpectation, RecoveredTreeExpectation,
-    RecoveredTreeRecoveryItemExpectation, RecoveredTreeRecoveryItemKindExpectation,
-    ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
-    TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
-    fixture_paths, import_export_file, load_fixture_file, load_fixture_path, load_fixture_tree,
-    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    OutputExpectations, Provenance, ProvenanceData, RecoveredExpectation, ReferenceExpectation,
+    ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation, TestCase, TextExpectation,
+    VlaseiOutputExpectation, XfailExpectation, filter_fixtures, import_export_file,
+    load_fixture_file, load_fixture_path, load_fixture_tree, run_fixture_facets,
+    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+};
+
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
+use support::fixtures::fixture_paths;
+
+#[cfg(not(debug_assertions))]
+use support::fixtures::{
+    RecoveredTreeExpectation, RecoveredTreeRecoveryItemExpectation,
+    RecoveredTreeRecoveryItemKindExpectation,
 };
 
 #[test]
@@ -638,6 +647,7 @@ fn recovery_reachability_values_from_test_stdout(stdout: &[u8]) -> [u64; 20] {
         .unwrap_or_else(|error| panic!("worker telemetry should be a 20-value array: {error}"))
 }
 
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
 #[requires(true)]
 #[ensures(true)]
 fn checked_count_from_test_stdout(stdout: &[u8]) -> usize {
@@ -1034,6 +1044,7 @@ fn recovered_syntax_first_error_matches_strict_failure_fixtures() {
     run_on_fixture_worker_stack(recovered_syntax_first_error_matches_strict_failure_fixtures_inner);
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(true)]
 #[ensures(true)]
 fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
@@ -1073,8 +1084,10 @@ fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
     assert!(checked > 0, "expected at least one syntax-failure fixture");
 }
 
+#[cfg(not(debug_assertions))]
 const RECOVERED_SYNTAX_FIRST_ERROR_CHUNK_SIZE: usize = 1000;
 
+#[cfg(not(debug_assertions))]
 #[requires(true)]
 #[ensures(ret.is_none_or(|(start, end)| start <= end))]
 fn recovered_syntax_first_error_worker_range() -> Option<(usize, usize)> {
@@ -1089,6 +1102,7 @@ fn recovered_syntax_first_error_worker_range() -> Option<(usize, usize)> {
     (start <= end).then_some((start, end))
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(start <= end)]
 #[ensures(ret.as_ref().is_ok_and(|checked| *checked <= paths.len()) || ret.is_err())]
 fn recovered_syntax_first_error_fixture_range(
@@ -1206,6 +1220,7 @@ fn recovered_syntax_first_error_matches_strict_with_default_recovery_cap() {
     }
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(!source.is_empty())]
 #[ensures(true)]
 fn assert_default_cap_recovered_syntax_first_error_matches_strict(source: &str) {
@@ -2173,6 +2188,7 @@ fn text_expectation_matches(expectation: &TextExpectation, actual: &str) -> bool
         })
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(true)]
 #[ensures(true)]
 fn recovered_syntax_tree_expectation(
@@ -2189,6 +2205,7 @@ fn recovered_syntax_tree_expectation(
     })
 }
 
+#[cfg(not(debug_assertions))]
 #[derive(Default)]
 #[invariant(true)]
 struct RecoveredSyntaxTreeExpectationVisitor {
@@ -2197,6 +2214,7 @@ struct RecoveredSyntaxTreeExpectationVisitor {
     recovery_projection: jbotci_tree::RecoveryProjection,
 }
 
+#[cfg(not(debug_assertions))]
 impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVisitor {
     type Node = jbotci_syntax::generated_model::recovered::NodeRef<'tree>;
     type Atom = jbotci_syntax::generated_model::recovered::AtomRef<'tree>;
@@ -2236,6 +2254,7 @@ impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVi
     }
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(true)]
 #[ensures(true)]
 fn recovered_tree_item_kind(
@@ -2283,6 +2302,7 @@ fn recovered_morphology_diagnostics(
     diagnostics
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(!test_case.id.is_empty())]
 #[ensures(true)]
 fn assert_recovered_syntax_expectation(test_case: &TestCase, expectation: &RecoveredExpectation) {
@@ -2348,6 +2368,7 @@ fn assert_recovered_syntax_expectation(test_case: &TestCase, expectation: &Recov
     }
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(!test_case.id.is_empty())]
 #[ensures(true)]
 fn morphology_warning_diagnostics_from_warnings(
@@ -2367,6 +2388,7 @@ fn morphology_warning_diagnostics_from_warnings(
         .collect()
 }
 
+#[cfg(not(debug_assertions))]
 #[requires(!test_case.id.is_empty())]
 #[ensures(true)]
 fn recovered_syntax_diagnostics(
@@ -2539,6 +2561,7 @@ fn temp_root(prefix: &str) -> PathBuf {
     ))
 }
 
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
 #[requires(true)]
 #[ensures(true)]
 fn run_on_fixture_worker_stack(test: impl FnOnce() + Send + 'static) {
