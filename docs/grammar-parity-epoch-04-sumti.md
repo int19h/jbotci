@@ -78,10 +78,8 @@ into this exact camxes-exp route.
 
 ## C3 expectation ledger
 
-The single consolidated rewrite scanned 26,302 fixtures and changed 69. The
-committed comparer, `tools/compare-sumti-continuation-expectations.py`, compares
-the pre-C3 tree with the regenerated tree and accepts exactly two mechanical
-classes at identical spans:
+The single consolidated rewrite scanned 26,302 fixtures and changed 69. The epoch comparer compared the pre-C3 tree with the regenerated tree.
+It accepted exactly two mechanical classes at identical spans:
 
 - **Sumti-connective re-wrapping (2):** `corpus/camxes/17625` and
   `corpus/camxes/18858`. The old VUhU argument-connective wrapper becomes the

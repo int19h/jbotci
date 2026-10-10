@@ -253,42 +253,6 @@ impl LineIndex {
     }
 
     #[requires(true)]
-    #[ensures(ret <= self.char_len())]
-    pub fn byte_to_char_offset(&self, byte_offset: usize) -> usize {
-        self.offsets_for_byte(byte_offset).char
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.utf16_len())]
-    pub fn byte_to_utf16_offset(&self, byte_offset: usize) -> usize {
-        self.offsets_for_byte(byte_offset).utf16
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.byte_len())]
-    pub fn char_to_byte_offset(&self, char_offset: usize) -> usize {
-        self.offsets_for_char(char_offset).byte
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.utf16_len())]
-    pub fn char_to_utf16_offset(&self, char_offset: usize) -> usize {
-        self.offsets_for_char(char_offset).utf16
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.byte_len())]
-    pub fn utf16_to_byte_offset(&self, utf16_offset: usize) -> usize {
-        self.offsets_for_utf16(utf16_offset).byte
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.char_len())]
-    pub fn utf16_to_char_offset(&self, utf16_offset: usize) -> usize {
-        self.offsets_for_utf16(utf16_offset).char
-    }
-
-    #[requires(true)]
     #[ensures(ret.line < self.line_count())]
     pub fn position_for_byte(&self, byte_offset: usize, encoding: PositionEncoding) -> Position {
         self.position_for_offsets(self.offsets_for_byte(byte_offset), encoding)
@@ -298,12 +262,6 @@ impl LineIndex {
     #[ensures(ret.line < self.line_count())]
     pub fn position_for_char(&self, char_offset: usize, encoding: PositionEncoding) -> Position {
         self.position_for_offsets(self.offsets_for_char(char_offset), encoding)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.line < self.line_count())]
-    pub fn position_for_utf16(&self, utf16_offset: usize, encoding: PositionEncoding) -> Position {
-        self.position_for_offsets(self.offsets_for_utf16(utf16_offset), encoding)
     }
 
     /// Resolve a position to all three offsets with the documented clamping rules.
@@ -338,16 +296,6 @@ impl LineIndex {
         encoding: PositionEncoding,
     ) -> usize {
         self.offsets_for_position(position, encoding).char
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.utf16_len())]
-    pub fn utf16_offset_for_position(
-        &self,
-        position: Position,
-        encoding: PositionEncoding,
-    ) -> usize {
-        self.offsets_for_position(position, encoding).utf16
     }
 
     /// Resolve a pipeline span without consulting its unpopulated line/column fields.
@@ -523,12 +471,12 @@ mod tests {
                 expected,
                 "UTF-16 boundary in {source:?}"
             );
-            assert_eq!(index.byte_to_char_offset(byte), char);
-            assert_eq!(index.byte_to_utf16_offset(byte), utf16);
-            assert_eq!(index.char_to_byte_offset(char), byte);
-            assert_eq!(index.char_to_utf16_offset(char), utf16);
-            assert_eq!(index.utf16_to_byte_offset(utf16), byte);
-            assert_eq!(index.utf16_to_char_offset(utf16), char);
+            assert_eq!(index.offsets_for_byte(byte).char, char);
+            assert_eq!(index.offsets_for_byte(byte).utf16, utf16);
+            assert_eq!(index.offsets_for_char(char).byte, byte);
+            assert_eq!(index.offsets_for_char(char).utf16, utf16);
+            assert_eq!(index.offsets_for_utf16(utf16).byte, byte);
+            assert_eq!(index.offsets_for_utf16(utf16).char, char);
 
             let crlf_interior = byte > 0
                 && byte < source.len()
@@ -541,7 +489,10 @@ mod tests {
             ] {
                 let position = index.position_for_byte(byte, encoding);
                 assert_eq!(index.position_for_char(char, encoding), position);
-                assert_eq!(index.position_for_utf16(utf16, encoding), position);
+                assert_eq!(
+                    index.position_for_offsets(index.offsets_for_utf16(utf16), encoding),
+                    position
+                );
                 let resolved = index.offsets_for_position(position, encoding);
                 assert_eq!(index.position_for_byte(resolved.byte, encoding), position);
                 if !crlf_interior {

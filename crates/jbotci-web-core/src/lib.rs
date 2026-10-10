@@ -466,19 +466,6 @@ impl GentufaMorphologyAnalysis {
     }
 }
 
-/// Build the recovery-capable source analysis used by the Gentufa web facade.
-#[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-pub fn analyze_gentufa_source(
-    source: &str,
-    options: &GentufaWebOptions,
-) -> Result<GentufaSourceAnalysis, GentufaWebError> {
-    let morphology = analyze_gentufa_morphology_source(source, options)?;
-    Ok(complete_gentufa_source_analysis(
-        source, options, morphology,
-    ))
-}
-
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
 pub fn analyze_gentufa_morphology_source(
@@ -1608,15 +1595,6 @@ fn append_inline_plain_text(inline: &VlackuInline, output: &mut String) {
     }
 }
 
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn color_for_node(depth: usize, preorder: usize) -> String {
-    const PALETTE: [&str; 8] = [
-        "#7fb3d5", "#82c596", "#f2c36b", "#d9927a", "#b48bd4", "#75c5bd", "#d8a35d", "#9eb36a",
-    ];
-    PALETTE[(depth + preorder) % PALETTE.len()].to_owned()
-}
-
 pub const VLACKU_WEB_DEFAULT_COUNT: usize = DEFAULT_VLACKU_RESULT_COUNT;
 pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
 pub const GIMFIHI_WEB_DEFAULT_COUNT: usize = GIMFIHI_DEFAULT_COUNT;
@@ -1624,7 +1602,6 @@ pub const GIMFIHI_WEB_MAX_COUNT: usize = GIMFIHI_MAX_COUNT;
 
 pub const CUKTA_WEB_DEFAULT_COUNT: usize = DEFAULT_CUKTA_WEB_RESULT_COUNT;
 pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
-pub const WEB_EMBEDDING_MODEL_KEY: &str = jbotci_embedding_inputs::DEFAULT_MODEL_KEY;
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
@@ -2742,16 +2719,6 @@ fn gimfihi_preset_options(selected: Option<GimfihiPreset>) -> Vec<GimfihiPresetO
 
 #[requires(true)]
 #[ensures(true)]
-pub fn build_vlacku_semantic_web_result(
-    state: &VlackuWebState,
-    hits: &[VlackuSemanticSearchHit],
-    message: Option<String>,
-) -> VlackuWebResult {
-    build_vlacku_semantic_web_result_with_loading(state, hits, message, false)
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn build_vlacku_semantic_web_result_with_loading(
     state: &VlackuWebState,
     hits: &[VlackuSemanticSearchHit],
@@ -2966,17 +2933,6 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
             }
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn build_cukta_semantic_web_page(
-    base_path: &str,
-    state: &CuktaWebState,
-    hits: &[CuktaSemanticSearchHit],
-    message: Option<String>,
-) -> CuktaPageData {
-    build_cukta_semantic_web_page_with_loading(base_path, state, hits, message, false)
 }
 
 #[requires(true)]
@@ -7142,8 +7098,10 @@ mod tests {
     fn valid_zohoi_warning_uses_the_parser_mapping_in_analysis_and_web_success() {
         const SOURCE: &str = "mi cusku zo'oi kitten";
 
-        let analysis = analyze_gentufa_source(SOURCE, &GentufaWebOptions::default())
+        let options = GentufaWebOptions::default();
+        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
             .expect("the built-in default dialect must compile");
+        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
         let expected = match analysis.parse.as_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => {
                 assert_eq!(parse.warnings.len(), 1);
@@ -9529,7 +9487,7 @@ mod tests {
         let WebComputeResponse::EmbeddingCorpusJson { json } = response else {
             panic!("expected embedding corpus response");
         };
-        assert!(json.contains(WEB_EMBEDDING_MODEL_KEY));
+        assert!(json.contains(jbotci_embedding_inputs::DEFAULT_MODEL_KEY));
     }
 
     #[test]
@@ -9677,7 +9635,7 @@ mod tests {
                 targets: default_cukta_target_values(),
             }),
         };
-        let meaning_page = build_cukta_semantic_web_page(
+        let meaning_page = build_cukta_semantic_web_page_with_loading(
             "",
             &meaning_state,
             &[CuktaSemanticSearchHit {
@@ -9685,6 +9643,7 @@ mod tests {
                 score: 0.75,
             }],
             None,
+            false,
         );
         let CuktaPageKind::Search {
             results,
@@ -9745,7 +9704,7 @@ mod tests {
             .iter()
             .position(|chunk| chunk.kind == CllSearchChunkKind::Paragraph)
             .expect("a paragraph chunk");
-        let section_only_page = build_cukta_semantic_web_page(
+        let section_only_page = build_cukta_semantic_web_page_with_loading(
             "",
             &CuktaWebState {
                 view: CuktaWebView::Search(CuktaWebSearchState {
@@ -9770,6 +9729,7 @@ mod tests {
                 },
             ],
             None,
+            false,
         );
         let CuktaPageKind::Search {
             results, has_more, ..
@@ -10205,7 +10165,7 @@ mod tests {
             .iter()
             .position(|entry| entry.word == "klama")
             .expect("klama exists");
-        let meaning = build_vlacku_semantic_web_result(
+        let meaning = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
                 mode: VlackuWebMode::Meaning,
                 query: "go somewhere".to_owned(),
@@ -10217,6 +10177,7 @@ mod tests {
                 score: 0.91,
             }],
             None,
+            false,
         );
         assert_eq!(
             meaning.cards.first().map(|card| card.word.as_str()),
@@ -10227,7 +10188,7 @@ mod tests {
             Some(0.91)
         );
 
-        let missing = build_vlacku_semantic_web_result(
+        let missing = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
                 mode: VlackuWebMode::Meaning,
                 query: "klama".to_owned(),
@@ -10236,6 +10197,7 @@ mod tests {
             },
             &[],
             Some("Open Settings".to_owned()),
+            false,
         );
         assert_eq!(missing.message.as_deref(), Some("Open Settings"));
 
@@ -10415,7 +10377,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let result = build_vlacku_semantic_web_result(
+        let result = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
                 mode: VlackuWebMode::Meaning,
                 query: "nonsense".to_owned(),
@@ -10424,6 +10386,7 @@ mod tests {
             },
             &hits,
             None,
+            false,
         );
         let result_json = serde_json::to_string(&result).expect("semantic result serializes");
 
@@ -10746,7 +10709,7 @@ mod tests {
 
         assert_eq!(
             value.get("modelKey").and_then(serde_json::Value::as_str),
-            Some(WEB_EMBEDDING_MODEL_KEY)
+            Some(jbotci_embedding_inputs::DEFAULT_MODEL_KEY)
         );
         assert!(value.get("model-key").is_none());
         assert!(value.get("model_key").is_none());

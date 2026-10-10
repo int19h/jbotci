@@ -380,9 +380,9 @@ tree moves.
 | Change | Where |
 | --- | --- |
 | Exact `diagnostics` on the 23 success witnesses that omitted them | `tests/fixtures/adhoc/syntax/terms/zantufa-*.toml` |
-| Fail-closed completeness check + 4 cases | `tools/compare-term-hierarchy-expectations.py`, `tools/tests/test_compare_term_hierarchy_expectations.py` |
+| Fail-closed completeness check + 4 cases | The epoch comparer and its tests |
 | Sumti-tier configuration rows 2 and 5 | `zantufa-bo-sumti-connectorless-{no-features,both-axes}.toml` |
-| Comparer prose named the 6a archive while its constants named the 6b one | `tools/compare-term-hierarchy-expectations.py`, its unit test |
+| Comparer prose named the 6a archive while its constants named the 6b one | The epoch comparer and its unit test |
 | The `zantufa_bound_sumti_tail` comment stated the opposite of the classifier's ACKed disposition | `crates/jbotci-syntax/src/grammar/generated.rs` |
 
 That last one is worth its own line, because the correction is the whole point of

@@ -435,6 +435,7 @@ fn blocks_tagged_words(site: &CllSite, blocks: &[CllBlock]) -> BTreeSet<String> 
     visitor.words
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn block_tagged_words(site: &CllSite, block: &CllBlock) -> BTreeSet<String> {

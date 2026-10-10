@@ -346,8 +346,7 @@ extension is being diagnosed.
 
 The warning changes no tree, no status and no other diagnostic. Every affected
 expectation gains T3 warning entries and keeps every pre-existing diagnostic in
-place and in order, which is the property
-`tools/compare-term-hierarchy-expectations.py` enforces as its class (iv)
+place and in order, The epoch comparer enforced this property with class (iv),
 `t3-loose-connection-warning`.
 
 | Re-pinned expectations | Fixtures | Warnings added |
@@ -481,11 +480,10 @@ failed that check, and it is the acceptance flip ledgered below.
 
 ### The comparer
 
-`tools/compare-term-hierarchy-expectations.py` rewrites the *old* tree with the mechanical
-shapes the plan approves and then requires byte equality with the new tree. It never infers
-a class from the new tree, from fixture text, or from a span comparison, so an ownership
-change cannot be laundered as a re-leveling. Class (iii), sumti-term pass-through, is
-prohibited and not implemented.
+The epoch comparer rewrote the old tree with the approved mechanical shapes.
+It required byte equality with the new tree.
+It derived no class from the new tree, fixture text, or span comparisons.
+Class (iii), sumti-term pass-through, was prohibited.
 
 | Class | Incidence | What it accepts |
 | --- | ---: | --- |

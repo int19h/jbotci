@@ -235,10 +235,7 @@ impl TextDisplay {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ButtonStyle {
-    Primary,
     Secondary,
-    Success,
-    Danger,
 }
 
 impl ButtonStyle {
@@ -246,10 +243,7 @@ impl ButtonStyle {
     #[ensures(ret >= 1 && ret <= 4)]
     const fn code(self) -> u8 {
         match self {
-            Self::Primary => 1,
             Self::Secondary => 2,
-            Self::Success => 3,
-            Self::Danger => 4,
         }
     }
 }
@@ -863,6 +857,7 @@ pub(crate) enum ModalComponent {
 }
 
 impl ModalComponent {
+    #[cfg(test)]
     /// Whether this is the modal's own text rather than a control.
     #[requires(true)]
     #[ensures(ret == matches!(self, Self::TextDisplay(_)))]

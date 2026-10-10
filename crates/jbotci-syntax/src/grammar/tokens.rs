@@ -4,9 +4,7 @@ use std::sync::Arc;
 
 use crate::{ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData};
 use bityzba::{data, invariant, new, requires};
-use jbotci_diagnostics::{
-    TraceContext, TraceEventKind, TraceFailureBranch, TraceFailureSummary, TraceLevel,
-};
+use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 
 use super::{
@@ -982,14 +980,6 @@ fn syntax_incomplete_kind_from_expectations(
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_incomplete_kind_for_expectation_reason(
-    reason: &crate::SyntaxExpectationReason,
-) -> Option<SyntaxErrorKind> {
-    syntax_incomplete_kind_candidate_for_expectation_reason(reason).map(|candidate| candidate.kind)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn syntax_incomplete_kind_candidate_for_expectation_reason(
     reason: &crate::SyntaxExpectationReason,
 ) -> Option<IncompleteKindCandidate> {
@@ -1006,14 +996,6 @@ fn syntax_incomplete_kind_candidate_for_expectation_reason(
             }
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_incomplete_kind_for_constructs<'a>(
-    constructs: impl Iterator<Item = &'a str>,
-) -> Option<SyntaxErrorKind> {
-    syntax_incomplete_kind_candidate_for_constructs(constructs).map(|candidate| candidate.kind)
 }
 
 #[requires(true)]
@@ -1140,47 +1122,6 @@ fn is_forethought_connection_construct(construct: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|summary| !summary.reason.is_empty()))]
-pub(super) fn syntax_trace_failure_summary(
-    errors: &[SyntaxParseError<'_>],
-) -> Option<TraceFailureSummary> {
-    let farthest_start = errors.iter().map(|error| error.span().start).max()?;
-    let farthest = errors
-        .iter()
-        .filter(|error| error.span().start == farthest_start)
-        .collect::<Vec<_>>();
-    let merged = farthest
-        .iter()
-        .map(|error| (*error).clone())
-        .reduce(SyntaxParseError::merge_for_parser)?;
-    let preferred_context = merged.preferred_context();
-    let merged = merged.into_report_error();
-    let expectations = merged.expectations();
-    let expected = merged.expected_strings();
-    let current_context = merged.current_context().or(preferred_context);
-    let summary_context = merged.summary_context().or_else(|| current_context.clone());
-    let reason = syntax_error_reason(
-        merged.reason(),
-        &expected,
-        &expectations,
-        summary_context
-            .as_ref()
-            .map(|context| context.construct.as_str()),
-    );
-    let branches = farthest
-        .into_iter()
-        .flat_map(trace_failure_branches)
-        .collect::<Vec<_>>();
-    Some(new!(TraceFailureSummary {
-        byte_start: merged.span().start,
-        byte_end: merged.span().end,
-        reason,
-        branches,
-        current_context: current_context.map(trace_context),
-    }))
-}
-
-#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn syntax_error_reason(
     reason: &RichReason<'_, Token, Cow<'static, str>>,
@@ -1196,37 +1137,6 @@ fn syntax_error_reason(
         RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
         RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn trace_failure_branches(error: &SyntaxParseError<'_>) -> Vec<TraceFailureBranch> {
-    let error = error.clone().into_report_error();
-    let expected = error.expected_strings();
-    if error.context_paths().is_empty() {
-        return vec![TraceFailureBranch {
-            contexts: Vec::new(),
-            expected,
-        }];
-    }
-    error
-        .context_paths()
-        .iter()
-        .map(|path| TraceFailureBranch {
-            contexts: path.iter().cloned().map(trace_context).collect(),
-            expected: expected.clone(),
-        })
-        .collect()
-}
-
-#[requires(!context.construct.is_empty())]
-#[ensures(ret.construct == context.construct)]
-fn trace_context(context: SyntaxConstructContext) -> TraceContext {
-    TraceContext::new(
-        context.construct.clone(),
-        context.byte_start,
-        context.byte_end,
-    )
 }
 
 #[requires(true)]

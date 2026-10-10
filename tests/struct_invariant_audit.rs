@@ -396,6 +396,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "bityzba fixture covers explicit no-op type markers",
     ),
     (
+        "crates/bityzba/tests/ui/fail/dead_code_types.rs:UnusedMarker",
+        "the compile-fail fixture tests unused-type warnings on a no-op contract marker",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:BlockParseState",
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
@@ -588,10 +592,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "owned index entry is produced from non-empty BTreeMap buckets",
     ),
     (
-        "crates/jbotci-dictionary/src/lib.rs:OwnedSelmahoIndexEntry",
-        "owned index entry is produced from non-empty BTreeMap buckets",
-    ),
-    (
         "crates/jbotci-dictionary/src/lib.rs:OwnedWordIndexEntry",
         "owned index entry is produced from non-empty BTreeMap buckets",
     ),
@@ -618,10 +618,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:Score",
         "Lensisku score is an opaque upstream ranking value",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:SelmahoIndexEntry",
-        "borrowed index entry is generated from owned validated buckets",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:WordIndexEntry",
@@ -1184,15 +1180,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed tag-term view delegates validity to the invariant-bearing guarded or unguarded tag term it was built from",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:AbstractionNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:BridiNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:BridiTailNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
@@ -1222,10 +1210,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:FixtureSumtiAssignment",
         "fixture assignment records are stable projections of typed reference analysis facts",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FreeModifierNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedBridiTailAnalysis",
@@ -1272,20 +1256,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "temporary pass borrows an independently valid builder and place cursor; either assigned flag is valid at any cursor state, and source order and monotonic assignment are enforced by walker method contracts and Full-link cursor tests",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:MeksoNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:MeksoOperatorNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:NodeMention",
         "node mention validity is maintained by discourse traversal and resolved through SyntaxIndex ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ParagraphNodeId",
-        "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:PlaceAnalysis",
@@ -1354,10 +1326,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-source/src/lib.rs:Spanned",
         "span and value each own their validity",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/containment.rs:AliasPolicyVisitor",
-        "diagnostic accumulator stores either no error or any syn error; there is no cross-field constraint",
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:AliasRule",
@@ -2126,18 +2094,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/platform.rs:TooltipPlacement",
         "platform tooltip placement is transient geometry produced by platform layout services",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TopbarLayoutMetrics",
-        "platform topbar metrics are direct layout measurements used by shared placement code",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TreeLine",
-        "platform tree lines are renderer geometry derived from measured syntax rows",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TreeLineAnchor",
-        "platform tree line anchors are renderer geometry derived from measured syntax rows",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:UnsupportedClipboardService",

@@ -18,6 +18,7 @@ pub(super) fn vlacku_jvozba_available() -> bool {
     true
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn update_vlacku_jvozba_availability(mut available: Signal<bool>) {
@@ -44,6 +45,7 @@ pub(super) fn cukta_toc_forced_autohide_active() -> bool {
     false
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn update_cukta_toc_forced_autohide(mut forced_autohide: Signal<bool>) {
@@ -111,6 +113,7 @@ pub(super) fn cukta_edition_release_fit_for_layout(
     })
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 /// The verdict after measuring the row that is laid out right now.
 ///
 /// `measured` is `None` when the row could not be measured - no box yet, styles
@@ -215,6 +218,7 @@ impl CuktaEditionReleaseFitState {
         let _ = self.claim_measurement();
     }
 
+    #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
     /// Write the result of the measurement that took `claim`, if that
     /// measurement is still the one being waited for.
     #[requires(true)]
@@ -242,6 +246,7 @@ impl CuktaEditionReleaseFitState {
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 /// Whether the measurement that took `claim`, for the layout `measured_for`,
 /// may still be written into `current`.
 ///
@@ -262,6 +267,7 @@ pub(super) fn cukta_edition_release_fit_accepts_result(
     claim == held_claim && current.key == measured_for
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 /// Whether the cukta edition row can show the release tag beside the title.
 ///
 /// `available_width` is the row's own content box; `required_width` is the
@@ -949,6 +955,7 @@ pub(super) fn topbar_layout_from_metrics(metrics: TopbarLayoutMetrics) -> Topbar
     })
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn topbar_layout_from_probe_fits(fits: impl Fn(&str) -> bool) -> TopbarLayout {
@@ -989,6 +996,7 @@ pub(super) fn topbar_layout_from_probe_fits(fits: impl Fn(&str) -> bool) -> Topb
     })
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn topbar_layout_probe_selector(layout: TopbarLayout) -> &'static str {
@@ -1622,6 +1630,7 @@ pub fn jbotci_worker_ready() -> js_sys::Promise {
     js_sys::Promise::resolve(&JsValue::UNDEFINED)
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(!request_json.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
 pub(super) fn web_compute_handle(request_json: &str) -> Result<String, String> {
@@ -1843,6 +1852,7 @@ async fn browser_embedding_corpus() -> Result<BrowserEmbeddingCorpus, String> {
     Ok(corpus)
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(!corpus_json.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
 pub(super) fn embedding_corpus_identity_json(corpus_json: &str) -> Result<String, String> {
@@ -3429,19 +3439,6 @@ pub(super) fn human_bytes(bytes: u64) -> String {
     }
 }
 
-#[requires(!name.is_empty())]
-#[ensures(true)]
-pub(super) fn render_disabled(name: &str) -> Element {
-    rsx! {
-        section { class: "spa-page disabled-page",
-            div { class: "page-container",
-                h1 { "{name}" }
-                p { "This tool is not available in jbotci v1 yet." }
-            }
-        }
-    }
-}
-
 #[requires(count > 0)]
 #[ensures(!ret.is_empty())]
 pub(super) fn repeated_parse_tree_template(count: usize) -> String {
@@ -4027,13 +4024,7 @@ pub(super) fn schedule_gentufa_tree_layout_after_fonts_ready(document: &web_sys:
     });
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_gentufa_tree_layout_after_fonts_ready(document: &()) {
-    let _ = document;
-}
-
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[invariant(true)]
 pub(super) struct GentufaTreeLineAnchor {
@@ -4045,6 +4036,7 @@ pub(super) struct GentufaTreeLineAnchor {
     pub(super) row_bottom: f64,
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn gentufa_tree_line_paths(
@@ -4081,6 +4073,7 @@ pub(super) fn gentufa_tree_line_paths(
     paths
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(end_y >= start_y)]
 #[ensures(!ret.is_empty())]
 pub(super) fn gentufa_tree_line_path_data(x: f64, start_y: f64, end_y: f64) -> String {
@@ -4780,6 +4773,7 @@ pub(super) fn block_reference_height_growth(
     }
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 pub(super) struct ReferenceBottoms {
@@ -5845,20 +5839,6 @@ pub(super) fn sync_vlacku_jvozba_pane_metrics() {
         &format!("{}px", layout.scrollbar_gutter_width),
     );
 }
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn sync_vlacku_jvozba_pane_metrics() {
-    spawn(async move {
-        sync_vlacku_jvozba_pane_metrics_desktop().await;
-    });
-}
-
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn sync_vlacku_jvozba_pane_metrics() {}
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]

@@ -19,20 +19,6 @@ pub(crate) fn escape(text: &str) -> String {
     escape_discord_markdown(text)
 }
 
-/// Bold, escaped.
-#[requires(true)]
-#[ensures(ret.starts_with("**") && ret.ends_with("**"))]
-pub(crate) fn bold(text: &str) -> String {
-    format!("**{}**", escape(text))
-}
-
-/// Italic, escaped.
-#[requires(true)]
-#[ensures(ret.starts_with('*') && ret.ends_with('*'))]
-pub(crate) fn italic(text: &str) -> String {
-    format!("*{}*", escape(text))
-}
-
 /// Strikethrough, escaped (used for elided terminators and skipped input).
 #[requires(true)]
 #[ensures(ret.starts_with("~~") && ret.ends_with("~~"))]
@@ -163,7 +149,6 @@ mod tests {
             escape("**bold** @everyone <@1> # h\n-# sub"),
             "\\*\\*bold\\*\\* \\@everyone \\<\\@1\\> # h\n\\-# sub"
         );
-        assert_eq!(bold("a*b"), "**a\\*b**");
         assert_eq!(subtext("gentufa · brackets"), "-# gentufa · brackets");
         assert_eq!(inline_code("kla"), "`kla`");
         assert_eq!(inline_code("a``b"), escape("a``b"));

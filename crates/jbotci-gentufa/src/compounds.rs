@@ -627,7 +627,14 @@ mod tests {
             show_elided,
             ..GentufaBlockOptions::default()
         };
-        let bare = generated_model_blocks_layout(&syntax, source, &[], &options);
+        let bare = generated_model_blocks_layout_with_references::<()>(
+            &syntax,
+            source,
+            None,
+            None,
+            &[],
+            &options,
+        );
         let projected = generated_model_blocks_layout_with_compounds(
             &syntax,
             source,
@@ -958,7 +965,14 @@ mod tests {
                 show_elided,
                 ..GentufaBlockOptions::default()
             };
-            let bare = generated_model_blocks_layout::<()>(&syntax, source, &[], &options);
+            let bare = generated_model_blocks_layout_with_references::<()>(
+                &syntax,
+                source,
+                None,
+                None,
+                &[],
+                &options,
+            );
             let projected = generated_model_blocks_layout_with_compounds::<()>(
                 &syntax,
                 source,
@@ -1092,7 +1106,14 @@ mod tests {
                     show_elided,
                     ..GentufaBlockOptions::default()
                 };
-                let bare = generated_model_blocks_layout::<()>(&syntax, source, &[], &options);
+                let bare = generated_model_blocks_layout_with_references::<()>(
+                    &syntax,
+                    source,
+                    None,
+                    None,
+                    &[],
+                    &options,
+                );
                 let result = generated_model_blocks_layout_with_compounds::<()>(
                     &syntax,
                     source,
@@ -1184,7 +1205,14 @@ mod tests {
                 show_elided,
                 ..GentufaBlockOptions::default()
             };
-            let bare = generated_model_blocks_layout::<()>(&syntax, source, &[], &options);
+            let bare = generated_model_blocks_layout_with_references::<()>(
+                &syntax,
+                source,
+                None,
+                None,
+                &[],
+                &options,
+            );
             let mut collector = GeneratedBlockCollector::<false>::new(source, &options, None, None);
             syntax.visit_in_order(&mut collector);
             let mut markers = Vec::new();

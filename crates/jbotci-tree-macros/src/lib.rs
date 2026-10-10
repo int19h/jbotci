@@ -866,15 +866,11 @@ fn recovered_field_state_impls(
         .filter(|(_index, ty)| atom_requires_external_recovered_field_state(ty))
         .map(|(index, ty)| {
             let assert_fn = format_ident!("__jbotci_tree_assert_recovered_field_state_{index}");
-            let check_fn = format_ident!("__jbotci_tree_check_recovered_field_state_{index}");
             quote! {
-                #[allow(dead_code)]
-                fn #assert_fn<T: ::jbotci_tree::RecoveredFieldState>() {}
-
-                #[allow(dead_code)]
-                fn #check_fn() {
+                const _: fn() = || {
+                    fn #assert_fn<T: ::jbotci_tree::RecoveredFieldState>() {}
                     #assert_fn::<#ty>();
-                }
+                };
             }
         });
     let with_free_modifiers_impl = has_with_free_modifiers.then(|| {

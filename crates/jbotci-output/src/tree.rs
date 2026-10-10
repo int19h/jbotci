@@ -851,34 +851,6 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn raw_generated_syntax_subtree_value<T>(
-    value: &T,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Option<TreeValue>
-where
-    T: GeneratedSyntaxAstTreeNode,
-{
-    let mut visitor =
-        SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(source, options, None);
-    value.visit_in_order(&mut visitor);
-    visitor.finish_optional()
-}
-#[requires(true)]
-#[ensures(true)]
-fn required_generated_syntax_subtree_value<T>(
-    value: &T,
-    source: &str,
-    options: TreeRenderOptions,
-) -> TreeValue
-where
-    T: GeneratedSyntaxAstTreeNode,
-{
-    required_generated_syntax_subtree_value_with_index(value, source, options, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn required_generated_syntax_subtree_value_with_index<T>(
     value: &T,
     source: &str,
@@ -996,26 +968,6 @@ fn generated_regular_text_tree_value(
     TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn labelled_tree_entry_from_values(
-    label: &'static str,
-    values: Vec<TreeValue>,
-) -> Option<TreeEntry> {
-    if values.is_empty() {
-        return None;
-    }
-    let value = if values.len() == 1 {
-        values.into_iter().next().expect("length checked")
-    } else {
-        TreeValue::Collection(values)
-    };
-    Some(TreeEntry {
-        label: Some(label),
-        value,
     })
 }
 
@@ -2006,22 +1958,6 @@ fn generated_text_leading_connective_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_bridi_tail_connective_tree_value(
-    connective: &generated_model::BridiTailConnectiveSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value_with_index(
-        connective,
-        source,
-        options,
-        syntax_index,
-    ))
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn generated_paragraph_i_statement_connective_tree_value(
     connective: &generated_model::IParagraphStatementConnectiveSyntax,
     source: &str,
@@ -2342,32 +2278,6 @@ fn generated_paragraph_standard_statement_connective_constructor(
         generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective {
             ..
         } => "Selbri",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_text_leading_connective_constructor(
-    connective: &generated_model::TextLeadingConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::TextLeadingConnectiveSyntax::StandardStatementConnective(
-            standard_statement_connective,
-        ) => generated_standard_statement_connective_constructor(standard_statement_connective),
-        generated_model::TextLeadingConnectiveSyntax::CeheConnective { .. } => "NonLogical",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_standard_statement_connective_constructor(
-    connective: &generated_model::StandardStatementConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::StandardStatementConnectiveSyntax::JoikConnective(joik_connective) => {
-            generated_joik_connective_constructor(joik_connective)
-        }
-        generated_model::StandardStatementConnectiveSyntax::JekConnective { .. } => "Selbri",
     }
 }
 

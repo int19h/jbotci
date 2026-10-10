@@ -1505,6 +1505,7 @@ pub(crate) fn chrestomathy_area_groups(
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn chrestomathy_area_no_parse_rows(

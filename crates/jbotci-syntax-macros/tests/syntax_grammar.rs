@@ -107,31 +107,15 @@ fn single_token_documentation_audit_distinguishes_composite_fields() {
     }
 }
 
-#[bityzba::invariant(true)]
-#[allow(dead_code)]
-struct SyntaxGrammarEnv;
-#[bityzba::invariant(true)]
-#[allow(dead_code)]
-struct TextSyntax;
-#[bityzba::invariant(true)]
-#[allow(dead_code)]
-struct StatementSyntax;
-#[bityzba::invariant(true)]
-#[allow(dead_code)]
-struct LinkedSumtiListSyntax;
-#[bityzba::invariant(true)]
-#[allow(dead_code)]
-struct BoSumtiTail;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+
 enum Cmavo {
     Be,
     Bo,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+
 enum Selmaho {
     A,
     Fa,
@@ -141,11 +125,10 @@ enum Selmaho {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+
 enum SyntaxWordCategory {
     Cmevla,
     Quote,
-    SelbriWord,
 }
 
 jbotci_syntax_macros::syntax_grammar! {
@@ -328,13 +311,6 @@ fn grammar_macro_exports_declaration_metadata() {
 mod recovery_classification {
     use crate::{Cmavo, Selmaho, SyntaxWordCategory};
 
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct SyntaxGrammarEnv;
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct Token;
-
     jbotci_syntax_macros::syntax_grammar! {
         env SyntaxGrammarEnv;
 
@@ -382,16 +358,6 @@ mod recovery_classification {
 
 mod anchor_metadata {
     use crate::{Cmavo, Selmaho};
-
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct SyntaxGrammarEnv;
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct TextSyntax;
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct ItemSyntax;
 
     jbotci_syntax_macros::syntax_grammar! {
         env SyntaxGrammarEnv;
@@ -790,11 +756,6 @@ mod shared_containment {
             /// Shared leaf.
             leaf,
         }
-        /// Explicit inline enum payload.
-        rule "inline sum" inline_sum -> enum {
-            /// Inline leaf.
-            inline(leaf),
-        }
         /// Nodes in containers use the same storage policy as direct fields.
         rule "product" product -> struct {
             /// Alias output is resolved structurally.
@@ -803,18 +764,10 @@ mod shared_containment {
             field sequence <- [zero_or_more leaf];
             /// Nonempty sequences use the same containment lowering.
             field nonempty <- [one_or_more leaf];
-            /// Repetition preserves explicit inline storage.
-            field inline_sequence <- [zero_or_more inline(leaf)];
-            /// Choice preserves a uniform explicit inline policy.
-            field inline_choice <- choice(inline(leaf), inline(leaf));
             /// Nested explicit pointers retain their layers.
             field nested <- arc(opt(leaf));
             /// Box is preserved and its child is shared.
             field boxed <- boxed(leaf);
-            /// Inline applies inside its enclosing option.
-            field inline_optional <- opt(inline(leaf));
-            /// Alias results can be inlined explicitly at their field site.
-            field inline_alias <- inline(optional_leaf);
             /// Modifier elements are shared.
             field modified <- cmavo(Be).wf();
             /// Tuple element containment.
@@ -834,12 +787,8 @@ mod shared_containment {
             optional: Some(leaf.clone()),
             sequence: vec![leaf.clone()],
             nonempty: vec1::vec1![leaf.clone()],
-            inline_sequence: vec![LeafSyntax(Token)],
-            inline_choice: LeafSyntax(Token),
             nested: Arc::new(Some(leaf.clone())),
             boxed: Box::new(leaf.clone()),
-            inline_optional: Some(LeafSyntax(Token)),
-            inline_alias: Some(LeafSyntax(Token)),
             modified: WithFreeModifiers {
                 value: Token,
                 free_modifiers: vec![Arc::new(FreeModifierSyntax(Token))],
@@ -858,13 +807,6 @@ mod shared_containment {
                 .try_into_valid()
                 .unwrap(),
             sum
-        );
-        let inline = InlineSumSyntax::Leaf(LeafSyntax(Token));
-        assert_eq!(
-            recovered::InlineSumSyntax::from_valid(inline.clone())
-                .try_into_valid()
-                .unwrap(),
-            inline
         );
     }
 }
@@ -912,10 +854,6 @@ mod generated_model_with_env {
     use crate::{Cmavo, Selmaho};
 
     #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct SyntaxGrammarEnv;
-
-    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
@@ -943,10 +881,6 @@ mod generated_model_with_env {
 
 mod new_dsl {
     use crate::{Cmavo, Selmaho};
-
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct SyntaxGrammarEnv;
 
     #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1192,10 +1126,6 @@ mod new_dsl {
 mod spliced_enum {
     use crate::{Cmavo, Selmaho};
     use std::sync::Arc;
-
-    #[bityzba::invariant(true)]
-    #[allow(dead_code)]
-    struct SyntaxGrammarEnv;
 
     #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

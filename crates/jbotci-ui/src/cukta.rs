@@ -2870,22 +2870,7 @@ pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &s
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn cukta_section_reference_from_href(href: &str) -> Option<String> {
-    let without_hash = href.split('#').next().unwrap_or(href);
-    if let Some(reference) = without_hash
-        .rsplit_once("/cukta/section/")
-        .map(|(_, value)| value)
-    {
-        return (!reference.is_empty()).then(|| reference.to_owned());
-    }
-    if let Some(reference) = without_hash.strip_prefix("section/") {
-        return (!reference.is_empty()).then(|| reference.to_owned());
-    }
-    None
-}
-
+#[cfg(any(test, target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn cukta_anchor_from_href(href: &str) -> Option<String> {

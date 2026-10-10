@@ -11,7 +11,7 @@ pub use line_index::{
 pub use snapshot::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
     CompletionItem, CompletionKind, CompletionProvenance, DecorationProfile, DiagnosticSnapshot,
-    DocumentSnapshot, FoldingRange, FoldingRangeKind, HoverContent, IncrementalAnalysisTimings,
+    DocumentSnapshot, FoldingRange, HoverContent, IncrementalAnalysisTimings,
     IncrementalDiagnosticGate, Inlay, InlayKind, InlayOptions, PreparedDocumentAnalysis,
     RawBracketsOptions, ResolvedDiagnostic, ResolvedLabel, SelectionRangeChain, SemanticToken,
     SemanticTokenKind, StructureBracketInlayOptions, StructureConstructFilter, StructureInlay,

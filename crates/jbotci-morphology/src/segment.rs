@@ -626,18 +626,6 @@ pub(crate) fn parse_lujvo_parts_with_canonical_phonemes(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-pub(crate) fn parse_cmevla_lujvo_parts_with_canonical_phonemes(
-    shape_word: &str,
-    canonical_word: &str,
-) -> Option<Vec1<LujvoPart>> {
-    parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(shape_word, canonical_word)
-        .into_iter()
-        .next()
-        .and_then(|parts| Vec1::try_from_vec(parts).ok())
-}
-
-#[requires(true)]
 #[ensures(ret.iter().all(|parts| !parts.is_empty()))]
 pub(crate) fn parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(
     shape_word: &str,
@@ -1777,13 +1765,6 @@ fn append_cmavo_char(output: &mut Option<&mut String>, value: char) {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
-    let chars = text_chars(text);
-    starts_with_cvcy_lujvo_chars(&chars, 0)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn parse_cmavo_form_main_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
@@ -2565,14 +2546,6 @@ fn is_gismu_chars(chars: &[char]) -> bool {
     }
 }
 
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn is_lujvo_chars_with_cache(chars: &[char], cache: &mut LujvoRecognitionCache) -> bool {
-    !cmavo_word_slice_with_cache(chars, 0, chars.len(), cache)
-        && !is_fuhivla_shape_slice_with_cache(chars, 0, chars.len(), cache)
-        && analyze_lujvo_part_ranges_chars_with_cache(chars, cache).is_ok()
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
@@ -2932,6 +2905,7 @@ fn phonemes_part(chars: &[char], start: usize, end: usize) -> Option<Phonemes> {
     Phonemes::from_canonical(chars[start..end].iter().collect()).ok()
 }
 
+#[cfg(test)]
 #[requires(index <= chars.len())]
 #[ensures(true)]
 fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
@@ -3316,6 +3290,7 @@ fn slinkuhi_slice_with_cache(
         && rafsi_string_starts_slice_with_cache(chars, start + 1, end, cache)
 }
 
+#[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn rafsi_string_starts_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -3504,13 +3479,6 @@ fn stress_tail_reaches_boundary(chars: &[char], index: usize, context_end: usize
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn rafsi_string_ending(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    rafsi_string_ending_with_cache(chars, start, end, lookahead_end, &mut cache)
-}
-
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn rafsi_string_ending_with_cache(
@@ -3619,6 +3587,7 @@ fn final_syllable_slice_in_context(
         && !stressed_syllable_has_implicit_stress(chars, start, end, context_end)
 }
 
+#[cfg(test)]
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
 fn post_word_slice(chars: &[char], index: usize, end: usize) -> bool {

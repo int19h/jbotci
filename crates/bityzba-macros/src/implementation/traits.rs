@@ -4,7 +4,7 @@
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{FnArg, ImplItem, ItemImpl, ItemTrait, Pat, TraitItem, TraitItemFn};
+use syn::{FnArg, ImplItem, ItemImpl, ItemTrait, Pat, TraitItem, TraitItemFn, spanned::Spanned};
 
 use crate::implementation::ContractType;
 
@@ -148,11 +148,17 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
             let name = contract_method_impl_name(&m.sig.ident.to_string());
             let name = syn::Ident::new(&name, m.sig.ident.span());
 
-            quote::quote! {
-                {
-                    Self::#name(#arguments)
-                }
-            }
+            let mut block = proc_macro2::Group::new(
+                proc_macro2::Delimiter::Brace,
+                quote::quote! { Self::#name(#arguments) },
+            );
+            // Required methods use the source semicolon as their body span.
+            let span = method.default.as_ref().map_or_else(
+                || method.semi_token.expect("required trait method").span(),
+                |block| block.brace_token.span.join(),
+            );
+            block.set_span(span);
+            block.into_token_stream()
         };
 
         let mut attrs = vec![];

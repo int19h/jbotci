@@ -266,31 +266,6 @@ pub(crate) trait LabelError<'tokens, L>: Sized {
 
     #[requires(true)]
     #[ensures(true)]
-    fn merge_expected_found<E: IntoIterator<Item = L>>(
-        self,
-        expected: E,
-        found: Option<MaybeRef<'tokens, Token>>,
-        span: SimpleSpan,
-    ) -> Self
-    where
-        Self: Error<'tokens>,
-    {
-        self.merge(Self::expected_found(expected, found, span))
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn replace_expected_found<E: IntoIterator<Item = L>>(
-        self,
-        expected: E,
-        found: Option<MaybeRef<'tokens, Token>>,
-        span: SimpleSpan,
-    ) -> Self {
-        Self::expected_found(expected, found, span)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn label_with(&mut self, _label: L) {}
 
     #[requires(true)]
@@ -498,13 +473,6 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
     pub(crate) fn next_is_continuation_sentinel(&self) -> bool {
         self.state
             .is_continuation_sentinel_location(self.cursor.index)
-    }
-
-    #[requires(true)]
-    #[ensures(self.cursor.index >= old(self.cursor.index))]
-    #[inline(always)]
-    pub(crate) fn skip(&mut self) {
-        let _ = self.next();
     }
 
     #[requires(before.inner.index <= self.cursor.index)]

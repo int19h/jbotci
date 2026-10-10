@@ -38,7 +38,7 @@ pub use structure_inlays::{
     StructureInlayKind,
 };
 use tree_regions::TreeRegionProjection;
-pub use tree_regions::{FoldingRange, FoldingRangeKind, SelectionRangeChain};
+pub use tree_regions::{FoldingRange, SelectionRangeChain};
 
 /// Immutable recovery-capable analysis of one document version.
 #[invariant(words.words.len() == word_spans.len(), "every segmented word has one query span")]

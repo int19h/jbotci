@@ -584,7 +584,7 @@ mod tests {
             // Deliberately exercise the low-level attestation boundary with an empty
             // definition, which a fully validated dictionary would already reject.
             let dictionary =
-                Dictionary::from_static_slices(&entries, &rows, &[], &[], &[], &[], &[], &[], 0);
+                Dictionary::from_static_slices(&entries, &rows, &[], &[], &[], &[], &[], 0);
             let selected = recognize_compounds(&dictionary, &words, source, &[]);
             if definition.is_empty() {
                 assert!(selected.is_empty());
@@ -596,7 +596,7 @@ mod tests {
                 assert_eq!(selected[0].entry_indices, [EntryIndex(0)]);
             }
         }
-        let missing = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], &[], 0);
+        let missing = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
         assert!(recognize_compounds(&missing, &words, source, &[]).is_empty());
     }
 }

@@ -1,7 +1,5 @@
 //! Unified TOML fixture loader, selectors, and runner support.
 
-#![allow(dead_code)]
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;

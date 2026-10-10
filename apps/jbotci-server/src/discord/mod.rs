@@ -43,7 +43,7 @@ const DISCORD_TIMESTAMP_HEADER: &str = "x-signature-timestamp";
 pub(crate) const DEFAULT_PUBLIC_BASE_URL: &str = "https://jbotci.app";
 pub(crate) const DEFAULT_DISCORD_API_BASE: &str = "https://discord.com/api/v10";
 pub(crate) const DISCORD_PUBLIC_KEY_ENV: &str = "DISCORD_PUBLIC_KEY";
-pub(crate) const DISCORD_API_BASE_ENV: &str = "DISCORD_API_BASE";
+
 pub(crate) const DISCORD_PUBLIC_BASE_URL_ENV: &str = "JBOTCI_PUBLIC_BASE_URL";
 const DISCORD_APPLICATION_ID_ENV: &str = "DISCORD_APPLICATION_ID";
 const DISCORD_BOT_TOKEN_ENV: &str = "DISCORD_BOT_TOKEN";

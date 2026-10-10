@@ -89,16 +89,6 @@ impl TreeBounds {
         })
     }
 
-    #[requires(span.byte_start <= span.byte_end)]
-    #[ensures(ret.byte_start <= self.byte_start && ret.byte_start <= span.byte_start)]
-    #[ensures(ret.byte_end >= self.byte_end && ret.byte_end >= span.byte_end)]
-    fn including(&self, span: &SourceSpan) -> Self {
-        new!(TreeBounds {
-            byte_start: self.byte_start.min(span.byte_start),
-            byte_end: self.byte_end.max(span.byte_end),
-        })
-    }
-
     #[requires(other.byte_start <= other.byte_end)]
     #[ensures(ret.byte_start <= self.byte_start && ret.byte_start <= other.byte_start)]
     #[ensures(ret.byte_end >= self.byte_end && ret.byte_end >= other.byte_end)]

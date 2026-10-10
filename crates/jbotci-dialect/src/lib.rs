@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::LazyLock;
 
-use bityzba::{data, expensive_ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -433,16 +433,6 @@ pub fn replace_dialect_formula_reference(
 #[ensures(true)]
 pub fn dialect_definition_to_text(definition: &DialectDefinition) -> String {
     render_dialect_definition_entries(&dialect_definition_entries(definition))
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn cmavo_dialect_entries_to_definition(entries: &[CmavoDialectEntry]) -> String {
-    let definition = DialectDefinition {
-        cmavo_entries: entries.to_vec(),
-        features: BTreeSet::new(),
-    };
-    dialect_definition_to_text(&definition)
 }
 
 #[requires(true)]

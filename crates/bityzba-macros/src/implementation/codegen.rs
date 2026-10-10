@@ -422,21 +422,17 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
     // create a new function body containing all assertions
     //
 
-    let new_block = quote::quote! {
-
-        {
-            #pre
-
-            #olds
-
-            #body
-
-            #post
-
-            ret
-        }
-
+    let inner = quote::quote! {
+        #pre
+        #olds
+        #body
+        #post
+        ret
     };
+    // Keep the source span on the braces so rustc can report unused items.
+    // Contract tokens retain their own spans and macro hygiene.
+    let mut new_block = proc_macro2::Group::new(proc_macro2::Delimiter::Brace, inner);
+    new_block.set_span(func.function.block.brace_token.span.join());
 
     // insert documentation attributes
 

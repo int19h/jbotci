@@ -19,18 +19,6 @@ use crate::{
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn segment_words_with_modifiers(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_attempt(input, options, source_id)
-        .into_data()
-        .result
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn segment_words_with_modifiers_attempt(
     input: &str,
     options: &MorphologyOptions,
@@ -2589,9 +2577,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn segments_ordinary_sentence() {
-        let words =
-            segment_words_with_modifiers("mi klama do", &MorphologyOptions::default(), None)
-                .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "mi klama do",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(bare_phonemes(&words), ["mi", "kláma", "do"]);
         assert_eq!(bare_span(&words[1]).map(|span| span.byte_start), Some(3));
@@ -2602,7 +2593,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn segments_adjacent_cmavo_and_brivla() {
-        let words = segment_words_with_modifiers(
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "coimi miklama lonublanu coicai",
             &MorphologyOptions::default(),
             None,
@@ -2621,8 +2612,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn explicit_stress_disambiguates_brivla_before_adjacent_cmavo() {
-        let words = segment_words_with_modifiers("KLAmami", &MorphologyOptions::default(), None)
-            .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "KLAmami",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(bare_phonemes(&words), ["kláma", "mi"]);
         assert_eq!(bare_span(&words[0]).map(|span| span.byte_end), Some(5));
@@ -2633,8 +2628,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn unstressed_brivla_prefix_does_not_split_before_adjacent_cmavo() {
-        let words = segment_words_with_modifiers("klamami", &MorphologyOptions::default(), None)
-            .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "klamami",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(bare_phonemes(&words), ["klamámi"]);
     }
@@ -2651,8 +2650,12 @@ mod tests {
         ];
 
         for (source, expected_kind, expected_start, expected_end) in cases {
-            let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect_err("forbidden consonant pairs must reject the word");
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("forbidden consonant pairs must reject the word");
             assert_invalid_error(
                 &error,
                 expected_kind,
@@ -2710,8 +2713,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cgv_relaxation_does_not_turn_invalid_lujvo_like_forms_into_fuhivla() {
-        let error = segment_words_with_modifiers("language", &MorphologyOptions::default(), None)
-            .expect_err("CgV relaxation must not bypass fu'ivla shape parsing");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "language",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("CgV relaxation must not bypass fu'ivla shape parsing");
 
         assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 0, 8, None);
     }
@@ -2720,8 +2727,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn xlaglymlu_reports_slinkuhi_before_lujvo_progress() {
-        let error = segment_words_with_modifiers("xlaglymlu", &MorphologyOptions::default(), None)
-            .expect_err("slinku'i form should fail");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "xlaglymlu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("slinku'i form should fail");
 
         assert_invalid_error(
             &error,
@@ -2738,12 +2749,18 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn invalid_lujvo_neighbors_remain_valid() {
-        let xlagymlu =
-            segment_words_with_modifiers("xlagymlu", &MorphologyOptions::default(), None)
-                .expect("valid lujvo with y-hyphen");
-        let laglymlu =
-            segment_words_with_modifiers("laglymlu", &MorphologyOptions::default(), None)
-                .expect("valid lujvo without leading x");
+        let xlagymlu = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "xlagymlu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid lujvo with y-hyphen");
+        let laglymlu = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "laglymlu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid lujvo without leading x");
 
         assert_eq!(
             bare_word(&xlagymlu[0]).expect("bare word").kind(),
@@ -2759,7 +2776,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn lujvo_can_end_with_fuhivla_core_after_y_hyphen() {
-        let words = segment_words_with_modifiers(
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "pirytorveki jetcybolxada",
             &MorphologyOptions::default(),
             None,
@@ -2782,9 +2799,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn final_fuhivla_lujvo_core_is_decomposed_as_rafsi_part() {
-        let words =
-            segment_words_with_modifiers("jetcybolxada", &MorphologyOptions::default(), None)
-                .expect("lujvo may end with a fu'ivla core");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "jetcybolxada",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("lujvo may end with a fu'ivla core");
         let parts = bare_word(&words[0])
             .expect("bare word")
             .lujvo_parts()
@@ -2827,8 +2847,12 @@ mod tests {
         ];
 
         for (word, expected_parts) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
             assert_lujvo_part_texts(word, &words, expected_parts);
         }
     }
@@ -2837,9 +2861,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vowel_initial_words_require_pause_at_word_boundary() {
-        let error =
-            segment_words_with_modifiers("mi lea klama", &MorphologyOptions::default(), None)
-                .expect_err("vowel-initial word without pause should fail");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "mi lea klama",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("vowel-initial word without pause should fail");
         assert_invalid_error(
             &error,
             MorphologyErrorKind::VowelHiatus,
@@ -2848,9 +2875,12 @@ mod tests {
             Some(MorphologyContextKind::Fuhivla),
         );
 
-        let words =
-            segment_words_with_modifiers("mi le .a klama", &MorphologyOptions::default(), None)
-                .expect("pause before vowel-initial word should parse");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "mi le .a klama",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("pause before vowel-initial word should parse");
         assert_eq!(bare_phonemes(&words), ["mi", "le", "a", "kláma"]);
     }
 
@@ -2866,8 +2896,12 @@ mod tests {
         ];
 
         for (source, expected) in cases {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{source} should parse as cmavo chain: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{source} should parse as cmavo chain: {error}"));
             assert_eq!(bare_phonemes(&words), expected, "{source}");
         }
     }
@@ -2876,9 +2910,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn indicator_chains_still_require_pause_before_vowel_nucleus() {
-        let error =
-            segment_words_with_modifiers("ju'ou'i mi zasti", &MorphologyOptions::default(), None)
-                .expect_err("UI followed by vowel-nucleus UI should require a pause");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "ju'ou'i mi zasti",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("UI followed by vowel-nucleus UI should require a pause");
 
         assert_invalid_error(
             &error,
@@ -2907,8 +2944,12 @@ mod tests {
         ];
 
         for (word, expected_parts) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
             assert_lujvo_part_texts(word, &words, expected_parts);
         }
     }
@@ -2926,7 +2967,12 @@ mod tests {
             "sincyrboua",
         ] {
             assert!(
-                segment_words_with_modifiers(word, &MorphologyOptions::default(), None).is_err(),
+                crate::segment_words_with_modifiers_with_options_and_source_id(
+                    word,
+                    &MorphologyOptions::default(),
+                    None
+                )
+                .is_err(),
                 "{word} should remain invalid"
             );
         }
@@ -2950,10 +2996,14 @@ mod tests {
         ];
 
         for (source, expected_phonemes, expected_kinds) in cases {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| {
-                    panic!("camxes-std parses {source} as adjacent words: {error}")
-                });
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| {
+                panic!("camxes-std parses {source} as adjacent words: {error}")
+            });
 
             assert_eq!(bare_phonemes(&words), expected_phonemes, "{source}");
             assert_eq!(words.len(), expected_kinds.len(), "{source}");
@@ -2992,8 +3042,12 @@ mod tests {
         ];
 
         for (word, expected_parts) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as one lujvo: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as one lujvo: {error}"));
             assert_lujvo_part_texts(word, &words, expected_parts);
         }
     }
@@ -3012,8 +3066,12 @@ mod tests {
         ];
 
         for (word, expected_phonemes) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
             assert_eq!(bare_phonemes(&words), [expected_phonemes], "{word}");
             assert_eq!(
                 bare_word(&words[0]).expect("bare word").kind(),
@@ -3028,29 +3086,44 @@ mod tests {
     #[ensures(true)]
     fn xazdmru_term_is_valid_but_named_shape_rejects() {
         assert!(
-            segment_words_with_modifiers("xazdmru", &MorphologyOptions::default(), None).is_err(),
+            crate::segment_words_with_modifiers_with_options_and_source_id(
+                "xazdmru",
+                &MorphologyOptions::default(),
+                None
+            )
+            .is_err(),
             "the named xazdmru shape should reject"
         );
 
-        let filled_lujvo =
-            segment_words_with_modifiers("xazdymru", &MorphologyOptions::default(), None)
-                .expect("y-filled xazdmru form should parse");
+        let filled_lujvo = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "xazdymru",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("y-filled xazdmru form should parse");
         assert_eq!(
             bare_word(&filled_lujvo[0]).expect("bare word").kind(),
             WordKind::Lujvo
         );
 
-        let term_words =
-            segment_words_with_modifiers("valrxazdomru", &MorphologyOptions::default(), None)
-                .expect("term for xazdmru words should remain valid");
+        let term_words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "valrxazdomru",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("term for xazdmru words should remain valid");
         assert_eq!(
             bare_word(&term_words[0]).expect("bare word").kind(),
             WordKind::Fuhivla
         );
 
         let camxes_accepted_control =
-            segment_words_with_modifiers("cidjmru", &MorphologyOptions::default(), None)
-                .expect("camxes-std accepts this missing-y-looking fu'ivla");
+            crate::segment_words_with_modifiers_with_options_and_source_id(
+                "cidjmru",
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("camxes-std accepts this missing-y-looking fu'ivla");
         assert_eq!(
             bare_word(&camxes_accepted_control[0])
                 .expect("bare word")
@@ -3074,8 +3147,12 @@ mod tests {
         ];
 
         for (word, expected_phonemes) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
             assert_eq!(bare_phonemes(&words), [expected_phonemes], "{word}");
             assert_eq!(
                 bare_word(&words[0]).expect("bare word").kind(),
@@ -3089,13 +3166,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn garden_path_contrasts_keep_camxes_word_boundaries() {
-        let pudlu_avalsi =
-            segment_words_with_modifiers("pudlu'avalsi", &MorphologyOptions::default(), None)
-                .expect("prefix contrast should remain a lujvo");
+        let pudlu_avalsi = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "pudlu'avalsi",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("prefix contrast should remain a lujvo");
         assert_lujvo_part_texts("pudlu'avalsi", &pudlu_avalsi, &["pud", "lu'a", "válsi"]);
 
-        let piryto = segment_words_with_modifiers("piryto", &MorphologyOptions::default(), None)
-            .expect("shorter form should split as cmavo");
+        let piryto = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "piryto",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("shorter form should split as cmavo");
         assert_eq!(bare_phonemes(&piryto), ["pi", "ry", "to"]);
         assert!(
             piryto
@@ -3103,12 +3187,20 @@ mod tests {
                 .all(|word| { bare_word(word).is_some_and(|word| word.kind() == WordKind::Cmavo) })
         );
 
-        let pirytoi = segment_words_with_modifiers("pirytoi", &MorphologyOptions::default(), None)
-            .expect("final rafsi should force lujvo recognition");
+        let pirytoi = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "pirytoi",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("final rafsi should force lujvo recognition");
         assert_lujvo_part_texts("pirytoi", &pirytoi, &["pír", "y", "toĭ"]);
 
-        let leiismu = segment_words_with_modifiers("leiismu", &MorphologyOptions::default(), None)
-            .expect("glide-initial fu'ivla after cmavo should not require a pause");
+        let leiismu = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "leiismu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("glide-initial fu'ivla after cmavo should not require a pause");
         assert_eq!(bare_phonemes(&leiismu), ["le", "ĭísmu"]);
         assert_eq!(
             bare_word(&leiismu[0]).expect("bare word").kind(),
@@ -3147,8 +3239,12 @@ mod tests {
             ),
         ];
         for (source, expected_phonemes, expected_kinds) in split_cases {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{source} should split: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{source} should split: {error}"));
             assert_eq!(bare_phonemes(&words), expected_phonemes, "{source}");
             for (word, expected_kind) in words.iter().zip(expected_kinds) {
                 assert_eq!(
@@ -3159,8 +3255,12 @@ mod tests {
             }
         }
 
-        let error = segment_words_with_modifiers("jbaugri", &MorphologyOptions::default(), None)
-            .expect_err("suffix-only fu'ivla garden path should reject");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "jbaugri",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("suffix-only fu'ivla garden path should reject");
         assert_invalid_error(
             &error,
             MorphologyErrorKind::Slinkuhi,
@@ -3169,8 +3269,12 @@ mod tests {
             Some(MorphologyContextKind::Fuhivla),
         );
 
-        let error = segment_words_with_modifiers("xlastymlu", &MorphologyOptions::default(), None)
-            .expect_err("slinku'i form should not be repaired into a fu'ivla rafsi lujvo");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "xlastymlu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("slinku'i form should not be repaired into a fu'ivla rafsi lujvo");
         assert_invalid_error(
             &error,
             MorphologyErrorKind::Slinkuhi,
@@ -3180,7 +3284,12 @@ mod tests {
         );
 
         assert!(
-            segment_words_with_modifiers("le'iismu", &MorphologyOptions::default(), None).is_err(),
+            crate::segment_words_with_modifiers_with_options_and_source_id(
+                "le'iismu",
+                &MorphologyOptions::default(),
+                None
+            )
+            .is_err(),
             "missing apostrophe must not be repaired into either neighboring garden-path shape"
         );
     }
@@ -3195,8 +3304,12 @@ mod tests {
         ];
 
         for (word, expected_parts) in cases {
-            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
-                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                word,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
             assert_lujvo_part_texts(word, &words, expected_parts);
         }
     }
@@ -3205,8 +3318,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn slinkuhi_reports_fuhivla_context() {
-        let error = segment_words_with_modifiers("xlamkai", &MorphologyOptions::default(), None)
-            .expect_err("slinku'i form should fail");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "xlamkai",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("slinku'i form should fail");
 
         assert_invalid_error(
             &error,
@@ -3223,8 +3340,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fuhivla_y_rejection_reports_y_specific_detail() {
-        let error = segment_words_with_modifiers("jgruyta", &MorphologyOptions::default(), None)
-            .expect_err("fu'ivla candidate with y should fail");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "jgruyta",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("fu'ivla candidate with y should fail");
 
         assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 0, 7, None);
         assert_eq!(invalid_error_detail(&error), None);
@@ -3378,8 +3499,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fuhivla_with_initial_cluster_is_not_rejected_as_lujvo_like() {
-        let words = segment_words_with_modifiers("ctremna", &MorphologyOptions::default(), None)
-            .expect("valid fu'ivla morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "ctremna",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid fu'ivla morphology");
 
         assert_eq!(bare_phonemes(&words), ["ctrémna"]);
     }
@@ -3388,8 +3513,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn trailing_comma_is_pause_not_word_text() {
-        let words = segment_words_with_modifiers("klama,", &MorphologyOptions::default(), None)
-            .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "klama,",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(bare_phonemes(&words), ["kláma"]);
         assert_eq!(bare_span(&words[0]).map(|span| span.byte_end), Some(5));
@@ -3399,8 +3528,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_zo_quote_as_one_wordlike() {
-        let words = segment_words_with_modifiers("zo si", &MorphologyOptions::default(), None)
-            .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zo si",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
         let data!(WordLike::QuotedWord { zo, word }) = words[0].as_data() else {
@@ -3414,9 +3547,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_zoi_quote_as_one_wordlike() {
-        let words =
-            segment_words_with_modifiers("zoi gy broda gy", &MorphologyOptions::default(), None)
-                .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zoi gy broda gy",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
         let data!(WordLike::DelimitedNonLojbanQuote {
@@ -3445,8 +3581,12 @@ mod tests {
     #[ensures(true)]
     fn zoi_quote_opening_separator_variants_do_not_enter_payload() {
         for source in ["zoi gy Steve gy", "zoi gy.Steve.gy", "zoi gy. Steve gy"] {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect("valid morphology");
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("valid morphology");
             let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
             else {
                 panic!("expected ZOI quote for {source}");
@@ -3459,9 +3599,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn zoi_quote_whitespace_separator_does_not_consume_payload_dot() {
-        let words =
-            segment_words_with_modifiers("la'o gy .sig gy", &MorphologyOptions::default(), None)
-                .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "la'o gy .sig gy",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
         let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
         else {
             panic!("expected ZOI quote");
@@ -3474,8 +3617,12 @@ mod tests {
     #[ensures(true)]
     fn zoi_quote_opening_separator_can_precede_immediate_close() {
         for source in ["zoi ly ly", "zoi ly.ly"] {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect("valid morphology");
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("valid morphology");
             let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
             else {
                 panic!("expected ZOI quote for {source}");
@@ -3489,9 +3636,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_unclosed_zoi_quote() {
-        let error =
-            segment_words_with_modifiers("zoi gy broda", &MorphologyOptions::default(), None)
-                .expect_err("unclosed ZOI should fail");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zoi gy broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("unclosed ZOI should fail");
 
         assert!(error.to_string().contains("expected closing delimiter"));
     }
@@ -3518,8 +3668,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_expected_word_for_missing_zo_target() {
-        let error = segment_words_with_modifiers("zo", &MorphologyOptions::default(), None)
-            .expect_err("ZO requires a target");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zo",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("ZO requires a target");
 
         assert_invalid_error(
             &error,
@@ -3534,8 +3688,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn zo_quote_preserves_specific_quoted_word_error() {
-        let error = segment_words_with_modifiers("zo biryrka", &MorphologyOptions::default(), None)
-            .expect_err("invalid ZO target should surface its own morphology error");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zo biryrka",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("invalid ZO target should surface its own morphology error");
 
         assert_invalid_error(
             &error,
@@ -3550,8 +3708,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn zo_quote_preserves_specific_quoted_word_violation() {
-        let error = segment_words_with_modifiers("zo basza", &MorphologyOptions::default(), None)
-            .expect_err("invalid ZO target should keep its specific morphology violation");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zo basza",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("invalid ZO target should keep its specific morphology violation");
 
         assert_invalid_error(
             &error,
@@ -3570,8 +3732,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_expected_word_for_bu_without_operand() {
-        let error = segment_words_with_modifiers("bu", &MorphologyOptions::default(), None)
-            .expect_err("BU requires a preceding word");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "bu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("BU requires a preceding word");
 
         assert_invalid_error(
             &error,
@@ -3586,8 +3752,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_expected_word_for_zei_without_operand() {
-        let error = segment_words_with_modifiers("zei", &MorphologyOptions::default(), None)
-            .expect_err("ZEI requires operands");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zei",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("ZEI requires operands");
 
         assert_invalid_error(
             &error,
@@ -3602,8 +3772,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_expected_word_for_zei_without_right_operand() {
-        let error = segment_words_with_modifiers("broda zei", &MorphologyOptions::default(), None)
-            .expect_err("ZEI requires a right operand");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "broda zei",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("ZEI requires a right operand");
 
         assert_invalid_error(
             &error,
@@ -3646,8 +3820,12 @@ mod tests {
         ];
 
         for (source, expected) in cases {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect("SU should preserve its nearest structural boundary");
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("SU should preserve its nearest structural boundary");
             assert_eq!(bare_phonemes(&words), expected, "{source}");
         }
     }
@@ -3656,7 +3834,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn su_at_start_of_text_still_erases_the_entire_prefix() {
-        let words = segment_words_with_modifiers(
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "mi tavla su do cusku",
             &MorphologyOptions::default(),
             None,
@@ -3693,8 +3871,12 @@ mod tests {
         ];
 
         for (source, expected) in cases {
-            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect("mixed SU erasure should remain valid morphology");
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("mixed SU erasure should remain valid morphology");
             assert_eq!(bare_phonemes(&words), expected, "{source}");
         }
     }
@@ -3703,7 +3885,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sa_treats_zei_compound_as_brivla_match() {
-        let words = segment_words_with_modifiers(
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo brodi zei broda mi sa brode cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3717,7 +3899,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sa_zei_does_not_match_inside_zei_compound() {
-        let error = segment_words_with_modifiers(
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo mi zei do mi do sa zei di cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3741,7 +3923,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sa_treats_bu_word_as_by_match() {
-        let words = segment_words_with_modifiers(
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo broda bu mi sa by di cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3761,8 +3943,12 @@ mod tests {
         ];
 
         for (source, start, end) in cases {
-            let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-                .expect_err("SA BU should not decompose a BU-created lerfu word");
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("SA BU should not decompose a BU-created lerfu word");
             assert_invalid_error(
                 &error,
                 MorphologyErrorKind::ExpectedWord,
@@ -3781,9 +3967,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sa_propagates_non_zoi_replacement_errors() {
-        let error =
-            segment_words_with_modifiers("mi sa biryrka", &MorphologyOptions::default(), None)
-                .expect_err("invalid SA replacement should surface its own morphology error");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "mi sa biryrka",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("invalid SA replacement should surface its own morphology error");
 
         assert_invalid_error(
             &error,
@@ -3798,7 +3987,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sa_treats_quote_wordlikes_by_marker() {
-        let zo_words = segment_words_with_modifiers(
+        let zo_words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo zo broda mi sa zo da cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3817,7 +4006,7 @@ mod tests {
         };
         assert_eq!(word.phonemes().as_str(), "da");
 
-        let zoi_words = segment_words_with_modifiers(
+        let zoi_words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo zoi gy foo gy mi sa zoi gy bar gy cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3837,7 +4026,7 @@ mod tests {
         };
         assert_eq!(quoted_text.text, "bar");
 
-        let lohu_words = segment_words_with_modifiers(
+        let lohu_words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo lo'u do cinki le'u mi sa lo'u do fenki le'u cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3862,7 +4051,7 @@ mod tests {
             vec!["do".to_string(), "fénki".to_string()]
         );
 
-        let delimited_words = segment_words_with_modifiers(
+        let delimited_words = crate::segment_words_with_modifiers_with_options_and_source_id(
             "lo zo'oi foo mi sa zo'oi bar cu broda",
             &MorphologyOptions::default(),
             None,
@@ -3890,8 +4079,12 @@ mod tests {
             ("zo'oi", "la'oi", Cmavo::Lahoi),
         ] {
             let source = format!("lo {first} foo mi sa {second} bar cu broda");
-            let words = segment_words_with_modifiers(&source, &MorphologyOptions::default(), None)
-                .expect("SA should erase back across ZOhOI quote markers");
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                &source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("SA should erase back across ZOhOI quote markers");
             assert_eq!(words.len(), 4, "{source}");
             let data!(WordLike::DelimitedWordQuote {
                 marker,
@@ -3910,9 +4103,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn zei_preserves_specific_right_operand_error() {
-        let error =
-            segment_words_with_modifiers("broda zei biryrka", &MorphologyOptions::default(), None)
-                .expect_err("invalid ZEI right operand should surface its own morphology error");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "broda zei biryrka",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("invalid ZEI right operand should surface its own morphology error");
 
         assert_invalid_error(
             &error,
@@ -3927,8 +4123,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_invalid_zoi_delimiter_for_missing_delimiter() {
-        let error = segment_words_with_modifiers("zoi", &MorphologyOptions::default(), None)
-            .expect_err("ZOI requires a delimiter");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zoi",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("ZOI requires a delimiter");
 
         assert_invalid_error(
             &error,
@@ -3947,7 +4147,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn zoi_quote_preserves_specific_opening_delimiter_error() {
-        let error = segment_words_with_modifiers(
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
             "zoi biryrka foo biryrka",
             &MorphologyOptions::default(),
             None,
@@ -3967,9 +4167,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn reports_invalid_zoi_delimiter_for_y() {
-        let error =
-            segment_words_with_modifiers("zoi y broda y", &MorphologyOptions::default(), None)
-                .expect_err("Y cannot be a ZOI delimiter");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "zoi y broda y",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("Y cannot be a ZOI delimiter");
 
         assert_invalid_error(
             &error,
@@ -3988,8 +4191,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn keeps_full_y_run_as_bu_operand() {
-        let words = segment_words_with_modifiers(".yyyyy. bu", &MorphologyOptions::default(), None)
-            .expect("valid morphology");
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            ".yyyyy. bu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid morphology");
 
         let data!(WordLike::LerfuWord { base, bu }) = words[0].as_data() else {
             panic!("expected BU letter");
@@ -4112,8 +4319,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn assert_unterminated_zoi_quote(source: &str, expected_delimiter: &str) {
-        let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
-            .expect_err("source should contain an unterminated ZOI-family quote");
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("source should contain an unterminated ZOI-family quote");
         let MorphologyError::UnterminatedZoiQuote { delimiter, .. } = error else {
             panic!("expected unterminated ZOI quote for {source}");
         };

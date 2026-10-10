@@ -147,17 +147,9 @@ fn is_prohibited_connective_free_modifier(
     }
 }
 
-/// What the classifier has PROVED about a connective's free-modifier placement, as opposed to
-/// what it merely failed to prove.
-///
-/// A boolean cannot carry this on the recovered side, for the same reason `RelativeBodyShape`
-/// cannot, and here the reason is sharper: the two consumers read the answer in OPPOSITE
-/// directions. The chain's rejection withdraws a surface when the placement is prohibited, so an
-/// unproven candidate must not count as prohibited; the S3 list returns a candidate to that chain
-/// when the placement is permitted, so an unproven candidate must not count as permitted either,
-/// because returning it hands the list to a route that will not take it -- the same withdrawal,
-/// one level down. One boolean and its negation give exactly one of those two guarantees and
-/// never both. Every placement fact is proved from valid nodes or it is `Unproven`.
+/// The placement that valid connective nodes prove.
+/// The chain rejects prohibited placement. The list returns permitted placement to the chain.
+/// An unproven result must trigger neither action. A boolean cannot express all three cases.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConnectiveFreeModifierPlacement {

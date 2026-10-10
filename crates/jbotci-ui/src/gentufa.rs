@@ -655,6 +655,7 @@ pub(super) fn block_needs_reference_height_sizer(block: &GentufaBlock) -> bool {
     block_has_incoming_reference(block)
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(ret >= 0.0)]
 pub(super) fn reference_clearance_deficit(
@@ -666,6 +667,7 @@ pub(super) fn reference_clearance_deficit(
     (BLOCK_REFERENCE_LABEL_GAP_PX - clearance).max(0.0)
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(ret >= 0.0)]
 pub(super) fn reference_containment_deficit(
@@ -677,6 +679,7 @@ pub(super) fn reference_containment_deficit(
         .max(0.0)
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(left_start <= left_end)]
 #[requires(right_start <= right_end)]
 #[ensures(true)]
@@ -689,6 +692,7 @@ pub(super) fn horizontal_ranges_overlap(
     left_start < right_end && right_start < left_end
 }
 
+#[cfg(feature = "desktop")]
 #[requires(true)]
 #[ensures(ret.left == rect.left)]
 pub(super) fn platform_rect_from_reference_rect(rect: ReferenceRect) -> platform::Rect {
@@ -1463,16 +1467,6 @@ pub(super) fn render_tree_cell(cell: &GentufaCell, page_find: &PageFindContext) 
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn render_elidable_text(text: &str, elided: bool) -> Element {
-    if elided {
-        rsx! { s { "{text}" } }
-    } else {
-        rsx! { "{text}" }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn render_elidable_page_find_text(
     page_find: &PageFindContext,
     text: &str,
@@ -2020,6 +2014,7 @@ pub(super) fn reference_rect_from_element(element: &web_sys::Element) -> Referen
     })
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn reference_arrow_paths(
@@ -2035,6 +2030,7 @@ pub(super) fn reference_arrow_paths(
     paths
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn reference_arrow_path(source: ReferenceRect, target: ReferenceRect) -> String {
@@ -2054,6 +2050,7 @@ pub(super) fn reference_arrow_path(source: ReferenceRect, target: ReferenceRect)
     format!("M {sx:.2} {sy:.2} Q {cx:.2} {cy:.2} {tx:.2} {ty:.2}")
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn rect_anchor_toward(from: ReferenceRect, to: ReferenceRect) -> (f64, f64) {

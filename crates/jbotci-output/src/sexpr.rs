@@ -223,12 +223,6 @@ pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn render_bracketed(expr: &SExpr) -> String {
-    render_bracketed_with_options(expr, BracketRenderOptions::default())
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRenderOptions) -> String {
     render_bracketed_at_depth(0, expr, options)
 }
@@ -478,7 +472,10 @@ mod tests {
         let flattened = flatten(expr);
 
         assert_eq!(flattened, leaf(String::from("foo")));
-        assert_eq!(render_bracketed(&flattened), "foo");
+        assert_eq!(
+            render_bracketed_with_options(&flattened, BracketRenderOptions::default()),
+            "foo"
+        );
     }
 
     #[test]
@@ -487,7 +484,10 @@ mod tests {
     fn render_collapses_single_non_empty_child_after_filtering_empty_children() {
         let expr = node(vec![empty_node(), leaf(String::from("foo")), empty_node()]);
 
-        assert_eq!(render_bracketed(&expr), "foo");
+        assert_eq!(
+            render_bracketed_with_options(&expr, BracketRenderOptions::default()),
+            "foo"
+        );
     }
 
     #[test]

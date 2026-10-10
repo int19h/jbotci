@@ -228,6 +228,7 @@ impl Lane {
         }
     }
 
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret <= self.capacity)]
     fn active(&self) -> usize {
@@ -253,6 +254,7 @@ impl Drop for QueueSlot<'_> {
 /// stands for is still in progress even after its caller stopped waiting.
 pub(crate) type WorkKeepalive = Arc<dyn std::any::Any + Send + Sync>;
 
+#[cfg(test)]
 /// Snapshot of lane occupancy, for diagnostics and tests.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,6 +287,7 @@ impl WorkGovernor {
         }
     }
 
+    #[cfg(test)]
     /// Run a CPU-bound analysis/rendering job.
     #[requires(true)]
     #[ensures(true)]
@@ -312,6 +315,7 @@ impl WorkGovernor {
         self.compute.run(deadline, keepalive, job).await
     }
 
+    #[cfg(test)]
     /// Run a blocking network fetch.
     #[requires(true)]
     #[ensures(true)]
@@ -340,6 +344,7 @@ impl WorkGovernor {
         self.fetch.run(deadline, keepalive, job).await
     }
 
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn snapshot(&self) -> WorkSnapshot {

@@ -343,13 +343,6 @@ fn push_auto_break(rendered: &mut String, line_width: &mut usize, line_text: &mu
     *line_text = indent;
 }
 
-#[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_styled_segment(role: DiagnosticTextRole, text: &str, color: bool) -> String {
-    let visible_text = visible_segment_text(role, text, color);
-    render_styled_visible_segment(role, visible_text.as_ref(), color)
-}
-
 #[requires(!visible_text.is_empty())]
 #[ensures(!ret.is_empty())]
 fn render_styled_visible_segment(
@@ -653,24 +646,6 @@ mod tests {
             visible_segment_text(DiagnosticTextRole::Selmaho, "GAhO", true),
             "GAhO"
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn styled_segment_ansi_roles_match_color_policy() {
-        let word = render_styled_segment(DiagnosticTextRole::SpecificWord, "lo", true);
-        assert!(word.contains("\x1b[3m"));
-        assert!(word.contains("\x1b[96m"));
-        assert!(!word.contains("\x1b[4m"));
-
-        let selmaho = render_styled_segment(DiagnosticTextRole::Selmaho, "GAhO", true);
-        assert!(selmaho.contains("\x1b[96m"));
-
-        let category = render_styled_segment(DiagnosticTextRole::WordCategory, "BRIVLA", true);
-        assert!(category.contains("\x1b[92m"));
-        assert!(category.contains("brivla"));
-        assert!(!category.contains("BRIVLA"));
     }
 
     #[test]

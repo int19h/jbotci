@@ -676,12 +676,6 @@ impl TreePath {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn from_steps(steps: Vec<TreePathStep>) -> Self {
-        Self { steps }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub fn steps(&self) -> &[TreePathStep] {
         &self.steps
     }
@@ -952,7 +946,7 @@ mod tests {
         }
 
         #[derive(Debug, Clone, PartialEq, Eq)]
-        #[allow(dead_code)]
+
         #[invariant(true)]
         #[invariant(::Tuple(_) => true)]
         #[invariant(::Named => true)]
@@ -1488,10 +1482,12 @@ mod tests {
         assert_eq!(error.item, RecoveryTreeItem::Missing);
         assert_eq!(
             error.path,
-            TreePath::from_steps(vec![
-                TreePathStep::field(Some("many"), 3),
-                TreePathStep::sequence_index(1),
-            ])
+            TreePath {
+                steps: vec![
+                    TreePathStep::field(Some("many"), 3),
+                    TreePathStep::sequence_index(1),
+                ]
+            }
         );
     }
 
@@ -1565,49 +1561,63 @@ mod tests {
             ),
             (
                 NodeRef::LeafNode(&tree.first),
-                TreePath::from_steps(vec![TreePathStep::field(Some("first"), 0)]),
+                TreePath {
+                    steps: vec![TreePathStep::field(Some("first"), 0)],
+                },
                 "first".to_owned(),
             ),
             (
                 NodeRef::LeafNode(tree.rest.as_deref().expect("rest exists")),
-                TreePath::from_steps(vec![TreePathStep::field(Some("rest"), 2)]),
+                TreePath {
+                    steps: vec![TreePathStep::field(Some("rest"), 2)],
+                },
                 "rest".to_owned(),
             ),
             (
                 NodeRef::LeafNode(&tree.many[0]),
-                TreePath::from_steps(vec![
-                    TreePathStep::field(Some("many"), 3),
-                    TreePathStep::sequence_index(0),
-                ]),
+                TreePath {
+                    steps: vec![
+                        TreePathStep::field(Some("many"), 3),
+                        TreePathStep::sequence_index(0),
+                    ],
+                },
                 "many[0]".to_owned(),
             ),
             (
                 NodeRef::LeafNode(&tree.aliases[0]),
-                TreePath::from_steps(vec![
-                    TreePathStep::field(Some("aliases"), 4),
-                    TreePathStep::sequence_index(0),
-                ]),
+                TreePath {
+                    steps: vec![
+                        TreePathStep::field(Some("aliases"), 4),
+                        TreePathStep::sequence_index(0),
+                    ],
+                },
                 "aliases[0]".to_owned(),
             ),
             (
                 NodeRef::LeafNode(tree.alias.as_ref().expect("alias exists")),
-                TreePath::from_steps(vec![TreePathStep::field(Some("alias"), 5)]),
+                TreePath {
+                    steps: vec![TreePathStep::field(Some("alias"), 5)],
+                },
                 "alias".to_owned(),
             ),
             (
                 NodeRef::LeafNode(&tree.vec1[0]),
-                TreePath::from_steps(vec![
-                    TreePathStep::field(Some("vec1"), 6),
-                    TreePathStep::sequence_index(0),
-                ]),
+                TreePath {
+                    steps: vec![
+                        TreePathStep::field(Some("vec1"), 6),
+                        TreePathStep::sequence_index(0),
+                    ],
+                },
                 "vec1[0]".to_owned(),
             ),
             (
                 NodeRef::LeafNode(&tree.small[0]),
-                TreePath::from_steps(vec![
-                    TreePathStep::field(Some("small"), 7),
-                    TreePathStep::sequence_index(0),
-                ]),
+                TreePath {
+                    steps: vec![
+                        TreePathStep::field(Some("small"), 7),
+                        TreePathStep::sequence_index(0),
+                    ],
+                },
                 "small[0]".to_owned(),
             ),
         ];
@@ -1619,7 +1629,9 @@ mod tests {
             assert_eq!(tree.node_at_path(&path), Some(target));
         }
 
-        let skipped_path = TreePath::from_steps(vec![TreePathStep::field(Some("ignored"), 1)]);
+        let skipped_path = TreePath {
+            steps: vec![TreePathStep::field(Some("ignored"), 1)],
+        };
         assert_eq!(tree.node_at_path(&skipped_path), None);
     }
 
@@ -1642,11 +1654,15 @@ mod tests {
             (NodeRef::WrappedNodeNamed(&named), TreePath::new()),
             (
                 NodeRef::LeafNode(left),
-                TreePath::from_steps(vec![TreePathStep::field(Some("left"), 0)]),
+                TreePath {
+                    steps: vec![TreePathStep::field(Some("left"), 0)],
+                },
             ),
             (
                 NodeRef::LeafNode(right),
-                TreePath::from_steps(vec![TreePathStep::field(Some("right"), 1)]),
+                TreePath {
+                    steps: vec![TreePathStep::field(Some("right"), 1)],
+                },
             ),
         ] {
             let path = named.path_to_node(target).expect("target is in tree");
@@ -1660,7 +1676,9 @@ mod tests {
         let WrappedNode::Tuple(tuple_leaf) = &tuple else {
             unreachable!("constructed as tuple variant");
         };
-        let tuple_path = TreePath::from_steps(vec![TreePathStep::field(None, 0)]);
+        let tuple_path = TreePath {
+            steps: vec![TreePathStep::field(None, 0)],
+        };
         assert_eq!(
             tuple.path_to_node(NodeRef::LeafNode(tuple_leaf)),
             Some(tuple_path.clone())
@@ -1677,7 +1695,9 @@ mod tests {
             Some(NodeRef::WrappedNodeUnit(&unit))
         );
         assert_eq!(
-            unit.node_at_path(&TreePath::from_steps(vec![TreePathStep::field(None, 0)])),
+            unit.node_at_path(&TreePath {
+                steps: vec![TreePathStep::field(None, 0)]
+            }),
             None
         );
     }
@@ -1686,10 +1706,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn tree_path_serializes_as_structured_steps() {
-        let path = TreePath::from_steps(vec![
-            TreePathStep::field(Some("many"), 3),
-            TreePathStep::sequence_index(0),
-        ]);
+        let path = TreePath {
+            steps: vec![
+                TreePathStep::field(Some("many"), 3),
+                TreePathStep::sequence_index(0),
+            ],
+        };
 
         let value = serde_json::to_value(&path).expect("path serializes");
         assert_eq!(

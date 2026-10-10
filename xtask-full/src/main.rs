@@ -62,8 +62,6 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
-mod links_jai_observation;
-
 const DEFAULT_LENSISKU_SOURCE_LANGUAGE: &str = "jbo";
 const LENSISKU_TOKEN_ENV: &str = "LENSISKU_TOKEN";
 const LENSISKU_USERNAME_ENV: &str = "LENSISKU_USERNAME";
@@ -215,7 +213,6 @@ struct Cli {
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
-#[invariant(::LinksJaiObserve(..) => true)]
 #[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
@@ -251,7 +248,6 @@ enum Command {
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
-    LinksJaiObserve(links_jai_observation::ObserveArgs),
     #[command(name = "syntax-parser-benchmark")]
     SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
@@ -1324,7 +1320,6 @@ fn main() -> Result<()> {
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
-        Command::LinksJaiObserve(args) => links_jai_observation::run(args),
         Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
@@ -4635,20 +4630,6 @@ fn write_json_file(path: &Path, value: &serde_json::Value) -> Result<()> {
         .with_context(|| format!("rendering JSON for `{}`", path.display()))?;
     text.push('\n');
     fs::write(path, text).with_context(|| format!("writing JSON file `{}`", path.display()))
-}
-
-#[requires(!model_key.trim().is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|value| value.get("models").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
-fn merge_embedding_catalog(
-    remote_catalog: serde_json::Value,
-    replacement_catalog: serde_json::Value,
-    model_key: &str,
-) -> Result<serde_json::Value> {
-    merge_embedding_catalog_models(
-        remote_catalog,
-        replacement_catalog,
-        &BTreeSet::from([model_key.to_owned()]),
-    )
 }
 
 #[requires(!model_keys.is_empty())]
@@ -8813,9 +8794,10 @@ struct V0RefsExport {
 struct V0RefsCase {
     id: String,
     lojban: String,
-    #[allow(dead_code)]
+
     #[serde(default)]
-    provenance: Vec<serde_json::Value>,
+    #[serde(rename = "provenance")]
+    _provenance: Vec<serde_json::Value>,
     #[serde(default)]
     dialect: Option<String>,
     #[serde(default, rename = "syntax-refs")]
@@ -8870,8 +8852,9 @@ struct V0SumtiAssignmentFact {
     relation: Option<FixtureSpanKey>,
     #[serde(rename = "place-index")]
     place_index: Option<u8>,
-    #[allow(dead_code)]
-    label: String,
+
+    #[serde(rename = "label")]
+    _label: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -16281,7 +16264,12 @@ const generatedWasmPath = "assets/missing.wasm";"#,
             ]
         });
 
-        let merged = merge_embedding_catalog(remote, replacement, F2LLM_80M_MODEL_KEY).unwrap();
+        let merged = merge_embedding_catalog_models(
+            remote,
+            replacement,
+            &BTreeSet::from([F2LLM_80M_MODEL_KEY.to_owned()]),
+        )
+        .unwrap();
         let models = merged["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);

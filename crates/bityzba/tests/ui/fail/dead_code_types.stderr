@@ -1,0 +1,41 @@
+error: struct `UnusedMarker` is never constructed
+ --> tests/ui/fail/dead_code_types.rs:6:8
+  |
+6 | struct UnusedMarker;
+  |        ^^^^^^^^^^^^
+  |
+note: the lint level is defined here
+ --> tests/ui/fail/dead_code_types.rs:1:9
+  |
+1 | #![deny(dead_code)]
+  |         ^^^^^^^^^
+
+error: struct `UnusedExpensiveMarker` is never constructed
+ --> tests/ui/fail/dead_code_types.rs:9:8
+  |
+9 | struct UnusedExpensiveMarker;
+  |        ^^^^^^^^^^^^^^^^^^^^^
+
+error: struct `UnusedChecked` is never constructed
+  --> tests/ui/fail/dead_code_types.rs:12:8
+   |
+12 | struct UnusedChecked {
+   |        ^^^^^^^^^^^^^
+
+error: struct `UnusedExpensiveChecked` is never constructed
+  --> tests/ui/fail/dead_code_types.rs:17:8
+   |
+17 | struct UnusedExpensiveChecked {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+error: struct `UnusedNewtype` is never constructed
+  --> tests/ui/fail/dead_code_types.rs:22:8
+   |
+22 | struct UnusedNewtype(usize);
+   |        ^^^^^^^^^^^^^
+
+error: struct `UnusedEnum` is never constructed
+  --> tests/ui/fail/dead_code_types.rs:25:6
+   |
+25 | enum UnusedEnum {
+   |      ^^^^^^^^^^

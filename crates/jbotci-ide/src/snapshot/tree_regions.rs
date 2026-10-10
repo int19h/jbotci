@@ -34,25 +34,12 @@ pub struct SelectionRangeChain {
     pub spans: Vec<SourceSpan>,
 }
 
-/// Standard LSP folding categories available to transport adapters.
-///
-/// Lojban syntax blocks do not have a semantically correct standard category,
-/// so the current tree projection deliberately returns `None` for every fold.
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FoldingRangeKind {
-    Comment,
-    Imports,
-    Region,
-}
-
 /// One transport-independent inclusive line range suitable for folding.
 #[invariant(*start_line < *end_line, "folds must span at least two lines")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FoldingRange {
     pub start_line: usize,
     pub end_line: usize,
-    pub kind: Option<FoldingRangeKind>,
 }
 
 #[invariant(byte_start < byte_end)]
@@ -193,7 +180,6 @@ impl DocumentSnapshot {
                 new!(FoldingRange {
                     start_line,
                     end_line,
-                    kind: None,
                 })
             })
             .collect()
@@ -750,7 +736,6 @@ mod tests {
         let folds = snapshot.folding_ranges();
 
         assert!(folds.iter().all(|fold| fold.start_line < fold.end_line));
-        assert!(folds.iter().all(|fold| fold.kind.is_none()));
         assert_eq!(
             folds
                 .iter()

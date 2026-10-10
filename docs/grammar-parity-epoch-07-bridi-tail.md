@@ -330,14 +330,10 @@ lowering.
 
 ## The consolidated regeneration
 
-The epoch's shape moves are all field- and arm-level inside productions that keep
-their names, so the comparer's classes are too. `tools/compare-bridi-tail-expectations.py`
-is the fail-closed classifier: it reads the *baseline* Rust-Debug tree from a
-`git archive` of `48ad77a06c`, applies exactly the five approved shapes, and then
-requires the rewritten baseline tree to equal the regenerated one structurally.
-Nothing is inferred from the new tree, so an ownership move can never be laundered
-as a re-typing — every shape the rewrites do not produce is manual residue with
-its own ledger disposition.
+The epoch comparer read the baseline Rust-Debug tree from a `git archive` of `48ad77a06c`.
+It applied the five approved shapes and required structural equality with the regenerated tree.
+The comparer derived no changes from the new tree.
+Each remaining difference required a manual disposition in the ledger.
 
 | class | what moves | fail-closed on |
 | --- | --- | --- |

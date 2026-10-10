@@ -13,7 +13,7 @@ use std::{
 };
 
 use jbotci_diagnostics::{
-    TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
+    TraceEventKind, TraceLevel, TracePhase, TraceRecorder, TraceReport,
     source_span_from_byte_offsets,
 };
 use jbotci_dialect::DialectFeature;
@@ -28,8 +28,7 @@ use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
     SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxParseEntry,
     SyntaxRecoveryParse, SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token,
-    WithIndicators, WithIndicatorsData, syntax_construct_is_descendant_of,
-    syntax_immediate_child_under,
+    WithIndicators, WithIndicatorsData,
 };
 
 mod baseline_quantifier;
@@ -188,7 +187,6 @@ pub fn with_recovery_reachability_instrumentation<T>(
 }
 
 #[invariant(true)]
-#[cfg_attr(not(feature = "expensive_contracts"), allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RecoveryReachabilityTelemetryEvent {
     ExactConsidered,
@@ -198,7 +196,9 @@ enum RecoveryReachabilityTelemetryEvent {
     NaturalWins,
     BothFail,
     ExactRunRejected,
+    #[cfg(feature = "expensive_contracts")]
     SkipVerifiedRejected,
+    #[cfg(feature = "expensive_contracts")]
     SkipFalsePositive,
     CapRetainedAway,
 }
@@ -2896,12 +2896,6 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn active_syntax_contexts(&self) -> &[SyntaxContextFrame] {
-        &self.active_syntax_contexts
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub(super) fn active_syntax_rules(&self) -> &[SyntaxRuleFrame] {
         &self.active_syntax_rules
     }
@@ -3258,12 +3252,6 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(self.warnings.len() == old(self.warnings.len()) + warnings.len())]
-    pub(super) fn extend_warnings(&mut self, warnings: &[SyntaxWarning]) {
-        self.warnings.extend_from_slice(warnings);
-    }
-
-    #[requires(true)]
     #[ensures(self.warnings.len() == old(self.warnings.len()) + 1)]
     pub(super) fn warn(&mut self, construct: ExperimentalConstruct, anchor: &Token) {
         let anchor_index = self.anchor_index(anchor);
@@ -3435,12 +3423,6 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn trace_failure_summary(&mut self, failure: TraceFailureSummary) {
-        self.trace.set_failure(failure);
-    }
-
-    #[requires(true)]
     #[ensures(ret < self.anchor_token_identities.len() || self.anchor_token_identities.is_empty())]
     fn anchor_index(&self, anchor: &Token) -> usize {
         let identity = anchor.identity();
@@ -3453,83 +3435,6 @@ impl<'tokens> ParserState<'tokens> {
         }
         0
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_contexts_are_compatible(
-    left: &SyntaxParseError<'_>,
-    right: &SyntaxParseError<'_>,
-) -> bool {
-    match (left.preferred_context(), right.preferred_context()) {
-        (None, _) | (_, None) => true,
-        (Some(left), Some(right)) => left.construct == right.construct,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_context_can_refine(
-    current: &SyntaxParseError<'_>,
-    candidate: &SyntaxParseError<'_>,
-) -> bool {
-    let Some(current_context) = current.preferred_context() else {
-        return true;
-    };
-    let Some(candidate_context) = candidate.preferred_context() else {
-        return false;
-    };
-    if !syntax_construct_is_descendant_of(&current_context.construct, &candidate_context.construct)
-    {
-        return false;
-    }
-    let Some(child) =
-        syntax_immediate_child_under(&current_context.construct, &candidate_context.construct)
-    else {
-        return false;
-    };
-    !diagnostic_expectations_include_construct(current, &child)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_context_covers_descendant(
-    candidate: &SyntaxParseError<'_>,
-    current: &SyntaxParseError<'_>,
-) -> bool {
-    let Some(candidate_context) = candidate.preferred_context() else {
-        return false;
-    };
-    let Some(current_context) = current.preferred_context() else {
-        return false;
-    };
-    if !syntax_construct_is_descendant_of(&candidate_context.construct, &current_context.construct)
-    {
-        return false;
-    }
-    let Some(child) =
-        syntax_immediate_child_under(&candidate_context.construct, &current_context.construct)
-    else {
-        return false;
-    };
-    if current_context.construct != child {
-        return false;
-    }
-    diagnostic_expectations_include_construct(candidate, &child)
-}
-
-#[requires(!construct.is_empty())]
-#[ensures(true)]
-fn diagnostic_expectations_include_construct(
-    error: &SyntaxParseError<'_>,
-    construct: &str,
-) -> bool {
-    error
-        .clone()
-        .into_report_error()
-        .expectations()
-        .iter()
-        .any(|expectation| expectation.reason.construct() == construct)
 }
 
 #[bityzba::contract_trait]
@@ -3638,21 +3543,6 @@ fn syntax_location_byte_offsets(words: &[Token]) -> Vec<usize> {
             .map_or(0, |range| range.end),
     );
     offsets
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
-}))]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
-}))]
-pub(crate) fn parse_syntax_tree(
-    words: &[WordLike],
-    options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
-    parse_generated_model_syntax_tree_with_source_attempt(words, None, options).result
 }
 
 #[requires(true)]
@@ -6374,8 +6264,10 @@ mod tests {
                 let tokens = syntax_tokens(&words);
                 let options = ParseOptions::default();
                 let claims = || {
-                    let attempt = generated::generated_model::parse_text_detailed_tracked_attempt(
-                        &tokens, &options,
+                    let attempt = generated::generated_model::parse_entry_detailed_tracked_attempt(
+                        SyntaxParseEntry::Text,
+                        &tokens,
+                        &options,
                     );
                     let data!(
                         generated::generated_model::GeneratedParsedTextDetailedAttempt {
@@ -6622,7 +6514,7 @@ mod tests {
         let matching = far_failure
             .clone()
             .or(custom(|input| {
-                input.skip();
+                let _ = input.next();
                 Ok(())
             }))
             .boxed();
@@ -6753,7 +6645,7 @@ mod tests {
         let far = tokens[2].span;
         let eoi = SimpleSpan::from(far.end..far.end);
         let further_in = custom(move |input| {
-            input.skip();
+            let _ = input.next();
             input
                 .state()
                 .record_diagnostic_candidate(SyntaxParseError::custom(
@@ -6770,7 +6662,7 @@ mod tests {
         // the report holds both (#926).
         let at_probe_position = cmavo(Cmavo::Kei).or(cmavo(Cmavo::Vau)).map(|_| ()).boxed();
         let first_token = custom(|input| {
-            input.skip();
+            let _ = input.next();
             Ok(())
         })
         .boxed();
@@ -6886,7 +6778,7 @@ mod tests {
         let eoi = SimpleSpan::from(last.end..last.end);
         let parser = custom(move |input| {
             for _ in 0..lo_index {
-                input.skip();
+                let _ = input.next();
             }
             Ok(())
         })
@@ -7210,7 +7102,7 @@ mod tests {
         let eoi = SimpleSpan::from(tokens[2].span.end..tokens[2].span.end);
         let skip = || {
             custom(|input| {
-                input.skip();
+                let _ = input.next();
                 Ok(())
             })
             .boxed()
@@ -7964,7 +7856,8 @@ mod tests {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("do mamta mi").expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
 
             assert!(format!("{:?}", parsed.parse_tree).contains("Paragraph"));
         });
@@ -8022,7 +7915,8 @@ mod tests {
             ] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");
                 let parsed =
-                    parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .expect("valid syntax");
                 let valid = parsed.parse_tree.as_ref().clone();
                 let recovered =
                     generated::generated_model::recovered::TextSyntax::from_valid(valid.clone());
@@ -8808,7 +8702,8 @@ mod tests {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("cu").expect("valid morphology");
 
-            let error = parse_syntax_tree(&words, &ParseOptions::default()).expect_err("invalid");
+            let error = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect_err("invalid");
 
             assert!(matches!(error, SyntaxError::Parse { .. }));
         });
@@ -8822,7 +8717,8 @@ mod tests {
             let words = segment_words_with_modifiers("li re ke su'i ke'e ci du li mu")
                 .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
 
             assert!(format!("{:#?}", parsed.parse_tree).contains("GroupedMeksoOperator"));
         });
@@ -8836,7 +8732,8 @@ mod tests {
             let words = segment_words_with_modifiers("li re su'i je bo vu'u ci du li mu")
                 .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
 
             assert!(format!("{:#?}", parsed.parse_tree).contains("Bo"));
         });
@@ -8852,7 +8749,8 @@ mod tests {
             )
             .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
             assert!(raw.contains("PeheTermsetConnection"));
@@ -8870,7 +8768,8 @@ mod tests {
             let words = segment_words_with_modifiers("le lojbo cu ba'e du le loglo")
                 .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
             assert!(raw.contains("Emphasized"));
@@ -8886,7 +8785,8 @@ mod tests {
             let words = segment_words_with_modifiers("i fi'o ke broda brode bo mi klama")
                 .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
             assert!(raw.contains("ITagBoParagraphStatementConnective"));
@@ -8905,7 +8805,8 @@ mod tests {
             let words = segment_words_with_modifiers("mi tavla fi'o tavla be do fe'u do")
                 .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
             assert!(raw.contains("FihoTense"));
@@ -8925,7 +8826,8 @@ mod tests {
                 segment_words_with_modifiers(".e'a casnu fi'o selsnu ja fi'o bangu la lojban")
                     .expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
             assert!(raw.contains("TaggedSumtiTerm"));
@@ -8967,7 +8869,9 @@ mod tests {
 
             let words = segment_words_with_modifiers("da poi palci vimo'i selklama")
                 .expect("valid morphology");
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+            assert!(
+                crate::parse_syntax_tree_with_options(&words, &ParseOptions::default()).is_err()
+            );
         });
     }
 
@@ -8999,7 +8903,8 @@ mod tests {
             ] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");
                 assert!(
-                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .is_err(),
                     "CEhE must not parse as a sumti connective: {source}",
                 );
             }
@@ -9054,7 +8959,8 @@ mod tests {
             let source = "mi pensi ledu'u mi ba stidi fi la nitcion. fe le pu selsnu be mi joi do poi ckini lei bifce poi pu xabju le mi zdani kei";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
 
-            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
         });
     }
 
@@ -9066,7 +8972,8 @@ mod tests {
             let source = ".ino'iji'a pa makcu nixli cu pleji fi mi lenu kelci ki'u lenu te cusku fe lesedu'u mi xamgu to malglico toi kelci";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
 
-            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
         });
     }
 
@@ -9087,7 +8994,8 @@ mod tests {
             );
             let words = segment_words_with_modifiers(source).expect("valid morphology");
 
-            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                .expect("valid syntax");
         });
     }
 
@@ -9097,7 +9005,9 @@ mod tests {
     fn bare_vowel_cmavo_are_not_implicit_letters() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("a cmene").expect("valid morphology");
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+            assert!(
+                crate::parse_syntax_tree_with_options(&words, &ParseOptions::default()).is_err()
+            );
 
             let raw = parse_tree_debug("a bu cmene", &ParseOptions::default());
             assert!(raw.contains("LerfuWord"));
@@ -9329,10 +9239,6 @@ mod tests {
                 &parsed,
                 ExperimentalConstruct::ExperimentalSoiAdverbial
             ));
-            assert!(!has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
-            ));
         });
     }
 
@@ -9448,7 +9354,9 @@ mod tests {
             // The proposal's own shape -- a subsentence closed by an explicit FIhAU -- stays.
             let words =
                 segment_words_with_modifiers("fi'oi mi broda i je do brode fi'au").expect("words");
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+            assert!(
+                crate::parse_syntax_tree_with_options(&words, &ParseOptions::default()).is_err()
+            );
 
             let parsed = parse_source("fi'oi mi broda fi'au", &ParseOptions::default());
             assert!(has_warning_kind(
@@ -9469,7 +9377,8 @@ mod tests {
             for source in ["ge mi nu'u gi do klama", "nu'i ge mi gi do gi ti klama"] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");
                 assert!(
-                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .is_err(),
                     "{source}"
                 );
             }
@@ -9484,7 +9393,7 @@ mod tests {
             let words =
                 segment_words_with_modifiers("mi cu na'e fa klama").expect("valid morphology");
 
-            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+            let parsed = crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
                 .expect("valid flattened FA tag");
 
             assert!(
@@ -9543,10 +9452,6 @@ mod tests {
                 &xoi,
                 ExperimentalConstruct::ExperimentalSoiAdverbial
             ));
-            assert!(!has_warning_kind(
-                &xoi,
-                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
-            ));
         });
     }
 
@@ -9557,7 +9462,10 @@ mod tests {
         run_on_normal_stack(|| {
             let source = "lo .alis. broda cu melbi";
             let baseline_words = segment_words_with_modifiers(source).expect("valid morphology");
-            assert!(parse_syntax_tree(&baseline_words, &ParseOptions::default()).is_err());
+            assert!(
+                crate::parse_syntax_tree_with_options(&baseline_words, &ParseOptions::default())
+                    .is_err()
+            );
 
             let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
@@ -9615,7 +9523,7 @@ mod tests {
     #[ensures(true)]
     fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
-        parse_syntax_tree(&words, options).expect("valid syntax")
+        crate::parse_syntax_tree_with_options(&words, options).expect("valid syntax")
     }
 
     #[test]
@@ -9624,11 +9532,11 @@ mod tests {
     fn indefinite_sumti_explicit_ku_precedes_relative_clause() {
         let valid = segment_words_with_modifiers("mi viska ci gerku ku poi barda")
             .expect("valid morphology");
-        assert!(parse_syntax_tree(&valid, &ParseOptions::default()).is_ok());
+        assert!(crate::parse_syntax_tree_with_options(&valid, &ParseOptions::default()).is_ok());
 
         let invalid = segment_words_with_modifiers("mi viska ci gerku poi barda ku")
             .expect("valid morphology");
-        assert!(parse_syntax_tree(&invalid, &ParseOptions::default()).is_err());
+        assert!(crate::parse_syntax_tree_with_options(&invalid, &ParseOptions::default()).is_err());
     }
 
     #[test]
@@ -9764,7 +9672,7 @@ mod tests {
                 segment_words_with_modifiers("mi viska la'e lo gerku vu'o .e lo mlatu lu'u")
                     .expect("valid morphology");
             assert!(
-                parse_syntax_tree(&direct, &ParseOptions::default()).is_err(),
+                crate::parse_syntax_tree_with_options(&direct, &ParseOptions::default()).is_err(),
                 "camxes-exp does not source a VUhO continuation without preceding relatives",
             );
         });
@@ -9797,7 +9705,7 @@ mod tests {
         let words =
             segment_words_with_modifiers("lo gerku ge poi ke'a barda gi poi ke'a melbi cu klama")
                 .expect("valid morphology");
-        assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+        assert!(crate::parse_syntax_tree_with_options(&words, &ParseOptions::default()).is_err());
     }
 
     #[test]
@@ -9909,14 +9817,6 @@ mod tests {
                 &ParseOptions::default(),
             );
         });
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(true)]
-    fn indicated_word(text: &str) -> Token {
-        let mut words = segment_words_with_modifiers(text).expect("valid morphology");
-        assert_eq!(words.len(), 1, "test helper expects one word");
-        Token::bare(words.remove(0))
     }
 
     #[requires(!text.is_empty())]

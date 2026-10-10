@@ -155,13 +155,6 @@ fn pwa_manifest_uses_root_routes_and_separate_maskable_icons() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn git_commit_display_uses_math_monospace_hex() {
-    assert_eq!(math_monospace_git_commit("f4a90c1"), "𝚏𝟺𝚊𝟿𝟶𝚌𝟷");
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
 fn topbar_carousel_routes_keep_all_primary_pages_in_display_order() {
     assert_eq!(topbar_carousel_routes(AppRoute::Cukta), TOPBAR_NAV_ROUTES);
     assert_eq!(topbar_carousel_routes(AppRoute::Vlacku), TOPBAR_NAV_ROUTES);
@@ -1742,109 +1735,6 @@ fn styled_diagnostic_notes_include_detailed_needs_one_of() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn diagnostic_tooltip_uses_primary_detail_when_available() {
-    let source = "coi";
-    let diagnostic = test_diagnostic(
-        source,
-        DiagnosticSeverity::Error,
-        "syntax.unexpected-cmavo",
-        "unexpected cmavo",
-        0,
-        1,
-        "expected free modifier, SE",
-    );
-
-    assert_eq!(
-        diagnostic_tooltip_text(&diagnostic),
-        "syntax.unexpected-cmavo: expected free modifier, SE"
-    );
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_tooltip_prefers_structured_expected_headline() {
-    let source = "li nu";
-    let diagnostic = test_diagnostic(
-        source,
-        DiagnosticSeverity::Error,
-        "syntax.unexpected-cmavo",
-        "unexpected cmavo",
-        3,
-        5,
-        "expected: free modifier or mex",
-    )
-    .with_styled_notes(vec![DiagnosticStyledNote::new(
-        jbotci_diagnostics::DiagnosticNoteMode::Detailed,
-        vec![
-            DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "needs one of".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "free modifier".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "LERFU".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")\n".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "mex".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "PA".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")".to_owned()),
-        ],
-    )]);
-
-    assert_eq!(
-        diagnostic_tooltip_text(&diagnostic),
-        "syntax.unexpected-cmavo: expected: free modifier or mex"
-    );
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_tooltip_uses_detailed_expectation_order_and_lerfu_name() {
-    let source = "coi";
-    let diagnostic = test_diagnostic(
-        source,
-        DiagnosticSeverity::Error,
-        "syntax.unexpected-cmavo",
-        "unexpected cmavo",
-        0,
-        1,
-        "expected SE, free modifier, LERFU",
-    )
-    .with_styled_notes(vec![DiagnosticStyledNote::new(
-        jbotci_diagnostics::DiagnosticNoteMode::Detailed,
-        vec![
-            DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "needs one of".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "free modifier".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "LERFU".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " or ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "COI".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")\n".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "BRIVLA".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " or ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "SE".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " [".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "continues".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " ".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "sumti".to_owned()),
-            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "]".to_owned()),
-        ],
-    )]);
-
-    assert_eq!(
-        diagnostic_tooltip_text(&diagnostic),
-        "syntax.unexpected-cmavo: expected free modifier (LERFU or COI), BRIVLA or SE [continues sumti]"
-    );
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
 fn web_diagnostics_hide_redundant_expected_summary_notes() {
     let source = "coi";
     let diagnostic = test_diagnostic(
@@ -1888,7 +1778,13 @@ fn web_diagnostics_hide_redundant_expected_summary_notes() {
     let styled_notes = diagnostic_styled_notes_for_web(&diagnostic);
 
     assert_eq!(plain_notes.len(), 1);
-    assert_eq!(diagnostic_text_parts_text(&plain_notes[0]), "another note");
+    assert_eq!(
+        plain_notes[0]
+            .iter()
+            .map(|part| part.text.as_str())
+            .collect::<String>(),
+        "another note"
+    );
     assert_eq!(styled_notes.len(), 1);
     assert_eq!(
         diagnostic_styled_note_text(styled_notes[0]),
@@ -2713,10 +2609,6 @@ fn cukta_ebnf_section_links_use_v1_routes() {
     let href = cll_ebnf_href("/jbotci", "section/section-index#BAI");
 
     assert_eq!(href, "/jbotci/cukta/section/section-index#BAI");
-    assert_eq!(
-        cukta_section_reference_from_href(&href),
-        Some("section-index".to_owned())
-    );
     assert_eq!(cukta_anchor_from_href(&href), Some("BAI".to_owned()));
 }
 
@@ -2753,47 +2645,6 @@ fn cukta_hash_scroll_target_requires_cukta_route_and_anchor() {
             Some("#"),
             AppRoute::Cukta,
         ),
-        None
-    );
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn cukta_navigation_scroll_distinguishes_history_topbar_and_fresh_links() {
-    assert_eq!(
-        cukta_pending_scroll_for_navigation(
-            AppRoute::Cukta,
-            "/cukta/section/section-index#NAI",
-            true,
-            false,
-        ),
-        Some(cukta_anchor_pending_scroll(
-            "/cukta/section/section-index#NAI".to_owned()
-        ))
-    );
-    assert_eq!(
-        cukta_pending_scroll_for_navigation(
-            AppRoute::Cukta,
-            "/cukta/section/section-index",
-            false,
-            true,
-        ),
-        Some(cukta_stored_pending_scroll(
-            "/cukta/section/section-index".to_owned()
-        ))
-    );
-    assert_eq!(
-        cukta_pending_scroll_for_navigation(
-            AppRoute::Cukta,
-            "/cukta/section/section-index",
-            false,
-            false,
-        ),
-        Some(cukta_top_pending_scroll())
-    );
-    assert_eq!(
-        cukta_pending_scroll_for_navigation(AppRoute::Gentufa, "/gentufa", false, true),
         None
     );
 }

@@ -687,13 +687,6 @@ pub(super) fn diagnostic_primary_detail_parts(
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub(super) fn diagnostic_primary_detail_display_text(diagnostic: &Diagnostic) -> Option<String> {
-    let parts = diagnostic_primary_detail_parts(diagnostic);
-    (!parts.is_empty()).then(|| diagnostic_text_parts_text(&parts))
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
 pub(super) fn diagnostic_expected_detail_parts_from_detailed_note(
     diagnostic: &Diagnostic,
@@ -920,15 +913,6 @@ pub(super) fn diagnostic_styled_note_is_hidden(note: &DiagnosticStyledNote) -> b
 #[ensures(true)]
 pub(super) fn diagnostic_styled_note_text(note: &DiagnosticStyledNote) -> String {
     diagnostic_text_segments_text(&note.segments)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn diagnostic_text_parts_text(parts: &[DiagnosticTextRenderPart]) -> String {
-    parts.iter().fold(String::new(), |mut text, part| {
-        text.push_str(&part.text);
-        text
-    })
 }
 
 #[requires(true)]
@@ -1608,12 +1592,4 @@ pub(super) fn diagnostic_overlay_mark_class(
             ),
         ],
     )
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub(super) fn diagnostic_tooltip_text(diagnostic: &Diagnostic) -> String {
-    let message = diagnostic_primary_detail_display_text(diagnostic)
-        .unwrap_or_else(|| diagnostic.message.clone());
-    format!("{}: {message}", diagnostic.code)
 }

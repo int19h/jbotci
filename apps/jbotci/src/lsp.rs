@@ -35,10 +35,10 @@ use jbotci_diagnostics::{
 };
 use jbotci_ide::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot,
-    FoldingRangeKind as JbotciFoldingRangeKind, InlayOptions, LineIndex, MAX_POSITION_VALUE,
-    Position, PositionEncoding, PositionRange, PreparedDocumentAnalysis, SelectionRangeChain,
-    SemanticTokenKind, StructureBracketInlayOptions, completion_documentation_markdown,
+    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, InlayOptions,
+    LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange,
+    PreparedDocumentAnalysis, SelectionRangeChain, SemanticTokenKind, StructureBracketInlayOptions,
+    completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
@@ -1101,21 +1101,11 @@ async fn document_folding_ranges(
                 start_character: None,
                 end_line: range.end_line as u32,
                 end_character: None,
-                kind: range.kind.map(folding_range_kind_to_lsp),
+                kind: None,
                 collapsed_text: None,
             })
             .collect(),
     )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn folding_range_kind_to_lsp(kind: JbotciFoldingRangeKind) -> lsp_types::FoldingRangeKind {
-    match kind {
-        JbotciFoldingRangeKind::Comment => lsp_types::FoldingRangeKind::Comment,
-        JbotciFoldingRangeKind::Imports => lsp_types::FoldingRangeKind::Imports,
-        JbotciFoldingRangeKind::Region => lsp_types::FoldingRangeKind::Region,
-    }
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]

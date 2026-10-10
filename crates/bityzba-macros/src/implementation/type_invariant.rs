@@ -5,10 +5,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use proc_macro2::TokenStream;
-use quote::{ToTokens, format_ident, quote};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::{
     Attribute, Expr, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Path, Type, TypePath, Variant, Visibility, parse::Parser, visit, visit::Visit,
+    ItemStruct, Path, Type, TypePath, Variant, Visibility, parse::Parser, spanned::Spanned, visit,
+    visit::Visit,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType, parse};
@@ -226,6 +227,12 @@ fn generate_struct(
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    // The wrapper represents the source type for the unused-item lint.
+    let wrapper = quote_spanned! { item.span() =>
+        #(#wrapper_attrs)*
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+    };
+
     quote! {
         #(#option_errors)*
 
@@ -234,8 +241,7 @@ fn generate_struct(
             #(#data_fields,)*
         }
 
-        #(#wrapper_attrs)*
-        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+        #wrapper
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #wrapper_vis struct #error_ident {
@@ -426,14 +432,19 @@ fn generate_tuple_newtype_struct(
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    // The wrapper represents the source type for the unused-item lint.
+    let wrapper = quote_spanned! { item.span() =>
+        #(#wrapper_attrs)*
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+    };
+
     quote! {
         #(#option_errors)*
 
         #(#data_attrs)*
         #data_vis struct #data_ident #generics (#data_field) #where_clause;
 
-        #(#wrapper_attrs)*
-        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+        #wrapper
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #wrapper_vis struct #error_ident {
@@ -544,6 +555,7 @@ fn generate_enum(
     let error_ident = shape.error_ident.clone();
     let data_vis = shape.data_vis.clone();
     let wrapper_vis = shape.wrapper_vis.clone();
+    let source_span = item.span();
     let variants = item.variants;
     let wrapper_attrs = shape.wrapper_attrs();
     let debug_impl = shape.enum_debug_impl(variants.iter());
@@ -558,6 +570,12 @@ fn generate_enum(
     let generics = &item.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    // The wrapper represents the source type for the unused-item lint.
+    let wrapper = quote_spanned! { source_span =>
+        #(#wrapper_attrs)*
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+    };
+
     quote! {
         #(#option_errors)*
         #(#contract_errors)*
@@ -568,8 +586,7 @@ fn generate_enum(
             #variants
         }
 
-        #(#wrapper_attrs)*
-        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
+        #wrapper
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #wrapper_vis struct #error_ident {

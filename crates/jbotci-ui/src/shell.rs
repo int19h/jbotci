@@ -1200,6 +1200,7 @@ pub(super) fn render_topbar(
                         TopbarNavLayout::Full => {
                             { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
+                        #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
                         TopbarNavLayout::Carousel => {
                             { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
@@ -1300,6 +1301,7 @@ pub(super) fn render_topbar_nav(
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[allow(clippy::too_many_arguments)]
 #[requires(true)]
 #[ensures(true)]
@@ -1385,6 +1387,7 @@ pub(super) fn render_topbar_nav_carousel(
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[allow(clippy::too_many_arguments)]
 #[requires(target != AppRoute::Settings)]
 #[requires(!slot_class.is_empty())]
@@ -1997,29 +2000,17 @@ pub(super) fn render_settings_commit_link(page_find: &PageFindContext) -> Elemen
     }
 }
 
-#[requires(commit.chars().all(|character| character.is_ascii_hexdigit()))]
-#[ensures(ret.chars().count() == commit.chars().count())]
-pub(super) fn math_monospace_git_commit(commit: &str) -> String {
-    commit.chars().map(math_monospace_hex_char).collect()
-}
-
-#[requires(character.is_ascii_hexdigit())]
-#[ensures(true)]
-pub(super) fn math_monospace_hex_char(character: char) -> char {
-    const DIGITS: [char; 10] = ['𝟶', '𝟷', '𝟸', '𝟹', '𝟺', '𝟻', '𝟼', '𝟽', '𝟾', '𝟿'];
-    const HEX_LETTERS: [char; 6] = ['𝚊', '𝚋', '𝚌', '𝚍', '𝚎', '𝚏'];
-    if character.is_ascii_digit() {
-        DIGITS[(character as u8 - b'0') as usize]
-    } else {
-        HEX_LETTERS[(character.to_ascii_lowercase() as u8 - b'a') as usize]
-    }
-}
-
 impl TopbarSettingsLayout {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn shows_theme_inline(self) -> bool {
-        matches!(self, Self::BothInline | Self::ThemeInline)
+        match self {
+            Self::BothInline => true,
+            #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+            Self::ThemeInline => true,
+            #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+            Self::NoneInline => false,
+        }
     }
 
     #[requires(true)]
@@ -2046,11 +2037,14 @@ pub(super) fn topbar_header_class(
         "app-topbar spa-topbar {} {}{}",
         match settings_layout {
             TopbarSettingsLayout::BothInline => "topbar-settings-both-inline",
+            #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
             TopbarSettingsLayout::ThemeInline => "topbar-settings-theme-inline",
+            #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
             TopbarSettingsLayout::NoneInline => "topbar-settings-none-inline",
         },
         match nav_layout {
             TopbarNavLayout::Full => "topbar-nav-full",
+            #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
             TopbarNavLayout::Carousel => "topbar-nav-carousel",
         },
         if settings_open && settings_layout.uses_popout() {
