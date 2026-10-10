@@ -2776,6 +2776,7 @@ pub enum ExperimentalConstruct {
     ExperimentalJaGiForethoughtConnective,
     ExperimentalNaJoiConnective,
     ExperimentalMexQuantifier,
+    ExperimentalWholeMexQualifier,
     ExperimentalMexMeSelbriUnit,
     ExperimentalMexMoiSelbriUnit,
     ExperimentalMexSubscript,
@@ -2843,6 +2844,9 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalNaJoiConnective => "syntax.warning.experimental-na-joi-connective",
             Self::ExperimentalMexQuantifier => "syntax.warning.experimental-mex-quantifier",
+            Self::ExperimentalWholeMexQualifier => {
+                "syntax.warning.experimental-whole-mex-qualifier"
+            }
             Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
             Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
             Self::ExperimentalMexSubscript => "syntax.warning.experimental-mex-subscript",
@@ -2958,6 +2962,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalJaGiForethoughtConnective => "JA connective before GI",
             Self::ExperimentalNaJoiConnective => "NA before JOI as one connective",
             Self::ExperimentalMexQuantifier => "mex quantifier without VEI",
+            Self::ExperimentalWholeMexQualifier => "qualifier over a whole mex",
             Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
             Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
             Self::ExperimentalMexSubscript => "XI with a mex that is not a number or VEI",

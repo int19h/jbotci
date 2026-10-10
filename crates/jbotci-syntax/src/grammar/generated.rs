@@ -2699,7 +2699,7 @@ pub mod generated_model {
     /// NAhE BO qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
     rule "qualified mex" exp_nahe_bo_mex_operand(mekso) -> struct {
         /// The scalar qualifier and its free modifiers.
-        field nahe <- selmaho(Nahe).wf();
+        field nahe <- selmaho(Nahe).warn(ExperimentalWholeMexQualifier).wf();
         /// The BO marker and its free modifiers.
         field bo <- cmavo(Bo).wf();
         /// The whole mex. A forethought call needs PEhO.
@@ -2711,7 +2711,7 @@ pub mod generated_model {
     /// NAhE qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
     rule "scalar-negated mex" exp_nahe_mex_operand(mekso) -> struct {
         /// The scalar qualifier and its free modifiers.
-        field nahe <- selmaho(Nahe).warn(ExperimentalNaheArgumentWithoutBo).wf();
+        field nahe <- selmaho(Nahe).warn(ExperimentalNaheArgumentWithoutBo).warn(ExperimentalWholeMexQualifier).wf();
         /// The whole mex. A forethought call needs PEhO.
         field inner_expression <- arc(mekso.reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
         /// The optional LUhU terminator and its free modifiers.
@@ -2721,7 +2721,7 @@ pub mod generated_model {
     /// LAhE qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
     rule "LAhE-qualified mex" exp_lahe_mex_operand(mekso) -> struct {
         /// The sumti qualifier and its free modifiers.
-        field lahe <- selmaho(Lahe).wf();
+        field lahe <- selmaho(Lahe).warn(ExperimentalWholeMexQualifier).wf();
         /// The whole mex. A forethought call needs PEhO.
         field inner_expression <- arc(mekso.reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
         /// The optional LUhU terminator and its free modifiers.
