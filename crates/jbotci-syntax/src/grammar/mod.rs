@@ -3692,10 +3692,6 @@ pub(crate) fn parse_generated_model_syntax_entry_attempt(
             &parsed.text,
             &tokens,
             options.dialect.features.contains(&DialectFeature::Cbm),
-            options
-                .dialect
-                .features
-                .contains(&DialectFeature::SplitNumberLerfu),
             &mut warnings,
         );
         new!(SyntaxParse {
@@ -3929,10 +3925,6 @@ fn valid_syntax_recovery_attempt(
         &parsed.text,
         tokens,
         options.dialect.features.contains(&DialectFeature::Cbm),
-        options
-            .dialect
-            .features
-            .contains(&DialectFeature::SplitNumberLerfu),
         &mut warnings,
     );
     SyntaxRecoveryParseAttempt {
@@ -5183,16 +5175,16 @@ fn recovery_condition_matches(
     env: generated_runtime::SyntaxGrammarEnv,
 ) -> bool {
     let dialect = env.dialect;
-    match condition.feature {
+    let enabled = match condition.feature {
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "NaJoik" => dialect.na_joik_enabled,
         "MexQuantifier" => dialect.mex_quantifier_enabled,
         "LaheMex" => dialect.lahe_mex_enabled,
         "SplitNumberLerfu" => dialect.split_number_lerfu_enabled,
-        "MixedNumberLerfu" => !dialect.split_number_lerfu_enabled,
         _ => false,
-    }
+    };
+    enabled != condition.negated
 }
 
 #[requires(start <= scan.cmavo.len())]
@@ -5440,13 +5432,11 @@ fn add_generated_construct_warnings(
     text: &generated::generated_model::TextSyntax,
     tokens: &[Token],
     cbm_enabled: bool,
-    split_number_lerfu_enabled: bool,
     warnings: &mut Vec<SyntaxWarning>,
 ) {
     let mut visitor = new!(GeneratedConstructWarningVisitor {
         tokens,
         cbm_enabled,
-        split_number_lerfu_enabled,
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
@@ -5462,14 +5452,9 @@ fn add_generated_construct_warnings(
         .all(|token| token.core_word().byte_range().is_some()),
     "generated warning anchors require source-backed syntax tokens"
 )]
-#[expensive_invariant(tokens.windows(2).all(|pair| {
-    pair[0].core_word().byte_range().zip(pair[1].core_word().byte_range())
-        .is_some_and(|(left, right)| left.start <= right.start)
-}))]
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
     cbm_enabled: bool,
-    split_number_lerfu_enabled: bool,
     warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
@@ -5482,62 +5467,11 @@ impl GeneratedConstructWarningVisitor<'_> {
     {
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
-            last_token: Cell::new(None),
         });
         node.visit_in_order(&mut visitor);
         if let Some(anchor) = visitor.token.get() {
             let mut warnings = self.warnings.borrow_mut();
             push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
-        }
-    }
-
-    /// Warn where the split string stops before a standard continuation.
-    #[requires(matches!(boundary, Selmaho::Pa | Selmaho::By))]
-    #[ensures(true)]
-    fn warn_split_string<T>(&mut self, node: &T, boundary: Selmaho)
-    where
-        T: generated::generated_model::TreeNode,
-    {
-        if !self.split_number_lerfu_enabled {
-            return;
-        }
-        let mut visitor = new!(FirstTokenVisitor {
-            token: Cell::new(None),
-            last_token: Cell::new(None),
-        });
-        node.visit_in_order(&mut visitor);
-        let Some(last) = visitor.last_token.get() else {
-            return;
-        };
-        let Some(range) = last.core_word().byte_range() else {
-            return;
-        };
-        // Syntax tokens keep source order. Find the next token without a full scan.
-        let next_index = self.tokens.partition_point(|token| {
-            token
-                .core_word()
-                .byte_range()
-                .is_some_and(|span| span.start <= range.start)
-        });
-        let Some(next) = self.tokens.get(next_index) else {
-            return;
-        };
-        let changes_extent = if boundary == Selmaho::By {
-            tokens::is_letter_word(next)
-                || next.is_selmaho(Selmaho::Lau)
-                || next.is_cmavo(Cmavo::Tei)
-        } else {
-            next.is_selmaho(Selmaho::Pa)
-        };
-        if changes_extent {
-            if let Some(anchor) = visitor.token.get() {
-                push_generated_construct_warning(
-                    &mut self.warnings.borrow_mut(),
-                    self.tokens,
-                    ExperimentalConstruct::ExperimentalSplitNumberLerfu,
-                    anchor,
-                );
-            }
         }
     }
 
@@ -5550,7 +5484,6 @@ impl GeneratedConstructWarningVisitor<'_> {
     ) {
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
-            last_token: Cell::new(None),
         });
         generated::generated_model::TreeNode::visit_in_order(&tail.tail, &mut visitor);
         if visitor.token.get().is_some_and(tokens::is_cmevla_word) {
@@ -5591,12 +5524,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
-            generated::generated_model::NodeRef::NumberWordsSyntax(number) => {
-                self.warn_split_string(number, Selmaho::By);
-            }
-            generated::generated_model::NodeRef::LetterStringSyntax(letters) => {
-                self.warn_split_string(letters, Selmaho::Pa);
-            }
             generated::generated_model::NodeRef::PreposedLinkargsTanruUnitSyntax(unit) => {
                 // BE belongs to the shared linkargs product, whose ordinary postposed
                 // uses are standard. Warn on this completed preposed field only;
@@ -5710,11 +5637,8 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
         .is_none_or(|token| token.core_word().byte_range().is_some()),
     "captured warning anchor token must be source-backed"
 )]
-#[invariant(token.get().is_some() == last_token.get().is_some())]
-#[invariant(last_token.get().is_none_or(|token| token.core_word().byte_range().is_some()))]
 struct FirstTokenVisitor<'tree> {
     token: Cell<Option<&'tree Token>>,
-    last_token: Cell<Option<&'tree Token>>,
 }
 
 impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
@@ -5728,7 +5652,6 @@ impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
         if self.token.get().is_none() {
             self.token.set(Some(token));
         }
-        self.last_token.set(Some(token));
     }
 }
 
@@ -6731,10 +6654,30 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn lookahead_probes_leave_no_diagnostics_behind() {
-        use super::generated_runtime::{followed_by, lookahead, not};
+        use super::generated_runtime::{followed_by, lookahead, not, warn_if};
         use super::parser_core::{Parser, empty};
 
         let reports = [
+            (
+                "warn_if success",
+                probed_failure_report(|matching, _| {
+                    warn_if(
+                        matching,
+                        ExperimentalConstruct::ExperimentalSplitNumberLerfu,
+                        &[],
+                    )
+                }),
+            ),
+            (
+                "warn_if failure",
+                probed_failure_report(|_, failing| {
+                    warn_if(
+                        failing,
+                        ExperimentalConstruct::ExperimentalSplitNumberLerfu,
+                        &[],
+                    )
+                }),
+            ),
             (
                 "lookahead",
                 probed_failure_report(|matching, _| lookahead(matching, Some("probed")).boxed()),
@@ -6977,8 +6920,8 @@ mod tests {
     #[ensures(true)]
     fn disabled_feature_alternatives_add_no_expectation() {
         use super::generated_runtime::{
-            SyntaxGrammarFeature, choice_cons, choice_feature_cons, choice_nil,
-            strict_ordered_choice,
+            SyntaxGrammarFeature, SyntaxGrammarFeatureCondition, choice_cons, choice_feature_cons,
+            choice_nil, strict_ordered_choice,
         };
         use super::parser_core::{Input, Parser, custom};
         use super::tokens::spanned_tokens;
@@ -7002,7 +6945,10 @@ mod tests {
         };
         let gated_first = || {
             strict_ordered_choice(choice_feature_cons(
-                &[SyntaxGrammarFeature::Cbm],
+                &[SyntaxGrammarFeatureCondition {
+                    feature: SyntaxGrammarFeature::Cbm,
+                    negated: false,
+                }],
                 failing("gated alternative"),
                 choice_cons(failing("plain alternative"), choice_nil()),
             ))
@@ -7029,11 +6975,30 @@ mod tests {
             on.contains("gated alternative"),
             "an enabled alternative runs, and as the earlier error it wins the tie: {on}"
         );
+        let negated = strict_ordered_choice(choice_feature_cons(
+            &[SyntaxGrammarFeatureCondition {
+                feature: SyntaxGrammarFeature::Cbm,
+                negated: true,
+            }],
+            failing("negated alternative"),
+            choice_cons(failing("baseline alternative"), choice_nil()),
+        ))
+        .boxed();
+        let skipped = report(negated, &feature_options);
+        assert!(skipped.contains("baseline alternative"));
+        assert!(!skipped.contains("negated alternative"));
+        assert!(!skipped.contains("CBM feature"));
         let only_gated = strict_ordered_choice(choice_feature_cons(
-            &[SyntaxGrammarFeature::Cbm],
+            &[SyntaxGrammarFeatureCondition {
+                feature: SyntaxGrammarFeature::Cbm,
+                negated: false,
+            }],
             failing("gated alternative"),
             choice_feature_cons(
-                &[SyntaxGrammarFeature::NaJoik],
+                &[SyntaxGrammarFeatureCondition {
+                    feature: SyntaxGrammarFeature::NaJoik,
+                    negated: false,
+                }],
                 failing("second gated alternative"),
                 choice_nil(),
             ),
@@ -7044,6 +7009,92 @@ mod tests {
             all_skipped.contains("NA-JOIK feature") && !all_skipped.contains("gated alternative"),
             "a choice whose alternatives are all skipped reports a disabled feature: {all_skipped}"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn split_warning_anchors_the_continuation_in_strict_and_recovered_parsing() {
+        run_on_normal_stack(|| {
+            let source = "mi panzi be ny ci mei";
+            let words = segment_words_with_modifiers(source).unwrap();
+            let dialect =
+                jbotci_dialect::parse_dialect_definition("(+split-number-lerfu)").unwrap();
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let strict =
+                crate::parse_syntax_tree_with_source_and_options(&words, source, &options).unwrap();
+            let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                &words, source, &options,
+            );
+            for warnings in [&strict.warnings, &recovered.warnings] {
+                let matching = warnings
+                    .iter()
+                    .filter(|warning| {
+                        warning.kind == ExperimentalConstruct::ExperimentalSplitNumberLerfu
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(matching.len(), 1);
+                assert_eq!(warning_span(matching[0]), [15, 17]);
+                assert!(matching[0].anchor.is_cmavo(Cmavo::Ci));
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn warning_probe_retains_only_its_warning_and_preserves_input() {
+        use super::generated_runtime::warn_if;
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens};
+        let source = "mi do";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let words = syntax_tokens(&words);
+        let tokens = spanned_tokens(&words);
+        let eoi = SimpleSpan::from(source.len()..source.len());
+        let options = ParseOptions::default();
+        for success in [true, false] {
+            let mut state = ParserState::new(&words, &options);
+            let inner = cmavo(Cmavo::Mi)
+                .map_with(|token, extra| {
+                    extra.state().warn(
+                        ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo,
+                        &token,
+                    );
+                    extra
+                        .state()
+                        .record_diagnostic_candidate(SyntaxParseError::custom(
+                            SimpleSpan::from(3..5),
+                            "probe candidate".to_owned(),
+                        ));
+                    token
+                })
+                .then(cmavo(if success { Cmavo::Do } else { Cmavo::Ko }));
+            let parsed = warn_if(
+                inner,
+                ExperimentalConstruct::ExperimentalSplitNumberLerfu,
+                &[],
+            )
+            .ignore_then(cmavo(Cmavo::Mi))
+            .then(cmavo(Cmavo::Do))
+            .parse_with_state(tokens.as_slice().split_spanned(eoi), &mut state)
+            .into_result()
+            .expect("the probe preserves both real input tokens");
+            assert!(parsed.0.is_cmavo(Cmavo::Mi));
+            assert!(state.diagnostic_candidates_snapshot().is_empty());
+            assert_eq!(state.warning_count(), usize::from(success));
+            if success {
+                let warning = &state.warnings_since(0)[0];
+                assert_eq!(
+                    warning,
+                    &SyntaxWarning::experimental_construct(
+                        ExperimentalConstruct::ExperimentalSplitNumberLerfu,
+                        0,
+                        Token::bare(words[0].core_word().clone())
+                    )
+                );
+            }
+        }
     }
 
     /// A matched `not` expects nothing. When it is the only error, the diagnostic names what
@@ -8232,8 +8283,13 @@ mod tests {
             if index > 0 {
                 rendered.push_str(", ");
             }
-            write!(&mut rendered, "Feature({})", condition.feature)
-                .expect("writing to string cannot fail");
+            write!(
+                &mut rendered,
+                "{}Feature({})",
+                if condition.negated { "!" } else { "" },
+                condition.feature
+            )
+            .expect("writing to string cannot fail");
         }
         rendered.push(']');
         rendered
@@ -8728,6 +8784,7 @@ mod tests {
 
         let unrestricted_free = [SyntaxGrammarCondition {
             feature: "UnrestrictedFree",
+            negated: false,
         }];
         let baseline_env =
             generated_runtime::SyntaxGrammarEnv::from_options(&ParseOptions::default());

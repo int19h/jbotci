@@ -4142,13 +4142,13 @@ rule letter_string
   first [Cmavo(Tei), Selmaho(Lau)] conditions []
   field 0 first_letter
     resume 0 origin FieldFirst start [Cmavo(Tei), Selmaho(Lau)] conditions []
-    resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions [Feature(MixedNumberLerfu)]
+    resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions [!Feature(SplitNumberLerfu)]
     resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions []
   field 1 continuations
-    resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions [Feature(MixedNumberLerfu)]
+    resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions [!Feature(SplitNumberLerfu)]
     resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions []
 rule letter_string_continuation
-  first [Selmaho(Pa)] conditions [Feature(MixedNumberLerfu)]
+  first [Selmaho(Pa)] conditions [!Feature(SplitNumberLerfu)]
   first [Cmavo(Tei), Selmaho(Lau)] conditions []
 rule letter_string_pa_continuation
   first [Selmaho(Pa)] conditions []
@@ -4163,13 +4163,13 @@ rule number_words
   field 0 first_number
     resume 0 origin LiteralRun start [Selmaho(Pa)] conditions []
     resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions []
-    resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions [Feature(MixedNumberLerfu)]
+    resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions [!Feature(SplitNumberLerfu)]
   field 1 continuations
     resume 1 origin RepetitionElementFirst start [Selmaho(Pa)] conditions []
-    resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions [Feature(MixedNumberLerfu)]
+    resume 1 origin RepetitionElementFirst start [Cmavo(Tei), Selmaho(Lau)] conditions [!Feature(SplitNumberLerfu)]
 rule number_word_continuation
   first [Selmaho(Pa)] conditions []
-  first [Cmavo(Tei), Selmaho(Lau)] conditions [Feature(MixedNumberLerfu)]
+  first [Cmavo(Tei), Selmaho(Lau)] conditions [!Feature(SplitNumberLerfu)]
 rule number_word_pa_continuation
   first [Selmaho(Pa)] conditions []
   field 0 pa

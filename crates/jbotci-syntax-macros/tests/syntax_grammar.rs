@@ -256,7 +256,10 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[4].conditions.len(), 1);
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[4].conditions[0],
-        SyntaxGrammarCondition { feature: "Cbm" }
+        SyntaxGrammarCondition {
+            feature: "Cbm",
+            negated: false,
+        }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].kind, "require");
     assert_eq!(
@@ -277,6 +280,7 @@ fn grammar_macro_exports_declaration_metadata() {
         SYNTAX_GRAMMAR_RULES[1].fields[7].conditions[0],
         SyntaxGrammarCondition {
             feature: "UnrestrictedFree",
+            negated: false,
         }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "let");
@@ -284,6 +288,7 @@ fn grammar_macro_exports_declaration_metadata() {
         SYNTAX_GRAMMAR_RULES[1].fields[8].conditions[0],
         SyntaxGrammarCondition {
             feature: "UnrestrictedFree",
+            negated: false,
         }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].kind, "field");
@@ -582,7 +587,10 @@ mod anchor_metadata {
             .expect("gated first token");
         assert_eq!(
             gated_first.conditions,
-            &[SyntaxGrammarCondition { feature: "Cbm" }]
+            &[SyntaxGrammarCondition {
+                feature: "Cbm",
+                negated: false,
+            }]
         );
         let gated = anchors_for("gated_item");
         let gated_field_anchor = gated.fields[1]
@@ -597,7 +605,10 @@ mod anchor_metadata {
             .expect("gated field anchor");
         assert_eq!(
             gated_field_anchor.conditions,
-            &[SyntaxGrammarCondition { feature: "Cbm" }]
+            &[SyntaxGrammarCondition {
+                feature: "Cbm",
+                negated: false,
+            }]
         );
 
         let tail_anchors = &literal.fields[3].anchors;
@@ -1133,7 +1144,10 @@ mod new_dsl {
         assert_eq!(SYNTAX_GRAMMAR_RULES[5].fields[2].name, "gated_item");
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[5].fields[2].conditions,
-            &[SyntaxGrammarCondition { feature: "Cbm" }]
+            &[SyntaxGrammarCondition {
+                feature: "Cbm",
+                negated: false,
+            }]
         );
 
         assert_eq!(SYNTAX_GRAMMAR_RULES[6].kind, "enum");

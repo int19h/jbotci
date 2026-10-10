@@ -16,6 +16,17 @@
 //! `resolve_enum_splices`. The keyword is `splice` and not `inline`, because
 //! `inline` already means the containment opt-out above.
 
+//! Product rules accept parser-only statements between their fields.
+//! `assert parser;` requires a successful probe without consuming input.
+//! `assert !parser;` requires a failed probe.
+//! `warn_if parser => Construct;` always succeeds without consuming input.
+//! A successful strict probe emits `Construct` at its first input token.
+//! A failed probe emits nothing. An empty match at end of input has no anchor.
+//! Both outcomes discard all errors, candidates and warnings from the probe.
+//! Recovered generation also probes the strict parser, so the probe never recovers.
+//! `when feature(Name)` or `when !feature(Name)` can condition the warning.
+//! The same conditions select enum arms. A false condition skips the arm entirely.
+
 mod containment;
 use containment::Containment;
 
@@ -49,6 +60,7 @@ pub fn syntax_grammar(input: TokenStream) -> TokenStream {
 mod kw {
     syn::custom_keyword!(alias);
     syn::custom_keyword!(assert);
+    syn::custom_keyword!(warn_if);
     syn::custom_keyword!(env);
     syn::custom_keyword!(feature);
     syn::custom_keyword!(field);
@@ -253,6 +265,7 @@ impl SyntaxGrammar {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub(crate) struct SyntaxGrammarCondition {
                 pub feature: &'static str,
+                pub negated: bool,
             }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -5248,6 +5261,15 @@ fn strict_postfix_parser_expr_tokens(
     let inner =
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
+        ("warn_if", 2) => {
+            let construct =
+                required_path_expr_last_segment(&args[0], "warn_if requires a construct path")?;
+            let construct = format_ident!("{construct}");
+            let gates = &args[1];
+            Ok(
+                quote!(generated_runtime::warn_if(#inner, ExperimentalConstruct::#construct, #gates)),
+            )
+        }
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
             let expected = generation.type_env.probe_construct_tokens(receiver);
@@ -5579,6 +5601,28 @@ fn recovered_postfix_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
+    if method == "warn_if" {
+        let strict_generation = generation.normal_strict_generation();
+        let strict_free_modifier = format_ident!("__generated_strict_free_modifier");
+        let inner = strict_parser_expr_tokens(
+            receiver,
+            arguments,
+            &strict_generation,
+            &strict_free_modifier,
+            StrictParserCallMode::Local,
+        )?;
+        let bindings = arguments.iter().map(|argument| {
+            let argument_ident = format_ident!("{argument}");
+            let strict_argument = format_ident!("__strict_{argument}");
+            quote!(let #argument_ident = #strict_argument.clone();)
+        });
+        let construct =
+            required_path_expr_last_segment(&args[0], "warn_if requires a construct path")?;
+        let construct = format_ident!("{construct}");
+        let gates = &args[1];
+        return Ok(quote!({ #(#bindings)* generated_runtime::warn_if(#inner,
+            ExperimentalConstruct::#construct, #gates) }));
+    }
     let inner =
         recovered_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
@@ -6758,12 +6802,16 @@ fn enum_choice_chain(
             if alternative.conditions.is_empty() {
                 quote!(generated_runtime::choice_cons(#parser, #rest))
             } else {
-                let features = alternative
-                    .conditions
-                    .iter()
-                    .map(|condition| &condition.feature);
+                let features = alternative.conditions.iter().map(|condition| {
+                    let feature = &condition.feature;
+                    let negated = condition.negated;
+                    quote!(generated_runtime::SyntaxGrammarFeatureCondition {
+                        feature: generated_runtime::SyntaxGrammarFeature::#feature,
+                        negated: #negated,
+                    })
+                });
                 quote!(generated_runtime::choice_feature_cons(
-                    &[#(generated_runtime::SyntaxGrammarFeature::#features),*],
+                    &[#(#features),*],
                     #parser,
                     #rest,
                 ))
@@ -8672,6 +8720,29 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
             ty,
             parser,
         })))
+    } else if input.peek(kw::warn_if) {
+        input.parse::<kw::warn_if>()?;
+        let parser: ParserExpr = input.parse()?;
+        input.parse::<Token![=>]>()?;
+        let construct: Expr = input.parse()?;
+        input.parse::<Token![;]>()?;
+        let gates = conditions.iter().map(|condition| {
+            let feature = &condition.feature;
+            let negated = condition.negated;
+            quote!(generated_runtime::SyntaxGrammarFeatureCondition {
+                feature: generated_runtime::SyntaxGrammarFeature::#feature,
+                negated: #negated,
+            })
+        });
+        let gates: Expr = syn::parse2(quote!(&[#(#gates),*]))?;
+        Ok(FieldItem::from_data(data!(FieldItem {
+            attrs,
+            conditions,
+            kind: FieldKind::Require,
+            name: None,
+            ty: None,
+            parser: parser.postfix("warn_if", vec![construct, gates]),
+        })))
     } else if input.peek(kw::assert) {
         input.parse::<kw::assert>()?;
         let negated = input.peek(Token![!]);
@@ -8696,7 +8767,7 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
             parser,
         })))
     } else {
-        Err(input.error("expected `field`, `let`, or `assert`"))
+        Err(input.error("expected `field`, `let`, `assert`, or `warn_if`"))
     }
 }
 
@@ -8713,8 +8784,8 @@ fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
         .collect())
 }
 
-#[invariant(matches!(kind, FieldKind::Require) == name.is_none(), "only assert field items are nameless")]
-#[invariant(!matches!(kind, FieldKind::Require) || ty.is_none(), "assert field items do not have output types")]
+#[invariant(matches!(kind, FieldKind::Require) == name.is_none(), "only parser-only field items are nameless")]
+#[invariant(!matches!(kind, FieldKind::Require) || ty.is_none(), "parser-only field items do not have output types")]
 struct FieldItem {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -9056,6 +9127,7 @@ impl FieldKind {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Condition {
     feature: Ident,
+    negated: bool,
 }
 
 impl Condition {
@@ -9063,9 +9135,11 @@ impl Condition {
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let feature = self.feature.to_string();
+        let negated = self.negated;
         quote! {
             SyntaxGrammarCondition {
                 feature: #feature,
+                negated: #negated,
             }
         }
     }
@@ -9074,9 +9148,13 @@ impl Condition {
     #[ensures(true)]
     fn expand_strict_gate(&self, parser: TokenStream2) -> TokenStream2 {
         let feature = &self.feature;
+        let negated = self.negated;
         quote! {
-            generated_runtime::feature_gate(
-                generated_runtime::SyntaxGrammarFeature::#feature,
+            generated_runtime::feature_condition_gate(
+                generated_runtime::SyntaxGrammarFeatureCondition {
+                    feature: generated_runtime::SyntaxGrammarFeature::#feature,
+                    negated: #negated,
+                },
                 #parser,
             )
         }
@@ -9086,6 +9164,10 @@ impl Condition {
 impl Parse for Condition {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         input.parse::<kw::when>()?;
+        let negated = input.peek(Token![!]);
+        if negated {
+            input.parse::<Token![!]>()?;
+        }
         if !input.peek(kw::feature) {
             return Err(input.error("expected `feature` condition"));
         }
@@ -9094,6 +9176,7 @@ impl Parse for Condition {
         parenthesized!(content in input);
         Ok(Self {
             feature: content.parse()?,
+            negated,
         })
     }
 }
@@ -9310,6 +9393,9 @@ fn classify_postfix_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
+        ("warn_if", 2) => Ok(RecoveryExpr::Opt(Box::new(RecoveryExpr::Lookahead(
+            inner()?
+        )))),
         ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
             Ok(RecoveryExpr::WithFreeModifiers {
                 inner: inner()?,
@@ -9577,7 +9663,8 @@ fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result
 fn wf_when_anchor_condition(expr: &Expr) -> Result<AnchorCondition> {
     let feature = required_path_expr_last_segment(expr, "wf_when() requires a feature path")?;
     Ok(AnchorCondition::from_data(data!(AnchorCondition {
-        feature
+        feature,
+        negated: false,
     })))
 }
 
@@ -9647,6 +9734,7 @@ impl AnchorToken {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AnchorCondition {
     feature: String,
+    negated: bool,
 }
 
 impl AnchorCondition {
@@ -9655,6 +9743,7 @@ impl AnchorCondition {
     fn from_condition(condition: &Condition) -> Self {
         Self::from_data(data!(AnchorCondition {
             feature: condition.feature.to_string(),
+            negated: condition.negated,
         }))
     }
 
@@ -9662,9 +9751,11 @@ impl AnchorCondition {
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let feature = &self.feature;
+        let negated = self.negated;
         quote! {
             SyntaxGrammarCondition {
                 feature: #feature,
+                negated: #negated,
             }
         }
     }
@@ -10718,7 +10809,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("expected `field`, `let`, or `assert`"),
+                .contains("expected `field`, `let`, `assert`, or `warn_if`"),
             "unexpected error: {error}"
         );
     }
@@ -10819,7 +10910,7 @@ mod tests {
             assert!(
                 error
                     .to_string()
-                    .contains("expected `field`, `let`, or `assert`"),
+                    .contains("expected `field`, `let`, `assert`, or `warn_if`"),
                 "unexpected error: {error}"
             );
         }
@@ -11440,10 +11531,10 @@ mod tests {
     #[test]
     fn splice_keeps_feature_gates_of_spliced_arms() {
         let text = expand_splice_test_grammar(spliced_rules()).to_string();
-        let cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeature :: Cbm] ,";
-        let exp_cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeature :: Exp , \
-                       generated_runtime :: SyntaxGrammarFeature :: Cbm] ,";
-        let exp = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeature :: Exp] ,";
+        let cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Cbm , negated : false , }] ,";
+        let exp_cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Exp , negated : false , } , \
+                       generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Cbm , negated : false , }] ,";
+        let exp = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Exp , negated : false , }] ,";
         for parser in ["strict_parent_parser", "recovered_parent_parser"] {
             let parser_text = generated_function_text(&text, parser);
             assert_eq!(
@@ -11479,8 +11570,8 @@ mod tests {
             outer_metadata.contains(
                 "name : \"leaf_second\" , parser : \"leaf_second\" , recovery : \
                  SyntaxGrammarRecoveryExpr :: Rule (\"leaf_second\") , recovery_boundary : false , \
-                 conditions : & [SyntaxGrammarCondition { feature : \"Exp\" , } , \
-                 SyntaxGrammarCondition { feature : \"Cbm\" , }]"
+                 conditions : & [SyntaxGrammarCondition { feature : \"Exp\" , negated : false , } , \
+                 SyntaxGrammarCondition { feature : \"Cbm\" , negated : false , }]"
             ),
             "the metadata of `outer` lists both conditions of the spliced arm: {outer_metadata}"
         );
@@ -12129,5 +12220,58 @@ mod tests {
             has_schema_item_alias,
             "the literal-preserving Rustdoc alias must survive model expansion"
         );
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn negated_conditions_and_warning_probes_generate_strict_and_recovered_parsers() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+            /// A continuation to probe.
+            rule "item" item -> struct {
+                /// Its source token.
+                field token <- cmavo(Be);
+            }
+            /// A conditional ordered choice.
+            rule "choice" selection -> enum {
+                /// The arm exists only without CBM.
+                when !feature(Cbm) item,
+                /// The fallback arm.
+                selection_fallback,
+            }
+            /// The fallback product.
+            rule "fallback" selection_fallback -> struct {
+                /// Its source token.
+                field token <- cmavo(Bo);
+            }
+            /// A product with a warning probe.
+            rule "wrapper" wrapper -> struct {
+                when feature(Cbm) warn_if item => ExperimentalAnchorMetadata;
+                /// The real input token.
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("the grammar parses");
+        let text = grammar.expand().to_string();
+        assert!(!text.contains("compile_error"));
+        for name in ["strict_selection_parser", "recovered_selection_parser"] {
+            let parser = generated_function_text(&text, name);
+            assert!(parser.contains("choice_feature_cons"));
+            assert!(parser.contains("negated : true"));
+        }
+        for name in [
+            "strict_wrapper_parser",
+            "recovery_checkpoint_strict_wrapper_parser",
+            "recovered_wrapper_parser",
+        ] {
+            let parser = generated_function_text(&text, name);
+            assert!(parser.contains("generated_runtime :: warn_if"));
+            assert!(!parser.contains("warn_if (recovered_item_parser"));
+            assert!(parser.contains("strict_item_parser"));
+        }
+        assert!(text.contains("feature : \"Cbm\" , negated : true"));
     }
 }
