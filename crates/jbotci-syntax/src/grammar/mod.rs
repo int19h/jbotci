@@ -8218,18 +8218,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn mehoi_selbri_unit_does_not_emit_obsolete_quote_warning() {
+    fn mehoi_selbri_unit_warns_only_as_a_selbri_unit() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi me'oi broda", &ParseOptions::default());
 
-            assert!(!has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalMehOiQuote
-            ));
-            assert!(has_warning_kind(
-                &parsed,
-                ExperimentalConstruct::ExperimentalMehOiSelbriUnit
-            ));
+            assert_eq!(
+                parsed
+                    .warnings
+                    .iter()
+                    .map(|warning| warning.kind)
+                    .collect::<Vec<_>>(),
+                [ExperimentalConstruct::ExperimentalMehOiSelbriUnit],
+            );
         });
     }
 
