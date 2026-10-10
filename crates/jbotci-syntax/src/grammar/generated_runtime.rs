@@ -80,6 +80,7 @@ pub(crate) struct SyntaxGrammarEnv {
 impl SyntaxGrammarEnv {
     #[requires(true)]
     #[ensures(true)]
+    #[ensures(ret.dialect.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         Self {
             dialect: SyntaxGrammarDialect::from_options(options),
@@ -95,6 +96,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub na_joik_enabled: bool,
     pub mex_quantifier_enabled: bool,
     pub lahe_mex_enabled: bool,
+    pub split_number_lerfu_enabled: bool,
 }
 
 impl SyntaxGrammarDialect {
@@ -104,6 +106,7 @@ impl SyntaxGrammarDialect {
     #[ensures(ret.na_joik_enabled == options.dialect.features.contains(&DialectFeature::NaJoik))]
     #[ensures(ret.mex_quantifier_enabled == options.dialect.features.contains(&DialectFeature::MexQuantifier))]
     #[ensures(ret.lahe_mex_enabled == options.dialect.features.contains(&DialectFeature::LaheMex))]
+    #[ensures(ret.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
@@ -112,6 +115,7 @@ impl SyntaxGrammarDialect {
             na_joik_enabled: features.contains(&DialectFeature::NaJoik),
             mex_quantifier_enabled: features.contains(&DialectFeature::MexQuantifier),
             lahe_mex_enabled: features.contains(&DialectFeature::LaheMex),
+            split_number_lerfu_enabled: features.contains(&DialectFeature::SplitNumberLerfu),
         }
     }
 }
@@ -125,6 +129,7 @@ pub(crate) enum SyntaxGrammarFeature {
     NaJoik,
     MexQuantifier,
     LaheMex,
+    SplitNumberLerfu,
 }
 
 impl SyntaxGrammarFeature {
@@ -137,6 +142,7 @@ impl SyntaxGrammarFeature {
             Self::NaJoik => dialect.na_joik_enabled,
             Self::MexQuantifier => dialect.mex_quantifier_enabled,
             Self::LaheMex => dialect.lahe_mex_enabled,
+            Self::SplitNumberLerfu => dialect.split_number_lerfu_enabled,
         }
     }
 
@@ -149,6 +155,7 @@ impl SyntaxGrammarFeature {
             Self::NaJoik => "NA-JOIK feature",
             Self::MexQuantifier => "MEX-QUANTIFIER feature",
             Self::LaheMex => "LAHE-MEX feature",
+            Self::SplitNumberLerfu => "SPLIT-NUMBER-LERFU feature",
         }
     }
 }
@@ -537,6 +544,66 @@ pub(crate) fn eof<'tokens>() -> BoxedParser<'tokens, ()> {
     parser_end().boxed()
 }
 
+/// A public feature condition with an optional negation.
+#[invariant(true)]
+#[derive(Clone, Copy)]
+pub(crate) struct SyntaxGrammarFeatureCondition {
+    pub feature: SyntaxGrammarFeature,
+    pub negated: bool,
+}
+
+impl SyntaxGrammarFeatureCondition {
+    #[requires(true)]
+    #[ensures(ret == (self.feature.enabled(dialect) != self.negated))]
+    fn enabled(self, dialect: SyntaxGrammarDialect) -> bool {
+        self.feature.enabled(dialect) != self.negated
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn expected_name(self) -> String {
+        if self.negated {
+            format!("not {}", self.feature.expected_name())
+        } else {
+            self.feature.expected_name().to_owned()
+        }
+    }
+}
+
+/// Probe a strict continuation and retain only the requested warning.
+/// Both outcomes preserve the cursor and all diagnostics from before the probe.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn warn_if<'tokens, O, P>(
+    parser: P,
+    construct: ExperimentalConstruct,
+    conditions: &'static [SyntaxGrammarFeatureCondition],
+) -> BoxedParser<'tokens, ()>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let dialect = input.state().syntax_grammar_env().dialect;
+        if conditions
+            .iter()
+            .any(|condition| !condition.enabled(dialect))
+        {
+            return Ok(());
+        }
+        let checkpoint = input.save();
+        let anchor = input.next();
+        input.rewind(checkpoint);
+        if input.probe(&parser).is_ok() {
+            if let Some(anchor) = anchor {
+                input.state().warn(construct, &anchor);
+            }
+        }
+        Ok(())
+    })
+    .boxed()
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn feature_gate<'tokens, O, P>(
@@ -547,16 +614,35 @@ where
     O: 'tokens,
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
+    feature_condition_gate(
+        SyntaxGrammarFeatureCondition {
+            feature,
+            negated: false,
+        },
+        parser,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn feature_condition_gate<'tokens, O, P>(
+    condition: SyntaxGrammarFeatureCondition,
+    parser: P,
+) -> impl Parser<'tokens, O> + Clone
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
     custom::<_, _>(
         #[inline(always)]
         move |input| {
-            if feature.enabled(input.state().syntax_grammar_env().dialect) {
+            if condition.enabled(input.state().syntax_grammar_env().dialect) {
                 return input.parse(&parser);
             }
 
             Err(expected_found_named_at_current(
                 input,
-                feature.expected_name().to_owned(),
+                condition.expected_name(),
             ))
         },
     )
@@ -1008,7 +1094,7 @@ pub(crate) fn choice_cons<P, Rest>(head: P, rest: Rest) -> ChoiceCons<P, Rest> {
 #[invariant(!features.is_empty(), "a feature-gated alternative names at least one feature")]
 #[derive(Clone)]
 pub(crate) struct ChoiceFeatureCons<P, Rest> {
-    features: &'static [SyntaxGrammarFeature],
+    features: &'static [SyntaxGrammarFeatureCondition],
     head: P,
     rest: Rest,
 }
@@ -1016,7 +1102,7 @@ pub(crate) struct ChoiceFeatureCons<P, Rest> {
 #[requires(!features.is_empty())]
 #[ensures(true)]
 pub(crate) fn choice_feature_cons<P, Rest>(
-    features: &'static [SyntaxGrammarFeature],
+    features: &'static [SyntaxGrammarFeatureCondition],
     head: P,
     rest: Rest,
 ) -> ChoiceFeatureCons<P, Rest> {
@@ -1138,7 +1224,7 @@ where
             // Every alternative of the choice was skipped.
             *abandoned = Some(expected_found_named_at_current(
                 input,
-                disabled.expected_name().to_owned(),
+                disabled.expected_name(),
             ));
             return Err(());
         }

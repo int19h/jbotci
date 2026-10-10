@@ -1480,6 +1480,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated grammar environment holds only the dialect snapshot",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarFeatureCondition",
+        "each known feature accepts either polarity, so every feature and negation pair is valid",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/link_payload.rs:AttemptedParse",
         "test capture pairs a final recovered parse with a separate attempted-candidate sequence; rejected attempts need not occur in the final tree, and no cross-field equality is implied",
     ),

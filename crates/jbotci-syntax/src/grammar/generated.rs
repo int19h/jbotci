@@ -2841,12 +2841,14 @@ pub mod generated_model {
         field first_letter <- arc(letter_tokens);
         /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more letter_string_continuation(letter_tokens)];
+        when feature(SplitNumberLerfu)
+        warn_if letter_string_pa_continuation => ExperimentalSplitNumberLerfu;
     }
 
     /// Sum node for lerfu string continuation; selects among the `letter_string_pa_continuation` and `letter_string_lerfu_continuation` forms.
     rule "lerfu string continuation" letter_string_continuation(letter_tokens) -> enum {
         /// Uses the `letter_string_pa_continuation` product form, whose payload preserves `pa`.
-        letter_string_pa_continuation,
+        when !feature(SplitNumberLerfu) letter_string_pa_continuation,
         /// Uses the `letter_string_lerfu_continuation` product form, whose payload preserves `letter`.
         letter_string_lerfu_continuation,
     }
@@ -2869,6 +2871,8 @@ pub mod generated_model {
         field first_number <- pa_word();
         /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more number_word_continuation(letter_tokens)];
+        when feature(SplitNumberLerfu)
+        warn_if number_word_lerfu_continuation(letter_tokens) => ExperimentalSplitNumberLerfu;
     }
 
     /// Sum node for number continuation; selects among the `number_word_pa_continuation` and `number_word_lerfu_continuation` forms.
@@ -2876,7 +2880,7 @@ pub mod generated_model {
         /// Uses the `number_word_pa_continuation` product form, whose payload preserves `pa`.
         number_word_pa_continuation,
         /// Uses the `number_word_lerfu_continuation` product form, whose payload preserves `letter`.
-        number_word_lerfu_continuation,
+        when !feature(SplitNumberLerfu) number_word_lerfu_continuation,
     }
 
     /// Transparent product node for number continuation; preserves the `pa` component.
