@@ -2252,19 +2252,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextToken",
-        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Opaque",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Opt",
-        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::PayloadStart",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
     ),
     (
