@@ -432,15 +432,6 @@ impl<'a> Dictionary<'a> {
             .ok()
             .map(|index| &self.rafsi_index[index])
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn selmaho_index_entry(&self, key: &str) -> Option<&SelmahoIndexEntry<'a>> {
-        self.selmaho_index
-            .binary_search_by(|entry| entry.key.cmp(key))
-            .ok()
-            .map(|index| &self.selmaho_index[index])
-    }
 }
 
 /// Single dictionary entry in the imported Lensisku data.
@@ -1454,7 +1445,7 @@ mod tests {
         static SKA_EXPERIMENTAL: [Rafsi<'static>; 1] = [experimental("ska")];
         static KLI: [Rafsi<'static>; 1] = [official("kli")];
         static SAI: [Rafsi<'static>; 1] = [official("sai")];
-        static SAhI: [Rafsi<'static>; 1] = [experimental("sa'i")];
+        static SAHI: [Rafsi<'static>; 1] = [experimental("sa'i")];
         static KAM: [Rafsi<'static>; 1] = [official("kam")];
         // Synthetic assignments, but each mirrors a real dictionary shape: the
         // cmavo `ka` really does hold `kam` (CLL 4.6), and fu'ivla, obsolete
@@ -1472,7 +1463,7 @@ mod tests {
             ),
             test_entry("kliniko", WordType::Fuivla, &KLI, None),
             test_entry("sa'e", WordType::Cmavo, &SAI, None),
-            test_entry("xua'ai", WordType::ObsoleteCmavo, &SAhI, None),
+            test_entry("xua'ai", WordType::ObsoleteCmavo, &SAHI, None),
             test_entry("ka", WordType::Cmavo, &KAM, None),
         ];
         let indexes = build_owned_indexes(entries);

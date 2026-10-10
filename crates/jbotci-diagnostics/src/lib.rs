@@ -2,8 +2,8 @@
 
 use std::ops::Range;
 
-use bityzba::{data, expensive_invariant, invariant, new, requires};
-use jbotci_source::{LineColumn, SourceId, SourceLocationError, SourceSpan};
+use bityzba::{data, invariant, new, requires};
+use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

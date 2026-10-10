@@ -94,9 +94,9 @@ impl<'de> Deserialize<'de> for SourceSpan {
                 byte_end: usize,
                 char_start: usize,
                 char_end: usize,
-                #[allow(dead_code)]
+
                 start: Option<LineColumn>,
-                #[allow(dead_code)]
+
                 end: Option<LineColumn>,
             },
         }
@@ -114,7 +114,8 @@ impl<'de> Deserialize<'de> for SourceSpan {
                 byte_end,
                 char_start,
                 char_end,
-                ..
+                start: _start,
+                end: _end,
             } => SourceSpan::new(source_id, byte_start, byte_end, char_start, char_end),
         }
         .map_err(serde::de::Error::custom)

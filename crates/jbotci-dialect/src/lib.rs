@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::LazyLock;
 
-use bityzba::{data, expensive_ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
