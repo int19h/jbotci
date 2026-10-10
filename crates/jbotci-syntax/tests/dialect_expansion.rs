@@ -12,7 +12,6 @@ use jbotci_morphology::{
 use jbotci_syntax::{
     ParseOptions, SyntaxRecoveryItem, Token, generated_model,
     parse_syntax_tree_recovered_with_source_and_options, parse_syntax_tree_with_source_and_options,
-    syntax_tree_eq_ignoring_spans,
 };
 
 const JBOPONEI: &str = "(jboponei)";
@@ -186,5 +185,44 @@ fn recovery_retains_co_spanned_expansion_cores_with_bahe_and_ui() {
             suhu_spans, expected_suhu_spans,
             "unexpected su'u spans for {source}"
         );
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_tree_eq_ignoring_spans(
+    left: &generated_model::TextSyntax,
+    right: &generated_model::TextSyntax,
+) -> bool {
+    let Ok(mut left) = serde_json::to_value(left) else {
+        return false;
+    };
+    let Ok(mut right) = serde_json::to_value(right) else {
+        return false;
+    };
+    remove_source_span_fields(&mut left);
+    remove_source_span_fields(&mut right);
+    left == right
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remove_source_span_fields(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.remove("span");
+            for child in object.values_mut() {
+                remove_source_span_fields(child);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for child in items {
+                remove_source_span_fields(child);
+            }
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }

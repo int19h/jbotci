@@ -5881,10 +5881,6 @@ pub mod generated_model {
     /// Compatibility name for the unified linked tanru unit used after CEI.
     pub type LinkedTanruUnitForCeiSyntax = LinkedTanruUnitSyntax;
 
-    /// Compatibility name for the former CEI-only wrapper. CEI assignments
-    /// now live on every `TanruUnitSyntax`, matching camxes tanru-unit.
-    pub type AssignedProBridiTanruUnitSyntax = TanruUnitSyntax;
-
     #[bityzba::invariant(true)]
     struct FirstGeneratedTokenVisitor<'tree> {
         first: Option<&'tree Token>,
@@ -6012,17 +6008,6 @@ pub mod generated_model {
 
     impl<'tokens> GeneratedRecoveryParseSession<'tokens> {
         #[bityzba::requires(true)]
-        #[bityzba::ensures(true)]
-        pub(in crate::grammar) fn new() -> Self {
-            Self {
-                memo_session: SyntaxRecoveryMemoSession::new(),
-                parser: recovered_generated_entry_parser_with_eof(SyntaxParseEntry::Text),
-                continuation_sentinel_index: None,
-                continuation_time_limit: None,
-            }
-        }
-
-        #[bityzba::requires(true)]
         #[bityzba::ensures(ret.continuation_time_limit == continuation_time_limit)]
         pub(in crate::grammar) fn new_with_continuation_time_limit(
             entry: SyntaxParseEntry,
@@ -6106,33 +6091,6 @@ pub mod generated_model {
             result,
             trace: finish.trace,
         }
-    }
-
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
-    pub(crate) fn parse_text_detailed_attempt(
-        words: &[Token],
-        options: &ParseOptions,
-    ) -> GeneratedParsedTextDetailedAttempt {
-        let strict_attempt = parse_text_attempt(words, options);
-        if let Ok(parsed) = strict_attempt.result {
-            return bityzba::new!(GeneratedParsedTextDetailedAttempt {
-                result: Ok(parsed),
-                trace: strict_attempt.trace,
-                continuation_expectations: Vec::new(),
-            });
-        }
-
-        parse_text_detailed_tracked_attempt(words, options)
-    }
-
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
-    pub(crate) fn parse_text_detailed_tracked_attempt(
-        words: &[Token],
-        options: &ParseOptions,
-    ) -> GeneratedParsedTextDetailedAttempt {
-        parse_entry_detailed_tracked_attempt(SyntaxParseEntry::Text, words, options)
     }
 
     #[bityzba::requires(true)]
@@ -6237,27 +6195,6 @@ pub mod generated_model {
             trace: finish.trace,
             continuation_expectations,
         })
-    }
-
-    #[bityzba::requires(!directives.is_empty())]
-    #[bityzba::ensures(true)]
-    #[bityzba::ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_directives == ret.recovery_directives.len())]
-    pub(crate) fn parse_recovered_text_attempt(
-        words: &[Token],
-        source: Option<&str>,
-        options: &ParseOptions,
-        directives: &[RecoveryDirective],
-    ) -> GeneratedRecoveredParsedTextAttempt {
-        let parser_tokens = spanned_tokens(words);
-        let mut recovery_session = GeneratedRecoveryParseSession::new();
-        parse_recovered_text_attempt_with_session(
-            words,
-            &parser_tokens,
-            source,
-            options,
-            directives,
-            &mut recovery_session,
-        )
     }
 
     #[bityzba::requires(!directives.is_empty())]

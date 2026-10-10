@@ -31,7 +31,6 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use thiserror::Error;
 
 use crate::tree::TokenSourceAttributionOrder;
@@ -662,15 +661,6 @@ impl ParseOptions {
         self.recovery_error_policy = self
             .recovery_error_policy
             .with_global_hard_cap(max_recovery_errors);
-        self
-    }
-
-    #[requires(max_recovery_errors > 0)]
-    #[ensures(ret.recovery_error_policy.per_statement().get() == max_recovery_errors)]
-    pub fn with_max_recovery_errors_per_statement(mut self, max_recovery_errors: usize) -> Self {
-        self.recovery_error_policy = self
-            .recovery_error_policy
-            .with_per_statement_limit(max_recovery_errors);
         self
     }
 }
@@ -2802,41 +2792,36 @@ pub enum ExperimentalConstruct {
     ExperimentalMexUtteranceOrdinal,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
-    ExperimentalJeIStatementConnective,
-    ExperimentalMultipleNaFragment,
-    ExperimentalEmptyPrenex,
-    ExperimentalBareCuPredicate,
+
     ExperimentalNaheArgumentWithoutBo,
     ExperimentalVuhoScopedAttachment,
     ExperimentalNohoiSelbriRelativeClause,
-    ExperimentalExplicitCuPredicateTailStarter,
+
     ExperimentalRelativeClauseConnective,
     ExperimentalMexOperatorConnective,
-    ExperimentalJiAsJaConnective,
+
     ExperimentalCuTermsSelbri,
     ExperimentalLaheNaheTermWrapper,
-    ExperimentalForethoughtRelativeClauseConnective,
-    ExperimentalBroadAConnective,
+
     ExperimentalVuhuConnective,
-    ExperimentalNahuPredicateConnective,
+
     ExperimentalFaAsTag,
     ExperimentalFlattenedTag,
     ExperimentalCbmCmevlaSelbriWord,
     ExperimentalCbmLaNameAsDescriptor,
     ExperimentalDictionaryDoiVocative,
     ExperimentalDictionaryCoiVocative,
-    ExperimentalDictionarySeiFreeModifier,
+
     ExperimentalDictionaryPaNumber,
     ExperimentalDictionaryFahaTag,
     ExperimentalDictionaryUiIndicator,
     ExperimentalFihoiAdverbial,
     ExperimentalSoiAdverbial,
     ExperimentalPreposedLinkargs,
-    ExperimentalBroadBoStatementConnective,
-    ExperimentalBroadKePredicateContinuation,
+
     ExperimentalTermBoConnection,
     ExperimentalTermLooseConnection,
-    ExperimentalBareNaTerm,
+
     ExperimentalExpDescriptionLeadingSumti,
     CllProhibitedFreeModifierPlacement,
 }
@@ -2879,14 +2864,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalJacuPredicateTailConnective => {
                 "syntax.warning.experimental-jacu-bridi-tail-connective"
             }
-            Self::ExperimentalJeIStatementConnective => {
-                "syntax.warning.experimental-je-i-statement-connective"
-            }
-            Self::ExperimentalMultipleNaFragment => {
-                "syntax.warning.experimental-multiple-na-fragment"
-            }
-            Self::ExperimentalEmptyPrenex => "syntax.warning.experimental-empty-prenex",
-            Self::ExperimentalBareCuPredicate => "syntax.warning.experimental-bare-cu-bridi",
+
             Self::ExperimentalNaheArgumentWithoutBo => {
                 "syntax.warning.experimental-nahe-sumti-without-bo"
             }
@@ -2896,28 +2874,21 @@ impl ExperimentalConstruct {
             Self::ExperimentalNohoiSelbriRelativeClause => {
                 "syntax.warning.experimental-nohoi-selbri-relative-clause"
             }
-            Self::ExperimentalExplicitCuPredicateTailStarter => {
-                "syntax.warning.experimental-explicit-cu-bridi-tail-starter"
-            }
+
             Self::ExperimentalRelativeClauseConnective => {
                 "syntax.warning.experimental-relative-clause-connective"
             }
             Self::ExperimentalMexOperatorConnective => {
                 "syntax.warning.experimental-mex-operator-connective"
             }
-            Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
+
             Self::ExperimentalCuTermsSelbri => "syntax.warning.experimental-cu-terms-selbri",
             Self::ExperimentalLaheNaheTermWrapper => {
                 "syntax.warning.experimental-lahe-nahe-term-wrapper"
             }
-            Self::ExperimentalForethoughtRelativeClauseConnective => {
-                "syntax.warning.experimental-forethought-relative-clause-connective"
-            }
-            Self::ExperimentalBroadAConnective => "syntax.warning.experimental-broad-a-connective",
+
             Self::ExperimentalVuhuConnective => "syntax.warning.experimental-vuhu-connective",
-            Self::ExperimentalNahuPredicateConnective => {
-                "syntax.warning.experimental-nahu-bridi-connective"
-            }
+
             Self::ExperimentalFaAsTag => "syntax.warning.experimental-fa-as-tag",
             Self::ExperimentalFlattenedTag => "syntax.warning.experimental-flattened-tag",
             Self::ExperimentalCbmCmevlaSelbriWord => {
@@ -2932,9 +2903,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalDictionaryCoiVocative => {
                 "syntax.warning.experimental-dictionary-coi-vocative"
             }
-            Self::ExperimentalDictionarySeiFreeModifier => {
-                "syntax.warning.experimental-dictionary-sei-free-modifier"
-            }
+
             Self::ExperimentalDictionaryPaNumber => {
                 "syntax.warning.experimental-dictionary-pa-number"
             }
@@ -2947,17 +2916,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalFihoiAdverbial => "syntax.warning.experimental-fihoi-adverbial",
             Self::ExperimentalSoiAdverbial => "syntax.warning.experimental-soi-adverbial",
             Self::ExperimentalPreposedLinkargs => "syntax.warning.experimental-preposed-linkargs",
-            Self::ExperimentalBroadBoStatementConnective => {
-                "syntax.warning.experimental-broad-bo-statement-connective"
-            }
-            Self::ExperimentalBroadKePredicateContinuation => {
-                "syntax.warning.experimental-broad-ke-bridi-continuation"
-            }
+
             Self::ExperimentalTermBoConnection => "syntax.warning.experimental-term-bo-connection",
             Self::ExperimentalTermLooseConnection => {
                 "syntax.warning.experimental-term-loose-connection"
             }
-            Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
+
             Self::ExperimentalExpDescriptionLeadingSumti => {
                 "syntax.warning.experimental-exp-description-leading-sumti"
             }
@@ -2992,35 +2956,23 @@ impl ExperimentalConstruct {
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
             }
-            Self::ExperimentalJeIStatementConnective => {
-                "JA/JOI connective used before statement separator I"
-            }
-            Self::ExperimentalMultipleNaFragment => "multiple NA fragment sequence",
-            Self::ExperimentalEmptyPrenex => "empty prenex",
-            Self::ExperimentalBareCuPredicate => "bare CU before the main selbri",
+
             Self::ExperimentalNaheArgumentWithoutBo => "NAhE argument without BO",
             Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
             Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
-            Self::ExperimentalExplicitCuPredicateTailStarter => {
-                "explicit CU before the right side of a bridi-tail connective"
-            }
+
             Self::ExperimentalRelativeClauseConnective => {
                 "JA/JOI connective used between relative clauses"
             }
             Self::ExperimentalMexOperatorConnective => {
                 "camxes-exp BO-bound or connective-atom MEX operator"
             }
-            Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
+
             Self::ExperimentalCuTermsSelbri => "CU followed by terms before the main selbri",
             Self::ExperimentalLaheNaheTermWrapper => "LAhE/NAhE term wrapper",
-            Self::ExperimentalForethoughtRelativeClauseConnective => {
-                "forethought connective used between relative clauses"
-            }
-            Self::ExperimentalBroadAConnective => {
-                "A-family connective used in a broader connective-family slot"
-            }
+
             Self::ExperimentalVuhuConnective => "VUhU used as a non-MEX connective",
-            Self::ExperimentalNahuPredicateConnective => "NAhU/ji'oi bridi-to-connective form",
+
             Self::ExperimentalFaAsTag => "FA place tag used as a tag/stag atom",
             Self::ExperimentalFlattenedTag => "experimental flattened tag form",
             Self::ExperimentalCbmCmevlaSelbriWord => "CBM cmevla used as a selbri word",
@@ -3031,9 +2983,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalDictionaryCoiVocative => {
                 "dictionary-first COI experimental vocative cmavo"
             }
-            Self::ExperimentalDictionarySeiFreeModifier => {
-                "dictionary-first SEI-style experimental free modifier"
-            }
+
             Self::ExperimentalDictionaryPaNumber => "dictionary-first PA experimental number word",
             Self::ExperimentalDictionaryFahaTag => "dictionary-first FAhA experimental spatial tag",
             Self::ExperimentalDictionaryUiIndicator => {
@@ -3042,15 +2992,10 @@ impl ExperimentalConstruct {
             Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subbridi adverbial term",
             Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subbridi adverbial term",
             Self::ExperimentalPreposedLinkargs => "BE linkargs before a selbri unit",
-            Self::ExperimentalBroadBoStatementConnective => {
-                "broad connective with BO in a statement/subbridi continuation"
-            }
-            Self::ExperimentalBroadKePredicateContinuation => {
-                "broad connective with KE/KEhE in a bridi/subbridi continuation"
-            }
+
             Self::ExperimentalTermBoConnection => "BO-bound term or linked-argument connection",
             Self::ExperimentalTermLooseConnection => "loose term or linked-argument connection",
-            Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
+
             Self::ExperimentalExpDescriptionLeadingSumti => {
                 "full sumti as the leading element of a description tail"
             }
@@ -3137,20 +3082,6 @@ pub struct SyntaxWarningDisplay {
     pub selection_length: usize,
     pub experimental_cmavo: Option<String>,
     pub context: String,
-}
-
-#[requires(!source_label.is_empty())]
-#[ensures(ret.len() == warnings.len())]
-pub fn syntax_warning_displays(
-    source_label: &str,
-    source: &str,
-    words: &[Token],
-    warnings: &[SyntaxWarning],
-) -> Vec<SyntaxWarningDisplay> {
-    warnings
-        .iter()
-        .map(|warning| syntax_warning_display(source_label, source, words, warning))
-        .collect()
 }
 
 #[requires(!source_label.is_empty())]
@@ -3317,22 +3248,6 @@ pub fn parse_syntax_tree_with_source_and_options(
 #[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
     syntax_parse_leaf_spans_match_words(words, parse)
 }))]
-#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
-    generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
-}))]
-pub fn parse_syntax_tree_with_source_and_options_attempt(
-    words: &[WordLike],
-    source: &str,
-    options: &ParseOptions,
-) -> SyntaxParseAttempt {
-    parse_syntax_tree_with_source_and_options_attempt_inner(words, Some(source), options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
-    syntax_parse_leaf_spans_match_words(words, parse)
-}))]
 fn parse_syntax_tree_with_source_and_options_attempt_inner(
     words: &[WordLike],
     source: Option<&str>,
@@ -3405,7 +3320,7 @@ pub fn parse_syntax_entry_with_recovery_with_source_and_options_attempt(
 }
 
 /// Parse `words` strictly from the grammar rule `entry`, as
-/// [`parse_syntax_tree_with_source_and_options_attempt`] does for a text.
+/// The strict text parser records the same information.
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
@@ -3447,39 +3362,6 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<Box<generated_model::TextSyntax>, SyntaxError> {
     grammar::parse_generated_model_syntax_tree_with_source(words, Some(source), options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn syntax_tree_eq_ignoring_spans(left: &TextSyntax, right: &TextSyntax) -> bool {
-    let Ok(mut left) = serde_json::to_value(left) else {
-        return false;
-    };
-    let Ok(mut right) = serde_json::to_value(right) else {
-        return false;
-    };
-    remove_source_span_fields(&mut left);
-    remove_source_span_fields(&mut right);
-    left == right
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn remove_source_span_fields(value: &mut Value) {
-    match value {
-        Value::Object(object) => {
-            object.remove("span");
-            for child in object.values_mut() {
-                remove_source_span_fields(child);
-            }
-        }
-        Value::Array(items) => {
-            for child in items {
-                remove_source_span_fields(child);
-            }
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-    }
 }
 
 #[cfg(test)]
@@ -4059,10 +3941,13 @@ mod tests {
         ] {
             let words =
                 jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
-            let text_error =
-                parse_syntax_tree_with_source_and_options_attempt(&words, source, &options)
-                    .result
-                    .expect_err("the text has a syntax error");
+            let text_error = parse_syntax_tree_with_source_and_options_attempt_inner(
+                &words,
+                Some(source),
+                &options,
+            )
+            .result
+            .expect_err("the text has a syntax error");
             let entry_error = parse_syntax_entry_with_source_and_options_attempt(
                 SyntaxParseEntry::NihoParagraphs,
                 &words[2..],
@@ -4548,18 +4433,7 @@ mod tests {
     // final candidates, exactly as it does when the first phase offers none,
     // instead of degrading the whole text: each keeps the valid prefix as
     // structure and skips only the construct that could not be completed.
-    // Each input degrades to one invalid item when the fallback is disabled
-    // (#927). Issue #968 replaced the second and third inputs, which reached
-    // the fallback only through Zantufa routes. Issue #969 changed `fa je fa` to
-    // `fa je pu` in the first and third: the JOIK-chained FA tag term now
-    // completes `fa je fa`, which moved the error away from the fallback.
-    // Issue #982 replaced the first and third inputs again: the camxes-exp
-    // JA joint after a bridi tail now completes `broda fa je pu me ku`. With
-    // the lookahead diagnostics fix (#984), the third input's later error
-    // stopped needing the fallback, so it was replaced once more. Issue #979
-    // replaced the second input: with the recovery frame ranks of every path,
-    // `ga pu bo mi klama gi do cadzu` recovers in the first phase (see
-    // `recovered_syntax_inserts_a_missing_term_connection_before_bo`).
+    // Each input degrades to one invalid item when the fallback is disabled (#927).
 
     #[test]
     #[requires(true)]
@@ -4644,13 +4518,8 @@ mod tests {
         assert_eq!(probe.missing_count, 3);
     }
 
-    // A natural-stop trial can succeed at the first error without firing left
-    // of it. That late success is a complete recovery and must be kept even
-    // though no earlier error was recovered (#935); without that rule this
-    // input degrades. Issue #968 replaced the earlier input, which reached the
-    // path only with a Zantufa mex feature. Issue #969 replaced `pa le so'u`:
-    // with the camxes-exp mex-before-MOI selbri back, that input no longer
-    // reaches the path. This one degrades when the rule is disabled.
+    // A natural-stop trial can recover the first error without changing earlier input.
+    // Recovery must keep this late success (#935). This input degrades when that rule is disabled.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -4827,7 +4696,11 @@ mod tests {
         let recovered = parse_syntax_tree_recovered_with_source_and_options(
             &words,
             source,
-            &ParseOptions::default().with_max_recovery_errors_per_statement(1),
+            &ParseOptions {
+                recovery_error_policy: SyntaxRecoveryErrorPolicy::default()
+                    .with_per_statement_limit(1),
+                ..ParseOptions::default()
+            },
         );
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
@@ -4948,21 +4821,6 @@ mod tests {
                 "literal-run recovery for {source:?} should include a recovery slot"
             );
         }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_tree_span_equality_ignores_source_offsets_only() {
-        let left = syntax_tree_for_source("mi klama");
-        let same_tree_different_spans = syntax_tree_for_source("mi  klama");
-        let different_tree = syntax_tree_for_source("mi tavla");
-
-        assert!(syntax_tree_eq_ignoring_spans(
-            &left,
-            &same_tree_different_spans
-        ));
-        assert!(!syntax_tree_eq_ignoring_spans(&left, &different_tree));
     }
 
     #[requires(true)]
@@ -5116,17 +4974,6 @@ mod tests {
     fn syntax_error_for_source(source: &str) -> SyntaxError {
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         parse_syntax_tree(&words).expect_err("source should have a syntax error")
-    }
-
-    #[requires(!source.is_empty())]
-    #[ensures(true)]
-    fn syntax_tree_for_source(source: &str) -> TextSyntax {
-        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
-        parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
-            .expect("valid syntax")
-            .parse_tree
-            .as_ref()
-            .clone()
     }
 
     #[requires(!construct.is_empty())]

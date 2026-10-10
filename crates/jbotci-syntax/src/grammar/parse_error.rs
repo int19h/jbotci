@@ -182,20 +182,6 @@ impl<T> SharedStack<T> {
     }
 
     #[requires(true)]
-    #[ensures(ret.len() == self.len())]
-    pub(super) fn to_vec_outer_to_inner(&self) -> Vec<T>
-    where
-        T: Clone,
-    {
-        let mut values = self
-            .iter_inner_to_outer()
-            .map(|value| value.clone())
-            .collect::<Vec<_>>();
-        values.reverse();
-        values
-    }
-
-    #[requires(true)]
     #[ensures(true)]
     pub(super) fn len(&self) -> usize {
         self.len
@@ -380,6 +366,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Rc::try_unwrap(self.data).unwrap_or_else(|data| (*data).clone())
     }
 
+    #[cfg(test)]
     #[requires(!message.is_empty())]
     #[ensures(ret.expected_groups.is_empty())]
     pub(super) fn custom(span: Span, message: String) -> Self {
@@ -399,35 +386,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
         })
     }
 
-    #[requires(!message.is_empty())]
-    #[ensures(ret.expected_groups.is_empty())]
-    pub(super) fn custom_with_kind(
-        span: Span,
-        message: String,
-        custom_kind: SyntaxParseCustomKind,
-    ) -> Self {
-        Self::from_data(SyntaxParseErrorData {
-            span,
-            position: None,
-            refusal: false,
-            reason: RichReason::Custom(Cow::Owned(message)),
-            expected_groups: SharedVec::empty(),
-            context_paths: empty_context_paths(),
-            found: None,
-            custom_kind: Some(custom_kind),
-            active_contexts: SharedStack::empty(),
-            active_rule_contexts: SharedStack::empty(),
-            preferred_context_hint: None,
-            same_position_branches: SharedVec::empty(),
-        })
-    }
-
+    #[cfg(test)]
     #[requires(!tokens.is_empty())]
     #[ensures(ret.expected_groups.len() == 1)]
     pub(super) fn expected(span: Span, tokens: Vec<SyntaxExpectedToken>) -> Self {
         Self::expected_shared(span, Arc::from(tokens))
     }
 
+    #[cfg(test)]
     #[requires(!tokens.is_empty())]
     #[ensures(ret.expected_groups.len() == 1)]
     pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
@@ -628,12 +594,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn context_paths(&self) -> &[Vec<SyntaxConstructContext>] {
-        &self.context_paths
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub(super) fn found(&self) -> Option<&SyntaxFound> {
         self.found.as_ref()
     }
@@ -642,12 +602,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(true)]
     pub(super) fn custom_kind(&self) -> Option<SyntaxParseCustomKind> {
         self.custom_kind
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn active_rule_contexts(&self) -> Vec<SyntaxRuleFrame> {
-        self.active_rule_contexts.to_vec_outer_to_inner()
     }
 
     #[requires(true)]
@@ -861,77 +815,6 @@ where
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn merge_expected_found<E: IntoIterator<Item = L>>(
-        mut self,
-        expected: E,
-        found: Option<MaybeRef<'tokens, Token>>,
-        _span: Span,
-    ) -> Self
-    where
-        Self: Error<'tokens>,
-    {
-        if !self.same_position_branches.is_empty() {
-            self = self.into_report_error();
-        }
-        let expected = expected.into_iter().collect::<Vec<_>>();
-        append_unique_groups(
-            &mut self.expected_groups,
-            expected_token_groups_from_labels(expected.clone()),
-        );
-        let syntax_found = syntax_found_from_maybe(found.clone());
-        if let RichReason::ExpectedFound {
-            expected: current,
-            found: current_found,
-        } = &mut self.reason
-        {
-            for expected in expected {
-                if let Ok(expected) = expected.try_into()
-                    && !current.contains(&expected)
-                {
-                    current.push(expected);
-                }
-            }
-            *current_found = current_found.take().or(found);
-        }
-        let current_found = std::mem::take(&mut self.found);
-        self.found = merge_optional_equal(current_found, Some(syntax_found));
-        self.custom_kind = None;
-        self
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn replace_expected_found<E: IntoIterator<Item = L>>(
-        mut self,
-        expected: E,
-        found: Option<MaybeRef<'tokens, Token>>,
-        span: Span,
-    ) -> Self {
-        if !self.same_position_branches.is_empty() {
-            self = self.into_report_error();
-        }
-        let expected = expected.into_iter().collect::<Vec<_>>();
-        self.expected_groups = expected_token_groups_from_labels(expected.clone());
-        let syntax_found = syntax_found_from_maybe(found.clone());
-        self.reason = RichReason::ExpectedFound {
-            expected: expected
-                .into_iter()
-                .filter_map(|expected| expected.try_into().ok())
-                .collect(),
-            found,
-        };
-        self.span = span;
-        self.context_paths = empty_context_paths();
-        self.found = Some(syntax_found);
-        self.custom_kind = None;
-        self.active_contexts = SharedStack::empty();
-        self.active_rule_contexts = SharedStack::empty();
-        self.preferred_context_hint = None;
-        self
     }
 
     #[requires(true)]
