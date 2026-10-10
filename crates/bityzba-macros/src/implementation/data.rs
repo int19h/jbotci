@@ -9,8 +9,8 @@ use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::punctuated::Punctuated;
 use syn::{
-    Expr, ExprCall, ExprPath, ExprStruct, FieldPat, FieldValue, Member, Pat, PatStruct,
-    PatTupleStruct, Path, Result, Token,
+    Expr, ExprCall, ExprPath, ExprStruct, FieldValue, Member, Pat, PatStruct, PatTupleStruct, Path,
+    Result, Token,
 };
 
 pub(crate) fn data(input: TokenStream) -> TokenStream {
@@ -417,6 +417,3 @@ impl Parse for DataAssignment {
         Ok(Self { name, value })
     }
 }
-
-#[allow(dead_code)]
-fn _assert_pattern_supports_field_patterns(_: FieldPat, _: Pat) {}

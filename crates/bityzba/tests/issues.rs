@@ -98,23 +98,16 @@ fn gl_issue_18() {
 }
 
 #[test]
+#[bityzba::requires(true)]
 fn gl_issue_41() {
-    use bityzba::requires;
-
-    #[expect(dead_code)]
     fn foo(f: impl Fn(i32) -> i32) -> i32 {
-        // no-op
         f(-10)
     }
-
-    #[requires(true)]
-    fn bar() {
-        let y = foo(|x: i32| {
-            if x < 0 {
-                return 0;
-            }
-            x
-        });
-        assert_eq!(y, 0);
-    }
+    let y = foo(|x: i32| {
+        if x < 0 {
+            return 0;
+        }
+        x
+    });
+    assert_eq!(y, 0);
 }

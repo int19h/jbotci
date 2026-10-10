@@ -39,7 +39,6 @@ fn methods() {
             self.count -= 2;
         }
 
-        #[allow(dead_code)]
         #[invariant(is_even(self.count))]
         fn this_var_collision(&mut self) -> usize {
             #[allow(unused_variables)]
@@ -49,6 +48,7 @@ fn methods() {
     }
 
     let mut adder = EvenAdder { count: 0 };
+    assert_eq!(adder.this_var_collision(), 0);
 
     adder.next_even();
     adder.next_even();
