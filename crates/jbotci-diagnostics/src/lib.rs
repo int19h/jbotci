@@ -199,18 +199,6 @@ impl TraceOptions {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub fn with_phase(self, phase: TracePhase) -> Self {
-        self.with_data(data! { phase: phase })
-    }
-
-    #[requires(limit > 0)]
-    #[ensures(ret.limit == limit)]
-    pub fn with_limit(self, limit: usize) -> Self {
-        self.with_data(data! { limit: limit })
-    }
-
-    #[requires(true)]
     #[ensures(!self.enabled -> !ret)]
     pub fn includes(&self, phase: TracePhase) -> bool {
         self.enabled && self.phase.includes(phase)
@@ -684,16 +672,6 @@ impl DiagnosticTextSegment {
     pub fn new(role: DiagnosticTextRole, text: String) -> Self {
         let link = diagnostic_link_for_role(role, &text);
         new!(DiagnosticTextSegment { role, text, link })
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(ret.link.is_some())]
-    pub fn with_link(role: DiagnosticTextRole, text: String, link: DiagnosticTextLink) -> Self {
-        new!(DiagnosticTextSegment {
-            role,
-            text,
-            link: Some(link),
-        })
     }
 }
 
@@ -1401,26 +1379,6 @@ pub fn char_offset_for_byte_offset(
 ) -> Result<usize, DiagnosticSpanError> {
     validate_byte_offset(source, byte_offset)?;
     Ok(source[..byte_offset].chars().count())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|line_column| line_column.line > 0 && line_column.column > 0) || ret.is_err())]
-pub fn line_column_for_byte_offset(
-    source: &str,
-    byte_offset: usize,
-) -> Result<LineColumn, DiagnosticSpanError> {
-    validate_byte_offset(source, byte_offset)?;
-    let mut line = 1usize;
-    let mut column = 1usize;
-    for ch in source[..byte_offset].chars() {
-        if ch == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
-        }
-    }
-    LineColumn::new(line, column).map_err(DiagnosticSpanError::SourceLocation)
 }
 
 #[requires(true)]
