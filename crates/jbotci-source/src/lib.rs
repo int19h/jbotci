@@ -1,6 +1,6 @@
 //! Shared source-location types.
 
-use bityzba::{data, expensive_ensures, invariant, requires};
+use bityzba::{data, invariant, requires};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
@@ -154,27 +154,6 @@ impl SourceSpan {
         })))
     }
 
-    /// Attach optional human-facing line/column endpoints.
-    ///
-    /// The byte and character offsets remain the source of truth. In
-    /// particular, this method intentionally does not require the two
-    /// line/column endpoints to be present as a pair: `SourceSpan` has no such
-    /// invariant, and callers may enrich either endpoint independently.
-    #[requires(true)]
-    #[ensures(ret.start == start)]
-    #[ensures(ret.end == end)]
-    #[ensures(ret.byte_start == old(self.byte_start))]
-    #[ensures(ret.byte_end == old(self.byte_end))]
-    #[ensures(ret.char_start == old(self.char_start))]
-    #[ensures(ret.char_end == old(self.char_end))]
-    #[expensive_ensures(ret.source_id == old(self.source_id.clone()))]
-    pub fn with_line_columns(self, start: Option<LineColumn>, end: Option<LineColumn>) -> Self {
-        self.with_data(data! {
-            start: start,
-            end: end,
-        })
-    }
-
     #[requires(true)]
     #[ensures(true)]
     pub fn byte_len(&self) -> usize {
@@ -236,19 +215,6 @@ mod tests {
             SourceSpan::new(None, 0, 0, 4, 3),
             Err(SourceLocationError::CharRangeInverted { .. })
         ));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn span_line_column_endpoints_remain_independently_optional() {
-        let start = LineColumn::new(1, 1).expect("one-indexed location");
-        let span = SourceSpan::new(None, 0, 0, 0, 0)
-            .expect("empty ordered span")
-            .with_line_columns(Some(start), None);
-
-        assert_eq!(span.start, Some(start));
-        assert_eq!(span.end, None);
     }
 
     #[test]
