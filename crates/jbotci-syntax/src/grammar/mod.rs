@@ -8473,6 +8473,13 @@ mod tests {
         assert_eq!(peho.first.len(), 1);
         assert_eq!(peho.first[0].tokens, &[AnchorCmavo(Cmavo::Peho)]);
 
+        let fuha = rules
+            .iter()
+            .find(|rule| rule.rule == "exp_reverse_polish_mex")
+            .expect("the reverse Polish rule exists");
+        assert_eq!(fuha.first.len(), 1);
+        assert_eq!(fuha.first[0].tokens, &[AnchorCmavo(Cmavo::Fuha)]);
+
         let false_starts = [
             AnchorCmavo(Cmavo::Ke),
             AnchorCmavo(Cmavo::Maho),
@@ -8491,6 +8498,12 @@ mod tests {
                 .iter()
                 .find(|rule| rule.rule == name)
                 .expect("the experimental mex rule exists");
+            assert!(
+                rule.first
+                    .iter()
+                    .any(|first| { first.tokens.contains(&AnchorCmavo(Cmavo::Fuha)) }),
+                "{name} must admit FUhA"
+            );
             for first in rule.first {
                 assert!(
                     first

@@ -139,6 +139,11 @@ pub mod generated_model {
         inner_mekso_operator: InnerMeksoOperatorSyntax;
         atomic_mekso_operator: AtomicMeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
+        exp_mex: ExpMexSyntax;
+        exp_mex_1: ExpMex1Syntax;
+        exp_complete_mex_2: ExpCompleteMex2Syntax;
+        exp_mex_2: ExpMex2Syntax;
+        exp_rp_parts: ExpRpPartsSyntax;
         letter_string: LetterStringSyntax;
         letter_tokens: LetterTokensSyntax;
         free_modifier: FreeModifierSyntax;
@@ -2667,7 +2672,7 @@ pub mod generated_model {
     }
 
     /// Sum node for operand; selects among 12 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `scalar_negated_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-    rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
+    rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator, exp_mex) -> enum {
         /// Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.
         forethought_mekso_operand,
         /// Uses the `exp_nahe_bo_mex_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.
@@ -2697,33 +2702,39 @@ pub mod generated_model {
     }
 
     /// NAhE BO qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
-    rule "qualified mex" exp_nahe_bo_mex_operand(mekso) -> struct {
+    rule "qualified mex" exp_nahe_bo_mex_operand(exp_mex) -> struct {
         /// The scalar qualifier and its free modifiers.
         field nahe <- selmaho(Nahe).warn(ExperimentalWholeMexQualifier).wf();
         /// The BO marker and its free modifiers.
         field bo <- cmavo(Bo).wf();
         /// The whole mex. A forethought call needs PEhO.
-        field inner_expression <- arc(mekso.reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
+        field inner_expression <- arc(exp_mex
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection));
         /// The optional LUhU terminator and its free modifiers.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// NAhE qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
-    rule "scalar-negated mex" exp_nahe_mex_operand(mekso) -> struct {
+    rule "scalar-negated mex" exp_nahe_mex_operand(exp_mex) -> struct {
         /// The scalar qualifier and its free modifiers.
         field nahe <- selmaho(Nahe).warn(ExperimentalNaheArgumentWithoutBo).warn(ExperimentalWholeMexQualifier).wf();
         /// The whole mex. A forethought call needs PEhO.
-        field inner_expression <- arc(mekso.reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
+        field inner_expression <- arc(exp_mex
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection));
         /// The optional LUhU terminator and its free modifiers.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// LAhE qualifies the whole mex under `lahe-mex` (camxes-exp.peg:282).
-    rule "LAhE-qualified mex" exp_lahe_mex_operand(mekso) -> struct {
+    rule "LAhE-qualified mex" exp_lahe_mex_operand(exp_mex) -> struct {
         /// The sumti qualifier and its free modifiers.
         field lahe <- selmaho(Lahe).warn(ExperimentalWholeMexQualifier).wf();
         /// The whole mex. A forethought call needs PEhO.
-        field inner_expression <- arc(mekso.reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
+        field inner_expression <- arc(exp_mex
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection));
         /// The optional LUhU terminator and its free modifiers.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
@@ -3418,7 +3429,7 @@ pub mod generated_model {
     }
 
     /// Sum node for free modifier; selects among 7 forms including `text_replacement_free_modifier`, `sei_free_modifier`, and `xi_free_modifier`.
-    rule "free modifier" free_modifier(sumti, subbridi, exp_subsentence, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, normal_term, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, exp_subsentence, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, normal_term, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) -> enum {
         /// Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.
         text_replacement_free_modifier,
         /// Uses the `sei_free_modifier` product form, whose payload preserves `sei`, `terms`, `cu`, `selbri`, and `sehu`.
@@ -3474,7 +3485,7 @@ pub mod generated_model {
 
     /// Sum node for subscript; selects among the number, lerfu-string, parenthesized and
     /// camxes-exp `mex_2` forms.
-    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier, sumti, selbri, tense_modal, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) -> enum {
+    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier, sumti, selbri, tense_modal, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) -> enum {
         /// Uses the `xi_number_free_modifier` product form, whose payload preserves `xi` and `expression`.
         xi_number_free_modifier,
         /// Uses the `xi_lerfu_string_free_modifier` product form, whose payload preserves `xi` and `expression`.
@@ -3514,73 +3525,177 @@ pub mod generated_model {
     /// above own a number, a lerfu string and a VEI mex, so this arm adds the other `mex_2`
     /// forms. Like camxes-exp's `mex_2`, it refuses a forethought mex without PEhO anywhere in
     /// its own mex structure (camxes-exp.peg:282).
-    rule "subscript" exp_mex_2_xi_free_modifier(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) -> struct {
+    rule "subscript" exp_mex_2_xi_free_modifier(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) -> struct {
         /// A word from selmaho `Xi`, which carries the warning for the whole construct.
         field xi <- selmaho(Xi).warn(ExperimentalMexSubscript).wf();
         /// The mex subscript.
-        field expression <- arc(exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator)
-            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
+        field expression <- arc(exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts)
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection));
     }
 
     /// camxes-exp's `mex_2` (camxes-exp.peg:282) in jbotci's mex model, for the subscript and
     /// the utterance ordinal: a single operand that is not a number, a lerfu string or a VEI
     /// mex, which the baseline subscript and ordinal own, and not a JOhI array, which
     /// camxes-exp has only in `operand_3`. A forethought call needs PEhO, as in camxes-exp.
-    rule "mex" exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) -> enum {
-        /// `gek mex gik mex_2`.
-        forethought_mekso_operand,
-        /// `NAhE BO mex LUhU`.
+    rule "mex" exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) -> enum {
+        /// The whole left mex and the right mex_2.
+        exp_forethought_mex_operand,
+        /// NAhE BO over a whole mex requires the feature.
         when feature(LaheMex) exp_nahe_bo_mex_operand,
-        /// NAhE BO qualifies one operand on the baseline path.
+        /// The baseline qualifier over one operand.
         qualified_mekso_operand,
-        /// `NAhE mex LUhU`.
+        /// NAhE over a whole mex requires the feature.
         when feature(LaheMex) exp_nahe_mex_operand,
-        /// NAhE qualifies one operand on the baseline path.
+        /// The baseline qualifier over one operand.
         scalar_negated_mekso_operand,
-        /// `LAhE mex LUhU`.
+        /// LAhE over a whole mex requires the feature.
         when feature(LaheMex) exp_lahe_mex_operand,
-        /// LAhE qualifies one operand on the baseline path.
+        /// The baseline qualifier over one operand.
         lahe_qualified_mekso_operand,
-        /// `MOhE sumti TEhU`.
+        /// A sumti used as an operand.
         sumti_mekso_operand,
-        /// `NIhE selbri TEhU`.
+        /// A selbri used as an operand.
         selbri_mekso_operand,
-        /// `PEhO operator mex+ KUhE`.
+        /// A required PEhO and whole mex arguments.
         exp_peho_forethought_call_mekso,
+        /// FUhA and the reference reverse-Polish expression.
+        exp_reverse_polish_mex,
     }
 
-    /// A forethought call that starts with PEhO, as camxes-exp's `mex_2` requires
-    /// (camxes-exp.peg:282). jbotci's own forethought call keeps PEhO optional (I12).
-    rule "forethought mex" exp_peho_forethought_call_mekso(mekso_base, mekso_operator) -> struct {
-        /// The required `Peho` cmavo marker and its free modifiers.
-        field peho <- cmavo(Peho).wf();
-        /// The shared operator child syntax node.
+    /// The complete mex_2 tier for nested reference expressions (camxes-exp.peg:282).
+    rule "mex" exp_complete_mex_2(exp_mex_2, exp_mex, letter_tokens, letter_string, free_modifier) -> enum {
+        /// A number and its optional BOI.
+        exp_number_mex,
+        /// A letter string and its optional BOI.
+        lerfu_string_mekso,
+        /// A parenthesized reference mex.
+        exp_parenthesized_mex,
+        /// The remaining reference atoms.
+        exp_mex_2,
+    }
+
+    /// A number at the reference mex_2 tier.
+    rule "number operand" exp_number_mex(letter_tokens, free_modifier) -> struct {
+        /// The number, its optional BOI and its free modifiers.
+        field quantifier <- pa_run_quantifier(letter_tokens, free_modifier);
+    }
+
+    /// A parenthesized reference mex.
+    rule "parenthesized operand" exp_parenthesized_mex(exp_mex) -> struct {
+        /// The opening VEI and its free modifiers.
+        field vei <- cmavo(Vei).wf();
+        /// The whole reference mex.
+        field inner_expression <- arc(exp_mex);
+        /// The optional closing VEhO and its free modifiers.
+        field veho <- opt(cmavo(Veho).wf()).elidable_terminator(Veho);
+    }
+
+    /// The reference mex tier (camxes-exp.peg:278).
+    rule "mex" exp_mex(exp_mex_1, mekso_operator) -> struct {
+        /// The first mex_1 expression.
+        field first_expression <- arc(exp_mex_1);
+        /// Infix operators and their right expressions.
+        field continuations <- [zero_or_more exp_mex_continuation(exp_mex_1, mekso_operator)];
+    }
+
+    /// One infix continuation at the reference mex tier.
+    rule "mex continuation" exp_mex_continuation(exp_mex_1, mekso_operator) -> struct {
+        /// The infix operator.
         field operator <- arc(mekso_operator);
-        /// Non-empty ordered sequence of operands components.
-        field operands <- [one_or_more mekso_base];
-        /// The optional `Kuhe` cmavo marker.
+        /// The right mex_1 expression.
+        field right_expression <- arc(exp_mex_1);
+    }
+
+    /// The reference mex_1 tier binds an operator with BO (camxes-exp.peg:280).
+    rule "mex" exp_mex_1(exp_complete_mex_2, exp_mex_1, mekso_operator, tense_modal) -> struct {
+        /// The left mex_2 expression.
+        field left_expression <- arc(exp_complete_mex_2);
+        /// The optional BO-bound continuation.
+        field tail <- opt(exp_mex_bo_tail(exp_mex_1, mekso_operator, tense_modal));
+    }
+
+    /// A BO-bound operator and its right mex_1 expression.
+    rule "mex precedence continuation" exp_mex_bo_tail(exp_mex_1, mekso_operator, tense_modal) -> struct {
+        /// The operator before the optional tag.
+        field operator <- arc(mekso_operator);
+        /// The optional stag before BO.
+        field tense_modal <- opt(arc(tense_modal));
+        /// BO and its free modifiers.
+        field bo <- cmavo(Bo).wf();
+        /// The right mex_1 expression.
+        field right_expression <- arc(exp_mex_1);
+    }
+
+    /// The reference GEK product reads mex and mex_2 (camxes-exp.peg:282).
+    rule "forethought mex" exp_forethought_mex_operand(exp_mex, exp_complete_mex_2, tense_modal, selbri, letter_tokens) -> struct {
+        /// The opening GEK connective.
+        field gek <- modal_forethought_connective(tense_modal, selbri, letter_tokens);
+        /// The whole left mex.
+        field left_expression <- arc(exp_mex);
+        /// GI and its free modifiers.
+        field gik <- gik_connective;
+        /// The right mex_2 expression.
+        field right_expression <- arc(exp_complete_mex_2);
+    }
+
+    /// The reference call requires PEhO and whole mex arguments (camxes-exp.peg:282).
+    rule "forethought mex" exp_peho_forethought_call_mekso(exp_mex, mekso_operator) -> struct {
+        /// PEhO and its free modifiers.
+        field peho <- cmavo(Peho).wf();
+        /// The call operator.
+        field operator <- arc(mekso_operator);
+        /// One or more whole mex arguments.
+        field operands <- [one_or_more exp_mex];
+        /// The optional KUhE and its free modifiers.
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
+    /// FUhA and the reference rp_expression (camxes-exp.peg:282-284).
+    rule "reverse Polish mex" exp_reverse_polish_mex(exp_rp_parts) -> struct {
+        /// FUhA, without a free-modifier slot in the reference rule.
+        field fuha <- cmavo(Fuha);
+        /// The reverse-Polish expression.
+        field parts <- arc(exp_rp_parts);
+    }
+
+    /// The reference rp_expression starts with mex_1 (camxes-exp.peg:284).
+    rule "reverse Polish mex" exp_rp_parts(exp_mex_1, exp_rp_parts, mekso_operator) -> struct {
+        /// The first mex_1 expression.
+        field first_operand <- arc(exp_mex_1);
+        /// Nested reverse-Polish expressions and their operators.
+        field tails <- [zero_or_more exp_rp_tail(exp_rp_parts, mekso_operator)];
+    }
+
+    /// One nested reference reverse-Polish expression and its operator.
+    rule "reverse Polish mex tail" exp_rp_tail(exp_rp_parts, mekso_operator) -> struct {
+        /// The nested reverse-Polish expression.
+        field right_parts <- arc(exp_rp_parts);
+        /// The postfix operator.
+        field operator <- mekso_operator;
+    }
+
     // Give a failed ordinal probe its grammar name in detailed diagnostics.
-    alias "mex followed by MAI" exp_mex_2_mai_probe(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) = (
-        exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator)
-            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection),
+    alias "mex followed by MAI" exp_mex_2_mai_probe(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) = (
+        exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts)
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection),
         selmaho(Mai),
     ).ignored();
 
     /// camxes-exp's utterance ordinal `mex_2 MAI_clause free*` (camxes-exp.peg:382), for the
     /// `mex_2` forms that the baseline ordinal does not take.
-    rule "utterance ordinal" exp_mex_2_mai_free_modifier(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator) -> struct {
+    rule "utterance ordinal" exp_mex_2_mai_free_modifier(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts) -> struct {
         // A free modifier is tried after almost every word, and most of the words that start
         // a `mex_2` (NAhE, LAhE, GA, PEhO and others) start other constructs too. So the arm
         // first tests, as a probe, that a whole `mex_2` and then MAI follow. A failed attempt
         // then reports only at its own start (#988), and its inner expectations, which belong
         // to a construct that is not there, never become the furthest failure of the text.
-        assert exp_mex_2_mai_probe(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator);
+        assert exp_mex_2_mai_probe(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts);
         /// The mex before MAI.
-        field expression <- arc(exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator)
-            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection));
+        field expression <- arc(exp_mex_2(mekso, sumti, selbri, tense_modal, letter_tokens, mekso_base, mekso_operand, simple_mekso_operand, mekso_operator, exp_mex, exp_complete_mex_2, exp_rp_parts)
+            .reject_output(crate::grammar::peho_forethought::PehoLessForethoughtRejection)
+            .reject_output(crate::grammar::peho_forethought::CamxesArrayRejection));
         /// A word from selmaho `Mai`, which carries the warning for the whole construct.
         field mai <- selmaho(Mai).warn(ExperimentalMexUtteranceOrdinal).wf();
     }

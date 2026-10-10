@@ -20,13 +20,22 @@ use bityzba::{contract_trait, invariant, requires};
 use super::generated_model::{self as model, recovered};
 use super::generated_runtime::OutputRejection;
 
-/// Generated-walker pass that records whether a mex holds a forethought call without PEhO.
+/// Generated pass for missing PEhO and arrays in a reference mex.
 #[invariant(true)]
-struct PehoLessForethoughtFinder {
+struct ReferenceMexFinder {
     found: bool,
+    array_found: bool,
 }
 
-impl<'tree> model::TreeWalker<'tree> for PehoLessForethoughtFinder {
+impl<'tree> model::TreeWalker<'tree> for ReferenceMexFinder {
+    #[requires(true)]
+    #[ensures(self.array_found)]
+    #[ensures(old(self.found) -> self.found)]
+    fn walk_array_mekso_operand(&mut self, node: &'tree model::ArrayMeksoOperandSyntax) {
+        self.array_found = true;
+        model::walk::array_mekso_operand(self, node);
+    }
+
     #[requires(true)]
     #[ensures(old(self.found) -> self.found)]
     fn walk_forethought_call_mekso(&mut self, node: &'tree model::ForethoughtCallMeksoSyntax) {
@@ -39,9 +48,8 @@ impl<'tree> model::TreeWalker<'tree> for PehoLessForethoughtFinder {
         } = node;
         if peho.is_none() {
             self.found = true;
-        } else {
-            model::walk::forethought_call_mekso(self, node);
         }
+        model::walk::forethought_call_mekso(self, node);
     }
 
     #[requires(true)]
@@ -61,7 +69,15 @@ impl<'tree> model::TreeWalker<'tree> for PehoLessForethoughtFinder {
     fn walk_free_modifier(&mut self, _node: &'tree model::FreeModifierSyntax) {}
 }
 
-impl<'tree> recovered::TreeWalker<'tree> for PehoLessForethoughtFinder {
+impl<'tree> recovered::TreeWalker<'tree> for ReferenceMexFinder {
+    #[requires(true)]
+    #[ensures(self.array_found)]
+    #[ensures(old(self.found) -> self.found)]
+    fn walk_array_mekso_operand(&mut self, node: &'tree recovered::ArrayMeksoOperandSyntax) {
+        self.array_found = true;
+        recovered::walk::array_mekso_operand(self, node);
+    }
+
     #[requires(true)]
     #[ensures(old(self.found) -> self.found)]
     fn walk_forethought_call_mekso(&mut self, node: &'tree recovered::ForethoughtCallMeksoSyntax) {
@@ -74,9 +90,8 @@ impl<'tree> recovered::TreeWalker<'tree> for PehoLessForethoughtFinder {
         } = node;
         if peho.is_none() {
             self.found = true;
-        } else {
-            recovered::walk::forethought_call_mekso(self, node);
         }
+        recovered::walk::forethought_call_mekso(self, node);
     }
 
     #[requires(true)]
@@ -117,7 +132,7 @@ macro_rules! peho_less_forethought_rejection {
             }
 
             fn rejects(&self, value: &model::$node) -> bool {
-                let mut finder = PehoLessForethoughtFinder { found: false };
+                let mut finder = ReferenceMexFinder { found: false, array_found: false };
                 model::TreeWalkable::walk_with(value, &mut finder);
                 finder.found
             }
@@ -132,7 +147,7 @@ macro_rules! peho_less_forethought_rejection {
             }
 
             fn rejects(&self, value: &recovered::Recovered<recovered::$node>) -> bool {
-                let mut finder = PehoLessForethoughtFinder { found: false };
+                let mut finder = ReferenceMexFinder { found: false, array_found: false };
                 recovered::walk::recovered(&mut finder, value);
                 finder.found
             }
@@ -140,4 +155,43 @@ macro_rules! peho_less_forethought_rejection {
     )+};
 }
 
-peho_less_forethought_rejection!(MeksoSyntax, ExpMex2Syntax);
+peho_less_forethought_rejection!(MeksoSyntax, ExpMex2Syntax, ExpMexSyntax);
+
+/// Refuses an array in a reference mex's own structure.
+/// JOhI appears only in operand_3, which mex_2 does not call (camxes-exp.peg:282,323).
+/// Quotes and the retained nested sumti, selbri, tag and free-modifier languages stay separate.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CamxesArrayRejection;
+
+macro_rules! camxes_array_rejection {
+    ($($node:ident),+ $(,)?) => {$(
+        #[contract_trait]
+        impl OutputRejection<model::$node> for CamxesArrayRejection {
+            fn rejected_name(&self) -> &'static str {
+                "JOhI array outside the reference operand tier"
+            }
+
+            fn rejects(&self, value: &model::$node) -> bool {
+                let mut finder = ReferenceMexFinder { found: false, array_found: false };
+                model::TreeWalkable::walk_with(value, &mut finder);
+                finder.array_found
+            }
+        }
+
+        #[contract_trait]
+        impl OutputRejection<recovered::Recovered<recovered::$node>> for CamxesArrayRejection {
+            fn rejected_name(&self) -> &'static str {
+                "JOhI array outside the reference operand tier"
+            }
+
+            fn rejects(&self, value: &recovered::Recovered<recovered::$node>) -> bool {
+                let mut finder = ReferenceMexFinder { found: false, array_found: false };
+                recovered::walk::recovered(&mut finder, value);
+                finder.array_found
+            }
+        }
+    )+};
+}
+
+camxes_array_rejection!(MeksoSyntax, ExpMexSyntax, ExpMex2Syntax);
