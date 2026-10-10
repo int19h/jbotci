@@ -396,6 +396,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "bityzba fixture covers explicit no-op type markers",
     ),
     (
+        "crates/bityzba/tests/ui/fail/dead_code_types.rs:UnusedMarker",
+        "the compile-fail fixture tests unused-type warnings on a no-op contract marker",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:BlockParseState",
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
@@ -1332,10 +1336,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "span and value each own their validity",
     ),
     (
-        "crates/jbotci-syntax-macros/src/containment.rs:AliasPolicyVisitor",
-        "diagnostic accumulator stores either no error or any syn error; there is no cross-field constraint",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:AliasRule",
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
@@ -2102,18 +2102,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/platform.rs:TooltipPlacement",
         "platform tooltip placement is transient geometry produced by platform layout services",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TopbarLayoutMetrics",
-        "platform topbar metrics are direct layout measurements used by shared placement code",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TreeLine",
-        "platform tree lines are renderer geometry derived from measured syntax rows",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:TreeLineAnchor",
-        "platform tree line anchors are renderer geometry derived from measured syntax rows",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:UnsupportedClipboardService",
