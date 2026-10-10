@@ -15,7 +15,7 @@ use super::{
     SyntaxMemoContext, SyntaxParseError,
     parser_core::{
         Checkpoint, InputRef, LabelError, MapExtra, Parser, ProbeFailure, custom,
-        empty as parser_empty, end as parser_end,
+        empty as parser_empty,
     },
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
@@ -63,12 +63,6 @@ where
         }
     })
     .boxed()
-}
-
-#[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct VocativeMarkerWordsSyntax {
-    pub words: Vec<Token>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -122,7 +116,7 @@ impl SyntaxGrammarDialect {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[allow(dead_code)]
+
 pub(crate) enum SyntaxGrammarFeature {
     Cbm,
     UnrestrictedFree,
@@ -536,12 +530,6 @@ fn skip_through<'tokens>(
 #[ensures(true)]
 pub(crate) fn empty<'tokens>() -> BoxedParser<'tokens, ()> {
     parser_empty().boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn eof<'tokens>() -> BoxedParser<'tokens, ()> {
-    parser_end().boxed()
 }
 
 /// A public feature condition with an optional negation.
@@ -2194,24 +2182,6 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_empty_free_modifier_parser<'tokens, F>() -> BoxedParser<'tokens, F>
-where
-    F: 'tokens,
-{
-    custom::<_, _>(move |input| Err(expected_found_at_current(input, "free modifier"))).boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn recovered_empty_free_modifier_parser<'tokens, F>() -> BoxedParser<'tokens, F>
-where
-    F: 'tokens,
-{
-    strict_empty_free_modifier_parser()
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, ()> {
     custom::<_, _>(move |input| {
         let checkpoint = input.save();
@@ -2273,21 +2243,6 @@ where
         }
     })
     .boxed()
-}
-
-#[requires(!expected.is_empty())]
-#[ensures(true)]
-pub(crate) fn complete_statement_item<'tokens, O, P>(
-    inner: P,
-    expected: &'static str,
-) -> BoxedParser<'tokens, O>
-where
-    O: 'tokens,
-    P: Parser<'tokens, O> + Clone + 'tokens,
-{
-    complete_before_boundary(inner, expected, |token| {
-        token.is_none_or(|token| token.is_selmaho(Selmaho::I) || token.is_selmaho(Selmaho::Niho))
-    })
 }
 
 #[requires(!expected.is_empty())]

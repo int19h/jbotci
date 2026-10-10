@@ -3,18 +3,13 @@
 //! Generated model fields and enum payloads share contained nodes through `Arc`,
 //! including nodes inside options, sequences and free-modifier wrappers. Explicit
 //! `Box`/`Arc` layers are preserved. Tokens and scalars retain their value types.
-//! Use `inline(parser)` at a field's containment position (including a tuple or
-//! sequence element), or `inline(rule)` for an enum payload, to opt out. Aliases
-//! abbreviate parser results and do not own storage: write `inline(alias)` at
-//! the field site, rather than placing `inline` inside an alias definition.
 //!
 //! An enum rule branch names one rule and becomes one variant that wraps that
 //! rule's output, even when the named rule is itself an enum rule. To put the
 //! variants of another enum rule into an enum without that wrapper, write a
 //! `splice other_rule` entry instead of a branch. The entry stands for the
 //! branches of `other_rule`, in order, as if they were written in its place; see
-//! `resolve_enum_splices`. The keyword is `splice` and not `inline`, because
-//! `inline` already means the containment opt-out above.
+//! `resolve_enum_splices`.
 
 //! Product rules accept parser-only statements between their fields.
 //! `assert parser;` requires a successful probe without consuming input.
@@ -65,7 +60,6 @@ mod kw {
     syn::custom_keyword!(feature);
     syn::custom_keyword!(field);
     syn::custom_keyword!(model);
-    syn::custom_keyword!(model_path);
     syn::custom_keyword!(recursive);
     syn::custom_keyword!(rule);
     syn::custom_keyword!(splice);
@@ -82,7 +76,6 @@ struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
     model_outputs: Option<BTreeSet<String>>,
-    model_path: Option<Path>,
     env: Option<Type>,
     generate_parsers: bool,
     recursive: Vec<RecursiveRule>,
@@ -148,7 +141,6 @@ impl SyntaxGrammar {
                         self.generate_model,
                         &model_outputs,
                         model_all_rules_local,
-                        self.model_path.as_ref(),
                         rule.output(&type_env)
                             .is_some_and(|output| self.generates_model_output(output)),
                         StrictParserFlavor::Normal,
@@ -176,7 +168,6 @@ impl SyntaxGrammar {
                         self.generate_model,
                         &model_outputs,
                         model_all_rules_local,
-                        self.model_path.as_ref(),
                         rule.output(&type_env)
                             .is_some_and(|output| self.generates_model_output(output)),
                         StrictParserFlavor::RecoveryCheckpoint,
@@ -205,7 +196,6 @@ impl SyntaxGrammar {
                         &type_env,
                         &model_outputs,
                         model_all_rules_local,
-                        self.model_path.as_ref(),
                         &recovered_module,
                         rule.output(&type_env)
                             .is_some_and(|output| self.generates_model_output(output)),
@@ -268,11 +258,6 @@ impl SyntaxGrammar {
                 pub negated: bool,
             }
 
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            pub(crate) enum SyntaxGrammarTokenPredicate {
-                TaggedSelbriParentOwnedStart,
-                TaggedSumtiTermParentOwnedStart,
-            }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub(crate) enum SyntaxGrammarRecoveryExpr {
@@ -288,19 +273,15 @@ impl SyntaxGrammar {
                     inner: &'static SyntaxGrammarRecoveryExpr,
                     condition: Option<SyntaxGrammarCondition>,
                 },
-                PayloadStart(&'static SyntaxGrammarRecoveryExpr),
                 Ignored(&'static SyntaxGrammarRecoveryExpr),
                 NotNextSelmaho(Selmaho),
-                NotNextToken(SyntaxGrammarTokenPredicate),
                 Lookahead(&'static SyntaxGrammarRecoveryExpr),
                 Not(&'static SyntaxGrammarRecoveryExpr),
                 Choice(&'static [SyntaxGrammarRecoveryExpr]),
                 Sequence(&'static [SyntaxGrammarRecoveryExpr]),
-                BareNegationTerm,
                 RelationWord,
                 Rule(&'static str),
                 Opaque(&'static str),
-                Eof,
             }
 
             #[derive(Debug, Clone, Copy)]
@@ -416,15 +397,6 @@ impl Parse for SyntaxGrammar {
             (false, None)
         };
 
-        let model_path = if input.peek(kw::model_path) {
-            input.parse::<kw::model_path>()?;
-            let path = input.parse()?;
-            input.parse::<Token![;]>()?;
-            Some(path)
-        } else {
-            None
-        };
-
         let env = if input.peek(kw::env) {
             input.parse::<kw::env>()?;
             let env = input.parse()?;
@@ -465,7 +437,6 @@ impl Parse for SyntaxGrammar {
             tree_model,
             generate_model,
             model_outputs,
-            model_path,
             env,
             generate_parsers,
             recursive,
@@ -619,12 +590,7 @@ impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
     fn parser_type_tokens(&self, output: &Type) -> TokenStream2 {
-        parser_type_tokens(
-            output,
-            self.generate_model,
-            &self.resolved_model_outputs(),
-            self.model_path.as_ref(),
-        )
+        parser_type_tokens(output, self.generate_model, &self.resolved_model_outputs())
     }
 
     #[requires(true)]
@@ -659,8 +625,6 @@ impl SyntaxGrammar {
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
         let mut enum_declarations = BTreeMap::<String, (Vec<Attribute>, Ident)>::new();
-        let mut transparent_constructors = BTreeSet::<String>::new();
-        let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
         let mut variant_struct_outputs = BTreeSet::<(String, String)>::new();
         let mut constructor_labels = BTreeMap::<String, String>::new();
@@ -694,10 +658,8 @@ impl SyntaxGrammar {
                         ));
                     }
                     let enum_constructor = generated_constructor_name(&output);
-                    transparent_constructors.insert(enum_constructor.clone());
                     constructor_labels.insert(enum_constructor.clone(), rule.context.value());
                     for branch in &rule.branches {
-                        let branch_name = branch.name.to_string();
                         let Some(branch_output) = rule.branch_output(branch, type_env) else {
                             return Err(syn::Error::new_spanned(
                                 &branch.name,
@@ -706,7 +668,6 @@ impl SyntaxGrammar {
                         };
                         let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                         let variant_constructor = variant.to_string();
-                        transparent_constructors.insert(variant_constructor.clone());
                         constructor_labels.insert(
                             variant_constructor.clone(),
                             self.rule_context_label(&branch.name)
@@ -718,16 +679,6 @@ impl SyntaxGrammar {
                                 branch_output_ident.to_string(),
                             ));
                         }
-                        transparent_field_pairs
-                            .insert((enum_constructor.clone(), branch_name.clone()));
-                        transparent_field_pairs
-                            .insert((enum_constructor.clone(), snake_case(&enum_constructor)));
-                        transparent_field_pairs
-                            .insert((variant_constructor.clone(), branch_name.clone()));
-                        transparent_field_pairs.insert((
-                            variant_constructor.clone(),
-                            snake_case(&variant_constructor),
-                        ));
                         let field = new!(GeneratedFieldModel {
                             attrs: branch
                                 .attrs
@@ -775,13 +726,6 @@ impl SyntaxGrammar {
                 }
             }
             let fields = rule.generated_model_fields(type_env)?;
-            if fields.len() == 1 {
-                let constructor = generated_constructor_name(&output);
-                transparent_constructors.insert(constructor.clone());
-                let field_name = fields[0].name.to_string();
-                transparent_field_pairs.insert((constructor.clone(), field_name));
-                transparent_field_pairs.insert((constructor.clone(), snake_case(&constructor)));
-            }
             if let Some(context) = &rule.context {
                 constructor_labels.insert(generated_constructor_name(&output), context.value());
             }
@@ -838,10 +782,6 @@ impl SyntaxGrammar {
                 }
             }
         }));
-        let transparent_constructors = transparent_constructors.iter();
-        let transparent_field_pairs = transparent_field_pairs
-            .iter()
-            .map(|(constructor, field)| quote!((#constructor, #field)));
         let chain_link_element_fields = chain_link_element_fields
             .iter()
             .map(|(constructor, field)| quote!((#constructor, #field)));
@@ -895,15 +835,7 @@ impl SyntaxGrammar {
                 pub cmavo: Cmavo,
             }
 
-            #[doc(hidden)]
-            pub const GENERATED_MODEL_TRANSPARENT_TREE_CONSTRUCTORS: &[&str] = &[
-                #(#transparent_constructors,)*
-            ];
 
-            #[doc(hidden)]
-            pub const GENERATED_MODEL_TRANSPARENT_TREE_FIELD_PAIRS: &[(&str, &str)] = &[
-                #(#transparent_field_pairs,)*
-            ];
 
             #[doc(hidden)]
             pub const GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS: &[(&str, &str)] = &[
@@ -1225,39 +1157,6 @@ fn pascal_case_ident(name: &str) -> Ident {
     format_ident!("{out}")
 }
 
-#[requires(name.chars().any(|ch| ch != '_' && ch != '-' && ch != ' '))]
-#[ensures(!ret.is_empty())]
-fn snake_case(name: &str) -> String {
-    let mut out = String::new();
-    let mut previous_was_separator = false;
-    for (index, ch) in name.chars().enumerate() {
-        if ch == '-' || ch == ' ' {
-            if !out.is_empty() && !previous_was_separator {
-                out.push('_');
-            }
-            previous_was_separator = true;
-            continue;
-        }
-        if ch == '_' {
-            if !out.is_empty() && !previous_was_separator {
-                out.push('_');
-            }
-            previous_was_separator = true;
-            continue;
-        }
-        if ch.is_uppercase() {
-            if index > 0 && !previous_was_separator {
-                out.push('_');
-            }
-            out.extend(ch.to_lowercase());
-        } else {
-            out.push(ch);
-        }
-        previous_was_separator = false;
-    }
-    out
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn syntax_type_ident_for_rule(name: &Ident) -> Ident {
@@ -1543,6 +1442,12 @@ impl SyntaxGrammar {
         if recursive_rules.is_empty() {
             return Ok(None);
         }
+        if !all_recursive_names.contains("free_modifier") {
+            return Err(syn::Error::new_spanned(
+                &recursive_rules[0].name,
+                "recursive parsers require the free_modifier rule",
+            ));
+        }
         let local_recursive_names = recursive_rules
             .iter()
             .map(|rule| rule.name.to_string())
@@ -1636,15 +1541,13 @@ impl SyntaxGrammar {
                     quote!(#free_modifier.clone().map(
                         generated_runtime::SharedSyntaxOutput::into_owned
                     ).boxed())
-                } else if all_recursive_names.contains("free_modifier") {
+                } else {
                     quote!(
                         super::#family_function()
                             .free_modifier
                             .map(generated_runtime::SharedSyntaxOutput::into_owned)
                             .boxed()
                     )
-                } else {
-                    quote!(generated_runtime::strict_empty_free_modifier_parser())
                 };
                 let hidden_normal_free_modifier = flavor
                     .records_recovery_checkpoints()
@@ -1655,14 +1558,12 @@ impl SyntaxGrammar {
                                 .clone()
                                 .map(generated_runtime::SharedSyntaxOutput::into_owned)
                                 .boxed(),)
-                        } else if all_recursive_names.contains("free_modifier") {
+                        } else {
                             quote!(__generated_external_normal_strict_family
                                 .free_modifier
                                 .clone()
                                 .map(generated_runtime::SharedSyntaxOutput::into_owned)
                                 .boxed(),)
-                        } else {
-                            quote!(generated_runtime::strict_empty_free_modifier_parser(),)
                         }
                     });
                 let name = &recursive.name;
@@ -1686,7 +1587,7 @@ impl SyntaxGrammar {
             let shared_function = flavor.recursive_shared_root_function(&root_name.to_string());
             let output = self.parser_type_tokens(&rule.output);
             quote! {
-                #[allow(dead_code, unused_variables)]
+                #[allow(unused_variables)]
                 pub(crate) fn #shared_function<'tokens>() -> BoxedParser<
                     'tokens,
                     generated_runtime::SharedSyntaxOutput<#output>,
@@ -1694,7 +1595,7 @@ impl SyntaxGrammar {
                     #family_function().#root_name
                 }
 
-                #[allow(dead_code, unused_variables)]
+                #[allow(unused_variables)]
                 pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
                     #shared_function()
                         .map(generated_runtime::SharedSyntaxOutput::into_owned)
@@ -1703,13 +1604,12 @@ impl SyntaxGrammar {
             }
         });
         Ok(Some(quote! {
-            #[allow(dead_code)]
+
             #[bityzba::invariant(true)]
             struct #family_ident<'tokens> {
                 #(#fields,)*
             }
 
-            #[allow(dead_code)]
             pub(crate) fn #family_function<'tokens>() -> #family_ident<'tokens> {
                 let __generated_recursive_family = RecursiveFamily::new();
                 #paired_family_declarations
@@ -1745,6 +1645,12 @@ impl SyntaxGrammar {
             .collect::<Vec<_>>();
         if recursive_rules.is_empty() {
             return Ok(None);
+        }
+        if !all_recursive_names.contains("free_modifier") {
+            return Err(syn::Error::new_spanned(
+                &recursive_rules[0].name,
+                "recursive parsers require the free_modifier rule",
+            ));
         }
         let local_recursive_names = recursive_rules
             .iter()
@@ -1833,15 +1739,13 @@ impl SyntaxGrammar {
                         quote!(#free_modifier.clone().map(
                         generated_runtime::SharedSyntaxOutput::into_owned
                     ).boxed())
-                    } else if all_recursive_names.contains("free_modifier") {
+                    } else {
                         quote!(
                             super::recovered_generated_parser_family()
                                 .free_modifier
                                 .map(generated_runtime::SharedSyntaxOutput::into_owned)
                                 .boxed()
                         )
-                    } else {
-                        quote!(generated_runtime::recovered_empty_free_modifier_parser())
                     };
                     let hidden_strict_free_modifier =
                         if local_recursive_names.contains("free_modifier") {
@@ -1852,7 +1756,7 @@ impl SyntaxGrammar {
                                     .map(generated_runtime::SharedSyntaxOutput::into_owned)
                                     .boxed()
                             )
-                        } else if all_recursive_names.contains("free_modifier") {
+                        } else {
                             quote!(
                                 __generated_external_normal_strict_family
                                     .free_modifier
@@ -1860,8 +1764,6 @@ impl SyntaxGrammar {
                                     .map(generated_runtime::SharedSyntaxOutput::into_owned)
                                     .boxed()
                             )
-                        } else {
-                            quote!(generated_runtime::strict_empty_free_modifier_parser())
                         };
                     let name = &recursive.name;
                     Ok(quote! {
@@ -1884,7 +1786,7 @@ impl SyntaxGrammar {
             let shared_function = format_ident!("recovered_generated_{}_shared_parser", root_name);
             let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
             quote! {
-                #[allow(dead_code, unused_variables)]
+                #[allow(unused_variables)]
                 pub(crate) fn #shared_function<'tokens>() -> BoxedParser<
                     'tokens,
                     generated_runtime::SharedSyntaxOutput<#output>,
@@ -1892,7 +1794,7 @@ impl SyntaxGrammar {
                     recovered_generated_parser_family().#root_name
                 }
 
-                #[allow(dead_code, unused_variables)]
+                #[allow(unused_variables)]
                 pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
                     #shared_function()
                         .map(generated_runtime::SharedSyntaxOutput::into_owned)
@@ -1901,13 +1803,12 @@ impl SyntaxGrammar {
             }
         });
         Ok(Some(quote! {
-            #[allow(dead_code)]
+
             #[bityzba::invariant(true)]
             struct #family_ident<'tokens> {
                 #(#fields,)*
             }
 
-            #[allow(dead_code)]
             pub(crate) fn recovered_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
                 let __generated_recursive_family = RecursiveFamily::new();
                 #paired_family_declarations
@@ -2361,7 +2262,6 @@ impl Rule {
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         use_model_construction: bool,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
@@ -2371,7 +2271,6 @@ impl Rule {
                 generate_model,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 flavor,
             ),
             Rule::Struct(rule) => rule.expand_strict_parser(
@@ -2379,7 +2278,6 @@ impl Rule {
                 generate_model,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 use_model_construction,
                 flavor,
             ),
@@ -2388,7 +2286,6 @@ impl Rule {
                 generate_model,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 use_model_construction,
                 flavor,
             ),
@@ -2402,7 +2299,6 @@ impl Rule {
         type_env: &GrammarTypeEnv,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         recovered_module: &TokenStream2,
         use_model_construction: bool,
     ) -> Result<TokenStream2> {
@@ -2411,14 +2307,12 @@ impl Rule {
                 type_env,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 recovered_module,
             ),
             Rule::Struct(rule) => rule.expand_recovered_parser(
                 type_env,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 recovered_module,
                 use_model_construction,
             ),
@@ -2426,7 +2320,6 @@ impl Rule {
                 type_env,
                 model_outputs,
                 model_all_rules_local,
-                model_path,
                 recovered_module,
                 use_model_construction,
             ),
@@ -2501,7 +2394,6 @@ impl AliasRule {
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
         let argument_types = self.argument_types(type_env).ok_or_else(|| {
@@ -2533,13 +2425,12 @@ impl AliasRule {
             StrictParserCallMode::Local,
         )?;
         let name = flavor.rule_parser_name(&self.name.to_string());
-        let output = parser_type_tokens(output, generate_model, model_outputs, model_path);
+        let output = parser_type_tokens(output, generate_model, model_outputs);
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
             &argument_types,
             generate_model,
             model_outputs,
-            model_path,
             flavor.records_recovery_checkpoints(),
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -2555,7 +2446,7 @@ impl AliasRule {
             },
         );
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -2578,7 +2469,6 @@ impl AliasRule {
         type_env: &GrammarTypeEnv,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         recovered_module: &TokenStream2,
     ) -> Result<TokenStream2> {
         let argument_types = self.argument_types(type_env).ok_or_else(|| {
@@ -2609,13 +2499,11 @@ impl AliasRule {
             RecoveredParserCallMode::Local,
         )?;
         let name = format_ident!("recovered_{}_parser", self.name);
-        let output =
-            recovered_parser_value_type_tokens(output, model_outputs, model_path, recovered_module);
+        let output = recovered_parser_value_type_tokens(output, model_outputs, recovered_module);
         let argument_tokens = recovered_parser_argument_tokens(
             &self.arguments,
             &argument_types,
             model_outputs,
-            model_path,
             recovered_module,
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -2631,7 +2519,7 @@ impl AliasRule {
             },
         );
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -2684,7 +2572,6 @@ impl Parse for AliasRule {
         }
         input.parse::<Token![=]>()?;
         let parser: ParserExpr = input.parse()?;
-        containment::reject_alias_inline(&parser)?;
         input.parse::<Token![;]>()?;
         Ok(Self {
             name,
@@ -2711,7 +2598,6 @@ struct EnumBranch {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
     name: Ident,
-    inline: bool,
     /// An explicit public field name (`branch as field`), for a published name that predates the
     /// construct-naming rule and must stay stable; see [`EnumBranch::field_name`].
     field_override: Option<Ident>,
@@ -2768,7 +2654,7 @@ enum EnumItem {
 /// A `splice other_rule,` entry of an enum rule body.
 ///
 /// The entry stands for the branches of the enum rule `other_rule`, in their order, as if they were
-/// written in its place. Each copy keeps its attributes, documentation, `inline` marker, field name
+/// written in its place. Each copy keeps its attributes, documentation, field name
 /// and `when feature(...)` conditions. The conditions written before `splice` apply to every copy.
 #[invariant(true)]
 struct EnumSplice {
@@ -3156,11 +3042,9 @@ impl EnumBranch {
     /// The public model field for this branch: the construct it produces, never the parser used
     /// to reach it.
     ///
-    /// A branch may name a guarded or warned alias, or a recursive site handle, rather than the
-    /// product rule itself (`jai_modal_tanru_unit_candidate` reaches `jai_modal_tanru_unit`). That
-    /// name is a parser-internal identity; the model and its bindings are named for the product
-    /// rule whose type the branch yields, so a refactor of the parser route cannot rename a public
-    /// field. Only an explicit `as` override, reserved for already-published names, departs from it.
+    /// A branch can name an alias or a recursive parser. Its field name follows the output
+    /// type. A change to the parser route therefore keeps the public field name unchanged.
+    /// An explicit `as` override retains an existing published name.
     #[requires(
         simple_type_ident(output).is_none_or(|output| type_env
             .rules
@@ -3189,11 +3073,7 @@ impl EnumBranch {
     #[requires(true)]
     #[ensures(true)]
     fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Containment {
-        if self.inline {
-            Containment::identity(ty)
-        } else {
-            Containment::new(ty, &type_env.model_nodes)
-        }
+        Containment::new(ty, &type_env.model_nodes)
     }
 }
 
@@ -3278,7 +3158,6 @@ impl EnumRule {
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         use_model_construction: bool,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
@@ -3297,8 +3176,7 @@ impl EnumRule {
             model_all_rules_local,
             flavor,
         };
-        let output_tokens =
-            parser_type_tokens(&self.output, generate_model, model_outputs, model_path);
+        let output_tokens = parser_type_tokens(&self.output, generate_model, model_outputs);
         let alternatives = self
             .branches
             .iter()
@@ -3374,7 +3252,6 @@ impl EnumRule {
             &argument_types,
             generate_model,
             model_outputs,
-            model_path,
             flavor.records_recovery_checkpoints(),
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -3384,7 +3261,7 @@ impl EnumRule {
         let rule_name = self.name.to_string();
         let context = self.context.value();
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -3407,7 +3284,6 @@ impl EnumRule {
         type_env: &GrammarTypeEnv,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         recovered_module: &TokenStream2,
         use_model_construction: bool,
     ) -> Result<TokenStream2> {
@@ -3502,7 +3378,6 @@ impl EnumRule {
             &self.arguments,
             &argument_types,
             model_outputs,
-            model_path,
             recovered_module,
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -3512,7 +3387,7 @@ impl EnumRule {
         let rule_name = self.name.to_string();
         let context = self.context.value();
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -3677,7 +3552,6 @@ impl NodeRule {
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         use_model_construction: bool,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
@@ -3711,13 +3585,12 @@ impl NodeRule {
         )?;
         let name = flavor.rule_parser_name(&self.name.to_string());
         let output = &self.output;
-        let output_tokens = parser_type_tokens(output, generate_model, model_outputs, model_path);
+        let output_tokens = parser_type_tokens(output, generate_model, model_outputs);
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
             &argument_types,
             generate_model,
             model_outputs,
-            model_path,
             flavor.records_recovery_checkpoints(),
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -3824,7 +3697,7 @@ impl NodeRule {
             },
         );
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -3847,7 +3720,6 @@ impl NodeRule {
         type_env: &GrammarTypeEnv,
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
-        model_path: Option<&Path>,
         recovered_module: &TokenStream2,
         use_model_construction: bool,
     ) -> Result<TokenStream2> {
@@ -3901,7 +3773,6 @@ impl NodeRule {
             &self.arguments,
             &argument_types,
             model_outputs,
-            model_path,
             recovered_module,
         );
         let argument_generic_params = &argument_tokens.generic_params;
@@ -4020,7 +3891,7 @@ impl NodeRule {
             },
         );
         Ok(quote! {
-            #[allow(dead_code, unused_variables)]
+            #[allow(unused_variables)]
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
@@ -4532,7 +4403,6 @@ fn strict_parser_argument_tokens(
     argument_types: &BTreeMap<String, Type>,
     generate_model: bool,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
     include_normal_pair: bool,
 ) -> StrictParserArgumentTokens {
     let mut generic_params = Vec::new();
@@ -4543,7 +4413,7 @@ fn strict_parser_argument_tokens(
         let ty = argument_types
             .get(&argument.to_string())
             .expect("argument types are populated from recursive declarations");
-        let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
+        let ty = parser_type_tokens(ty, generate_model, model_outputs);
         generic_params.push(generic.clone());
         params.push(quote!(#argument: #generic));
         where_predicates.push(quote!(
@@ -4556,7 +4426,7 @@ fn strict_parser_argument_tokens(
             let ty = argument_types
                 .get(&argument.to_string())
                 .expect("argument types are populated from recursive declarations");
-            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
+            let ty = parser_type_tokens(ty, generate_model, model_outputs);
             let strict_argument = format_ident!("__strict_{argument}");
             generic_params.push(generic.clone());
             params.push(quote!(#strict_argument: #generic));
@@ -4592,7 +4462,6 @@ fn recovered_parser_argument_tokens(
     arguments: &[Ident],
     argument_types: &BTreeMap<String, Type>,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
     recovered_module: &TokenStream2,
 ) -> StrictParserArgumentTokens {
     let mut generic_params = Vec::new();
@@ -4606,7 +4475,7 @@ fn recovered_parser_argument_tokens(
         let ty = if output_is_generated_model(true, model_outputs, ty) {
             recovered_rule_function_output_tokens(ty, recovered_module)
         } else {
-            recovered_parser_value_type_tokens(ty, model_outputs, model_path, recovered_module)
+            recovered_parser_value_type_tokens(ty, model_outputs, recovered_module)
         };
         generic_params.push(generic.clone());
         params.push(quote!(#argument: #generic));
@@ -4619,7 +4488,7 @@ fn recovered_parser_argument_tokens(
         let ty = argument_types
             .get(&argument.to_string())
             .expect("argument types are populated from recursive declarations");
-        let strict_ty = parser_type_tokens(ty, true, model_outputs, model_path);
+        let strict_ty = parser_type_tokens(ty, true, model_outputs);
         generic_params.push(strict_generic.clone());
         let strict_argument = format_ident!("__strict_{}", argument);
         params.push(quote!(#strict_argument: #strict_generic));
@@ -5335,7 +5204,7 @@ fn strict_postfix_parser_expr_tokens(
                 )
             })
         }
-        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+        ("wf" | "prohibited_wf", 0) => {
             let free_modifier =
                 strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
             let free_modifier_list = if method == "prohibited_wf" {
@@ -5697,7 +5566,7 @@ fn recovered_postfix_parser_expr_tokens(
                     })
             })
         }
-        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+        ("wf" | "prohibited_wf", 0) => {
             let free_modifier =
                 recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
             let free_modifier_list = if method == "prohibited_wf" {
@@ -5988,24 +5857,6 @@ fn strict_method_parser_expr_tokens(
                 .then(generated_runtime::not_next_selmaho(Selmaho::#selmaho))
                 .map(|(value, _)| value)
         })
-    } else if method.method == "not_next_token" && method.args.len() == 1 {
-        let inner = strict_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let predicate = required_path_expr_last_segment(
-            method.args.first().expect("length checked"),
-            "not_next_token() requires a token predicate path",
-        )?;
-        let predicate = format_ident!("{predicate}");
-        Ok(quote! {
-            #inner
-                .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
-                .map(|(value, _)| value)
-        })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first().expect("length checked");
         let inner = strict_rust_parser_expr_tokens(
@@ -6024,18 +5875,6 @@ fn strict_method_parser_expr_tokens(
         )?;
         let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
-    } else if method.method == "complete_statement_item" && method.args.is_empty() {
-        let inner = strict_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        Ok(quote!(generated_runtime::complete_statement_item(
-            #inner,
-            "complete statement item",
-        )))
     } else if method.method == "complete_before_selmaho" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6172,10 +6011,7 @@ fn strict_method_parser_expr_tokens(
                 ),
             )
         })
-    } else if (method.method == "wf"
-        || method.method == "with_free_modifiers"
-        || method.method == "prohibited_wf")
-        && method.args.is_empty()
+    } else if (method.method == "wf" || method.method == "prohibited_wf") && method.args.is_empty()
     {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6383,13 +6219,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
-        ("inline", 1) => strict_rust_parser_expr_tokens(
-            &call.args[0],
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        ),
+
         ("arc", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -6427,8 +6257,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             strict_choice_chain(alternatives, call)
         }
-        ("empty", 0) => Ok(quote!(generated_runtime::empty())),
-        ("eof", 0) => Ok(quote!(generated_runtime::eof())),
+
         _ => Err(syn::Error::new_spanned(
             call,
             "unsupported parser call in strict parser generation",
@@ -6959,24 +6788,6 @@ fn recovered_method_parser_expr_tokens(
                 .then(generated_runtime::not_next_selmaho(Selmaho::#selmaho))
                 .map(|(value, _)| value)
         })
-    } else if method.method == "not_next_token" && method.args.len() == 1 {
-        let inner = recovered_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        let predicate = required_path_expr_last_segment(
-            method.args.first().expect("length checked"),
-            "not_next_token() requires a token predicate path",
-        )?;
-        let predicate = format_ident!("{predicate}");
-        Ok(quote! {
-            #inner
-                .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
-                .map(|(value, _)| value)
-        })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first().expect("length checked");
         let inner = recovered_rust_parser_expr_tokens(
@@ -6995,18 +6806,6 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let guard_expected = generation.type_env.rust_probe_construct_tokens(guard_expr);
         Ok(quote!(generated_runtime::followed_by(#inner, #guard, #guard_expected)))
-    } else if method.method == "complete_statement_item" && method.args.is_empty() {
-        let inner = recovered_rust_parser_expr_tokens(
-            &method.receiver,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?;
-        Ok(quote!(generated_runtime::complete_statement_item(
-            #inner,
-            "complete statement item",
-        )))
     } else if method.method == "complete_before_selmaho" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7149,10 +6948,7 @@ fn recovered_method_parser_expr_tokens(
                     free_modifiers,
                 })
         })
-    } else if (method.method == "wf"
-        || method.method == "with_free_modifiers"
-        || method.method == "prohibited_wf")
-        && method.args.is_empty()
+    } else if (method.method == "wf" || method.method == "prohibited_wf") && method.args.is_empty()
     {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7325,13 +7121,7 @@ fn recovered_call_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.map(Box::new)))
         }
-        ("inline", 1) => recovered_rust_parser_expr_tokens(
-            &call.args[0],
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        ),
+
         ("arc", 1) => {
             let inner = recovered_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -7369,8 +7159,7 @@ fn recovered_call_parser_expr_tokens(
             )?;
             strict_choice_chain(alternatives, call)
         }
-        ("empty", 0) => Ok(quote!(generated_runtime::empty())),
-        ("eof", 0) => Ok(quote!(generated_runtime::eof())),
+
         _ => Err(syn::Error::new_spanned(
             call,
             "unsupported parser call in recovered parser generation",
@@ -7722,7 +7511,6 @@ fn recovered_choice_alternative_parser_tokens(
                     recovered_field_type_tokens(
                         &ty,
                         generation.model_outputs,
-                        None,
                         generation.recovered_module,
                     )
                 })
@@ -7794,10 +7582,7 @@ fn chain_parser_output_type(
     // the first parser still returns its declared result. Compare the same
     // containment shape without changing the chain parser's output contract.
     let first_type = syn::parse2::<Type>(first.clone()).ok()?;
-    let stored_first = Containment::new(&first_type, &type_env.model_nodes)
-        .with_parser_policy(&expr.first)
-        .ok()?
-        .stored_type();
+    let stored_first = Containment::new(&first_type, &type_env.model_nodes).stored_type();
     if !type_token_streams_match(&quote!(#stored_first), &element) {
         return None;
     }
@@ -7833,7 +7618,7 @@ fn postfix_parser_output_type(
         ("ignore_then", 1) => {
             rust_parser_output_type(args.first().expect("length checked"), type_env, arguments)
         }
-        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) | ("wf_when", 1) => {
+        ("wf" | "prohibited_wf", 0) | ("wf_when", 1) => {
             let inner = parser_output_type(receiver, type_env, arguments)?;
             Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
         }
@@ -8015,7 +7800,6 @@ fn method_rust_parser_output_type(
     if method.method == "warn"
         || method.method == "elidable_terminator"
         || method.method == "not_next_selmaho"
-        || method.method == "not_next_token"
         || method.method == "followed_by"
         || method.method == "lookahead"
         || method.method == "reject_output"
@@ -8043,9 +7827,7 @@ fn method_rust_parser_output_type(
             type_env,
             arguments,
         )
-    } else if ((method.method == "wf"
-        || method.method == "with_free_modifiers"
-        || method.method == "prohibited_wf")
+    } else if ((method.method == "wf" || method.method == "prohibited_wf")
         && method.args.is_empty())
         || (method.method == "wf_when" && method.args.len() == 1)
     {
@@ -8095,7 +7877,7 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(Box<#inner>))
         }
-        ("inline", 1) => rust_parser_output_type(&call.args[0], type_env, arguments),
+
         ("arc", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -8115,7 +7897,7 @@ fn call_rust_parser_output_type(
             arguments,
         ),
         ("choice", _) => choice_outputs_same(call.args.iter(), type_env, arguments),
-        ("empty" | "eof", 0) => Some(quote!(())),
+
         _ => None,
     }
 }
@@ -8278,15 +8060,11 @@ fn parser_type_tokens(
     output: &Type,
     generate_model: bool,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
 ) -> TokenStream2 {
     if output_is_generated_model(generate_model, model_outputs, output)
         && let Some(output_ident) = simple_type_ident(output)
     {
-        model_path.map_or_else(
-            || quote!(self::#output_ident),
-            |model_path| quote!(#model_path::#output_ident),
-        )
+        quote!(self::#output_ident)
     } else {
         quote!(#output)
     }
@@ -8301,7 +8079,7 @@ fn recovered_rule_function_output_tokens(
     if let Some(output_ident) = simple_type_ident(output) {
         quote!(#recovered_module::#output_ident)
     } else {
-        recovered_parser_value_type_tokens(output, &None, None, recovered_module)
+        recovered_parser_value_type_tokens(output, &None, recovered_module)
     }
 }
 
@@ -8310,16 +8088,14 @@ fn recovered_rule_function_output_tokens(
 fn recovered_parser_value_type_tokens(
     output: &Type,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
     recovered_module: &TokenStream2,
 ) -> TokenStream2 {
     if output_is_generated_model(true, model_outputs, output)
         && let Some(output_ident) = simple_type_ident(output)
     {
-        let _ = model_path;
         return quote!(#recovered_module::#output_ident);
     }
-    recovered_field_type_tokens(output, model_outputs, model_path, recovered_module)
+    recovered_field_type_tokens(output, model_outputs, recovered_module)
 }
 
 #[requires(true)]
@@ -8327,7 +8103,6 @@ fn recovered_parser_value_type_tokens(
 fn recovered_field_type_tokens(
     ty: &Type,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
     recovered_module: &TokenStream2,
 ) -> TokenStream2 {
     match ty {
@@ -8340,7 +8115,6 @@ fn recovered_field_type_tokens(
                     &segment.ident,
                     &segment.arguments,
                     model_outputs,
-                    model_path,
                     recovered_module,
                 );
             }
@@ -8352,18 +8126,14 @@ fn recovered_field_type_tokens(
             quote!(#recovered_module::Recovered<#ty>)
         }
         Type::Tuple(tuple) => {
-            let elems = tuple.elems.iter().map(|elem| {
-                recovered_field_type_tokens(elem, model_outputs, model_path, recovered_module)
-            });
+            let elems = tuple
+                .elems
+                .iter()
+                .map(|elem| recovered_field_type_tokens(elem, model_outputs, recovered_module));
             quote!((#(#elems,)*))
         }
         Type::Array(array) => {
-            let elem = recovered_field_type_tokens(
-                &array.elem,
-                model_outputs,
-                model_path,
-                recovered_module,
-            );
+            let elem = recovered_field_type_tokens(&array.elem, model_outputs, recovered_module);
             let len = &array.len;
             quote!([#elem; #len])
         }
@@ -8416,7 +8186,6 @@ fn recovered_wrapper_type_tokens(
     wrapper: &Ident,
     arguments: &PathArguments,
     model_outputs: &Option<BTreeSet<String>>,
-    model_path: Option<&Path>,
     recovered_module: &TokenStream2,
 ) -> TokenStream2 {
     let Some(inner) = first_type_argument(arguments) else {
@@ -8425,51 +8194,38 @@ fn recovered_wrapper_type_tokens(
     let wrapper_name = wrapper.to_string();
     match wrapper_name.as_str() {
         "Box" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(Box<#inner>)
         }
         "Arc" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(std::sync::Arc<#inner>)
         }
         "Option" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(Option<#inner>)
         }
         "Vec" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(Vec<#inner>)
         }
         "Vec1" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(vec1::Vec1<#inner>)
         }
         "SmallVec" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(smallvec::SmallVec<#inner>)
         }
         "SmallVec1" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             quote!(vec1::smallvec_v1::SmallVec1<#inner>)
         }
         "WithFreeModifiers" => {
-            let inner =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let inner = recovered_field_type_tokens(inner, model_outputs, recovered_module);
             let modifier = nth_type_argument(arguments, 1)
                 .map(|modifier| {
-                    recovered_field_type_tokens(
-                        modifier,
-                        model_outputs,
-                        model_path,
-                        recovered_module,
-                    )
+                    recovered_field_type_tokens(modifier, model_outputs, recovered_module)
                 })
                 .unwrap_or_else(
                     || quote!(#recovered_module::Recovered<#recovered_module::FreeModifierSyntax>),
@@ -8478,10 +8234,8 @@ fn recovered_wrapper_type_tokens(
         }
         "Chain" => {
             let links = nth_type_argument(arguments, 1).unwrap_or(inner);
-            let first =
-                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
-            let links =
-                recovered_field_type_tokens(links, model_outputs, model_path, recovered_module);
+            let first = recovered_field_type_tokens(inner, model_outputs, recovered_module);
+            let links = recovered_field_type_tokens(links, model_outputs, recovered_module);
             quote!(::jbotci_tree::Chain<#first, #links>)
         }
         _ => quote!(#recovered_module::Recovered<#wrapper>),
@@ -8598,16 +8352,7 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<ParsedRule> {
                 }
                 continue;
             }
-            let mut name: Ident = content.parse()?;
-            let inline = name == "inline" && content.peek(syn::token::Paren);
-            if inline {
-                let argument;
-                parenthesized!(argument in content);
-                name = argument.parse()?;
-                if !argument.is_empty() {
-                    return Err(argument.error("inline enum branches require one rule name"));
-                }
-            }
+            let name: Ident = content.parse()?;
             let field_override = if content.peek(Token![as]) {
                 content.parse::<Token![as]>()?;
                 Some(content.parse()?)
@@ -8618,7 +8363,6 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<ParsedRule> {
                 attrs,
                 conditions,
                 name,
-                inline,
                 field_override,
                 origin: EnumBranchOrigin::Own,
             }));
@@ -8839,7 +8583,7 @@ impl FieldItem {
     #[requires(true)]
     #[ensures(true)]
     fn containment(&self, ty: &Type, type_env: &GrammarTypeEnv) -> Result<Containment> {
-        Containment::new(ty, &type_env.model_nodes).with_parser_policy(&self.parser)
+        Ok(Containment::new(ty, &type_env.model_nodes))
     }
 
     #[requires(true)]
@@ -9091,7 +8835,7 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
             }
         }
         Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
-            ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
+            ("wf" | "prohibited_wf" | "lookahead", 0)
             | ("wf_when", 1)
             | ("warn" | "reject_output", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
             _ => None,
@@ -9192,10 +8936,8 @@ impl Parse for Condition {
 #[invariant(::Many1(_) => true)]
 #[invariant(::Not(_) => true)]
 #[invariant(::NotNextSelmaho(_) => true)]
-#[invariant(::NotNextToken(_) => true)]
 #[invariant(::Opaque(_) => true)]
 #[invariant(::Opt(_) => true)]
-#[invariant(::PayloadStart(_) => true)]
 #[invariant(::Rule(_) => true)]
 #[invariant(::Selmaho(_) => true)]
 #[invariant(::Sequence(_) => true)]
@@ -9215,19 +8957,15 @@ enum RecoveryExpr {
         inner: Box<RecoveryExpr>,
         condition: Option<AnchorCondition>,
     },
-    PayloadStart(Box<RecoveryExpr>),
     Ignored(Box<RecoveryExpr>),
     NotNextSelmaho(String),
-    NotNextToken(String),
     Lookahead(Box<RecoveryExpr>),
     Not(Box<RecoveryExpr>),
     Choice(Vec<RecoveryExpr>),
     Sequence(Vec<RecoveryExpr>),
-    BareNegationTerm,
     RelationWord,
     Rule(String),
     Opaque(String),
-    Eof,
 }
 
 impl RecoveryExpr {
@@ -9281,10 +9019,7 @@ impl RecoveryExpr {
                     condition: #condition,
                 })
             }
-            RecoveryExpr::PayloadStart(inner) => {
-                let inner = inner.expand();
-                quote!(SyntaxGrammarRecoveryExpr::PayloadStart(&#inner))
-            }
+
             RecoveryExpr::Ignored(inner) => {
                 let inner = inner.expand();
                 quote!(SyntaxGrammarRecoveryExpr::Ignored(&#inner))
@@ -9293,10 +9028,7 @@ impl RecoveryExpr {
                 let selmaho = syn::Ident::new(&selmaho, proc_macro2::Span::call_site());
                 quote!(SyntaxGrammarRecoveryExpr::NotNextSelmaho(Selmaho::#selmaho))
             }
-            RecoveryExpr::NotNextToken(predicate) => {
-                let predicate = syn::Ident::new(&predicate, proc_macro2::Span::call_site());
-                quote!(SyntaxGrammarRecoveryExpr::NotNextToken(SyntaxGrammarTokenPredicate::#predicate))
-            }
+
             RecoveryExpr::Lookahead(inner) => {
                 let inner = inner.expand();
                 quote!(SyntaxGrammarRecoveryExpr::Lookahead(&#inner))
@@ -9313,11 +9045,10 @@ impl RecoveryExpr {
                 let parts = parts.into_iter().map(RecoveryExpr::expand);
                 quote!(SyntaxGrammarRecoveryExpr::Sequence(&[#(#parts),*]))
             }
-            RecoveryExpr::BareNegationTerm => quote!(SyntaxGrammarRecoveryExpr::BareNegationTerm),
+
             RecoveryExpr::RelationWord => quote!(SyntaxGrammarRecoveryExpr::RelationWord),
             RecoveryExpr::Rule(rule) => quote!(SyntaxGrammarRecoveryExpr::Rule(#rule)),
             RecoveryExpr::Opaque(text) => quote!(SyntaxGrammarRecoveryExpr::Opaque(#text)),
-            RecoveryExpr::Eof => quote!(SyntaxGrammarRecoveryExpr::Eof),
         }
     }
 }
@@ -9396,12 +9127,10 @@ fn classify_postfix_recovery_expr(
         ("warn_if", 2) => Ok(RecoveryExpr::Opt(Box::new(RecoveryExpr::Lookahead(
             inner()?
         )))),
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
-            Ok(RecoveryExpr::WithFreeModifiers {
-                inner: inner()?,
-                condition: None,
-            })
-        }
+        ("wf", 0) | ("prohibited_wf", 0) => Ok(RecoveryExpr::WithFreeModifiers {
+            inner: inner()?,
+            condition: None,
+        }),
         ("wf_when", 1) => Ok(RecoveryExpr::WithFreeModifiers {
             inner: inner()?,
             condition: Some(wf_when_anchor_condition(
@@ -9485,12 +9214,10 @@ fn classify_method_recovery_expr(
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
         ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
-            Ok(RecoveryExpr::WithFreeModifiers {
-                inner: inner()?,
-                condition: None,
-            })
-        }
+        ("wf", 0) | ("prohibited_wf", 0) => Ok(RecoveryExpr::WithFreeModifiers {
+            inner: inner()?,
+            condition: None,
+        }),
         ("wf_when", 1) => Ok(RecoveryExpr::WithFreeModifiers {
             inner: inner()?,
             condition: Some(wf_when_anchor_condition(
@@ -9500,7 +9227,7 @@ fn classify_method_recovery_expr(
         ("warn", 1) | ("reject_output", 1) | ("map_to", 1) | ("recursive_output", 1) => {
             classify_recovery_expr(&method.receiver, arguments, type_env)
         }
-        ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
+
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
             classify_recovery_expr(&method.receiver, arguments, type_env)?,
@@ -9516,12 +9243,7 @@ fn classify_method_recovery_expr(
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextSelmaho)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
-        ("not_next_token", 1) => Ok(method
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::NotNextToken)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         _ => Ok(RecoveryExpr::Opaque(compact_tokens(method))),
@@ -9574,7 +9296,7 @@ fn classify_call_recovery_expr(
             arguments,
             type_env,
         )?)),
-        ("inline", 1) => classify_recovery_expr(&call.args[0], arguments, type_env)?,
+
         ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(
             &call.args[0],
             arguments,
@@ -9600,8 +9322,7 @@ fn classify_call_recovery_expr(
             RecoveryExpr::WordCategory("Cmevla".to_owned())
         }
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
-        ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
-        ("eof", 0) => RecoveryExpr::Eof,
+
         _ if type_env.rule_known_for_recovery(&name, arguments) => RecoveryExpr::Rule(name),
         _ if call.args.is_empty() => RecoveryExpr::Opaque(compact_tokens(call)),
         _ => RecoveryExpr::Opaque(compact_tokens(call)),
@@ -10263,7 +9984,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Many1(inner)
             | RecoveryExpr::Boxed(inner)
             | RecoveryExpr::Arc(inner)
-            | RecoveryExpr::PayloadStart(inner)
             | RecoveryExpr::Ignored(inner) => {
                 entries.extend(self.expr_first_entries(inner)?);
             }
@@ -10297,11 +10017,8 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Lookahead(_)
             | RecoveryExpr::Not(_)
             | RecoveryExpr::NotNextSelmaho(_)
-            | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::BareNegationTerm
             | RecoveryExpr::RelationWord
-            | RecoveryExpr::Opaque(_)
-            | RecoveryExpr::Eof => {}
+            | RecoveryExpr::Opaque(_) => {}
         }
         Ok(entries)
     }
@@ -10314,7 +10031,6 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             RecoveryExpr::Boxed(inner)
             | RecoveryExpr::Arc(inner)
             | RecoveryExpr::WithFreeModifiers { inner, .. }
-            | RecoveryExpr::PayloadStart(inner)
             | RecoveryExpr::Ignored(inner)
             | RecoveryExpr::Many1(inner) => self.expr_nullable(inner)?,
             RecoveryExpr::Choice(alternatives) => {
@@ -10334,16 +10050,13 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                 }
                 nullable
             }
-            RecoveryExpr::Lookahead(_)
-            | RecoveryExpr::Not(_)
-            | RecoveryExpr::NotNextSelmaho(_)
-            | RecoveryExpr::NotNextToken(_)
-            | RecoveryExpr::Eof => true,
+            RecoveryExpr::Lookahead(_) | RecoveryExpr::Not(_) | RecoveryExpr::NotNextSelmaho(_) => {
+                true
+            }
             RecoveryExpr::Rule(rule) => self.rule_nullable(rule)?,
             RecoveryExpr::Cmavo(_)
             | RecoveryExpr::Selmaho(_)
             | RecoveryExpr::WordCategory(_)
-            | RecoveryExpr::BareNegationTerm
             | RecoveryExpr::RelationWord
             | RecoveryExpr::Opaque(_) => false,
         })
@@ -10470,7 +10183,6 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         | RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
         | RecoveryExpr::WithFreeModifiers { inner, .. }
-        | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner) => literal_start_tokens(inner),
         RecoveryExpr::Choice(alternatives) => {
             let mut tokens = BTreeSet::new();
@@ -10486,14 +10198,11 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         | RecoveryExpr::Lookahead(_)
         | RecoveryExpr::Not(_)
         | RecoveryExpr::NotNextSelmaho(_)
-        | RecoveryExpr::NotNextToken(_)
         | RecoveryExpr::Sequence(_)
         | RecoveryExpr::WordCategory(_)
-        | RecoveryExpr::BareNegationTerm
         | RecoveryExpr::RelationWord
         | RecoveryExpr::Rule(_)
-        | RecoveryExpr::Opaque(_)
-        | RecoveryExpr::Eof => None,
+        | RecoveryExpr::Opaque(_) => None,
     }
 }
 
@@ -10504,7 +10213,6 @@ fn anchor_origin_for_non_literal_expr(expr: &RecoveryExpr) -> AnchorRunOrigin {
         RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
         | RecoveryExpr::WithFreeModifiers { inner, .. }
-        | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner) => anchor_origin_for_non_literal_expr(inner),
         RecoveryExpr::Sequence(parts) if parts.len() == 1 => {
             anchor_origin_for_non_literal_expr(&parts[0])
@@ -10522,7 +10230,6 @@ fn expr_is_rule_reference(expr: &RecoveryExpr, rule_name: &str) -> bool {
         RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
         | RecoveryExpr::WithFreeModifiers { inner, .. }
-        | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner)
         | RecoveryExpr::Opt(inner) => expr_is_rule_reference(inner, rule_name),
         _ => false,
@@ -11129,8 +10836,15 @@ mod tests {
             strict_parsers;
 
             recursive {
+                free_modifier: FreeModifierSyntax;
                 item: ItemSyntax;
             }
+            /// A free modifier for the test grammar.
+            rule "free modifier" free_modifier -> struct {
+                /// The token in the test free modifier.
+                field token <- cmavo(Be);
+            }
+
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item(item) -> struct {
@@ -11347,9 +11061,16 @@ mod tests {
     fn splice_test_rules(extra_recursive: TokenStream2) -> TokenStream2 {
         quote! {
             recursive {
+                free_modifier: FreeModifierSyntax;
                 item: ItemSyntax;
                 #extra_recursive
             }
+            /// A free modifier for the test grammar.
+            rule "free modifier" free_modifier -> struct {
+                /// The token in the test free modifier.
+                field token <- cmavo(Be);
+            }
+
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
@@ -11775,8 +11496,15 @@ mod tests {
             strict_parsers;
 
             recursive {
+                free_modifier: FreeModifierSyntax;
                 p: crate::ItemSyntax;
             }
+            /// A free modifier for the test grammar.
+            rule "free modifier" free_modifier -> struct {
+                /// The token in the test free modifier.
+                field token <- cmavo(Be);
+            }
+
 
             rule "item" item -> struct {
                 field token <- cmavo(Be);
@@ -11967,7 +11695,7 @@ mod tests {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 /// The source-ordered `token` component retained by the `item` syntax node.
-                field token: std::sync::Arc<Token> <- arc(cmavo(Be).payload_start());
+                field token: std::sync::Arc<Token> <- arc(cmavo(Be).unknown_method());
             }
         })
         .expect("grammar parses before strict parser generation");
@@ -11990,7 +11718,7 @@ mod tests {
             env generated_runtime::SyntaxGrammarEnv;
             strict_parsers;
             rule "item" item -> struct {
-                field pair: (Token, Token) <- inline(cmavo(Be)).then(cmavo(Be));
+                field pair: (Token, Token) <- cmavo(Be).then(cmavo(Be));
             }
         })
         .unwrap();
@@ -12004,40 +11732,21 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn aliases_reject_inline_without_a_containment_site() {
-        for parser in [
-            quote!(inline(leaf)),
-            quote!(opt(inline(leaf))),
-            quote!([zero_or_more inline(leaf)]),
-            quote!(chain(first: leaf, zero_or_more: inline(link), element: leaf)),
-            quote!([leaf].ignore_then(inline(leaf))),
-        ] {
-            let result = syn::parse2::<SyntaxGrammar>(quote! {
-                alias "abbreviation" abbreviation = #parser;
-            });
-            let error = match result {
-                Ok(_) => panic!("alias-local inline was accepted"),
-                Err(error) => error,
-            };
-            assert!(
-                error
-                    .to_string()
-                    .contains("inline is a containment annotation")
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
     fn strict_recursive_root_without_rule_reports_compile_error() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             env generated_runtime::SyntaxGrammarEnv;
             strict_parsers;
 
             recursive {
+                free_modifier: FreeModifierSyntax;
                 item: ItemSyntax;
             }
+            /// A free modifier for the test grammar.
+            rule "free modifier" free_modifier -> struct {
+                /// The token in the test free modifier.
+                field token <- cmavo(Be);
+            }
+
 
             /// Syntax model for other parsed by the `other` grammar rule.
             rule "other" other -> struct {
