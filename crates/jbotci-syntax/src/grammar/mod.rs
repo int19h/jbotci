@@ -5878,7 +5878,7 @@ fn nested_furthest_candidate_start(
 /// The recovery frame ranks at `position` over every path in the root observations of a
 /// parse, ordered by frame.
 #[requires(true)]
-#[ensures(ret.iter().enumerate().all(|(index, rank)| ret[..index].iter().all(|earlier| earlier.frame != rank.frame)))]
+#[expensive_ensures(ret.iter().enumerate().all(|(index, rank)| ret[..index].iter().all(|earlier| earlier.frame != rank.frame)))]
 fn recovery_frame_ranks_at(
     observations: &[SyntaxDiagnosticObservation<'_>],
     position: usize,
@@ -5930,7 +5930,7 @@ struct SyntaxFrameRankWalk<'tokens> {
     min_inner: HashMap<*const SyntaxDiagnosticObservations<'tokens>, Option<SyntaxFrameRank>>,
 }
 
-#[invariant(self.ranks.values().all(|rank| rank.order < self.next_order))]
+#[expensive_invariant(self.ranks.values().all(|rank| rank.order < self.next_order))]
 impl<'tokens> SyntaxFrameRankWalk<'tokens> {
     #[requires(true)]
     #[ensures(ret.ranks.is_empty() && ret.next_order == 0)]

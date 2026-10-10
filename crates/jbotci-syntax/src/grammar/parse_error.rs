@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use std::{
     borrow::Cow,
     hash::{Hash, Hasher},
@@ -711,7 +711,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.active_rule_frames_inner_to_outer().count())]
+    #[expensive_ensures(ret == self.active_rule_frames_inner_to_outer().count())]
     pub(super) fn active_rule_frame_count(&self) -> usize {
         self.active_rule_contexts.len()
     }
