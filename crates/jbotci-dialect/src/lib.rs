@@ -436,16 +436,6 @@ pub fn dialect_definition_to_text(definition: &DialectDefinition) -> String {
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub fn cmavo_dialect_entries_to_definition(entries: &[CmavoDialectEntry]) -> String {
-    let definition = DialectDefinition {
-        cmavo_entries: entries.to_vec(),
-        features: BTreeSet::new(),
-    };
-    dialect_definition_to_text(&definition)
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.message().is_empty()))]
 fn lookup_custom_or_builtin_dialect_reference(
     custom_dialects: &[CustomDialect],
