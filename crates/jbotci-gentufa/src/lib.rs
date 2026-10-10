@@ -20,10 +20,12 @@ use std::num::NonZeroUsize;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+#[cfg(test)]
+use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_morphology::{
     Cmavo, LeadingPauseContext, LeadingPauseVowelMode, NodeRef as MorphologyNodeRef,
     PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Verbatim, Word, WordKind,
-    WordLike, segment_words_with_modifiers, word_needs_leading_pause_in_context,
+    WordLike, word_needs_leading_pause_in_context,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -447,17 +449,6 @@ impl Default for GentufaBlockOptions {
             phonemes: PhonemeRenderOptions::default(),
         }
     }
-}
-
-#[requires(true)]
-#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
-pub fn generated_model_blocks_layout<Tooltip: Clone>(
-    syntax: &GeneratedTextSyntax,
-    source: &str,
-    annotations: &[GentufaBlockAnnotation<Tooltip>],
-    options: &GentufaBlockOptions,
-) -> GentufaBlocksLayout<Tooltip> {
-    generated_model_blocks_layout_with_references(syntax, source, None, None, annotations, options)
 }
 
 #[requires(true)]
@@ -2767,6 +2758,7 @@ pub fn reference_slot_label_from_output(slot: &OutputReferenceSlotName) -> Refer
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn token_kind_for_text(text: &str) -> Option<WordKind> {
@@ -2936,6 +2928,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use jbotci_morphology::segment_words_with_modifiers;
 
     #[invariant(byte_start < byte_end, "expected composite leaves must cover source text")]
     #[derive(Debug, Clone, Copy)]
@@ -3407,9 +3400,11 @@ mod tests {
             &jbotci_syntax::ParseOptions::default(),
         )
         .expect("valid generated syntax");
-        generated_model_blocks_layout(
+        generated_model_blocks_layout_with_references(
             &syntax,
             source,
+            None,
+            None,
             &Vec::<GentufaBlockAnnotation<()>>::new(),
             &GentufaBlockOptions::default(),
         )
