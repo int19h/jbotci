@@ -953,12 +953,6 @@ impl Word {
     }
 
     #[requires(true)]
-    #[ensures(ret == (self.key() == other.key()))]
-    pub fn is_same_word(&self, other: &Word) -> bool {
-        self.key() == other.key()
-    }
-
-    #[requires(true)]
     #[ensures(true)]
     pub fn phonemes_ref(&self) -> Option<&Phonemes> {
         match self.as_data() {
@@ -1057,15 +1051,6 @@ impl Word {
     pub fn is_one_of_selmaho(&self, selmaho: &[Selmaho]) -> bool {
         self.cmavo()
             .is_some_and(|cmavo| selmaho.iter().any(|selmaho| selmaho.contains(cmavo)))
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(true)]
-    pub fn is_cmavo_text(&self, text: &str) -> bool {
-        self.is_cmavo_word()
-            && self
-                .phonemes_ref()
-                .is_some_and(|phonemes| canonical_text_eq(phonemes.as_str(), text))
     }
 
     #[requires(true)]
@@ -2283,15 +2268,6 @@ pub fn segment_words_with_modifiers_recovered(input: &str) -> RecoveredMorpholog
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_recovered_with_options(
-    input: &str,
-    options: &MorphologyOptions,
-) -> RecoveredMorphologySegmentation {
-    segment_words_with_modifiers_recovered_with_options_and_source_id(input, options, None)
-}
-
-#[requires(true)]
 #[ensures(ret.input == input)]
 #[ensures(matches!(ret.result.status, ValsiAnalysisStatus::Valid | ValsiAnalysisStatus::Invalid | ValsiAnalysisStatus::NotSingleWord))]
 pub fn analyze_valsi_with_options_and_source_id(
@@ -2556,12 +2532,6 @@ pub fn segment_words_with_modifiers_recovered_with_options_and_source_id_attempt
 
 #[requires(true)]
 #[ensures(true)]
-pub fn segment_words_for_display(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_for_display_with_options_and_source_id(input, &MorphologyOptions::default(), None)
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn segment_words_for_display_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -2766,16 +2736,6 @@ fn words_field(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
-fn source_span_field(
-    object: &mut serde_json::Map<String, serde_json::Value>,
-    name: &str,
-) -> Result<SourceSpan, String> {
-    serde_json::from_value(required_field(object, name)?)
-        .map_err(|error| format!("invalid source span field `{name}`: {error}"))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
 fn verbatim_field(
     object: &mut serde_json::Map<String, serde_json::Value>,
     name: &str,
@@ -2925,15 +2885,6 @@ pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-pub fn parse_cmevla_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
-    let normalized = canonicalize_text(word);
-    let shape = normalized.replace(',', "");
-    segment::parse_cmevla_lujvo_parts_with_canonical_phonemes(&shape, &normalized)
-        .map(Vec1::into_vec)
-}
-
-#[requires(true)]
 #[ensures(ret.iter().all(|parts| !parts.is_empty()))]
 pub fn parse_cmevla_lujvo_word_part_candidates(word: &str) -> Vec<Vec<LujvoPart>> {
     let normalized = canonicalize_text(word);
@@ -3050,29 +3001,6 @@ fn normalize_normalized_cmavo_form(text: &str) -> Option<String> {
             .map(|value| if value == 'ý' { 'y' } else { value })
             .collect(),
     )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.as_str().is_empty()))]
-pub fn cmavo_phonemes(text: &str) -> Option<Phonemes> {
-    let normalized = normalize_cmavo_form(text)?;
-    Cmavo::from_text(&normalized)?;
-    Phonemes::from_canonical(normalized).ok()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word.selmaho(),
-        data!(WordLike::QuotedWord { .. }) => Some("ZO"),
-        data!(WordLike::SelmahoQuotedWord { .. }) => Some("ZO"),
-        data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.selmaho(),
-        data!(WordLike::QuotedWords { .. }) => Some("LOhU"),
-        data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.selmaho(),
-        data!(WordLike::LerfuWord { .. }) => Some("BU"),
-        data!(WordLike::ZeiCompound { .. }) => Some("ZEI"),
-    }
 }
 
 #[requires(true)]
@@ -4085,10 +4013,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn display_segmentation_keeps_magic_words_visible() {
-        let si_words = segment_words_for_display("mi si").expect("valid display morphology");
+        let si_words = segment_words_for_display_with_options_and_source_id(
+            "mi si",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid display morphology");
         assert_eq!(base_phoneme_texts(&si_words), vec!["mi", "si"]);
 
-        let zei_words = segment_words_for_display("zei").expect("valid display morphology");
+        let zei_words = segment_words_for_display_with_options_and_source_id(
+            "zei",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("valid display morphology");
         assert_eq!(base_phoneme_texts(&zei_words), vec!["zeĭ"]);
     }
 
@@ -4558,9 +4496,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_permissive_morphology_uses_boundaries_without_error_regions() {
-        let recovered = segment_words_with_modifiers_recovered_with_options(
+        let recovered = segment_words_with_modifiers_recovered_with_options_and_source_id(
             "mi @ do",
             &permissive_lexer_options(),
+            None,
         );
         assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi", "do"]);
         assert!(recovered.errors.is_empty());
@@ -5179,7 +5118,6 @@ mod tests {
         assert_eq!(mahoi.cmavo(), Some(Cmavo::Mahoi));
         assert_eq!(word.cmavo(), Some(Cmavo::Ba));
         assert_eq!(word_like.quote_marker_cmavo(), Some(Cmavo::Mahoi));
-        assert_eq!(erasure_selmaho(word_like), Some("ZO"));
     }
 
     #[test]

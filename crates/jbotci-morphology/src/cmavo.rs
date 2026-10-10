@@ -1083,23 +1083,6 @@ impl Cmavo {
         self.quote_opener_kind().is_some()
     }
 
-    /// Whether this cmavo quotes exactly one following source word as verbatim text.
-    #[requires(true)]
-    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord)))]
-    pub const fn is_single_word_quote_opener(self) -> bool {
-        matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord))
-    }
-
-    /// Whether this cmavo opens a delimiter-based non-Lojban quote.
-    #[requires(true)]
-    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::DelimitedNonLojban)))]
-    pub const fn is_delimited_non_lojban_quote_opener(self) -> bool {
-        matches!(
-            self.quote_opener_kind(),
-            Some(QuoteOpenerKind::DelimitedNonLojban)
-        )
-    }
-
     #[requires(true)]
     #[ensures(true)]
     pub(crate) const fn quote_opener_kind(self) -> Option<QuoteOpenerKind> {
