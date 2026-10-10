@@ -7,6 +7,11 @@ kind = "other"
 name = "resume-at-end conservation fix (#927 regression)"
 description = "The inner prefixed-tail claim, previously unable to consume its skipped region and therefore rejected, now owns the recovery as the selector's innermost-owner priority intends: `mi cu` stays a prefix and `ku` is skipped, instead of an outer bridi claim that invented a missing selbri after the skip."
 
+[[provenance]]
+kind = "other"
+name = "recovery frame ranks of every path (#979)"
+description = "The prefixed-tail claim was the innermost owner only because a memoized failure error kept the rule stack of the caller that evaluated it first, so `exp_tail_terms_prefix` got rank 0 under another caller. With the error moved onto the stack of the caller that hits the memo, no candidate path has that frame innermost, and the bridi claim wins: `mi cu` stays the leading terms, `ku` is skipped, and the selbri is missing."
+
 [expectations.syntax]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
@@ -19,4 +24,5 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 valid-tokens = ["mi", "cu"]
 recovery-items = [
     { kind = "invalid", error-index = 0, byte-spans = [[6, 8]] },
+    { kind = "missing", error-index = 0, byte-spans = [[6, 6]] },
 ]

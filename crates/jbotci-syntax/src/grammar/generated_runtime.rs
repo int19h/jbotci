@@ -304,11 +304,13 @@ fn rule_enter<'tokens, 'parse>(
         .syntax_memo_failure(name, start_location, memo_context.clone());
     if let Some(failure) = failure {
         input.rewind(checkpoint);
-        input
-            .state()
-            .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
+        input.state().replay_syntax_diagnostic_observations(
+            failure.diagnostic_observations.as_ref(),
+            &failure.caller_rules,
+        );
+        let caller_rules = input.state().active_syntax_rule_stack();
         input.state().finish_syntax_memo_rule_frame();
-        return RuleEntry::Fail(failure.into_error());
+        return RuleEntry::Fail(failure.into_error_for(&caller_rules));
     }
     if !input
         .state()
