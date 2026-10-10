@@ -274,6 +274,7 @@ impl DocumentSnapshot {
         )
     }
 
+    #[cfg(test)]
     #[requires(!grammar_time_limit.is_zero())]
     #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
     fn completions_with_grammar_time_limit(

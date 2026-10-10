@@ -469,10 +469,8 @@ mod tests {
         "/tests/structure-inlays.snapshot.txt",
     ));
 
-    // Since the Zantufa removal (#968), recovery of this document skips the first paragraph's
-    // `ni'o` and the whole sentence after it, because the recovery claim order now runs the
-    // `regular_text` boundary resync first. Issue #979 tracks that claim order; the golden pins
-    // the current output.
+    // Recovery tries the regular-text boundary first. It skips the first paragraph marker
+    // and its sentence. Issue #979 records this order. The snapshot records the current output.
     const DOCUMENT_SCALE_RECOVERED_SOURCE: &str = concat!(
         "ni'o\n",
         ".i mi cusku lu do cusku lu mi klama li'u li'u\n",

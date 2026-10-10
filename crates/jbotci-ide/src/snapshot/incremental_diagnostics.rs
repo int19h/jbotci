@@ -981,9 +981,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fixture_sample_gate_passes_match_the_reviewed_set_and_imply_confirmation_equivalence() {
-        // Paragraph samples that stress the gate: several do not parse in the default profile,
-        // and several carry a local experimental warning. They were first collected for the
-        // Zantufa parity check, which issue #968 removed; they stay here as gate samples.
+        // These paragraph samples test the gate. Some fail to parse in the default dialect.
+        // Others carry a local experimental warning.
         const SAMPLES: [(&str, &str); 18] = [
             ("bare-mex-fragment", "su'i re"),
             (
