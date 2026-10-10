@@ -3773,6 +3773,15 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_simple_mekso_operand(&mut self, node: &'tree generated::SimpleMeksoOperandSyntax) {
         match node {
+            generated::SimpleMeksoOperandSyntax::ExpNaheBoMexOperand(operand) => {
+                self.walk_node(operand);
+            }
+            generated::SimpleMeksoOperandSyntax::ExpNaheMexOperand(operand) => {
+                self.walk_node(operand);
+            }
+            generated::SimpleMeksoOperandSyntax::ExpLaheMexOperand(operand) => {
+                self.walk_node(operand);
+            }
             generated::SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => {
                 self.walk_node(&operand.left_expression);
                 self.walk_node(&operand.right_expression);
@@ -3952,6 +3961,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                         self.walk_node(&free_modifier.expression.inner_expression);
                     }
+                    generated::XiFreeModifierSyntax::ExpMex2XiFreeModifier(free_modifier) => {
+                        self.walk_node(free_modifier.expression.as_ref());
+                    }
                     generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                     | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
@@ -3966,6 +3978,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 if let Some(sumti) = free_modifier.sumti.as_deref() {
                     self.walk_node(sumti);
                 }
+            }
+            generated::FreeModifierSyntax::ExpMex2MaiFreeModifier(free_modifier) => {
+                self.walk_node(free_modifier.expression.as_ref());
             }
             generated::FreeModifierSyntax::TextReplacementFreeModifier(_)
             | generated::FreeModifierSyntax::MaiFreeModifier(_) => {}
@@ -7261,6 +7276,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                         self.walk_node(&free_modifier.expression.inner_expression);
                     }
+                    generated::XiFreeModifierSyntax::ExpMex2XiFreeModifier(free_modifier) => {
+                        self.walk_node(free_modifier.expression.as_ref());
+                    }
                     generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                     | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
                 }
@@ -7275,6 +7293,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 if let Some(sumti) = free_modifier.sumti.as_deref() {
                     self.walk_node(sumti);
                 }
+            }
+            generated::FreeModifierSyntax::ExpMex2MaiFreeModifier(free_modifier) => {
+                self.walk_node(free_modifier.expression.as_ref());
             }
             generated::FreeModifierSyntax::TextReplacementFreeModifier(_)
             | generated::FreeModifierSyntax::MaiFreeModifier(_) => {}
@@ -7915,7 +7936,9 @@ fn generated_koha_subscript_index(
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript) => {
                     generated_math_expression_to_usize(&subscript.expression.inner_expression)
                 }
-                generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => None,
+                // A camxes-exp `mex_2` subscript is not a plain number.
+                generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_)
+                | generated::XiFreeModifierSyntax::ExpMex2XiFreeModifier(_) => None,
             },
             _ => None,
         })

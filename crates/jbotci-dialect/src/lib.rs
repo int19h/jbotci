@@ -75,6 +75,7 @@ define_dialect_features! {
     UnrestrictedFree => "unrestricted-free",
     NaJoik => "na-joik",
     MexQuantifier => "mex-quantifier",
+    LaheMex => "lahe-mex",
 }
 
 impl fmt::Display for DialectFeature {

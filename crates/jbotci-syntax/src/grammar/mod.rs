@@ -5180,6 +5180,7 @@ fn recovery_condition_matches(
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "NaJoik" => dialect.na_joik_enabled,
         "MexQuantifier" => dialect.mex_quantifier_enabled,
+        "LaheMex" => dialect.lahe_mex_enabled,
         _ => false,
     }
 }
@@ -8454,6 +8455,65 @@ mod tests {
             expected,
             "`normal_term_atom` drifted from the leaves of `simple_term`",
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_mex_free_modifier_start_sets_exclude_false_starts() {
+        use generated::generated_model::SyntaxGrammarAnchorToken::{
+            Cmavo as AnchorCmavo, Selmaho as AnchorSelmaho,
+        };
+
+        let rules = generated::generated_model::SYNTAX_GRAMMAR_RECOVERY_ANCHORS;
+        let peho = rules
+            .iter()
+            .find(|rule| rule.rule == "exp_peho_forethought_call_mekso")
+            .expect("the PEhO-only rule exists");
+        assert_eq!(peho.first.len(), 1);
+        assert_eq!(peho.first[0].tokens, &[AnchorCmavo(Cmavo::Peho)]);
+
+        let fuha = rules
+            .iter()
+            .find(|rule| rule.rule == "exp_reverse_polish_mex")
+            .expect("the reverse Polish rule exists");
+        assert_eq!(fuha.first.len(), 1);
+        assert_eq!(fuha.first[0].tokens, &[AnchorCmavo(Cmavo::Fuha)]);
+
+        let false_starts = [
+            AnchorCmavo(Cmavo::Ke),
+            AnchorCmavo(Cmavo::Maho),
+            AnchorCmavo(Cmavo::Nahu),
+            AnchorSelmaho(Selmaho::A),
+            AnchorSelmaho(Selmaho::Guha),
+            AnchorSelmaho(Selmaho::Vuhu),
+        ];
+        for name in [
+            "exp_mex_2",
+            "exp_mex_2_mai_probe",
+            "exp_mex_2_mai_free_modifier",
+            "free_modifier",
+        ] {
+            let rule = rules
+                .iter()
+                .find(|rule| rule.rule == name)
+                .expect("the experimental mex rule exists");
+            assert!(
+                rule.first
+                    .iter()
+                    .any(|first| { first.tokens.contains(&AnchorCmavo(Cmavo::Fuha)) }),
+                "{name} must admit FUhA"
+            );
+            for first in rule.first {
+                assert!(
+                    first
+                        .tokens
+                        .iter()
+                        .all(|token| !false_starts.contains(token)),
+                    "{name} contains a false start"
+                );
+            }
+        }
     }
 
     #[test]

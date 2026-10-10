@@ -1732,12 +1732,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/peho_forethought.rs:PehoLessForethoughtFinder",
-        "walker accumulator: every value of the single flag is a valid walk state",
+        "crates/jbotci-syntax/src/grammar/peho_forethought.rs:CamxesArrayRejection",
+        "the rule has no state and has one valid value",
     ),
     (
         "crates/jbotci-syntax/src/grammar/peho_forethought.rs:PehoLessForethoughtRejection",
         "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/peho_forethought.rs:ReferenceMexFinder",
+        "the two flags track independent findings, so every combination is valid",
     ),
     (
         "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
