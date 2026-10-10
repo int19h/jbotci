@@ -2760,6 +2760,8 @@ pub enum ExperimentalConstruct {
     ExperimentalMexQuantifier,
     ExperimentalMexMeSelbriUnit,
     ExperimentalMexMoiSelbriUnit,
+    ExperimentalMexSubscript,
+    ExperimentalMexUtteranceOrdinal,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
     ExperimentalJeIStatementConnective,
@@ -2825,6 +2827,10 @@ impl ExperimentalConstruct {
             Self::ExperimentalMexQuantifier => "syntax.warning.experimental-mex-quantifier",
             Self::ExperimentalMexMeSelbriUnit => "syntax.warning.experimental-mex-me-selbri-unit",
             Self::ExperimentalMexMoiSelbriUnit => "syntax.warning.experimental-mex-moi-selbri-unit",
+            Self::ExperimentalMexSubscript => "syntax.warning.experimental-mex-subscript",
+            Self::ExperimentalMexUtteranceOrdinal => {
+                "syntax.warning.experimental-mex-utterance-ordinal"
+            }
             Self::ExperimentalLohAiReplacementFree => {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
@@ -2936,6 +2942,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalMexQuantifier => "mex quantifier without VEI",
             Self::ExperimentalMexMeSelbriUnit => "ME with a mex body",
             Self::ExperimentalMexMoiSelbriUnit => "mex before MOI",
+            Self::ExperimentalMexSubscript => "XI with a mex that is not a number or VEI",
+            Self::ExperimentalMexUtteranceOrdinal => "mex before MAI",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
                 "JA/JOI connective used in a bridi-tail connective slot"
@@ -4208,7 +4216,11 @@ mod tests {
             SyntaxErrorKind::IncompleteForethoughtConnection,
         );
         assert_error_kind("po li ce", SyntaxErrorKind::IncompleteMekso);
-        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteSumti);
+        // The parser tries free modifiers after the JOI in `ce gi`.
+        // A mex can start an ordinal there, as in
+        // `voi ce la'e pa lu'u mai gi mi broda gi do brode`.
+        // The mex starts now decide the error kind at the end of `voi ce`.
+        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteMekso);
     }
 
     #[test]

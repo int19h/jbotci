@@ -97,40 +97,47 @@ impl<'tree> recovered::TreeWalker<'tree> for PehoLessForethoughtFinder {
 }
 
 /// Grammar-level refinement that refuses a mex holding a forethought call without PEhO, for
-/// the raw-mex quantifier.
+/// the constructs that read camxes-exp's mex language: the raw-mex quantifier, and the
+/// `mex_2` of a subscript and of an utterance ordinal.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PehoLessForethoughtRejection;
 
 const PEHO_LESS_FORETHOUGHT_REJECTION_NAME: &str = "forethought mex without PEhO";
 
-#[contract_trait]
-impl OutputRejection<model::MeksoSyntax> for PehoLessForethoughtRejection {
-    fn rejected_name(&self) -> &'static str {
-        PEHO_LESS_FORETHOUGHT_REJECTION_NAME
-    }
+/// Implements the refinement for a strict mex node type and its recovered counterpart. The
+/// recovered walk descends through every slot that parsed, so a recovery item elsewhere in
+/// the mex does not hide a forethought call without PEhO.
+macro_rules! peho_less_forethought_rejection {
+    ($($node:ident),+ $(,)?) => {$(
+        #[contract_trait]
+        impl OutputRejection<model::$node> for PehoLessForethoughtRejection {
+            fn rejected_name(&self) -> &'static str {
+                PEHO_LESS_FORETHOUGHT_REJECTION_NAME
+            }
 
-    fn rejects(&self, value: &model::MeksoSyntax) -> bool {
-        let mut finder = PehoLessForethoughtFinder { found: false };
-        model::TreeWalkable::walk_with(value, &mut finder);
-        finder.found
-    }
+            fn rejects(&self, value: &model::$node) -> bool {
+                let mut finder = PehoLessForethoughtFinder { found: false };
+                model::TreeWalkable::walk_with(value, &mut finder);
+                finder.found
+            }
+        }
+
+        #[contract_trait]
+        impl OutputRejection<recovered::Recovered<recovered::$node>>
+            for PehoLessForethoughtRejection
+        {
+            fn rejected_name(&self) -> &'static str {
+                PEHO_LESS_FORETHOUGHT_REJECTION_NAME
+            }
+
+            fn rejects(&self, value: &recovered::Recovered<recovered::$node>) -> bool {
+                let mut finder = PehoLessForethoughtFinder { found: false };
+                recovered::walk::recovered(&mut finder, value);
+                finder.found
+            }
+        }
+    )+};
 }
 
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::MeksoSyntax>>
-    for PehoLessForethoughtRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        PEHO_LESS_FORETHOUGHT_REJECTION_NAME
-    }
-
-    // The raw-mex quantifier reads its mex only inside a strict lookahead, and
-    // `BaselineQuantifierRejection` already refuses a recovered mex that carries any recovery
-    // item. So the walk here only sees the slots of a mex that parsed.
-    fn rejects(&self, value: &recovered::Recovered<recovered::MeksoSyntax>) -> bool {
-        let mut finder = PehoLessForethoughtFinder { found: false };
-        recovered::walk::recovered(&mut finder, value);
-        finder.found
-    }
-}
+peho_less_forethought_rejection!(MeksoSyntax, ExpMex2Syntax);
