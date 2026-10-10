@@ -2199,6 +2199,7 @@ fn semiglobal_raw_similarity_with_scratch(
         .fold(f64::NEG_INFINITY, f64::max)
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(ret.is_finite())]
 fn parameterized_substitution_score(
@@ -2212,6 +2213,7 @@ fn parameterized_substitution_score(
         - parameterized_vowel_penalty(right, parameters.c_vwl)
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(ret.is_finite())]
 fn parameterized_expansion_score(
@@ -2246,6 +2248,7 @@ fn parameterized_feature_difference(
         .sum()
 }
 
+#[cfg(test)]
 #[requires(c_vwl.is_finite() && c_vwl >= 0.0)]
 #[ensures(ret == 0.0 || ret == c_vwl)]
 fn parameterized_vowel_penalty(segment: IpaSegmentId, c_vwl: f64) -> f64 {

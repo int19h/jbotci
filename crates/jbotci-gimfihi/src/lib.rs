@@ -1530,15 +1530,6 @@ fn gismu_match_score_chars(
 }
 
 #[requires(true)]
-#[ensures(ret <= left.chars().count().min(right.chars().count()))]
-fn longest_common_subsequence_len(left: &str, right: &str) -> usize {
-    let left_chars = left.chars().collect::<Vec<_>>();
-    let right_chars = right.chars().collect::<Vec<_>>();
-    let mut scratch = LcsScratch::default();
-    longest_common_subsequence_len_chars(&left_chars, &right_chars, &mut scratch)
-}
-
-#[requires(true)]
 #[ensures(ret <= left.len().min(right.len()))]
 fn longest_common_subsequence_len_chars(
     left: &[char],
@@ -1561,14 +1552,6 @@ fn longest_common_subsequence_len_chars(
         scratch.current.fill(0);
     }
     scratch.previous[right.len()]
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn has_valid_two_letter_match(candidate: &str, source: &str) -> bool {
-    let candidate_chars = candidate.chars().collect::<Vec<_>>();
-    let source_chars = source.chars().collect::<Vec<_>>();
-    has_valid_two_letter_match_chars(&candidate_chars, &source_chars)
 }
 
 #[requires(true)]
@@ -1735,6 +1718,7 @@ fn collision_scope_includes(scope: CollisionScope, word_type: WordType) -> bool 
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn collision_with_entry(
@@ -1778,6 +1762,7 @@ fn collision_kind_order(kind: CollisionKind) -> usize {
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn same_except_final_vowel(candidate: &str, existing: &str) -> bool {
@@ -1791,6 +1776,7 @@ fn same_except_final_vowel(candidate: &str, existing: &str) -> bool {
         && is_vowel(existing_chars[4])
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn differs_by_too_similar_consonant(candidate: &str, existing: &str) -> bool {
