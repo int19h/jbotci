@@ -1,4 +1,3 @@
-#[allow(unused)] // compile-only test
 #[test]
 fn gl_issue_11() {
     use bityzba::ensures;
@@ -6,7 +5,7 @@ fn gl_issue_11() {
     struct Test;
 
     impl Test {
-        pub fn contains_key(&self, key: &str) -> bool {
+        pub fn contains_key(&self, _key: &str) -> bool {
             todo!()
         }
 
@@ -16,9 +15,11 @@ fn gl_issue_11() {
             None
         }
     }
+
+    let _test = Test;
+    let _get_mut = Test::get_mut;
 }
 
-#[allow(unused)] // compile-only test
 #[test]
 fn gl_issue_16() {
     use std::fmt::Debug;
@@ -40,9 +41,12 @@ fn gl_issue_16() {
             assert!(self[0] < self[1]);
         }
     }
+
+    let mut values = vec![1, 2];
+    values.insertion_sort();
 }
 
-#[allow(unused, clippy::assertions_on_constants)] // compile-only test
+#[allow(clippy::assertions_on_constants)]
 #[test]
 fn gl_issue_17() {
     use std::future::pending;
@@ -53,6 +57,8 @@ fn gl_issue_17() {
     async fn foo() {
         pending::<()>().await;
     }
+
+    let _future = foo();
 }
 
 #[test]

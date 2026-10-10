@@ -144,7 +144,6 @@ fn test_impl_trait_arg() {
     );
 }
 
-#[allow(unused)]
 #[test]
 #[deny(clippy::used_underscore_binding)]
 fn test_unbound_parameters_clippy() {
@@ -153,9 +152,10 @@ fn test_unbound_parameters_clippy() {
     fn param_test(_x: i32, __y: i32) -> bool {
         true
     }
+
+    assert!(param_test(0, 3));
 }
 
-#[allow(unused)]
 #[test]
 #[deny(non_fmt_panics)]
 fn test_braced_condition_expression_clippy() {
@@ -165,4 +165,6 @@ fn test_braced_condition_expression_clippy() {
         false
     })]
     fn param_test(_x: i32, __y: i32) {}
+
+    param_test(0, 3);
 }
