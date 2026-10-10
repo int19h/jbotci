@@ -36,19 +36,11 @@ pub struct TextNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct ParagraphNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct StatementNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct BridiNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct BridiTailNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
@@ -65,22 +57,6 @@ pub struct TermNodeId(pub RawSyntaxNodeId);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct SumtiNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct FreeModifierNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct AbstractionNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct MeksoNodeId(pub RawSyntaxNodeId);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct MeksoOperatorNodeId(pub RawSyntaxNodeId);
 
 #[invariant(leaf_start <= leaf_end)]
 #[invariant(first_source_span.is_some() == last_source_span.is_some())]
@@ -224,12 +200,6 @@ fn target_resolved_node(node: RawSyntaxNodeId) -> ReferenceTarget {
     ReferenceTarget::ResolvedNode(node)
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn target_resolved_frame(frame: SelbriPlaceFrameId) -> ReferenceTarget {
-    ReferenceTarget::ResolvedFrame(frame)
-}
-
 #[requires(!reason.is_empty())]
 #[ensures(true)]
 fn target_unresolved(reason: &str) -> ReferenceTarget {
@@ -258,7 +228,6 @@ pub enum PlaceFrameKind {
     CoInverted,
     Forwarding,
     Abstraction,
-    ProBridi,
     Unknown,
 }
 
@@ -378,7 +347,6 @@ pub enum ReferenceKind {
 #[invariant(true)]
 pub enum VagueReferenceKind {
     DistantSumti,
-    RecentSumti,
     Bridi,
 }
 
@@ -580,24 +548,6 @@ impl PlaceAnalysis {
     #[ensures(true)]
     pub fn assignment(&self, id: SumtiPlaceAssignmentId) -> Option<&SumtiPlaceAssignment> {
         self.assignments.get(id.0)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn assignments_for_sumti(&self, sumti: SumtiNodeId) -> &[SumtiPlaceAssignmentId] {
-        self.assignment_ids_by_sumti
-            .get(&sumti)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn assignments_for_term(&self, term: TermNodeId) -> &[SumtiPlaceAssignmentId] {
-        self.assignment_ids_by_term
-            .get(&term)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
     }
 
     #[requires(true)]
@@ -1962,16 +1912,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_tanru_unit_atom_for_cei(
-        &mut self,
-        unit: &'tree generated::TanruUnitAtomForCeiSyntax,
-    ) -> SelbriPlaceFrameId {
-        let inner = self.analyze_tanru_unit_atom_base_for_cei(&unit.base);
-        self.add_conversion_frames_for_tanru_unit_atom(inner, unit, &unit.conversions)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn add_conversion_frames_for_tanru_unit_atom<N, F>(
         &mut self,
         inner: SelbriPlaceFrameId,
@@ -2100,127 +2040,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
-                let propagation = if generated_abstraction_is_property(unit) {
-                    let inner = self.analyze_subbridi_frame_with_initial_place(&unit.subbridi, 1);
-                    propagation_forward(inner)
-                } else {
-                    self.walk_node(&unit.subbridi);
-                    propagation_none()
-                };
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Abstraction,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation,
-                )
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_tanru_unit_atom_base_for_cei(
-        &mut self,
-        unit: &'tree generated::TanruUnitAtomBaseForCeiSyntax,
-    ) -> SelbriPlaceFrameId {
-        match unit {
-            generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_) => self.add_frame(
-                self.raw_for_node(unit),
-                PlaceFrameKind::TanruUnit,
-                None,
-                Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                propagation_none(),
-            ),
-            generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso_operator);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
-                self.walk_node(&unit.mekso);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.sumti);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-                let inner = self.analyze_tanru_selbri(&unit.selbri);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Forwarding,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
-                let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Forwarding,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit) => {
-                if let Some(tense_modal) = unit.tense_modal.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                let inner = self.analyze_tanru_unit_atom(&unit.inner_unit);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::JaiConverted,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_jai(inner),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
-                let inner = self.analyze_linked_tanru_unit(&unit.base);
-                self.assign_link_arguments(inner, &unit.linkargs);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::LinkedUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
                 let propagation = if generated_abstraction_is_property(unit) {
                     let inner = self.analyze_subbridi_frame_with_initial_place(&unit.subbridi, 1);
                     propagation_forward(inner)
@@ -4411,14 +4230,6 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn text_node_id(&self, node: &'tree GeneratedTextSyntax) -> Option<TextNodeId> {
-        node.as_node_ref()
-            .and_then(|node| self.id_of(node))
-            .map(TextNodeId)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn id_for_tree_node<N: GeneratedSyntaxTreeNode>(
         &self,
         node: &'tree N,
@@ -6193,78 +6004,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_linked_tanru_unit_for_cei(
-        &mut self,
-        unit: &'tree generated::LinkedTanruUnitForCeiSyntax,
-    ) {
-        self.visit_tanru_unit_atom_for_cei(&unit.base);
-        if let Some(linkargs) = &unit.linkargs {
-            self.walk_node(linkargs);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_tanru_unit_atom_for_cei(&mut self, unit: &'tree generated::TanruUnitAtomForCeiSyntax) {
-        self.visit_tanru_unit_atom_base_for_cei(&unit.base);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_tanru_unit_atom_base_for_cei(
-        &mut self,
-        unit: &'tree generated::TanruUnitAtomBaseForCeiSyntax,
-    ) {
-        match unit {
-            generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(unit) => {
-                self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(unit) => {
-                self.resolve_goha_source(self.raw_for_node(unit), unit.0.value.cmavo());
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(unit) => {
-                if let Some(label) = CeiLabel::from_broda_word_like(unit.0.value.core_word()) {
-                    self.resolve_broda_source(self.raw_for_node(unit), label);
-                }
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
-                self.visit_scalar_negated_tanru_inner_unit(&unit.inner_unit);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit) => {
-                if let Some(tense_modal) = unit.tense_modal.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.visit_tanru_unit_atom(&unit.inner_unit);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
-                self.walk_node(&unit.linkargs);
-                self.visit_linked_tanru_unit(&unit.base);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
-                self.visit_abstraction(unit);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.sumti);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ExpMeksoMoiTanruUnit(unit) => {
-                self.walk_node(&unit.mekso);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso_operator);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-                self.visit_tanru_selbri(&unit.selbri);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn visit_tanru_unit_atom(&mut self, unit: &'tree generated::TanruUnitAtomSyntax) {
         self.visit_tanru_unit_atom_base(&unit.base);
     }
@@ -6328,15 +6067,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
         self.visit_tanru_unit_atom(unit);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_sumti_selbri_sumti(&mut self, sumti: &'tree generated::SumtiSelbriSumtiSyntax) {
-        match sumti {
-            generated::SumtiSelbriSumtiSyntax::Sumti(sumti) => self.visit_argument(sumti),
-            generated::SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => {}
-        }
     }
 
     #[requires(true)]
@@ -8641,7 +8371,6 @@ mod tests {
             let syntax = parse_generated_syntax("mi tavla do");
             let index = GeneratedSyntaxIndex::new(&syntax).expect("generated index succeeds");
             assert!(index.node_count() > 0);
-            assert_eq!(index.text_node_id(&syntax), Some(index.root()));
             let root = index
                 .metadata(index.root().0)
                 .expect("root metadata is present");
