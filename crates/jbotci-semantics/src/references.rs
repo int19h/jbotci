@@ -3773,6 +3773,15 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_simple_mekso_operand(&mut self, node: &'tree generated::SimpleMeksoOperandSyntax) {
         match node {
+            generated::SimpleMeksoOperandSyntax::ExpNaheBoMexOperand(operand) => {
+                self.walk_node(operand);
+            }
+            generated::SimpleMeksoOperandSyntax::ExpNaheMexOperand(operand) => {
+                self.walk_node(operand);
+            }
+            generated::SimpleMeksoOperandSyntax::ExpLaheMexOperand(operand) => {
+                self.walk_node(operand);
+            }
             generated::SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => {
                 self.walk_node(&operand.left_expression);
                 self.walk_node(&operand.right_expression);

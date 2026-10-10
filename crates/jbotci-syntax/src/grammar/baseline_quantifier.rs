@@ -114,7 +114,10 @@ fn is_baseline_quantifier_surface(expression: &MeksoSyntax) -> bool {
             } = operand.as_ref();
             true
         }
-        SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(_)
+        SimpleMeksoOperandSyntax::ExpNaheBoMexOperand(_)
+        | SimpleMeksoOperandSyntax::ExpNaheMexOperand(_)
+        | SimpleMeksoOperandSyntax::ExpLaheMexOperand(_)
+        | SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(_)
         | SimpleMeksoOperandSyntax::QualifiedMeksoOperand(_)
         | SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(_)
         | SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(_)
@@ -221,7 +224,10 @@ fn recovered_is_baseline_quantifier_surface(expression: &recovered::MeksoSyntax)
                 veho: _,
             })
         ),
-        recovered::SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(_)
+        recovered::SimpleMeksoOperandSyntax::ExpNaheBoMexOperand(_)
+        | recovered::SimpleMeksoOperandSyntax::ExpNaheMexOperand(_)
+        | recovered::SimpleMeksoOperandSyntax::ExpLaheMexOperand(_)
+        | recovered::SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(_)
         | recovered::SimpleMeksoOperandSyntax::QualifiedMeksoOperand(_)
         | recovered::SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(_)
         | recovered::SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(_)

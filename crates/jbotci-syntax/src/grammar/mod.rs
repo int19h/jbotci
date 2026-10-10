@@ -5180,6 +5180,7 @@ fn recovery_condition_matches(
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "NaJoik" => dialect.na_joik_enabled,
         "MexQuantifier" => dialect.mex_quantifier_enabled,
+        "LaheMex" => dialect.lahe_mex_enabled,
         _ => false,
     }
 }
