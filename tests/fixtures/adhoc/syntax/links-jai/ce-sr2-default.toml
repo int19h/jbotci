@@ -14,6 +14,6 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-raw = { sha256 = "92d65eb4ef97e9e1d8d1604a213ac9a2069f2ea3b7a1d89141d541682510dd7f" }
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }]
-tree = { valid-tokens = ["ko'a", "ke", "ke'e", "bróda"], recovery-items = [{ kind = "missing", error-index = 0, byte-spans = [[8, 8]] }] }
+raw = { sha256 = "6abaf479d6e1164227a6a2a69075118ce0eaa94be136cd8bfcfc108f6fc86a5c" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "ke'e", message = "unexpected cmavo" }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [13, 18], source-text = "broda", message = "unexpected brivla" }]
+tree = { valid-tokens = ["ko'a", "ke", "ke'e"], recovery-items = [{ kind = "invalid", error-index = 1, byte-spans = [[13, 18]] }, { kind = "missing", error-index = 0, byte-spans = [[8, 8]] }] }

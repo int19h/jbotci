@@ -1039,35 +1039,32 @@ mod tests {
         // experimental warning, and the paragraph parse has no error at its end. Each sample is
         // the second paragraph, so the paragraph parse starts at its NIhO, from the rule that
         // the text uses for NIhO-led paragraphs. An error at any position inside the paragraph,
-        // also at its first token (`bare-mex-fragment`), after a leading free modifier
-        // (`xi-mex-free-with-statement-terms`, `error-after-leading-free-modifier`) or at its
-        // last token (`error-at-last-token`), then lists the same expectations as in the
-        // document parse.
+        // also at its last token (`error-at-last-token`), then lists the same expectations as
+        // in the document parse.
         //
-        // Two samples do not pass. `fa-joik-chained-place-tag` takes the FA tag chain with its
+        // Seven samples do not pass. `fa-joik-chained-place-tag` takes the FA tag chain with its
         // local `experimental-fa-as-tag` warning before a later error, and the gate must be
         // conservative about it. `error-at-paragraph-end` ends before its required sumti, so the
-        // document parse fails at the next NIhO, and the paragraph parse at its end of input. Since the mex-before-MOI selbri came back (#969),
-        // `connectorless-bo-sumti-tagged` recovers without its local
-        // `experimental-term-bo-connection` warning and passes.
+        // document parse fails at the next NIhO, and the paragraph parse at its end of input.
+        // Since the recovery frame ranks of #979, five more do not pass. The document recovery
+        // of `bare-mex-fragment` and `error-after-leading-free-modifier` reports a second error
+        // at the next NIhO. The document recovery of `xi-mex-free-with-statement-terms`
+        // (`experimental-vuhu-connective`), `connectorless-bo-term` and
+        // `connectorless-bo-sumti-tagged` (`experimental-term-bo-connection`) takes an
+        // experimental construct, whose warning the gate refuses before a later error.
         assert_eq!(
             passed_ids,
             [
-                "bare-mex-fragment",
                 "i-connected-relative-body",
                 "ke-bridi-tail",
                 "nary-forethought-statement",
                 "i-connected-abstraction-body",
                 "trailing-operator-mex-quantifier",
-                "xi-mex-free-with-statement-terms",
                 "nary-gek-termset",
-                "connectorless-bo-term",
                 "connectorless-bo-sumti",
-                "connectorless-bo-sumti-tagged",
                 "jai-term-explicit-ku",
                 "jai-selbri-not-term",
                 "cehe-stays-a-cehe-termset",
-                "error-after-leading-free-modifier",
                 "error-at-last-token",
             ]
         );
@@ -1091,13 +1088,16 @@ mod tests {
         // Each case edits a paragraph with an error at its first token. The paragraph parse
         // starts from the text rule for the first paragraph (also when the text starts with
         // NIhO), and from the NIhO run otherwise (also after `.i`).
+        //
+        // The paragraph is `ku mi`. With `su'i re`, recovery of the first case reports a second
+        // error at the next NIhO since #979, so the gate refuses it.
         let cases = [
-            ("first-paragraph", "su'i re\nni'o\nmi klama"),
-            ("text-starts-with-niho", "ni'o su'i re\nni'o\nmi klama"),
-            ("niho-after-i", "mi klama .i ni'o su'i re\nni'o\nmi klama"),
+            ("first-paragraph", "ku mi\nni'o\nmi klama"),
+            ("text-starts-with-niho", "ni'o ku mi\nni'o\nmi klama"),
+            ("niho-after-i", "mi klama .i ni'o ku mi\nni'o\nmi klama"),
         ];
         for (name, old_source) in cases {
-            let prepared = prepare_replacement(old_source, "su'i re", "su'i re ui");
+            let prepared = prepare_replacement(old_source, "ku mi", "ku mi ui");
             assert_eq!(prepared.gate(), IncrementalDiagnosticGate::Passed, "{name}");
             assert_provisional_matches_confirmation(prepared);
         }
