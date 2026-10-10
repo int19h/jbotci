@@ -400,15 +400,10 @@ expectation is silence.
 
 ## Consolidated expectations
 
-The regeneration is one `fixture-rewrite` pass over the whole tree, classified by
-`tools/compare-subsentence-expectations.py` against a `git archive` of `tests/fixtures` at the
-epoch base. The classifier reads the OLD tree and rewrites it with the shapes this epoch
-approves; the rewritten old tree must then equal the new one structurally, so nothing is
-inferred from the new tree and an ownership change cannot be laundered as a re-typing. Its
-transcriptions are re-derived from the grammar at both commits by
-`tools/tests/test_compare_subsentence_expectations.py` rather than asserted, because a class
-keyed on a field tuple the baseline never had fails open: it simply never fires, and the
-fixtures it should have classified land in residue looking like ordinary population.
+The regeneration used one `fixture-rewrite` pass over the whole tree.
+The epoch comparer read the old tree from a `git archive` of `tests/fixtures` at the epoch base.
+It applied the approved shapes and required structural equality with the new tree.
+Its tests derived the transcriptions from the grammar at both commits.
 
 122 changed pre-epoch fixtures. 93 classify:
 

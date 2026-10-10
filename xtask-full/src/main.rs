@@ -62,8 +62,6 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
-mod links_jai_observation;
-
 const DEFAULT_LENSISKU_SOURCE_LANGUAGE: &str = "jbo";
 const LENSISKU_TOKEN_ENV: &str = "LENSISKU_TOKEN";
 const LENSISKU_USERNAME_ENV: &str = "LENSISKU_USERNAME";
@@ -215,7 +213,6 @@ struct Cli {
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
-#[invariant(::LinksJaiObserve(..) => true)]
 #[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
@@ -251,7 +248,6 @@ enum Command {
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
-    LinksJaiObserve(links_jai_observation::ObserveArgs),
     #[command(name = "syntax-parser-benchmark")]
     SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
@@ -1324,7 +1320,6 @@ fn main() -> Result<()> {
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
-        Command::LinksJaiObserve(args) => links_jai_observation::run(args),
         Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
