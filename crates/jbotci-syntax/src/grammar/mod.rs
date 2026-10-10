@@ -3692,6 +3692,10 @@ pub(crate) fn parse_generated_model_syntax_entry_attempt(
             &parsed.text,
             &tokens,
             options.dialect.features.contains(&DialectFeature::Cbm),
+            options
+                .dialect
+                .features
+                .contains(&DialectFeature::SplitNumberLerfu),
             &mut warnings,
         );
         new!(SyntaxParse {
@@ -3925,6 +3929,10 @@ fn valid_syntax_recovery_attempt(
         &parsed.text,
         tokens,
         options.dialect.features.contains(&DialectFeature::Cbm),
+        options
+            .dialect
+            .features
+            .contains(&DialectFeature::SplitNumberLerfu),
         &mut warnings,
     );
     SyntaxRecoveryParseAttempt {
@@ -5181,6 +5189,8 @@ fn recovery_condition_matches(
         "NaJoik" => dialect.na_joik_enabled,
         "MexQuantifier" => dialect.mex_quantifier_enabled,
         "LaheMex" => dialect.lahe_mex_enabled,
+        "SplitNumberLerfu" => dialect.split_number_lerfu_enabled,
+        "MixedNumberLerfu" => !dialect.split_number_lerfu_enabled,
         _ => false,
     }
 }
@@ -5430,11 +5440,13 @@ fn add_generated_construct_warnings(
     text: &generated::generated_model::TextSyntax,
     tokens: &[Token],
     cbm_enabled: bool,
+    split_number_lerfu_enabled: bool,
     warnings: &mut Vec<SyntaxWarning>,
 ) {
     let mut visitor = new!(GeneratedConstructWarningVisitor {
         tokens,
         cbm_enabled,
+        split_number_lerfu_enabled,
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
@@ -5450,9 +5462,14 @@ fn add_generated_construct_warnings(
         .all(|token| token.core_word().byte_range().is_some()),
     "generated warning anchors require source-backed syntax tokens"
 )]
+#[expensive_invariant(tokens.windows(2).all(|pair| {
+    pair[0].core_word().byte_range().zip(pair[1].core_word().byte_range())
+        .is_some_and(|(left, right)| left.start <= right.start)
+}))]
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
     cbm_enabled: bool,
+    split_number_lerfu_enabled: bool,
     warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
@@ -5465,11 +5482,62 @@ impl GeneratedConstructWarningVisitor<'_> {
     {
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
+            last_token: Cell::new(None),
         });
         node.visit_in_order(&mut visitor);
         if let Some(anchor) = visitor.token.get() {
             let mut warnings = self.warnings.borrow_mut();
             push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
+        }
+    }
+
+    /// Warn where the split string stops before a standard continuation.
+    #[requires(matches!(boundary, Selmaho::Pa | Selmaho::By))]
+    #[ensures(true)]
+    fn warn_split_string<T>(&mut self, node: &T, boundary: Selmaho)
+    where
+        T: generated::generated_model::TreeNode,
+    {
+        if !self.split_number_lerfu_enabled {
+            return;
+        }
+        let mut visitor = new!(FirstTokenVisitor {
+            token: Cell::new(None),
+            last_token: Cell::new(None),
+        });
+        node.visit_in_order(&mut visitor);
+        let Some(last) = visitor.last_token.get() else {
+            return;
+        };
+        let Some(range) = last.core_word().byte_range() else {
+            return;
+        };
+        // Syntax tokens keep source order. Find the next token without a full scan.
+        let next_index = self.tokens.partition_point(|token| {
+            token
+                .core_word()
+                .byte_range()
+                .is_some_and(|span| span.start <= range.start)
+        });
+        let Some(next) = self.tokens.get(next_index) else {
+            return;
+        };
+        let changes_extent = if boundary == Selmaho::By {
+            tokens::is_letter_word(next)
+                || next.is_selmaho(Selmaho::Lau)
+                || next.is_cmavo(Cmavo::Tei)
+        } else {
+            next.is_selmaho(Selmaho::Pa)
+        };
+        if changes_extent {
+            if let Some(anchor) = visitor.token.get() {
+                push_generated_construct_warning(
+                    &mut self.warnings.borrow_mut(),
+                    self.tokens,
+                    ExperimentalConstruct::ExperimentalSplitNumberLerfu,
+                    anchor,
+                );
+            }
         }
     }
 
@@ -5482,6 +5550,7 @@ impl GeneratedConstructWarningVisitor<'_> {
     ) {
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
+            last_token: Cell::new(None),
         });
         generated::generated_model::TreeNode::visit_in_order(&tail.tail, &mut visitor);
         if visitor.token.get().is_some_and(tokens::is_cmevla_word) {
@@ -5522,6 +5591,12 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
+            generated::generated_model::NodeRef::NumberWordsSyntax(number) => {
+                self.warn_split_string(number, Selmaho::By);
+            }
+            generated::generated_model::NodeRef::LetterStringSyntax(letters) => {
+                self.warn_split_string(letters, Selmaho::Pa);
+            }
             generated::generated_model::NodeRef::PreposedLinkargsTanruUnitSyntax(unit) => {
                 // BE belongs to the shared linkargs product, whose ordinary postposed
                 // uses are standard. Warn on this completed preposed field only;
@@ -5635,8 +5710,11 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
         .is_none_or(|token| token.core_word().byte_range().is_some()),
     "captured warning anchor token must be source-backed"
 )]
+#[invariant(token.get().is_some() == last_token.get().is_some())]
+#[invariant(last_token.get().is_none_or(|token| token.core_word().byte_range().is_some()))]
 struct FirstTokenVisitor<'tree> {
     token: Cell<Option<&'tree Token>>,
+    last_token: Cell<Option<&'tree Token>>,
 }
 
 impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
@@ -5646,11 +5724,11 @@ impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
-        if self.token.get().is_some() {
-            return;
-        }
         let generated::generated_model::AtomRef::Token(token) = atom;
-        self.token.set(Some(token));
+        if self.token.get().is_none() {
+            self.token.set(Some(token));
+        }
+        self.last_token.set(Some(token));
     }
 }
 

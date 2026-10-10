@@ -80,6 +80,7 @@ pub(crate) struct SyntaxGrammarEnv {
 impl SyntaxGrammarEnv {
     #[requires(true)]
     #[ensures(true)]
+    #[ensures(ret.dialect.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         Self {
             dialect: SyntaxGrammarDialect::from_options(options),
@@ -95,6 +96,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub na_joik_enabled: bool,
     pub mex_quantifier_enabled: bool,
     pub lahe_mex_enabled: bool,
+    pub split_number_lerfu_enabled: bool,
 }
 
 impl SyntaxGrammarDialect {
@@ -104,6 +106,7 @@ impl SyntaxGrammarDialect {
     #[ensures(ret.na_joik_enabled == options.dialect.features.contains(&DialectFeature::NaJoik))]
     #[ensures(ret.mex_quantifier_enabled == options.dialect.features.contains(&DialectFeature::MexQuantifier))]
     #[ensures(ret.lahe_mex_enabled == options.dialect.features.contains(&DialectFeature::LaheMex))]
+    #[ensures(ret.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
@@ -112,6 +115,7 @@ impl SyntaxGrammarDialect {
             na_joik_enabled: features.contains(&DialectFeature::NaJoik),
             mex_quantifier_enabled: features.contains(&DialectFeature::MexQuantifier),
             lahe_mex_enabled: features.contains(&DialectFeature::LaheMex),
+            split_number_lerfu_enabled: features.contains(&DialectFeature::SplitNumberLerfu),
         }
     }
 }
@@ -125,6 +129,9 @@ pub(crate) enum SyntaxGrammarFeature {
     NaJoik,
     MexQuantifier,
     LaheMex,
+    SplitNumberLerfu,
+    // The standard continuation arms use the complement of the public feature.
+    MixedNumberLerfu,
 }
 
 impl SyntaxGrammarFeature {
@@ -137,6 +144,8 @@ impl SyntaxGrammarFeature {
             Self::NaJoik => dialect.na_joik_enabled,
             Self::MexQuantifier => dialect.mex_quantifier_enabled,
             Self::LaheMex => dialect.lahe_mex_enabled,
+            Self::SplitNumberLerfu => dialect.split_number_lerfu_enabled,
+            Self::MixedNumberLerfu => !dialect.split_number_lerfu_enabled,
         }
     }
 
@@ -149,6 +158,8 @@ impl SyntaxGrammarFeature {
             Self::NaJoik => "NA-JOIK feature",
             Self::MexQuantifier => "MEX-QUANTIFIER feature",
             Self::LaheMex => "LAHE-MEX feature",
+            Self::SplitNumberLerfu => "SPLIT-NUMBER-LERFU feature",
+            Self::MixedNumberLerfu => "mixed number and lerfu strings",
         }
     }
 }

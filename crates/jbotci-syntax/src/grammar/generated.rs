@@ -2846,7 +2846,7 @@ pub mod generated_model {
     /// Sum node for lerfu string continuation; selects among the `letter_string_pa_continuation` and `letter_string_lerfu_continuation` forms.
     rule "lerfu string continuation" letter_string_continuation(letter_tokens) -> enum {
         /// Uses the `letter_string_pa_continuation` product form, whose payload preserves `pa`.
-        letter_string_pa_continuation,
+        when feature(MixedNumberLerfu) letter_string_pa_continuation,
         /// Uses the `letter_string_lerfu_continuation` product form, whose payload preserves `letter`.
         letter_string_lerfu_continuation,
     }
@@ -2876,7 +2876,7 @@ pub mod generated_model {
         /// Uses the `number_word_pa_continuation` product form, whose payload preserves `pa`.
         number_word_pa_continuation,
         /// Uses the `number_word_lerfu_continuation` product form, whose payload preserves `letter`.
-        number_word_lerfu_continuation,
+        when feature(MixedNumberLerfu) number_word_lerfu_continuation,
     }
 
     /// Transparent product node for number continuation; preserves the `pa` component.

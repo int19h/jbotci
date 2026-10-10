@@ -76,6 +76,7 @@ define_dialect_features! {
     NaJoik => "na-joik",
     MexQuantifier => "mex-quantifier",
     LaheMex => "lahe-mex",
+    SplitNumberLerfu => "split-number-lerfu",
 }
 
 impl fmt::Display for DialectFeature {
