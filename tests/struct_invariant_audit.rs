@@ -592,10 +592,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "owned index entry is produced from non-empty BTreeMap buckets",
     ),
     (
-        "crates/jbotci-dictionary/src/lib.rs:OwnedSelmahoIndexEntry",
-        "owned index entry is produced from non-empty BTreeMap buckets",
-    ),
-    (
         "crates/jbotci-dictionary/src/lib.rs:OwnedWordIndexEntry",
         "owned index entry is produced from non-empty BTreeMap buckets",
     ),
@@ -622,10 +618,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:Score",
         "Lensisku score is an opaque upstream ranking value",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:SelmahoIndexEntry",
-        "borrowed index entry is generated from owned validated buckets",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:WordIndexEntry",
