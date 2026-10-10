@@ -183,7 +183,7 @@ impl QwenByteBpeTokenizer {
     }
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(groups > 0)]
 #[requires(group_size > 0)]
 #[ensures(ret == groups * group_size)]
@@ -191,7 +191,7 @@ pub(crate) fn q4_padded_row_stride(groups: usize, group_size: usize) -> usize {
     groups * group_size
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(rows > 0)]
 #[requires(groups > 0)]
 #[requires(group_size > 0)]
@@ -200,7 +200,7 @@ pub(crate) fn q4_packed_byte_len(rows: usize, groups: usize, group_size: usize) 
     (rows * q4_padded_row_stride(groups, group_size)).div_ceil(2)
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(!name.is_empty())]
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
@@ -247,7 +247,7 @@ pub(crate) fn validate_q4_tensor_storage(
     Ok(())
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(!label.is_empty())]
 #[ensures(true)]
 pub(crate) fn validate_chunk_layout(
@@ -292,7 +292,7 @@ pub(crate) fn validate_chunk_layout(
     Ok(())
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(!name.is_empty())]
 #[ensures(true)]
 pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String> {
@@ -303,7 +303,7 @@ pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String>
     }
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(test, target_arch = "wasm32", feature = "native"))]
 #[requires(vocab_size > 0)]
 #[ensures(true)]
 pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result<(), String> {

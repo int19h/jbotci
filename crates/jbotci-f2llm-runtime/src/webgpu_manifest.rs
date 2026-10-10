@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use bityzba::{ensures, invariant, requires};
 use serde::Deserialize;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 use crate::core::{validate_chunk_layout, validate_q4_tensor_storage};
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
@@ -320,7 +320,7 @@ fn rank2_shape_from_valid_tensor(shape: &[usize]) -> [usize; 2] {
     [shape[0], shape[1]]
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 #[requires(!name.is_empty())]
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
@@ -348,7 +348,7 @@ pub(super) fn validate_q4_tensor_chunks(
     )
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 #[requires(!label.is_empty())]
 #[ensures(true)]
 pub(super) fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Result<(), String> {
@@ -367,7 +367,7 @@ pub(super) fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Resul
     validate_chunk_layout(label, chunked.byte_length, &chunks)
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn tensor_byte_length(spec: &TensorSpec) -> usize {
@@ -390,7 +390,7 @@ pub(super) fn tensor_byte_length(spec: &TensorSpec) -> usize {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 #[requires(!name.is_empty())]
 #[ensures(true)]
 pub(super) fn checked_rank2_shape(name: &str, shape: &[usize]) -> Result<[usize; 2], String> {
