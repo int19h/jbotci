@@ -57,6 +57,7 @@ use jbotci_web_core::build_page_head;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_arch = "wasm32")]
@@ -125,39 +126,28 @@ const EMBEDDING_WORKER_JS: Asset = asset!(
     "/assets/embedding-worker.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)
 );
-#[allow(dead_code)]
-const APP_MODULE_READY_JS: Asset = asset!(
+// These anonymous constants register assets that JavaScript loads by URL.
+const _: Asset = asset!(
     "/assets/app-module-ready.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)
 );
-#[allow(dead_code)]
-const MODEL_CATALOG_JS: Asset = asset!(
+const _: Asset = asset!(
     "/assets/model-catalog.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)
 );
 // The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
-#[allow(dead_code)]
 const ORT_WASM_MIN_MJS: Asset = asset!("/assets/ort/ort.wasm.min.mjs");
-#[allow(dead_code)]
 const ORT_WASM_SIMD_THREADED_MJS: Asset = asset!("/assets/ort/ort-wasm-simd-threaded.mjs");
-#[allow(dead_code)]
 const ORT_WASM_SIMD_THREADED_WASM: Asset = asset!("/assets/ort/ort-wasm-simd-threaded.wasm");
 // These are referenced from generated head metadata or the web manifest rather than directly
 // rendered as RSX assets, so keep explicit pins for raw `dx build` without xtask public prep.
-#[allow(dead_code)]
-const MANIFEST_WEBMANIFEST: Asset = asset!("/assets/manifest.webmanifest");
-#[allow(dead_code)]
-const FAVICON_192: Asset = asset!("/assets/icons/jbotci-icon-192.png");
-#[allow(dead_code)]
-const APPLE_TOUCH_ICON: Asset = asset!("/assets/icons/apple-touch-icon.png");
-#[allow(dead_code)]
-const ICON_512: Asset = asset!("/assets/icons/jbotci-icon-512.png");
-#[allow(dead_code)]
-const ICON_SVG: Asset = asset!("/assets/icons/jbotci-icon.svg");
-#[allow(dead_code)]
-const ICON_MASKABLE_192: Asset = asset!("/assets/icons/jbotci-icon-maskable-192.png");
-#[allow(dead_code)]
-const ICON_MASKABLE_512: Asset = asset!("/assets/icons/jbotci-icon-maskable-512.png");
+const _: Asset = asset!("/assets/manifest.webmanifest");
+const _: Asset = asset!("/assets/icons/jbotci-icon-192.png");
+const _: Asset = asset!("/assets/icons/apple-touch-icon.png");
+const _: Asset = asset!("/assets/icons/jbotci-icon-512.png");
+const _: Asset = asset!("/assets/icons/jbotci-icon.svg");
+const _: Asset = asset!("/assets/icons/jbotci-icon-maskable-192.png");
+const _: Asset = asset!("/assets/icons/jbotci-icon-maskable-512.png");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 pub const APP_DISPLAY_NAME: &str = "jbotci";
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/web/v1";
@@ -220,20 +210,20 @@ const PAGE_FIND_INPUT_ID: &str = "app-page-find-input";
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
 const CUKTA_TOC_FORCED_AUTOHIDE_WIDTH_PX: f64 = 1100.0;
-#[allow(dead_code)]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const VLACKU_JVOZBA_HEIGHT_SCALE: f64 = 0.5;
 const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
 const GENTUFA_TREE_LAYOUT_DELAY_MS: i32 = 30;
 const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
-#[allow(dead_code)]
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
-#[allow(dead_code)]
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
-#[allow(dead_code)]
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 const DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX: f64 = 8.0;
-#[allow(dead_code)]
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 const DICTIONARY_TOOLTIP_HOST_GAP_PX: f64 = 8.0;
 const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
 const EMBEDDING_MODEL_STORAGE_KEY: &str = "jbotci.embedding-model.v1";
@@ -442,9 +432,9 @@ enum ThemeMode {
 #[invariant(true)]
 enum TopbarSettingsLayout {
     BothInline,
-    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
     ThemeInline,
-    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
     NoneInline,
 }
 
@@ -452,7 +442,7 @@ enum TopbarSettingsLayout {
 #[invariant(true)]
 enum TopbarNavLayout {
     Full,
-    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
     Carousel,
 }
 
@@ -495,6 +485,7 @@ struct ArrowOverlay {
     paths: Vec<String>,
 }
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[invariant(left.is_finite() && top.is_finite() && right.is_finite() && bottom.is_finite())]
 #[invariant(left <= right)]
 #[invariant(top <= bottom)]

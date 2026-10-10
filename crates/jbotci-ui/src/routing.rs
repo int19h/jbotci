@@ -38,16 +38,6 @@ impl JbotciRoute {
     }
 
     #[requires(true)]
-    #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
-    pub(super) fn default_gentufa() -> Self {
-        new!(JbotciRoute {
-            web_route: WebRoute::Gentufa(GentufaWebState::default()),
-            gentufa_text_explicit: false,
-            hash: None,
-        })
-    }
-
-    #[requires(true)]
     #[ensures(true)]
     pub(super) fn from_web_route(web_route: WebRoute, gentufa_text_explicit: bool) -> Self {
         new!(JbotciRoute {
@@ -651,26 +641,6 @@ pub(super) fn cukta_top_pending_scroll() -> CuktaPendingScroll {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cukta_pending_scroll_for_navigation(
-    route: AppRoute,
-    target: &str,
-    has_hash: bool,
-    restore_stored: bool,
-) -> Option<CuktaPendingScroll> {
-    if route != AppRoute::Cukta {
-        return None;
-    }
-    if has_hash {
-        Some(cukta_anchor_pending_scroll(target.to_owned()))
-    } else if restore_stored {
-        Some(cukta_stored_pending_scroll(target.to_owned()))
-    } else {
-        Some(cukta_top_pending_scroll())
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn cukta_pending_scroll_for_route_change(
     base_path: &str,
     route: &JbotciRoute,
@@ -747,6 +717,7 @@ pub(super) fn apply_cukta_pending_scroll(scroll: CuktaPendingScroll) {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(ret.starts_with("jbotci.scroll."))]
 pub(super) fn scroll_storage_key(path_query_or_url: &str) -> String {
@@ -870,11 +841,6 @@ pub(super) fn save_current_scroll_position() {
     session_storage_set(&key, &y.to_string());
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn save_current_scroll_position() {}
-
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
@@ -889,11 +855,6 @@ pub(super) fn restore_scroll_for_current_url() {
         location.search().unwrap_or_default()
     ));
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn restore_scroll_for_current_url() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]

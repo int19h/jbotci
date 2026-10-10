@@ -150,45 +150,6 @@ pub struct TimeoutHandle {
 #[invariant(true)]
 pub struct TimeoutHandle;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub enum SharedTopbarSettingsLayout {
-    BothInline,
-    ThemeInline,
-    NoneInline,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct TopbarLayoutMetrics {
-    pub available_width: f64,
-    pub both_probe_width: f64,
-    pub theme_probe_width: f64,
-    pub center_width: f64,
-    pub right_width: f64,
-    pub column_gap: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct TreeLine {
-    pub x: f64,
-    pub start_y: f64,
-    pub end_y: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct TreeLineAnchor {
-    pub node_id: usize,
-    pub parent_id: Option<usize>,
-    pub depth: usize,
-    pub label_left: f64,
-    pub label_center_y: f64,
-    pub row_top: f64,
-    pub row_bottom: f64,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct JvozbaPaneLayout {
@@ -558,7 +519,7 @@ async fn wait_animation_frame() {
     let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 async fn wait_animation_frame() {
@@ -718,58 +679,6 @@ where
     });
 }
 
-#[requires(metrics.available_width >= 0.0)]
-#[ensures(true)]
-pub fn choose_topbar_layout(metrics: TopbarLayoutMetrics) -> SharedTopbarSettingsLayout {
-    if topbar_probe_fits(metrics, metrics.both_probe_width) {
-        SharedTopbarSettingsLayout::BothInline
-    } else if topbar_probe_fits(metrics, metrics.theme_probe_width) {
-        SharedTopbarSettingsLayout::ThemeInline
-    } else {
-        SharedTopbarSettingsLayout::NoneInline
-    }
-}
-
-#[requires(probe_width >= 0.0)]
-#[ensures(true)]
-fn topbar_probe_fits(metrics: TopbarLayoutMetrics, probe_width: f64) -> bool {
-    let visible_columns = 1.0
-        + if metrics.center_width > 0.0 { 1.0 } else { 0.0 }
-        + if metrics.right_width > 0.0 { 1.0 } else { 0.0 };
-    let required_width = probe_width
-        + metrics.center_width
-        + metrics.right_width
-        + (visible_columns - 1.0) * metrics.column_gap;
-    required_width <= metrics.available_width + 1.0
-}
-
-#[requires(table_bottom.is_finite())]
-#[ensures(ret.iter().all(|line| line.end_y >= line.start_y))]
-pub fn gentufa_tree_lines(anchors: &[TreeLineAnchor], table_bottom: f64) -> Vec<TreeLine> {
-    let mut lines = Vec::new();
-    for (index, anchor) in anchors.iter().enumerate() {
-        if !anchors
-            .iter()
-            .any(|candidate| candidate.parent_id == Some(anchor.node_id))
-        {
-            continue;
-        }
-        let end_y = anchors
-            .iter()
-            .skip(index + 1)
-            .find_map(|candidate| (candidate.depth <= anchor.depth).then_some(candidate.row_top))
-            .unwrap_or(table_bottom.max(anchor.row_bottom));
-        if end_y > anchor.label_center_y {
-            lines.push(TreeLine {
-                x: anchor.label_left,
-                start_y: anchor.label_center_y,
-                end_y,
-            });
-        }
-    }
-    lines
-}
-
 #[requires(scroll_top >= 0)]
 #[requires(fallback_top.is_finite())]
 #[requires(topbar_bottom.is_finite())]
@@ -857,67 +766,6 @@ mod tests {
 
         assert_eq!(handle, None);
         assert!(ran.get());
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn topbar_layout_chooses_first_fitting_probe() {
-        let metrics = TopbarLayoutMetrics {
-            available_width: 200.0,
-            both_probe_width: 150.0,
-            theme_probe_width: 100.0,
-            center_width: 40.0,
-            right_width: 20.0,
-            column_gap: 8.0,
-        };
-        assert_eq!(
-            choose_topbar_layout(metrics),
-            SharedTopbarSettingsLayout::ThemeInline
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn gentufa_tree_lines_stop_at_next_shallower_row() {
-        let anchors = vec![
-            TreeLineAnchor {
-                node_id: 1,
-                parent_id: None,
-                depth: 0,
-                label_left: 10.0,
-                label_center_y: 10.0,
-                row_top: 0.0,
-                row_bottom: 20.0,
-            },
-            TreeLineAnchor {
-                node_id: 2,
-                parent_id: Some(1),
-                depth: 1,
-                label_left: 20.0,
-                label_center_y: 30.0,
-                row_top: 20.0,
-                row_bottom: 40.0,
-            },
-            TreeLineAnchor {
-                node_id: 3,
-                parent_id: None,
-                depth: 0,
-                label_left: 10.0,
-                label_center_y: 50.0,
-                row_top: 40.0,
-                row_bottom: 60.0,
-            },
-        ];
-        assert_eq!(
-            gentufa_tree_lines(&anchors, 60.0),
-            vec![TreeLine {
-                x: 10.0,
-                start_y: 10.0,
-                end_y: 40.0,
-            }]
-        );
     }
 
     #[test]
