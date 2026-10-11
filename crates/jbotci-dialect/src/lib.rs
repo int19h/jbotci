@@ -79,7 +79,7 @@ macro_rules! define_dialect_features {
 
 define_dialect_features! {
     Cbm => "cbm",
-        "With cbm, the parser uses the CBM grammar features.",
+        "With cbm, a cmevla (name word) can serve as a relation word.",
     CaseInsensitive => "case-insensitive",
         "With case-insensitive, uppercase letters do not mark stress.",
     PermissiveLexer => "permissive-lexer",
