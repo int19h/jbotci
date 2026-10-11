@@ -3084,7 +3084,7 @@ fn gentufa_raw_output_is_debug_syntax_parse() {
         run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
         assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("Regular"));
+        assert!(output.starts_with("TextSyntax {"));
         assert!(output.contains("BridiStatementSyntax"));
         assert!(!output.contains("SyntaxValue"));
     });
@@ -3105,7 +3105,7 @@ fn gentufa_raw_indent_zero_uses_compact_debug() {
         assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
         assert!(!output.trim_end().contains('\n'));
-        assert!(output.starts_with("Regular"));
+        assert!(output.starts_with("TextSyntax {"));
         assert!(output.contains("BridiStatementSyntax"));
     });
 }
