@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
 pub use jbotci_tree_macros::tree_model;
+pub mod view;
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

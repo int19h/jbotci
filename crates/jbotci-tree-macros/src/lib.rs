@@ -2,6 +2,8 @@
 
 extern crate proc_macro;
 
+mod view;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
@@ -50,6 +52,11 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     } else {
         quote!()
     };
+    let view_module = if options.generate_view {
+        view::expand(&items, &node_names, &aliases, &atom_types)?
+    } else {
+        quote!()
+    };
     let cleaned_items = items
         .iter_mut()
         .map(strip_tree_attrs_from_item)
@@ -57,6 +64,8 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
 
     Ok(quote! {
         #(#cleaned_items)*
+
+        #view_module
 
         #valid_module
 
@@ -116,6 +125,7 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
 #[invariant(true)]
 struct TreeModelOptions {
     generate_recovered: bool,
+    generate_view: bool,
     generate_with_free_modifiers: bool,
 }
 
@@ -123,6 +133,7 @@ struct TreeModelOptions {
 #[ensures(true)]
 fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
     let mut generate_recovered = false;
+    let mut generate_view = false;
     let mut generate_with_free_modifiers = false;
     for attr in attrs {
         if attr.path().is_ident("tree_recovered") {
@@ -133,6 +144,14 @@ fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
                 ));
             }
             generate_recovered = true;
+        } else if attr.path().is_ident("tree_view") {
+            if !matches!(attr.meta, syn::Meta::Path(_)) {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "`tree_view` does not take arguments",
+                ));
+            }
+            generate_view = true;
         } else if attr.path().is_ident("tree_with_free_modifiers") {
             if !matches!(attr.meta, syn::Meta::Path(_)) {
                 return Err(syn::Error::new_spanned(
@@ -148,8 +167,15 @@ fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
             ));
         }
     }
+    if generate_view && !generate_recovered {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "`tree_view` requires `tree_recovered`",
+        ));
+    }
     Ok(TreeModelOptions {
         generate_recovered,
+        generate_view,
         generate_with_free_modifiers,
     })
 }

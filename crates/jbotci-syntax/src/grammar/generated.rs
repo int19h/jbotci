@@ -75,6 +75,7 @@ pub mod generated_model {
         tree_model {
             #![tree_with_free_modifiers]
             #![tree_recovered]
+            #![tree_view]
         }
         model;
         env generated_runtime::SyntaxGrammarEnv;
