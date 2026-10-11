@@ -2457,11 +2457,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-tree/src/view.rs:SequenceIter::Recovered",
-        "the standard slice iterator and Map enforce the iterator state",
+        "the standard slice iterator enforces its state. The marker selects a static projection without data",
     ),
     (
         "crates/jbotci-tree/src/view.rs:SequenceIter::Strict",
-        "the standard slice iterator and Map enforce the iterator state",
+        "the standard slice iterator enforces its state. The marker selects a static projection without data",
     ),
     (
         "crates/jbotci-tree/src/view.rs:Slot::Prefix",

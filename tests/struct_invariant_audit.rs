@@ -1796,6 +1796,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the generic head and link types constrain their values. The view adds no constraint between them",
     ),
     (
+        "crates/jbotci-tree/src/view.rs:StrictSource",
+        "the unit marker has no data. Its implementation fixes strict validity at compile time",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:RecoveredSource",
+        "the unit marker has no data. Its implementation selects recovered evidence at compile time",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:RecoveredModifierProjection",
+        "the test projection marker has no data. Its trait implementation fixes both element conversions",
+    ),
+    (
         "crates/jbotci-tree/src/view.rs:WithFreeModifiersView",
         "the generic value and modifier types constrain their values. The view adds no constraint between them",
     ),
