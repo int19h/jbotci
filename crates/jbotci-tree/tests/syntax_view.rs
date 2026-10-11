@@ -87,6 +87,7 @@ impl<'tree> view::Walker<'tree> for Counter {
 #[requires(true)]
 #[ensures(true)]
 fn projections_and_walks_borrow_without_allocation() {
+    use jbotci_tree::view::SourceKind;
     use view::{AsView, Inspect, Walkable};
     let strict = Root {
         children: vec![Arc::new(Choice::Child(Arc::new(Child {
@@ -112,6 +113,13 @@ fn projections_and_walks_borrow_without_allocation() {
         )));
     let recovered = recovered::Recovered::valid(recovered);
     ALLOCATIONS.with(|count| count.set(Some(0)));
+    assert!(<Root as AsView<'_>>::Kind::STRICT);
+    assert!(!<recovered::Root as AsView<'_>>::Kind::STRICT);
+    assert_eq!(strict.as_view().valid().unwrap().field_children().len(), 1);
+    assert_eq!(
+        recovered.as_view().valid().unwrap().field_children().len(),
+        2
+    );
     assert!(!strict.as_view().valid().unwrap().has_errors());
     assert!(!strict.as_view().valid().unwrap().needs_recovery_evidence());
     assert!(recovered.as_view().valid().unwrap().has_errors());

@@ -67,13 +67,14 @@ fn field_view(
     recovered: proc_macro2::TokenStream,
     nodes: &BTreeSet<String>,
     aliases: &BTreeMap<String, Type>,
+    projectors: &mut Vec<(String, proc_macro2::TokenStream)>,
 ) -> syn::Result<FieldView> {
     if let Type::Path(path) = ty {
         let segment = path.path.segments.last().unwrap();
         let name = segment.ident.to_string();
         if path.path.segments.len() == 1 {
             if let Some(alias) = aliases.get(&name) {
-                return field_view(alias, strict, recovered, nodes, aliases);
+                return field_view(alias, strict, recovered, nodes, aliases, projectors);
             }
             if nodes.contains(&name) {
                 let reference = format_ident!("{}Ref", name);
@@ -93,10 +94,18 @@ fn field_view(
                     quote!(&**#recovered),
                     nodes,
                     aliases,
+                    projectors,
                 );
             }
             "Option" => {
-                let inner = field_view(args[0], quote!(value), quote!(value), nodes, aliases)?;
+                let inner = field_view(
+                    args[0],
+                    quote!(value),
+                    quote!(value),
+                    nodes,
+                    aliases,
+                    projectors,
+                )?;
                 let FieldView {
                     ty,
                     strict: s,
@@ -113,7 +122,14 @@ fn field_view(
                     Type::Array(array) => array.elem.as_ref(),
                     other => other,
                 };
-                let projection = field_view(inner, quote!(value), quote!(value), nodes, aliases)?;
+                let projection = field_view(
+                    inner,
+                    quote!(value),
+                    quote!(value),
+                    nodes,
+                    aliases,
+                    projectors,
+                )?;
                 let FieldView {
                     ty: v,
                     strict: s,
@@ -126,15 +142,52 @@ fn field_view(
                     nodes,
                     aliases,
                 );
+                let key = quote!(#inner).to_string();
+                let index = projectors
+                    .iter()
+                    .position(|(existing, _)| existing == &key)
+                    .unwrap_or(projectors.len());
+                let projector = format_ident!("Projection{index}");
+                if index == projectors.len() {
+                    projectors.push((key, quote! {
+                    #[bityzba::invariant(true)]
+                    #[derive(Debug, Clone, Copy)]
+                    pub struct #projector;
+                    #[bityzba::contract_trait]
+                    impl<'tree> ::jbotci_tree::view::Projection<'tree, #strict_type, #recovered_type> for #projector {
+                        type View = #v;
+                        #[inline]
+                        #[bityzba::requires(true)] #[bityzba::ensures(true)]
+                        fn strict(value: &'tree #strict_type) -> Self::View { #s }
+                        #[inline]
+                        #[bityzba::requires(true)] #[bityzba::ensures(true)]
+                        fn recovered(value: &'tree #recovered_type) -> Self::View { #r }
+                    }
+                }));
+                }
                 return Ok(FieldView {
-                    ty: quote!(Sequence<'tree, #strict_type, #recovered_type, #v>),
-                    strict: quote!(Sequence::Strict { values: (#strict).as_slice(), project: |value| #s }),
-                    recovered: quote!(Sequence::Recovered { values: (#recovered).as_slice(), project: |value| #r }),
+                    ty: quote!(Sequence<'tree, #strict_type, #recovered_type, #v, #projector>),
+                    strict: quote!(Sequence::strict((#strict).as_slice())),
+                    recovered: quote!(Sequence::recovered((#recovered).as_slice())),
                 });
             }
             "Chain" => {
-                let first = field_view(args[0], quote!(first), quote!(first), nodes, aliases)?;
-                let links = field_view(args[1], quote!(links), quote!(links), nodes, aliases)?;
+                let first = field_view(
+                    args[0],
+                    quote!(first),
+                    quote!(first),
+                    nodes,
+                    aliases,
+                    projectors,
+                )?;
+                let links = field_view(
+                    args[1],
+                    quote!(links),
+                    quote!(links),
+                    nodes,
+                    aliases,
+                    projectors,
+                )?;
                 let FieldView {
                     ty: f,
                     strict: fs,
@@ -152,7 +205,14 @@ fn field_view(
                 });
             }
             "WithFreeModifiers" => {
-                let value = field_view(args[0], quote!(value), quote!(value), nodes, aliases)?;
+                let value = field_view(
+                    args[0],
+                    quote!(value),
+                    quote!(value),
+                    nodes,
+                    aliases,
+                    projectors,
+                )?;
                 let modifier = args
                     .get(1)
                     .copied()
@@ -165,6 +225,7 @@ fn field_view(
                     quote!(free_modifiers),
                     nodes,
                     aliases,
+                    projectors,
                 )?;
                 let FieldView {
                     ty: v,
@@ -199,6 +260,7 @@ fn field_view(
                         quote!(&(#recovered).#i),
                         nodes,
                         aliases,
+                        projectors,
                     )
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
@@ -231,6 +293,7 @@ pub(super) fn expand(
     aliases: &BTreeMap<String, Type>,
     atoms: &BTreeMap<String, Type>,
 ) -> syn::Result<proc_macro2::TokenStream> {
+    let mut projectors = Vec::new();
     let mut definitions = Vec::new();
     let mut methods = Vec::new();
     let mut descents = Vec::new();
@@ -256,6 +319,7 @@ pub(super) fn expand(
         let mut strict_cases = Vec::new();
         let mut recovered_cases = Vec::new();
         let mut walk_cases = Vec::new();
+        let mut accessors = Vec::new();
         for (variant, fields) in cases {
             let bindings = fields
                 .iter()
@@ -269,8 +333,61 @@ pub(super) fn expand(
             let projections = fields
                 .iter()
                 .zip(&bindings)
-                .map(|(f, b)| field_view(&f.ty, quote!(#b), quote!(#b), nodes, aliases))
+                .map(|(f, b)| {
+                    field_view(
+                        &f.ty,
+                        quote!(#b),
+                        quote!(#b),
+                        nodes,
+                        aliases,
+                        &mut projectors,
+                    )
+                })
                 .collect::<syn::Result<Vec<_>>>()?;
+            if variant.is_none() {
+                for (index, field) in fields.iter().enumerate() {
+                    let getter = field
+                        .ident
+                        .as_ref()
+                        .map(|name| format_ident!("field_{name}"))
+                        .unwrap_or_else(|| format_ident!("field_{index}"));
+                    let selected = fields
+                        .iter()
+                        .zip(&bindings)
+                        .enumerate()
+                        .map(|(selected, (source, binding))| {
+                            if selected == index {
+                                quote!(#binding)
+                            } else if matches!(fields, Fields::Named(_)) {
+                                let name = source.ident.as_ref().unwrap();
+                                quote!(#name: _)
+                            } else {
+                                quote!(_)
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let pattern = match fields {
+                        Fields::Named(_) => quote!({#(#selected,)*}),
+                        Fields::Unnamed(_) => quote!((#(#selected,)*)),
+                        Fields::Unit => quote!(),
+                    };
+                    let FieldView {
+                        ty,
+                        strict,
+                        recovered,
+                    } = &projections[index];
+                    accessors.push(quote! {
+                        #[inline(always)]
+                        #[bityzba::requires(true)] #[bityzba::ensures(true)]
+                        pub fn #getter(self) -> #ty {
+                            match self {
+                                Self::Strict(super::#ident #pattern) => #strict,
+                                Self::Recovered(super::recovered::#ident #pattern) => #recovered,
+                            }
+                        }
+                    });
+                }
+            }
             let types = projections.iter().map(|f| &f.ty).collect::<Vec<_>>();
             let strict_values = projections.iter().map(|f| &f.strict).collect::<Vec<_>>();
             let recovered_values = projections.iter().map(|f| &f.recovered).collect::<Vec<_>>();
@@ -347,8 +464,10 @@ pub(super) fn expand(
             #[derive(Debug, Clone, Copy)]
             pub enum #reference<'tree> { Strict(&'tree super::#ident), Recovered(&'tree super::recovered::#ident) }
             impl<'tree> #reference<'tree> {
+                #(#accessors)*
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(true)]
+                #[inline(always)]
                 pub fn get(self) -> #view<'tree> {
                     match self {
                         Self::Strict(value) => match value { #(#strict_cases,)* },
@@ -367,12 +486,15 @@ pub(super) fn expand(
             #[bityzba::contract_trait]
             impl<'tree> Inspect for #reference<'tree> {
                 type View = #view<'tree>;
+                #[inline(always)]
                 fn inspect(self) -> Self::View { self.get() }
+                #[inline]
                 fn needs_recovery_evidence(self) -> bool { matches!(self, Self::Recovered(_)) }
             }
             #[bityzba::contract_trait]
             impl<'tree> AsView<'tree> for super::#ident {
                 type Ref = #reference<'tree>;
+                type Kind = ::jbotci_tree::view::StrictSource;
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(ret.valid().is_some())]
                 fn as_view(&'tree self) -> Slot<Self::Ref> { Slot::Valid(#reference::Strict(self)) }
@@ -380,6 +502,7 @@ pub(super) fn expand(
             #[bityzba::contract_trait]
             impl<'tree> AsView<'tree> for super::recovered::#ident {
                 type Ref = #reference<'tree>;
+                type Kind = ::jbotci_tree::view::RecoveredSource;
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(ret.valid().is_some())]
                 fn as_view(&'tree self) -> Slot<Self::Ref> { Slot::Valid(#reference::Recovered(self)) }
@@ -387,6 +510,7 @@ pub(super) fn expand(
             #[bityzba::contract_trait]
             impl<'tree> AsView<'tree> for super::recovered::Recovered<super::recovered::#ident> {
                 type Ref = #reference<'tree>;
+                type Kind = ::jbotci_tree::view::RecoveredSource;
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(ret.valid().is_some() == matches!(self, super::recovered::Recovered::Valid(_)))]
                 fn as_view(&'tree self) -> Slot<Self::Ref> { slot(self, #reference::Recovered) }
@@ -428,6 +552,7 @@ pub(super) fn expand(
             }
         }
     });
+    let projectors = projectors.iter().map(|(_, definition)| definition);
     Ok(quote! {
         /// Shallow read-only projections shared by strict and recovered nodes.
         pub mod view {
@@ -435,7 +560,8 @@ pub(super) fn expand(
             pub use ::jbotci_tree::view::{Slot, Sequence, ChainView, WithFreeModifiersView};
             #[bityzba::requires(true)]
             #[bityzba::ensures(ret.valid().is_some() == matches!(value, super::recovered::Recovered::Valid(_)))]
-            pub fn slot<'tree, T, V: Copy>(value: &'tree super::recovered::Recovered<T>, project: fn(&'tree T) -> V) -> Slot<V> {
+            #[inline]
+            pub fn slot<'tree, T, V: Copy>(value: &'tree super::recovered::Recovered<T>, project: impl FnOnce(&'tree T) -> V) -> Slot<V> {
                 match value {
                     super::recovered::Recovered::Valid(value) => Slot::Valid(project(value)),
                     super::recovered::Recovered::Prefix(prefix) => Slot::Prefix(project(&prefix.value)),
@@ -454,12 +580,14 @@ pub(super) fn expand(
             /// Project a valid child slot. Prefix and Error give no view.
             #[bityzba::requires(true)]
             #[bityzba::ensures(ret.is_some() == value.borrow().valid().is_some())]
+            #[inline(always)]
             pub fn valid<V: Inspect>(value: impl ::std::borrow::Borrow<Slot<V>>) -> Option<V::View> {
                 value.borrow().valid().map(Inspect::inspect)
             }
             #[bityzba::contract_trait]
             pub trait AsView<'tree> {
                 type Ref: Walkable<'tree>;
+                type Kind: ::jbotci_tree::view::SourceKind;
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
                 fn as_view(&'tree self) -> Slot<Self::Ref>;
             }
@@ -493,7 +621,7 @@ pub(super) fn expand(
                 fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { if let Some(value) = self { value.walk_with(walker); } }
             }
             #[bityzba::contract_trait]
-            impl<'tree, S, R, V: Walkable<'tree>> Walkable<'tree> for Sequence<'tree, S, R, V> {
+            impl<'tree, S, R, V: Walkable<'tree>, P: ::jbotci_tree::view::Projection<'tree, S, R, View = V>> Walkable<'tree> for Sequence<'tree, S, R, V, P> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
                 fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { for value in self { value.walk_with(walker); } }
             }
@@ -512,6 +640,7 @@ pub(super) fn expand(
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
                 fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { self.0.walk_with(walker); self.1.walk_with(walker); }
             }
+            #(#projectors)*
             #(#atom_impls)*
             #(#definitions)*
             pub mod walk {

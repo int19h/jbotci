@@ -71,23 +71,26 @@ enum ConnectiveFreeModifierPlacement {
 /// Presence alone is not evidence when a word or modifier slot is invalid.
 #[requires(true)]
 #[ensures(true)]
-fn connective_free_modifier_placement<'tree, V: Copy, S, R>(
+fn connective_free_modifier_placement<'tree, K: jbotci_tree::view::SourceKind, V: Copy, S, R, P>(
     head: WithFreeModifiersView<
         Slot<V>,
-        Sequence<'tree, S, R, Slot<view::FreeModifierSyntaxRef<'tree>>>,
+        Sequence<'tree, S, R, Slot<view::FreeModifierSyntaxRef<'tree>>, P>,
     >,
     nai: Option<
         WithFreeModifiersView<
             Slot<V>,
-            Sequence<'tree, S, R, Slot<view::FreeModifierSyntaxRef<'tree>>>,
+            Sequence<'tree, S, R, Slot<view::FreeModifierSyntaxRef<'tree>>, P>,
         >,
     >,
-) -> ConnectiveFreeModifierPlacement {
+) -> ConnectiveFreeModifierPlacement
+where
+    P: jbotci_tree::view::Projection<'tree, S, R, View = Slot<view::FreeModifierSyntaxRef<'tree>>>,
+{
     let WithFreeModifiersView {
         value: head,
         free_modifiers,
     } = head;
-    if head.valid().is_none() {
+    if !K::STRICT && head.valid().is_none() {
         return ConnectiveFreeModifierPlacement::Unproven;
     }
     let Some(WithFreeModifiersView {
@@ -97,8 +100,15 @@ fn connective_free_modifier_placement<'tree, V: Copy, S, R>(
     else {
         return ConnectiveFreeModifierPlacement::Permitted;
     };
-    if nai.valid().is_none() {
+    if !K::STRICT && nai.valid().is_none() {
         return ConnectiveFreeModifierPlacement::Unproven;
+    }
+    if K::STRICT {
+        return if free_modifiers.is_empty() {
+            ConnectiveFreeModifierPlacement::Permitted
+        } else {
+            ConnectiveFreeModifierPlacement::Prohibited
+        };
     }
     if free_modifiers
         .iter()
@@ -114,7 +124,7 @@ fn connective_free_modifier_placement<'tree, V: Copy, S, R>(
 
 #[requires(true)]
 #[ensures(true)]
-fn is_prohibited_connective_free_modifier(
+fn is_prohibited_connective_free_modifier<K: jbotci_tree::view::SourceKind>(
     value: view::ExpSelbriRelativeClauseContinuationSyntaxRef<'_>,
 ) -> bool {
     let view::ExpSelbriRelativeClauseContinuationSyntaxView {
@@ -136,14 +146,14 @@ fn is_prohibited_connective_free_modifier(
                 head,
                 nai,
             } = connective.get();
-            connective_free_modifier_placement(head, nai)
+            connective_free_modifier_placement::<K, _, _, _, _>(head, nai)
                 == ConnectiveFreeModifierPlacement::Prohibited
         }),
         view::ExpSelbriRelativeClauseConnectiveSyntaxView::SimpleIntervalConnective(connective) => {
             connective.valid().is_some_and(|connective| {
                 let view::SimpleIntervalConnectiveSyntaxView { se: _, bihi, nai } =
                     connective.get();
-                connective_free_modifier_placement(bihi, nai)
+                connective_free_modifier_placement::<K, _, _, _, _>(bihi, nai)
                     == ConnectiveFreeModifierPlacement::Prohibited
             })
         }
@@ -162,7 +172,7 @@ where
         value
             .as_view()
             .valid()
-            .is_some_and(is_prohibited_connective_free_modifier)
+            .is_some_and(is_prohibited_connective_free_modifier::<<T as AsView<'_>>::Kind>)
     }
 }
 
@@ -250,6 +260,28 @@ where
 #[cfg(test)]
 use super::generated_model::recovered;
 
+#[cfg(test)]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct RecoveredModifierProjection;
+#[cfg(test)]
+#[contract_trait]
+impl<'tree, F: 'tree + std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>>
+    jbotci_tree::view::Projection<'tree, (), F> for RecoveredModifierProjection
+{
+    type View = Slot<view::FreeModifierSyntaxRef<'tree>>;
+    #[requires(true)]
+    #[ensures(matches!(ret, Slot::Error))]
+    fn strict(_value: &'tree ()) -> Self::View {
+        Slot::Error
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered(value: &'tree F) -> Self::View {
+        view::slot(value.borrow(), view::FreeModifierSyntaxRef::Recovered)
+    }
+}
+
 /// Adapt the existing low-level test inputs to the generated view's slot rules.
 #[cfg(test)]
 #[requires(true)]
@@ -267,20 +299,26 @@ where
         word: &'tree recovered::WithFreeModifiers<recovered::Recovered<T>, F>,
     ) -> WithFreeModifiersView<
         Slot<&'tree T>,
-        Sequence<'tree, (), F, Slot<view::FreeModifierSyntaxRef<'tree>>>,
+        Sequence<
+            'tree,
+            (),
+            F,
+            Slot<view::FreeModifierSyntaxRef<'tree>>,
+            RecoveredModifierProjection,
+        >,
     >
     where
         F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
     {
         WithFreeModifiersView {
             value: view::slot(&word.value, |value| value),
-            free_modifiers: Sequence::Recovered {
-                values: &word.free_modifiers,
-                project: |value| view::slot(value.borrow(), view::FreeModifierSyntaxRef::Recovered),
-            },
+            free_modifiers: Sequence::recovered(&word.free_modifiers),
         }
     }
-    connective_free_modifier_placement(project(head), nai.map(project))
+    connective_free_modifier_placement::<jbotci_tree::view::RecoveredSource, _, _, _, _>(
+        project(head),
+        nai.map(project),
+    )
 }
 
 #[cfg(test)]

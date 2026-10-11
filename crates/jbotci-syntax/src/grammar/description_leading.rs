@@ -108,7 +108,7 @@ fn vuho_scoped_is_parsed(
         relative_clauses: _,
         sumti_connection: _,
     } = value;
-    valid(vuho.value).is_some()
+    vuho.value.valid().is_some()
 }
 
 #[requires(true)]
@@ -118,14 +118,14 @@ fn vuho_relative_is_parsed(value: view::VuhoRelativeSumtiAttachmentTailSyntaxVie
         vuho,
         relative_clauses: _,
     } = value;
-    valid(vuho.value).is_some()
+    vuho.value.valid().is_some()
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn bare_vuho_is_parsed(value: view::ExperimentalBareVuhoSumtiAttachmentTailSyntaxView<'_>) -> bool {
     let view::ExperimentalBareVuhoSumtiAttachmentTailSyntaxView(vuho) = value;
-    valid(vuho.value).is_some()
+    vuho.value.valid().is_some()
 }
 
 #[requires(true)]
@@ -137,7 +137,7 @@ fn bo_is_parsed(value: view::SumtiBoundTailSyntaxView<'_>) -> bool {
         bo,
         trailing_sumti: _,
     } = value;
-    valid(bo.value).is_some()
+    bo.value.valid().is_some()
 }
 
 #[requires(true)]
