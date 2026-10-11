@@ -17,6 +17,11 @@ The argument selects the number of measured executions.
 The example does one warm-up before those executions.
 It computes output signatures and assertions outside the timed interval.
 Each measured output must match the warm-up signature.
+The signature uses FNV-1a over the complete `GimfihiOutput` Debug projection.
+The example reports the candidate counts, winner, and score bits for the first three results.
+It reports the median and mean elapsed time.
+For an even sample count, the median is the mean of the two middle samples.
+The mean includes all measured samples.
 
 ## Comparing revisions
 
@@ -24,6 +29,6 @@ Use separate worktrees and build lanes for each revision.
 Operate the same benchmark harness on the same host with the same arguments.
 Record the exact commits, toolchain, host, and output signatures with the results.
 
-The scorer tests compare prepared scoring with eager scoring for each normalizer.
+The scorer tests compare prepared scoring with eager scoring bit for bit for each normalizer.
 They also compare prepared and concrete alignment over the candidate inventory.
 Timing comparisons do not replace these correctness tests.

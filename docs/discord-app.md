@@ -130,6 +130,7 @@ Analysis admits one job at a time to bound concurrent memory use.
 
 A request that cannot enter its queue receives a refusal message.
 A worker retains its permit until the work ends, even when the caller stops waiting.
+It also retains its delivery allocation and its message reservation while it writes.
 Meaning search retains its permit during a cold model load.
 One deadline covers both queue time and delivery to Discord.
 
@@ -180,6 +181,11 @@ so they can turn it off or shorten the text and submit again. Only a form can
 ask for an image, so this never arises on a first publication.
 
 ## Memory bounds
+
+The service loads the embedding model on the first meaning search and keeps it resident.
+Candidate ranking retains words, scores, and collision words while it computes one page.
+It does not retain rafsi that a filter computes.
+The service builds result details for the requested page only.
 
 The runtime image sets `MALLOC_ARENA_MAX=2` to limit allocator arenas.
 Analysis admits one job at a time, so only one diagram is rasterized at a time.

@@ -118,3 +118,8 @@ has no single standing; the import rejects both.
 Lensisku also lists a gismu's 4-letter rafsi (the gismu minus its final vowel)
 as a structured rafsi. jbotci derives that form itself, so the importer
 discards exactly the derived form.
+
+Short-rafsi availability uses the standing of each listed claim.
+An official claim takes priority over experimental claims on the same form.
+If only experimental claims exist, the result reports all those claimants.
+Derived forms do not count as listed claims.

@@ -20,6 +20,7 @@ Domain crates such as `jbotci-dictionary`, `jbotci-cll`, `jbotci-search`, and
 
 The morphology, syntax, and semantics crates contain shared language APIs.
 They do not require CLI or server behavior and support WebAssembly hosts.
+API stability is not required for these shared language crates.
 
 ## Applications
 

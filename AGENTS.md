@@ -78,6 +78,7 @@ Obey the `AGENTS.md` in this repository.
 
 Keep shared libraries suitable for WebAssembly hosts.
 Keep the CLI application, `jbotci`, separate from the web application, `jbotci-server`.
+The web application, `jbotci-server`, owns the MCP and Discord endpoints at `/mcp` and `/discord`.
 Put shared parser and language logic in shared crates.
 Account for desktop and mobile platform restrictions in the repository organization.
 

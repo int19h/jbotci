@@ -16,6 +16,7 @@ These sets do not establish compatibility with runtime version `0.2.0`.
 
 The `current-v0.2.0/f2llm-v2-80m-q4-320` set uses the published 80m q4 ONNX model with onnxruntime 1.28.0.
 It records token IDs, windows, normalized window vectors, final vectors, and little-endian f32 digests.
+The final vector is the normalized mean of the normalized window vectors.
 Its inputs cover these boundaries:
 
 - Empty and non-ASCII text.
@@ -56,6 +57,7 @@ GPU comparisons require the exact artifact bytes identified by the manifests.
 It resolves object identities by byte length and SHA-256.
 It refuses missing or mismatched payloads.
 Its `--runtime-manifest` argument selects the manifest used by an oracle set.
+For legacy sets, it matches published objects by byte length and SHA-256 and writes the exact vendored runtime manifest.
 
 Prepare model directories under `/build/jbotci/scratch/f2llm-native-artifacts` before the native tests.
 Use the manifests that correspond to the selected golden data.
@@ -112,11 +114,20 @@ It waits for GPU work and readback before it writes evidence.
 
 `xtask-full` provides three comparison commands.
 `f2llm-extraction-gate` compares browser evidence from two builds.
-It can require identical f32 bytes, token IDs, and windows.
+It requires `--require-bit-identical-f32`, `--require-exact-token-ids`, and `--require-exact-windows`.
+It compares artifact and runtime identities, adapter features, progress counts, vector bytes, and vector digests.
+The `implementation` fields can differ between the two builds.
 
 `f2llm-golden-gate` compares runtime evidence with golden data.
-It can also compare native evidence with browser evidence.
+It requires exact token IDs and windows through `--require-exact-token-ids` and `--require-exact-windows`.
+Use `--min-cosine 0.999` for the ONNX reference comparison.
+It also requires browser evidence through `--wasm-evidence` and a report path through `--report-wasm-native-cosine`.
+A native/browser cosine similarity below 0.999 requires investigation and a recorded report.
+The command reports that difference without reducing the ONNX reference threshold.
+
 `f2llm-wasm-export-gate` examines the built WebAssembly exports and the JavaScript functions that call them.
+Use `--require` for `jbotciF2LlmWebGpuRuntimeLoad`, `jbotciF2LlmTokenizerLoad`, `embedTexts`, and `scoreF16Vectors`.
+Each JavaScript function must call its corresponding real WebAssembly export.
 
 From the repository root, show the command arguments:
 
