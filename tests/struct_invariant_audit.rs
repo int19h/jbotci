@@ -1448,7 +1448,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated grammar environment holds only the dialect snapshot",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarFeatureCondition",
+        "crates/jbotci-dialect/src/lib.rs:DialectFeatureSet",
+        "each declared feature has one boolean slot, and every combination is valid",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectFeatureCondition",
         "each known feature accepts either polarity, so every feature and negation pair is valid",
     ),
     (

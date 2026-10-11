@@ -1,0 +1,13 @@
+error[E0599]: no variant, associated function, or constant named `MisspelledFeature` found for enum `DialectFeature` in the current scope
+  --> ui/syntax_grammar/fail/unknown_feature.rs:15:22
+   |
+ 9 | / jbotci_syntax_macros::syntax_grammar! {
+10 | |     env SyntaxGrammarEnv;
+11 | |     rule "leaf" leaf -> struct {
+12 | |         field value: usize = 0usize;
+13 | |     }
+14 | |     rule "choice" selection -> enum {
+15 | |         when feature(MisspelledFeature) leaf,
+   | |                     -^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `DialectFeature`
+   | |_____________________|
+   |

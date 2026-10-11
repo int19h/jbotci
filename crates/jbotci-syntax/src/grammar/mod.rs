@@ -5064,17 +5064,7 @@ fn recovery_condition_matches(
     condition: generated::generated_model::SyntaxGrammarCondition,
     env: generated_runtime::SyntaxGrammarEnv,
 ) -> bool {
-    let dialect = env.dialect;
-    let enabled = match condition.feature {
-        "Cbm" => dialect.cbm_enabled,
-        "UnrestrictedFree" => dialect.unrestricted_free_enabled,
-        "NaJoik" => dialect.na_joik_enabled,
-        "MexQuantifier" => dialect.mex_quantifier_enabled,
-        "LaheMex" => dialect.lahe_mex_enabled,
-        "SplitNumberLerfu" => dialect.split_number_lerfu_enabled,
-        _ => false,
-    };
-    enabled != condition.negated
+    condition.enabled(env.dialect.features)
 }
 
 #[requires(start <= scan.cmavo.len())]
@@ -6775,11 +6765,11 @@ mod tests {
     #[ensures(true)]
     fn disabled_feature_alternatives_add_no_expectation() {
         use super::generated_runtime::{
-            SyntaxGrammarFeature, SyntaxGrammarFeatureCondition, choice_cons, choice_feature_cons,
-            choice_nil, strict_ordered_choice,
+            choice_cons, choice_feature_cons, choice_nil, strict_ordered_choice,
         };
         use super::parser_core::{Input, Parser, custom};
         use super::tokens::spanned_tokens;
+        use jbotci_dialect::{DialectFeature, DialectFeatureCondition};
 
         let words = segment_words_with_modifiers("mi").unwrap();
         let words: &'static [Token] = Box::leak(syntax_tokens(&words).into_boxed_slice());
@@ -6800,8 +6790,8 @@ mod tests {
         };
         let gated_first = || {
             strict_ordered_choice(choice_feature_cons(
-                &[SyntaxGrammarFeatureCondition {
-                    feature: SyntaxGrammarFeature::Cbm,
+                &[DialectFeatureCondition {
+                    feature: DialectFeature::Cbm,
                     negated: false,
                 }],
                 failing("gated alternative"),
@@ -6831,8 +6821,8 @@ mod tests {
             "an enabled alternative runs, and as the earlier error it wins the tie: {on}"
         );
         let negated = strict_ordered_choice(choice_feature_cons(
-            &[SyntaxGrammarFeatureCondition {
-                feature: SyntaxGrammarFeature::Cbm,
+            &[DialectFeatureCondition {
+                feature: DialectFeature::Cbm,
                 negated: true,
             }],
             failing("negated alternative"),
@@ -6844,14 +6834,14 @@ mod tests {
         assert!(!skipped.contains("negated alternative"));
         assert!(!skipped.contains("CBM feature"));
         let only_gated = strict_ordered_choice(choice_feature_cons(
-            &[SyntaxGrammarFeatureCondition {
-                feature: SyntaxGrammarFeature::Cbm,
+            &[DialectFeatureCondition {
+                feature: DialectFeature::Cbm,
                 negated: false,
             }],
             failing("gated alternative"),
             choice_feature_cons(
-                &[SyntaxGrammarFeatureCondition {
-                    feature: SyntaxGrammarFeature::NaJoik,
+                &[DialectFeatureCondition {
+                    feature: DialectFeature::NaJoik,
                     negated: false,
                 }],
                 failing("second gated alternative"),
@@ -8134,7 +8124,7 @@ mod tests {
             }
             write!(
                 &mut rendered,
-                "{}Feature({})",
+                "{}Feature({:?})",
                 if condition.negated { "!" } else { "" },
                 condition.feature
             )
@@ -8231,9 +8221,8 @@ mod tests {
     }
 
     #[requires(!rule.is_empty())]
-    #[requires(!condition.is_empty())]
     #[ensures(true)]
-    fn assert_first_contains_condition(rule: &str, condition: &str) {
+    fn assert_first_contains_condition(rule: &str, condition: jbotci_dialect::DialectFeature) {
         let metadata = generated_anchor_metadata(rule);
         assert!(
             metadata.first.iter().any(|entry| entry
@@ -8603,7 +8592,10 @@ mod tests {
             AnchorCmavo(Cmavo::Tuhu),
         );
 
-        assert_first_contains_condition("vocative_free_modifier", "UnrestrictedFree");
+        assert_first_contains_condition(
+            "vocative_free_modifier",
+            jbotci_dialect::DialectFeature::UnrestrictedFree,
+        );
         for rule in ["text", "statement", "sumti", "selbri"] {
             assert!(
                 !generated_anchor_metadata(rule).first.is_empty(),
@@ -8632,7 +8624,7 @@ mod tests {
         use generated::generated_model::SyntaxGrammarCondition;
 
         let unrestricted_free = [SyntaxGrammarCondition {
-            feature: "UnrestrictedFree",
+            feature: jbotci_dialect::DialectFeature::UnrestrictedFree,
             negated: false,
         }];
         let baseline_env =
