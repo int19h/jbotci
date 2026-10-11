@@ -19,17 +19,12 @@ use bityzba::{contract_trait, invariant, requires};
 use super::generated_model::{
     BaselineTermConnectedTenseModalContinuationSyntax, BaselineTermConnectedTenseModalSyntax,
     BaselineTermTenseModalAtomSyntax, BaselineTermTenseModalSyntax,
-    ConnectedTenseModalContinuationSyntax, ConnectedTenseModalSyntax, ExpBaiTagAtomSyntax,
-    ExpCahaTagAtomSyntax, ExpCuheTagAtomSyntax, ExpFaTagAtomSyntax, ExpFahaTagAtomSyntax,
-    ExpFihoTagAtomSyntax, ExpKiTagAtomSyntax, ExpMoheNumberAtomSyntax, ExpNiheNumberAtomSyntax,
-    ExpNumberAtomSyntax, ExpNumberSyntax, ExpPaNumberAtomSyntax, ExpParenthesizedRoiIntervalSyntax,
-    ExpPrefixedTagAtomSyntax, ExpPuTagAtomSyntax, ExpRoiIntervalSyntax, ExpRoiTagAtomSyntax,
-    ExpTagAtomRunBodySyntax, ExpTagAtomSyntax, ExpTaheTagAtomSyntax, ExpVaTagAtomSyntax,
-    ExpVehaTagAtomSyntax, ExpVihaTagAtomSyntax, ExpZahoTagAtomSyntax, ExpZehaTagAtomSyntax,
-    ExpZiTagAtomSyntax, SelbriSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax,
-    recovered,
+    ConnectedTenseModalContinuationSyntax, ConnectedTenseModalSyntax, TenseModalAtomSyntax,
+    TenseModalBodySyntax, TenseModalSyntax, recovered, view,
 };
 use super::generated_runtime::OutputRejection;
+use view::AsView;
+use view::valid;
 
 #[invariant(true)]
 #[invariant(::Faha => true)]
@@ -241,175 +236,6 @@ impl From<recovered::Recovered<recovered::BaselineTermTenseModalSyntax>>
     }
 }
 
-#[requires(index <= run.additional.len())]
-#[ensures(true)]
-fn run_atom(run: &ExpTagAtomRunBodySyntax, index: usize) -> &ExpPrefixedTagAtomSyntax {
-    let ExpTagAtomRunBodySyntax { first, additional } = run;
-    if index == 0 {
-        first.as_ref()
-    } else {
-        additional[index - 1].as_ref()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn exp_number_is_baseline(number: &ExpNumberSyntax) -> bool {
-    let ExpNumberSyntax { first, additional } = number;
-    exp_number_atom_is_pa(first.as_ref())
-        && additional
-            .iter()
-            .all(|atom| exp_number_atom_is_pa(atom.as_ref()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn exp_number_atom_is_pa(atom: &ExpNumberAtomSyntax) -> bool {
-    match atom {
-        ExpNumberAtomSyntax::ExpPaNumberAtom(atom) => {
-            let ExpPaNumberAtomSyntax(_pa) = atom.as_ref();
-            true
-        }
-        ExpNumberAtomSyntax::ExpNiheNumberAtom(atom) => {
-            let ExpNiheNumberAtomSyntax {
-                nihe: _,
-                selbri: _,
-                tehu: _,
-            } = atom.as_ref();
-            false
-        }
-        ExpNumberAtomSyntax::ExpMoheNumberAtom(atom) => {
-            let ExpMoheNumberAtomSyntax {
-                mohe: _,
-                sumti: _,
-                tehu: _,
-            } = atom.as_ref();
-            false
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn classify_atom(atom: &ExpPrefixedTagAtomSyntax) -> ClassifiedAtom {
-    let ExpPrefixedTagAtomSyntax { nahe, se, atom } = atom;
-    let kind = match atom.value.as_ref() {
-        ExpTagAtomSyntax::ExpBaiTagAtom(atom) => {
-            let ExpBaiTagAtomSyntax(_bai) = atom.as_ref();
-            AtomKind::Bai
-        }
-        ExpTagAtomSyntax::ExpCahaTagAtom(atom) => {
-            let ExpCahaTagAtomSyntax(_caha) = atom.as_ref();
-            AtomKind::Caha
-        }
-        ExpTagAtomSyntax::ExpCuheTagAtom(atom) => {
-            let ExpCuheTagAtomSyntax(_cuhe) = atom.as_ref();
-            AtomKind::Cuhe
-        }
-        ExpTagAtomSyntax::ExpKiTagAtom(atom) => {
-            let ExpKiTagAtomSyntax(_ki) = atom.as_ref();
-            AtomKind::Ki
-        }
-        ExpTagAtomSyntax::ExpZiTagAtom(atom) => {
-            let ExpZiTagAtomSyntax(_zi) = atom.as_ref();
-            AtomKind::Zi
-        }
-        ExpTagAtomSyntax::ExpPuTagAtom(atom) => {
-            let ExpPuTagAtomSyntax(_pu) = atom.as_ref();
-            AtomKind::Pu
-        }
-        ExpTagAtomSyntax::ExpVaTagAtom(atom) => {
-            let ExpVaTagAtomSyntax(_va) = atom.as_ref();
-            AtomKind::Va
-        }
-        ExpTagAtomSyntax::ExpFahaTagAtom(atom) => {
-            let ExpFahaTagAtomSyntax { mohi, faha: _ } = atom.as_ref();
-            AtomKind::Faha {
-                mohi: mohi.is_some(),
-            }
-        }
-        ExpTagAtomSyntax::ExpZehaTagAtom(atom) => {
-            let ExpZehaTagAtomSyntax(_zeha) = atom.as_ref();
-            AtomKind::Zeha
-        }
-        ExpTagAtomSyntax::ExpVehaTagAtom(atom) => {
-            let ExpVehaTagAtomSyntax(_veha) = atom.as_ref();
-            AtomKind::Veha
-        }
-        ExpTagAtomSyntax::ExpVihaTagAtom(atom) => {
-            let ExpVihaTagAtomSyntax(_viha) = atom.as_ref();
-            AtomKind::Viha
-        }
-        ExpTagAtomSyntax::ExpRoiTagAtom(atom) => {
-            let ExpRoiTagAtomSyntax {
-                fehe,
-                interval,
-                roi: _,
-            } = atom.as_ref();
-            let baseline_number = match interval.as_ref() {
-                ExpRoiIntervalSyntax::ExpParenthesizedRoiInterval(interval) => {
-                    let ExpParenthesizedRoiIntervalSyntax {
-                        vei: _,
-                        expression: _,
-                        veho: _,
-                    } = interval.as_ref();
-                    false
-                }
-                ExpRoiIntervalSyntax::ExpNumber(number) => exp_number_is_baseline(number),
-            };
-            AtomKind::Roi {
-                fehe: fehe.is_some(),
-                baseline_number,
-            }
-        }
-        ExpTagAtomSyntax::ExpTaheTagAtom(atom) => {
-            let ExpTaheTagAtomSyntax { fehe, tahe: _ } = atom.as_ref();
-            AtomKind::Tahe {
-                fehe: fehe.is_some(),
-            }
-        }
-        ExpTagAtomSyntax::ExpZahoTagAtom(atom) => {
-            let ExpZahoTagAtomSyntax { fehe, zaho: _ } = atom.as_ref();
-            AtomKind::Zaho {
-                fehe: fehe.is_some(),
-            }
-        }
-        ExpTagAtomSyntax::ExpFihoTagAtom(atom) => {
-            let ExpFihoTagAtomSyntax {
-                fiho: _,
-                selbri: _,
-                fehu: _,
-            } = atom.as_ref();
-            AtomKind::Fiho
-        }
-        ExpTagAtomSyntax::ExpFaTagAtom(atom) => {
-            let ExpFaTagAtomSyntax(_fa) = atom.as_ref();
-            AtomKind::Fa
-        }
-    };
-    ClassifiedAtom {
-        nahe: nahe.is_some(),
-        se: se.is_some(),
-        kind,
-    }
-}
-
-#[requires(index <= run.additional.len())]
-#[ensures(true)]
-fn classified(run: &ExpTagAtomRunBodySyntax, index: usize) -> ClassifiedAtom {
-    classify_atom(run_atom(run, index))
-}
-
-#[requires(start <= end)]
-#[requires(end <= run.additional.len() + 1)]
-#[ensures(true)]
-fn all_unprefixed(run: &ExpTagAtomRunBodySyntax, start: usize, end: usize) -> bool {
-    (start..end).all(|index| {
-        let atom = classified(run, index);
-        !atom.nahe && !atom.se
-    })
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn is_time_property(kind: AtomKind) -> bool {
@@ -436,617 +262,232 @@ fn is_space_property(kind: AtomKind) -> bool {
     )
 }
 
-#[requires(start < end)]
-#[requires(end <= run.additional.len() + 1)]
-#[ensures(true)]
-fn time_slice(run: &ExpTagAtomRunBodySyntax, start: usize, end: usize) -> bool {
-    let mut index = start;
-    let leading_zi = classified(run, index).kind == AtomKind::Zi;
-    if leading_zi {
-        index += 1;
-    }
-    let mut offsets = 0usize;
-    while index < end && classified(run, index).kind == AtomKind::Pu {
-        offsets += 1;
-        index += 1;
-        if index < end && classified(run, index).kind == AtomKind::Zi {
-            index += 1;
-        }
-    }
-    let interval = index < end && classified(run, index).kind == AtomKind::Zeha;
-    if interval {
-        index += 1;
-        if index < end && classified(run, index).kind == AtomKind::Pu {
-            index += 1;
-        }
-    }
-    let property_start = index;
-    while index < end && is_time_property(classified(run, index).kind) {
-        index += 1;
-    }
-    index == end && (leading_zi || offsets > 0 || interval || property_start < end)
-}
-
-#[requires(start < end)]
-#[requires(end <= run.additional.len() + 1)]
-#[ensures(true)]
-fn space_slice(run: &ExpTagAtomRunBodySyntax, start: usize, end: usize) -> bool {
-    let mut index = start;
-    let leading_va = classified(run, index).kind == AtomKind::Va;
-    if leading_va {
-        index += 1;
-    }
-    let mut offsets = 0usize;
-    while index < end && matches!(classified(run, index).kind, AtomKind::Faha { mohi: false }) {
-        offsets += 1;
-        index += 1;
-        if index < end && classified(run, index).kind == AtomKind::Va {
-            index += 1;
-        }
-    }
-    let interval_start = index;
-    if index < end && matches!(classified(run, index).kind, AtomKind::Veha | AtomKind::Viha) {
-        let was_veha = classified(run, index).kind == AtomKind::Veha;
-        index += 1;
-        if was_veha && index < end && classified(run, index).kind == AtomKind::Viha {
-            index += 1;
-        }
-        if index < end && matches!(classified(run, index).kind, AtomKind::Faha { mohi: false }) {
-            index += 1;
-        }
-        while index < end && is_space_property(classified(run, index).kind) {
-            index += 1;
-        }
-    } else {
-        while index < end && is_space_property(classified(run, index).kind) {
-            index += 1;
-        }
-    }
-    let has_interval = interval_start < index;
-    let mohi_offset =
-        index < end && matches!(classified(run, index).kind, AtomKind::Faha { mohi: true });
-    if mohi_offset {
-        index += 1;
-        if index < end && classified(run, index).kind == AtomKind::Va {
-            index += 1;
-        }
-    }
-    index == end && (leading_va || offsets > 0 || has_interval || mohi_offset)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn composite_is_baseline(run: &ExpTagAtomRunBodySyntax, start: usize, end: usize) -> bool {
-    if start >= end {
-        return false;
-    }
-    if end == start + 1 && classified(run, start).kind == AtomKind::Caha {
-        return true;
-    }
-    let without_caha = if classified(run, end - 1).kind == AtomKind::Caha {
-        end - 1
-    } else {
-        end
-    };
-    if without_caha == start {
-        return false;
-    }
-    (start + 1..=without_caha).any(|time_end| {
-        time_slice(run, start, time_end)
-            && (time_end == without_caha
-                || time_end < without_caha && space_slice(run, time_end, without_caha))
-    }) || (start + 1..=without_caha).any(|space_end| {
-        space_slice(run, start, space_end)
-            && (space_end == without_caha
-                || space_end < without_caha && time_slice(run, space_end, without_caha))
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_baseline_tag(run: &ExpTagAtomRunBodySyntax) -> bool {
-    // Keep this strict-tree predicate in lockstep with `recovered_is_baseline_tag`
-    // below; review changes to either predicate against the other in the same commit.
-    let len = run.additional.len() + 1;
-    let first = classified(run, 0);
-    if first.kind == AtomKind::Fiho {
-        return len == 1 && !first.nahe && !first.se;
-    }
-    if first.kind == AtomKind::Bai {
-        return len == 1
-            || len == 2 && classified(run, 1).kind == AtomKind::Ki && all_unprefixed(run, 1, len);
-    }
-    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
-        return len == 1 && !first.nahe && !first.se;
-    }
-    if first.se {
-        return false;
-    }
-    let composite_end = if len > 1 && classified(run, len - 1).kind == AtomKind::Ki {
-        len - 1
-    } else {
-        len
-    };
-    composite_is_baseline(run, 0, composite_end) && all_unprefixed(run, 1, len)
-}
-
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineTagRejection;
 
-/// Rejects extension-owned tags immediately after selbri negation, where the
-/// baseline grammar instead owns the surface as a sequence of leading terms.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PostNaExtensionTagRejection;
 
-#[requires(true)]
-#[ensures(true)]
-fn is_elided_nahe_fiho_tense_modal(output: &TenseModalSyntax) -> bool {
-    let TenseModalBodySyntax::TenseModalAtom(atom) = output.0.as_ref() else {
-        return false;
-    };
-    let TenseModalAtomSyntax::ExpTagAtomRun(run) = atom.as_ref() else {
-        return false;
-    };
-    let ExpTagAtomRunBodySyntax { first, additional } = &*run.0;
-    let ExpPrefixedTagAtomSyntax { nahe, se, atom } = first.as_ref();
-    let ExpTagAtomSyntax::ExpFihoTagAtom(fiho) = &*atom.value else {
-        return false;
-    };
-    nahe.as_ref()
-        .is_some_and(|nahe| nahe.free_modifiers.is_empty())
-        && se.is_none()
-        && atom.free_modifiers.is_empty()
-        && additional.is_empty()
-        && fiho.fiho.free_modifiers.is_empty()
-        && fiho.fehu.is_none()
-}
-
-/// Keeps the extension-first final-tag-term route restricted to the exact
-/// elided-FEhU NAhE/FIhO candidate.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NonElidedNaheFihoTagTermRejection;
 
-#[contract_trait]
-impl OutputRejection<TenseModalSyntax> for NonElidedNaheFihoTagTermRejection {
-    fn rejected_name(&self) -> &'static str {
-        "non-elided-FEhU or non-NAhE/FIhO final tag term"
-    }
-
-    fn rejects(&self, output: &TenseModalSyntax) -> bool {
-        !is_elided_nahe_fiho_tense_modal(output)
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
-fn recovered_is_elided_nahe_fiho_tense_modal(
-    tense_modal: &recovered::Recovered<recovered::TenseModalSyntax>,
-) -> bool {
-    let Some(recovered::TenseModalSyntax(body)) = valid(tense_modal) else {
-        return false;
-    };
-    let Some(recovered::TenseModalBodySyntax::TenseModalAtom(atom)) = valid(body) else {
-        return false;
-    };
-    let Some(recovered::TenseModalAtomSyntax::ExpTagAtomRun(run)) = valid(atom) else {
-        return false;
-    };
-    let Some(run) = valid(run).and_then(|run| valid(&run.0)) else {
-        return false;
-    };
-    let recovered::ExpTagAtomRunBodySyntax { first, additional } = run;
-    let Some(recovered::ExpPrefixedTagAtomSyntax { nahe, se, atom }) = valid(first) else {
-        return false;
-    };
-    let Some(recovered::ExpTagAtomSyntax::ExpFihoTagAtom(fiho)) = valid(&atom.value) else {
-        return false;
-    };
-    let Some(recovered::ExpFihoTagAtomSyntax {
-        fiho,
-        selbri: _,
-        fehu,
-    }) = valid(fiho)
-    else {
-        return false;
-    };
-    nahe.as_ref()
-        .is_some_and(|nahe| valid(&nahe.value).is_some() && nahe.free_modifiers.is_empty())
-        && se.is_none()
-        && valid(&atom.value).is_some()
-        && atom.free_modifiers.is_empty()
-        && additional.is_empty()
-        && valid(&fiho.value).is_some()
-        && fiho.free_modifiers.is_empty()
-        && fehu.is_none()
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::TenseModalSyntax>>
-    for NonElidedNaheFihoTagTermRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "non-elided-FEhU or non-NAhE/FIhO final tag term"
-    }
-
-    fn rejects(&self, output: &recovered::Recovered<recovered::TenseModalSyntax>) -> bool {
-        !recovered_is_elided_nahe_fiho_tense_modal(output)
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn exp_run_starts_with_baseline_term(run: &ExpTagAtomRunBodySyntax) -> bool {
-    let first = classified(run, 0);
-    if first.kind == AtomKind::Fiho {
-        return !first.nahe && !first.se;
-    }
-    if first.kind == AtomKind::Bai {
-        return true;
-    }
-    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
-        return !first.nahe && !first.se;
-    }
-    !first.se && composite_is_baseline(run, 0, 1)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn atom_is_extension(atom: &TenseModalAtomSyntax) -> bool {
-    match atom {
-        TenseModalAtomSyntax::ExpTagAtomRun(_) => true,
-        TenseModalAtomSyntax::CompositeTense(_)
-        | TenseModalAtomSyntax::FihoTense(_)
-        | TenseModalAtomSyntax::ModalTense(_)
-        | TenseModalAtomSyntax::StickyTense(_) => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn tense_modal_is_extension(output: &TenseModalSyntax) -> bool {
-    // Keep the recovered-tree mirror `recovered_tense_modal_is_extension` in
-    // lockstep with this strict predicate. This boundary intentionally rejects
-    // a run whenever its first atom is baseline-term-parseable, even if the
-    // complete run has no baseline parse (`mi na pu roi broda`): preserving
-    // baseline ownership without unbounded differing-extent lookahead leaves
-    // that post-NA extension class as the documented gap.
-    let TenseModalSyntax(body) = output;
-    match body.as_ref() {
-        TenseModalBodySyntax::ConnectedTenseModal(connected) => {
-            let starts_with_baseline_term = match connected.first.as_ref() {
-                TenseModalAtomSyntax::ExpTagAtomRun(run) => {
-                    exp_run_starts_with_baseline_term(&run.0)
-                }
-                TenseModalAtomSyntax::CompositeTense(_)
-                | TenseModalAtomSyntax::FihoTense(_)
-                | TenseModalAtomSyntax::ModalTense(_)
-                | TenseModalAtomSyntax::StickyTense(_) => true,
-            };
-            starts_with_baseline_term
-                && (atom_is_extension(&connected.first)
-                    || connected
-                        .continuations
-                        .iter()
-                        .any(|continuation| atom_is_extension(&continuation.tense_modal)))
-        }
-        TenseModalBodySyntax::TenseModalAtom(atom) => match atom.as_ref() {
-            TenseModalAtomSyntax::ExpTagAtomRun(run) => exp_run_starts_with_baseline_term(&run.0),
-            TenseModalAtomSyntax::CompositeTense(_)
-            | TenseModalAtomSyntax::FihoTense(_)
-            | TenseModalAtomSyntax::ModalTense(_)
-            | TenseModalAtomSyntax::StickyTense(_) => false,
-        },
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_exp_run_starts_with_baseline_term(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
-    let Some(first) = recovered_classified(run, 0) else {
-        return false;
-    };
-    if first.kind == AtomKind::Fiho {
-        return !first.nahe && !first.se;
-    }
-    if first.kind == AtomKind::Bai {
-        return true;
-    }
-    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
-        return !first.nahe && !first.se;
-    }
-    !first.se && recovered_composite_is_baseline(run, 0, 1)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_atom_is_extension(atom: &recovered::TenseModalAtomSyntax) -> bool {
-    match atom {
-        recovered::TenseModalAtomSyntax::ExpTagAtomRun(_) => true,
-        recovered::TenseModalAtomSyntax::CompositeTense(_)
-        | recovered::TenseModalAtomSyntax::FihoTense(_)
-        | recovered::TenseModalAtomSyntax::ModalTense(_)
-        | recovered::TenseModalAtomSyntax::StickyTense(_) => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_tense_modal_is_extension(output: &recovered::TenseModalSyntax) -> bool {
-    // Recovered-tree mirror of `tense_modal_is_extension`; review changes to
-    // either predicate against the other in the same commit.
-    let recovered::TenseModalSyntax(body) = output;
-    let Some(body) = valid(body) else {
-        return false;
-    };
-    match body {
-        recovered::TenseModalBodySyntax::ConnectedTenseModal(connected) => valid(connected)
-            .is_some_and(|connected| {
-                let starts_with_baseline_term =
-                    valid(&connected.first).is_some_and(|first| match first {
-                        recovered::TenseModalAtomSyntax::ExpTagAtomRun(run) => valid(run)
-                            .and_then(|run| valid(&run.0))
-                            .is_some_and(recovered_exp_run_starts_with_baseline_term),
-                        recovered::TenseModalAtomSyntax::CompositeTense(_)
-                        | recovered::TenseModalAtomSyntax::FihoTense(_)
-                        | recovered::TenseModalAtomSyntax::ModalTense(_)
-                        | recovered::TenseModalAtomSyntax::StickyTense(_) => true,
-                    });
-                starts_with_baseline_term
-                    && (valid(&connected.first).is_some_and(recovered_atom_is_extension)
-                        || connected.continuations.iter().any(|continuation| {
-                            valid(continuation).is_some_and(|continuation| {
-                                valid(&continuation.tense_modal)
-                                    .is_some_and(recovered_atom_is_extension)
-                            })
-                        }))
-            }),
-        recovered::TenseModalBodySyntax::TenseModalAtom(atom) => {
-            valid(atom).is_some_and(|atom| match atom {
-                recovered::TenseModalAtomSyntax::ExpTagAtomRun(run) => valid(run)
-                    .and_then(|run| valid(&run.0))
-                    .is_some_and(recovered_exp_run_starts_with_baseline_term),
-                recovered::TenseModalAtomSyntax::CompositeTense(_)
-                | recovered::TenseModalAtomSyntax::FihoTense(_)
-                | recovered::TenseModalAtomSyntax::ModalTense(_)
-                | recovered::TenseModalAtomSyntax::StickyTense(_) => false,
-            })
-        }
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
-    fn rejected_name(&self) -> &'static str {
-        "extension tag immediately after selbri negation"
-    }
-
-    fn rejects(&self, output: &SelbriSyntax) -> bool {
-        match output {
-            SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
-            SelbriSyntax::UntaggedSelbri(_) => false,
-        }
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
-    for PostNaExtensionTagRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "extension tag immediately after selbri negation"
-    }
-
-    fn rejects(&self, output: &recovered::Recovered<recovered::SelbriSyntax>) -> bool {
-        let Some(output) = valid(output) else {
-            return false;
-        };
-        match output {
-            recovered::SelbriSyntax::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
-                valid(&tagged.tense_modal).is_some_and(recovered_tense_modal_is_extension)
-            }),
-            recovered::SelbriSyntax::UntaggedSelbri(_) => false,
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn valid<T>(value: &(impl std::borrow::Borrow<recovered::Recovered<T>> + ?Sized)) -> Option<&T> {
-    match value.borrow() {
-        recovered::Recovered::Valid(value) => Some(value),
-        recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn valid_wf<T, V, F>(value: &recovered::WithFreeModifiers<V, F>) -> bool
+fn valid_wf<'tree, K: jbotci_tree::view::SourceKind, V: view::Inspect, S, R, P>(
+    value: &view::WithFreeModifiersView<
+        view::Slot<V>,
+        jbotci_tree::view::Sequence<'tree, S, R, view::Slot<view::FreeModifierSyntaxRef<'tree>>, P>,
+    >,
+) -> bool
 where
-    V: std::borrow::Borrow<recovered::Recovered<T>>,
-    F: std::borrow::Borrow<recovered::Recovered<recovered::FreeModifierSyntax>>,
+    P: jbotci_tree::view::Projection<
+            'tree,
+            S,
+            R,
+            View = view::Slot<view::FreeModifierSyntaxRef<'tree>>,
+        >,
 {
-    valid(&value.value).is_some()
-        && value
-            .free_modifiers
+    if K::STRICT {
+        return true;
+    }
+    let view::WithFreeModifiersView {
+        value,
+        free_modifiers,
+    } = *value;
+    value.valid().is_some()
+        && free_modifiers
             .iter()
-            .all(|modifier| valid(modifier).is_some())
+            .all(|modifier| modifier.valid().is_some())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_exp_number_is_baseline(number: &recovered::ExpNumberSyntax) -> bool {
-    let recovered::ExpNumberSyntax { first, additional } = number;
-    valid(first).is_some_and(recovered_exp_number_atom_is_pa)
+fn exp_number_is_baseline(number: view::ExpNumberSyntaxView<'_>) -> bool {
+    let view::ExpNumberSyntaxView { first, additional } = number;
+    valid(first).is_some_and(exp_number_atom_is_pa)
         && additional
             .iter()
-            .all(|atom| valid(atom).is_some_and(recovered_exp_number_atom_is_pa))
+            .all(|atom| valid(atom).is_some_and(exp_number_atom_is_pa))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_exp_number_atom_is_pa(atom: &recovered::ExpNumberAtomSyntax) -> bool {
+fn exp_number_atom_is_pa(atom: view::ExpNumberAtomSyntaxView<'_>) -> bool {
     match atom {
-        recovered::ExpNumberAtomSyntax::ExpPaNumberAtom(atom) => {
-            valid(atom).is_some_and(|recovered::ExpPaNumberAtomSyntax(pa)| valid(pa).is_some())
+        view::ExpNumberAtomSyntaxView::ExpPaNumberAtom(atom) => {
+            valid(atom).is_some_and(|view::ExpPaNumberAtomSyntaxView(pa)| pa.valid().is_some())
         }
-        recovered::ExpNumberAtomSyntax::ExpNiheNumberAtom(atom) => valid(atom).is_some_and(
-            |recovered::ExpNiheNumberAtomSyntax { nihe, selbri, tehu }| {
-                let _ =
-                    valid_wf(nihe) && valid(selbri).is_some() && tehu.as_ref().is_none_or(valid_wf);
-                false
-            },
+        view::ExpNumberAtomSyntaxView::ExpNiheNumberAtom(atom) => valid(atom).is_some_and(
+            |view::ExpNiheNumberAtomSyntaxView {
+                 nihe: _,
+                 selbri: _,
+                 tehu: _,
+             }| false,
         ),
-        recovered::ExpNumberAtomSyntax::ExpMoheNumberAtom(atom) => {
-            valid(atom).is_some_and(|recovered::ExpMoheNumberAtomSyntax { mohe, sumti, tehu }| {
-                let _ =
-                    valid_wf(mohe) && valid(sumti).is_some() && tehu.as_ref().is_none_or(valid_wf);
-                false
-            })
-        }
+        view::ExpNumberAtomSyntaxView::ExpMoheNumberAtom(atom) => valid(atom).is_some_and(
+            |view::ExpMoheNumberAtomSyntaxView {
+                 mohe: _,
+                 sumti: _,
+                 tehu: _,
+             }| false,
+        ),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_classify_atom(atom: &recovered::ExpPrefixedTagAtomSyntax) -> Option<ClassifiedAtom> {
-    let recovered::ExpPrefixedTagAtomSyntax { nahe, se, atom } = atom;
+fn classify_atom<K: jbotci_tree::view::SourceKind>(
+    atom: view::ExpPrefixedTagAtomSyntaxRef<'_>,
+) -> Option<ClassifiedAtom> {
+    // This pattern requires a decision for each field without projecting the product.
+    let _ = |view::ExpPrefixedTagAtomSyntaxView {
+                 nahe: _,
+                 se: _,
+                 atom: _,
+             }: view::ExpPrefixedTagAtomSyntaxView<'_>| ();
+    let nahe = atom.field_nahe();
+    let se = atom.field_se();
+    let atom = atom.field_atom();
     let nahe = match nahe {
-        Some(nahe) if valid_wf(nahe) => true,
+        Some(nahe) if valid_wf::<K, _, _, _, _>(&nahe) => true,
         Some(_) => return None,
         None => false,
     };
     let se = match se {
-        Some(se) if valid_wf(se) => true,
+        Some(se) if valid_wf::<K, _, _, _, _>(&se) => true,
         Some(_) => return None,
         None => false,
     };
-    if !atom
-        .free_modifiers
-        .iter()
-        .all(|modifier| valid(modifier).is_some())
+    if !K::STRICT
+        && !atom
+            .free_modifiers
+            .iter()
+            .all(|modifier| modifier.valid().is_some())
     {
         return None;
     }
     let kind = match valid(&atom.value)? {
-        recovered::ExpTagAtomSyntax::ExpBaiTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpBaiTagAtomSyntax(bai)| {
-                valid(bai).is_some().then_some(AtomKind::Bai)
+        view::ExpTagAtomSyntaxView::ExpBaiTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpBaiTagAtomSyntaxView(bai)| {
+                bai.valid().is_some().then_some(AtomKind::Bai)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpCahaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpCahaTagAtomSyntax(caha)| {
-                valid(caha).is_some().then_some(AtomKind::Caha)
+        view::ExpTagAtomSyntaxView::ExpCahaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpCahaTagAtomSyntaxView(caha)| {
+                caha.valid().is_some().then_some(AtomKind::Caha)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpCuheTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpCuheTagAtomSyntax(cuhe)| {
-                valid(cuhe).is_some().then_some(AtomKind::Cuhe)
+        view::ExpTagAtomSyntaxView::ExpCuheTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpCuheTagAtomSyntaxView(cuhe)| {
+                cuhe.valid().is_some().then_some(AtomKind::Cuhe)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpKiTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpKiTagAtomSyntax(ki)| {
-                valid(ki).is_some().then_some(AtomKind::Ki)
+        view::ExpTagAtomSyntaxView::ExpKiTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpKiTagAtomSyntaxView(ki)| {
+                ki.valid().is_some().then_some(AtomKind::Ki)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpZiTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpZiTagAtomSyntax(zi)| {
-                valid(zi).is_some().then_some(AtomKind::Zi)
+        view::ExpTagAtomSyntaxView::ExpZiTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpZiTagAtomSyntaxView(zi)| {
+                zi.valid().is_some().then_some(AtomKind::Zi)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpPuTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpPuTagAtomSyntax(pu)| {
-                valid(pu).is_some().then_some(AtomKind::Pu)
+        view::ExpTagAtomSyntaxView::ExpPuTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpPuTagAtomSyntaxView(pu)| {
+                pu.valid().is_some().then_some(AtomKind::Pu)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpVaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpVaTagAtomSyntax(va)| {
-                valid(va).is_some().then_some(AtomKind::Va)
+        view::ExpTagAtomSyntaxView::ExpVaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpVaTagAtomSyntaxView(va)| {
+                va.valid().is_some().then_some(AtomKind::Va)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpFahaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpFahaTagAtomSyntax { mohi, faha }| {
-                (mohi.as_ref().is_none_or(|mohi| valid(mohi).is_some()) && valid(faha).is_some())
+        view::ExpTagAtomSyntaxView::ExpFahaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpFahaTagAtomSyntaxView { mohi, faha }| {
+                (mohi.as_ref().is_none_or(|mohi| mohi.valid().is_some()) && faha.valid().is_some())
                     .then_some(AtomKind::Faha {
                         mohi: mohi.is_some(),
                     })
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpZehaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpZehaTagAtomSyntax(zeha)| {
-                valid(zeha).is_some().then_some(AtomKind::Zeha)
+        view::ExpTagAtomSyntaxView::ExpZehaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpZehaTagAtomSyntaxView(zeha)| {
+                zeha.valid().is_some().then_some(AtomKind::Zeha)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpVehaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpVehaTagAtomSyntax(veha)| {
-                valid(veha).is_some().then_some(AtomKind::Veha)
+        view::ExpTagAtomSyntaxView::ExpVehaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpVehaTagAtomSyntaxView(veha)| {
+                veha.valid().is_some().then_some(AtomKind::Veha)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpVihaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpVihaTagAtomSyntax(viha)| {
-                valid(viha).is_some().then_some(AtomKind::Viha)
+        view::ExpTagAtomSyntaxView::ExpVihaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpVihaTagAtomSyntaxView(viha)| {
+                viha.valid().is_some().then_some(AtomKind::Viha)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpRoiTagAtom(atom) => valid(atom).and_then(
-            |recovered::ExpRoiTagAtomSyntax {
+        view::ExpTagAtomSyntaxView::ExpRoiTagAtom(atom) => valid(atom).and_then(
+            |view::ExpRoiTagAtomSyntaxView {
                  fehe,
                  interval,
                  roi,
              }| {
                 let interval = valid(interval)?;
                 let baseline_number = match interval {
-                    recovered::ExpRoiIntervalSyntax::ExpParenthesizedRoiInterval(interval) => {
-                        let recovered::ExpParenthesizedRoiIntervalSyntax {
+                    view::ExpRoiIntervalSyntaxView::ExpParenthesizedRoiInterval(interval) => {
+                        let view::ExpParenthesizedRoiIntervalSyntaxView {
                             vei,
                             expression,
                             veho,
                         } = valid(interval)?;
-                        if !valid_wf(vei)
-                            || valid(expression).is_none()
-                            || !veho.as_ref().is_none_or(valid_wf)
+                        if !valid_wf::<K, _, _, _, _>(&vei)
+                            || expression.valid().is_none()
+                            || !veho.as_ref().is_none_or(valid_wf::<K, _, _, _, _>)
                         {
                             return None;
                         }
                         false
                     }
-                    recovered::ExpRoiIntervalSyntax::ExpNumber(number) => {
-                        valid(number).is_some_and(recovered_exp_number_is_baseline)
+                    view::ExpRoiIntervalSyntaxView::ExpNumber(number) => {
+                        valid(number).is_some_and(exp_number_is_baseline)
                     }
                 };
-                (fehe.as_ref().is_none_or(|fehe| valid(fehe).is_some()) && valid(roi).is_some())
+                (fehe.as_ref().is_none_or(|fehe| fehe.valid().is_some()) && roi.valid().is_some())
                     .then_some(AtomKind::Roi {
                         fehe: fehe.is_some(),
                         baseline_number,
                     })
             },
         )?,
-        recovered::ExpTagAtomSyntax::ExpTaheTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpTaheTagAtomSyntax { fehe, tahe }| {
-                (fehe.as_ref().is_none_or(|fehe| valid(fehe).is_some()) && valid(tahe).is_some())
+        view::ExpTagAtomSyntaxView::ExpTaheTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpTaheTagAtomSyntaxView { fehe, tahe }| {
+                (fehe.as_ref().is_none_or(|fehe| fehe.valid().is_some()) && tahe.valid().is_some())
                     .then_some(AtomKind::Tahe {
                         fehe: fehe.is_some(),
                     })
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpZahoTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpZahoTagAtomSyntax { fehe, zaho }| {
-                (fehe.as_ref().is_none_or(|fehe| valid(fehe).is_some()) && valid(zaho).is_some())
+        view::ExpTagAtomSyntaxView::ExpZahoTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpZahoTagAtomSyntaxView { fehe, zaho }| {
+                (fehe.as_ref().is_none_or(|fehe| fehe.valid().is_some()) && zaho.valid().is_some())
                     .then_some(AtomKind::Zaho {
                         fehe: fehe.is_some(),
                     })
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpFihoTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpFihoTagAtomSyntax { fiho, selbri, fehu }| {
-                (valid_wf(fiho) && valid(selbri).is_some() && fehu.as_ref().is_none_or(valid_wf))
-                    .then_some(AtomKind::Fiho)
+        view::ExpTagAtomSyntaxView::ExpFihoTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpFihoTagAtomSyntaxView { fiho, selbri, fehu }| {
+                (valid_wf::<K, _, _, _, _>(&fiho)
+                    && selbri.valid().is_some()
+                    && fehu.as_ref().is_none_or(valid_wf::<K, _, _, _, _>))
+                .then_some(AtomKind::Fiho)
             })?
         }
-        recovered::ExpTagAtomSyntax::ExpFaTagAtom(atom) => {
-            valid(atom).and_then(|recovered::ExpFaTagAtomSyntax(fa)| {
-                valid(fa).is_some().then_some(AtomKind::Fa)
+        view::ExpTagAtomSyntaxView::ExpFaTagAtom(atom) => {
+            valid(atom).and_then(|view::ExpFaTagAtomSyntaxView(fa)| {
+                fa.valid().is_some().then_some(AtomKind::Fa)
             })?
         }
     };
@@ -1055,170 +496,141 @@ fn recovered_classify_atom(atom: &recovered::ExpPrefixedTagAtomSyntax) -> Option
 
 #[requires(index <= run.additional.len())]
 #[ensures(true)]
-fn recovered_classified(
-    run: &recovered::ExpTagAtomRunBodySyntax,
+fn classified<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
     index: usize,
 ) -> Option<ClassifiedAtom> {
-    let recovered::ExpTagAtomRunBodySyntax { first, additional } = run;
+    let view::ExpTagAtomRunBodySyntaxView { first, additional } = run;
     if index == 0 {
-        valid(first).and_then(recovered_classify_atom)
+        first.valid().and_then(classify_atom::<K>)
     } else {
-        valid(&additional[index - 1]).and_then(recovered_classify_atom)
+        additional
+            .get(index - 1)
+            .expect("index is within the run")
+            .valid()
+            .and_then(classify_atom::<K>)
     }
 }
 
 #[requires(start <= end)]
 #[requires(end <= run.additional.len() + 1)]
 #[ensures(true)]
-fn recovered_all_unprefixed(
-    run: &recovered::ExpTagAtomRunBodySyntax,
-    start: usize,
-    end: usize,
-) -> bool {
-    (start..end)
-        .all(|index| recovered_classified(run, index).is_some_and(|atom| !atom.nahe && !atom.se))
+fn all_unprefixed(run: view::ExpTagAtomRunBodySyntaxView<'_>, start: usize, end: usize) -> bool {
+    // The accepted composite already proves each atom. This pass only checks prefixes.
+    (start..end).all(|index| {
+        let atom = if index == 0 {
+            run.first
+        } else {
+            run.additional
+                .get(index - 1)
+                .expect("index is within the run")
+        };
+        valid(atom).is_some_and(|view::ExpPrefixedTagAtomSyntaxView { nahe, se, atom: _ }| {
+            nahe.is_none() && se.is_none()
+        })
+    })
 }
 
-#[requires(start < end)]
-#[requires(end <= run.additional.len() + 1)]
+/// Peek retains the current classification until the cursor consumes it.
+#[requires(true)]
 #[ensures(true)]
-fn recovered_time_slice(
-    run: &recovered::ExpTagAtomRunBodySyntax,
-    start: usize,
-    end: usize,
+fn take_kind(
+    atoms: &mut std::iter::Peekable<impl Iterator<Item = Option<ClassifiedAtom>>>,
+    matches: impl FnOnce(AtomKind) -> bool,
 ) -> bool {
-    let Some(first) = recovered_classified(run, start) else {
-        return false;
-    };
-    let mut index = start;
-    let leading_zi = first.kind == AtomKind::Zi;
-    if leading_zi {
-        index += 1;
-    }
-    let mut offsets = 0usize;
-    while index < end
-        && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Pu)
+    if atoms
+        .peek()
+        .is_some_and(|atom| atom.is_some_and(|atom| matches(atom.kind)))
     {
-        offsets += 1;
-        index += 1;
-        if index < end
-            && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Zi)
-        {
-            index += 1;
-        }
-    }
-    let interval = index < end
-        && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Zeha);
-    if interval {
-        index += 1;
-        if index < end
-            && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Pu)
-        {
-            index += 1;
-        }
-    }
-    let property_start = index;
-    while index < end
-        && recovered_classified(run, index).is_some_and(|atom| is_time_property(atom.kind))
-    {
-        index += 1;
-    }
-    index == end && (leading_zi || offsets > 0 || interval || property_start < end)
-}
-
-#[requires(start < end)]
-#[requires(end <= run.additional.len() + 1)]
-#[ensures(true)]
-fn recovered_space_slice(
-    run: &recovered::ExpTagAtomRunBodySyntax,
-    start: usize,
-    end: usize,
-) -> bool {
-    let Some(first) = recovered_classified(run, start) else {
-        return false;
-    };
-    let mut index = start;
-    let leading_va = first.kind == AtomKind::Va;
-    if leading_va {
-        index += 1;
-    }
-    let mut offsets = 0usize;
-    while index < end
-        && recovered_classified(run, index)
-            .is_some_and(|atom| matches!(atom.kind, AtomKind::Faha { mohi: false }))
-    {
-        offsets += 1;
-        index += 1;
-        if index < end
-            && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Va)
-        {
-            index += 1;
-        }
-    }
-    let interval_start = index;
-    if index < end
-        && recovered_classified(run, index)
-            .is_some_and(|atom| matches!(atom.kind, AtomKind::Veha | AtomKind::Viha))
-    {
-        let was_veha =
-            recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Veha);
-        index += 1;
-        if was_veha
-            && index < end
-            && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Viha)
-        {
-            index += 1;
-        }
-        if index < end
-            && recovered_classified(run, index)
-                .is_some_and(|atom| matches!(atom.kind, AtomKind::Faha { mohi: false }))
-        {
-            index += 1;
-        }
-        while index < end
-            && recovered_classified(run, index).is_some_and(|atom| is_space_property(atom.kind))
-        {
-            index += 1;
-        }
+        atoms.next();
+        true
     } else {
-        while index < end
-            && recovered_classified(run, index).is_some_and(|atom| is_space_property(atom.kind))
-        {
-            index += 1;
-        }
+        false
     }
-    let has_interval = interval_start < index;
-    let mohi_offset = index < end
-        && recovered_classified(run, index)
-            .is_some_and(|atom| matches!(atom.kind, AtomKind::Faha { mohi: true }));
-    if mohi_offset {
-        index += 1;
-        if index < end
-            && recovered_classified(run, index).is_some_and(|atom| atom.kind == AtomKind::Va)
-        {
-            index += 1;
-        }
+}
+
+#[requires(start < end)]
+#[requires(end <= run.additional.len() + 1)]
+#[ensures(true)]
+fn time_slice<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
+    start: usize,
+    end: usize,
+) -> bool {
+    let mut atoms = (start..end)
+        .map(|index| classified::<K>(run, index))
+        .peekable();
+    let leading_zi = take_kind(&mut atoms, |kind| kind == AtomKind::Zi);
+    let mut has_offsets = false;
+    while take_kind(&mut atoms, |kind| kind == AtomKind::Pu) {
+        has_offsets = true;
+        take_kind(&mut atoms, |kind| kind == AtomKind::Zi);
     }
-    index == end && (leading_va || offsets > 0 || has_interval || mohi_offset)
+    let interval = take_kind(&mut atoms, |kind| kind == AtomKind::Zeha);
+    if interval {
+        take_kind(&mut atoms, |kind| kind == AtomKind::Pu);
+    }
+    let mut has_properties = false;
+    while take_kind(&mut atoms, is_time_property) {
+        has_properties = true;
+    }
+    atoms.peek().is_none() && (leading_zi || has_offsets || interval || has_properties)
+}
+
+#[requires(start < end)]
+#[requires(end <= run.additional.len() + 1)]
+#[ensures(true)]
+fn space_slice<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
+    start: usize,
+    end: usize,
+) -> bool {
+    let mut atoms = (start..end)
+        .map(|index| classified::<K>(run, index))
+        .peekable();
+    let leading_va = take_kind(&mut atoms, |kind| kind == AtomKind::Va);
+    let mut has_offsets = false;
+    while take_kind(&mut atoms, |kind| {
+        matches!(kind, AtomKind::Faha { mohi: false })
+    }) {
+        has_offsets = true;
+        take_kind(&mut atoms, |kind| kind == AtomKind::Va);
+    }
+    let veha = take_kind(&mut atoms, |kind| kind == AtomKind::Veha);
+    let viha = take_kind(&mut atoms, |kind| kind == AtomKind::Viha);
+    let direction = (veha || viha)
+        && take_kind(&mut atoms, |kind| {
+            matches!(kind, AtomKind::Faha { mohi: false })
+        });
+    let mut has_properties = false;
+    while take_kind(&mut atoms, is_space_property) {
+        has_properties = true;
+    }
+    let interval = veha || viha || direction || has_properties;
+    let mohi = take_kind(&mut atoms, |kind| {
+        matches!(kind, AtomKind::Faha { mohi: true })
+    });
+    if mohi {
+        take_kind(&mut atoms, |kind| kind == AtomKind::Va);
+    }
+    atoms.peek().is_none() && (leading_va || has_offsets || interval || mohi)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_composite_is_baseline(
-    run: &recovered::ExpTagAtomRunBodySyntax,
+fn composite_is_baseline<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
     start: usize,
     end: usize,
 ) -> bool {
     if start >= end {
         return false;
     }
-    if end == start + 1
-        && recovered_classified(run, start).is_some_and(|atom| atom.kind == AtomKind::Caha)
-    {
-        return true;
+    if end == start + 1 {
+        return classified::<K>(run, start).is_some_and(|atom| is_single_composite(atom.kind));
     }
     let without_caha =
-        if recovered_classified(run, end - 1).is_some_and(|atom| atom.kind == AtomKind::Caha) {
+        if classified::<K>(run, end - 1).is_some_and(|atom| atom.kind == AtomKind::Caha) {
             end - 1
         } else {
             end
@@ -1227,24 +639,40 @@ fn recovered_composite_is_baseline(
         return false;
     }
     (start + 1..=without_caha).any(|time_end| {
-        recovered_time_slice(run, start, time_end)
+        time_slice::<K>(run, start, time_end)
             && (time_end == without_caha
-                || time_end < without_caha && recovered_space_slice(run, time_end, without_caha))
+                || time_end < without_caha && space_slice::<K>(run, time_end, without_caha))
     }) || (start + 1..=without_caha).any(|space_end| {
-        recovered_space_slice(run, start, space_end)
+        space_slice::<K>(run, start, space_end)
             && (space_end == without_caha
-                || space_end < without_caha && recovered_time_slice(run, space_end, without_caha))
+                || space_end < without_caha && time_slice::<K>(run, space_end, without_caha))
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_is_baseline_tag(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
-    // Keep this recovered-tree mirror in lockstep with `is_baseline_tag` above. The two
-    // syntax models deliberately cannot share their concrete node types, so review every
-    // strict-predicate change against this function as part of the same change.
+fn is_single_composite(kind: AtomKind) -> bool {
+    matches!(
+        kind,
+        AtomKind::Caha
+            | AtomKind::Zi
+            | AtomKind::Pu
+            | AtomKind::Zeha
+            | AtomKind::Va
+            | AtomKind::Faha { .. }
+            | AtomKind::Veha
+            | AtomKind::Viha
+    ) || is_time_property(kind)
+        || is_space_property(kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_baseline_tag<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
+) -> bool {
     let len = run.additional.len() + 1;
-    let Some(first) = recovered_classified(run, 0) else {
+    let Some(first) = classified::<K>(run, 0) else {
         return false;
     };
     if first.kind == AtomKind::Fiho {
@@ -1253,8 +681,8 @@ fn recovered_is_baseline_tag(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
     if first.kind == AtomKind::Bai {
         return len == 1
             || len == 2
-                && recovered_classified(run, 1).is_some_and(|atom| atom.kind == AtomKind::Ki)
-                && recovered_all_unprefixed(run, 1, len);
+                && classified::<K>(run, 1)
+                    .is_some_and(|atom| atom.kind == AtomKind::Ki && !atom.nahe && !atom.se);
     }
     if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
         return len == 1 && !first.nahe && !first.se;
@@ -1262,36 +690,215 @@ fn recovered_is_baseline_tag(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
     if first.se {
         return false;
     }
-    let composite_end = if len > 1
-        && recovered_classified(run, len - 1).is_some_and(|atom| atom.kind == AtomKind::Ki)
-    {
-        len - 1
-    } else {
-        len
+    if len == 1 {
+        return is_single_composite(first.kind);
+    }
+    let composite_end =
+        if len > 1 && classified::<K>(run, len - 1).is_some_and(|atom| atom.kind == AtomKind::Ki) {
+            len - 1
+        } else {
+            len
+        };
+    composite_is_baseline::<K>(run, 0, composite_end) && all_unprefixed(run, 1, len)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn exp_run_starts_with_baseline_term<K: jbotci_tree::view::SourceKind>(
+    run: view::ExpTagAtomRunBodySyntaxView<'_>,
+) -> bool {
+    let Some(first) = classified::<K>(run, 0) else {
+        return false;
     };
-    recovered_composite_is_baseline(run, 0, composite_end) && recovered_all_unprefixed(run, 1, len)
+    if first.kind == AtomKind::Fiho {
+        return !first.nahe && !first.se;
+    }
+    if first.kind == AtomKind::Bai {
+        return true;
+    }
+    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
+        return !first.nahe && !first.se;
+    }
+    !first.se && is_single_composite(first.kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn atom_is_extension(atom: view::TenseModalAtomSyntaxView<'_>) -> bool {
+    match atom {
+        view::TenseModalAtomSyntaxView::ExpTagAtomRun(_) => true,
+        view::TenseModalAtomSyntaxView::CompositeTense(_)
+        | view::TenseModalAtomSyntaxView::FihoTense(_)
+        | view::TenseModalAtomSyntaxView::ModalTense(_)
+        | view::TenseModalAtomSyntaxView::StickyTense(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_is_extension<K: jbotci_tree::view::SourceKind>(
+    output: view::TenseModalSyntaxView<'_>,
+) -> bool {
+    let view::TenseModalSyntaxView(body) = output;
+    let Some(body) = valid(body) else {
+        return false;
+    };
+    match body {
+        view::TenseModalBodySyntaxView::ConnectedTenseModal(connected) => valid(connected)
+            .is_some_and(|connected| {
+                let view::ConnectedTenseModalSyntaxView {
+                    first,
+                    continuations,
+                } = connected;
+                let starts_with_baseline_term = valid(first).is_some_and(|first| match first {
+                    view::TenseModalAtomSyntaxView::ExpTagAtomRun(run) => valid(run)
+                        .and_then(|view::ExpTagAtomRunSyntaxView(body)| valid(body))
+                        .is_some_and(exp_run_starts_with_baseline_term::<K>),
+                    view::TenseModalAtomSyntaxView::CompositeTense(_)
+                    | view::TenseModalAtomSyntaxView::FihoTense(_)
+                    | view::TenseModalAtomSyntaxView::ModalTense(_)
+                    | view::TenseModalAtomSyntaxView::StickyTense(_) => true,
+                });
+                starts_with_baseline_term
+                    && (valid(first).is_some_and(atom_is_extension)
+                        || continuations.iter().any(|continuation| {
+                            valid(continuation).is_some_and(|continuation| {
+                                valid({
+                                    let view::ConnectedTenseModalContinuationSyntaxView {
+                                        connective: _,
+                                        tense_modal,
+                                    } = continuation;
+                                    tense_modal
+                                })
+                                .is_some_and(atom_is_extension)
+                            })
+                        }))
+            }),
+        view::TenseModalBodySyntaxView::TenseModalAtom(atom) => {
+            valid(atom).is_some_and(|atom| match atom {
+                view::TenseModalAtomSyntaxView::ExpTagAtomRun(run) => valid(run)
+                    .and_then(|view::ExpTagAtomRunSyntaxView(body)| valid(body))
+                    .is_some_and(exp_run_starts_with_baseline_term::<K>),
+                view::TenseModalAtomSyntaxView::CompositeTense(_)
+                | view::TenseModalAtomSyntaxView::FihoTense(_)
+                | view::TenseModalAtomSyntaxView::ModalTense(_)
+                | view::TenseModalAtomSyntaxView::StickyTense(_) => false,
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_elided_nahe_fiho_tense_modal(tense_modal: view::Slot<view::TenseModalSyntaxRef<'_>>) -> bool {
+    let Some(view::TenseModalSyntaxView(body)) = valid(tense_modal) else {
+        return false;
+    };
+    let atom = match valid(body) {
+        Some(view::TenseModalBodySyntaxView::TenseModalAtom(atom)) => atom,
+        Some(view::TenseModalBodySyntaxView::ConnectedTenseModal(_)) | None => return false,
+    };
+    let run = match valid(atom) {
+        Some(view::TenseModalAtomSyntaxView::ExpTagAtomRun(run)) => run,
+        Some(
+            view::TenseModalAtomSyntaxView::CompositeTense(_)
+            | view::TenseModalAtomSyntaxView::FihoTense(_)
+            | view::TenseModalAtomSyntaxView::ModalTense(_)
+            | view::TenseModalAtomSyntaxView::StickyTense(_),
+        )
+        | None => return false,
+    };
+    let Some(run) = valid(run).and_then(|view::ExpTagAtomRunSyntaxView(body)| valid(body)) else {
+        return false;
+    };
+    let view::ExpTagAtomRunBodySyntaxView { first, additional } = run;
+    let Some(view::ExpPrefixedTagAtomSyntaxView { nahe, se, atom }) = valid(first) else {
+        return false;
+    };
+    let fiho = match valid(atom.value) {
+        Some(view::ExpTagAtomSyntaxView::ExpFihoTagAtom(fiho)) => fiho,
+        Some(
+            view::ExpTagAtomSyntaxView::ExpBaiTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpCahaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpCuheTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpKiTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpZiTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpPuTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpVaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpFahaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpZehaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpVehaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpVihaTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpRoiTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpTaheTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpZahoTagAtom(_)
+            | view::ExpTagAtomSyntaxView::ExpFaTagAtom(_),
+        )
+        | None => return false,
+    };
+    let Some(view::ExpFihoTagAtomSyntaxView {
+        fiho,
+        selbri: _,
+        fehu,
+    }) = valid(fiho)
+    else {
+        return false;
+    };
+    nahe.as_ref()
+        .is_some_and(|nahe| nahe.value.valid().is_some() && nahe.free_modifiers.is_empty())
+        && se.is_none()
+        && atom.value.valid().is_some()
+        && atom.free_modifiers.is_empty()
+        && additional.is_empty()
+        && fiho.value.valid().is_some()
+        && fiho.free_modifiers.is_empty()
+        && fehu.is_none()
 }
 
 #[contract_trait]
-impl OutputRejection<ExpTagAtomRunBodySyntax> for BaselineTagRejection {
-    fn rejected_name(&self) -> &'static str {
-        "baseline tag surface"
-    }
-
-    fn rejects(&self, value: &ExpTagAtomRunBodySyntax) -> bool {
-        is_baseline_tag(value)
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::ExpTagAtomRunBodySyntax>>
-    for BaselineTagRejection
+impl<T> OutputRejection<T> for BaselineTagRejection
+where
+    for<'tree> T: AsView<'tree, Ref = view::ExpTagAtomRunBodySyntaxRef<'tree>>,
 {
     fn rejected_name(&self) -> &'static str {
         "baseline tag surface"
     }
+    fn rejects(&self, value: &T) -> bool {
+        valid(value.as_view()).is_some_and(is_baseline_tag::<<T as AsView<'_>>::Kind>)
+    }
+}
 
-    fn rejects(&self, value: &recovered::Recovered<recovered::ExpTagAtomRunBodySyntax>) -> bool {
-        valid(value).is_some_and(recovered_is_baseline_tag)
+#[contract_trait]
+impl<T> OutputRejection<T> for NonElidedNaheFihoTagTermRejection
+where
+    for<'tree> T: AsView<'tree, Ref = view::TenseModalSyntaxRef<'tree>>,
+{
+    fn rejected_name(&self) -> &'static str {
+        "non-elided-FEhU or non-NAhE/FIhO final tag term"
+    }
+    fn rejects(&self, value: &T) -> bool {
+        !is_elided_nahe_fiho_tense_modal(value.as_view())
+    }
+}
+
+#[contract_trait]
+impl<T> OutputRejection<T> for PostNaExtensionTagRejection
+where
+    for<'tree> T: AsView<'tree, Ref = view::SelbriSyntaxRef<'tree>>,
+{
+    fn rejected_name(&self) -> &'static str {
+        "extension tag immediately after selbri negation"
+    }
+    fn rejects(&self, value: &T) -> bool {
+        valid(value.as_view()).is_some_and(|output| match output {
+            view::SelbriSyntaxView::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
+                let view::TaggedSelbriSyntaxView {
+                    tense_modal,
+                    inner_selbri: _,
+                } = tagged;
+                valid(tense_modal).is_some_and(tense_modal_is_extension::<<T as AsView<'_>>::Kind>)
+            }),
+            view::SelbriSyntaxView::UntaggedSelbri(_) => false,
+        })
     }
 }

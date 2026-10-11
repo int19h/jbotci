@@ -12,9 +12,8 @@
 //! leaf makes its ownership unproven. Prefix values are inspected, not rejected by enum name.
 
 use bityzba::{contract_trait, invariant, requires};
-use jbotci_tree::TreeVisitor;
 
-use super::generated_model::{self as model, recovered};
+use super::generated_model::{self as model, recovered, view};
 use super::generated_runtime::OutputRejection;
 
 #[invariant(true)]
@@ -54,108 +53,7 @@ impl BreadthWalker {
     }
 }
 
-impl<'tree> model::TreeWalker<'tree> for BreadthWalker {
-    #[requires(self.answer != LinkPayloadBreadth::Unproven)]
-    #[ensures(self.answer != LinkPayloadBreadth::Unproven)]
-    fn walk_normal_term(&mut self, node: &'tree model::NormalTermSyntax) {
-        match node {
-            model::NormalTermSyntax::ConnectedNormalTerm(_)
-            | model::NormalTermSyntax::BoundNormalTermConnection(_) => {
-                model::walk::normal_term(self, node)
-            }
-            model::NormalTermSyntax::PlaceTaggedSumtiTerm(_)
-            | model::NormalTermSyntax::ElidedNaheFihoTagTerm(_)
-            | model::NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
-            | model::NormalTermSyntax::NonabsTaggedSumtiTerm(_)
-            | model::NormalTermSyntax::NonabsFaChainTaggedSumtiTerm(_)
-            | model::NormalTermSyntax::SumtiTerm(_) => {
-                self.observe(LinkPayloadBreadth::LegacyLinked)
-            }
-            model::NormalTermSyntax::FihoiProposalAdverbialTerm(_)
-            | model::NormalTermSyntax::ExpSoiAdverbialTerm(_)
-            | model::NormalTermSyntax::NaKuTerm(_)
-            | model::NormalTermSyntax::BareNaTerm(_)
-            | model::NormalTermSyntax::GekTermset(_)
-            | model::NormalTermSyntax::ForethoughtTermset(_)
-            | model::NormalTermSyntax::NuhiTermset(_) => {
-                self.observe(LinkPayloadBreadth::AddedFullTerm)
-            }
-        }
-    }
-
-    #[requires(self.answer != LinkPayloadBreadth::Unproven)]
-    #[ensures(self.answer != LinkPayloadBreadth::Unproven)]
-    fn walk_bound_normal_term(&mut self, node: &'tree model::BoundNormalTermSyntax) {
-        match node {
-            model::BoundNormalTermSyntax::BoundNormalTermConnection(_) => {
-                model::walk::bound_normal_term(self, node)
-            }
-            model::BoundNormalTermSyntax::PlaceTaggedSumtiTerm(_)
-            | model::BoundNormalTermSyntax::ElidedNaheFihoTagTerm(_)
-            | model::BoundNormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
-            | model::BoundNormalTermSyntax::NonabsTaggedSumtiTerm(_)
-            | model::BoundNormalTermSyntax::NonabsFaChainTaggedSumtiTerm(_)
-            | model::BoundNormalTermSyntax::SumtiTerm(_) => {
-                self.observe(LinkPayloadBreadth::LegacyLinked)
-            }
-            model::BoundNormalTermSyntax::FihoiProposalAdverbialTerm(_)
-            | model::BoundNormalTermSyntax::ExpSoiAdverbialTerm(_)
-            | model::BoundNormalTermSyntax::NaKuTerm(_)
-            | model::BoundNormalTermSyntax::BareNaTerm(_)
-            | model::BoundNormalTermSyntax::GekTermset(_)
-            | model::BoundNormalTermSyntax::ForethoughtTermset(_)
-            | model::BoundNormalTermSyntax::NuhiTermset(_) => {
-                self.observe(LinkPayloadBreadth::AddedFullTerm)
-            }
-        }
-    }
-
-    #[requires(self.answer != LinkPayloadBreadth::Unproven)]
-    #[ensures(self.answer != LinkPayloadBreadth::Unproven)]
-    fn walk_normal_term_atom(&mut self, node: &'tree model::NormalTermAtomSyntax) {
-        match node {
-            model::NormalTermAtomSyntax::PlaceTaggedSumtiTerm(_)
-            | model::NormalTermAtomSyntax::ElidedNaheFihoTagTerm(_)
-            | model::NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(_)
-            | model::NormalTermAtomSyntax::NonabsTaggedSumtiTerm(_)
-            | model::NormalTermAtomSyntax::NonabsFaChainTaggedSumtiTerm(_)
-            | model::NormalTermAtomSyntax::SumtiTerm(_) => {
-                self.observe(LinkPayloadBreadth::LegacyLinked)
-            }
-            model::NormalTermAtomSyntax::FihoiProposalAdverbialTerm(_)
-            | model::NormalTermAtomSyntax::ExpSoiAdverbialTerm(_)
-            | model::NormalTermAtomSyntax::NaKuTerm(_)
-            | model::NormalTermAtomSyntax::BareNaTerm(_)
-            | model::NormalTermAtomSyntax::GekTermset(_)
-            | model::NormalTermAtomSyntax::ForethoughtTermset(_)
-            | model::NormalTermAtomSyntax::NuhiTermset(_) => {
-                self.observe(LinkPayloadBreadth::AddedFullTerm)
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(self.answer == old(self.answer))]
-    fn walk_term_afterthought_connective(
-        &mut self,
-        _node: &'tree model::TermAfterthoughtConnectiveSyntax,
-    ) {
-        // The old connection owns this whole field, including any nested modifier syntax.
-    }
-
-    #[requires(true)]
-    #[ensures(self.answer == old(self.answer))]
-    fn walk_tense_modal(&mut self, _node: &'tree model::TenseModalSyntax) {
-        // Optional connection tags are also old fields; an internal FIhO bridi is not an operand.
-    }
-
-    #[requires(true)]
-    #[ensures(self.answer == old(self.answer))]
-    fn walk_free_modifier(&mut self, _node: &'tree model::FreeModifierSyntax) {
-        // In particular, BO's free modifiers cannot add width to the surrounding connection.
-    }
-}
-
+#[cfg(test)]
 /// The source value supplied by a wrapper; skipped prefix input is not itself entry evidence.
 #[requires(true)]
 #[ensures(ret.is_none() == matches!(node, recovered::Recovered::Error(_)))]
@@ -173,112 +71,114 @@ struct LeafEvidence {
     uncertainty: bool,
 }
 
-impl<'tree> TreeVisitor<'tree> for LeafEvidence {
-    type Node = recovered::NodeRef<'tree>;
-    type Atom = recovered::AtomRef<'tree>;
-
+#[contract_trait]
+impl<'tree> view::Walker<'tree> for LeafEvidence {
     #[requires(true)]
     #[ensures(self.parsed_token)]
-    fn visit_atom(&mut self, _atom: Self::Atom) {
+    fn walk_atom(&mut self, _atom: model::AtomRef<'tree>) {
         self.parsed_token = true;
     }
-
     #[requires(true)]
     #[ensures(self.uncertainty)]
-    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + serde::Serialize>(
-        &mut self,
-        _item: &'tree E,
-    ) {
+    fn walk_error(&mut self) {
         self.uncertainty = true;
     }
 }
 
 impl BreadthWalker {
-    /// A selected leaf alone is not proof: its required marker and child slots must all parse.
-    /// A top-level Prefix may prove its value, but cannot borrow its skipped tokens as proof.
+    /// Inspect the surviving value without treating its own prefix errors as leaf evidence.
     #[requires(answer != LinkPayloadBreadth::Unproven)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    #[ensures(matches!(node, recovered::Recovered::Error(_)) -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn observe_leaf<T: recovered::TreeNode>(
+    #[ensures(matches!(node, view::Slot::Error) -> self.answer == LinkPayloadBreadth::Unproven)]
+    fn observe_leaf<'tree, V: view::Walkable<'tree> + view::Inspect>(
         &mut self,
-        node: &recovered::Recovered<T>,
+        node: view::Slot<V>,
         answer: LinkPayloadBreadth,
     ) {
-        let Some(value) = parsed_value(node) else {
-            self.observe(LinkPayloadBreadth::Unproven);
-            return;
-        };
+        // A strict leaf needs no recovery proof. Keep its constant-time classification.
+        match node {
+            view::Slot::Valid(value) | view::Slot::Prefix(value)
+                if !value.needs_recovery_evidence() =>
+            {
+                self.observe(answer);
+                return;
+            }
+            view::Slot::Valid(_) | view::Slot::Prefix(_) | view::Slot::Error => {}
+        }
         let mut evidence = LeafEvidence {
             parsed_token: false,
             uncertainty: false,
         };
-        recovered::TreeNode::visit_in_order(value, &mut evidence);
-        self.observe(if evidence.parsed_token && !evidence.uncertainty {
+        let found = view::walk::value(&mut evidence, node);
+        self.observe(if found && evidence.parsed_token && !evidence.uncertainty {
             answer
         } else {
             LinkPayloadBreadth::Unproven
         });
     }
 
-    /// Dispatch a parsed connection child back into the generated recursive walker.
     #[requires(true)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    #[ensures(matches!(node, recovered::Recovered::Error(_)) -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn descend<'tree, T: recovered::TreeWalkable<'tree>>(
-        &mut self,
-        node: &'tree recovered::Recovered<T>,
-    ) {
-        match parsed_value(node) {
-            Some(value) => recovered::TreeWalkable::walk_with(value, self),
-            None => self.observe(LinkPayloadBreadth::Unproven),
+    #[ensures(matches!(node, view::Slot::Error) -> self.answer == LinkPayloadBreadth::Unproven)]
+    fn descend<'tree, V: view::Walkable<'tree>>(&mut self, node: view::Slot<V>) {
+        if !view::walk::value(self, node) {
+            self.observe(LinkPayloadBreadth::Unproven);
         }
     }
 }
 
-impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
+#[contract_trait]
+impl<'tree> view::Walker<'tree> for BreadthWalker {
     #[requires(true)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_normal_term(&mut self, node: &'tree recovered::NormalTermSyntax) {
-        match node {
-            recovered::NormalTermSyntax::ConnectedNormalTerm(value) => self.descend(value),
-            recovered::NormalTermSyntax::BoundNormalTermConnection(value) => self.descend(value),
-            recovered::NormalTermSyntax::PlaceTaggedSumtiTerm(value) => {
+    fn walk_full_linked_term(&mut self, node: view::FullLinkedTermSyntaxRef<'tree>) {
+        let view::FullLinkedTermSyntaxView(term) = node.get();
+        self.descend(term);
+    }
+
+    #[requires(true)]
+    #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
+    fn walk_normal_term(&mut self, node: view::NormalTermSyntaxRef<'tree>) {
+        match node.get() {
+            view::NormalTermSyntaxView::ConnectedNormalTerm(value) => self.descend(value),
+            view::NormalTermSyntaxView::BoundNormalTermConnection(value) => self.descend(value),
+            view::NormalTermSyntaxView::PlaceTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::ElidedNaheFihoTagTerm(value) => {
+            view::NormalTermSyntaxView::ElidedNaheFihoTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::TaggedSumtiBeforeTagTerm(value) => {
+            view::NormalTermSyntaxView::TaggedSumtiBeforeTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::NonabsTaggedSumtiTerm(value) => {
+            view::NormalTermSyntaxView::NonabsTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
+            view::NormalTermSyntaxView::NonabsFaChainTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::SumtiTerm(value) => {
+            view::NormalTermSyntaxView::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermSyntax::FihoiProposalAdverbialTerm(value) => {
+            view::NormalTermSyntaxView::FihoiProposalAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::ExpSoiAdverbialTerm(value) => {
+            view::NormalTermSyntaxView::ExpSoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::NaKuTerm(value) => {
+            view::NormalTermSyntaxView::NaKuTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::BareNaTerm(value) => {
+            view::NormalTermSyntaxView::BareNaTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::GekTermset(value) => {
+            view::NormalTermSyntaxView::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::ForethoughtTermset(value) => {
+            view::NormalTermSyntaxView::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermSyntax::NuhiTermset(value) => {
+            view::NormalTermSyntaxView::NuhiTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -286,48 +186,48 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
 
     #[requires(true)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_bound_normal_term(&mut self, node: &'tree recovered::BoundNormalTermSyntax) {
-        match node {
-            recovered::BoundNormalTermSyntax::BoundNormalTermConnection(value) => {
+    fn walk_bound_normal_term(&mut self, node: view::BoundNormalTermSyntaxRef<'tree>) {
+        match node.get() {
+            view::BoundNormalTermSyntaxView::BoundNormalTermConnection(value) => {
                 self.descend(value)
             }
-            recovered::BoundNormalTermSyntax::PlaceTaggedSumtiTerm(value) => {
+            view::BoundNormalTermSyntaxView::PlaceTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::ElidedNaheFihoTagTerm(value) => {
+            view::BoundNormalTermSyntaxView::ElidedNaheFihoTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::TaggedSumtiBeforeTagTerm(value) => {
+            view::BoundNormalTermSyntaxView::TaggedSumtiBeforeTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::NonabsTaggedSumtiTerm(value) => {
+            view::BoundNormalTermSyntaxView::NonabsTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
+            view::BoundNormalTermSyntaxView::NonabsFaChainTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::SumtiTerm(value) => {
+            view::BoundNormalTermSyntaxView::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::BoundNormalTermSyntax::FihoiProposalAdverbialTerm(value) => {
+            view::BoundNormalTermSyntaxView::FihoiProposalAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::ExpSoiAdverbialTerm(value) => {
+            view::BoundNormalTermSyntaxView::ExpSoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::NaKuTerm(value) => {
+            view::BoundNormalTermSyntaxView::NaKuTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::BareNaTerm(value) => {
+            view::BoundNormalTermSyntaxView::BareNaTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::GekTermset(value) => {
+            view::BoundNormalTermSyntaxView::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::ForethoughtTermset(value) => {
+            view::BoundNormalTermSyntaxView::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::BoundNormalTermSyntax::NuhiTermset(value) => {
+            view::BoundNormalTermSyntaxView::NuhiTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -335,45 +235,45 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
 
     #[requires(true)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_normal_term_atom(&mut self, node: &'tree recovered::NormalTermAtomSyntax) {
-        match node {
-            recovered::NormalTermAtomSyntax::PlaceTaggedSumtiTerm(value) => {
+    fn walk_normal_term_atom(&mut self, node: view::NormalTermAtomSyntaxRef<'tree>) {
+        match node.get() {
+            view::NormalTermAtomSyntaxView::PlaceTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::ElidedNaheFihoTagTerm(value) => {
+            view::NormalTermAtomSyntaxView::ElidedNaheFihoTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(value) => {
+            view::NormalTermAtomSyntaxView::TaggedSumtiBeforeTagTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::NonabsTaggedSumtiTerm(value) => {
+            view::NormalTermAtomSyntaxView::NonabsTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::NonabsFaChainTaggedSumtiTerm(value) => {
+            view::NormalTermAtomSyntaxView::NonabsFaChainTaggedSumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::SumtiTerm(value) => {
+            view::NormalTermAtomSyntaxView::SumtiTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::LegacyLinked)
             }
-            recovered::NormalTermAtomSyntax::FihoiProposalAdverbialTerm(value) => {
+            view::NormalTermAtomSyntaxView::FihoiProposalAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::ExpSoiAdverbialTerm(value) => {
+            view::NormalTermAtomSyntaxView::ExpSoiAdverbialTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::NaKuTerm(value) => {
+            view::NormalTermAtomSyntaxView::NaKuTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::BareNaTerm(value) => {
+            view::NormalTermAtomSyntaxView::BareNaTerm(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::GekTermset(value) => {
+            view::NormalTermAtomSyntaxView::GekTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::ForethoughtTermset(value) => {
+            view::NormalTermAtomSyntaxView::ForethoughtTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
-            recovered::NormalTermAtomSyntax::NuhiTermset(value) => {
+            view::NormalTermAtomSyntaxView::NuhiTermset(value) => {
                 self.observe_leaf(value, LinkPayloadBreadth::AddedFullTerm)
             }
         }
@@ -381,11 +281,11 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
 
     #[requires(true)]
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_connected_normal_term(&mut self, node: &'tree recovered::ConnectedNormalTermSyntax) {
-        let recovered::ConnectedNormalTermSyntax {
+    fn walk_connected_normal_term(&mut self, node: view::ConnectedNormalTermSyntaxRef<'tree>) {
+        let view::ConnectedNormalTermSyntaxView {
             leading_term,
             continuations,
-        } = node;
+        } = node.get();
         self.descend(leading_term);
         if continuations.is_empty() {
             self.observe(LinkPayloadBreadth::Unproven);
@@ -399,12 +299,12 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
     fn walk_connected_normal_term_continuation(
         &mut self,
-        node: &'tree recovered::ConnectedNormalTermContinuationSyntax,
+        node: view::ConnectedNormalTermContinuationSyntaxRef<'tree>,
     ) {
-        let recovered::ConnectedNormalTermContinuationSyntax {
+        let view::ConnectedNormalTermContinuationSyntaxView {
             connective,
             trailing_term,
-        } = node;
+        } = node.get();
         self.observe_leaf(connective, LinkPayloadBreadth::LegacyLinked);
         self.descend(trailing_term);
     }
@@ -413,12 +313,12 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
     fn walk_bound_normal_term_connection(
         &mut self,
-        node: &'tree recovered::BoundNormalTermConnectionSyntax,
+        node: view::BoundNormalTermConnectionSyntaxRef<'tree>,
     ) {
-        let recovered::BoundNormalTermConnectionSyntax {
+        let view::BoundNormalTermConnectionSyntaxView {
             leading_term,
             continuations,
-        } = node;
+        } = node.get();
         self.descend(leading_term);
         if continuations.is_empty() {
             self.observe(LinkPayloadBreadth::Unproven);
@@ -432,45 +332,33 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
     #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
     fn walk_normal_term_bo_continuation(
         &mut self,
-        node: &'tree recovered::NormalTermBoContinuationSyntax,
+        node: view::NormalTermBoContinuationSyntaxRef<'tree>,
     ) {
-        let recovered::NormalTermBoContinuationSyntax {
+        let view::NormalTermBoContinuationSyntaxView {
             connective,
             tense_modal,
             bo,
             trailing_term,
-        } = node;
+        } = node.get();
         self.observe_leaf(connective, LinkPayloadBreadth::LegacyLinked);
         if let Some(tag) = tense_modal {
             self.observe_leaf(tag, LinkPayloadBreadth::LegacyLinked);
         }
-        self.observe_leaf(&bo.value, LinkPayloadBreadth::LegacyLinked);
+        self.observe_leaf(bo.value, LinkPayloadBreadth::LegacyLinked);
         self.descend(trailing_term);
     }
 }
 
 #[requires(true)]
-#[ensures(ret != LinkPayloadBreadth::Unproven)]
-fn breadth(candidate: &model::FullLinkedTermSyntax) -> LinkPayloadBreadth {
+#[ensures(matches!(candidate.as_view(), view::Slot::Error) -> ret == LinkPayloadBreadth::Unproven)]
+fn breadth<T>(candidate: &T) -> LinkPayloadBreadth
+where
+    for<'tree> T: view::AsView<'tree, Ref = view::FullLinkedTermSyntaxRef<'tree>>,
+{
     let mut walker = BreadthWalker {
         answer: LinkPayloadBreadth::LegacyLinked,
     };
-    model::TreeWalkable::walk_with(candidate.0.as_ref(), &mut walker);
-    walker.answer
-}
-
-#[requires(true)]
-#[ensures(matches!(candidate, recovered::Recovered::Error(_)) -> ret == LinkPayloadBreadth::Unproven)]
-fn recovered_breadth(
-    candidate: &recovered::Recovered<recovered::FullLinkedTermSyntax>,
-) -> LinkPayloadBreadth {
-    let Some(candidate) = parsed_value(candidate) else {
-        return LinkPayloadBreadth::Unproven;
-    };
-    let mut walker = BreadthWalker {
-        answer: LinkPayloadBreadth::LegacyLinked,
-    };
-    walker.descend(&candidate.0);
+    walker.descend(candidate.as_view());
     walker.answer
 }
 
@@ -499,7 +387,7 @@ impl OutputRejection<recovered::Recovered<recovered::FullLinkedTermSyntax>>
     }
 
     fn rejects(&self, candidate: &recovered::Recovered<recovered::FullLinkedTermSyntax>) -> bool {
-        let answer = recovered_breadth(candidate);
+        let answer = breadth(candidate);
         #[cfg(test)]
         tests::record_recovered_attempt(candidate, answer);
         answer != LinkPayloadBreadth::AddedFullTerm
@@ -513,6 +401,7 @@ mod tests {
 
     use bityzba::new;
     use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_tree::TreeVisitor;
     use vec1::vec1;
 
     use super::*;
@@ -520,7 +409,7 @@ mod tests {
     use crate::{ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options};
 
     #[invariant(matches!(candidate, recovered::Recovered::Valid(_)))]
-    #[bityzba::expensive_invariant(*answer == recovered_breadth(candidate))]
+    #[bityzba::expensive_invariant(*answer == breadth(candidate))]
     #[derive(Debug)]
     struct RecoveredAttempt {
         candidate: recovered::Recovered<recovered::FullLinkedTermSyntax>,
@@ -831,13 +720,13 @@ mod tests {
                 errors: vec1![missing()],
                 value: Box::new(recovered_na_ku(missing_ku)),
             });
-            assert_eq!(recovered_breadth(&valid), answer);
-            assert_eq!(recovered_breadth(&prefix), answer);
+            assert_eq!(breadth(&valid), answer);
+            assert_eq!(breadth(&prefix), answer);
             assert_eq!(LegacyLinkPayloadRejection.rejects(&valid), missing_ku);
             assert_eq!(LegacyLinkPayloadRejection.rejects(&prefix), missing_ku);
         }
         let error = recovered::Recovered::Error(missing());
-        assert_eq!(recovered_breadth(&error), LinkPayloadBreadth::Unproven);
+        assert_eq!(breadth(&error), LinkPayloadBreadth::Unproven);
         assert!(LegacyLinkPayloadRejection.rejects(&error));
     }
 
@@ -934,13 +823,11 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn child_breadth<'tree, T: recovered::TreeWalkable<'tree>>(
-        node: &'tree recovered::Recovered<T>,
-    ) -> LinkPayloadBreadth {
+    fn child_breadth<'tree, T: view::AsView<'tree>>(node: &'tree T) -> LinkPayloadBreadth {
         let mut walker = BreadthWalker {
             answer: LinkPayloadBreadth::LegacyLinked,
         };
-        walker.descend(node);
+        walker.descend(node.as_view());
         walker.answer
     }
 
@@ -983,8 +870,8 @@ mod tests {
                         assert_eq!(connection.continuations.len(), 1, "{source}");
                         let continuation = parsed_value(&connection.continuations[0]).unwrap();
                         let answers = [
-                            child_breadth(&connection.leading_term),
-                            child_breadth(&continuation.trailing_term),
+                            child_breadth(connection.leading_term.as_ref()),
+                            child_breadth(continuation.trailing_term.as_ref()),
                         ];
                         let expected = if reverse {
                             [
@@ -1042,7 +929,7 @@ mod tests {
                             panic!("shorter Full: {source}");
                         };
                         assert_eq!(
-                            recovered_breadth(full),
+                            breadth(full.as_ref()),
                             LinkPayloadBreadth::AddedFullTerm,
                             "{source}"
                         );

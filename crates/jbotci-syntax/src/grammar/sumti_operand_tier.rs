@@ -25,13 +25,16 @@
 //! rejection fires on `Sumti5` AND on `Unproven`.  An unproven candidate never occupies a
 //! restricted `sumti_6` slot.
 //!
-//! Both matches are exhaustive and `..`-free over the generated `SumtiBaseSyntax` sum, so an
+//! The shared match is exhaustive and `..`-free over the generated `SumtiBaseSyntax` sum, so an
 //! unclassified arm causes a compile error. Both descriptor forms belong to the `sumti_6` tier
 //! and are permitted.
 
 use std::sync::OnceLock;
 
-use super::generated_model::{SumtiBaseSyntax, recovered};
+use super::generated_model::{
+    SumtiBaseSyntax, recovered,
+    view::{AsView, SumtiBaseSyntaxRef, SumtiBaseSyntaxView},
+};
 use super::generated_runtime::{OutputRejection, output_rejection_site, recovered_source_extent};
 use bityzba::{contract_trait, invariant, requires};
 
@@ -51,77 +54,43 @@ pub(crate) enum SumtiOperandTier {
     Unproven,
 }
 
-/// Classify a strict candidate.  A strict parse always selected an arm, so the answer is proven.
+/// Classify a selected arm through its shared read-only view.
 #[requires(true)]
-#[ensures(ret != SumtiOperandTier::Unproven, "a strict candidate always selected an arm")]
-pub(crate) fn sumti_base_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
+#[ensures(ret != SumtiOperandTier::Unproven, "a selected arm establishes a tier")]
+pub(crate) fn sumti_base_tier(candidate: SumtiBaseSyntaxView<'_>) -> SumtiOperandTier {
     match candidate {
-        SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(_)
-        | SumtiBaseSyntax::DescriptorWithoutGadriSumti(_) => SumtiOperandTier::Sumti5,
-        SumtiBaseSyntax::ScalarNegatedSumtiWithBo(_)
-        | SumtiBaseSyntax::ScalarNegatedSumti(_)
-        | SumtiBaseSyntax::LaheSumti(_)
-        | SumtiBaseSyntax::LaheTermWrapper(_)
-        | SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(_)
-        | SumtiBaseSyntax::ScalarNegatedTermWrapper(_)
-        | SumtiBaseSyntax::BridiDescriptionSumti(_)
-        | SumtiBaseSyntax::NameSumti(_)
-        | SumtiBaseSyntax::DescriptorWithGadriSumti(_)
-        | SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
-        | SumtiBaseSyntax::NumberSumti(_)
-        | SumtiBaseSyntax::LerfuStringSumti(_)
-        | SumtiBaseSyntax::QuotedSumti(_)
-        | SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
+        SumtiBaseSyntaxView::DescriptorWithOuterQuantifierSumti(_)
+        | SumtiBaseSyntaxView::DescriptorWithoutGadriSumti(_) => SumtiOperandTier::Sumti5,
+        SumtiBaseSyntaxView::ScalarNegatedSumtiWithBo(_)
+        | SumtiBaseSyntaxView::ScalarNegatedSumti(_)
+        | SumtiBaseSyntaxView::LaheSumti(_)
+        | SumtiBaseSyntaxView::LaheTermWrapper(_)
+        | SumtiBaseSyntaxView::ScalarNegatedTermWrapperWithBo(_)
+        | SumtiBaseSyntaxView::ScalarNegatedTermWrapper(_)
+        | SumtiBaseSyntaxView::BridiDescriptionSumti(_)
+        | SumtiBaseSyntaxView::NameSumti(_)
+        | SumtiBaseSyntaxView::DescriptorWithGadriSumti(_)
+        | SumtiBaseSyntaxView::ExpDescriptorWithLeadingSumtiSumti(_)
+        | SumtiBaseSyntaxView::NumberSumti(_)
+        | SumtiBaseSyntaxView::LerfuStringSumti(_)
+        | SumtiBaseSyntaxView::QuotedSumti(_)
+        | SumtiBaseSyntaxView::ProSumti(_) => SumtiOperandTier::Sumti6,
     }
 }
 
-/// Classify the arm of a recovered candidate whose wrapper proved a selection.
+/// An invalid outer slot establishes no tier for the candidate extent.
 #[requires(true)]
-#[ensures(ret != SumtiOperandTier::Unproven, "a selected arm always establishes a tier")]
-pub(crate) fn recovered_sumti_base_tier(
-    candidate: &recovered::SumtiBaseSyntax,
-) -> SumtiOperandTier {
-    match candidate {
-        recovered::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(_)
-        | recovered::SumtiBaseSyntax::DescriptorWithoutGadriSumti(_) => SumtiOperandTier::Sumti5,
-        recovered::SumtiBaseSyntax::ScalarNegatedSumtiWithBo(_)
-        | recovered::SumtiBaseSyntax::ScalarNegatedSumti(_)
-        | recovered::SumtiBaseSyntax::LaheSumti(_)
-        | recovered::SumtiBaseSyntax::LaheTermWrapper(_)
-        | recovered::SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(_)
-        | recovered::SumtiBaseSyntax::ScalarNegatedTermWrapper(_)
-        | recovered::SumtiBaseSyntax::BridiDescriptionSumti(_)
-        | recovered::SumtiBaseSyntax::NameSumti(_)
-        | recovered::SumtiBaseSyntax::DescriptorWithGadriSumti(_)
-        | recovered::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
-        | recovered::SumtiBaseSyntax::NumberSumti(_)
-        | recovered::SumtiBaseSyntax::LerfuStringSumti(_)
-        | recovered::SumtiBaseSyntax::QuotedSumti(_)
-        | recovered::SumtiBaseSyntax::ProSumti(_) => SumtiOperandTier::Sumti6,
-    }
-}
-
-/// Classify a recovered candidate.
-///
-/// Only a `Valid` wrapper proves that an arm was selected over the whole candidate.  An `Error`
-/// wrapper carries no value at all, and a `Prefix` wrapper's value was reached only after the
-/// runtime skipped or synthesized input at the top of the candidate, so neither establishes the
-/// tier of the extent the site would consume.  Both are `Unproven`, which is the fail-closed
-/// answer at a restricted site.
-#[requires(true)]
-#[ensures(
-    (ret != SumtiOperandTier::Unproven) == matches!(candidate, recovered::Recovered::Valid(_)),
-    "a tier is established exactly when the wrapper proved an arm was selected"
-)]
-fn recovered_tier(
-    candidate: &recovered::Recovered<recovered::SumtiBaseSyntax>,
-) -> SumtiOperandTier {
-    match candidate {
-        recovered::Recovered::Valid(candidate) => recovered_sumti_base_tier(candidate),
-        recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => {
-            SumtiOperandTier::Unproven
-        }
-    }
+#[ensures((ret != SumtiOperandTier::Unproven) == candidate.as_view().valid().is_some())]
+fn candidate_tier<T>(candidate: &T) -> SumtiOperandTier
+where
+    for<'tree> T: AsView<'tree, Ref = SumtiBaseSyntaxRef<'tree>>,
+{
+    candidate
+        .as_view()
+        .valid()
+        .map_or(SumtiOperandTier::Unproven, |node| {
+            sumti_base_tier(node.get())
+        })
 }
 
 /// Whether the restricted-operand classifier trace is switched on.
@@ -216,7 +185,7 @@ impl OutputRejection<SumtiBaseSyntax> for QuantifierBearingSumtiRejection {
     }
 
     fn rejects(&self, value: &SumtiBaseSyntax) -> bool {
-        tier_is_rejected(sumti_base_tier(value))
+        tier_is_rejected(candidate_tier(value))
     }
 }
 
@@ -229,7 +198,7 @@ impl OutputRejection<recovered::Recovered<recovered::SumtiBaseSyntax>>
     }
 
     fn rejects(&self, value: &recovered::Recovered<recovered::SumtiBaseSyntax>) -> bool {
-        let tier = recovered_tier(value);
+        let tier = candidate_tier(value);
         let rejected = tier_is_rejected(tier);
         if trace_enabled() {
             trace_recovered_classification(value, tier, rejected);
@@ -288,7 +257,7 @@ mod tests {
     #[ensures(true)]
     fn valid_sumti_six_arm_is_permitted() {
         let candidate = recovered::Recovered::valid(recovered_pro_sumti());
-        assert_eq!(recovered_tier(&candidate), SumtiOperandTier::Sumti6);
+        assert_eq!(candidate_tier(&candidate), SumtiOperandTier::Sumti6);
         assert!(!QuantifierBearingSumtiRejection.rejects(&candidate));
     }
 
@@ -301,7 +270,7 @@ mod tests {
     fn error_wrapper_is_unproven_and_refused() {
         let candidate: recovered::Recovered<recovered::SumtiBaseSyntax> =
             recovered::Recovered::Error(recovery_placeholder());
-        assert_eq!(recovered_tier(&candidate), SumtiOperandTier::Unproven);
+        assert_eq!(candidate_tier(&candidate), SumtiOperandTier::Unproven);
         assert!(QuantifierBearingSumtiRejection.rejects(&candidate));
     }
 
@@ -316,7 +285,7 @@ mod tests {
             errors: vec1![recovery_placeholder()],
             value: Box::new(recovered_pro_sumti()),
         });
-        assert_eq!(recovered_tier(&candidate), SumtiOperandTier::Unproven);
+        assert_eq!(candidate_tier(&candidate), SumtiOperandTier::Unproven);
         assert!(QuantifierBearingSumtiRejection.rejects(&candidate));
     }
 

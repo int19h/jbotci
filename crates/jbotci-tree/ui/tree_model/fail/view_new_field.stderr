@@ -1,0 +1,18 @@
+error[E0027]: pattern does not mention field `added`
+  --> ui/tree_model/fail/view_new_field.rs:27:9
+   |
+27 |     let view::RootView { text: _ } = node.get();
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^ missing field `added`
+   |
+help: include the missing field in the pattern
+   |
+27 |     let view::RootView { text: _, added } = node.get();
+   |                                 +++++++
+help: if you don't care about this missing field, you can explicitly ignore it
+   |
+27 |     let view::RootView { text: _, added: _ } = node.get();
+   |                                 ++++++++++
+help: or always ignore missing fields here
+   |
+27 |     let view::RootView { text: _, .. } = node.get();
+   |                                 ++++

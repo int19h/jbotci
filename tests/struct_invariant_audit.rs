@@ -1788,6 +1788,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree macro options are independent switches parsed from macro attributes",
     ),
     (
+        "crates/jbotci-tree-macros/src/view.rs:FieldView",
+        "syntax fragments hold the projected type and both source expressions. The compiler constrains the generated code",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:ChainView",
+        "the generic head and link types constrain their values. The view adds no constraint between them",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:StrictSource",
+        "the unit marker has no data. Its implementation fixes strict validity at compile time",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:RecoveredSource",
+        "the unit marker has no data. Its implementation selects recovered evidence at compile time",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:RecoveredModifierProjection",
+        "the test projection marker has no data. Its trait implementation fixes both element conversions",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:WithFreeModifiersView",
+        "the generic value and modifier types constrain their values. The view adds no constraint between them",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:Child",
+        "the test child accepts every string",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:Counter",
+        "both counters accept every usize value. Walker contracts constrain each update",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:CountingAllocator",
+        "the allocator has no fields or state",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:Root",
+        "the test root accepts every child sequence and optional child",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Chain",
         "structural head/links pair generic over both components, so every combination is valid by construction; chain traversal is audited by the jbotci-tree walker tests and the chain-link split tests in the Gentufa and output renderers",
     ),
