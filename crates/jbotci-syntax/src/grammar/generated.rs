@@ -3215,8 +3215,8 @@ pub mod generated_model {
     // construction instead.  camxes-exp spells no such guard, so this remains a
     // recorded fidelity narrowing; the one class it EXCLUDES rather than re-owns is exp's
     // `quantifier gek_sentence` leading element, which `sumti_tail_1` cannot form, and that
-    // non-adoption is recorded, witnessed and filed as #886.  The measurement, the candidate
-    // table and the reference rows are in `docs/grammar-parity-epoch-09-descriptions.md`.
+    // non-adoption is recorded in https://github.com/int19h/jbotci/issues/886.
+    // That issue contains the candidate examples and the reference grammar rows.
 
     /// Product node for description tail; preserves `leading_sumti` and `tail` in source order.
     rule "description tail" exp_full_sumti_description_tail(sumti, subbridi, selbri, normal_term, quantifier) -> struct {
