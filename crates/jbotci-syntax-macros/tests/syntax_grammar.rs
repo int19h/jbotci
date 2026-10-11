@@ -240,7 +240,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[4].conditions[0],
         SyntaxGrammarCondition {
-            feature: "Cbm",
+            feature: jbotci_dialect::DialectFeature::Cbm,
             negated: false,
         }
     );
@@ -262,7 +262,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[7].conditions[0],
         SyntaxGrammarCondition {
-            feature: "UnrestrictedFree",
+            feature: jbotci_dialect::DialectFeature::UnrestrictedFree,
             negated: false,
         }
     );
@@ -270,7 +270,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[8].conditions[0],
         SyntaxGrammarCondition {
-            feature: "UnrestrictedFree",
+            feature: jbotci_dialect::DialectFeature::UnrestrictedFree,
             negated: false,
         }
     );
@@ -554,7 +554,7 @@ mod anchor_metadata {
         assert_eq!(
             gated_first.conditions,
             &[SyntaxGrammarCondition {
-                feature: "Cbm",
+                feature: jbotci_dialect::DialectFeature::Cbm,
                 negated: false,
             }]
         );
@@ -572,7 +572,7 @@ mod anchor_metadata {
         assert_eq!(
             gated_field_anchor.conditions,
             &[SyntaxGrammarCondition {
-                feature: "Cbm",
+                feature: jbotci_dialect::DialectFeature::Cbm,
                 negated: false,
             }]
         );
@@ -1079,7 +1079,7 @@ mod new_dsl {
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[5].fields[2].conditions,
             &[SyntaxGrammarCondition {
-                feature: "Cbm",
+                feature: jbotci_dialect::DialectFeature::Cbm,
                 negated: false,
             }]
         );
@@ -1202,7 +1202,7 @@ mod spliced_enum {
     /// The branches of the enum rule `rule`, with their conditions, in order.
     #[bityzba::requires(!rule.is_empty())]
     #[bityzba::ensures(!ret.is_empty())]
-    fn rule_branches(rule: &str) -> Vec<(&'static str, Vec<&'static str>)> {
+    fn rule_branches(rule: &str) -> Vec<(&'static str, Vec<jbotci_dialect::DialectFeature>)> {
         let metadata = syntax_grammar_rule_by_name(rule).expect("the rule exists");
         assert_eq!(metadata.kind, "enum");
         metadata
@@ -1251,22 +1251,37 @@ mod spliced_enum {
     fn splice_keeps_the_branches_and_conditions_in_the_rule_metadata() {
         assert_eq!(
             rule_branches("leaf"),
-            [("leaf_first", vec![]), ("leaf_second", vec!["Cbm"])],
+            [
+                ("leaf_first", vec![]),
+                ("leaf_second", vec![jbotci_dialect::DialectFeature::Cbm])
+            ],
         );
         assert_eq!(
             rule_branches("parent"),
             [
                 ("own_item", vec![]),
                 ("leaf_first", vec![]),
-                ("leaf_second", vec!["Cbm"]),
+                ("leaf_second", vec![jbotci_dialect::DialectFeature::Cbm]),
             ],
         );
         assert_eq!(
             rule_branches("outer"),
             [
-                ("own_item", vec!["UnrestrictedFree"]),
-                ("leaf_first", vec!["UnrestrictedFree"]),
-                ("leaf_second", vec!["UnrestrictedFree", "Cbm"]),
+                (
+                    "own_item",
+                    vec![jbotci_dialect::DialectFeature::UnrestrictedFree]
+                ),
+                (
+                    "leaf_first",
+                    vec![jbotci_dialect::DialectFeature::UnrestrictedFree]
+                ),
+                (
+                    "leaf_second",
+                    vec![
+                        jbotci_dialect::DialectFeature::UnrestrictedFree,
+                        jbotci_dialect::DialectFeature::Cbm
+                    ]
+                ),
             ],
         );
         // The FIRST set of a spliced level is the union of its own branches and the spliced ones.
@@ -1299,7 +1314,7 @@ mod spliced_enum {
                 ),
                 (
                     vec![SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be)],
-                    vec!["Cbm"]
+                    vec![jbotci_dialect::DialectFeature::Cbm]
                 ),
             ],
         );

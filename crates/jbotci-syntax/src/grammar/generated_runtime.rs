@@ -2,7 +2,7 @@
 
 use bityzba::{contract_trait, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
-use jbotci_dialect::DialectFeature;
+use jbotci_dialect::{DialectFeature, DialectFeatureCondition, DialectFeatureSet};
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::{
     any::{Any, TypeId},
@@ -74,7 +74,7 @@ pub(crate) struct SyntaxGrammarEnv {
 impl SyntaxGrammarEnv {
     #[requires(true)]
     #[ensures(true)]
-    #[ensures(ret.dialect.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
+    #[ensures(ret.dialect.features == DialectFeatureSet::from_features(&options.dialect.features))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         Self {
             dialect: SyntaxGrammarDialect::from_options(options),
@@ -85,71 +85,15 @@ impl SyntaxGrammarEnv {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) struct SyntaxGrammarDialect {
-    pub cbm_enabled: bool,
-    pub unrestricted_free_enabled: bool,
-    pub na_joik_enabled: bool,
-    pub mex_quantifier_enabled: bool,
-    pub lahe_mex_enabled: bool,
-    pub split_number_lerfu_enabled: bool,
+    pub features: DialectFeatureSet,
 }
 
 impl SyntaxGrammarDialect {
     #[requires(true)]
-    #[ensures(ret.cbm_enabled == options.dialect.features.contains(&DialectFeature::Cbm))]
-    #[ensures(ret.unrestricted_free_enabled == options.dialect.features.contains(&DialectFeature::UnrestrictedFree))]
-    #[ensures(ret.na_joik_enabled == options.dialect.features.contains(&DialectFeature::NaJoik))]
-    #[ensures(ret.mex_quantifier_enabled == options.dialect.features.contains(&DialectFeature::MexQuantifier))]
-    #[ensures(ret.lahe_mex_enabled == options.dialect.features.contains(&DialectFeature::LaheMex))]
-    #[ensures(ret.split_number_lerfu_enabled == options.dialect.features.contains(&DialectFeature::SplitNumberLerfu))]
+    #[ensures(ret.features == DialectFeatureSet::from_features(&options.dialect.features))]
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
-        let features = &options.dialect.features;
         Self {
-            cbm_enabled: features.contains(&DialectFeature::Cbm),
-            unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
-            na_joik_enabled: features.contains(&DialectFeature::NaJoik),
-            mex_quantifier_enabled: features.contains(&DialectFeature::MexQuantifier),
-            lahe_mex_enabled: features.contains(&DialectFeature::LaheMex),
-            split_number_lerfu_enabled: features.contains(&DialectFeature::SplitNumberLerfu),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-
-pub(crate) enum SyntaxGrammarFeature {
-    Cbm,
-    UnrestrictedFree,
-    NaJoik,
-    MexQuantifier,
-    LaheMex,
-    SplitNumberLerfu,
-}
-
-impl SyntaxGrammarFeature {
-    #[requires(true)]
-    #[ensures(true)]
-    fn enabled(self, dialect: SyntaxGrammarDialect) -> bool {
-        match self {
-            Self::Cbm => dialect.cbm_enabled,
-            Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
-            Self::NaJoik => dialect.na_joik_enabled,
-            Self::MexQuantifier => dialect.mex_quantifier_enabled,
-            Self::LaheMex => dialect.lahe_mex_enabled,
-            Self::SplitNumberLerfu => dialect.split_number_lerfu_enabled,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn expected_name(self) -> &'static str {
-        match self {
-            Self::Cbm => "CBM feature",
-            Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
-            Self::NaJoik => "NA-JOIK feature",
-            Self::MexQuantifier => "MEX-QUANTIFIER feature",
-            Self::LaheMex => "LAHE-MEX feature",
-            Self::SplitNumberLerfu => "SPLIT-NUMBER-LERFU feature",
+            features: DialectFeatureSet::from_features(&options.dialect.features),
         }
     }
 }
@@ -532,32 +476,6 @@ pub(crate) fn empty<'tokens>() -> BoxedParser<'tokens, ()> {
     parser_empty().boxed()
 }
 
-/// A public feature condition with an optional negation.
-#[invariant(true)]
-#[derive(Clone, Copy)]
-pub(crate) struct SyntaxGrammarFeatureCondition {
-    pub feature: SyntaxGrammarFeature,
-    pub negated: bool,
-}
-
-impl SyntaxGrammarFeatureCondition {
-    #[requires(true)]
-    #[ensures(ret == (self.feature.enabled(dialect) != self.negated))]
-    fn enabled(self, dialect: SyntaxGrammarDialect) -> bool {
-        self.feature.enabled(dialect) != self.negated
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn expected_name(self) -> String {
-        if self.negated {
-            format!("not {}", self.feature.expected_name())
-        } else {
-            self.feature.expected_name().to_owned()
-        }
-    }
-}
-
 /// Probe a strict continuation and retain only the requested warning.
 /// Both outcomes preserve the cursor and all diagnostics from before the probe.
 #[requires(true)]
@@ -565,7 +483,7 @@ impl SyntaxGrammarFeatureCondition {
 pub(crate) fn warn_if<'tokens, O, P>(
     parser: P,
     construct: ExperimentalConstruct,
-    conditions: &'static [SyntaxGrammarFeatureCondition],
+    conditions: &'static [DialectFeatureCondition],
 ) -> BoxedParser<'tokens, ()>
 where
     O: 'tokens,
@@ -575,7 +493,7 @@ where
         let dialect = input.state().syntax_grammar_env().dialect;
         if conditions
             .iter()
-            .any(|condition| !condition.enabled(dialect))
+            .any(|condition| !condition.enabled(dialect.features))
         {
             return Ok(());
         }
@@ -595,7 +513,7 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn feature_gate<'tokens, O, P>(
-    feature: SyntaxGrammarFeature,
+    feature: DialectFeature,
     parser: P,
 ) -> impl Parser<'tokens, O> + Clone
 where
@@ -603,7 +521,7 @@ where
     P: Parser<'tokens, O> + Clone + 'tokens,
 {
     feature_condition_gate(
-        SyntaxGrammarFeatureCondition {
+        DialectFeatureCondition {
             feature,
             negated: false,
         },
@@ -614,7 +532,7 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn feature_condition_gate<'tokens, O, P>(
-    condition: SyntaxGrammarFeatureCondition,
+    condition: DialectFeatureCondition,
     parser: P,
 ) -> impl Parser<'tokens, O> + Clone
 where
@@ -624,7 +542,7 @@ where
     custom::<_, _>(
         #[inline(always)]
         move |input| {
-            if condition.enabled(input.state().syntax_grammar_env().dialect) {
+            if condition.enabled(input.state().syntax_grammar_env().dialect.features) {
                 return input.parse(&parser);
             }
 
@@ -1082,7 +1000,7 @@ pub(crate) fn choice_cons<P, Rest>(head: P, rest: Rest) -> ChoiceCons<P, Rest> {
 #[invariant(!features.is_empty(), "a feature-gated alternative names at least one feature")]
 #[derive(Clone)]
 pub(crate) struct ChoiceFeatureCons<P, Rest> {
-    features: &'static [SyntaxGrammarFeatureCondition],
+    features: &'static [DialectFeatureCondition],
     head: P,
     rest: Rest,
 }
@@ -1090,7 +1008,7 @@ pub(crate) struct ChoiceFeatureCons<P, Rest> {
 #[requires(!features.is_empty())]
 #[ensures(true)]
 pub(crate) fn choice_feature_cons<P, Rest>(
-    features: &'static [SyntaxGrammarFeatureCondition],
+    features: &'static [DialectFeatureCondition],
     head: P,
     rest: Rest,
 ) -> ChoiceFeatureCons<P, Rest> {
@@ -1193,7 +1111,7 @@ where
             .features
             .iter()
             .copied()
-            .find(|feature| !feature.enabled(dialect));
+            .find(|feature| !feature.enabled(dialect.features));
         let Some(disabled) = disabled else {
             let checkpoint = input.save();
             return match input.parse(&self.head) {
@@ -1321,7 +1239,7 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn feature_free_modifier_list_parser<'tokens, F, P>(
-    feature: SyntaxGrammarFeature,
+    feature: DialectFeature,
     enabled_parser: P,
 ) -> impl Parser<'tokens, Vec<F>> + Clone
 where
@@ -1332,7 +1250,7 @@ where
         #[inline(always)]
         move |input| {
             let env = input.state().syntax_grammar_env();
-            if feature.enabled(env.dialect) {
+            if env.dialect.features.contains(feature) {
                 input.parse(&enabled_parser)
             } else {
                 Ok(Vec::new())
@@ -2672,7 +2590,13 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
     // at all: a failed feature gate would add a "CBM feature" expectation that a reader cannot
     // satisfy (see `choice_feature_cons`).
     custom::<_, _>(move |input| {
-        if SyntaxGrammarFeature::Cbm.enabled(input.state().syntax_grammar_env().dialect) {
+        if input
+            .state()
+            .syntax_grammar_env()
+            .dialect
+            .features
+            .contains(DialectFeature::Cbm)
+        {
             input.parse(&with_cbm)
         } else {
             input.parse(&brivla)
@@ -2686,7 +2610,13 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
 pub(crate) fn text_leading_cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
     custom::<_, _>(move |input| {
         let checkpoint = input.save();
-        if input.state().syntax_grammar_env().dialect.cbm_enabled {
+        if input
+            .state()
+            .syntax_grammar_env()
+            .dialect
+            .features
+            .contains(DialectFeature::Cbm)
+        {
             input.rewind(checkpoint);
             return Err(expected_found_at_current(input, "non-CBM leading CMEVLA"));
         }
