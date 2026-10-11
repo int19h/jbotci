@@ -133,20 +133,8 @@ fn field_view(
                 });
             }
             "Chain" => {
-                let first = field_view(
-                    args[0],
-                    quote!(&(#strict).first),
-                    quote!(&(#recovered).first),
-                    nodes,
-                    aliases,
-                )?;
-                let links = field_view(
-                    args[1],
-                    quote!(&(#strict).links),
-                    quote!(&(#recovered).links),
-                    nodes,
-                    aliases,
-                )?;
+                let first = field_view(args[0], quote!(first), quote!(first), nodes, aliases)?;
+                let links = field_view(args[1], quote!(links), quote!(links), nodes, aliases)?;
                 let FieldView {
                     ty: f,
                     strict: fs,
@@ -159,18 +147,12 @@ fn field_view(
                 } = links;
                 return Ok(FieldView {
                     ty: quote!(ChainView<#f, #l>),
-                    strict: quote!(ChainView { first: #fs, links: #ls }),
-                    recovered: quote!(ChainView { first: #fr, links: #lr }),
+                    strict: quote!({ let ::jbotci_tree::Chain { first, links } = #strict; ChainView { first: #fs, links: #ls } }),
+                    recovered: quote!({ let ::jbotci_tree::Chain { first, links } = #recovered; ChainView { first: #fr, links: #lr } }),
                 });
             }
             "WithFreeModifiers" => {
-                let value = field_view(
-                    args[0],
-                    quote!(&(#strict).value),
-                    quote!(&(#recovered).value),
-                    nodes,
-                    aliases,
-                )?;
+                let value = field_view(args[0], quote!(value), quote!(value), nodes, aliases)?;
                 let modifier = args
                     .get(1)
                     .copied()
@@ -179,8 +161,8 @@ fn field_view(
                 let modifiers: Type = parse_quote!(Vec<#modifier>);
                 let modifiers = field_view(
                     &modifiers,
-                    quote!(&(#strict).free_modifiers),
-                    quote!(&(#recovered).free_modifiers),
+                    quote!(free_modifiers),
+                    quote!(free_modifiers),
                     nodes,
                     aliases,
                 )?;
@@ -196,8 +178,8 @@ fn field_view(
                 } = modifiers;
                 return Ok(FieldView {
                     ty: quote!(WithFreeModifiersView<#v, #f>),
-                    strict: quote!(WithFreeModifiersView { value: #vs, free_modifiers: #fs }),
-                    recovered: quote!(WithFreeModifiersView { value: #vr, free_modifiers: #fr }),
+                    strict: quote!({ let super::WithFreeModifiers { value, free_modifiers } = #strict; WithFreeModifiersView { value: #vs, free_modifiers: #fs } }),
+                    recovered: quote!({ let super::recovered::WithFreeModifiers { value, free_modifiers } = #recovered; WithFreeModifiersView { value: #vr, free_modifiers: #fr } }),
                 });
             }
             _ => (),
@@ -370,6 +352,12 @@ pub(super) fn expand(
                 }
             }
             #[bityzba::contract_trait]
+            impl<'tree> Inspect for #reference<'tree> {
+                type View = #view<'tree>;
+                fn inspect(self) -> Self::View { self.get() }
+                fn needs_recovery_evidence(self) -> bool { matches!(self, Self::Recovered(_)) }
+            }
+            #[bityzba::contract_trait]
             impl<'tree> AsView<'tree> for super::#ident {
                 type Ref = #reference<'tree>;
                 #[bityzba::requires(true)]
@@ -414,6 +402,12 @@ pub(super) fn expand(
         let variant = atom_variant_ident(ty);
         quote! {
             #[bityzba::contract_trait]
+            impl<'tree> Inspect for &'tree #ty {
+                type View = Self;
+                fn inspect(self) -> Self { self }
+                fn needs_recovery_evidence(self) -> bool { false }
+            }
+            #[bityzba::contract_trait]
             impl<'tree> Walkable<'tree> for &'tree #ty {
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(true)]
@@ -434,6 +428,21 @@ pub(super) fn expand(
                     super::recovered::Recovered::Prefix(prefix) => Slot::Prefix(project(&prefix.value)),
                     super::recovered::Recovered::Error(_) => Slot::Error,
                 }
+            }
+            #[bityzba::contract_trait]
+            pub trait Inspect: Copy {
+                type View;
+                #[bityzba::requires(true)] #[bityzba::ensures(true)]
+                fn inspect(self) -> Self::View;
+                /// Strict nodes and parsed atomic values need no recovery proof.
+                #[bityzba::requires(true)] #[bityzba::ensures(true)]
+                fn needs_recovery_evidence(self) -> bool;
+            }
+            /// Project a valid child slot. Prefix and Error give no view.
+            #[bityzba::requires(true)]
+            #[bityzba::ensures(ret.is_some() == value.borrow().valid().is_some())]
+            pub fn valid<V: Inspect>(value: impl ::std::borrow::Borrow<Slot<V>>) -> Option<V::View> {
+                value.borrow().valid().map(Inspect::inspect)
             }
             #[bityzba::contract_trait]
             pub trait AsView<'tree> {

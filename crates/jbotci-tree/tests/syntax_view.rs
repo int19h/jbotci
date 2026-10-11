@@ -87,7 +87,7 @@ impl<'tree> view::Walker<'tree> for Counter {
 #[requires(true)]
 #[ensures(true)]
 fn projections_and_walks_borrow_without_allocation() {
-    use view::{AsView, Walkable};
+    use view::{AsView, Inspect, Walkable};
     let strict = Root {
         children: vec![Arc::new(Choice::Child(Arc::new(Child {
             number: String::from("seven"),
@@ -113,7 +113,15 @@ fn projections_and_walks_borrow_without_allocation() {
     let recovered = recovered::Recovered::valid(recovered);
     ALLOCATIONS.with(|count| count.set(Some(0)));
     assert!(!strict.as_view().valid().unwrap().has_errors());
+    assert!(!strict.as_view().valid().unwrap().needs_recovery_evidence());
     assert!(recovered.as_view().valid().unwrap().has_errors());
+    assert!(
+        recovered
+            .as_view()
+            .valid()
+            .unwrap()
+            .needs_recovery_evidence()
+    );
     let view::RootView { children, optional } = strict.as_view().valid().unwrap().get();
     assert!(optional.is_none());
     assert_eq!(children.len(), 1);
@@ -126,6 +134,8 @@ fn projections_and_walks_borrow_without_allocation() {
     assert!(optional.unwrap().valid().is_none());
     assert_eq!(children.len(), 2);
     assert!(children.get(1).unwrap().valid().is_none());
+    assert!(view::valid(children.get(1).unwrap()).is_none());
+    assert!(view::valid(strict.as_view()).is_some());
     let mut counter = Counter {
         atoms: 0,
         errors: 0,
