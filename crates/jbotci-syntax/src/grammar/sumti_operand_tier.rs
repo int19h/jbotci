@@ -1,4 +1,4 @@
-//! The description/quantifier operand tier boundary (epoch 9, #552 and #837 SUM-02).
+//! The description/quantifier operand tier boundary (#552 and #837 SUM-02).
 //!
 //! jbotci's `sumti_base` is camxes `sumti_6` PLUS two `sumti_5`-tier arms:
 //! `descriptor_without_gadri_sumti` is camxes `sumti_5` arm 2 (`quantifier selbri KU`), and
@@ -17,9 +17,7 @@
 //! The restriction is expressed once, as the named `description_leading_operand` rule, and
 //! consumed by name at both sites.  This module carries its classifier.  The test is a
 //! structural exclusion over a WHOLE COMPLETED candidate — not a first-token test, not a
-//! lookahead, not a spelling test — which is what #552 requires: the epoch also deletes the one
-//! first-token heuristic that used to guard the leading operand, `description_tail_sumti`'s
-//! `assert !pa_word()`.
+//! lookahead, not a spelling test. This structural exclusion enforces the boundary in #552.
 //!
 //! The answer is three-valued rather than boolean because the recovered spine has a state the
 //! strict spine does not: a candidate at which no arm was selected at all.  "Did not parse" is
@@ -27,10 +25,9 @@
 //! rejection fires on `Sumti5` AND on `Unproven`.  An unproven candidate never occupies a
 //! restricted `sumti_6` slot.
 //!
-//! Both matches are exhaustive and `..`-free over the generated `SumtiBaseSyntax` sum, so a
-//! future arm is a compile error rather than a silent classification.  That is the mechanism
-//! working: the epoch's two new descriptor arms had to be classified here before they could
-//! compile, and both are `sumti_6`-tier descriptor forms, so both are permitted.
+//! Both matches are exhaustive and `..`-free over the generated `SumtiBaseSyntax` sum, so an
+//! unclassified arm causes a compile error. Both descriptor forms belong to the `sumti_6` tier
+//! and are permitted.
 
 use std::sync::OnceLock;
 
@@ -146,9 +143,8 @@ fn recovered_tier(
 /// - `tier` is this module's three-valued answer and `decision` is what the site does with it.
 ///
 /// Use it when a fixture's recovered parse moves owner, diagnostics or recovery items and the
-/// question is whether either restricted site was reached at all and with what answer. That
-/// attribution is exactly what the epoch's C-a recovered-delta enumeration records per row, and
-/// it cannot be read off the rendered tree: a PERMITTED classification leaves no mark there, so
+/// question is whether either restricted site was reached at all and with what answer.
+/// The rendered tree does not show a PERMITTED classification, so
 /// "permitted" and "never reached" are indistinguishable without this trace.
 ///
 /// The strict spine is deliberately not traced. It has no `Unproven` state and no ownership
@@ -326,7 +322,7 @@ mod tests {
 
     /// The two `sumti_5`-tier arms are the only arms the classifier refuses, and it refuses them
     /// on the strict spine as well as the recovered one.  The parser-level consequence is pinned
-    /// by the epoch's acceptance witnesses; this pins the classification itself.
+    /// by the parser fixtures. This test enforces the classification itself.
     #[test]
     #[requires(true)]
     #[ensures(true)]

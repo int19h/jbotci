@@ -9156,10 +9156,8 @@ mod tests {
     #[ensures(true)]
     fn nohoi_is_a_relative_marker_rather_than_an_indicator() {
         run_on_normal_stack(|| {
-            // Before epoch 8 `no'oi` carried the `[Ui, Ui3a]` classes no source gives it and
-            // the relation word ate it as an indicator, which is what made every relative
-            // reading of it unreachable. It is a NOhOI relative marker now, and the warning
-            // it carries is the construct's rather than the bare-cmavo one.
+            // `no'oi` is a NOhOI relative marker. Its warning belongs to the construct,
+            // not to the bare cmavo, and the relation word does not consume it as an indicator.
             let parsed = parse_source("mi klama no'oi bajra", &ParseOptions::default());
             let warning = parsed
                 .warnings
@@ -9350,8 +9348,8 @@ mod tests {
     #[ensures(true)]
     fn rejects_the_unsourced_fihau_statement_hybrid() {
         run_on_normal_stack(|| {
-            // A statement body closed by FIhAU is in no source, so it retired in epoch 8.
-            // The proposal's own shape -- a subsentence closed by an explicit FIhAU -- stays.
+            // No source admits a statement body closed by FIhAU. The proposal admits
+            // a subsentence closed by an explicit FIhAU.
             let words =
                 segment_words_with_modifiers("fi'oi mi broda i je do brode fi'au").expect("words");
             assert!(

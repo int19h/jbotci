@@ -1,4 +1,4 @@
-//! R1 ownership for camxes-exp's full-sumti description-leading element (epoch 9, #830).
+//! R1 ownership for camxes-exp's full-sumti description-leading element (#830).
 //!
 //! camxes-exp's `sumti_tail` arm 3 (`sumti sumti_tail_1`, camxes-exp.peg:194) admits a FULL
 //! sumti — connection level — where the baseline admits a `sumti_6`. jbotci adopts it as a
@@ -10,7 +10,7 @@
 //! is tried first — so the strict predicate is very nearly a recorded no-op. It is not one on
 //! the RECOVERED spine, where a baseline attempt can fail for a repairable reason and this arm
 //! would otherwise take the extent. The classifier is what makes R1 hold there, and it is the
-//! invariant the epoch's recovered witnesses pin.
+//! invariant that the recovered tests enforce.
 //!
 //! The answer is three-valued for the same reason `SumtiOperandTier`'s is: on the recovered
 //! spine a candidate can fail to establish anything at all, and "did not parse" is not "known

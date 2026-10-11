@@ -68,8 +68,7 @@ pub mod generated_model {
         // Every level of the term ladder belongs here, as every level of the sumti, selbri and
         // mekso ladders does. A rule outside this block is re-constructed inline at each of its
         // reference sites, and the ladder levels nest, so omitting them multiplies the
-        // combinator graph rebuilt on every parse. That omission cost the epoch's first cut
-        // +72% CPU on the full fixture profile; see the epoch-6 ledger.
+        // combinator graph rebuilt on every parse. Declaring the levels here avoids that work.
         cehe_term: CeheTermSyntax;
         loose_term: LooseTermSyntax;
         nonabs_term: NonabsTermSyntax;
@@ -93,7 +92,7 @@ pub mod generated_model {
         sumti_bound: SumtiBoundSyntax;
         sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiBaseSyntax;
-        // The description/quantifier operand tier boundary (epoch 9, #552 / #837 SUM-02).
+        // The description/quantifier operand tier boundary (#552 / #837 SUM-02).
         // `description_leading_operand` is `sumti_base` restricted to the camxes `sumti_6`
         // tier.  It is declared here, rather than being written inline at its two consuming
         // field sites, so that it has its own parser identity and therefore its own FIRST
@@ -539,8 +538,8 @@ pub mod generated_model {
         term,
     ).recursive_output(exp_subsentence);
 
-    // The restricted leading/inner operand of the description and quantifier sites (epoch 9,
-    // #552 / #837 SUM-02).  camxes spells both sites with `sumti_6`, while jbotci's `sumti_base`
+    // The restricted leading/inner operand of the description and quantifier sites (#552 / #837 SUM-02).
+    // camxes spells both sites with `sumti_6`, while jbotci's `sumti_base`
     // is `sumti_6` plus two `sumti_5`-tier arms; the classifier removes exactly those two from
     // this route and leaves the produced type, and therefore every tree, unchanged.  The
     // restriction is written once here and consumed by name at both sites.
@@ -1223,7 +1222,7 @@ pub mod generated_model {
         field pehe <- cmavo(Pehe).wf();
         /// The PEhE connective. camxes-standard spells the PEhE level `joik_jek` (camxes.peg:114),
         /// which is the JOIK-or-JEK inventory; #806 carries that domain, so EK and VUhU are
-        /// rejected here with a documented-gap ledger row against camxes-exp's literal `joik_jek`.
+        /// rejected here, although camxes-exp's literal `joik_jek` admits them.
         field connective <- standard_statement_connective;
         /// The shared trailing term child syntax node.
         field trailing_term <- arc(cehe_term);
@@ -1313,8 +1312,7 @@ pub mod generated_model {
     /// Both camxes-exp term tiers spell their connective `joik_ek` (camxes-exp.peg:153-154), and
     /// the owner-corrected domain for that position is JOIK or EK only (#795, #806). This
     /// deliberately diverges from camxes-exp's literal `joik_ek`, which also admits VUhU and
-    /// reaches JA through its `joik`: the divergence is the I02 adjudication applied to the term
-    /// site, and the rejected surfaces are witnessed with a documented-gap ledger row.
+    /// reaches JA through its `joik`. The term site follows the JOIK-or-EK domain in #795 and #806.
     rule "term connective" term_afterthought_connective -> enum {
         /// A JOI-family connective.
         joik_connective,
@@ -1362,8 +1360,8 @@ pub mod generated_model {
     /// ladder an optional-stag BO tier would admit a surface no parser accepts there.
     ///
     /// jbotci models the BE/BEI site separately as the `linked_term` family, whose leaf inventory
-    /// is the four `linked_sumti` forms rather than the shared term leaves; widening that site is
-    /// #816's half of the same upstream rule and is not this epoch's scope.
+    /// contains four `linked_sumti` forms rather than the shared term leaves.
+    /// The `linked_term` leaf inventory follows #816.
     ///
     /// Each level of this ladder splices the level below it, exactly as the other ladders do: a
     /// branch would add a public wrapper variant to Debug and serde output. The leaves are those
@@ -1618,9 +1616,8 @@ pub mod generated_model {
     //               as an arm of both `tag_term` (:149) and `abs_tag_term` (:160)
     //   New-FIhOI   FIhOI <- ku'au / fi'oi (selpahi-mex.peg:1993), SUBSENTENCE body, FIhAU
     //
-    // The shape jbotci carried before epoch 8 -- a statement body closed by FIhAU -- is in
-    // neither source, so it retired. `ku'au` is a retained source gap: the proposal grammar's
-    // second FIhOI word is not adopted here.
+    // Neither source admits a statement body closed by FIhAU, so jbotci rejects that shape.
+    // The proposal grammar also admits `ku'au`, which jbotci does not adopt here.
     //
     // Arm order is what the boundaries need. The proposal arm requires an explicit FIhAU, so
     // it is structurally disjoint and runs first; an elided-FIhAU extent is the camxes-exp
@@ -3194,29 +3191,17 @@ pub mod generated_model {
     // because a connected sumti cannot fit `description_tail_sumti` and widening that field would
     // move baseline trees.
     //
-    // The `!quantifier` guard is a real negative lookahead on the `quantifier` production, at the
-    // position the leading sumti starts.  Why it is here, stated accurately:
+    // The `!quantifier` guard uses negative lookahead on the `quantifier` production at the
+    // start of the leading sumti. Ordered choice also protects the #552 ownership boundary:
+    // `sumti_base` tries `descriptor_with_gadri_sumti` before this descriptor variant.
+    // Its `sumti_tail_1 <- quantifier sumti` arm consumes the same quantifier-leading extent.
+    // Choice commits on success, and an outer failure does not re-enter that inner choice.
     //
-    // It is NOT what keeps this default-enabled route from re-opening #552.  The plan's premise
-    // that it is (plan-v7 F5) was MEASURED FALSE in the epoch's round-1 fix round: a
-    // guard-deleted binary was swept against the guarded one over all 26,678 fixture inputs at
-    // their declared dialects, comparing errors, warnings, brackets and the recovered spine, and
-    // there is no difference anywhere; every constructed quantifier-leading candidate stays
-    // rejected with the guard removed.  The reason is ordered choice.  A leading sumti that opens
-    // with a quantifier is exactly `quantifier sumti_6...`, which is the IDENTICAL extent D1's
-    // restored `sumti_tail_1 <- quantifier sumti` arm consumes inside
-    // `descriptor_with_gadri_sumti` -- and `sumti_base` tries that arm FIRST.  Choice commits on
-    // its success and an outer failure never re-enters a committed inner choice, so this arm is
-    // unreachable for such an extent whether or not the guard is written.
-    //
-    // It STAYS for defence in depth: the property that makes the guard redundant today is the
-    // ARM ORDER in `sumti_base` plus D1's tail arms, and a later epoch could move either without
-    // noticing that an ownership boundary rested on it.  Written here, the boundary holds by
-    // construction instead.  camxes-exp spells no such guard, so this remains a
-    // recorded fidelity narrowing; the one class it EXCLUDES rather than re-owns is exp's
-    // `quantifier gek_sentence` leading element, which `sumti_tail_1` cannot form, and that
-    // non-adoption is recorded in https://github.com/int19h/jbotci/issues/886.
-    // That issue contains the candidate examples and the reference grammar rows.
+    // The guard keeps this boundary explicit if the arm order or tail rules change.
+    // camxes-exp has no such guard. It excludes camxes-exp's `quantifier gek_sentence`
+    // leading element, which `sumti_tail_1` cannot form. Issue #886 records this non-adoption,
+    // candidate examples, and the reference grammar rows:
+    // https://github.com/int19h/jbotci/issues/886.
 
     /// Product node for description tail; preserves `leading_sumti` and `tail` in source order.
     rule "description tail" exp_full_sumti_description_tail(sumti, subbridi, selbri, normal_term, quantifier) -> struct {
@@ -3915,8 +3900,8 @@ pub mod generated_model {
         /// free-modifier placement camxes-exp's `joik` does not spell. The shared connective
         /// nodes carry a `free*` slot on their head, before the optional `NAI`; `(ZIhE_clause /
         /// joik) free*` (:214) puts the chain's frees AFTER the completed connective and `joik`
-        /// (:347-349) has no slot inside it. Those nodes are shared with routes the epoch base
-        /// already reaches, so the placement is refused on this chain's completed continuation
+        /// (:347-349) has no slot inside it. Those nodes also serve other routes, so the placement
+        /// is refused on this chain's completed continuation
         /// rather than removed from them -- see the rejection's own documentation and #847.
         field additional <- [zero_or_more exp_selbri_relative_clause_continuation(exp_subsentence)
             .reject_output(crate::grammar::baseline_relative::ProhibitedRelativeConnectiveFreeModifierRejection)];
@@ -5360,21 +5345,16 @@ pub mod generated_model {
         // uses for camxes-exp's `joik` at :199. Between them they cover both placements a
         // stranded connective can present: camxes-exp's own `(ZIhE_clause / joik) free*`
         // (:214), which lands after the completed connective, and the head-before-NAI slot the
-        // shared connective nodes carry, which is unsourced (#847) but which the epoch base
-        // already reaches at the enclosing site and which this epoch may therefore not
-        // withdraw. Without them `broda po'oi mi brode zi'e to do brodi toi pe mi` and every
-        // other measured member of its class -- both connective families, GOI and NOI markers,
-        // both sites, one interposed free or several, TO/TOI, SEI and vocative flavours, with
-        // and without a NAI behind the head -- are base-A/head-R: the probe fails, the arm
-        // takes clause one, and the enclosing list whose own connective would have consumed
-        // those frees never gets a list to own. The measured table is in the epoch ledger's
-        // round-5 section.
+        // shared connective nodes carry. That inner slot is unsourced (#847), but the shared
+        // nodes also serve routes that accept it. The probe recognizes both placements so that
+        // the enclosing list can own the stranded connective and its free modifiers.
+        // Without this recognition, `broda po'oi mi brode zi'e to do brodi toi pe mi` fails:
+        // the probe takes only clause one, so the enclosing list cannot consume the continuation.
+        // The same requirement applies to GOI and NOI markers, both sites, and optional NAI.
         //
-        // Refusing the head-before-NAI placement remains a separate job, done by
-        // `ProhibitedRelativeConnectiveFreeModifierRejection` on the chain's own completed
-        // continuations, where it decides what this epoch's new route may PRODUCE. This probe
-        // produces nothing, so recognising the placement here neither loosens that rejection
-        // nor emits the free modifiers' own diagnostics.
+        // `ProhibitedRelativeConnectiveFreeModifierRejection` refuses the head-before-NAI
+        // placement on the chain's completed continuations. This probe produces no output.
+        // Recognizing the placement here does not loosen that rejection or emit diagnostics.
         //
         // The marker inventory is the whole atom inventory of the sites that own the stranded
         // list, which is NOI *and* GOI: `relative_clause_atom` is
@@ -5844,9 +5824,8 @@ pub mod generated_model {
 
     }
 
-    /// Compatibility name for the now-unified tanru-unit atom used on both
-    /// sides of CEI. The standard grammar has one tanru-unit-1 domain, so the
-    /// epoch-5 model deliberately uses the same validated type throughout.
+    /// Compatibility name for the tanru-unit atom used on both sides of CEI.
+    /// The standard grammar has one tanru-unit-1 domain, so both sides use the same validated type.
     pub type TanruUnitAtomForCeiSyntax = TanruUnitAtomSyntax;
 
     /// Compatibility name for the unified tanru-unit atom sum used after CEI.

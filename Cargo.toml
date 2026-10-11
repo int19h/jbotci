@@ -237,25 +237,12 @@ debug = "line-tables-only"
 opt-level = 3
 codegen-units = 16
 
-# Native debug builds of jbotci-syntax carry line tables, not full debug info. The
-# generated grammar's combinator types give every monomorphized function an enormous
-# name. With full debug info the syntax crate alone fed 7.5 GB of .debug_str into the
-# debug jbotci link: 5.0 GB on main at 166b270386, whose merged section was already
-# 3.26 GB, 76% of 2^32. DWARF32 addresses .debug_str with 32-bit offsets, so the
-# aarch64 link failed with "relocation truncated to fit".
-#
-# Measured at 00bfea6afb, as the debug jbotci binary's merged .debug_str and the
-# target size after `cargo build -p jbotci` plus `cargo test -p jbotci --no-run`:
-#   line-tables-only             1.42 GB (33% of 2^32); 22.9 GB; file:line in
-#                                backtraces and gdb
-#   false                        89 MB (2%); 15.4 GB; no file:line
-#   split-debuginfo = "unpacked"  89 MB (2%) with full debug info in .dwo files;
-#                                31.8 GB, 15.3 GB of it .dwo per build flavour
-#
-# The 33% is headroom, not a fix: this epoch grew the crate's debug strings by about
-# 50%, so a similar epoch would bring line tables to roughly half of 2^32. The real fix
-# is #936. Until it lands, `false` is the fallback if line tables cross the limit.
-# `split-debuginfo = "unpacked"` gives full debug info locally at the disk cost above.
+# Native debug builds of jbotci-syntax carry line tables for source locations in backtraces and gdb.
+# Generated combinator types give monomorphized functions long names.
+# DWARF32 uses 32-bit offsets into .debug_str, so full debug information can exceed its address range.
+# Line tables reduce debug data but still contain function names. Issue #936 covers this constraint.
+# If line tables exceed the limit, set this package's debug value to false.
+# split-debuginfo = "unpacked" retains full debug information in separate .dwo files at a larger disk cost.
 # The profiles that inherit dev (test, desktop-dev) get this override too; wasm-dev
 # sets its own below. Package overrides are not read from CARGO_PROFILE_* environment
 # variables; for full debug info in a one-off cargo build, pass

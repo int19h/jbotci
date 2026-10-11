@@ -3229,11 +3229,8 @@ mod tests {
             &jbotci_syntax::ParseOptions::default(),
         );
         assert_eq!(recovered.errors.len(), 1);
-        // One slot per abandoned construct, and at this offset there is now exactly one. The
-        // count was three until epoch 9 deleted the unsourced description-head connective route
-        // (#837 SUM-01): its `connective`, `trailing_description_head` and `tail` fields were the
-        // other two slots, and a route that no longer exists abandons nothing. The rendering is
-        // unchanged, which is the distinction this test exists to hold.
+        // The model keeps one slot per abandoned construct. This offset has one slot,
+        // while the bracket renderer can use more than one missing marker for that slot.
         assert_eq!(
             jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
             1,
