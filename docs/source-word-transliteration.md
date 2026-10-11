@@ -337,6 +337,7 @@ A few end-to-end renderings to confirm the rules compose (source → IPA → Loj
 The `word` field accepts a source-language IPA transcription.
 The mapping converts that input to Lojban scoring letters.
 The field does not require the caller to know Lojban spelling.
+The tool field instructions ask the caller to drop grammatical endings.
 
 The transcription supplies the pronunciation and resolves phonemic schwa before mapping.
 The tables in this document define the accepted base symbols and their output letters.

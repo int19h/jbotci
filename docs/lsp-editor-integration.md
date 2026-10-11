@@ -78,6 +78,8 @@ The protocol adapter negotiates UTF-8 or UTF-16 with the client.
 UTF-16 is the fallback encoding.
 
 The index handles CRLF line endings and characters outside the basic multilingual plane.
+The analysis creates `SourceSpan` values with byte and character offsets and empty optional `start` and `end` line positions.
+`LineIndex` supplies the client positions.
 Queries keep source offsets separate from protocol positions.
 The adapter converts positions at the protocol boundary.
 
@@ -112,6 +114,8 @@ The summary and the detailed note can therefore contain different numbers of alt
 Hover finds the word at the cursor through recovered morphology spans.
 The dictionary supplies definitions, glosses, places, and rafsi where available.
 The hover range covers the dictionary unit that the card describes.
+Card headings put the word classification, including cmavo selma'o, on the headword line.
+The shared renderer omits layout-only labels.
 
 The renderer handles word groups as follows:
 
