@@ -17,181 +17,110 @@
 
 use bityzba::{contract_trait, invariant, requires};
 
-use super::generated_model::{self as model, recovered};
+use super::generated_model::view::{self, AsView, Walkable};
 use super::generated_runtime::OutputRejection;
 
-/// Generated pass for missing PEhO and arrays in a reference mex.
+/// Only these three grammar roots use the reference mex restrictions.
+#[contract_trait]
+trait ReferenceMexRoot<'tree>: Walkable<'tree> {}
+#[contract_trait]
+impl<'tree> ReferenceMexRoot<'tree> for view::MeksoSyntaxRef<'tree> {}
+#[contract_trait]
+impl<'tree> ReferenceMexRoot<'tree> for view::ExpMexSyntaxRef<'tree> {}
+#[contract_trait]
+impl<'tree> ReferenceMexRoot<'tree> for view::ExpMex2SyntaxRef<'tree> {}
+
+/// Find missing PEhO and arrays through the generated view walker.
 #[invariant(true)]
 struct ReferenceMexFinder {
     found: bool,
     array_found: bool,
 }
 
-impl<'tree> model::TreeWalker<'tree> for ReferenceMexFinder {
+#[contract_trait]
+impl<'tree> view::Walker<'tree> for ReferenceMexFinder {
     #[requires(true)]
     #[ensures(self.array_found)]
     #[ensures(old(self.found) -> self.found)]
-    fn walk_array_mekso_operand(&mut self, node: &'tree model::ArrayMeksoOperandSyntax) {
+    fn walk_array_mekso_operand(&mut self, node: view::ArrayMeksoOperandSyntaxRef<'tree>) {
         self.array_found = true;
-        model::walk::array_mekso_operand(self, node);
+        view::walk::array_mekso_operand(self, node);
     }
 
     #[requires(true)]
     #[ensures(old(self.found) -> self.found)]
-    fn walk_forethought_call_mekso(&mut self, node: &'tree model::ForethoughtCallMeksoSyntax) {
-        // Destructure exhaustively, so that a new field is a compile error here.
-        let model::ForethoughtCallMeksoSyntax {
+    fn walk_forethought_call_mekso(&mut self, node: view::ForethoughtCallMeksoSyntaxRef<'tree>) {
+        let view::ForethoughtCallMeksoSyntaxView {
             peho,
             operator: _,
             operands: _,
             kuhe: _,
-        } = node;
+        } = node.get();
         if peho.is_none() {
             self.found = true;
         }
-        model::walk::forethought_call_mekso(self, node);
+        view::walk::forethought_call_mekso(self, node);
     }
 
     #[requires(true)]
     #[ensures(self.found == old(self.found))]
-    fn walk_sumti(&mut self, _node: &'tree model::SumtiSyntax) {}
-
+    fn walk_sumti(&mut self, _node: view::SumtiSyntaxRef<'tree>) {}
     #[requires(true)]
     #[ensures(self.found == old(self.found))]
-    fn walk_selbri(&mut self, _node: &'tree model::SelbriSyntax) {}
-
+    fn walk_selbri(&mut self, _node: view::SelbriSyntaxRef<'tree>) {}
     #[requires(true)]
     #[ensures(self.found == old(self.found))]
-    fn walk_tense_modal(&mut self, _node: &'tree model::TenseModalSyntax) {}
-
+    fn walk_tense_modal(&mut self, _node: view::TenseModalSyntaxRef<'tree>) {}
     #[requires(true)]
     #[ensures(self.found == old(self.found))]
-    fn walk_free_modifier(&mut self, _node: &'tree model::FreeModifierSyntax) {}
+    fn walk_free_modifier(&mut self, _node: view::FreeModifierSyntaxRef<'tree>) {}
 }
 
-impl<'tree> recovered::TreeWalker<'tree> for ReferenceMexFinder {
-    #[requires(true)]
-    #[ensures(self.array_found)]
-    #[ensures(old(self.found) -> self.found)]
-    fn walk_array_mekso_operand(&mut self, node: &'tree recovered::ArrayMeksoOperandSyntax) {
-        self.array_found = true;
-        recovered::walk::array_mekso_operand(self, node);
-    }
-
-    #[requires(true)]
-    #[ensures(old(self.found) -> self.found)]
-    fn walk_forethought_call_mekso(&mut self, node: &'tree recovered::ForethoughtCallMeksoSyntax) {
-        // Destructure exhaustively, so that a new field is a compile error here.
-        let recovered::ForethoughtCallMeksoSyntax {
-            peho,
-            operator: _,
-            operands: _,
-            kuhe: _,
-        } = node;
-        if peho.is_none() {
-            self.found = true;
-        }
-        recovered::walk::forethought_call_mekso(self, node);
-    }
-
-    #[requires(true)]
-    #[ensures(self.found == old(self.found))]
-    fn walk_sumti(&mut self, _node: &'tree recovered::SumtiSyntax) {}
-
-    #[requires(true)]
-    #[ensures(self.found == old(self.found))]
-    fn walk_selbri(&mut self, _node: &'tree recovered::SelbriSyntax) {}
-
-    #[requires(true)]
-    #[ensures(self.found == old(self.found))]
-    fn walk_tense_modal(&mut self, _node: &'tree recovered::TenseModalSyntax) {}
-
-    #[requires(true)]
-    #[ensures(self.found == old(self.found))]
-    fn walk_free_modifier(&mut self, _node: &'tree recovered::FreeModifierSyntax) {}
+#[requires(true)]
+#[ensures(true)]
+fn reference_mex_findings<'tree>(value: impl Walkable<'tree>) -> ReferenceMexFinder {
+    let mut finder = ReferenceMexFinder {
+        found: false,
+        array_found: false,
+    };
+    value.walk_with(&mut finder);
+    finder
 }
 
-/// Grammar-level refinement that refuses a mex holding a forethought call without PEhO, for
-/// the constructs that read camxes-exp's mex language: the raw-mex quantifier, and the
-/// `mex_2` of a subscript and of an utterance ordinal.
+/// Refuse a forethought call without PEhO in the reference mex structure.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PehoLessForethoughtRejection;
 
-const PEHO_LESS_FORETHOUGHT_REJECTION_NAME: &str = "forethought mex without PEhO";
-
-/// Implements the refinement for a strict mex node type and its recovered counterpart. The
-/// recovered walk descends through every slot that parsed, so a recovery item elsewhere in
-/// the mex does not hide a forethought call without PEhO.
-macro_rules! peho_less_forethought_rejection {
-    ($($node:ident),+ $(,)?) => {$(
-        #[contract_trait]
-        impl OutputRejection<model::$node> for PehoLessForethoughtRejection {
-            fn rejected_name(&self) -> &'static str {
-                PEHO_LESS_FORETHOUGHT_REJECTION_NAME
-            }
-
-            fn rejects(&self, value: &model::$node) -> bool {
-                let mut finder = ReferenceMexFinder { found: false, array_found: false };
-                model::TreeWalkable::walk_with(value, &mut finder);
-                finder.found
-            }
-        }
-
-        #[contract_trait]
-        impl OutputRejection<recovered::Recovered<recovered::$node>>
-            for PehoLessForethoughtRejection
-        {
-            fn rejected_name(&self) -> &'static str {
-                PEHO_LESS_FORETHOUGHT_REJECTION_NAME
-            }
-
-            fn rejects(&self, value: &recovered::Recovered<recovered::$node>) -> bool {
-                let mut finder = ReferenceMexFinder { found: false, array_found: false };
-                recovered::walk::recovered(&mut finder, value);
-                finder.found
-            }
-        }
-    )+};
+#[contract_trait]
+impl<T> OutputRejection<T> for PehoLessForethoughtRejection
+where
+    for<'tree> T: AsView<'tree>,
+    for<'tree> <T as AsView<'tree>>::Ref: ReferenceMexRoot<'tree>,
+{
+    fn rejected_name(&self) -> &'static str {
+        "forethought mex without PEhO"
+    }
+    fn rejects(&self, value: &T) -> bool {
+        reference_mex_findings(value.as_view()).found
+    }
 }
 
-peho_less_forethought_rejection!(MeksoSyntax, ExpMex2Syntax, ExpMexSyntax);
-
-/// Refuses an array in a reference mex's own structure.
-/// JOhI appears only in operand_3, which mex_2 does not call (camxes-exp.peg:282,323).
-/// Quotes and the retained nested sumti, selbri, tag and free-modifier languages stay separate.
+/// Refuse an array in the reference mex structure.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CamxesArrayRejection;
 
-macro_rules! camxes_array_rejection {
-    ($($node:ident),+ $(,)?) => {$(
-        #[contract_trait]
-        impl OutputRejection<model::$node> for CamxesArrayRejection {
-            fn rejected_name(&self) -> &'static str {
-                "JOhI array outside the reference operand tier"
-            }
-
-            fn rejects(&self, value: &model::$node) -> bool {
-                let mut finder = ReferenceMexFinder { found: false, array_found: false };
-                model::TreeWalkable::walk_with(value, &mut finder);
-                finder.array_found
-            }
-        }
-
-        #[contract_trait]
-        impl OutputRejection<recovered::Recovered<recovered::$node>> for CamxesArrayRejection {
-            fn rejected_name(&self) -> &'static str {
-                "JOhI array outside the reference operand tier"
-            }
-
-            fn rejects(&self, value: &recovered::Recovered<recovered::$node>) -> bool {
-                let mut finder = ReferenceMexFinder { found: false, array_found: false };
-                recovered::walk::recovered(&mut finder, value);
-                finder.array_found
-            }
-        }
-    )+};
+#[contract_trait]
+impl<T> OutputRejection<T> for CamxesArrayRejection
+where
+    for<'tree> T: AsView<'tree>,
+    for<'tree> <T as AsView<'tree>>::Ref: ReferenceMexRoot<'tree>,
+{
+    fn rejected_name(&self) -> &'static str {
+        "JOhI array outside the reference operand tier"
+    }
+    fn rejects(&self, value: &T) -> bool {
+        reference_mex_findings(value.as_view()).array_found
+    }
 }
-
-camxes_array_rejection!(MeksoSyntax, ExpMexSyntax, ExpMex2Syntax);

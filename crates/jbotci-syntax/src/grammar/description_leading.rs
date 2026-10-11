@@ -46,13 +46,13 @@
 use std::sync::OnceLock;
 
 use bityzba::{contract_trait, invariant, requires};
-use jbotci_tree::TreeVisitor;
 
-use super::generated_model::{
-    ExpFullSumtiDescriptionTailSyntax, SumtiAtomSyntax, SumtiSyntax, recovered,
-};
+use super::generated_model::{ExpFullSumtiDescriptionTailSyntax, recovered, view};
 use super::generated_runtime::{OutputRejection, output_rejection_site};
-use super::sumti_operand_tier::{SumtiOperandTier, recovered_sumti_base_tier, sumti_base_tier};
+use super::sumti_operand_tier::{SumtiOperandTier, sumti_base_tier};
+#[cfg(test)]
+use view::AsView;
+use view::valid;
 
 /// Where a completed camxes-exp leading sumti's extent belongs.
 #[invariant(true)]
@@ -66,119 +66,122 @@ pub(crate) enum ExpLeadingSumtiOrigin {
     Unproven,
 }
 
-/// Classify a strict leading sumti.
-///
-/// The baseline leading operand is one `sumti_base` of the permitted `sumti_6` tier and nothing
-/// else, so every connection, grouping, VUhO and forethought slot on the way down must be empty
-/// for the extent to be one the baseline route can take. A trailing relative list is included:
-/// the baseline description tail carries its own relative list immediately after the leading
-/// operand, so that extent is one the baseline route derives as well.
-///
-/// Occupancy IS evidence here, unlike on the recovered spine: a strict parse cannot synthesize a
-/// slot, so an occupied connection, VUhO, grouping, BO, GEK or quantifier slot was parsed from
-/// input by construction. The recovered twin carries the entry-evidence discipline instead.
-#[requires(true)]
-#[ensures(ret != ExpLeadingSumtiOrigin::Unproven, "a strict candidate established its shape")]
-fn strict_origin(sumti: &SumtiSyntax) -> ExpLeadingSumtiOrigin {
-    let SumtiSyntax {
-        base_sumti,
-        vuho_attachment,
-    } = sumti;
-    if vuho_attachment.is_some() {
-        return ExpLeadingSumtiOrigin::ExpOnly;
-    }
-    let super::generated_model::SumtiGroupedSyntax {
-        leading_sumti,
-        grouped_tail,
-    } = base_sumti.as_ref();
-    if grouped_tail.is_some() {
-        return ExpLeadingSumtiOrigin::ExpOnly;
-    }
-    let super::generated_model::SumtiAfterthoughtSyntax {
-        leading_sumti,
-        continuations,
-    } = leading_sumti.as_ref();
-    if !continuations.is_empty() {
-        return ExpLeadingSumtiOrigin::ExpOnly;
-    }
-    let super::generated_model::SumtiBoundSyntax {
-        leading_sumti,
-        bound_tail,
-    } = leading_sumti.as_ref();
-    if bound_tail.is_some() {
-        return ExpLeadingSumtiOrigin::ExpOnly;
-    }
-    let simple = match leading_sumti.as_ref() {
-        super::generated_model::SumtiForethoughtSyntax::ForethoughtSumti(_) => {
-            return ExpLeadingSumtiOrigin::ExpOnly;
-        }
-        super::generated_model::SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
-    };
-    let super::generated_model::SimpleSumtiSyntax {
-        base_sumti,
-        relative_clauses: _,
-    } = simple.as_ref();
-    match base_sumti.as_ref() {
-        // A quantified operand is not baseline-leading-derivable: the operand tier restriction
-        // is precisely what removed it from the baseline leading operand.  The rule's own
-        // `!quantifier` lookahead is what keeps such extents baseline-owned.
-        SumtiAtomSyntax::QuantifiedSumti(_) => ExpLeadingSumtiOrigin::ExpOnly,
-        SumtiAtomSyntax::SumtiBase(base) => match sumti_base_tier(base) {
-            SumtiOperandTier::Sumti6 => ExpLeadingSumtiOrigin::BaselineDerivable,
-            SumtiOperandTier::Sumti5 | SumtiOperandTier::Unproven => ExpLeadingSumtiOrigin::ExpOnly,
-        },
-    }
-}
-
-/// The value of a recovered slot that proved itself valid, or `None`.
-#[requires(true)]
-#[ensures(
-    ret.is_some() == matches!(value, recovered::Recovered::Valid(_)),
-    "only a `Valid` wrapper carries a value that proved itself"
-)]
-fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
-    match value {
-        recovered::Recovered::Valid(value) => Some(value),
-        recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
-    }
-}
-
-/// Records whether the generated in-order traversal reached a token the parser really consumed.
-///
-/// `visit_recovered_error` is deliberately left at its trait default. A recovery item is not a
-/// parsed token, and neither are the tokens a `SkippedTokens` item carries: they were skipped
-/// past a failing production, not consumed into it. Only `AtomRef::Token` -- the atom event the
-/// generated model emits for a token that landed in the tree -- sets the flag.
 #[invariant(true)]
 struct ParsedTokenProbe {
     found: bool,
 }
 
-impl<'tree> TreeVisitor<'tree> for ParsedTokenProbe {
-    type Node = recovered::NodeRef<'tree>;
-    type Atom = recovered::AtomRef<'tree>;
-
+#[contract_trait]
+impl<'tree> view::Walker<'tree> for ParsedTokenProbe {
     #[requires(true)]
-    #[ensures(self.found, "reaching a token atom is exactly the evidence being collected")]
-    fn visit_atom(&mut self, _atom: Self::Atom) {
+    #[ensures(self.found)]
+    fn walk_atom(&mut self, _atom: super::generated_model::AtomRef<'tree>) {
         self.found = true;
     }
 }
 
-/// Whether a recovered subtree proves that the parser consumed at least one token into it.
-///
-/// This is the entry-evidence primitive. It is applied to a DISCRIMINATOR's own subtree -- a
-/// connective, a marker word, a whole quantifier -- never to a slot that also contains an
-/// operand, so "a token was parsed in here" and "this discriminator was really parsed" are the
-/// same statement at every call site. The traversal is the generated `TreeVisitor` walk rather
-/// than a hand-rolled descent, so a future field or alternative under one of these productions
-/// is covered without this module being edited.
+/// Only parsed tree atoms give entry evidence. Recovery errors give none.
 #[requires(true)]
 #[ensures(true)]
-fn proves_a_parsed_token<T: recovered::TreeNode>(node: &T) -> bool {
+fn proves_a_parsed_token<'tree, V: view::Walkable<'tree> + view::Inspect>(
+    node: view::Slot<V>,
+) -> bool {
+    // Strict discriminators prove their parsed entry by construction.
+    if node
+        .valid()
+        .is_some_and(|value| !value.needs_recovery_evidence())
+    {
+        return true;
+    }
     let mut probe = ParsedTokenProbe { found: false };
-    recovered::TreeNode::visit_in_order(node, &mut probe);
+    view::Walkable::walk_with(node, &mut probe);
     probe.found
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vuho_scoped_is_parsed(
+    value: view::ExperimentalVuhoScopedSumtiAttachmentTailSyntaxView<'_>,
+) -> bool {
+    let view::ExperimentalVuhoScopedSumtiAttachmentTailSyntaxView {
+        vuho,
+        relative_clauses: _,
+        sumti_connection: _,
+    } = value;
+    valid(vuho.value).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vuho_relative_is_parsed(value: view::VuhoRelativeSumtiAttachmentTailSyntaxView<'_>) -> bool {
+    let view::VuhoRelativeSumtiAttachmentTailSyntaxView {
+        vuho,
+        relative_clauses: _,
+    } = value;
+    valid(vuho.value).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bare_vuho_is_parsed(value: view::ExperimentalBareVuhoSumtiAttachmentTailSyntaxView<'_>) -> bool {
+    let view::ExperimentalBareVuhoSumtiAttachmentTailSyntaxView(vuho) = value;
+    valid(vuho.value).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bo_is_parsed(value: view::SumtiBoundTailSyntaxView<'_>) -> bool {
+    let view::SumtiBoundTailSyntaxView {
+        connective: _,
+        tense_modal: _,
+        bo,
+        trailing_sumti: _,
+    } = value;
+    valid(bo.value).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn grouped_connective_is_parsed(value: view::GroupedSumtiTailSyntaxView<'_>) -> bool {
+    let view::GroupedSumtiTailSyntaxView {
+        connective,
+        tense_modal: _,
+        ke: _,
+        inner_sumti: _,
+        kehe: _,
+    } = value;
+    proves_a_parsed_token(connective)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn continuation_connective_is_parsed(value: view::SumtiAfterthoughtTailSyntaxView<'_>) -> bool {
+    let view::SumtiAfterthoughtTailSyntaxView {
+        connective,
+        sumti: _,
+    } = value;
+    proves_a_parsed_token(connective)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn forethought_connective_is_parsed(value: view::ForethoughtSumtiSyntaxView<'_>) -> bool {
+    let view::ForethoughtSumtiSyntaxView {
+        gek,
+        leading_sumti: _,
+        first_branch: _,
+    } = value;
+    proves_a_parsed_token(gek)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_is_parsed(value: view::QuantifiedSumtiSyntaxView<'_>) -> bool {
+    let view::QuantifiedSumtiSyntaxView {
+        quantifier,
+        inner_sumti: _,
+    } = value;
+    proves_a_parsed_token(quantifier)
 }
 
 /// Whether a recovered VUhO attachment proves its own VUhO marker was parsed.
@@ -190,22 +193,22 @@ fn proves_a_parsed_token<T: recovered::TreeNode>(node: &T) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn vuho_marker_is_parsed(
-    attachment: &recovered::Recovered<recovered::VuhoSumtiAttachmentTailSyntax>,
+    attachment: view::Slot<view::VuhoSumtiAttachmentTailSyntaxRef<'_>>,
 ) -> bool {
     let Some(attachment) = valid(attachment) else {
         return false;
     };
     match attachment {
-        recovered::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
+        view::VuhoSumtiAttachmentTailSyntaxView::ExperimentalVuhoScopedSumtiAttachmentTail(
             tail,
-        ) => valid(tail).is_some_and(|tail| valid(&tail.vuho.value).is_some()),
-        recovered::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail) => {
-            valid(tail).is_some_and(|tail| valid(&tail.vuho.value).is_some())
+        ) => valid(tail).is_some_and(|tail| vuho_scoped_is_parsed(tail)),
+        view::VuhoSumtiAttachmentTailSyntaxView::VuhoRelativeSumtiAttachmentTail(tail) => {
+            valid(tail).is_some_and(|tail| vuho_relative_is_parsed(tail))
         }
         // The bare-VUhO extension is a transparent single-field product, so its marker is the
         // whole node.
-        recovered::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(tail) => {
-            valid(tail).is_some_and(|tail| valid(&tail.0.value).is_some())
+        view::VuhoSumtiAttachmentTailSyntaxView::ExperimentalBareVuhoSumtiAttachmentTail(tail) => {
+            valid(tail).is_some_and(|tail| bare_vuho_is_parsed(tail))
         }
     }
 }
@@ -216,29 +219,29 @@ fn vuho_marker_is_parsed(
 /// makes the tail a tail.
 #[requires(true)]
 #[ensures(true)]
-fn bound_tail_bo_is_parsed(tail: &recovered::Recovered<recovered::SumtiBoundTailSyntax>) -> bool {
-    valid(tail).is_some_and(|tail| valid(&tail.bo.value).is_some())
+fn bound_tail_bo_is_parsed(tail: view::Slot<view::SumtiBoundTailSyntaxRef<'_>>) -> bool {
+    valid(tail).is_some_and(|tail| bo_is_parsed(tail))
 }
 
-/// Whether the recovered path's deciding exp-only discriminator proves its own entry.
+/// Whether the deciding extension discriminator contains a parsed token.
 ///
-/// This is the contract predicate for `recovered_origin`: it follows the same ownership layers,
+/// This is the contract predicate for `leading_origin`: it follows the same ownership layers,
 /// but asks only for the parsed-token evidence at the first occupied discriminator. A synthesized
 /// outer discriminator therefore cannot be bypassed by valid evidence deeper in the sumti.
 #[requires(true)]
 #[ensures(
-    ret -> matches!(sumti.base_sumti.as_ref(), recovered::Recovered::Valid(_)),
+    ret -> matches!(sumti.base_sumti, view::Slot::Valid(_)),
     "proven exp-only ownership descends through a valid connection level"
 )]
-fn exp_only_discriminator_is_proven(sumti: &recovered::SumtiSyntax) -> bool {
+fn exp_only_discriminator_is_proven(sumti: view::SumtiSyntaxView<'_>) -> bool {
     let Some(grouped) = valid(&sumti.base_sumti) else {
         return false;
     };
-    if let Some(attachment) = &sumti.vuho_attachment {
+    if let Some(attachment) = sumti.vuho_attachment {
         return vuho_marker_is_parsed(attachment);
     }
     if let Some(tail) = &grouped.grouped_tail {
-        return valid(tail).is_some_and(|tail| proves_a_parsed_token(&tail.connective));
+        return valid(tail).is_some_and(|tail| grouped_connective_is_parsed(tail));
     }
     let Some(afterthought) = valid(&grouped.leading_sumti) else {
         return false;
@@ -246,24 +249,24 @@ fn exp_only_discriminator_is_proven(sumti: &recovered::SumtiSyntax) -> bool {
     if !afterthought.continuations.is_empty() {
         return afterthought.continuations.iter().any(|continuation| {
             valid(continuation)
-                .is_some_and(|continuation| proves_a_parsed_token(&continuation.connective))
+                .is_some_and(|continuation| continuation_connective_is_parsed(continuation))
         });
     }
     let Some(bound) = valid(&afterthought.leading_sumti) else {
         return false;
     };
-    if let Some(tail) = &bound.bound_tail {
+    if let Some(tail) = bound.bound_tail {
         return bound_tail_bo_is_parsed(tail);
     }
     let Some(forethought) = valid(&bound.leading_sumti) else {
         return false;
     };
     let simple = match forethought {
-        recovered::SumtiForethoughtSyntax::ForethoughtSumti(forethought) => {
+        view::SumtiForethoughtSyntaxView::ForethoughtSumti(forethought) => {
             return valid(forethought)
-                .is_some_and(|forethought| proves_a_parsed_token(&forethought.gek));
+                .is_some_and(|forethought| forethought_connective_is_parsed(forethought));
         }
-        recovered::SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
+        view::SumtiForethoughtSyntaxView::SimpleSumti(simple) => simple,
     };
     let Some(simple) = valid(simple) else {
         return false;
@@ -272,14 +275,16 @@ fn exp_only_discriminator_is_proven(sumti: &recovered::SumtiSyntax) -> bool {
         return false;
     };
     match atom {
-        recovered::SumtiAtomSyntax::QuantifiedSumti(quantified) => valid(quantified)
-            .is_some_and(|quantified| proves_a_parsed_token(&quantified.quantifier)),
-        recovered::SumtiAtomSyntax::SumtiBase(base) => valid(base)
-            .is_some_and(|base| recovered_sumti_base_tier(base) == SumtiOperandTier::Sumti5),
+        view::SumtiAtomSyntaxView::QuantifiedSumti(quantified) => {
+            valid(quantified).is_some_and(|quantified| quantifier_is_parsed(quantified))
+        }
+        view::SumtiAtomSyntaxView::SumtiBase(base) => {
+            valid(base).is_some_and(|base| sumti_base_tier(base) == SumtiOperandTier::Sumti5)
+        }
     }
 }
 
-/// Classify a recovered leading sumti.
+/// Classify a strict or recovered leading sumti through the same view.
 ///
 /// Any slot on the reduction path that did not prove itself valid leaves the shape unestablished,
 /// which is `Unproven` rather than "not baseline-derivable". So does a discriminator that is
@@ -287,21 +292,21 @@ fn exp_only_discriminator_is_proven(sumti: &recovered::SumtiSyntax) -> bool {
 /// stand in for entry evidence on this spine.
 #[requires(true)]
 #[ensures(
-    !matches!(sumti.base_sumti.as_ref(), recovered::Recovered::Valid(_))
+    !matches!(sumti.base_sumti, view::Slot::Valid(_))
         -> ret == ExpLeadingSumtiOrigin::Unproven,
     "a connection level that did not prove itself establishes nothing about the extent"
 )]
 #[ensures(
     ret == ExpLeadingSumtiOrigin::ExpOnly
-        -> matches!(sumti.base_sumti.as_ref(), recovered::Recovered::Valid(_)),
+        -> matches!(sumti.base_sumti, view::Slot::Valid(_)),
     "exp-only ownership requires a valid connection level"
 )]
-#[ensures(
-    ret == ExpLeadingSumtiOrigin::ExpOnly -> exp_only_discriminator_is_proven(sumti),
+#[bityzba::expensive_ensures(
+    ret != ExpLeadingSumtiOrigin::ExpOnly || exp_only_discriminator_is_proven(sumti),
     "exp-only ownership rests on a proven parsed discriminator"
 )]
-fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
-    let recovered::SumtiSyntax {
+fn leading_origin(sumti: view::SumtiSyntaxView<'_>) -> ExpLeadingSumtiOrigin {
+    let view::SumtiSyntaxView {
         base_sumti,
         vuho_attachment,
     } = sumti;
@@ -315,14 +320,14 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
             ExpLeadingSumtiOrigin::Unproven
         };
     }
-    let recovered::SumtiGroupedSyntax {
+    let view::SumtiGroupedSyntaxView {
         leading_sumti,
         grouped_tail,
     } = grouped;
     if let Some(tail) = grouped_tail {
         // The grouped tail's own discriminator is its connective, the production's first
         // constituent; the inner sumti it also carries is an operand, not evidence.
-        return if valid(tail).is_some_and(|tail| proves_a_parsed_token(&tail.connective)) {
+        return if valid(tail).is_some_and(|tail| grouped_connective_is_parsed(tail)) {
             ExpLeadingSumtiOrigin::ExpOnly
         } else {
             ExpLeadingSumtiOrigin::Unproven
@@ -331,7 +336,7 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
     let Some(afterthought) = valid(leading_sumti) else {
         return ExpLeadingSumtiOrigin::Unproven;
     };
-    let recovered::SumtiAfterthoughtSyntax {
+    let view::SumtiAfterthoughtSyntaxView {
         leading_sumti,
         continuations,
     } = afterthought;
@@ -341,7 +346,7 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
         // connective proves nothing at all.
         return if continuations.iter().any(|continuation| {
             valid(continuation)
-                .is_some_and(|continuation| proves_a_parsed_token(&continuation.connective))
+                .is_some_and(|continuation| continuation_connective_is_parsed(continuation))
         }) {
             ExpLeadingSumtiOrigin::ExpOnly
         } else {
@@ -351,7 +356,7 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
     let Some(bound) = valid(leading_sumti) else {
         return ExpLeadingSumtiOrigin::Unproven;
     };
-    let recovered::SumtiBoundSyntax {
+    let view::SumtiBoundSyntaxView {
         leading_sumti,
         bound_tail,
     } = bound;
@@ -366,23 +371,23 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
         return ExpLeadingSumtiOrigin::Unproven;
     };
     let simple = match forethought {
-        recovered::SumtiForethoughtSyntax::ForethoughtSumti(forethought) => {
+        view::SumtiForethoughtSyntaxView::ForethoughtSumti(forethought) => {
             // The GEK subtree is the connective and nothing else, so probing it whole is the
             // same statement as "the forethought opener was parsed".
             return if valid(forethought)
-                .is_some_and(|forethought| proves_a_parsed_token(&forethought.gek))
+                .is_some_and(|forethought| forethought_connective_is_parsed(forethought))
             {
                 ExpLeadingSumtiOrigin::ExpOnly
             } else {
                 ExpLeadingSumtiOrigin::Unproven
             };
         }
-        recovered::SumtiForethoughtSyntax::SimpleSumti(simple) => simple,
+        view::SumtiForethoughtSyntaxView::SimpleSumti(simple) => simple,
     };
     let Some(simple) = valid(simple) else {
         return ExpLeadingSumtiOrigin::Unproven;
     };
-    let recovered::SimpleSumtiSyntax {
+    let view::SimpleSumtiSyntaxView {
         base_sumti,
         relative_clauses: _,
     } = simple;
@@ -390,25 +395,23 @@ fn recovered_origin(sumti: &recovered::SumtiSyntax) -> ExpLeadingSumtiOrigin {
         return ExpLeadingSumtiOrigin::Unproven;
     };
     match atom {
-        recovered::SumtiAtomSyntax::QuantifiedSumti(quantified) => {
+        view::SumtiAtomSyntaxView::QuantifiedSumti(quantified) => {
             // Without a proven quantifier the extent this atom consumed is its inner operand's,
             // and that operand is a `description_leading_operand` -- exactly what the baseline
             // route derives. A synthesized quantifier may not turn it into an exp-only extent.
             // The quantifier subtree contains only the quantifier's own material, so probing it
             // whole reaches every spelling the production has, raw mex included.
-            if valid(quantified)
-                .is_some_and(|quantified| proves_a_parsed_token(&quantified.quantifier))
-            {
+            if valid(quantified).is_some_and(|quantified| quantifier_is_parsed(quantified)) {
                 ExpLeadingSumtiOrigin::ExpOnly
             } else {
                 ExpLeadingSumtiOrigin::Unproven
             }
         }
-        recovered::SumtiAtomSyntax::SumtiBase(base) => {
+        view::SumtiAtomSyntaxView::SumtiBase(base) => {
             let Some(base) = valid(base) else {
                 return ExpLeadingSumtiOrigin::Unproven;
             };
-            match recovered_sumti_base_tier(base) {
+            match sumti_base_tier(base) {
                 SumtiOperandTier::Sumti6 => ExpLeadingSumtiOrigin::BaselineDerivable,
                 SumtiOperandTier::Sumti5 => ExpLeadingSumtiOrigin::ExpOnly,
                 SumtiOperandTier::Unproven => ExpLeadingSumtiOrigin::Unproven,
@@ -487,6 +490,19 @@ fn trace_recovered_candidate(
     eprintln!("description-leading site={site} slot={slot} origin={origin} decision={decision}");
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn candidate_origin<T>(value: &T) -> Option<ExpLeadingSumtiOrigin>
+where
+    for<'tree> T: view::AsView<'tree, Ref = view::ExpFullSumtiDescriptionTailSyntaxRef<'tree>>,
+{
+    let view::ExpFullSumtiDescriptionTailSyntaxView {
+        leading_sumti,
+        tail: _,
+    } = valid(value.as_view())?;
+    valid(leading_sumti).map(leading_origin)
+}
+
 /// Returns to the baseline route every extent the baseline leading operand derives (R1).
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
@@ -499,7 +515,7 @@ impl OutputRejection<ExpFullSumtiDescriptionTailSyntax> for ExpDescriptionLeadin
     }
 
     fn rejects(&self, value: &ExpFullSumtiDescriptionTailSyntax) -> bool {
-        origin_is_rejected(strict_origin(value.leading_sumti.as_ref()))
+        candidate_origin(value).is_none_or(origin_is_rejected)
     }
 }
 
@@ -517,8 +533,11 @@ impl OutputRejection<recovered::Recovered<recovered::ExpFullSumtiDescriptionTail
     ) -> bool {
         // A candidate that did not prove itself is `Unproven`, and `Unproven` is refused, so the
         // whole wrapper is fail-closed in the same direction as the operand tier classifier.
-        let slot = valid(value).map(|tail| tail.leading_sumti.as_ref());
-        let origin = slot.and_then(valid).map(recovered_origin);
+        let slot = match value {
+            recovered::Recovered::Valid(tail) => Some(tail.leading_sumti.as_ref()),
+            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
+        };
+        let origin = candidate_origin(value);
         let rejected = origin.is_none_or(origin_is_rejected);
         if trace_enabled() {
             trace_recovered_candidate(slot, origin, rejected);
@@ -605,7 +624,7 @@ mod tests {
     fn baseline_derivable_leading_sumti_is_refused() {
         let sumti = recovered_bare_pro_sumti();
         assert_eq!(
-            recovered_origin(&sumti),
+            leading_origin(valid(sumti.as_view()).unwrap()),
             ExpLeadingSumtiOrigin::BaselineDerivable
         );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::BaselineDerivable));
@@ -685,7 +704,10 @@ mod tests {
     #[ensures(true)]
     fn parsed_connective_continuation_is_exp_only_and_accepted() {
         let sumti = connected(continuation(true));
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::ExpOnly);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::ExpOnly
+        );
         assert!(!origin_is_rejected(ExpLeadingSumtiOrigin::ExpOnly));
     }
 
@@ -699,7 +721,10 @@ mod tests {
     #[ensures(true)]
     fn synthesized_continuation_is_unproven_and_refused() {
         let sumti = connected(continuation(false));
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::Unproven));
     }
 
@@ -719,7 +744,10 @@ mod tests {
             sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
         });
         let sumti = connected(continuation);
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
     }
 
     /// The quantified-operand discriminator: with the quantifier synthesized the extent the atom
@@ -756,7 +784,10 @@ mod tests {
             )),
             grouped_tail: None,
         }));
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::Unproven));
     }
 
@@ -770,7 +801,10 @@ mod tests {
             base_sumti: Arc::new(recovered::Recovered::Error(recovery_placeholder())),
             vuho_attachment: None,
         };
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::Unproven));
     }
 
@@ -796,8 +830,13 @@ mod tests {
             vuho_attachment: Some(Arc::new(recovered::Recovered::valid(attachment))),
         };
 
-        assert!(!exp_only_discriminator_is_proven(&sumti));
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert!(!exp_only_discriminator_is_proven(
+            valid(sumti.as_view()).unwrap()
+        ));
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::Unproven));
     }
 
@@ -818,7 +857,10 @@ mod tests {
             })),
             vuho_attachment: None,
         };
-        assert_eq!(recovered_origin(&sumti), ExpLeadingSumtiOrigin::Unproven);
+        assert_eq!(
+            leading_origin(valid(sumti.as_view()).unwrap()),
+            ExpLeadingSumtiOrigin::Unproven
+        );
         assert!(origin_is_rejected(ExpLeadingSumtiOrigin::Unproven));
     }
 }
