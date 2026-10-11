@@ -16,8 +16,7 @@ use super::{
     SyntaxRuleFrame,
 };
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxParseEntry, SyntaxWarning, SyntaxWordCategory,
-    Token, TraceReport,
+    ParseOptions, SyntaxParseEntry, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
 };
 
 #[doc(hidden)]
@@ -27,6 +26,52 @@ pub mod generated_model {
     use super::*;
 
     jbotci_syntax_macros::syntax_grammar! {
+        warnings {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+            pub enum ExperimentalConstruct {
+                runtime ExperimentalCmavo => ("syntax.warning.experimental-cmavo", "experimental cmavo"),
+                ExperimentalZohOiQuote => ("syntax.warning.experimental-zoh-oi-quote", "ZOhOI single-word foreign quote"),
+                ExperimentalMehOiSelbriUnit => ("syntax.warning.experimental-meh-oi-selbri-unit", "MEhOI stage-0 fu'ivla selbri unit"),
+                ExperimentalLohOiBridiDescription => ("syntax.warning.experimental-loh-oi-bridi-description", "LOhOI/KUhAU bridi description sumti"),
+                ExperimentalJaKeTanruConnective => ("syntax.warning.experimental-ja-ke-tanru-connective", "JA connective before a KE tanru group"),
+                ExperimentalIntervalSentenceConnective => ("syntax.warning.experimental-interval-sentence-connective", "BIhI interval connective joining bridi tails"),
+                ExperimentalJaGiForethoughtConnective => ("syntax.warning.experimental-ja-gi-forethought-connective", "JA connective before GI"),
+                ExperimentalNaJoiConnective => ("syntax.warning.experimental-na-joi-connective", "NA before JOI as one connective"),
+                runtime ExperimentalMexQuantifier => ("syntax.warning.experimental-mex-quantifier", "mex quantifier without VEI"),
+                ExperimentalWholeMexQualifier => ("syntax.warning.experimental-whole-mex-qualifier", "qualifier over a whole mex"),
+                ExperimentalSplitNumberLerfu => ("syntax.warning.experimental-split-number-lerfu", "separate number and lerfu strings"),
+                ExperimentalMexMeSelbriUnit => ("syntax.warning.experimental-mex-me-selbri-unit", "ME with a mex body"),
+                ExperimentalMexMoiSelbriUnit => ("syntax.warning.experimental-mex-moi-selbri-unit", "mex before MOI"),
+                ExperimentalMexSubscript => ("syntax.warning.experimental-mex-subscript", "XI with a mex that is not a number or VEI"),
+                ExperimentalMexUtteranceOrdinal => ("syntax.warning.experimental-mex-utterance-ordinal", "mex before MAI"),
+                runtime ExperimentalLohAiReplacementFree => ("syntax.warning.experimental-loh-ai-replacement-free", "LOhAI/LEhAI replacement free modifier"),
+                ExperimentalJacuPredicateTailConnective => ("syntax.warning.experimental-jacu-bridi-tail-connective", "JA/JOI connective used in a bridi-tail connective slot"),
+                ExperimentalNaheArgumentWithoutBo => ("syntax.warning.experimental-nahe-sumti-without-bo", "NAhE argument without BO"),
+                ExperimentalVuhoScopedAttachment => ("syntax.warning.experimental-vuho-scoped-attachment", "VUhO scoped attachment enhancement"),
+                ExperimentalNohoiSelbriRelativeClause => ("syntax.warning.experimental-nohoi-selbri-relative-clause", "NOhOI/KUhOI selbri relative clause"),
+                ExperimentalRelativeClauseConnective => ("syntax.warning.experimental-relative-clause-connective", "JA/JOI connective used between relative clauses"),
+                runtime ExperimentalMexOperatorConnective => ("syntax.warning.experimental-mex-operator-connective", "camxes-exp BO-bound or connective-atom MEX operator"),
+                runtime ExperimentalCuTermsSelbri => ("syntax.warning.experimental-cu-terms-selbri", "CU followed by terms before the main selbri"),
+                ExperimentalLaheNaheTermWrapper => ("syntax.warning.experimental-lahe-nahe-term-wrapper", "LAhE/NAhE term wrapper"),
+                ExperimentalVuhuConnective => ("syntax.warning.experimental-vuhu-connective", "VUhU used as a non-MEX connective"),
+                ExperimentalFaAsTag => ("syntax.warning.experimental-fa-as-tag", "FA place tag used as a tag/stag atom"),
+                runtime ExperimentalFlattenedTag => ("syntax.warning.experimental-flattened-tag", "experimental flattened tag form"),
+                runtime ExperimentalCbmCmevlaSelbriWord => ("syntax.warning.experimental-cbm-cmevla-selbri-word", "CBM cmevla used as a selbri word"),
+                runtime ExperimentalCbmLaNameAsDescriptor => ("syntax.warning.experimental-cbm-la-name-as-description", "CBM LA name form parsed as a description"),
+                runtime ExperimentalDictionaryDoiVocative => ("syntax.warning.experimental-dictionary-doi-vocative", "dictionary-first DOI experimental vocative/attribution cmavo"),
+                runtime ExperimentalDictionaryCoiVocative => ("syntax.warning.experimental-dictionary-coi-vocative", "dictionary-first COI experimental vocative cmavo"),
+                runtime ExperimentalDictionaryPaNumber => ("syntax.warning.experimental-dictionary-pa-number", "dictionary-first PA experimental number word"),
+                runtime ExperimentalDictionaryFahaTag => ("syntax.warning.experimental-dictionary-faha-tag", "dictionary-first FAhA experimental spatial tag"),
+                runtime ExperimentalDictionaryUiIndicator => ("syntax.warning.experimental-dictionary-ui-indicator", "dictionary-first UI3a experimental indicator"),
+                runtime ExperimentalFihoiAdverbial => ("syntax.warning.experimental-fihoi-adverbial", "FIhOI bridi/subbridi adverbial term"),
+                runtime ExperimentalSoiAdverbial => ("syntax.warning.experimental-soi-adverbial", "SOI/XOI bridi/subbridi adverbial term"),
+                runtime ExperimentalPreposedLinkargs => ("syntax.warning.experimental-preposed-linkargs", "BE linkargs before a selbri unit"),
+                ExperimentalTermBoConnection => ("syntax.warning.experimental-term-bo-connection", "BO-bound term or linked-argument connection"),
+                runtime ExperimentalTermLooseConnection => ("syntax.warning.experimental-term-loose-connection", "loose term or linked-argument connection"),
+                runtime ExperimentalExpDescriptionLeadingSumti => ("syntax.warning.experimental-exp-description-leading-sumti", "full sumti as the leading element of a description tail"),
+                runtime CllProhibitedFreeModifierPlacement => ("syntax.warning.cll-prohibited-free-modifier-placement", "free modifier placement prohibited by CLL grammar"),
+            }
+        }
         tree_model {
             #![tree_with_free_modifiers]
             #![tree_recovered]
