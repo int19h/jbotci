@@ -12,7 +12,7 @@ raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpa
 
 [expectations.syntax]
 status = "success"
-raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextNihoParagraphs(TextNihoParagraphsSyntax([NihoParagraphSyntax { niho: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }))], free_modifiers: [], statements: None }]))) })"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextNihoParagraphs(TextNihoParagraphsSyntax([NihoParagraphSyntax { niho: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }))], free_modifiers: [], statements: None }]))) }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -33,4 +33,4 @@ tree = """
   Cmavo @[0‥4) "ni'o",
   Cmavo @[4‥8) "ni'o",
 ]"""
-json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[4,8]}}}}]}]}}}"""
+json = """{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[4,8]}}}}]}]}}"""

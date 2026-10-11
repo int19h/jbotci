@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(StandardStatementConnective(JoikConnective(JoiConnective(JoiConnectiveSyntax { se: None, joi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, nai: None })))), leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(StandardStatementConnective(JoikConnective(JoiConnective(JoiConnectiveSyntax { se: None, joi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, nai: None })))), leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -28,4 +28,4 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[0,3]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmavo @[0‥3) "joĭ"'
-json = '{"RegularText":{"leading_connective":{"StandardStatementConnective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[0,3]}}}}}}}}}}'
+json = """{"leading_connective":{"StandardStatementConnective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[0,3]}}}}}}}}}"""

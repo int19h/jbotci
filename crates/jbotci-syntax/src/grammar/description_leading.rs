@@ -217,14 +217,7 @@ fn vuho_marker_is_parsed(
 #[requires(true)]
 #[ensures(true)]
 fn bound_tail_bo_is_parsed(tail: &recovered::Recovered<recovered::SumtiBoundTailSyntax>) -> bool {
-    let Some(tail) = valid(tail) else {
-        return false;
-    };
-    match tail {
-        recovered::SumtiBoundTailSyntax::BoundSumtiTail(tail) => {
-            valid(tail).is_some_and(|tail| valid(&tail.bo.value).is_some())
-        }
-    }
+    valid(tail).is_some_and(|tail| valid(&tail.bo.value).is_some())
 }
 
 /// Whether the recovered path's deciding exp-only discriminator proves its own entry.

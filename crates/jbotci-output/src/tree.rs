@@ -649,9 +649,12 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         match node {
-            GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => Some(
-                generated_regular_text_tree_value(text, source, options, syntax_index),
-            ),
+            GeneratedSyntaxNodeRef::TextSyntax(text) => Some(generated_text_tree_value(
+                text,
+                source,
+                options,
+                syntax_index,
+            )),
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
                 generated_multiple_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
@@ -866,14 +869,13 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_regular_text_tree_value(
+fn generated_text_tree_value(
     text: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    let GeneratedTextSyntax::RegularText(regular_text) = text;
-    let generated_model::RegularTextSyntax {
+    let generated_model::TextSyntax {
         leading_nai,
         leading_cmevla,
         leading_indicators,
@@ -881,7 +883,7 @@ fn generated_regular_text_tree_value(
         leading_connective,
         leading_i_statements,
         paragraphs,
-    } = regular_text.as_ref();
+    } = text;
     let mut entries = Vec::new();
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "leading_nai",

@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "djeĭmyz" }, span: Source
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "djeĭmyz" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "djeĭmyz" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -28,4 +28,4 @@ json = '[{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[0,7]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmevla @[0‥7) "djeĭmyz"'
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[0,7]}}}}]}}'
+json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[0,7]}}}}]}"""

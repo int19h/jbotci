@@ -1211,7 +1211,7 @@ mod tests {
         );
 
         let raw = pretty_recovered_syntax_raw(&recovered, Some(0));
-        assert!(raw.starts_with("RegularText("), "{raw}");
+        assert!(raw.starts_with("TextSyntax {"), "{raw}");
         assert!(raw.contains("Prefix(RecoveredPrefix { errors: [SkippedTokens { error_index: 0"));
         assert!(raw.contains("byte_start: 3, byte_end: 5"));
         assert!(raw.contains("FollowingParagraphStatementSyntax"));

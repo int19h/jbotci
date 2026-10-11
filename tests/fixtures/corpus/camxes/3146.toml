@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ĭe" }, span: SourceSpan {
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ĭe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "caĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None } }, nai_bahe: [], nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ĭe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "caĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None } }, nai_bahe: [], nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -33,4 +33,4 @@ WithIndicator @[0‥5) {
   Cmavo @[0‥2) "ĭe",
   indicator: Cmavo @[2‥5) "caĭ",
 }"""
-json = '{"RegularText":{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭe","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[2,5]}}}}}]}}'
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭe","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[2,5]}}}}}]}"""

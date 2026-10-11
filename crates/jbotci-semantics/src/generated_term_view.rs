@@ -93,8 +93,7 @@ impl<'syntax> GeneratedFaChainTermRef<'syntax> {
 
 /// A borrowed BO-bound sumti tail.
 ///
-/// The view exposes the optional tag and the trailing operand, so the reference passes do not
-/// have to match the tail's sum.
+/// The view exposes the optional tag and the trailing operand, for the reference passes.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBoundSumtiTailRef<'syntax> {
@@ -105,25 +104,18 @@ pub(crate) struct GeneratedBoundSumtiTailRef<'syntax> {
 impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
     /// Borrow the BO-bound tail.
     #[requires(true)]
-    #[ensures(match tail {
-        SumtiBoundTailSyntax::BoundSumtiTail(tail) => {
-            ret.tense_modal.is_some() == tail.tense_modal.is_some()
-        }
-    })]
+    #[ensures(ret.tense_modal.is_some() == tail.tense_modal.is_some())]
     pub(crate) fn from_tail(tail: &'syntax SumtiBoundTailSyntax) -> Self {
-        match tail {
-            SumtiBoundTailSyntax::BoundSumtiTail(tail) => Self {
-                tense_modal: tail.tense_modal.as_deref(),
-                trailing_sumti: &tail.trailing_sumti,
-            },
+        Self {
+            tense_modal: tail.tense_modal.as_deref(),
+            trailing_sumti: &tail.trailing_sumti,
         }
     }
 }
 
 /// A borrowed BO-level bridi-tail joint.
 ///
-/// The view exposes what the reference passes need -- the tag, the operand and the trailing
-/// terms -- so they do not have to match the joint's sum.
+/// The view exposes the tag, the operand, and the trailing terms for the reference passes.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
@@ -135,18 +127,12 @@ pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
 impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
     /// Borrow the BO joint.
     #[requires(true)]
-    #[ensures(match joint {
-        BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => {
-            ret.tense_modal.is_some() == continuation.tense_modal.is_some()
-        }
-    })]
+    #[ensures(ret.tense_modal.is_some() == joint.tense_modal.is_some())]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointSyntax) -> Self {
-        match joint {
-            BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => Self {
-                tense_modal: continuation.tense_modal.as_deref(),
-                bridi_tail: &continuation.bridi_tail,
-                tail_terms: &continuation.tail_terms,
-            },
+        Self {
+            tense_modal: joint.tense_modal.as_deref(),
+            bridi_tail: &joint.bridi_tail,
+            tail_terms: &joint.tail_terms,
         }
     }
 }
@@ -162,19 +148,11 @@ pub(crate) struct GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
 impl<'syntax> GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
     /// Borrow the BO joint.
     #[requires(true)]
-    #[ensures(match joint {
-        BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(continuation) => {
-            ret.tense_modal.is_some() == continuation.tense_modal.is_some()
-        }
-    })]
+    #[ensures(ret.tense_modal.is_some() == joint.tense_modal.is_some())]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointWithoutTailTermsSyntax) -> Self {
-        match joint {
-            BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(
-                continuation,
-            ) => Self {
-                tense_modal: continuation.tense_modal.as_deref(),
-                bridi_tail: &continuation.bridi_tail,
-            },
+        Self {
+            tense_modal: joint.tense_modal.as_deref(),
+            bridi_tail: &joint.bridi_tail,
         }
     }
 }
@@ -270,11 +248,7 @@ impl<'syntax> GeneratedSelbriBridiTailWithoutTailTermsRef<'syntax> {
 pub(crate) fn bound_term_continuation_operand(
     continuation: &BoundTermContinuationSyntax,
 ) -> &Arc<SimpleTermSyntax> {
-    match continuation {
-        BoundTermContinuationSyntax::StagBoundTermContinuation(continuation) => {
-            &continuation.trailing_term
-        }
-    }
+    &continuation.trailing_term
 }
 
 /// A borrowed simple-term leaf shared by every level of the composed term hierarchy.

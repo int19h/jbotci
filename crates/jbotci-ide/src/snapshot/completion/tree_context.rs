@@ -465,7 +465,7 @@ struct SkippedTextFrame {
 impl RecoveredSkippedTokenVisitor {
     #[requires(true)]
     #[ensures(self.text_depth == old(self.text_depth))]
-    fn walk_text(&mut self, descend: impl FnOnce(&mut Self)) {
+    fn walk_text_root(&mut self, descend: impl FnOnce(&mut Self)) {
         self.text_depth += 1;
         descend(self);
         self.text_depth -= 1;
@@ -545,9 +545,9 @@ impl RecoveredSkippedTokenVisitor {
 impl<'tree> generated_model::recovered::TreeWalker<'tree> for RecoveredSkippedTokenVisitor {
     #[requires(true)]
     #[ensures(true)]
-    fn walk_regular_text(&mut self, node: &'tree generated_model::recovered::RegularTextSyntax) {
-        self.walk_text(|visitor| {
-            generated_model::recovered::walk::regular_text(visitor, node);
+    fn walk_text(&mut self, node: &'tree generated_model::recovered::TextSyntax) {
+        self.walk_text_root(|visitor| {
+            generated_model::recovered::walk::text(visitor, node);
         });
     }
 
@@ -687,7 +687,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredTreeContextVisitor {
 #[requires(true)]
 #[ensures(true)]
 fn is_text_root_constructor(constructor: &str) -> bool {
-    constructor == "RegularText"
+    constructor == "TextSyntax"
 }
 
 #[requires(true)]

@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [] }, sumti: Some(CmevlaVocativeSumti(CmevlaVocativeSumtiSyntax { leading_relative_clauses: None, names: WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "david" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }))], free_modifiers: [] }, trailing_relative_clauses: None })), dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [] }, sumti: Some(CmevlaVocativeSumti(CmevlaVocativeSumtiSyntax { leading_relative_clauses: None, names: WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "david" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }))], free_modifiers: [] }, trailing_relative_clauses: None })), dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -35,4 +35,4 @@ VocativeFreeModifier @[0‥9) {
     Cmevla @[4‥9) "david",
   ],
 }"""
-json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"david","span":[4,9]}}}}]}}}}]}}'
+json = """{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"david","span":[4,9]}}}}]}}}}]}"""

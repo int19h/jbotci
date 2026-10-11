@@ -156,14 +156,8 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai));
     }
 
-    /// Top-level text syntax.
-    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> enum {
-        /// Ordinary text, retaining its leading material and optional paragraph tree.
-        regular_text,
-    }
-
     /// Ordinary text with source-ordered leading material and an optional paragraph tree.
-    rule "text" regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
         /// NAI words that precede the first formal text construct.
         field leading_nai <- [zero_or_more cmavo(Nai)];
         /// CMEVLA words accepted before the first formal text construct.
@@ -845,19 +839,6 @@ pub mod generated_model {
         field bo_continuation <- opt(arc(bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal)));
     }
 
-    /// Sum node for bridi tail connective; the BO-level joint carries the connective-led
-    /// continuation. It has one arm only; the sum stays so that the trees keep their shape.
-    rule "bridi tail connective" bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal) -> enum {
-        /// The connective-led BO continuation.
-        bridi_tail_bo_continuation,
-    }
-
-    /// The tail-terms-free mirror of [`bridi_tail_bo_joint`].
-    rule "bridi tail connective" bridi_tail_bo_joint_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, tense_modal) -> enum {
-        /// The connective-led BO continuation.
-        bridi_tail_bo_continuation_without_tail_terms,
-    }
-
     /// Sum node for bridi tail without tail terms, with the ordinary fallback order.
     rule "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, term) -> enum {
         /// Uses the `forethought_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `connection`.
@@ -1060,8 +1041,8 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and `bridi_tail` in source order.
-    rule "bridi tail connective" bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, tense_modal) -> struct {
-        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_continuation_without_tail_terms` production.
+    rule "bridi tail connective" bridi_tail_bo_joint_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, tense_modal) -> struct {
+        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_joint_without_tail_terms` production.
         field connective <- bridi_tail_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
@@ -1072,8 +1053,8 @@ pub mod generated_model {
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and 3 other fields in source order.
-    rule "bridi tail connective" bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
-        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_continuation` production.
+    rule "bridi tail connective" bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal) -> struct {
+        /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_joint` production.
         field connective <- bridi_tail_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
@@ -1285,18 +1266,8 @@ pub mod generated_model {
         field continuations <- [one_or_more bound_term_continuation(simple_term, tense_modal)];
     }
 
-    /// The BO continuation shape at the absorption-safe term level.
-    ///
-    /// camxes-exp's `abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*`
-    /// (camxes-exp.peg:154) requires both the connective and the stag. The sum has one arm
-    /// only; it stays so that the trees keep their shape.
-    rule "term connection continuation" bound_term_continuation(simple_term, tense_modal) -> enum {
-        /// Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.
-        stag_bound_term_continuation,
-    }
-
     /// One mandatory-stag BO continuation at the absorption-safe term level.
-    rule "term connection continuation" stag_bound_term_continuation(simple_term, tense_modal) -> struct {
+    rule "term connection continuation" bound_term_continuation(simple_term, tense_modal) -> struct {
         /// The connective joining the adjacent simple terms.
         field connective <- term_afterthought_connective;
         /// The mandatory camxes-exp `stag` before BO.
@@ -1413,17 +1384,8 @@ pub mod generated_model {
         field continuations <- [one_or_more normal_term_bo_continuation(normal_term_atom, tense_modal)];
     }
 
-    /// The BO continuation shape at the normal-flavour term level.
-    ///
-    /// The normal flavour leaves the stag optional (#816, camxes-exp.peg:143) but requires the
-    /// connective. The sum has one arm only; it stays so that the trees keep their shape.
-    rule "term connection continuation" normal_term_bo_continuation(normal_term_atom, tense_modal) -> enum {
-        /// Uses the sourced optional-stag `bound_normal_term_continuation` product form.
-        bound_normal_term_continuation,
-    }
-
     /// One optional-stag BO continuation at the normal-flavour term level.
-    rule "term connection continuation" bound_normal_term_continuation(normal_term_atom, tense_modal) -> struct {
+    rule "term connection continuation" normal_term_bo_continuation(normal_term_atom, tense_modal) -> struct {
         /// The connective joining the adjacent normal-flavour terms.
         field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike the absorption-safe tier, the normal flavour
@@ -2132,17 +2094,6 @@ pub mod generated_model {
         field bound_tail <- opt(sumti_bound_tail(sumti_bound, tense_modal));
     }
 
-    /// The BO-bound tail shape of the sumti connection.
-    ///
-    /// camxes-standard and camxes-exp both require the connective before the optional stag:
-    /// `sumti_3 <- sumti_4 ((ek / joik) stag? BO_clause sumti_3)?` (camxes.peg:143). The sum has
-    /// one arm only; it stays so that the trees keep their shape.
-    rule "sumti connection" sumti_bound_tail(sumti_bound, tense_modal) -> enum {
-        /// Uses the sourced `bound_sumti_tail` product form, whose payload preserves
-        /// `connective`, `tense_modal`, `bo`, and `trailing_sumti`.
-        bound_sumti_tail,
-    }
-
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
     rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, description_leading_operand, subbridi, tense_modal, normal_term, quantifier) -> enum {
         /// Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, and `first_branch`.
@@ -2170,7 +2121,7 @@ pub mod generated_model {
     }
 
     /// Product node for sumti connection; preserves `connective`, `tense_modal`, `bo`, and `trailing_sumti` in source order.
-    rule "sumti connection" bound_sumti_tail(sumti_bound, tense_modal) -> struct {
+    rule "sumti connection" sumti_bound_tail(sumti_bound, tense_modal) -> struct {
         /// The shared connective child syntax node.
         field connective <- arc(sumti_connective);
         /// The optional tense modal component.
@@ -5418,15 +5369,8 @@ pub mod generated_model {
         field trailing_selbri <- arc(plain_bo_selbri);
     }
 
-    /// Sum node for the forethought selbri connection. It has one arm only; the sum stays so
-    /// that the trees keep their shape.
-    rule "forethought selbri connection" forethought_selbri_connection(selbri, plain_bo_selbri, free_modifier) -> enum {
-        /// The standard binary L6 owner.
-        standard_forethought_selbri_connection,
-    }
-
     /// Product node for the standard binary forethought selbri owner at L6.
-    rule "forethought selbri connection" standard_forethought_selbri_connection(selbri, plain_bo_selbri, free_modifier) -> struct {
+    rule "forethought selbri connection" forethought_selbri_connection(selbri, plain_bo_selbri, free_modifier) -> struct {
         /// Optional NAhE preceding the independent free-modifier slot.
         field nahe <- opt(selmaho(Nahe));
         /// Free modifiers between NAhE (when present) and GUhA.
@@ -5526,13 +5470,7 @@ pub mod generated_model {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner unit child syntax node.
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom));
-    }
-
-    /// The standard scalar-negation operand, restricted to exactly one tanru-unit atom.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom) -> enum {
-        /// Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.
-        tanru_unit_atom,
+        field inner_unit <- arc(tanru_unit_atom);
     }
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
@@ -6377,7 +6315,7 @@ pub mod generated_model {
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     fn text_of_niho_paragraphs(paragraphs: TextNihoParagraphsSyntax) -> TextSyntax {
-        TextSyntax::RegularText(std::sync::Arc::new(RegularTextSyntax {
+        TextSyntax {
             leading_nai: Vec::new(),
             leading_cmevla: Vec::new(),
             leading_indicators: Vec::new(),
@@ -6387,7 +6325,7 @@ pub mod generated_model {
             paragraphs: Some(std::sync::Arc::new(
                 TextParagraphsSyntax::TextNihoParagraphs(std::sync::Arc::new(paragraphs)),
             )),
-        }))
+        }
     }
 
     /// The recovered form of [`text_of_niho_paragraphs`].
@@ -6396,20 +6334,18 @@ pub mod generated_model {
     fn recovered_text_of_niho_paragraphs(
         paragraphs: recovered::TextNihoParagraphsSyntax,
     ) -> recovered::TextSyntax {
-        recovered::TextSyntax::RegularText(std::sync::Arc::new(recovered::Recovered::valid(
-            recovered::RegularTextSyntax {
-                leading_nai: Vec::new(),
-                leading_cmevla: Vec::new(),
-                leading_indicators: Vec::new(),
-                leading_free_modifiers: Vec::new(),
-                leading_connective: None,
-                leading_i_statements: Vec::new(),
-                paragraphs: Some(std::sync::Arc::new(recovered::Recovered::valid(
-                    recovered::TextParagraphsSyntax::TextNihoParagraphs(std::sync::Arc::new(
-                        recovered::Recovered::valid(paragraphs),
-                    )),
-                ))),
-            },
-        )))
+        recovered::TextSyntax {
+            leading_nai: Vec::new(),
+            leading_cmevla: Vec::new(),
+            leading_indicators: Vec::new(),
+            leading_free_modifiers: Vec::new(),
+            leading_connective: None,
+            leading_i_statements: Vec::new(),
+            paragraphs: Some(std::sync::Arc::new(recovered::Recovered::valid(
+                recovered::TextParagraphsSyntax::TextNihoParagraphs(std::sync::Arc::new(
+                    recovered::Recovered::valid(paragraphs),
+                )),
+            ))),
+        }
     }
 }

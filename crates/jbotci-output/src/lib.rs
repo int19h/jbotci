@@ -1640,10 +1640,7 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("valid syntax");
-        let jbotci_syntax::generated_model::TextSyntax::RegularText(regular_text) = parsed.as_ref()
-        else {
-            panic!("generated model should parse regular text");
-        };
+        let regular_text = parsed.as_ref();
         assert_eq!(regular_text.leading_i_statements.len(), 1);
         let tree = pretty_generated_model_tree_with_options(
             parsed.as_ref(),

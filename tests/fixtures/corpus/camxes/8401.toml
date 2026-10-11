@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "arent" }, span: SourceSpa
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "arent" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(EkFragment(EkFragmentSyntax(EkConnectiveSyntax { na: None, se: None, a: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } })), free_modifiers: [] }, nai: None })))), following: [], trailing: [] })), additional_niho: [] })) })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "arent" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(EkFragment(EkFragmentSyntax(EkConnectiveSyntax { na: None, se: None, a: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } })), free_modifiers: [] }, nai: None })))), following: [], trailing: [] })), additional_niho: [] })) }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -35,4 +35,4 @@ Text @[0‥7) {
   ],
   Cmavo @[6‥7) "u",
 }"""
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"arent","span":[0,5]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"EkFragment":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[6,7]}}}}}}}}}}}}}'
+json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"arent","span":[0,5]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"EkFragment":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[6,7]}}}}}}}}}}}}"""

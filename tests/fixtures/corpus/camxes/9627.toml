@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "capital" }, span: SourceS
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "capital" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } })), connective: None, free_modifiers: [] }], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "capital" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } })), connective: None, free_modifiers: [] }], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -35,4 +35,4 @@ Text @[0‥9) {
   ],
   Cmavo @[8‥9) "i",
 }"""
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"capital","span":[0,7]}}}}],"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}}}}]}}'
+json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"capital","span":[0,7]}}}}],"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}}}}]}"""

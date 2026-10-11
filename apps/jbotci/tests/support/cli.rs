@@ -1295,7 +1295,7 @@ fn gentufa_default_output_shows_generated_brackets() {
     });
 }
 
-const EMPTY_ERASURE_RAW: &str = "RegularText(\n    RegularTextSyntax {\n        leading_nai: [],\n        leading_cmevla: [],\n        leading_indicators: [],\n        leading_free_modifiers: [],\n        leading_connective: None,\n        leading_i_statements: [],\n        paragraphs: None,\n    },\n)\n";
+const EMPTY_ERASURE_RAW: &str = "TextSyntax {\n    leading_nai: [],\n    leading_cmevla: [],\n    leading_indicators: [],\n    leading_free_modifiers: [],\n    leading_connective: None,\n    leading_i_statements: [],\n    paragraphs: None,\n}\n";
 
 const EMPTY_ERASURE_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="68" height="56" viewBox="0 0 68 56" role="img"><title>jbotci gentufa generated syntax</title><style>
 @font-face {
@@ -1356,7 +1356,7 @@ fn gentufa_empty_erasure_has_exact_output_in_every_format() {
         );
         assert_eq!(
             run_success_bytes(&["jbotci", "gentufa", "--turtai", "json", source]),
-            b"{\"RegularText\": {}}\n"
+            b"{}\n"
         );
         assert_eq!(
             run_success_bytes(&["jbotci", "gentufa", "--turtai", "blocks", source]),
@@ -2311,7 +2311,7 @@ fn gentufa_json_outputs_typed_syntax_tree() {
         let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
 
         assert!(value.get("leading_nai").is_none());
-        assert!(value["RegularText"]["paragraphs"].as_object().is_some());
+        assert!(value["paragraphs"].as_object().is_some());
         assert!(text.contains("\"BridiStatement\""));
         assert!(!text.contains("\"constructor\""));
         assert!(!text.contains("\"kind\": \"node\""));
@@ -3084,7 +3084,7 @@ fn gentufa_raw_output_is_debug_syntax_parse() {
         run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
         assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("Regular"));
+        assert!(output.starts_with("TextSyntax {"));
         assert!(output.contains("BridiStatementSyntax"));
         assert!(!output.contains("SyntaxValue"));
     });
@@ -3105,7 +3105,7 @@ fn gentufa_raw_indent_zero_uses_compact_debug() {
         assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
         assert!(!output.trim_end().contains('\n'));
-        assert!(output.starts_with("Regular"));
+        assert!(output.starts_with("TextSyntax {"));
         assert!(output.contains("BridiStatementSyntax"));
     });
 }
