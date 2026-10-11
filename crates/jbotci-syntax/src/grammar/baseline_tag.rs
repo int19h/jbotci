@@ -626,10 +626,8 @@ fn composite_is_baseline<K: jbotci_tree::view::SourceKind>(
     if start >= end {
         return false;
     }
-    if end == start + 1
-        && classified::<K>(run, start).is_some_and(|atom| atom.kind == AtomKind::Caha)
-    {
-        return true;
+    if end == start + 1 {
+        return classified::<K>(run, start).is_some_and(|atom| is_single_composite(atom.kind));
     }
     let without_caha =
         if classified::<K>(run, end - 1).is_some_and(|atom| atom.kind == AtomKind::Caha) {
