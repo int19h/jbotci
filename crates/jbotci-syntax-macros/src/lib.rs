@@ -252,11 +252,7 @@ impl SyntaxGrammar {
                 pub conditions: &'static [SyntaxGrammarCondition],
             }
 
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            pub(crate) struct SyntaxGrammarCondition {
-                pub feature: &'static str,
-                pub negated: bool,
-            }
+            pub(crate) type SyntaxGrammarCondition = ::jbotci_dialect::DialectFeatureCondition;
 
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -5198,7 +5194,7 @@ fn strict_postfix_parser_expr_tokens(
                 generated_runtime::with_free_modifier_list(
                     #inner,
                     generated_runtime::feature_free_modifier_list_parser(
-                        generated_runtime::SyntaxGrammarFeature::#feature,
+                        ::jbotci_dialect::DialectFeature::#feature,
                         generated_runtime::strict_free_modifier_list_parser(#free_modifier),
                     ),
                 )
@@ -5557,7 +5553,7 @@ fn recovered_postfix_parser_expr_tokens(
             Ok(quote! {
                 #inner
                     .then(generated_runtime::feature_free_modifier_list_parser(
-                        generated_runtime::SyntaxGrammarFeature::#feature,
+                        ::jbotci_dialect::DialectFeature::#feature,
                         generated_runtime::recovered_free_modifier_list_parser(#free_modifier),
                     ))
                     .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
@@ -6006,7 +6002,7 @@ fn strict_method_parser_expr_tokens(
             generated_runtime::with_free_modifier_list(
                 #inner,
                 generated_runtime::feature_free_modifier_list_parser(
-                    generated_runtime::SyntaxGrammarFeature::#feature,
+                    ::jbotci_dialect::DialectFeature::#feature,
                     generated_runtime::strict_free_modifier_list_parser(#free_modifier),
                 ),
             )
@@ -6172,7 +6168,7 @@ fn strict_call_parser_expr_tokens(
                 mode,
             )?;
             Ok(quote!(generated_runtime::feature_gate(
-                generated_runtime::SyntaxGrammarFeature::#feature,
+                ::jbotci_dialect::DialectFeature::#feature,
                 #inner,
             )))
         }
@@ -6183,7 +6179,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             let feature = format_ident!("{feature}");
             Ok(quote!(generated_runtime::feature_gate(
-                generated_runtime::SyntaxGrammarFeature::#feature,
+                ::jbotci_dialect::DialectFeature::#feature,
                 generated_runtime::empty(),
             )))
         }
@@ -6634,8 +6630,8 @@ fn enum_choice_chain(
                 let features = alternative.conditions.iter().map(|condition| {
                     let feature = &condition.feature;
                     let negated = condition.negated;
-                    quote!(generated_runtime::SyntaxGrammarFeatureCondition {
-                        feature: generated_runtime::SyntaxGrammarFeature::#feature,
+                    quote!(::jbotci_dialect::DialectFeatureCondition {
+                        feature: ::jbotci_dialect::DialectFeature::#feature,
                         negated: #negated,
                     })
                 });
@@ -6940,7 +6936,7 @@ fn recovered_method_parser_expr_tokens(
         Ok(quote! {
             #inner
                 .then(generated_runtime::feature_free_modifier_list_parser(
-                    generated_runtime::SyntaxGrammarFeature::#feature,
+                    ::jbotci_dialect::DialectFeature::#feature,
                     generated_runtime::recovered_free_modifier_list_parser(#free_modifier),
                 ))
                 .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
@@ -7075,7 +7071,7 @@ fn recovered_call_parser_expr_tokens(
                 mode,
             )?;
             Ok(quote!(generated_runtime::feature_gate(
-                generated_runtime::SyntaxGrammarFeature::#feature,
+                ::jbotci_dialect::DialectFeature::#feature,
                 #inner,
             )))
         }
@@ -7086,7 +7082,7 @@ fn recovered_call_parser_expr_tokens(
             )?;
             let feature = format_ident!("{feature}");
             Ok(quote!(generated_runtime::feature_gate(
-                generated_runtime::SyntaxGrammarFeature::#feature,
+                ::jbotci_dialect::DialectFeature::#feature,
                 generated_runtime::empty(),
             )))
         }
@@ -8473,8 +8469,8 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         let gates = conditions.iter().map(|condition| {
             let feature = &condition.feature;
             let negated = condition.negated;
-            quote!(generated_runtime::SyntaxGrammarFeatureCondition {
-                feature: generated_runtime::SyntaxGrammarFeature::#feature,
+            quote!(::jbotci_dialect::DialectFeatureCondition {
+                feature: ::jbotci_dialect::DialectFeature::#feature,
                 negated: #negated,
             })
         });
@@ -8866,7 +8862,7 @@ impl FieldKind {
     }
 }
 
-/// A `when feature(Name)` condition. `Name` is a `SyntaxGrammarFeature` variant.
+/// A `when feature(Name)` condition. `Name` is a `DialectFeature` variant.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Condition {
@@ -8878,11 +8874,11 @@ impl Condition {
     #[requires(true)]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
-        let feature = self.feature.to_string();
+        let feature = &self.feature;
         let negated = self.negated;
         quote! {
             SyntaxGrammarCondition {
-                feature: #feature,
+                feature: ::jbotci_dialect::DialectFeature::#feature,
                 negated: #negated,
             }
         }
@@ -8895,8 +8891,8 @@ impl Condition {
         let negated = self.negated;
         quote! {
             generated_runtime::feature_condition_gate(
-                generated_runtime::SyntaxGrammarFeatureCondition {
-                    feature: generated_runtime::SyntaxGrammarFeature::#feature,
+                ::jbotci_dialect::DialectFeatureCondition {
+                    feature: ::jbotci_dialect::DialectFeature::#feature,
                     negated: #negated,
                 },
                 #parser,
@@ -9471,11 +9467,11 @@ impl AnchorCondition {
     #[requires(!self.feature.is_empty())]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
-        let feature = &self.feature;
+        let feature = format_ident!("{}", self.feature);
         let negated = self.negated;
         quote! {
             SyntaxGrammarCondition {
-                feature: #feature,
+                feature: ::jbotci_dialect::DialectFeature::#feature,
                 negated: #negated,
             }
         }
@@ -10777,7 +10773,9 @@ mod tests {
         .expect("feature-controlled free-modifier suffix parses");
 
         let expanded = grammar.expand().to_string();
-        let feature_condition_count = expanded.matches("feature : \"UnrestrictedFree\"").count();
+        let feature_condition_count = expanded
+            .matches("feature : :: jbotci_dialect :: DialectFeature :: UnrestrictedFree")
+            .count();
         assert!(
             expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
                 && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers")
@@ -11252,10 +11250,10 @@ mod tests {
     #[test]
     fn splice_keeps_feature_gates_of_spliced_arms() {
         let text = expand_splice_test_grammar(spliced_rules()).to_string();
-        let cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Cbm , negated : false , }] ,";
-        let exp_cbm = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Exp , negated : false , } , \
-                       generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Cbm , negated : false , }] ,";
-        let exp = "choice_feature_cons (& [generated_runtime :: SyntaxGrammarFeatureCondition { feature : generated_runtime :: SyntaxGrammarFeature :: Exp , negated : false , }] ,";
+        let cbm = "choice_feature_cons (& [:: jbotci_dialect :: DialectFeatureCondition { feature : :: jbotci_dialect :: DialectFeature :: Cbm , negated : false , }] ,";
+        let exp_cbm = "choice_feature_cons (& [:: jbotci_dialect :: DialectFeatureCondition { feature : :: jbotci_dialect :: DialectFeature :: Exp , negated : false , } , \
+                       :: jbotci_dialect :: DialectFeatureCondition { feature : :: jbotci_dialect :: DialectFeature :: Cbm , negated : false , }] ,";
+        let exp = "choice_feature_cons (& [:: jbotci_dialect :: DialectFeatureCondition { feature : :: jbotci_dialect :: DialectFeature :: Exp , negated : false , }] ,";
         for parser in ["strict_parent_parser", "recovered_parent_parser"] {
             let parser_text = generated_function_text(&text, parser);
             assert_eq!(
@@ -11264,7 +11262,7 @@ mod tests {
                 "{parser}: {parser_text}"
             );
             assert!(
-                !parser_text.contains("SyntaxGrammarFeature :: Exp"),
+                !parser_text.contains(":: jbotci_dialect :: DialectFeature :: Exp"),
                 "{parser}"
             );
         }
@@ -11291,8 +11289,8 @@ mod tests {
             outer_metadata.contains(
                 "name : \"leaf_second\" , parser : \"leaf_second\" , recovery : \
                  SyntaxGrammarRecoveryExpr :: Rule (\"leaf_second\") , recovery_boundary : false , \
-                 conditions : & [SyntaxGrammarCondition { feature : \"Exp\" , negated : false , } , \
-                 SyntaxGrammarCondition { feature : \"Cbm\" , negated : false , }]"
+                 conditions : & [SyntaxGrammarCondition { feature : :: jbotci_dialect :: DialectFeature :: Exp , negated : false , } , \
+                 SyntaxGrammarCondition { feature : :: jbotci_dialect :: DialectFeature :: Cbm , negated : false , }]"
             ),
             "the metadata of `outer` lists both conditions of the spliced arm: {outer_metadata}"
         );
@@ -11981,6 +11979,8 @@ mod tests {
             assert!(!parser.contains("warn_if (recovered_item_parser"));
             assert!(parser.contains("strict_item_parser"));
         }
-        assert!(text.contains("feature : \"Cbm\" , negated : true"));
+        assert!(
+            text.contains("feature : :: jbotci_dialect :: DialectFeature :: Cbm , negated : true")
+        );
     }
 }

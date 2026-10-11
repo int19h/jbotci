@@ -32,7 +32,7 @@ impl DialectError {
 }
 
 macro_rules! define_dialect_features {
-    ($($variant:ident => $name:literal),+ $(,)?) => {
+    ($($variant:ident => $name:literal, $description:literal),+ $(,)?) => {
         #[invariant(true)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
         pub enum DialectFeature {
@@ -59,6 +59,15 @@ macro_rules! define_dialect_features {
                 }
             }
 
+            /// The CLI help paragraph for this feature.
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn description(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $description),+
+                }
+            }
+
             #[requires(true)]
             #[ensures(!ret.is_empty())]
             pub fn atom_name(self) -> String {
@@ -70,13 +79,72 @@ macro_rules! define_dialect_features {
 
 define_dialect_features! {
     Cbm => "cbm",
+        "With cbm, the parser uses the CBM grammar features.",
     CaseInsensitive => "case-insensitive",
+        "With case-insensitive, uppercase letters do not mark stress.",
     PermissiveLexer => "permissive-lexer",
+        "With permissive-lexer, the lexer accepts non-Lojban words.",
     UnrestrictedFree => "unrestricted-free",
+        "With unrestricted-free, free modifiers can follow more grammar constructs.",
     NaJoik => "na-joik",
+        "With na-joik, NA before JOI forms one connective at every connective site, as in camxes-exp. For example, ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term.",
     MexQuantifier => "mex-quantifier",
+        "With mex-quantifier, a mex without VEI can be a quantifier, as in camxes-exp. In ci su'i re prenu cu klama, ci su'i re is the quantifier. Without it, a quantifier is a number or a VEI mex. The feature also changes the reading of some texts that standard Lojban accepts.",
     LaheMex => "lahe-mex",
+        "With lahe-mex, LAhE, NAhE BO and NAhE qualify a whole mex. For example, li lu'e pa su'i re lu'u lo'o puts pa su'i re inside lu'e. Without it, the qualifier takes one operand.",
     SplitNumberLerfu => "split-number-lerfu",
+        "With split-number-lerfu, a number contains only PA words, and a lerfu string contains only lerfu words. For example, mi panzi be ny ci mei puts ny after BE and ci before MEI. Without it, ny ci is one mixed string.",
+}
+
+/// A copyable set with one slot for each declared feature.
+/// Each boolean combination is valid. Enum variants select the slots.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DialectFeatureSet {
+    enabled: [bool; DialectFeature::ALL.len()],
+}
+
+impl DialectFeatureSet {
+    #[requires(true)]
+    #[ensures(DialectFeature::all().iter().all(|feature| ret.contains(*feature) == features.contains(feature)))]
+    pub fn from_features(features: &BTreeSet<DialectFeature>) -> Self {
+        Self {
+            enabled: std::array::from_fn(|index| features.contains(&DialectFeature::ALL[index])),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.enabled[feature as usize])]
+    pub fn contains(self, feature: DialectFeature) -> bool {
+        self.enabled[feature as usize]
+    }
+}
+
+/// A condition on one declared feature, with optional negation.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DialectFeatureCondition {
+    pub feature: DialectFeature,
+    pub negated: bool,
+}
+
+impl DialectFeatureCondition {
+    #[requires(true)]
+    #[ensures(ret == (features.contains(self.feature) != self.negated))]
+    pub fn enabled(self, features: DialectFeatureSet) -> bool {
+        features.contains(self.feature) != self.negated
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn expected_name(self) -> String {
+        let mut name = self.feature.atom_name();
+        name.push_str(" feature");
+        if self.negated {
+            name.insert_str(0, "not ");
+        }
+        name
+    }
 }
 
 impl fmt::Display for DialectFeature {
@@ -1133,6 +1201,47 @@ impl DialectToken {
 mod tests {
     use super::*;
     use bityzba::{contract_trait, invariant, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compact_feature_sets_preserve_every_subset_and_condition() {
+        let declared = DialectFeature::all();
+        assert!(declared.len() < usize::BITS as usize);
+        for mask in 0..(1usize << declared.len()) {
+            let selected: BTreeSet<_> = declared
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| mask & (1 << index) != 0)
+                .map(|(_, feature)| *feature)
+                .collect();
+            let compact = DialectFeatureSet::from_features(&selected);
+            for feature in declared {
+                assert_eq!(compact.contains(*feature), selected.contains(feature));
+                for negated in [false, true] {
+                    let condition = DialectFeatureCondition {
+                        feature: *feature,
+                        negated,
+                    };
+                    assert_eq!(
+                        condition.enabled(compact),
+                        selected.contains(feature) != negated
+                    );
+                    assert_eq!(
+                        condition.expected_name(),
+                        format!(
+                            "{}{} feature",
+                            if negated { "not " } else { "" },
+                            feature.atom_name()
+                        )
+                    );
+                }
+            }
+        }
+        for feature in declared {
+            assert!(!DialectFeatureSet::default().contains(*feature));
+        }
+    }
 
     #[test]
     #[requires(true)]
