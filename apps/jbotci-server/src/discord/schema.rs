@@ -198,7 +198,7 @@ pub(crate) fn subcommands() -> Vec<SlashSubcommand> {
                     vec![
                         text_option(
                             "sources",
-                            "LANG[:WEIGHT]:WORD records separated by commas; WORD may be [IPA]",
+                            "LANG[:WEIGHT]:WORD, separated by commas; [IPA] uses narrow phonetic IPA from the listed inventory",
                             false,
                         ),
                         choice_option(

@@ -515,6 +515,8 @@ fn gimfihi_parameter_defaults_match_phonetic_crate_and_help_lists_every_knob() {
         .expect("gimfihi subcommand")
         .render_long_help()
         .to_string();
+    assert!(help.contains("narrow phonetic IPA"));
+    assert!(help.contains("supported inventory"));
     for knob in [
         "--scorer",
         "--c-sub",

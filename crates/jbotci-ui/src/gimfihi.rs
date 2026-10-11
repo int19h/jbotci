@@ -388,9 +388,9 @@ pub(super) fn render_gimfihi_ipa_help_modal(ipa_help_open: Signal<bool>) -> Elem
                     section { class: "gimfihi-ipa-help-section",
                         h3 { "Input forms" }
                         p {
-                            "Enter Lojban scoring letters directly, or put a broad phonemic IPA transcription in square brackets, such as "
+                            "Enter Lojban scoring letters directly, or put narrow phonetic IPA from the supported inventory in square brackets, such as "
                             code { "[kæt]" }
-                            ". Transcribe sounds rather than spelling or narrow allophones; omit grammatical endings."
+                            ". Transcribe the actual sounds within that inventory. Apply positional allophones and omit grammatical endings."
                         }
                     }
 

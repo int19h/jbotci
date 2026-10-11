@@ -1,8 +1,9 @@
 //! IPA → Lojban phoneme transliteration for gimfihi source words.
 //!
 //! Implements `docs/source-word-transliteration.md`. A source word given as a
-//! broad *phonemic* IPA transcription is reduced to Lojban's gismu-scoring sound
-//! inventory so the scorer can match candidates against it. We normalize the IPA
+//! phonetic IPA transcription within the supported inventory is reduced to
+//! Lojban scoring letters. The scorer matches candidates against these letters.
+//! We normalize the IPA
 //! (NFD, drop the affricate tie bar, drop suprasegmentals and quality
 //! diacritics, decompose palatalization/labialization/nasalization/rhoticity),
 //! collapse stop-plus-fricative affricates to the fricative, snap every
@@ -242,7 +243,7 @@ fn collapse_glide_doubles(word: &str) -> String {
     out
 }
 
-/// Transliterate a broad phonemic IPA string into a Lojban gismu-scoring word.
+/// Transliterate supported phonetic IPA into a Lojban gismu-scoring word.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|word| !word.is_empty() && word.chars().all(|letter| is_consonant(letter) || is_vowel(letter))) || ret.is_err())]
 pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
@@ -278,7 +279,7 @@ pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
         let Some((length, snap)) = match_longest(remaining) else {
             let near: String = remaining.chars().take(8).collect();
             return Err(invalid(&format!(
-                "unsupported IPA segment near `{near}` — give a broad phonemic transcription"
+                "unsupported IPA segment `{next}` near `{near}`. Use narrow phonetic IPA. Only the inventory listed in the gimfihi word instructions is supported."
             )));
         };
         match snap {
@@ -326,6 +327,403 @@ mod tests {
     #[ensures(true)]
     fn lojban(ipa: &str) -> String {
         transliterate_ipa_to_lojban(ipa).expect("valid IPA")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn code_spans(text: &str) -> Vec<&str> {
+        let parts: Vec<_> = text.split('`').collect();
+        assert_eq!(parts.len() % 2, 1, "unclosed code span");
+        let spans: Vec<_> = parts.into_iter().skip(1).step_by(2).collect();
+        assert!(
+            spans.iter().all(|span| !span.trim().is_empty()),
+            "empty code span"
+        );
+        spans
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn section<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
+        assert_eq!(
+            text.matches(start).count(),
+            1,
+            "missing or repeated section start"
+        );
+        assert_eq!(
+            text.matches(end).count(),
+            1,
+            "missing or repeated section end"
+        );
+        text.split_once(start)
+            .unwrap()
+            .1
+            .split_once(end)
+            .expect("section order")
+            .0
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_ipa_documentation() -> String {
+        let source = include_str!("../../../apps/jbotci/src/tool.rs");
+        let source = section(
+            source,
+            "pub struct ToolGimfihiSource {",
+            "pub word: String,",
+        );
+        let word = source.split_once("pub language: String,").unwrap().1;
+        word.lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| {
+                line.trim()
+                    .strip_prefix("///")
+                    .expect("unrecognized word docstring structure")
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Code spans contain IPA. Source spelling uses italics.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_documented_ipa(text: &str) {
+        let tool = tool_ipa_documentation();
+        let documentation = section(
+            &tool,
+            "Use standard IPA from this inventory;",
+            "Reason carefully",
+        );
+        let supported: std::collections::BTreeSet<_> = code_spans(documentation)
+            .into_iter()
+            .flat_map(|span| span.nfd())
+            .collect();
+        let spans = code_spans(text);
+        assert!(!spans.is_empty(), "the document must contain IPA examples");
+        for span in spans {
+            for symbol in span.split_whitespace() {
+                let symbol = symbol.trim_matches(['[', ']', '(', ')']).replace('◌', "a");
+                assert!(!symbol.is_empty(), "empty IPA symbol");
+                assert!(
+                    symbol.nfd().all(|part| supported.contains(&part)),
+                    "documented IPA `{symbol}` is outside the tool inventory and examples"
+                );
+                // A vowel supplies a base for standalone modifiers and tie bars.
+                transliterate_ipa_to_lojban(&format!("a{symbol}")).unwrap_or_else(|error| {
+                    panic!("documented IPA `{symbol}` was rejected: {error}")
+                });
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_ipa_examples(text: &str) {
+        assert_documented_ipa(text);
+        assert!(text.contains('→'), "missing IPA example");
+        for target in text.split('→').skip(1) {
+            let target = target
+                .trim_start()
+                .strip_prefix('`')
+                .expect("IPA example must be a code span");
+            let value = target.split_once('`').expect("unclosed IPA example").0;
+            transliterate_ipa_to_lojban(value.trim_matches(['[', ']'])).unwrap();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_skill_table(text: &str) {
+        let mut rows = text.lines().filter(|line| !line.trim().is_empty());
+        assert_eq!(rows.next().unwrap().trim(), "| Lang | Word | IPA | note |");
+        assert_eq!(rows.next().unwrap().trim(), "|------|------|-----|------|");
+        let mut count = 0;
+        for row in rows {
+            let row = row.trim();
+            let cells: Vec<_> = row
+                .strip_prefix('|')
+                .and_then(|row| row.strip_suffix('|'))
+                .expect("unrecognized table row")
+                .split('|')
+                .map(str::trim)
+                .collect();
+            assert_eq!(cells.len(), 4, "unrecognized table columns");
+            assert!(
+                !cells[0].is_empty() && !cells[1].is_empty(),
+                "empty source cell"
+            );
+            let ipa = cells[2]
+                .strip_prefix('`')
+                .and_then(|value| value.strip_suffix('`'))
+                .expect("IPA cell must be a code span");
+            assert!(!ipa.contains('`'), "unrecognized IPA cell");
+            assert_documented_ipa(cells[2]);
+            transliterate_ipa_to_lojban(ipa).unwrap();
+            let notes = code_spans(cells[3]);
+            if !notes.is_empty() {
+                assert_documented_ipa(cells[3]);
+            }
+            count += 1;
+        }
+        assert!(count > 0, "missing table data rows");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_skill_json(text: &str) {
+        let parts: Vec<_> = text.split("```").collect();
+        assert!(parts.len() > 1, "missing JSON examples");
+        assert_eq!(parts.len() % 2, 1, "unclosed JSON example");
+        for block in parts.into_iter().skip(1).step_by(2) {
+            let json = block
+                .strip_prefix("json\n")
+                .expect("unrecognized example fence");
+            // The introductory example contains a full-line placeholder comment.
+            let json = json
+                .lines()
+                .filter(|line| {
+                    if line.trim_start().starts_with("//") {
+                        assert_eq!(
+                            line.trim(),
+                            "// ... one per preset language",
+                            "unrecognized JSON comment"
+                        );
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            let value: serde_json::Value =
+                serde_json::from_str(&json).expect("unrecognized JSON example");
+            let sources = value
+                .get("sources")
+                .and_then(serde_json::Value::as_array)
+                .expect("missing JSON sources");
+            assert!(!sources.is_empty(), "empty JSON sources");
+            for source in sources {
+                let word = source
+                    .get("word")
+                    .and_then(serde_json::Value::as_str)
+                    .expect("unrecognized JSON source");
+                assert_documented_ipa(&format!("`{word}`"));
+                transliterate_ipa_to_lojban(word).unwrap();
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_reference_layout(reference: &str) {
+        let sections: Vec<_> = reference.split("## ").skip(1).collect();
+        // Pin paragraph structure without copying IPA symbols. A markup change
+        // must update the reader, so it cannot silently remove a transcription.
+        let layouts: &[&[usize]] = &[
+            &[0, 9, 2, 2, 0, 0, 0],
+            &[7, 0, 8, 0, 5, 0],
+            &[0, 11, 8, 6, 6, 8, 5, 4, 4, 10, 4],
+            &[10],
+        ];
+        assert_eq!(
+            sections.len(),
+            layouts.len(),
+            "unrecognized reference sections"
+        );
+        for (section, layout) in sections.into_iter().zip(layouts) {
+            let body = section.split_once('\n').unwrap().1.trim();
+            let paragraphs: Vec<_> = body.split("\n\n").collect();
+            assert_eq!(
+                paragraphs.len(),
+                layout.len(),
+                "unrecognized reference paragraphs"
+            );
+            for (paragraph, count) in paragraphs.into_iter().zip(*layout) {
+                assert_eq!(
+                    code_spans(paragraph).len(),
+                    *count,
+                    "unrecognized reference paragraph"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_word_inventory_and_examples_are_accepted() {
+        let word = tool_ipa_documentation();
+        let inventory = section(
+            &word,
+            "Use standard IPA from this inventory;",
+            "Examples (word → IPA):",
+        );
+        // Pin the layout, not the symbols. Missing quotes and extra rows must fail.
+        let lines: Vec<_> = inventory
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        let counts = [2, 4, 1, 2, 3, 3, 3, 2];
+        assert_eq!(lines.len(), counts.len(), "unrecognized inventory rows");
+        for (line, count) in lines.into_iter().zip(counts) {
+            assert_eq!(code_spans(line).len(), count, "unrecognized inventory row");
+        }
+        assert_documented_ipa(inventory);
+        let examples = section(&word, "Examples (word → IPA):", "Reason carefully");
+        assert_eq!(code_spans(examples).len(), 9, "unrecognized tool examples");
+        assert_ipa_examples(examples);
+        let prefix = word
+            .split_once("Use standard IPA from this inventory;")
+            .unwrap()
+            .0;
+        let spans = code_spans(prefix);
+        assert_eq!(spans.len(), 2, "unrecognized word instructions");
+        for span in spans {
+            if span == "ə" {
+                assert!(transliterate_ipa_to_lojban(span).is_err());
+            } else {
+                assert_documented_ipa(&format!("`{span}`"));
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn skill_transcriptions_are_accepted() {
+        let reference = include_str!(
+            "../../../apps/jbotci-server/resources/skills/gismu-making/references/ipa-transcription.md"
+        );
+        let headings: Vec<_> = reference
+            .lines()
+            .filter(|line| line.starts_with("## "))
+            .collect();
+        assert_eq!(
+            headings,
+            [
+                "## The rules",
+                "## Supported IPA inventory",
+                "## Per-language gotchas",
+                "## Examples (word → IPA)"
+            ]
+        );
+        assert_reference_layout(reference);
+        let (prefix, body) = reference.split_once("## The rules").unwrap();
+        assert_eq!(
+            code_spans(prefix).len(),
+            3,
+            "unrecognized reference introduction"
+        );
+        assert!(
+            code_spans(prefix).iter().all(|span| *span == "gimfihi"),
+            "unrecognized reference introduction code span"
+        );
+        assert_documented_ipa(body);
+        let examples = body.split_once("## Examples (word → IPA)").unwrap().1;
+        let mut count = 0;
+        for line in examples.lines().filter(|line| !line.trim().is_empty()) {
+            if line.starts_with("- ") {
+                assert_ipa_examples(line);
+                count += 1;
+            } else {
+                assert!(line.starts_with("  "), "unrecognized example row");
+            }
+        }
+        assert!(count > 0, "missing example rows");
+        assert_ipa_examples(examples);
+        let skill =
+            include_str!("../../../apps/jbotci-server/resources/skills/gismu-making/SKILL.md");
+        let worked = section(skill, "## Worked example — a gismu for \"cat\"", "\nCall:");
+        let start = worked
+            .find("| Lang | Word | IPA | note |")
+            .expect("missing IPA table");
+        assert!(
+            !worked[..start].contains('|'),
+            "unrecognized data before table header"
+        );
+        assert_skill_table(&worked[start..]);
+        assert_skill_json(skill);
+    }
+
+    #[test]
+    #[should_panic(expected = "documented IPA `aβa` is outside")]
+    #[requires(true)]
+    #[ensures(true)]
+    fn skill_table_rejects_ipa_with_an_unquoted_language_cell() {
+        assert_skill_table(
+            "| Lang | Word | IPA | note |\n|------|------|-----|------|\n| spa | gato | `aβa` | noun |",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn drift_readers_refuse_unrecognized_structure() {
+        assert!(
+            std::panic::catch_unwind(|| assert_skill_table(
+                "| Lang | Word | IPA | note |\n|------|------|-----|------|\nspa gato `gat`"
+            ))
+            .is_err()
+        );
+        assert!(std::panic::catch_unwind(|| assert_skill_table("| Lang | Word | IPA | note |\n|------|------|-----|------|\n| spa | gato | gat | noun |")).is_err());
+        assert!(std::panic::catch_unwind(|| assert_documented_ipa("`a` `")).is_err());
+        assert!(std::panic::catch_unwind(|| assert_documented_ipa("`a` ``")).is_err());
+        assert!(
+            std::panic::catch_unwind(|| assert_ipa_examples("cat → `kat`; dog → aβa")).is_err()
+        );
+        assert!(std::panic::catch_unwind(|| section("start end start", "start", "end")).is_err());
+        assert!(
+            std::panic::catch_unwind(|| assert_skill_json(
+                "```json\n{\"sources\":[{\"language\":\"spa\"}]}\n```"
+            ))
+            .is_err()
+        );
+        assert!(
+            std::panic::catch_unwind(|| assert_skill_json(
+                "```json\n{\"sources\":[{\"word\":\"aβa\"}]}\n```"
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_layout_refuses_missing_quotes_and_extra_content() {
+        let reference = include_str!(
+            "../../../apps/jbotci-server/resources/skills/gismu-making/references/ipa-transcription.md"
+        );
+        let inventory = section(
+            reference,
+            "## Supported IPA inventory",
+            "## Per-language gotchas",
+        );
+        let span = code_spans(inventory)[0];
+        let changed = reference.replacen(&format!("`{span}`"), span, 1);
+        assert!(std::panic::catch_unwind(|| assert_reference_layout(&changed)).is_err());
+        let changed = format!("{reference}\n\nNew data row without a code span.");
+        assert!(std::panic::catch_unwind(|| assert_reference_layout(&changed)).is_err());
+        assert!(std::panic::catch_unwind(|| assert_skill_json("``` json\n{}\n```")).is_err());
+        assert!(
+            std::panic::catch_unwind(|| assert_skill_json(
+                "```json\n// hidden source row\n{}\n```"
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unsupported_segment_error_states_the_inventory_contract() {
+        let error = transliterate_ipa_to_lojban("aβa").unwrap_err().to_string();
+        assert!(error.contains("unsupported IPA segment `β`"));
+        assert!(error.contains("Use narrow phonetic IPA."));
+        assert!(
+            error.contains(
+                "Only the inventory listed in the gimfihi word instructions is supported."
+            )
+        );
     }
 
     #[test]

@@ -134,14 +134,17 @@ This uses the **classic six** via the `evenly` preset for a compact, easy-to-
 follow demonstration; for a real coinage prefer `ilmen12`. Transcribe the
 everyday word in each language, reasoning about each pronunciation:
 
+Code spans in the IPA and note columns contain supported IPA.
+Source spelling uses italics.
+
 | Lang | Word | IPA | note |
 |------|------|-----|------|
 | `cmn` | 猫 *māo* | `mau` | tone dropped |
 | `hin` | बिल्ली *billī* | `bɪli` | |
 | `eng` | cat | `kæt` | |
-| `spa` | gato | `gat` | drop the `-o` noun ending |
-| `rus` | кошка | `koʂkɐ` | unstressed final *-а* reduces to `[ɐ]` (akanye); `ш` is retroflex `ʂ` |
-| `ara` | قطة *qiṭṭa* | `qitˤ` | drop the feminine `-a`; `ق` = uvular `q`, emphatic `ṭ` = `tˤ` |
+| `spa` | gato | `gat` | drop the *-o* noun ending |
+| `rus` | кошка | `koʂkɐ` | unstressed final *-а* reduces to `[ɐ]` (akanye); *ш* is retroflex `ʂ` |
+| `ara` | قطة *qiṭṭa* | `qitˤ` | drop the feminine *-a*; *ق* = uvular `q`, emphatic *ṭ* = `tˤ` |
 
 Call:
 

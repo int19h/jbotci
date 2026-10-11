@@ -872,7 +872,7 @@ pub struct CuktaInput {
 #[derive(Debug, Clone, Args)]
 pub struct GimfihiInput {
     /// A source word as `LANG[:WEIGHT]:WORD` (repeat per source). WORD is Lojban
-    /// letters, or a phonemic IPA transcription in `[ ... ]` brackets (e.g.
+    /// letters, or narrow phonetic IPA from the supported inventory in `[ ... ]` brackets (e.g.
     /// `eng:210:[kæt]`).
     #[arg(
         long = "source",
