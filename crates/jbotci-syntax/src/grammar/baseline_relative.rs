@@ -104,11 +104,10 @@ impl OutputRejection<recovered::Recovered<recovered::ExpRelativeContinuationSynt
 /// jbotci's connective nodes spell that slot on the head instead, and they are shared: the same
 /// `exp_relative_clause_connective` serves the ordinary relative chain at :199, and both interval
 /// nodes serve the baseline `joik_connective`, whose consumers supply no outer `free*` at all.
-/// Removing the slot from those nodes would therefore withdraw surfaces the epoch base accepts
-/// through routes this epoch does not own -- `lo broda poi mi brode je to do brodi toi nai poi do
-/// brodi ku cu brodi` and `li pa bi'i to do brodi toi nai li re` are both `A` at `0d791fd35c` --
-/// which is the unsourced-placement sweep filed as #847, not this epoch's family. What this epoch
-/// does own is the chain it added, so the prohibited placement is refused exactly there.
+/// Removing the slot from these shared nodes also removes accepted surfaces from other routes,
+/// such as `lo broda poi mi brode je to do brodi toi nai poi do brodi ku cu brodi`
+/// and `li pa bi'i to do brodi toi nai li re`. Issue #847 covers those placements.
+/// This classifier refuses the placement on the selbri relative chain only.
 ///
 /// Only the two head-before-optional-NAI shapes can present it. `zihe_selbri_relative_connective`
 /// spells `ZIhE_clause` alone, whose trailing frees are the chain's own; `closed_interval_connective`
@@ -236,7 +235,7 @@ fn recovered_is_prohibited_connective_free_modifier(
 /// The recovered twin, read off nodes the recovery tree actually proved.
 ///
 /// `Prohibited` needs all three of a proven head token, a proven NAI token after it, and a proven
-/// free modifier in between; that is the round-4 rule and it is unchanged. `Permitted` needs the
+/// free modifier in between. `Permitted` needs the
 /// head proven too, and then either an absent NAI slot or an empty free-modifier slot beside a
 /// proven NAI. An absent optional slot is a shape fact of a node that parsed, but a placeholder
 /// is not: a placeholder head stands for a run of unparsed input that could hold the frees, and a
@@ -656,9 +655,9 @@ mod tests {
     }
 
     /// The placement result is three-way because the recovered tree has a third state, and every
-    /// answer other than `Unproven` is read off nodes that tree proved. `Prohibited` is round 4's
-    /// rule unchanged; `Permitted` is the one the S3 list has to see before it hands a
-    /// continuation to the chain, and it is a positive proof rather than the absence of the other.
+    /// answer other than `Unproven` comes from proven nodes.
+    /// The probe for stranded relative lists requires `Permitted` before it hands a continuation to the chain.
+    /// That result requires positive proof.
     #[test]
     #[requires(true)]
     #[ensures(true)]

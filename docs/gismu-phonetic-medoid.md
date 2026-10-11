@@ -372,20 +372,16 @@ disagree most, and how much they count materially changes which candidate wins.
   ≥ global, since each regime's feasible alignments contain the next's — a
   useful sanity check, exercised by tests.
 
-## Limitations, gotchas, and open questions
+## Limitations
 
 - **Similarity is a proxy for recognizability.** Human word recognition is not
   position-uniform: onsets and stressed syllables carry disproportionate cue
   value. The scorer models neither — the tokenizer treats stress marks as
-  plain boundaries. The natural extension — up-weighting segments in the
-  source's stressed region and/or the word onset (gismu stress is
-  deterministically penultimate) — is deliberately deferred; the phone-level
-  model should be validated first.
+  plain boundaries.
 - **Parameter sensitivity.** The "average" is only as principled as δ. Any
   empirical claim ("the medoid differs from the classic result in X% of
   cases") is really a claim about the parameter set and should be reported as
-  such. Sensitivity analysis over C_vwl, C_flank, and the manner/place
-  saliences should accompany any tuning effort.
+  such.
 - **Transcription-level sensitivity.** Scores inherit the quality of the
   phonemic transcriptions. A narrow transcription of one source and a broad one
   of another silently re-weights the languages. The same stage-1 discipline the
@@ -421,9 +417,7 @@ disagree most, and how much they count materially changes which candidate wins.
 - **Cross-concept scores are not comparable.** total(g) depends on the sources'
   lengths and mutual (dis)agreement; it ranks candidates *within* one coining,
   and is not a quality scale across different concepts.
-- **Everything downstream is unchanged.** Collision checking against existing
-  words, rafsi considerations, and shape preferences are orthogonal to the
-  scorer and compose with it exactly as with the classic one.
+- Collision checks, rafsi checks, and shape preferences work with either scorer.
 
 ## References
 

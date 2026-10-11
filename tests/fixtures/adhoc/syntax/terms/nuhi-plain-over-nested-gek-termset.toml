@@ -4,7 +4,7 @@ tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch"]
 
 [[provenance]]
 kind = "other"
-name = "epoch-6b #806 termset witness"
+name = "#806 termset witness"
 description = "Arm-fallback pin (reconciliation B1 / Kimi-3). The NUhI-gek arm cannot take this surface: its operands are full GUARDED `terms` sequences, which refuse a bare tag before a selbri. It parses only through the NUhI-plain arm `nuhi_termset <- NUhI free* terms NUhU? free*`, whose single term is the NUhI-LESS gek_termset nested inside it, and the pinned tree is exactly `NuhiTermset { nuhi, termset: [GekTermset(..)] }`. The witness asserts which arm produced the tree, not merely that the surface is accepted."
 
 [expectations.syntax]

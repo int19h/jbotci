@@ -98,8 +98,8 @@ recompile dependencies.
 The GitHub Actions Render image workflow builds the same `dist-server` output
 outside Docker, packages only `server` and `public/` with
 `deploy/render/Dockerfile.runtime`, and publishes a GHCR image. It is
-manual-only while the image-backed Render path is being validated. The existing
-Render Dockerfile remains the self-contained local and fallback build path.
+manual-only. The Render Dockerfile provides the self-contained local and fallback
+build path.
 
 Browser embedding packs are deployed separately to Cloudflare R2 with
 `cargo xtask publish-web-embeddings-r2`. Browser builds default to
@@ -129,26 +129,17 @@ into one merged pack without publishing, run
 `cargo run -r -p xtask-full -- build-f2llm-webgpu-assets`, then publish the
 result with `publish-f2llm-webgpu-r2 --skip-build`.
 
-Building packs takes hours on a CPU, so both pack builders have options that
-make it faster:
+The pack builders support parallel work and host-specific backends.
+The web builder uses ONNX Runtime on the CPU.
+The native GGUF builder uses llama.cpp.
 
-- The web packs use ONNX Runtime on the CPU. One build stops getting faster
-  past a few threads (measured on an M1 Ultra with the 80m model: 7.4
-  documents per second at 2 threads, 12.6 at 4, 19.0 at 8, 19.9 at 16). So
-  `build-f2llm-webgpu-assets --jobs 4` builds the four models at once, each
-  with an equal share of the cores (`--threads-per-job` overrides that). The
-  largest model starts first because it is about half of the work, so it
-  bounds the total time. No GPU route is faster: ONNX Runtime's CoreML
-  provider supports only part of these q4 models, and jbotci's own WebGPU
-  runtime is tuned for single queries.
-- The native GGUF packs use llama.cpp. On an Apple-silicon Mac, pass
-  `build-gguf-embeddings --llama-backend metal` to run it on the GPU (measured
-  on an M1 Ultra with the 330m model: about 110 documents per second, against
-  4.5 on the CPU). Metal changes search rankings about as much as switching
-  between two CPU builds does. `--llama-backend native-cpu` compiles llama.cpp
-  for the build machine's own CPU, about 1.7 times faster than the portable
-  build. Both are for building packs locally; never ship binaries built with
-  them.
+`build-f2llm-webgpu-assets --jobs 4` builds the four models concurrently.
+Each job receives an equal share of the cores unless `--threads-per-job` overrides that value.
+The largest model starts first because it accounts for about half of the work.
+
+On an Apple-silicon Mac, `build-gguf-embeddings --llama-backend metal` selects the GPU backend.
+`--llama-backend native-cpu` compiles llama.cpp for the build host CPU.
+Use these backends for local pack builds. Do not distribute binaries compiled with them.
 
 `vendor/cll` tracks the
 [int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.5` release.

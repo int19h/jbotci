@@ -7,11 +7,8 @@ repository checkout.
 
 ## Which export is vendored
 
-The snapshot is Lensisku's **unfiltered** English export — the
-`positive_scores_only=false` variant. Keeping the flag on, as jbotci did until
-jbotci issue #881, silently dropped every word whose best English definition
-scores zero or less: 12,464 of the 2026-09-01 snapshot's 30,793 embedded words, most of
-them simply never voted on.
+The snapshot uses the unfiltered English export with `positive_scores_only=false`.
+It includes words whose best English definition scores zero or less.
 
 That export comes from the **authenticated** `/api/export/dictionary` route.
 The anonymous `/api/export/cached` route cannot serve it, for two independent
@@ -24,20 +21,16 @@ reasons found in Lensisku's own sources:
   *any* definition edit or vote, so English — its most-edited language — is
   effectively never cached at all, in any variant.
 
-Since upstream migration `V157`, the unfiltered export returns *every*
-definition of every word rather than the best one per word, duplicates and
-repeat submissions included. `jbotci-dictionary-data` embeds one definition per
+The unfiltered export returns every definition of each word, including duplicates and repeat submissions. `jbotci-dictionary-data` embeds one definition per
 word, chosen by Lensisku's own ranking — highest vote score, lowest definition
 id to break a tie — in
 `ImportedDictionary::retain_best_definition_per_word`. The vendored JSON stays
-the verbatim export, so recovering the alternates later needs no re-fetch. The
+the verbatim export, including definitions that the importer does not select. The
 metadata records both counts: `definition_count` for the file's rows,
 `entry_count` for the entries actually embedded.
 
 The export also holds rows that are not words. Lensisku's `wiki` word type
-marks a free-form article stored in its word table. The first one, seen in the
-2026-10 export, is a Markdown text titled "Periodic-table gismu assignment
-algorithm". The importer counts such rows in `definition_count` but never
+marks a free-form article stored in its word table. The importer counts such rows in `definition_count` but never
 embeds them, so they reach neither word lookup nor the embedding corpus. A
 `wiki` row that carries rafsi or a selma'o fails the import, because dropping
 it would silently lose a word-level claim. Any other unknown word type also
@@ -67,14 +60,9 @@ and it never rewrites the vendored files.
 
 ## Extracted rafsi (`extracted-rafsi-en.json`)
 
-Hundreds of (mostly experimental) gismu in the Lensisku snapshot propose short
-rafsi in their definition or notes prose without ever getting a structured
-rafsi record. `extracted-rafsi-en.json` vendors the audited result of a
-one-off five-model LLM extraction of those proposals (jbotci issue #768, run
-2026-08-06): 55 gismu with 60 rafsi between them. The file carries its own
-`provenance` block — run date, the models that voted, a one-line method
-description, and a pointer to the extraction tooling and full audit trail
-(the local `rafsi-extraction` repository).
+`extracted-rafsi-en.json` contains audited short rafsi from definition and notes prose.
+These forms have no structured rafsi record in the snapshot.
+The file records its provenance, models, method, and extraction tooling.
 
 `build.rs` merges the table into the parsed snapshot before any index is
 built, so the extracted forms are ordinary listed rafsi everywhere
@@ -98,7 +86,7 @@ snapshot, so the build fails, naming the offending word or form, when:
 
 ### Refresh protocol
 
-When a snapshot refresh (see epic #664) makes the build fail on one of these
+When a snapshot refresh makes the build fail on one of these
 checks, **re-audit — never override**:
 
 1. If the snapshot now lists rafsi for a word that also appears in
@@ -112,30 +100,14 @@ checks, **re-audit — never override**:
 
 Do not relax the validations to make a refreshed snapshot build.
 
-### Re-audits on record
+### Rafsi classification and selection
 
-**2026-09-01** (issue #881, unfiltered export): 55 words / 60 forms became 37
-words / 40 forms.
-
-- 14 words now carry structured rafsi in the snapshot, and in **every** case
-  they are exactly the forms the extraction had proposed — no divergence to
-  record: `corci`, `ditcu`, `dutso`, `flese`, `jonse`, `kibro`, `sfite`,
-  `tonsi`, `vedli`, `vujnu`, `xrotu`, `zandi`, `zucna`, `zviki`.
-- 4 words lost their only form to another entry, so they were dropped whole:
-  `dzoli`'s `dzo` to `dzodu`, `grava`'s `gav` to `ganvi`, `kligo`'s `kig` to
-  `kirgo`, and `losmo`'s `los` to `losxa`. The last is a consequence of the
-  unfiltered export itself: `losxa` scores 0, so its claim on `los` was
-  invisible while the snapshot kept only positively scored definitions.
-
-**2026-10-04** (2026-10 refresh): 37 words / 40 forms became 32 words / 35
-forms.
-
-Lensisku now records rafsi in two columns: `rafsi` for official assignments
+Lensisku records rafsi in two columns: `rafsi` for official assignments
 and `experimental_rafsi` for experimental ones. The importer keeps each form
 with the standing of its column, so the standing belongs to the rafsi, not to
 the word. Lensisku also attaches rafsi to each definition rather than to the
 word. An entry takes its rafsi from its selected definition only, because the
-definitions of one word can be unrelated (owner ruling, 2026-10-03). So the
+definitions of one word can be unrelated. So the
 experimental rafsi `maz`, which a user-contributed definition of the official
 cmavo `ma` proposes, does not reach jbotci's `ma`. The fail-closed audit still
 reads every row, so it is deliberately stricter than the rafsi index: the
@@ -147,25 +119,7 @@ Lensisku also lists a gismu's 4-letter rafsi (the gismu minus its final vowel)
 as a structured rafsi. jbotci derives that form itself, so the importer
 discards exactly the derived form.
 
-Compared with the 2026-09-01 snapshot, these are the changes:
-
-- The official rafsi of every word are the same set of forms. Lensisku now
-  sorts each list in ASCII order, so the displayed order changes for many
-  words, for example `bal ba'i` becomes `ba'i bal`.
-- Five extracted words now carry exactly their extracted forms as structured
-  experimental rafsi, with no divergence, so they were dropped from the table:
-  `majgo` jgo, `pombo` pom, `posko` pok, `sfeno` se'o and `zvomo` zvo.
-- Thirteen other words gained one experimental rafsi each on their selected
-  definition: `bolva` bov, `dzama` zam, `gelga` geg, `gomsi` gos, `kenjo` kej,
-  `nedlo` ned, `nudle` nud, `podji` pod, `tceta` cet, `vente` vet, `vetno`
-  ve'o, `so'y` sox (a new word) and `xei` xem. None of these forms collides with an
-  extracted form.
-- `dzama` zam supersedes the 2026-08-06 ruling `zam→zai'e`, which dropped
-  `dzama`'s extracted claim. `zai'e` holds no structured rafsi, and the owner
-  accepted upstream's structured assignment on 2026-10-03.
-- Two of the new forms share a form with an older claim. The official gismu
-  `ckeji` holds `kej` officially and outranks `kenjo`. The experimental gismu
-  `cketi` also holds `cet`, so `cet` has two experimental claims.
-- The experimental gismu `linge` no longer lists `ling`, because that is its
-  derived 4-letter form. jbotci still derives it, so only the listed rafsi on
-  the entry change.
+Short-rafsi availability uses the standing of each listed claim.
+An official claim takes priority over experimental claims on the same form.
+If only experimental claims exist, the result reports all those claimants.
+Derived forms do not count as listed claims.

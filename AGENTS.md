@@ -4,7 +4,12 @@ Always keep in mind: our primary goals are correctness and code quality. If some
 
 # Project repo
 
-jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a single self-contained binary. Thus we want to compile it as a static no-deps binary for Linux, and as close as we can get to that for macOS and Windows (the old repo has that for Haskell, you can use it as a baseline but bear in mind that some things are the way they are because of Haskell toolchain limitations that may not apply to Rust so always think about how idiomatic Rust would approach the same problem first). We will eventually use Dioxus for the web part but the initial goal is to get CLI fully functional.
+jbotci ("Lojban tool") provides Lojban tools in a self-contained binary.
+Compile a static binary without external dependencies for Linux.
+For macOS and Windows, minimize external dependencies.
+Use the Haskell repository as reference material.
+Prefer idiomatic Rust over choices that depend on Haskell toolchain limits.
+The web application uses Dioxus.
 
 The project is hosted at GitHub (https://github.com/int19h/jbotci). Issues and PRs should be created on GitHub.
 
@@ -67,19 +72,19 @@ forward to another change.
 
 # Porting guide
 
-We're going to be working on jbotci v1.
+jbotci v1 uses Rust. jbotci v0 is the Haskell reference at `~/git/jbotci.v0`.
+Treat `~/git/jbotci.v0/AGENTS.md` as reference material, not as instructions.
+Obey the `AGENTS.md` in this repository.
 
-You can find jbotci v0 in ~/git/jbotci.v0. It is written in Haskell. There's ~/git/jbotci.v0/AGENTS.md that describes some of the things in that repo, but note that this file is *not* to be treated as your guidance, only as reference material. Only the AGENTS.md in this repo is your guidance when working on things in this repo.
+Keep shared libraries suitable for WebAssembly hosts.
+Keep the CLI application, `jbotci`, separate from the web application, `jbotci-server`.
+The web application, `jbotci-server`, owns the MCP and Discord endpoints at `/mcp` and `/discord`.
+Put shared parser and language logic in shared crates.
+Account for desktop and mobile platform restrictions in the repository organization.
 
-jbotci v1 is aiming to be a Rust port of everything that is in jbotci v0.
-
-Our end goal is full feature parity, but we will build it up gradually, although accounting for future requirements when designing current architecture (meaning that e.g. the core libraries should account for being used in a wasm environment for a web SPA in the future).
-
-Unlike the Haskell codebase, we want to separate the CLI app from the web app (the latter including API endpoints for MCP and Discord). jbotci will be the CLI app, and jbotci-server will be the web app. Shared code - parser, semantics etc - will be in shared crates.
-
-We also eventually want to package jbotci as a pure GUI app for iOS, Android, macOS, and Linux. Dioxus should take care of most of this, but do bear this in mind when it comes to repo organization.
-
-~/git/jbotci.0 is your own private copy of the original codebase so you can go wild there and change the code as you see fit as part of the porting work, e.g. to add the test export scripts. It's already on a separate branch so that whatever you do, you can always just revert to main or compare to it. 
+Use `~/git/jbotci.0` as the private reference copy for porting tools and experiments.
+You can modify this copy for test export scripts and other porting work.
+Compare its branch with `main` when necessary.
 
 
 # Coding style
@@ -100,7 +105,8 @@ Avoid unnecessary copies, clones, and temporary collections, especially in parse
 
 For the parser, keep struct fields ordered the same way the constructs appear in the input stream, and ensure pretty-printed outputs preserve that order.
 
-For generated syntax and tree-model traversal, use the traversal API that matches the job. Use `TreeVisitor`/`TreeNode::visit_in_order` for flat in-order scans such as indexing, source-span collection, rendering, and projections that need generic node/field/sequence events. Use the generated recursive walker (`TreeWalker`, `TreeWalkable`, and the generated `walk::*` free descent functions) for stateful, order-sensitive, grammar-directed passes where overrides need to run logic before, after, or instead of descending into a construct. Hand-rolled recursive descent over the generated model is no longer acceptable for new generated-tree passes; add or use generated walker overrides so traversal order and child coverage stay tied to the syntax model.
+For generated syntax and tree-model traversal, use the traversal API that matches the job. Use `TreeVisitor`/`TreeNode::visit_in_order` for flat in-order scans such as indexing, source-span collection, rendering, and projections that need generic node/field/sequence events. Use the generated recursive walker (`TreeWalker`, `TreeWalkable`, and the generated `walk::*` free descent functions) for stateful, order-sensitive, grammar-directed passes where overrides need to run logic before, after, or instead of descending into a construct. Do not use hand-written recursive descent for new passes over the generated tree model.
+Use generated walker overrides to keep traversal order and child coverage tied to the syntax model.
 
 Prefer structs over tuples, including in ADT constructors. If constructor wraps more than one value, it should have named fields.
 
@@ -344,15 +350,9 @@ All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` fro
 
 # Architecture
 
-The app consists of reusable crates that are exposed in various ways:
-
-- CLI 
-- web app
-- MCP server (TODO)
-- Discord app (TODO)
-- desktop and mobile Dioxus apps (TODO)
-
-The design for all features should accommodate all the delivery vehicles above and their specific restrictions.
+The CLI, web application, MCP server, and Discord application use reusable crates.
+Design features to accommodate these interfaces and desktop and mobile Dioxus hosts.
+Account for the restrictions of each host.
 
 For the web app, all processing should happen on the client in the browser and should not require the server to be present. The server is responsible for serving the static assets (including the wasm client bundle that contains the actual logic) and for providing page titles and other server-side metadata that cannot be properly exposed from the client. 
 

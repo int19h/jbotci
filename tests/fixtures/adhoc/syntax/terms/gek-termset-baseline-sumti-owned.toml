@@ -4,7 +4,7 @@ tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch", "no-reinterpreta
 
 [[provenance]]
 kind = "other"
-name = "epoch-6b #806 termset witness"
+name = "#806 termset witness"
 description = "`gek_termset` and the baseline GEK sumti connection `sumti_4 <- sumti_5 / gek sumti gik sumti_4` both begin GEK ... GIK ... and cover the identical extent here, and both upstream parsers give it to the SUMTI connection. Arm order alone cannot settle that, because a locally failing outer parse backtracks into the termset arm and would reclaim an extent the baseline had already covered, so the termset arm carries a whole-candidate reject_output classifier (crates/jbotci-syntax/src/grammar/baseline_termset.rs). A candidate is baseline-owned exactly when its operand tree is one GIK-paired level whose two operands are both bare sumti terms."
 
 [expectations.syntax]

@@ -1,279 +1,82 @@
-# F2LLM runtime oracles and acceptance gates
+# F2LLM runtime oracles
 
-This document freezes the N0 evidence for issue #695 and the commands that N1–N5 must
-make pass. N0 defines contracts and oracles only: it does not move runtime code or wire
-any consumer to `jbotci-f2llm-runtime`.
+An oracle is reference output used to assess another implementation.
+The F2LLM tests use pinned token IDs, window boundaries, and embedding vectors.
+`jbotci-f2llm-runtime` contains the shared runtime and the oracle data.
 
-## Published pack snapshot
+## Golden data and provenance
 
-The durable snapshot is:
+Golden data is fixed reference output for test inputs.
+`crates/jbotci-f2llm-runtime/testdata/goldens/provenance.json` binds the golden files to their generators, reference harnesses, and source manifests.
+The tests compare the recorded hashes with the embedded files.
 
-`/home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30`
+The `legacy-v0.1.0` sets contain prototype vectors for three model sizes.
+Their source ONNX bytes are unavailable, as the provenance file records.
+These sets do not establish compatibility with runtime version `0.2.0`.
 
-It was captured from R2 bucket `jbotci-web-assets`, prefix `embeddings/web/v1`, at
-`2026-07-30T05:10:45Z`. The catalog was fetched before and after the capture and was
-byte-identical. Its six `manifest_url` values were followed; every referenced item file
-and vector shard was captured and checked against the manifest. Vector byte lengths
-were also checked as `row_count * dimensions * element_width`.
+The `current-v0.2.0/f2llm-v2-80m-q4-320` set uses the published 80m q4 ONNX model with onnxruntime 1.28.0.
+It records token IDs, windows, normalized window vectors, final vectors, and little-endian f32 digests.
+The final vector is the normalized mean of the normalized window vectors.
+Its inputs cover these boundaries:
 
-The snapshot has 31 R2 objects totaling 274,341,161 bytes:
+- Empty and non-ASCII text.
+- Post-EOS token counts of 511, 512, and 513.
+- A 1,025-token document with windows `[512, 512, 1]`.
+- The last slot of one eight-window batch and the first slot of the next batch.
 
-| Kind | Objects | Bytes |
-| --- | ---: | ---: |
-| catalog | 1 | 5,469 |
-| pack manifest | 6 | 14,654 |
-| item file | 12 | 20,289,678 |
-| vector shard | 12 | 254,031,360 |
+Do not edit pinned files to accept a runtime difference.
+Use `tools/f2llm-oracles/generate-f2llm-goldens.py` with the exact source manifests and hashes to reproduce the 80m set.
+The provenance file supplies those identities.
 
-This includes both published EmbeddingGemma packs and all four F2LLM sizes. The
-machine-readable inventory is `snapshot.json`; `SHA256SUMS` covers every captured R2
-object.
+## Runtime capabilities
 
-- `snapshot.json`: `d34980e9d1fbc9b2f71eb1ba1b7a78a5ca99d413cb0fabb54b66eecb26674206`
-- `SHA256SUMS`: `c717f296aad9347ed7fa3d65050e90d0ee3ed7f2e09c3dafcf869f32f5d4a725`
+`RuntimeCapabilities::EmbeddingOnly` permits embedding without the `shader-f16` adapter feature.
+It does not compile the f16 vector-scoring pipeline.
+`EmbeddingAndF16Scoring` requires that feature and supports both operations.
+The browser worker selects `EmbeddingAndF16Scoring` by default.
 
-Verify it with:
+The browser evidence page requests embedding-only capability directly.
+It does not require a source patch.
+The native golden test also selects embedding-only capability.
 
-```sh
-cd /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30
-sha256sum -c SHA256SUMS
-```
+## Pure-core tests
 
-The published 80m ONNX and all four current WebGPU manifest bytes have separate durable
-captures under the same issue directory. The 80m model is exactly 55,252,118 bytes with
-SHA-256 `00ec8cc51400b74b0d215b794536a81a24f9002926c340ebde139092b3a36cc6`.
-
-## Golden provenance
-
-`testdata/goldens/provenance.json` binds every legacy fixture to exact vendored
-generator, reference harness, golden, and source-artifact manifest bytes.
-
-The three prototype fixture sets remain byte-for-byte `0.1.0` evidence. Their q4 ONNX
-digests survive in the captured published v1 pack manifests, but those ONNX bytes are
-unrecoverable and are explicitly marked unavailable. Current artifact manifest digests
-are recorded separately and differ from every prototype `0.1.0` manifest. Consequently,
-the old vectors are not presented as `0.2.0` compatibility evidence.
-
-The `f2llm-v2-80m-q4-320` fixture is independently generated for runtime/artifact
-version `0.2.0` from the published ONNX using onnxruntime 1.28.0. It covers:
-
-- empty and genuinely non-ASCII input;
-- exact post-EOS token counts 511, 512, and 513;
-- a 1,025-token document with windows `[512, 512, 1]`;
-- the last slot of an eight-window inference batch and the first slot of the next one.
-
-It records exact token IDs, window structure, per-window normalized embeddings, final
-mean-of-normalized-windows embeddings, and f32le digests. Two clean generator runs were
-byte-identical at:
-
-`1af849624dd143f1d447254fc8815c57a921a17d9237d4e572d8024de1b596d3`
-
-Regenerate it only from the durable published inputs:
+From the repository root, operate the pure-core tests in release mode:
 
 ```sh
-/build/jbotci/scratch/f2llm-venv/bin/python \
-  tools/f2llm-oracles/generate-f2llm-goldens.py \
-  --out /build/jbotci/scratch/issue-695/f2llm-v2-80m-q4-320-goldens.json \
-  --q4-onnx /home/int19h.linux/artifacts/jbotci/issue-695/published-80m-onnx-2026-07-30/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx \
-  --onnx-manifest /home/int19h.linux/artifacts/jbotci/issue-695/published-80m-onnx-2026-07-30/models/f2llm-v2-80m-onnx-q4/v1/manifest.json \
-  --artifact-manifest /home/int19h.linux/artifacts/jbotci/issue-695/published-webgpu-manifests-2026-07-30/models/f2llm-v2-80m-webgpu/v1/manifest.json \
-  --expected-q4-sha256 00ec8cc51400b74b0d215b794536a81a24f9002926c340ebde139092b3a36cc6 \
-  --expected-onnx-manifest-sha256 c034193d12df6a623cfa00b8661752a42e82e3fd705d4f073356068b194e9bb3 \
-  --expected-artifact-manifest-sha256 f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2
+CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles cargo test -r -p jbotci-f2llm-runtime --test pure_core
 ```
 
-## N1–N5 command contract
+These tests exercise the runtime data and provenance without a GPU adapter.
+They do not replace execution on a GPU.
+GPU comparisons require the exact artifact bytes identified by the manifests.
 
-These command names and thresholds are the acceptance interface for the later issues.
-Where an N0 command does not exist yet, the named issue must add it rather than replacing
-the gate with an ad hoc comparison. All commands use
-`CARGO_TARGET_DIR=/build/jbotci/target/<issue>` and scratch data under
-`/build/jbotci/scratch/<issue>`.
+## Native golden tests
 
-### N1 — wasm-only extraction
+`tools/f2llm-oracles/download-webgpu-artifacts.py` downloads a manifest and its objects into a local artifact directory.
+It resolves object identities by byte length and SHA-256.
+It refuses missing or mismatched payloads.
+Its `--runtime-manifest` argument selects the manifest used by an oracle set.
+For legacy sets, it matches published objects by byte length and SHA-256 and writes the exact vendored runtime manifest.
 
-The extraction gate consumes real browser WebGPU evidence, not vectors supplied by a
-fixture. `tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html` loads the published
-80m tokenizer and tensor objects through the JavaScript ABI and sends every N0 case
-through `embedTexts`. It records exact token IDs, window arrays, and the little-endian
-bytes and SHA-256 digest of every returned 320-component `f32` vector.
-
-The issue #696 build host exposed software WebGPU but not the optional `shader-f16`
-adapter feature. N1's historical reproducible evidence therefore used the narrowly scoped
-embedding-only instrumentation in
-`tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py`. The script refuses to
-touch paths outside `/build/jbotci/scratch`; it changes only the requested feature set
-to empty and skips precompilation of `vectorDotF16`. The real product sources retain
-the `SHADER_F16` requirement and the `scoreF16Vectors` ABI. `embedTexts` cannot reach
-the skipped pipeline: `vectorDotF16` is dispatched only from the separate
-`score_f16_vectors` method.
-
-After N2, the same behavior is the typed
-`RuntimeCapabilities::EmbeddingOnly` product path. The browser evidence page requests that
-capability directly, so current checkouts require no source instrumentation; the browser worker
-continues to default to `EmbeddingAndF16Scoring`.
-
-An independent reviewer can reproduce both sides from the submitted checkout as
-follows. Replace `<submitted-commit>` with the exact reviewed commit, and leave
-`<issue>` as the review lane name:
-
-```sh
-scratch=/build/jbotci/scratch/<issue>
-base=$scratch/base-evidence
-submitted=$scratch/submitted-evidence
-
-git worktree add --detach "$base" 2a845dea5a3ba996c05aab33319d46bbdff37617
-git worktree add --detach "$submitted" <submitted-commit>
-git -C "$base" submodule update --init vendor/cll
-git -C "$submitted" submodule update --init vendor/cll
-
-python3 tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
-  --runtime-source "$base/crates/jbotci-ui/src/f2llm_webgpu_runtime.rs"
-python3 tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
-  --runtime-source "$submitted/crates/jbotci-f2llm-runtime/src/webgpu.rs"
-git -C "$base" diff --binary > "$scratch/base-embedding-only-instrumentation.patch"
-git -C "$submitted" diff --binary > "$scratch/submitted-embedding-only-instrumentation.patch"
-sha256sum \
-  tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
-  "$scratch/base-embedding-only-instrumentation.patch" \
-  "$scratch/submitted-embedding-only-instrumentation.patch"
-
-(cd "$base/apps/jbotci-app" &&
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
-cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
-  "$scratch/base-instrumented-public"
-(cd "$submitted/apps/jbotci-app" &&
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
-cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
-  "$scratch/submitted-instrumented-public"
-```
-
-Populate the local, same-origin published-artifact mirror. The runtime checks every
-declared byte length and SHA-256 digest while loading it:
-
-```sh
-artifact_manifest=/home/int19h.linux/artifacts/jbotci/issue-695/published-webgpu-manifests-2026-07-30/models/f2llm-v2-80m-webgpu/v1/manifest.json
-artifact_root=/build/jbotci/scratch/<issue>/gpu-assets
-mkdir -p "$artifact_root"
-cp "$artifact_manifest" "$artifact_root/manifest.json"
-python3 - "$artifact_manifest" <<'PY' |
-import json, sys
-manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-urls = {manifest["tokenizer"]["url"]}
-for tensor in manifest["tensors"].values():
-    for component in ("qweight", "scales", "zero_points", "data"):
-        urls.update(chunk["url"] for chunk in tensor.get(component, {}).get("chunks", []))
-for url in sorted(urls):
-    print("https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/" + url)
-PY
-  wget -q -x -nH --cut-dirs=3 --directory-prefix="$artifact_root" --input-file=-
-```
-
-Serve the two bundles and run them under identical forced-lavapipe Chrome flags. The
-Node runner polls the browser through DevTools until all GPU work and readback finish;
-it also records the adapter feature inventory:
-
-```sh
-cp tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html "$scratch/"
-cp crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json \
-  "$scratch/goldens.json"
-python3 -m http.server 8770 --directory "$scratch" \
-  > "$scratch/evidence-http.log" 2>&1 &
-evidence_http_pid=$!
-
-node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
-  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
-  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/base-instrumented-public/wasm/jbotci-app.js&wasm=/base-instrumented-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=2a845dea5a3ba996c05aab33319d46bbdff37617" \
-  --output "$scratch/before.json" \
-  --chrome-log "$scratch/before-webgpu-chromium.log" \
-  --profile-dir "$scratch/chrome-profile" \
-  --timeout-seconds 1200 \
-  --debug-port 9224
-node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
-  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
-  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/submitted-instrumented-public/wasm/jbotci-app.js&wasm=/submitted-instrumented-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=<submitted-commit>" \
-  --output "$scratch/after.json" \
-  --chrome-log "$scratch/after-webgpu-chromium.log" \
-  --profile-dir "$scratch/chrome-profile" \
-  --timeout-seconds 1200 \
-  --debug-port 9224
-kill "$evidence_http_pid"
-sha256sum "$scratch/before.json" "$scratch/after.json"
-```
-
-The two evidence-file digests differ because their `implementation` provenance fields
-differ. The named extraction gate below compares the pinned artifact/runtime
-provenance, adapter inventory, awaited progress count, token IDs, windows, exact f32
-bytes, and per-vector f32 digests. The export gate parses the built WebAssembly export
-section and verifies that each pinned JavaScript ABI shim calls its corresponding real
-wasm export.
-
-```sh
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime --test pure_core
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-extraction-gate \
-  --before /build/jbotci/scratch/<issue>/before.json \
-  --after /build/jbotci/scratch/<issue>/after.json \
-  --require-bit-identical-f32 \
-  --require-exact-token-ids \
-  --require-exact-windows
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-wasm-export-gate \
-  --require jbotciF2LlmWebGpuRuntimeLoad \
-  --require jbotciF2LlmTokenizerLoad \
-  --require embedTexts \
-  --require scoreF16Vectors
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo tree -p jbotci-ui --target aarch64-unknown-linux-gnu \
-  | tee /build/jbotci/scratch/<issue>/jbotci-ui-native-tree.txt
-! rg '(^| )wgpu v|jbotci-f2llm-runtime' \
-  /build/jbotci/scratch/<issue>/jbotci-ui-native-tree.txt
-```
-
-### N2 — native bring-up
-
-Populate the immutable native artifact mirror once. The three legacy oracle manifests refer to
-pre-content-addressed object names that are no longer published; the downloader joins them to
-current immutable objects by exact byte length and SHA-256, then writes the exact vendored runtime
-manifest. A missing or mismatched payload is a hard error.
-
-```sh
-artifact_root=/build/jbotci/scratch/f2llm-native-artifacts
-published_manifests=/home/int19h.linux/artifacts/jbotci/issue-695/published-webgpu-manifests-2026-07-30/models
-
-python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-  --manifest "$published_manifests/f2llm-v2-80m-webgpu/v1/manifest.json" \
-  --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
-  --out "$artifact_root/f2llm-v2-80m-q4-320"
-python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-  --manifest "$published_manifests/f2llm-v2-160m-webgpu/v1/manifest.json" \
-  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-160m-webgpu/v1/manifest.json \
-  --base-url https://assets.jbotci.app/models/f2llm-v2-160m-webgpu/v1/ \
-  --out "$artifact_root/f2llm-v2-160m-q4-640"
-python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-  --manifest "$published_manifests/f2llm-v2-330m-webgpu/v1/manifest.json" \
-  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-330m-webgpu/v1/manifest.json \
-  --base-url https://assets.jbotci.app/models/f2llm-v2-330m-webgpu/v1/ \
-  --out "$artifact_root/f2llm-v2-330m-q4-896"
-python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
-  --manifest "$published_manifests/f2llm-v2-0.6b-webgpu/v1/manifest.json" \
-  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-0.6b-webgpu/v1/manifest.json \
-  --base-url https://assets.jbotci.app/models/f2llm-v2-0.6b-webgpu/v1/ \
-  --out "$artifact_root/f2llm-v2-0.6b-q4-1024"
-```
-
-The full four-model dev-box GPU command is:
+Prepare model directories under `/build/jbotci/scratch/f2llm-native-artifacts` before the native tests.
+Use the manifests that correspond to the selected golden data.
+For all four models, operate:
 
 ```sh
 WGPU_BACKEND=vulkan \
   JBOTCI_F2LLM_ARTIFACT_ROOT=/build/jbotci/scratch/f2llm-native-artifacts \
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
+  CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles \
   cargo test -r -p jbotci-f2llm-runtime --features native \
   --test native_goldens -- --nocapture
 ```
 
-It deliberately leaves `JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER` and
-`VK_ICD_FILENAMES` unset. The evidence prints and records the selected adapter; verify that it is
-the dev box's real GPU. The lavapipe-only 80m command is:
+The test records the selected adapter and comparison results.
+Make sure that the adapter matches the intended test host.
+An absent adapter fails the test.
+The minimum cosine similarity to the ONNX reference is 0.999.
+
+For an 80m test through the software Vulkan adapter, operate:
 
 ```sh
 WGPU_BACKEND=vulkan \
@@ -281,153 +84,59 @@ WGPU_BACKEND=vulkan \
   JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER=1 \
   JBOTCI_F2LLM_GOLDEN_MODE=80m \
   JBOTCI_F2LLM_ARTIFACT_ROOT=/build/jbotci/scratch/f2llm-native-artifacts \
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
-  /usr/bin/time -f 'lavapipe 80m native goldens wall time: %E' \
+  CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles \
   cargo test -r -p jbotci-f2llm-runtime --features native \
   --test native_goldens -- --nocapture
 ```
 
-For the D5 direct comparison, build the current wasm app and run the N1 browser evidence page
-against the same 80m artifact directory. `capabilities: "embedding-only"` is part of the checked-in
-page; do not patch runtime source.
+`JBOTCI_F2LLM_NATIVE_EVIDENCE` overrides the evidence output path.
+The default output is `f2llm-native-goldens.json` in the Cargo target directory.
+Use a separate build lane and scratch directory for each comparison.
+
+## Browser evidence
+
+`tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html` loads the tokenizer and tensor artifacts through the JavaScript runtime interface.
+It sends the golden inputs through `embedTexts`.
+It records token IDs, windows, vector bytes, vector hashes, and adapter features.
+
+Build the app from `apps/jbotci-app` with a dedicated target directory:
 
 ```sh
-scratch=/build/jbotci/scratch/<issue>
-(cd apps/jbotci-app &&
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
-cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
-  "$scratch/current-public"
-cp tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html "$scratch/"
-cp crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json \
-  "$scratch/goldens.json"
-ln -sfn /build/jbotci/scratch/f2llm-native-artifacts/f2llm-v2-80m-q4-320 \
-  "$scratch/gpu-assets"
-python3 -m http.server 8770 --directory "$scratch" \
-  > "$scratch/evidence-http.log" 2>&1 &
-evidence_http_pid=$!
-node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
-  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
-  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/current-public/wasm/jbotci-app.js&wasm=/current-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=$(git rev-parse HEAD)" \
-  --output "$scratch/wasm.json" \
-  --chrome-log "$scratch/wasm-webgpu-chromium.log" \
-  --profile-dir "$scratch/chrome-profile" \
-  --timeout-seconds 1200 \
-  --debug-port 9224
-kill "$evidence_http_pid"
+CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles dx build
 ```
 
-Then run the frozen N2 gates:
+Serve the built public directory, evidence page, golden data, and artifact directory from one local HTTP origin.
+Use the page query parameters `module`, `wasm`, `goldens`, `artifacts`, and `implementation` to identify those inputs.
+`tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs` operates the page through Chrome DevTools.
+It waits for GPU work and readback before it writes evidence.
+
+## Comparison commands
+
+`xtask-full` provides three comparison commands.
+`f2llm-extraction-gate` compares browser evidence from two builds.
+It requires `--require-bit-identical-f32`, `--require-exact-token-ids`, and `--require-exact-windows`.
+It compares artifact and runtime identities, adapter features, progress counts, vector bytes, and vector digests.
+The `implementation` fields can differ between the two builds.
+
+`f2llm-golden-gate` compares runtime evidence with golden data.
+It requires exact token IDs and windows through `--require-exact-token-ids` and `--require-exact-windows`.
+Use `--min-cosine 0.999` for the ONNX reference comparison.
+It also requires browser evidence through `--wasm-evidence` and a report path through `--report-wasm-native-cosine`.
+A native/browser cosine similarity below 0.999 requires investigation and a recorded report.
+The command reports that difference without reducing the ONNX reference threshold.
+
+`f2llm-wasm-export-gate` examines the built WebAssembly exports and the JavaScript functions that call them.
+Use `--require` for `jbotciF2LlmWebGpuRuntimeLoad`, `jbotciF2LlmTokenizerLoad`, `embedTexts`, and `scoreF16Vectors`.
+Each JavaScript function must call its corresponding real WebAssembly export.
+
+From the repository root, show the command arguments:
 
 ```sh
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime --test pure_core
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-golden-gate \
-  --goldens crates/jbotci-f2llm-runtime/testdata/goldens \
-  --evidence /build/jbotci/target/<issue>/f2llm-native-goldens.json \
-  --target native \
-  --min-cosine 0.999 \
-  --require-exact-token-ids \
-  --require-exact-windows \
-  --wasm-evidence /build/jbotci/scratch/<issue>/wasm.json \
-  --report-wasm-native-cosine /build/jbotci/scratch/<issue>/wasm-native.json
+CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles cargo run -r -p xtask-full -- f2llm-extraction-gate --help
+CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles cargo run -r -p xtask-full -- f2llm-golden-gate --help
+CARGO_TARGET_DIR=/build/jbotci/target/f2llm-oracles cargo run -r -p xtask-full -- f2llm-wasm-export-gate --help
 ```
 
-Adapter absence is a failure. Any wasm/native cosine below 0.999 requires investigation
-and a recorded report; the shared ONNX-reference minimum of 0.999 is a hard failure and
-is never loosened to retain a vector-space key.
-
-### N3 — native builder and staging
-
-```sh
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  export-web-embedding-corpus \
-  --output /build/jbotci/scratch/<issue>/corpus.json
-VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json \
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
-  cargo run -r -p xtask-full -- build-web-vectors-native \
-  --corpus /build/jbotci/scratch/<issue>/corpus.json \
-  --artifact-root /build/jbotci/scratch/<issue>/published-artifacts \
-  --models f2llm-v2-80m-q4-320,f2llm-v2-160m-q4-640,f2llm-v2-330m-q4-896,f2llm-v2-0.6b-q4-1024 \
-  --stage /build/jbotci/scratch/<issue>/native-stage \
-  --batch-size 8
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-pack-gate \
-  --old /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30/embeddings/web/v1 \
-  --new /build/jbotci/scratch/<issue>/native-stage \
-  --models f2llm-v2-80m-q4-320,f2llm-v2-160m-q4-640,f2llm-v2-330m-q4-896,f2llm-v2-0.6b-q4-1024 \
-  --join corpus,document-id,input-hash \
-  --require-all-rows \
-  --min-cosine 0.999 \
-  --max-component-error 0.01
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-retrieval-gate \
-  --old /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30/embeddings/web/v1 \
-  --new /build/jbotci/scratch/<issue>/native-stage \
-  --max-score-error 0.002 \
-  --max-inversion-old-gap 0.004 \
-  --max-top-k-boundary-gap 0.004
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime \
-  f32_to_f16_matches_numpy_halfway_and_special_values
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-80m-python-double-check \
-  --published-onnx /home/int19h.linux/artifacts/jbotci/issue-695/published-80m-onnx-2026-07-30/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx \
-  --native-pack /build/jbotci/scratch/<issue>/native-stage \
-  --min-cosine 0.999 \
-  --max-component-error 0.01
-```
-
-The builder writes staging only. The corpus DTO must reject a changed document,
-aggregate fingerprint, or noncanonical document ID after recomputing all hashes.
-
-### N4 — dual-schema worker web release
-
-```sh
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime manifest_
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime torn_catalog_manifest
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-ui \
-  embedding_worker_dual_schema
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- build-web-release
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-worker-release-gate \
-  --release .jbotci-build/jbotci-web \
-  --old-catalog /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30/embeddings/web/v1/catalog.json \
-  --require-normal-cache \
-  --require-service-worker-activation \
-  --require-v1 \
-  --require-v2
-```
-
-The catalog/manifest checks cover model key, vector-space key, and pack ID, including
-torn-pair failures.
-
-### N5 — publication and rollback rehearsal
-
-```sh
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  publish-f2llm-webgpu-r2 \
-  --bucket jbotci-web-assets \
-  --embedding-prefix embeddings/web/v1 \
-  --corpus /build/jbotci/scratch/<issue>/corpus.json \
-  --model-out-root /build/jbotci/scratch/<issue>/models \
-  --vector-out-dir /build/jbotci/scratch/<issue>/native-stage \
-  --skip-build
-CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
-  f2llm-published-browser-gate \
-  --catalog https://assets.jbotci.app/embeddings/web/v1/catalog.json \
-  --models f2llm-v2-80m-q4-320,f2llm-v2-160m-q4-640,f2llm-v2-330m-q4-896,f2llm-v2-0.6b-q4-1024 \
-  --edge-cache-poll \
-  --require-service-worker-activation
-npx --yes wrangler@latest r2 object put \
-  jbotci-web-assets/embeddings/web/v1/catalog.json \
-  --file /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30/embeddings/web/v1/catalog.json \
-  --content-type application/json \
-  --remote
-cmp \
-  /home/int19h.linux/artifacts/jbotci/issue-695/published-web-packs-2026-07-30/embeddings/web/v1/catalog.json \
-  <(npx --yes wrangler@latest r2 object get \
-      jbotci-web-assets/embeddings/web/v1/catalog.json --remote --pipe)
-```
-
-N5 uploads only unique object URLs and publishes the catalog last. The final two
-commands are the required rollback rehearsal; do not run them before the N5 publication
-authorization. Old objects are retained.
+Record exact commits, manifests, adapter details, and command arguments with comparison results.
+Investigate a vector difference before accepting compatibility.
+Do not lower the reference threshold to preserve a vector-space identity.

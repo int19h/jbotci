@@ -4,8 +4,8 @@ tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch"]
 
 [[provenance]]
 kind = "other"
-name = "epoch-6b #806 termset witness"
-description = "camxes-standard `gek_termset <- gek terms_gik_terms` (camxes.peg:136-138) and camxes-exp (camxes-exp.peg:191-193) take ONE UNGUARDED term per operand position, so the trailing operand is a bare tag with an elided KU and the selbri follows it. That is what makes this surface parse at all: the guarded `terms` sequence the NUhI-present arm takes would refuse the tag before a selbri. Rejected at the epoch-6a base; both running parsers accept it."
+name = "#806 termset witness"
+description = "camxes-standard (camxes.peg:136–138) and camxes-exp (camxes-exp.peg:191–193) take one unguarded term at each operand position. The trailing operand is a bare tag with elided KU, and the selbri follows it. The NUhI-present arm uses a guarded `terms` sequence that refuses a tag before a selbri."
 
 [expectations.syntax]
 status = "success"
