@@ -10,18 +10,18 @@ string of Lojban phonemes.
 
 The pipeline is split deliberately:
 
-1. **Phonemic transcription (judgement, done by the caller / the model).** Turn
-   the source word into a *broad phonemic* IPA transcription of how it is
-   actually pronounced — the hard part, because it needs real knowledge of the
-   language. Work strictly at the **phonemic** level: apply the language's own
-   neutralizations (Russian unstressed о is /a/, by *akanye*), but neither narrow
-   it to allophonic detail nor abstract it back to morphophonemic underlying forms
-   (see "Level of representation" below). Tone and stress are ignored;
-   morphological endings are dropped.
-2. **Mapping to Lojban (mechanical, done in product code).** Everything below is
-   a deterministic function from IPA to Lojban phonemes: normalize the IPA,
-   collapse affricates, and snap each remaining phoneme to the nearest Lojban
-   sound. This stage involves *no* per-word judgement.
+1. Phonetic transcription (the caller or model). Transcribe how the source word sounds, within the supported IPA inventory.
+   An allophone is a positional form of a sound.
+   Use the narrowest transcription that the inventory permits.
+   Select the allophones that occur in each position.
+   Apply vowel reduction, final devoicing, and consonant assimilation.
+
+   For example, assimilation can change `nb` to `mb` or `kz` to `gz`.
+   Remove grammatical endings, such as Spanish noun `-o` in *gato* → `ɡat`.
+   Resolve schwa as described in "Level of representation".
+   Tone and stress do not affect the scoring letters.
+2. Mapping to Lojban (product code). The code normalizes IPA, collapses affricates, and maps the remaining sounds to Lojban scoring letters.
+   This stage applies the same rules to each transcription.
 
 This document is the spec for stage 2 and the definition of what stage 1 is
 allowed to emit. The docstring on the tool's `word` field (see the last section)
@@ -30,8 +30,9 @@ the mapping, because the mapping lives here and in the code.
 
 ## Scope: the source languages
 
-The mapping must accept anything that occurs in the phonologies of every language
-referenced by any built-in weight preset. That is twelve languages:
+The built-in weight presets use twelve source languages.
+The tables describe their supported IPA symbols.
+The "Input limits" section lists symbols and notation that the classic mapper rejects.
 
 | Code | Language | Notable contributions to the inventory |
 |------|----------|----------------------------------------|
@@ -112,37 +113,38 @@ are added.
 
 ## Stage 2a — IPA normalization
 
-Before snapping, reduce the broad IPA to bare base phonemes. Each rule below is a
-rewrite; apply all of them.
+Before snapping, normalize the phonetic IPA to base symbols.
+The code applies the normalization rules in this section.
 
 ### Suprasegmentals and length — drop entirely
 
 | Input | Action | Reason |
 |-------|--------|--------|
 | stress `ˈ ˌ` | delete | Lojban stress is positional, not lexical here |
-| syllable break `.`, ligature ‿ | delete | not phonemic |
-| tone marks: letters `˥˦˧˨˩`, contour diacritics `◌̄ ◌́ ◌̌ ◌̂ ◌̀`, trailing tone digits | delete | tone is not represented |
-| length `ː`, half-length `ˑ`, doubled vowels | delete the length (one vowel) | Lojban has no phonemic vowel length |
-| consonant length / gemination `ː`, doubled consonants, Japanese moraic `Q` | collapse to a single consonant | no phonemic gemination |
+| syllable break `.` | delete | syllable divisions do not affect scoring |
+| tone marks: letters `˥˦˧˨˩`, contour diacritics `◌̄ ◌́ ◌̌ ◌̂ ◌̀` | delete | tone is not represented |
+| length `ː`, half-length `ˑ` | remove the length mark | Lojban has no phonemic vowel length |
+| consonant length / gemination `ː` | remove the length mark | no phonemic gemination |
 
 ### Secondary articulations — decompose or strip
 
 | Input | Action | Example |
 |-------|--------|---------|
-| palatalization `ʲ` (incl. Russian soft consonants) | consonant **+ `i`-glide** onto the following vowel | rus. *нет* /nʲet/ → `niet`; *тётя* /tʲotʲa/ → `tiotia` |
+| palatalization `ʲ` (incl. Russian soft consonants) | consonant + `i` | rus. *нет* /nʲet/ → `niet`; *тётя* /tʲotʲa/ → `tiotia` |
 | labialization `ʷ` | consonant **+ `u`-glide** | /kʷa/ → `kua` |
 | aspiration `ʰ`, `ʱ`/breathy `◌̤`, creaky `◌̰` | strip (snap the base) | hin. /pʰal/ → `pal`, /bʱ/ → `b` |
 | pharyngealization / emphasis `ˤ`, `◌̴`, velarization | strip (snap the base) | ara. /sˤ/ → `s`, /tˤ/ → `t`, /ðˤ/ → `z` |
 | dental/apical/laminal/advanced/retracted place diacritics `◌̪ ◌̺ ◌̻ ◌̟ ◌̠` | ignore (snap the base) | /t̪/ → `t` |
 | rhoticity `◌˞` and r-coloured vowels `ɚ ɝ` | vowel **+ `r`** | eng. *letter* /lɛtɚ/ → `leter` |
-| explicit voicing `◌̥ ◌̬` | snap to the voiceless/voiced counterpart | |
+| explicit voicing `◌̥ ◌̬` | ignore the mark and snap the base symbol | |
 
 ### Vowel quality diacritics — ignore, snap the base symbol
 
 Raised `◌̝`, lowered `◌̞`, advanced `◌̟`, retracted `◌̠`, centralized `◌̈`,
-mid-centralized `◌̽`, more/less rounded `◌̹ ◌̜`, nasalized-consonant marks, etc. all
-collapse to their base vowel before the vowel rule runs. (Nasalization on a
-*vowel* is not ignored — see below.)
+mid-centralized `◌̽`, and more/less rounded `◌̹ ◌̜` marks do not change the base symbol.
+The code maps that symbol by the vowel rule.
+The combining nasalization mark `◌̃` adds a nasal after the current vocalic sequence.
+The code applies this rule even when the mark follows a consonant.
 
 ### Nasalized vowels — decompose to oral vowel + nasal consonant
 
@@ -196,36 +198,37 @@ Aspirated or breathy affricates (Mandarin /t͡sʰ t͡ɕʰ ʈ͡ʂʰ/, Hindi/Benga
 
 ## Stage 2c — consonant snapping
 
-Every consonant phoneme that survives normalization maps as follows. The table is
+Every supported consonant sound that survives normalization maps as follows. The table is
 grouped by Lojban target; the rationale column gives the principle.
 
 | Lojban | IPA sources | Rationale |
 |--------|-------------|-----------|
 | `p` | p | identity |
-| `b` | b, β | identity; bilabial fricative [β] is an allophone of /b/ |
+| `b` | b | identity |
 | `t` | t, t̪, ʈ, tˤ | voiceless coronal stop; dental/alveolar/retroflex/emphatic all neutralize (Lojban has one coronal stop) |
 | `d` | d, d̪, ɖ, dˤ | voiced coronal stop; same neutralization |
 | `k` | k, q | voiceless dorsal stop; uvular /q/ has no Lojban target and the velar is nearest |
-| `g` | ɡ | identity |
+| `g` | g, ɡ | identity |
 | `f` | f, ɸ | voiceless labial fricative; bilabial [ɸ] (Japanese) → labiodental |
 | `v` | v, ʋ | voiced labial fricative; Hindi /ʋ/ is the v/w phoneme |
 | `s` | s, θ, sˤ | voiceless coronal fricative; **θ → s** (matches Spanish *seseo*, and keeps fricative manner; alt. `t`) |
-| `z` | z, ð, ðˤ | voiced coronal fricative; **ð → z** (parallel to θ; alt. `d`). Spanish/Portuguese [ð] as an allophone of /d/ should be transcribed /d/ → `d` |
+| `z` | z, ð, ðˤ | voiced coronal fricative; **ð → z** (parallel to θ; alt. `d`). The phonetic input `ð` maps to `z`, including positional allophones of /d/ |
 | `c` | ʃ, ɕ, ʂ | voiceless postalveolar/alveolo-palatal/retroflex sibilant — all "sh-like" → `c` |
 | `j` | ʒ, ʑ, ʐ | voiced counterparts of the above → `j` |
 | `x` | x, ɣ, χ, ħ, h, ɦ, ç | **every fricative at or behind the velum → `x`** (Lojban's only fricative there), so place (velar/uvular/pharyngeal/glottal) and voicing all neutralize. The official gismu rule: English /h/ → `x` (whence *derxi* ← *heap* /hip/), Arabic `ḥ`/`x` alike. ç realizes /x/ (German *ich*) or /h/ (Japanese *hi*) → `x`. Exception: the uvular **rhotic** /ʁ ʀ/ → `r` |
 | `m` | m, ɱ | bilabial nasal |
-| `n` | n, n̪, ŋ, ɳ, ɴ, moraic N | every non-labial nasal → `n` (which is [ŋ] before velars anyway); the palatal /ɲ/ is handled as `n` + `i`-glide |
+| `n` | n, n̪, ŋ, ɳ, ɴ | every non-labial nasal → `n` (which is [ŋ] before velars anyway); the palatal /ɲ/ is handled as `n` + `i`-glide |
 | `l` | l, ɫ, ɭ | lateral; dark/retroflex variants neutralize; palatal /ʎ/ → `l` + `i`-glide |
 | `r` | r, ɾ, ɹ, ɻ, ʀ, ʁ, ɽ | any rhotic — trill, tap, approximant, uvular, retroflex flap. Uvular /ʁ ʀ/ are the **rhotic** of French/German/Portuguese, so → `r`, not `x` |
 | `i`-glide | j, ʝ, ɲ→nj, ʎ→lj, ɥ | palatal approximants and the palatal consonants' glide. Spanish /ʝ/ (*yo*) → `i`-glide; Rioplatense [ʒ] → `j` |
-| `u`-glide | w | labiovelar approximant |
-| *(dropped)* | ʔ, ʕ, Q | glottal **stop** (a stop, not a fricative — nothing to render), ʿayn /ʕ/ (voiced pharyngeal, approximant-like — *alt.* `x`), and the gemination marker. No target. |
+| `u`-glide | w, ʍ | labiovelar approximant |
+| *(dropped)* | ʔ, ʕ | The code removes the glottal stop and voiced pharyngeal. Neither has a scoring target. |
 
-Notes on the palatal consonants: /ɲ/ and /ʎ/ are palatalized /n/ and /l/, so by the
-palatalization rule they become `n`/`l` **+ `i`-glide** onto the next vowel —
-spa. *español* /espaɲol/ → `espaniol`, por. *filho* /fiʎu/ → `filiu`. With no
-following vowel they reduce to bare `n`/`l`.
+The code maps `ɲ` to `ni` and `ʎ` to `li`.
+These mappings also apply when no vowel follows.
+For example, `espaɲol` maps to `espaniol`, and `fiʎu` maps to `filiu`.
+The final normalization collapses repeated `i` and `u` letters.
+It retains other repeated letters.
 
 ## Stage 2d — vowel snapping
 
@@ -235,7 +238,7 @@ to the nearest of these by **height** and **acoustic frontness**:
 
 - **Height** picks the row: close / near-close → `i`/`u`; mid (close-mid &
   open-mid) → `e`/`o`; open → **`a`** (the only open vowel — all open qualities,
-  front to back, rounded or not, land here).
+  front to back land here, except rounded `ɒ`, which maps to `o`).
 - **Frontness** picks the column for the close & mid rows: **`i`/`e`** for front
   vowels *and* central-unrounded vowels; **`u`/`o`** for back vowels *and*
   central-rounded vowels.
@@ -267,42 +270,46 @@ for a GA one. Both are correct for their variety.)
 
 ### Level of representation, and the schwa /ə/
 
-Map at the **phonemic** level, and hold two boundaries:
+Stage 1 describes the actual pronunciation within the supported IPA inventory.
+It includes positional allophones, vowel reduction, final devoicing, and assimilation.
+The transcription does not restore a spelling or an underlying sound that the speaker does not pronounce.
 
-- *Below* it, do not transcribe **allophonic** detail. Russian unstressed `/a/`
-  is realized `[ɐ]`~`[ə]`, but that schwa is an allophone of the phoneme `/a/`,
-  not a phoneme of its own — write the phoneme. (Same reason normalization strips
-  length, aspiration, and the like.)
-- *Above* it, do not undo **morphophonemic** alternation. Russian *akanye*
-  neutralizes unstressed `/o/` into `/a/`; the `/o/` that reappears under stress
-  is a *morphophoneme* — a deeper lexical abstraction — not the phoneme present in
-  the unstressed syllable, so do **not** restore it. *спасибо* is phonemically
-  `/spasʲiba/` → `spasiba`, and *молоко* is `/malaˈko/` → `malako` — exactly what
-  akanye yields, and exactly the everyday romanizations.
+The tool examples include Russian *мягко* → `mʲaxkʌ`, *мялись* → `mʲælʲɪsʲ`, and *спасибо* → `spɐsʲibʌ`.
+These examples retain supported symbols for the positional sounds.
+Stage 2 maps `ɐ` and `ʌ` to `a`, and `ɪ` to `i`.
+A phonetic distinction can disappear in the scoring letters.
+The caller must still supply that distinction in the IPA input.
 
-A bare `/ə/` therefore reaches the mapper only when it is a **phoneme in its own
-right** — which several of the source languages do have: Hindi (the inherent
-vowel अ), French (the *e muet* of *le*, *petit*), German (final *-e* in *bitte*),
-Malay (*emas*), and, on the usual analysis, English (*about*, *sofa*). `ə` is the
-one vowel we **forbid as a target**: dead-center with neutral rounding, it lacks
-exactly the cue — a rounding bias on a central vowel — that would decide `i/e` vs
-`u/o`, so any snap would be arbitrary. (The near-schwa central vowels, which *do*
-carry that bias, resolve cleanly under the rule above: `ɘ → e`, `ɵ → o`, `ɨ → i`,
-`ʉ → u`, `ɐ → a`.)
+The mapper rejects bare `ə`, whether it represents a phoneme or an allophone.
+If the pronunciation contains schwa, select the nearest full vowel from the supported inventory.
+Use the actual quality of that sound in its position.
+Do not restore a vowel from the spelling or the underlying form.
+The caller supplies this choice because the mapper has no language or word context.
 
-Resolve a phonemic schwa to the full vowel nearest its **actual quality** — almost
-always biased, not truly central, and the bias is language-particular:
+The examples in this guide give these scoring results after the caller selects a full vowel for schwa:
 
-- French `/ə/` is a rounded front-mid `[ø~œ]` → `e`: *le* → `le`, *petit* → `peti`.
-- German final `/ə/` → `e`: *bitte* → `bite`.
-- Hindi `/ə/` is open-ish `[ə~ɐ]` → `a`: *कमल* → `kamal`.
-- English `/ə/` → by quality, usually `a`: *sofa* → `sofa`, *about* → `abaut`.
+- French *le* → `le`, and *petit* → `peti`, with `ø` or `œ` for the reduced vowel.
+- German *bitte* → `bite`, with `e` for the final vowel.
+- Hindi *कमल* → `kamal`, with `ɐ` or `a` for the central vowels.
+- English *sofa* → `sofa`, and *about* → `abaut`, with `a` for the reduced vowel.
 
-Stage 1 must always resolve the schwa to one of `a e i o u` from the word's actual
-pronunciation — there is almost always a bias to follow. A bare `/ə/` is
-**rejected** by the mapper, never silently defaulted: the decision is forced back
-onto the transcription, where the real pronunciation of *this* word is known,
-rather than guessed downstream.
+The supported central vowels map as follows: `ɘ → e`, `ɵ → o`, `ɨ → i`, `ʉ → u`, and `ɐ → a`.
+Stage 2 removes some phonetic detail, such as length and aspiration, after Stage 1 supplies the pronunciation.
+This normalization does not change the phonetic input requirement.
+
+### Input limits
+
+The classic mapper rejects `β`, although the Spanish transcription instructions list it as a positional sound.
+The mapper also rejects the notation `N`, `Q`, the linking mark `‿`, and tone digits.
+Use supported IPA symbols for Japanese nasal sounds and the length mark `ː` for gemination.
+
+The mapper ignores the voicing marks `◌̥` and `◌̬`.
+If devoicing or assimilation changes a sound, select its actual base symbol in Stage 1.
+For example, `d̥` maps to `d`, while `t` maps to `t`.
+
+The code accepts `ɸ`, `ʝ`, and the reduced vowels `ɐ`, `ʌ`, and `ɪ`.
+The tables specify their scoring letters.
+The code also accepts `ʍ`, which maps to `u`.
 
 ### Vowel sequences and glides
 
@@ -322,7 +329,7 @@ A few end-to-end renderings to confirm the rules compose (source → IPA → Loj
 - eng. *cat* → /kæt/ → `kat`
 - eng. *house* → /haʊs/ → `xaus` (/h/ → `x`, the same as *heap* → `xip` in *derxi*)
 - spa. *gato*, drop the -o ending → /ɡat/ → `gat`
-- rus. *спасибо* → /spasʲiba/ → `spasiba` (sʲ + stressed i → `si`; the final unstressed о is phonemically /a/ by *akanye* — not [ə], and not the morphophonemic /o/ — so `a`)
+- rus. *спасибо* → `spɐsʲibʌ` → `spasiba` (reduced vowels `ɐ` and `ʌ` map to `a`)
 - ara. *kitāb* → /kitaːb/ → `kitab` (drop length)
 - ara. *ḥasan* → /ħasan/ → `xasan` (ħ → `x`, like every fricative at/behind the velum)
 - fra. *bon* → /bɔ̃/ → `bon`; *tu* → /ty/ → `ti`
@@ -339,6 +346,6 @@ The mapping converts that input to Lojban scoring letters.
 The field does not require the caller to know Lojban spelling.
 The tool field instructions ask the caller to drop grammatical endings.
 
-The transcription supplies the pronunciation and resolves phonemic schwa before mapping.
+The transcription supplies the pronunciation and resolves schwa before mapping.
 The tables in this document define the accepted base symbols and their output letters.
 Normalization handles the supported diacritics, length marks, nasalization, and affricates.
