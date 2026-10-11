@@ -11,8 +11,8 @@ The extension recognizes `.jbo` files as the `lojban` language. Files ending in
 `.jbo.md` remain ordinary Markdown documents, so VS Code's Markdown preview,
 outline, links, and other providers keep working while jbotci providers are
 stacked alongside them. You can opt into jbotci for every Markdown document,
-but Markdown URLs, code fences, and HTML may produce noisy diagnostics until
-structural Markdown support is available.
+but Markdown URLs, code fences, and HTML can produce noisy diagnostics.
+The server analyzes those regions as Lojban text.
 
 The editor word pattern treats apostrophes and commas as word-internal Lojban
 characters, while periods remain word delimiters.

@@ -109,7 +109,7 @@ missing value.
 
 Appendix fixtures live under a division directory named by that id rather than
 under `chapter-NN/`, except for the hand-placed chrestomathy long texts, which
-keep their historical `cll/chrestomathy/` home.
+use `cll/chrestomathy/`.
 
 Select fixtures by division with `--cll-chapter 18` or
 `--cll-appendix volume-chrestomathy`.
@@ -127,11 +127,9 @@ tags = ["long-text", "regression-baseline", "owner-waived-baseline"]
 exclusive with inline `lojban`; the loader resolves it into `TestCase.lojban`
 before any runner sees the fixture.
 
-Every facet is optional so exporters can land expectations incrementally. The
-long-term goal is one uniform fixture format for CLL, muplis, camxes corpus,
-and ad hoc regression cases. Test runners should allow selection by both
-fixture groups and facet, for example all CLL chapter 18 syntax tests or all
-CLL plus muplis reference-analysis tests.
+Each facet, a group of related expectations, is optional.
+The same fixture format covers CLL, muplis, camxes corpus, and ad hoc regression cases.
+The runners select fixtures by group and facet.
 
 Tags are for ad hoc organization that is not already captured by provenance,
 path, or structured selectors. For example, CLL chapter membership belongs in
@@ -145,17 +143,13 @@ be lost when the fixture is rewritten:
   baseline, not semantically verified truth.
 - `owner-waived-baseline` - stronger, and rarer: the detailed expectations are
   implementation-generated and were accepted under an explicit owner waiver
-  rather than reviewed field by field, because no prior baseline existed to
-  prove the change surface-only. The comment records what *was* independently
-  established and what was not. Select the set with
-  `fixture-test --tag owner-waived-baseline`; it currently holds the four
-  chrestomathy long texts colojban 1.3.4 replaced or added.
+  rather than reviewed field by field. The comment states the scope of the waiver.
+  Select these fixtures with `fixture-test --tag owner-waived-baseline`.
 
 Profiles live under `tests/fixtures/profiles/` and combine facet selection with the
 same selectors accepted by `cargo xtask fixture-list` and `cargo xtask
-fixture-test`. The `cargo` profile intentionally selects no facets so ordinary
-`cargo test` can validate loading and filtering without running unported parser
-facets.
+fixture-test`. The `cargo` profile selects no facets. Ordinary `cargo test` exercises fixture
+loading and filtering without operating the facet runners.
 
 ## Long-Text Benchmarks
 

@@ -245,8 +245,7 @@ give. We keep **tongue position (≈ F2)** and discard the lip-rounding mismatch
 
 - **Front-rounded → front-unrounded**: `y → i`, `ø → e`, `œ → e` (and the glide
   `ɥ → i`-glide). These have a high, front F2, so they are acoustically nearest
-  `i`/`e`; this is also the usual historical repair (cf. Yiddish *über → iber*,
-  *schön → sheyn*; Greek *y → i*).
+  `i`/`e`.
 - **Back-unrounded → back**: `ɯ → u`, `ɤ → o`. Japanese /ɯ̟/ ("u") is back, so it
   must land on `u`, not `i` — this is exactly why frontness (not rounding) is the
   deciding feature.
@@ -333,24 +332,12 @@ A few end-to-end renderings to confirm the rules compose (source → IPA → Loj
 - por. *pão* → /pɐ̃w̃/ → `paun`
 - ben. *bhālo* → /bʱalo/ → `balo` (drop breathiness)
 
-## What the tool docstring should say
+## Source input
 
-The `word` field only needs to elicit stage 1 and name the target sound space; it
-must *not* try to restate the mapping. Something like:
+The `word` field accepts a source-language IPA transcription.
+The mapping converts that input to Lojban scoring letters.
+The field does not require the caller to know Lojban spelling.
 
-> A word for this concept in the source language. Give a **broad phonemic IPA
-> transcription** of how it is pronounced — its sounds, not its spelling and not
-> an existing Lojban word. Ignore tone and stress, and drop grammatical endings
-> (e.g. Spanish noun -o/-a). Transcribe at the **phonemic** level — apply the
-> language's own reductions (Russian unstressed о is /a/ by *akanye*, so *спасибо*
-> → /spasʲiba/), not its deeper morphophonemic forms and not narrow phonetics.
-> Lojban has no schwa: if a vowel is phonemically /ə/ (French *le*, Hindi अ), use
-> the full vowel nearest its actual quality. We map your IPA onto
-> Lojban's sound inventory automatically — `a e i o u`; `b d f g k l m n p r s t v
-> z`; `c`=ʃ, `j`=ʒ, `x`=x (which also absorbs every back fricative, including /h/)
-> — so you don't need to know Lojban spelling.
-
-The full inventory of accepted IPA symbols and their snaps is this document; the
-code implements it. The model is free to use any standard IPA symbol — anything in
-the union inventory maps as tabulated above, and the normalization rules absorb
-diacritics, length, nasalization, and affricates that are not listed explicitly.
+The transcription supplies the pronunciation and resolves phonemic schwa before mapping.
+The tables in this document define the accepted base symbols and their output letters.
+Normalization handles the supported diacritics, length marks, nasalization, and affricates.

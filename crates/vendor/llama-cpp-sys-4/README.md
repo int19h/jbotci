@@ -8,8 +8,8 @@ plus the C/C++ build logic that compiles the library.
 
 **llama.cpp version:** b8533 · **Crate version:** 0.3.0
 
-Unless you need access to a symbol not yet exposed by [`llama-cpp-4`](../llama-cpp-4/),
-use that crate instead — it provides a safe API over these raw bindings.
+Use [`llama-cpp-4`](../llama-cpp-4/) for its safe wrapper API.
+If that wrapper does not expose a required symbol, use this crate for the raw bindings.
 
 ---
 
@@ -77,17 +77,18 @@ cargo build -p llama-cpp-sys-4
 
 ---
 
-## Notable API changes (b4689 → b8249)
+## API names
 
-These are the upstream llama.cpp breaks handled in this crate:
+The bindings expose the current llama.cpp API names:
 
-| Removed / renamed | Replacement |
-|---|---|
-| `llama_kv_cache_*` functions | `llama_memory_*` via `llama_get_memory(ctx)` |
-| `llama_set_adapter_lora` + `llama_rm_adapter_lora` | `llama_set_adapters_lora` (batch API) |
-| `context_params.flash_attn: bool` | `context_params.flash_attn_type: llama_flash_attn_type` |
-| `llama-sampling.h` | `llama-sampler.h` |
-| C++11 build flag | C++17 required by new `common.h` (`std::string_view`) |
+- `llama_memory_*` operates on the memory returned by `llama_get_memory(ctx)`.
+- `llama_set_adapters_lora` sets a batch of adapters.
+- `context_params.flash_attn_type` uses `llama_flash_attn_type`.
+- `llama-sampler.h` declares the sampler API.
+
+The build uses C++17, which `common.h` requires for `std::string_view`.
+The bindings use these declarations from the vendored source.
+The safe wrapper calls these bindings.
 
 ---
 
