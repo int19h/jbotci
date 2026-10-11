@@ -10,9 +10,32 @@ mod lsp;
 mod output;
 mod tool;
 
-/// Help for `--dialect`, shared by every command that takes it. The list of grammar features
-/// must name every `DialectFeature`; a test checks it.
-const DIALECT_HELP: &str = "Dialect to use. Give a builtin dialect name, such as cbm or ce-ki-tau, or a formula in parentheses that combines names, such as (cbm ce-ki-tau). In a formula, +NAME turns on one grammar feature, such as (+na-joik). The grammar features are cbm, case-insensitive, permissive-lexer, unrestricted-free, na-joik, mex-quantifier, lahe-mex and split-number-lerfu. With na-joik, NA before JOI is one connective, as in camxes-exp, at every connective site: ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term. With mex-quantifier, a mex without VEI can be a quantifier, as in camxes-exp: ci su'i re prenu cu klama has the quantifier ci su'i re. Without it, a quantifier is a number or a VEI mex. The feature also changes the reading of some texts that standard Lojban accepts. With lahe-mex, LAhE, NAhE BO and NAhE qualify a whole mex. For example, li lu'e pa su'i re lu'u lo'o puts pa su'i re inside lu'e. Without it, the qualifier takes one operand. With split-number-lerfu, a number contains only PA words, and a lerfu string contains only lerfu words. For example, mi panzi be ny ci mei puts ny after BE and ci before MEI. Without it, ny ci is one mixed string. Omit the option for standard Lojban.";
+/// Help for `--dialect`, shared by every command that takes it.
+static DIALECT_HELP: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    let mut help = String::from(
+        "Dialect to use. Give a builtin dialect name, such as cbm or ce-ki-tau. You can also give a formula in parentheses, such as (cbm ce-ki-tau). A formula combines dialect names. In a formula, +NAME turns on one grammar feature, such as (+na-joik). ",
+    );
+    help.push_str("The grammar features are ");
+    for (index, feature) in jbotci_dialect::DialectFeature::all().iter().enumerate() {
+        if index > 0 {
+            help.push_str(
+                if index + 1 == jbotci_dialect::DialectFeature::all().len() {
+                    " and "
+                } else {
+                    ", "
+                },
+            );
+        }
+        help.push_str(feature.name());
+    }
+    help.push_str(". ");
+    for feature in jbotci_dialect::DialectFeature::all() {
+        help.push_str(feature.description());
+        help.push(' ');
+    }
+    help.push_str("Omit the option for standard Lojban.");
+    help
+});
 
 #[cfg(test)]
 mod windows_stack;
@@ -606,7 +629,7 @@ pub struct VlaseiInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect", help = DIALECT_HELP)]
+    #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
@@ -658,7 +681,7 @@ pub struct VlataiInput {
     pub format: VlataiFormat,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
-    #[arg(long = "dialect", help = DIALECT_HELP)]
+    #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
     #[arg(long = "mark-stress", value_enum)]
     pub mark_stress: Option<CliStressMark>,
@@ -689,7 +712,7 @@ pub struct TextInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect", help = DIALECT_HELP)]
+    #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
     #[arg(long = "indent")]
     pub indent: Option<usize>,
@@ -751,7 +774,7 @@ pub struct GentufaInput {
         default_missing_value = "1"
     )]
     pub trace: Option<Option<String>>,
-    #[arg(long = "dialect", help = DIALECT_HELP)]
+    #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
     #[arg(long = "show-defs")]
     pub show_defs: bool,
@@ -2022,6 +2045,24 @@ fn command_not_implemented(command: &str) -> Result<()> {
 #[cfg(test)]
 mod dialect_help_tests {
     use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dialect_help_contains_every_feature_description() {
+        for feature in jbotci_dialect::DialectFeature::all() {
+            assert!(super::DIALECT_HELP.contains(feature.description()));
+        }
+        for example in [
+            "ko'a na joi ko'e broda",
+            "ci su'i re prenu cu klama",
+            "li lu'e pa su'i re lu'u lo'o",
+            "mi panzi be ny ci mei",
+            "Omit the option for standard Lojban.",
+        ] {
+            assert!(super::DIALECT_HELP.contains(example));
+        }
+    }
 
     #[test]
     #[requires(true)]
