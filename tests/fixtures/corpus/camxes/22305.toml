@@ -12,7 +12,7 @@ raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "fi'u" }, span: SourceSpa
 
 [expectations.syntax]
 status = "success"
-raw = '''RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(MeksoFragment(MeksoFragmentSyntax(PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }))))), following: [], trailing: [] })), additional_niho: [] })) })'''
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(MeksoFragment(MeksoFragmentSyntax(PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }))))), following: [], trailing: [] })), additional_niho: [] })) }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -28,4 +28,4 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'u","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """Cmavo @[0‥4) "fi'u""""
-json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'u","span":[0,4]}}}}}}}}}}}}}}}"""
+json = """{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'u","span":[0,4]}}}}}}}}}}}}}}"""

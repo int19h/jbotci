@@ -18,7 +18,7 @@ raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "djan" }, span: SourceSpan
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "djan" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None } })), Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "braŭn" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "djan" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None } })), Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "braŭn" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -40,4 +40,4 @@ tree = """
   Cmevla @[1‥5) "djan",
   Cmevla @[8‥13) "braŭn",
 ]"""
-json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[1,5]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"braŭn","span":[8,13]}}}}]}}'
+json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[1,5]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"braŭn","span":[8,13]}}}}]}"""

@@ -76,17 +76,15 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret == match tree {
-    GeneratedTextSyntax::RegularText(text) => text.leading_nai.is_empty()
-        && text.leading_cmevla.is_empty()
-        && text.leading_indicators.is_empty()
-        && text.leading_free_modifiers.is_empty()
-        && text.leading_connective.is_none()
-        && text.leading_i_statements.is_empty()
-        && text.paragraphs.is_none(),
-})]
+#[ensures(ret == (tree.leading_nai.is_empty()
+        && tree.leading_cmevla.is_empty()
+        && tree.leading_indicators.is_empty()
+        && tree.leading_free_modifiers.is_empty()
+        && tree.leading_connective.is_none()
+        && tree.leading_i_statements.is_empty()
+        && tree.paragraphs.is_none()))]
 pub(crate) fn generated_text_is_empty(tree: &GeneratedTextSyntax) -> bool {
-    let GeneratedTextSyntax::RegularText(text) = tree;
+    let text = tree;
     text.leading_nai.is_empty()
         && text.leading_cmevla.is_empty()
         && text.leading_indicators.is_empty()

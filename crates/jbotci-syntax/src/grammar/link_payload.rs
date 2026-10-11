@@ -434,20 +434,7 @@ impl<'tree> recovered::TreeWalker<'tree> for BreadthWalker {
         &mut self,
         node: &'tree recovered::NormalTermBoContinuationSyntax,
     ) {
-        match node {
-            recovered::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(value) => {
-                self.descend(value)
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(old(self.answer) == LinkPayloadBreadth::Unproven -> self.answer == LinkPayloadBreadth::Unproven)]
-    fn walk_bound_normal_term_continuation(
-        &mut self,
-        node: &'tree recovered::BoundNormalTermContinuationSyntax,
-    ) {
-        let recovered::BoundNormalTermContinuationSyntax {
+        let recovered::NormalTermBoContinuationSyntax {
             connective,
             tense_modal,
             bo,
@@ -994,10 +981,7 @@ mod tests {
                         };
                         let connection = parsed_value(connection).unwrap();
                         assert_eq!(connection.continuations.len(), 1, "{source}");
-                        let recovered::NormalTermBoContinuationSyntax::BoundNormalTermContinuation(
-                            continuation,
-                        ) = parsed_value(&connection.continuations[0]).unwrap();
-                        let continuation = parsed_value(continuation).unwrap();
+                        let continuation = parsed_value(&connection.continuations[0]).unwrap();
                         let answers = [
                             child_breadth(&connection.leading_term),
                             child_breadth(&continuation.trailing_term),

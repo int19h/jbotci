@@ -1862,14 +1862,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                let branches = match selbri.as_ref() {
-                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
-                        selbri,
-                    ) => vec![
-                        self.analyze_relation(&selbri.leading_selbri),
-                        self.analyze_plain_bo_selbri(&selbri.first_branch.selbri),
-                    ],
-                };
+                let branches = vec![
+                    self.analyze_relation(&selbri.leading_selbri),
+                    self.analyze_plain_bo_selbri(&selbri.first_branch.selbri),
+                ];
                 self.add_frame(
                     self.raw_for_node(selbri),
                     PlaceFrameKind::ConnectiveBranching,
@@ -2006,7 +2002,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
-                let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
+                let inner = self.analyze_tanru_unit_atom(&unit.inner_unit);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Forwarding,
@@ -2056,16 +2052,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_scalar_negated_tanru_inner_unit(
-        &mut self,
-        unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
-    ) -> SelbriPlaceFrameId {
-        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
-        self.analyze_tanru_unit_atom(unit)
     }
 
     #[requires(true)]
@@ -3130,20 +3116,16 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
-        match node {
-            generated::TextSyntax::RegularText(text) => {
-                for free_modifier in &text.leading_free_modifiers {
-                    self.walk_node(free_modifier);
-                }
-                for statement in &text.leading_i_statements {
-                    for free_modifier in &statement.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                }
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.walk_node(paragraphs);
-                }
+        for free_modifier in &node.leading_free_modifiers {
+            self.walk_node(free_modifier);
+        }
+        for statement in &node.leading_i_statements {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
             }
+        }
+        if let Some(paragraphs) = node.paragraphs.as_deref() {
+            self.walk_node(paragraphs);
         }
     }
 
@@ -5981,14 +5963,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                match selbri.as_ref() {
-                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
-                        selbri,
-                    ) => {
-                        self.visit_relation(&selbri.leading_selbri);
-                        self.visit_plain_bo_selbri(&selbri.first_branch.selbri);
-                    }
-                }
+                self.visit_relation(&selbri.leading_selbri);
+                self.visit_plain_bo_selbri(&selbri.first_branch.selbri);
             }
         }
     }
@@ -6024,7 +6000,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
-                self.visit_scalar_negated_tanru_inner_unit(&unit.inner_unit);
+                self.visit_tanru_unit_atom(&unit.inner_unit);
             }
             generated::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(unit) => {
                 if let Some(tense_modal) = unit.tense_modal.as_deref() {
@@ -6057,16 +6033,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_) => {}
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_scalar_negated_tanru_inner_unit(
-        &mut self,
-        unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
-    ) {
-        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
-        self.visit_tanru_unit_atom(unit);
     }
 
     #[requires(true)]
@@ -6616,20 +6582,16 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
-        match node {
-            generated::TextSyntax::RegularText(text) => {
-                for free_modifier in &text.leading_free_modifiers {
-                    self.walk_node(free_modifier);
-                }
-                for statement in &text.leading_i_statements {
-                    for free_modifier in &statement.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                }
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.walk_node(paragraphs);
-                }
+        for free_modifier in &node.leading_free_modifiers {
+            self.walk_node(free_modifier);
+        }
+        for statement in &node.leading_i_statements {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
             }
+        }
+        if let Some(paragraphs) = node.paragraphs.as_deref() {
+            self.walk_node(paragraphs);
         }
     }
 
@@ -8107,7 +8069,7 @@ fn generated_tanru_unit_atom_base_first_token(
         generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(unit) => Some(&unit.goha.value),
         generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
-            generated_scalar_negated_tanru_inner_unit_first_token(&unit.inner_unit)
+            generated_tanru_unit_atom_base_first_token(&unit.inner_unit.base)
         }
         generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
             generated_tanru_selbri_first_token(&unit.selbri)
@@ -8126,22 +8088,13 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
         generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(unit) => Some(&unit.0.value),
         generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(unit) => Some(&unit.goha.value),
         generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
-            generated_scalar_negated_tanru_inner_unit_first_token(&unit.inner_unit)
+            generated_tanru_unit_atom_base_first_token(&unit.inner_unit.base)
         }
         generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
             generated_tanru_selbri_first_token(&unit.selbri)
         }
         _ => None,
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_scalar_negated_tanru_inner_unit_first_token(
-    unit: &generated::ScalarNegatedTanruInnerUnitSyntax,
-) -> Option<&Token> {
-    let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
-    generated_tanru_unit_atom_base_first_token(&unit.base)
 }
 
 #[requires(true)]

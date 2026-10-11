@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(EkFragment(EkFragmentSyntax(EkConnectiveSyntax { na: None, se: None, a: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } })), free_modifiers: [] }, nai: None })))), following: [], trailing: [] })), additional_niho: [] })) })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(EkFragment(EkFragmentSyntax(EkConnectiveSyntax { na: None, se: None, a: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } })), free_modifiers: [] }, nai: None })))), following: [], trailing: [] })), additional_niho: [] })) }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -28,4 +28,4 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmavo @[0‥1) "u"'
-json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"EkFragment":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}}}}}}}}}}}}'
+json = """{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"EkFragment":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}}}}}}}}}}}"""

@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "daĭ" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "daĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "daĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -28,4 +28,4 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"daĭ","span":[3,6]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmavo @[3‥6) "daĭ"'
-json = '{"RegularText":{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daĭ","span":[3,6]}}}}}]}}'
+json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daĭ","span":[3,6]}}}}}]}"""

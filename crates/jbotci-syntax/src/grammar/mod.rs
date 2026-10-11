@@ -5254,66 +5254,29 @@ fn recovery_byte_at(tokens: &[Token], index: usize) -> usize {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.leading_nai.is_empty() && ret.leading_cmevla.is_empty() && ret.leading_indicators.is_empty() && ret.leading_free_modifiers.is_empty() && ret.leading_connective.is_none() && ret.leading_i_statements.is_empty() && ret.paragraphs.is_none())]
 fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
-    generated::generated_model::recovered::TextSyntax::RegularText(std::sync::Arc::new(
-        generated::generated_model::recovered::Recovered::valid(
-            generated::generated_model::recovered::RegularTextSyntax {
-                leading_nai: Vec::new(),
-                leading_cmevla: Vec::new(),
-                leading_indicators: Vec::new(),
-                leading_free_modifiers: Vec::new(),
-                leading_connective: None,
-                leading_i_statements: Vec::new(),
-                paragraphs: None,
-            },
-        ),
-    ))
+    generated::generated_model::recovered::TextSyntax {
+        leading_nai: Vec::new(),
+        leading_cmevla: Vec::new(),
+        leading_indicators: Vec::new(),
+        leading_free_modifiers: Vec::new(),
+        leading_connective: None,
+        leading_i_statements: Vec::new(),
+        paragraphs: None,
+    }
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(tree.leading_nai.len() == old(tree.leading_nai.len()) + 1)]
 fn insert_leading_recovery_item(
     tree: &mut generated::generated_model::recovered::TextSyntax,
     item: SyntaxRecoveryItem,
 ) {
-    if regular_text_mut(tree).is_none() {
-        *tree = empty_recovered_text();
-    }
-    let Some(regular_text) = regular_text_mut(tree) else {
-        return;
-    };
-    regular_text
-        .leading_nai
+    tree.leading_nai
         .push(generated::generated_model::recovered::Recovered::error(
             item,
         ));
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn regular_text_mut(
-    tree: &mut generated::generated_model::recovered::TextSyntax,
-) -> Option<&mut generated::generated_model::recovered::RegularTextSyntax> {
-    match tree {
-        generated::generated_model::recovered::TextSyntax::RegularText(regular_text) => {
-            recovered_value_mut(std::sync::Arc::make_mut(regular_text))
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_value_mut<T>(
-    value: &mut generated::generated_model::recovered::Recovered<T>,
-) -> Option<&mut T> {
-    match value {
-        generated::generated_model::recovered::Recovered::Valid(value) => Some(value.as_mut()),
-        generated::generated_model::recovered::Recovered::Prefix(prefix) => {
-            Some(prefix.value.as_mut())
-        }
-        generated::generated_model::recovered::Recovered::Error(_) => None,
-    }
 }
 
 #[requires(true)]
@@ -7876,9 +7839,7 @@ mod tests {
             let mut visitor = GeneratedModelNoopVisitor;
             generated::generated_model::TreeNode::visit_in_order(&parsed, &mut visitor);
 
-            let generated::generated_model::TextSyntax::RegularText(regular_text) = parsed else {
-                panic!("basic text should parse as regular generated-model text");
-            };
+            let regular_text = parsed;
             assert!(regular_text.paragraphs.is_some());
         });
     }
@@ -7893,9 +7854,7 @@ mod tests {
 
             let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect("valid generated-model syntax");
-            let generated::generated_model::TextSyntax::RegularText(regular_text) = parsed else {
-                panic!("basic text should parse as regular generated-model text");
-            };
+            let regular_text = parsed;
 
             assert_eq!(regular_text.leading_i_statements.len(), 1);
             assert!(regular_text.paragraphs.is_some());
@@ -8019,19 +7978,15 @@ mod tests {
             generated::generated_model::recovered::Recovered::error(skipped_item.clone());
         let missing_paragraphs =
             generated::generated_model::recovered::Recovered::error(missing_item.clone());
-        let tree = generated::generated_model::recovered::TextSyntax::RegularText(Arc::new(
-            generated::generated_model::recovered::Recovered::valid(
-                generated::generated_model::recovered::RegularTextSyntax {
-                    leading_nai: vec![skipped_slot],
-                    leading_cmevla: Vec::new(),
-                    leading_indicators: Vec::new(),
-                    leading_free_modifiers: Vec::new(),
-                    leading_connective: None,
-                    leading_i_statements: Vec::new(),
-                    paragraphs: Some(Arc::new(missing_paragraphs)),
-                },
-            ),
-        ));
+        let tree = generated::generated_model::recovered::TextSyntax {
+            leading_nai: vec![skipped_slot],
+            leading_cmevla: Vec::new(),
+            leading_indicators: Vec::new(),
+            leading_free_modifiers: Vec::new(),
+            leading_connective: None,
+            leading_i_statements: Vec::new(),
+            paragraphs: Some(Arc::new(missing_paragraphs)),
+        };
         (tree, skipped_item, missing_item, missing_span)
     }
 

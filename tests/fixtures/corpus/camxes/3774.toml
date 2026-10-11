@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { 
 
 [expectations.syntax]
 status = "failure"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [ParentheticalText(ParentheticalTextSyntax { to: WithFreeModifiers { value: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, nai_bahe: [], nai: None }, free_modifiers: [] }, text: RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }), toi: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [ParentheticalText(ParentheticalTextSyntax { to: WithFreeModifiers { value: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, nai_bahe: [], nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }, toi: None })], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -33,4 +33,4 @@ ParentheticalText @[3‥9) {
   },
   text: Text {},
 }"""
-json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[7,9]}}}},"text":{"RegularText":{}}}}]}}'
+json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[7,9]}}}},"text":{}}}]}"""

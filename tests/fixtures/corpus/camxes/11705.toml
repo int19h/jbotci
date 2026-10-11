@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { s
 
 [expectations.syntax]
 status = "failure"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } })), connective: None, free_modifiers: [] }], paragraphs: None })'
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } })), connective: None, free_modifiers: [] }], paragraphs: None }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -25,4 +25,4 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Cmavo @[3‥4) "i"'
-json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}}}]}}'
+json = """{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}}}]}"""
