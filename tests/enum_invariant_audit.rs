@@ -2440,6 +2440,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree macro test wrapper delegates validity to the wrapped payload",
     ),
     (
+        "crates/jbotci-tree-macros/src/view.rs:::Recovered",
+        "generated references borrow recovered nodes. Their types and lifetimes constrain every value",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/view.rs:::Strict",
+        "generated references borrow strict nodes. Their types and lifetimes constrain every value",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:Sequence::Recovered",
+        "a borrowed slice and a typed projection form a valid sequence. No field combination adds a constraint",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:Sequence::Strict",
+        "a borrowed slice and a typed projection form a valid sequence. No field combination adds a constraint",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:SequenceIter::Recovered",
+        "the standard slice iterator and Map enforce the iterator state",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:SequenceIter::Strict",
+        "the standard slice iterator and Map enforce the iterator state",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:Slot::Prefix",
+        "the slot marks a surviving prefix. The payload type constrains its value",
+    ),
+    (
+        "crates/jbotci-tree/src/view.rs:Slot::Valid",
+        "the slot marks a valid selection. The payload type constrains its value",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:Choice::Child",
+        "the test child accepts every string. The enum adds no constraint",
+    ),
+    (
+        "crates/jbotci-tree/tests/syntax_view.rs:Choice::Named",
+        "the test child accepts every string. The enum adds no constraint",
+    ),
+    (
         "crates/jbotci-ui/src/compound_dom_tests.rs:CompoundDomRoute::CompoundDomPage",
         "the DOM test router has one payload-free page and no route parameters to constrain",
     ),
