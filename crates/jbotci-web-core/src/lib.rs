@@ -8734,7 +8734,7 @@ mod tests {
         assert_eq!(
             unsupported.error.as_deref(),
             Some(
-                "invalid IPA source `ka•ma`: unsupported IPA segment near `•ma` — give a broad phonemic transcription"
+                "invalid IPA source `ka•ma`: unsupported IPA segment `•` near `•ma`. Use narrow phonetic IPA. Only the inventory listed in the gimfihi word instructions is supported."
             )
         );
 

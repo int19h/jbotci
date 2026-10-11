@@ -78,7 +78,7 @@ ignored by the scorer (see Limitations).
 ## Sources
 
 Each source is given as `LANG[:WEIGHT]:WORD`, where `WORD` is either
-Lojban-letter text or a **broad phonemic IPA** transcription in `[ ... ]`
+Lojban-letter text or a **narrow phonetic IPA** transcription within the supported inventory in `[ ... ]`
 brackets. Weights are integers 1–999, supplied explicitly or via a preset
 (`1985`, `1987`, `1994`, `1995`, `1999`, `evenly`, `ilmen6`, `ilmen8`,
 `ilmen12`); internally they are scaled by 1/1000. Any positive rescaling of

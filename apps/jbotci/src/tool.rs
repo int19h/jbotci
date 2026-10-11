@@ -1622,7 +1622,7 @@ pub fn run_tool_jvozba(request: ToolJvozbaRequest) -> Result<ToolRenderedOutput>
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GimfihiSourceWordKind {
-    /// Bare phonemic IPA, always transliterated to Lojban (the MCP tool).
+    /// Bare phonetic IPA within the supported inventory, always transliterated to Lojban (the MCP tool).
     Ipa,
     /// Lojban letters by default, with `[IPA]` opting into transliteration (the
     /// CLI/Discord/web bracket convention).

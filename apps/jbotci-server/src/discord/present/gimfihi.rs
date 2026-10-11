@@ -32,7 +32,7 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
                 ),
             }
             lines.push(subtext(
-                "Format: LANG[:WEIGHT]:WORD per record, separated by commas; WORD is Lojban letters or [IPA]. Example: eng:5:go, spa:3:[ir]",
+                "Format: LANG[:WEIGHT]:WORD per record, separated by commas; WORD is Lojban letters or [narrow phonetic IPA] from the supported inventory. Example: eng:5:go, spa:3:[ir]",
             ));
             rendered.body.push(join_lines(lines));
             rendered.notice = Some(subtext("Use the ⚙️ button to enter sources."));

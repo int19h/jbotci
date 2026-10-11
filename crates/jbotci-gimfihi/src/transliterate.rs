@@ -1,8 +1,9 @@
 //! IPA → Lojban phoneme transliteration for gimfihi source words.
 //!
 //! Implements `docs/source-word-transliteration.md`. A source word given as a
-//! broad *phonemic* IPA transcription is reduced to Lojban's gismu-scoring sound
-//! inventory so the scorer can match candidates against it. We normalize the IPA
+//! phonetic IPA transcription within the supported inventory is reduced to
+//! Lojban scoring letters. The scorer matches candidates against these letters.
+//! We normalize the IPA
 //! (NFD, drop the affricate tie bar, drop suprasegmentals and quality
 //! diacritics, decompose palatalization/labialization/nasalization/rhoticity),
 //! collapse stop-plus-fricative affricates to the fricative, snap every
@@ -242,7 +243,7 @@ fn collapse_glide_doubles(word: &str) -> String {
     out
 }
 
-/// Transliterate a broad phonemic IPA string into a Lojban gismu-scoring word.
+/// Transliterate supported phonetic IPA into a Lojban gismu-scoring word.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|word| !word.is_empty() && word.chars().all(|letter| is_consonant(letter) || is_vowel(letter))) || ret.is_err())]
 pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
@@ -278,7 +279,7 @@ pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
         let Some((length, snap)) = match_longest(remaining) else {
             let near: String = remaining.chars().take(8).collect();
             return Err(invalid(&format!(
-                "unsupported IPA segment near `{near}` — give a broad phonemic transcription"
+                "unsupported IPA segment `{next}` near `{near}`. Use narrow phonetic IPA. Only the inventory listed in the gimfihi word instructions is supported."
             )));
         };
         match snap {
@@ -326,6 +327,116 @@ mod tests {
     #[ensures(true)]
     fn lojban(ipa: &str) -> String {
         transliterate_ipa_to_lojban(ipa).expect("valid IPA")
+    }
+
+    /// Code spans in the transcription reference contain supported IPA only.
+    /// Source spelling and unsupported sounds use ordinary text or italics.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_documented_ipa(text: &str) {
+        let tool = include_str!("../../../apps/jbotci/src/tool.rs");
+        let documentation = tool.split_once("pub struct ToolGimfihiSource {").unwrap().1;
+        let documentation = documentation
+            .split_once("Use standard IPA from this inventory;")
+            .unwrap()
+            .1;
+        let documentation = documentation.split_once("Reason carefully").unwrap().0;
+        let supported: std::collections::BTreeSet<_> = documentation
+            .split('`')
+            .skip(1)
+            .step_by(2)
+            .flat_map(|span| span.nfd())
+            .collect();
+        let spans: Vec<_> = text.split('`').collect();
+        assert_eq!(spans.len() % 2, 1, "unclosed code span");
+        assert!(spans.len() > 1, "the document must contain IPA examples");
+        for span in spans.iter().skip(1).step_by(2) {
+            for symbol in span.split_whitespace() {
+                let symbol = symbol.trim_matches(['[', ']', '(', ')']);
+                let symbol = symbol.replace('◌', "a");
+                assert!(
+                    symbol.nfd().all(|part| supported.contains(&part)),
+                    "documented IPA `{symbol}` is outside the tool inventory and examples"
+                );
+                // A vowel supplies a base for standalone modifiers and tie bars.
+                let input = format!("a{symbol}");
+                transliterate_ipa_to_lojban(&input).unwrap_or_else(|error| {
+                    panic!("documented IPA `{symbol}` was rejected: {error}")
+                });
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_word_inventory_and_examples_are_accepted() {
+        let source = include_str!("../../../apps/jbotci/src/tool.rs");
+        let word = source
+            .split_once("pub struct ToolGimfihiSource {")
+            .unwrap()
+            .1
+            .split_once("pub word: String,")
+            .unwrap()
+            .0;
+        let inventory = word
+            .split_once("Use standard IPA from this inventory;")
+            .unwrap()
+            .1;
+        let (inventory, examples) = inventory.split_once("Examples (word → IPA):").unwrap();
+        let examples = examples.split_once("Reason carefully").unwrap().0;
+        assert_documented_ipa(inventory);
+        assert_documented_ipa(examples);
+        for example in examples.split('`').skip(1).step_by(2) {
+            transliterate_ipa_to_lojban(example.trim_matches(['[', ']'])).unwrap();
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn skill_transcriptions_are_accepted() {
+        let reference = include_str!(
+            "../../../apps/jbotci-server/resources/skills/gismu-making/references/ipa-transcription.md"
+        );
+        let reference = reference.split_once("## The rules").unwrap().1;
+        assert_documented_ipa(reference);
+        let examples = reference.split_once("## Examples (word → IPA)").unwrap().1;
+        for example in examples.split('`').skip(1).step_by(2) {
+            transliterate_ipa_to_lojban(example.trim_matches(['[', ']'])).unwrap();
+        }
+        let skill =
+            include_str!("../../../apps/jbotci-server/resources/skills/gismu-making/SKILL.md");
+        // Read the actual source values in JSON examples and the IPA table column.
+        for line in skill.lines() {
+            if let Some((_, value)) = line.split_once("\"word\": \"") {
+                let value = value.split_once('"').unwrap().0;
+                assert_documented_ipa(&format!("`{value}`"));
+                transliterate_ipa_to_lojban(value).unwrap();
+            }
+            if line.starts_with("| `") {
+                let column = line.split('|').nth(3).unwrap();
+                assert_documented_ipa(column);
+                let note = line.split('|').nth(4).unwrap();
+                if note.contains('`') {
+                    assert_documented_ipa(note);
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unsupported_segment_error_states_the_inventory_contract() {
+        let error = transliterate_ipa_to_lojban("aβa").unwrap_err().to_string();
+        assert!(error.contains("unsupported IPA segment `β`"));
+        assert!(error.contains("Use narrow phonetic IPA."));
+        assert!(
+            error.contains(
+                "Only the inventory listed in the gimfihi word instructions is supported."
+            )
+        );
     }
 
     #[test]

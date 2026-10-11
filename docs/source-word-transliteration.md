@@ -299,7 +299,9 @@ This normalization does not change the phonetic input requirement.
 
 ### Input limits
 
-The classic mapper rejects `β`, although the Spanish transcription instructions list it as a positional sound.
+The tool instructions use a smaller inventory than the mapper accepts.
+The classic mapper rejects `β`.
+The Spanish transcription guide uses the listed `b` for that unlisted positional sound.
 The mapper also rejects the notation `N`, `Q`, the linking mark `‿`, and tone digits.
 Use supported IPA symbols for Japanese nasal sounds and the length mark `ː` for gemination.
 
