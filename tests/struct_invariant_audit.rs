@@ -1384,6 +1384,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/src/warnings.rs:WarningCatalog",
+        "the declaration combines typed syntax fields and validated categories; parsing rejects duplicate names and codes before grammar analysis",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/warnings.rs:WarningUses",
+        "the visitor permits every combination of collected names and a parse error, including empty and partial traversal states",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_quantifier.rs:BaselineQuantifierRejection",
         "stateless parser rejection policy has exactly one valid value",
     ),

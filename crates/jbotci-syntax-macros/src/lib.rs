@@ -11,6 +11,13 @@
 //! branches of `other_rule`, in order, as if they were written in its place; see
 //! `resolve_enum_splices`.
 
+//! A leading `warnings { pub enum ExperimentalConstruct { ... } }` block declares warnings.
+//! Each entry is `Category => ("code", "message"),`.
+//! Prefix an entry with `runtime` when runtime code emits it.
+//! Grammar categories require a `.warn(Category)` or `warn_if` emission site.
+//! The macro rejects unknown categories and unused grammar categories.
+//! The block generates the enum, `ALL`, `RUNTIME_EMITTED`, `code()` and `message()`.
+
 //! Product rules accept parser-only statements between their fields.
 //! `assert parser;` requires a successful probe without consuming input.
 //! `assert !parser;` requires a failed probe.
@@ -21,6 +28,9 @@
 //! Recovered generation also probes the strict parser, so the probe never recovers.
 //! `when feature(Name)` or `when !feature(Name)` can condition the warning.
 //! The same conditions select enum arms. A false condition skips the arm entirely.
+
+mod warnings;
+use warnings::WarningCatalog;
 
 mod containment;
 use containment::Containment;
@@ -53,6 +63,8 @@ pub fn syntax_grammar(input: TokenStream) -> TokenStream {
 }
 
 mod kw {
+    syn::custom_keyword!(warnings);
+    syn::custom_keyword!(runtime);
     syn::custom_keyword!(alias);
     syn::custom_keyword!(assert);
     syn::custom_keyword!(warn_if);
@@ -73,6 +85,7 @@ mod kw {
 
 #[invariant(true)]
 struct SyntaxGrammar {
+    warnings: Option<WarningCatalog>,
     tree_model: Option<syn::File>,
     generate_model: bool,
     model_outputs: Option<BTreeSet<String>>,
@@ -86,6 +99,12 @@ impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
+        if let Some(warnings) = &self.warnings {
+            if let Err(error) = warnings.validate_uses(&self.rules) {
+                return error.into_compile_error();
+            }
+        }
+        let warnings = self.warnings.as_ref().map(WarningCatalog::expand);
         let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
         if let Err(error) = validate_spliced_variants(&self.rules, &type_env) {
             return error.into_compile_error();
@@ -102,6 +121,7 @@ impl SyntaxGrammar {
         };
         let Some(env) = &self.env else {
             return quote! {
+                #warnings
                 #tree_model
             };
         };
@@ -234,6 +254,7 @@ impl SyntaxGrammar {
             None
         };
         quote! {
+            #warnings
             #tree_model
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -374,6 +395,11 @@ impl SyntaxGrammar {
 
 impl Parse for SyntaxGrammar {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let warnings = if input.peek(kw::warnings) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
         let tree_model = if input.peek(kw::tree_model) {
             Some(parse_tree_model_block(input)?)
         } else {
@@ -430,6 +456,7 @@ impl Parse for SyntaxGrammar {
         let rules = resolve_enum_splices(UniqueParsedRules::new(parsed_rules)?)?;
 
         Ok(Self {
+            warnings,
             tree_model,
             generate_model,
             model_outputs,

@@ -9442,6 +9442,148 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_runtime_warning_category_has_an_emission_witness() {
+        use std::collections::BTreeSet;
+
+        run_on_normal_stack(|| {
+            // Each witness must emit its named warning. The set comparison makes a new
+            // runtime declaration require a witness, even when grammar code also emits it.
+            let witnesses = [
+                (
+                    ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
+                    "coi do'u xi pa",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
+                    "coi .alis.",
+                    "(cbm)",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalCbmLaNameAsDescriptor,
+                    "la .lojban.",
+                    "(cbm)",
+                ),
+                (ExperimentalConstruct::ExperimentalCmavo, "ma'oi ba", ""),
+                (
+                    ExperimentalConstruct::ExperimentalCuTermsSelbri,
+                    "mi cu naku naku klama",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalDictionaryCoiVocative,
+                    "a'oi do klama",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalDictionaryDoiVocative,
+                    "da'oi",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalDictionaryFahaTag,
+                    "xei'e lo kibro mi klama",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalDictionaryPaNumber,
+                    "xe'e lo gerku cu klama",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalDictionaryUiIndicator,
+                    "li'oi mi klama",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalExpDescriptionLeadingSumti,
+                    "lo mi je do mlatu cu blabi",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalFihoiAdverbial,
+                    "mi klama fi'oi broda",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalFlattenedTag,
+                    "mi se fa broda",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalLohAiReplacementFree,
+                    "mi klama lo'ai broda le'ai",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalMexOperatorConnective,
+                    "li pa bi'e je re lo'o",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalMexQuantifier,
+                    "pa su'i re",
+                    "(+mex-quantifier)",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalPreposedLinkargs,
+                    "mi be ko'a be'o broda",
+                    "()",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalSoiAdverbial,
+                    "mi klama xoi mutce",
+                    "",
+                ),
+                (
+                    ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    "ko'a ce'e ba ko'e .e ca ko'i broda",
+                    "",
+                ),
+            ];
+            let witnessed = witnesses
+                .iter()
+                .map(|(kind, _, _)| *kind)
+                .collect::<BTreeSet<_>>();
+            let declared = ExperimentalConstruct::RUNTIME_EMITTED
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>();
+            assert_eq!(witnessed, declared);
+            assert_eq!(witnesses.len(), witnessed.len());
+            for (kind, source, dialect) in witnesses {
+                let options = if dialect.is_empty() {
+                    ParseOptions::default()
+                } else {
+                    let dialect = parse_dialect_definition(dialect).expect("valid witness dialect");
+                    ParseOptions::default().with_dialect_definition(&dialect)
+                };
+                if kind == ExperimentalConstruct::ExperimentalDictionaryDoiVocative {
+                    // The runtime DOI token parser owns this category. The whole-text
+                    // grammar uses literal DOI, so this witness calls the token parser.
+                    use super::parser_core::{Input, Parser};
+                    let words = segment_words_with_modifiers(source).expect("valid morphology");
+                    let words = syntax_tokens(&words);
+                    let tokens = tokens::spanned_tokens(&words);
+                    let eoi = SimpleSpan::from(
+                        tokens.last().unwrap().span.end..tokens.last().unwrap().span.end,
+                    );
+                    let mut state = ParserState::new(&words, &options);
+                    tokens::selmaho(Selmaho::Doi)
+                        .parse_with_state(tokens.as_slice().split_spanned(eoi), &mut state)
+                        .into_result()
+                        .expect("valid DOI token");
+                    assert!(state.warnings.iter().any(|warning| warning.kind == kind));
+                } else {
+                    assert_warning_kind(source, &options, kind);
+                }
+            }
+        });
+    }
+
     #[requires(!source.is_empty())]
     #[ensures(true)]
     fn assert_warning_kind(source: &str, options: &ParseOptions, expected: ExperimentalConstruct) {
