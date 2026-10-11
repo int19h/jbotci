@@ -156,3 +156,94 @@ fn projections_and_walks_borrow_without_allocation() {
     let allocations = ALLOCATIONS.with(|count| count.replace(None)).unwrap();
     assert_eq!(allocations, 0);
 }
+
+mod skipped_fields {
+    use super::RecoveryTreeItem;
+    use bityzba::{invariant, requires};
+    use jbotci_tree::tree_model;
+
+    tree_model! {
+        #![tree_recovered]
+        #![tree_view]
+        #[invariant(true)]
+        #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+        pub struct Root {
+            #[tree_child(false)]
+            pub metadata: std::string::String,
+            #[tree_child(false)]
+            pub opaque: std::path::PathBuf,
+            pub text: std::string::String,
+        }
+    }
+
+    #[invariant(true)]
+    struct Counter {
+        atoms: usize,
+        errors: usize,
+    }
+    #[bityzba::contract_trait]
+    impl<'tree> view::Walker<'tree> for Counter {
+        #[requires(true)]
+        #[ensures(self.atoms == old(self.atoms) + 1)]
+        fn walk_atom(&mut self, _atom: AtomRef<'tree>) {
+            self.atoms += 1;
+        }
+        #[requires(true)]
+        #[ensures(self.errors == old(self.errors) + 1)]
+        fn walk_error(&mut self) {
+            self.errors += 1;
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_descent_omits_skipped_fields_but_keeps_their_views() {
+        use view::{AsView, Walkable};
+        let root = Root {
+            metadata: "metadata".into(),
+            opaque: "opaque".into(),
+            text: "text".into(),
+        };
+        let view::RootView {
+            metadata,
+            opaque,
+            text,
+        } = root.as_view().valid().unwrap().get();
+        assert_eq!(metadata.valid().unwrap(), "metadata");
+        assert_eq!(opaque.valid().unwrap(), std::path::Path::new("opaque"));
+        assert_eq!(text.valid().unwrap(), "text");
+        let mut counter = Counter {
+            atoms: 0,
+            errors: 0,
+        };
+        root.as_view().walk_with(&mut counter);
+        assert_eq!((counter.atoms, counter.errors), (1, 0));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_descent_omits_errors_in_skipped_fields() {
+        use view::{AsView, Walkable};
+        let root = recovered::Root {
+            metadata: recovered::Recovered::error(RecoveryTreeItem::Missing),
+            opaque: recovered::Recovered::error(RecoveryTreeItem::Missing),
+            text: recovered::Recovered::valid("text".into()),
+        };
+        let view::RootView {
+            metadata,
+            opaque,
+            text,
+        } = root.as_view().valid().unwrap().get();
+        assert!(metadata.valid().is_none());
+        assert!(opaque.valid().is_none());
+        assert_eq!(text.valid().unwrap(), "text");
+        let mut counter = Counter {
+            atoms: 0,
+            errors: 0,
+        };
+        root.as_view().walk_with(&mut counter);
+        assert_eq!((counter.atoms, counter.errors), (1, 0));
+    }
+}

@@ -274,19 +274,32 @@ pub(super) fn expand(
             let types = projections.iter().map(|f| &f.ty).collect::<Vec<_>>();
             let strict_values = projections.iter().map(|f| &f.strict).collect::<Vec<_>>();
             let recovered_values = projections.iter().map(|f| &f.recovered).collect::<Vec<_>>();
+            let mut walked = Vec::new();
+            let mut walk_bindings = Vec::new();
+            let mut named_walk_bindings = Vec::new();
+            for (field, binding) in fields.iter().zip(&bindings) {
+                if tree_child_flags(&field.attrs)?.skip {
+                    walk_bindings.push(quote!(_));
+                    named_walk_bindings.push(quote!(#binding: _));
+                } else {
+                    walked.push(binding);
+                    walk_bindings.push(quote!(#binding));
+                    named_walk_bindings.push(quote!(#binding));
+                }
+            }
             let visibility = variant.is_none().then(|| quote!(pub));
             let (definition, pattern, view_pattern, s_value, r_value) = match fields {
                 Fields::Named(_) => (
                     quote!({#(#visibility #bindings: #types,)*}),
                     quote!({#(#bindings,)*}),
-                    quote!({#(#bindings,)*}),
+                    quote!({#(#named_walk_bindings,)*}),
                     quote!({#(#bindings: #strict_values,)*}),
                     quote!({#(#bindings: #recovered_values,)*}),
                 ),
                 Fields::Unnamed(_) => (
                     quote!((#(#visibility #types,)*)),
                     quote!((#(#bindings,)*)),
-                    quote!((#(#bindings,)*)),
+                    quote!((#(#walk_bindings,)*)),
                     quote!((#(#strict_values,)*)),
                     quote!((#(#recovered_values,)*)),
                 ),
@@ -306,7 +319,7 @@ pub(super) fn expand(
                 recovered_cases.push(
                     quote!(super::recovered::#ident::#variant #pattern => #view::#variant #r_value),
                 );
-                walk_cases.push(quote!(#view::#variant #view_pattern => { #(Walkable::walk_with(#bindings, walker);)* }));
+                walk_cases.push(quote!(#view::#variant #view_pattern => { #(Walkable::walk_with(#walked, walker);)* }));
             } else {
                 let semicolon =
                     matches!(fields, Fields::Unnamed(_) | Fields::Unit).then(|| quote!(;));
@@ -314,7 +327,7 @@ pub(super) fn expand(
                 strict_cases.push(quote!(super::#ident #pattern => #view #s_value));
                 recovered_cases.push(quote!(super::recovered::#ident #pattern => #view #r_value));
                 walk_cases.push(
-                    quote!(#view #view_pattern => { #(Walkable::walk_with(#bindings, walker);)* }),
+                    quote!(#view #view_pattern => { #(Walkable::walk_with(#walked, walker);)* }),
                 );
             }
         }
