@@ -676,9 +676,37 @@ pub(super) fn render_dictionary_tooltip(
     base_path: &str,
     script: GentufaScript,
 ) -> Element {
+    if card.components.is_empty() {
+        return render_dictionary_tooltip_card(
+            card,
+            show_link,
+            base_path,
+            script,
+            "rich-dictionary-tooltip",
+        );
+    }
+    rsx! {
+        span { class: "rich-dictionary-tooltip dictionary-tooltip-stack", role: "tooltip",
+            { render_dictionary_tooltip_card(card, show_link, base_path, script, "tooltip-stack-card") }
+            for component in &card.components {
+                { render_dictionary_tooltip_card(&component.card, show_link, base_path, script, "tooltip-stack-card") }
+            }
+        }
+    }
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+pub(super) fn render_dictionary_tooltip_card(
+    card: &DictionaryTooltipCard,
+    show_link: bool,
+    base_path: &str,
+    script: GentufaScript,
+    class_name: &str,
+) -> Element {
     let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
-        span { class: "rich-dictionary-tooltip", role: "tooltip",
+        span { class: "{class_name}", role: "tooltip",
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
                     if show_link {
@@ -789,6 +817,9 @@ pub(super) fn render_reference_tooltip(
             onclick: move |event| event.stop_propagation(),
             if let Some(card) = &tooltip.card {
                 { render_reference_dictionary_card(card, tooltip, base_path, script) }
+                for component in &card.components {
+                    { render_dictionary_tooltip_card(&component.card, false, base_path, script, "rich-dictionary-tooltip reference-component-card") }
+                }
             } else if let Some(word) = &tooltip.missing_word {
                 {
                     let display_word = display_lojban_text(script, word);

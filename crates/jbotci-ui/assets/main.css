@@ -4577,7 +4577,8 @@ body::-webkit-scrollbar-thumb:hover,
   display: inline-flex;
 }
 
-.rich-dictionary-tooltip {
+.rich-dictionary-tooltip,
+.tooltip-stack-card {
   position: fixed;
   z-index: 20000;
   left: var(--dictionary-tooltip-left, 0);
@@ -4604,6 +4605,25 @@ body::-webkit-scrollbar-thumb:hover,
   visibility: hidden;
   pointer-events: auto;
   transition: visibility 0s linear 520ms;
+}
+
+.dictionary-tooltip-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tooltip-stack-card {
+  position: static;
+  flex-shrink: 0;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  visibility: inherit;
 }
 
 .dictionary-tooltip-host:hover > .rich-dictionary-tooltip[data-jbotci-position-ready="true"],
