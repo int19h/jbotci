@@ -3904,19 +3904,50 @@ fn vlacku_navigation_restores_only_the_active_input() {
     assert!(reloaded.select_mode(VlackuWebMode::Rafsi).query.is_empty());
 }
 
+/// The router test uses the real route model and mounts only its notification probe.
 #[invariant(true)]
-#[invariant(::VlackuHistoryProbe => true)]
-#[derive(Debug, Clone, PartialEq, Routable)]
-enum VlackuHistoryTestRoute {
-    #[route("/vlacku/:query")]
-    VlackuHistoryProbe { query: String },
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VlackuHistoryTestRoute {
+    location: JbotciRoute,
+}
+
+impl FromStr for VlackuHistoryTestRoute {
+    type Err = JbotciRouteParseError;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        raw.parse().map(|location| Self { location })
+    }
+}
+
+impl fmt::Display for VlackuHistoryTestRoute {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.location, formatter)
+    }
+}
+
+impl Routable for VlackuHistoryTestRoute {
+    const SITE_MAP: &'static [dioxus::router::SiteMapSegment] = JbotciRoute::SITE_MAP;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render(&self, level: usize) -> Element {
+        if level == 0 {
+            rsx! { VlackuHistoryProbe { route: self.clone() } }
+        } else {
+            rsx! {}
+        }
+    }
 }
 
 #[allow(non_snake_case)]
 #[requires(true)]
 #[ensures(true)]
 #[component]
-fn VlackuHistoryProbe(query: String) -> Element {
+fn VlackuHistoryProbe(route: VlackuHistoryTestRoute) -> Element {
     let pending = use_signal(PendingLocalRouteWrites::default);
     let navigator_slot = consume_context::<Rc<Cell<Option<Navigator>>>>();
     let pending_slot = consume_context::<Rc<Cell<Option<Signal<PendingLocalRouteWrites>>>>>();
@@ -3928,7 +3959,7 @@ fn VlackuHistoryProbe(query: String) -> Element {
     navigator_slot.set(Some(route_navigator));
     pending_slot.set(Some(pending));
     push_slot.set(Some(push_route));
-    rsx! { "{query}" }
+    rsx! { "{route}" }
 }
 
 #[test]
@@ -3947,7 +3978,7 @@ fn vlacku_url_push_notifies_the_router_before_history_navigation() {
         .with_root_context(pending_slot.clone())
         .with_root_context(push_slot.clone());
     dom.rebuild_in_place();
-    assert_eq!(dioxus::ssr::render(&dom), "klama");
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/klama");
     let navigator = navigator_slot.get().expect("mounted router");
     let mut pending = pending_slot.get().expect("mounted pending writes");
     let push_route = push_slot.get().expect("mounted route callback");
@@ -3966,7 +3997,7 @@ fn vlacku_url_push_notifies_the_router_before_history_navigation() {
         };
         schedule_vlacku_url_push(push_route, &current, state, None);
         dom.render_immediate_to_vec();
-        assert_eq!(dioxus::ssr::render(&dom), query);
+        assert_eq!(dioxus::ssr::render(&dom), target.to_string());
         assert_eq!(history.current_route(), target.to_string());
         assert!(dom.in_scope(ScopeId::ROOT, || {
             pending.with_mut(|pending| pending.consume(&target))
@@ -3976,13 +4007,13 @@ fn vlacku_url_push_notifies_the_router_before_history_navigation() {
 
     dom.in_scope(ScopeId::ROOT, || navigator.go_back());
     dom.render_immediate_to_vec();
-    assert_eq!(dioxus::ssr::render(&dom), "melbi");
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/melbi");
     assert_eq!(history.current_route(), "/vlacku/melbi");
     assert!(pending.peek().routes.is_empty());
 
     dom.in_scope(ScopeId::ROOT, || navigator.go_forward());
     dom.render_immediate_to_vec();
-    assert_eq!(dioxus::ssr::render(&dom), "blanu");
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/blanu");
     assert_eq!(history.current_route(), "/vlacku/blanu");
     assert!(pending.peek().routes.is_empty());
 }
