@@ -1091,6 +1091,7 @@ fn attach_empty_reference_tooltips_to_block(
         role: block.role,
         error_index: block.error_index,
         token_kind: block.token_kind,
+        word_key: block.word_key,
         ref_markers: Vec::new(),
         span: block.span,
         node_types: block.node_types,
@@ -1271,6 +1272,7 @@ fn attach_generated_reference_tooltips_to_block(
         role: block.role,
         error_index: block.error_index,
         token_kind: block.token_kind,
+        word_key: block.word_key,
         ref_markers: attach_generated_reference_tooltips_to_markers(
             block.ref_markers,
             analysis,
@@ -5460,15 +5462,25 @@ fn dictionary_annotation_from_match(
         .next()
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card));
     GentufaBlockAnnotation {
-        target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
-            range: new!(WebSourceRange {
+        target: {
+            let range = new!(WebSourceRange {
                 byte_start: parsed_match.byte_start,
                 byte_end: parsed_match.byte_end,
                 char_start: parsed_match.char_start,
                 char_end: parsed_match.char_end,
-            }),
-            text: Some(parsed_match.lookup_text),
-        }),
+            });
+            match parsed_match.word_key {
+                Some(key) => new!(jbotci_gentufa::GentufaAnnotationTarget::Word {
+                    range,
+                    key,
+                    text: parsed_match.lookup_text,
+                }),
+                None => new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+                    range,
+                    text: Some(parsed_match.lookup_text),
+                }),
+            }
+        },
         glosses: first_card
             .as_ref()
             .map(|card| card.glosses.clone())
@@ -8087,6 +8099,89 @@ mod tests {
         );
         assert!(success.features.glosses);
         assert!(success.features.definitions);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_swapped_cmavo_keep_dictionary_tooltips() {
+        for script in [GentufaScript::Latin, GentufaScript::Cyrillic] {
+            for (text, dialect, original, replacement) in [
+                ("mi klama", "((mi <-> do))", "mi", "do"),
+                ("do klama", "((mi <-> do))", "do", "mi"),
+                ("le broda cu klama lo brode", "((le <-> lo))", "le", "lo"),
+                ("le broda cu klama lo brode", "((le <-> lo))", "lo", "le"),
+            ] {
+                let success = parse_success_with_options(
+                    text,
+                    GentufaWebOptions {
+                        dialect: Some(dialect.to_owned()),
+                        script,
+                        ..GentufaWebOptions::default()
+                    },
+                );
+                let block = success
+                    .blocks_layout
+                    .blocks
+                    .iter()
+                    .find(|block| block.is_leaf && block.raw_text == original)
+                    .expect("swapped leaf");
+                assert_eq!(
+                    block.tooltip.as_ref().map(|card| card.word.as_str()),
+                    Some(replacement),
+                    "{text}: {script:?}"
+                );
+                assert!(block.definition.is_some());
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_expanded_cmavo_keep_dictionary_tooltips() {
+        for script in [GentufaScript::Latin, GentufaScript::Cyrillic] {
+            for show_compounds in [false, true] {
+                for (text, dialect, expected) in [
+                    ("mi klama", "((mi -> do ko))", ["do", "ko"]),
+                    ("mi klama", "((mi -> do do))", ["do", "do"]),
+                    ("mi klama ku", "((mi -> do ko))", ["do", "ko"]),
+                ] {
+                    let success = parse_success_with_options(
+                        text,
+                        GentufaWebOptions {
+                            dialect: Some(dialect.to_owned()),
+                            script,
+                            show_compounds,
+                            ..GentufaWebOptions::default()
+                        },
+                    );
+                    let leaves = success
+                        .blocks_layout
+                        .blocks
+                        .iter()
+                        .filter(|block| block.is_leaf && block.raw_text == "mi")
+                        .collect::<Vec<_>>();
+                    assert_eq!(leaves.len(), expected.len());
+                    for (block, word) in leaves.into_iter().zip(expected) {
+                        assert_eq!(
+                            block.tooltip.as_ref().map(|card| card.word.as_str()),
+                            Some(word),
+                            "{text}: {dialect}: {script:?}"
+                        );
+                        assert!(block.definition.is_some());
+                    }
+                    assert!(
+                        success
+                            .blocks_layout
+                            .blocks
+                            .iter()
+                            .filter(|block| block.role.is_error())
+                            .all(|block| block.tooltip.is_none())
+                    );
+                }
+            }
+        }
     }
 
     #[test]
