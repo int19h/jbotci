@@ -294,8 +294,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
-        // Sound preprocessing rejects unopened LEhU.
-        assert_eq!(english().sound_index().len(), 31_097);
+        // Sound preprocessing rejects unopened LEhU and unfinished replacement markers.
+        assert_eq!(english().sound_index().len(), 31_095);
         assert_eq!(english().lujvo_index().len(), 12_983);
 
         // The decomposition index is audited by word type and not only in
