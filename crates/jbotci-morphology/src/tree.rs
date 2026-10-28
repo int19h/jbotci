@@ -59,7 +59,7 @@ tree_model! {
     /// One raw word, with the shared Y+BU reader exception.
     #[invariant(match word.as_data() {
         data!(WordLike::PlainWord(word)) => !word.is_selmaho(Selmaho::Lohai) && !word.is_selmaho(Selmaho::Lehai),
-        data!(WordLike::LerfuWord { base, bu }) => bu.is_cmavo(Cmavo::Bu) && base.bare_word().is_some_and(|word| word.kind() == crate::WordKind::Cmavo && super::canonical_text_is_all(word.phonemes().as_str(), 'y')),
+        data!(WordLike::LerfuWord { base, bu }) => bu.is_cmavo(Cmavo::Bu) && base.bare_word().is_some_and(Word::is_hesitation),
         _ => false,
     })]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

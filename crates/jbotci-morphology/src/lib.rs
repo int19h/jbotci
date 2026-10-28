@@ -1055,6 +1055,17 @@ impl Word {
         }
     }
 
+    /// Recognize a raw hesitation run without copying its phonemes.
+    #[requires(true)]
+    #[ensures(!ret || self.kind() == WordKind::Cmavo)]
+    #[bityzba::expensive_ensures(ret == (self.kind() == WordKind::Cmavo && self.phonemes_ref().is_some_and(|phonemes| canonical_text_is_all(phonemes.as_str(), 'y'))))]
+    pub(crate) fn is_hesitation(&self) -> bool {
+        self.kind() == WordKind::Cmavo
+            && self
+                .phonemes_ref()
+                .is_some_and(|phonemes| canonical_text_is_all(phonemes.as_str(), 'y'))
+    }
+
     #[requires(true)]
     #[ensures(ret == (self.cmavo() == Some(cmavo)))]
     pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {

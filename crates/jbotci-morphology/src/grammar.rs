@@ -16,8 +16,7 @@ use crate::{
     MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
     RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, ReplacementQuoteRun,
     ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
-    ZoiDelimiterDetailKind, canonical_text_eq, canonical_text_is_all, canonicalize_text,
-    morphology_error_recovery_start,
+    ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
 };
 
 #[requires(true)]
@@ -1292,7 +1291,7 @@ impl<'a> Segmenter<'a> {
                 })),
             )
         })?;
-        if is_y_word_text(opening_delimiter.phonemes().as_str()) {
+        if opening_delimiter.is_hesitation() {
             return Err(self.invalid_span_with_detail(
                 MorphologyErrorKind::InvalidZoiDelimiter,
                 opening_delimiter.span().char_start,
@@ -1436,7 +1435,7 @@ impl<'a> Segmenter<'a> {
                 runs.push(new!(ReplacementQuoteRun { marker, words }));
                 marker = word;
                 words = Vec::new();
-            } else if canonical_text_is_all(word.phonemes().as_str(), 'y') {
+            } else if word.is_hesitation() {
                 // The shared raw-word exception joins Y and BU before operations.
                 self.skip_separators();
                 let bu = into_bare_word(self.next_plain_word().ok()?)?;
@@ -2714,17 +2713,9 @@ fn into_bare_word(word: WordLike) -> Option<Word> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret || word.bare_word().is_some_and(|word| word.kind() == WordKind::Cmavo))]
 fn is_y_word(word: &WordLike) -> bool {
-    word.bare_word().is_some_and(|word| {
-        word.kind() == WordKind::Cmavo && is_y_word_text(word.phonemes().as_str())
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_y_word_text(text: &str) -> bool {
-    canonical_text_is_all(text, 'y')
+    word.bare_word().is_some_and(Word::is_hesitation)
 }
 
 #[requires(start <= end && end <= chars.len())]
