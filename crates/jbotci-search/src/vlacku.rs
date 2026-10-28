@@ -903,7 +903,7 @@ fn cards_for_valsi(
 
     // Lookup keys discard pauses and stress. Only the original input can
     // establish whether the vote exemption applies.
-    let lexical_word = lex_single_word(query);
+    let lexical_word = options.min_votes.and_then(|_| lex_single_word(query));
     let Some(query) = normalize_exact_lojban_query(query) else {
         return invalid_lojban_word_output(query);
     };
