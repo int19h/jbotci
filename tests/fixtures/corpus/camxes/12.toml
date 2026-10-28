@@ -5,6 +5,7 @@ lojban = "mi broda gi'e klama da de di sa na gi'e prami"
 kind = "corpus"
 corpus = "camxes"
 entry-id = "12"
+description = "The camxes acceptance is a known SA bug. Left-to-right erasure leaves na gi'e prami, which syntax rejects. See #1031."
 
 [expectations.morphology]
 status = "success"
@@ -12,7 +13,7 @@ raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "failure" }
+xfail = { source = "camxes-corpus", reason = "Known camxes SA bug: left-to-right erasure leaves na gi'e prami, which syntax rejects", accepted-status = "failure" }
 
 [expectations.output.vlasei]
 brackets = "(na gi'e prámi)"

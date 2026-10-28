@@ -1,0 +1,13 @@
+id = "adhoc.morphology.sa.digit-key-counted-match"
+lojban = "li pa li re sa sa 123"
+tags = ["issue-1031", "sa", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 regression"
+description = "Regression case. Two SA markers erase through the second preceding PA before the digit sequence remains."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"li\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"pa\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 18, byte_end: 19, char_start: 18, char_end: 19, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"re\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 19, byte_end: 20, char_start: 19, char_end: 20, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"ci\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 20, byte_end: 21, char_start: 20, char_end: 21, start: None, end: None } })]"
+diagnostics = []

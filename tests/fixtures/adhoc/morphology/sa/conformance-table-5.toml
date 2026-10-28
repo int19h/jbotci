@@ -1,0 +1,16 @@
+id = "adhoc.morphology.sa.conformance-table-5"
+lojban = "le le broda ku brode le broda sa sa le brodi"
+tags = ["issue-1031", "sa", "conformance"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 conformance"
+description = "Conformance case. Two SA markers select the second preceding LE. The remaining le le brodi is not a text. The camxes acceptance is a known camxes bug."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"le\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"le\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: \"bródi\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 39, byte_end: 44, char_start: 39, char_end: 44, start: None, end: None } })]"
+diagnostics = []
+
+[expectations.syntax]
+status = "failure"

@@ -1,0 +1,14 @@
+id = "adhoc.morphology.sa.cbm-name-key-keeps-brivla-class"
+lojban = "mi .alis. broda sa .bob."
+dialect = "(+CBM)"
+tags = ["issue-1031", "sa", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 regression"
+description = "Regression case. The CMEVLA key selects alis and does not select the later brivla."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"mi\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: \"bob\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 20, byte_end: 23, char_start: 20, char_end: 23, start: None, end: None } })]"
+diagnostics = []

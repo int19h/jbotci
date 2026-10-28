@@ -1,0 +1,12 @@
+id = "adhoc.morphology.sa.conformance-surviving-bu"
+lojban = "bu"
+tags = ["issue-1031", "sa", "conformance"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 conformance"
+description = "Conformance case. The surviving fault keeps its original primary span and diagnostic text."
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [0, 2], source-text = "bu", message = "expected Lojban word" }]

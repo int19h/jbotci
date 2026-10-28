@@ -1,0 +1,12 @@
+id = "adhoc.morphology.sa.conformance-zei-does-not-expose-compound"
+lojban = "lo mi zei do sa zei da"
+tags = ["issue-1031", "sa", "conformance"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 conformance"
+description = "Conformance case. The surviving fault keeps its original primary span and diagnostic text."
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [16, 19], source-text = "zei", message = "expected Lojban word" }]
