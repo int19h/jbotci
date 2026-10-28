@@ -303,10 +303,12 @@ pub struct MorphologySegmentAttempt {
 pub struct RecoveredMorphologySegmentation {
     pub words: Vec<WordLike>,
     pub errors: Vec<MorphologyError>,
-    /// Source regions skipped while resynchronizing after morphology errors.
+    /// Source regions discarded after reader errors or surviving fault units.
     ///
-    /// Each region starts at the failed stretch checkpoint and ends at EOF, or
-    /// just after the whitespace that recovery used to resume segmentation.
+    /// A reader error covers its failed checkpoint through EOF or the next
+    /// recovery boundary. A fault covers its complete constructed unit.
+    /// If those regions overlap, recovery partitions their combined coverage
+    /// at diagnostic anchors. The regions remain ordered and disjoint.
     pub error_regions: Vec<SourceSpan>,
     pub warnings: Vec<MorphologyWarning>,
 }

@@ -428,19 +428,73 @@ impl<'a> Segmenter<'a> {
                 }
             }
         }
-        failures.sort_by_key(|failure| failure.region.char_start);
-        failures.truncate(self.options.max_recovery_errors.get());
-        for failure in failures {
-            let failure = failure.into_data();
-            errors.push(failure.error);
-            error_regions.push(failure.region);
-        }
+        self.append_recovered_failures(failures, &mut errors, &mut error_regions);
         new!(RecoveredMorphologySegmentation {
             words: surviving_words,
             errors,
             error_regions,
             warnings: std::mem::take(&mut self.warnings),
         })
+    }
+
+    #[requires(errors.is_empty() && error_regions.is_empty())]
+    #[ensures(errors.len() == error_regions.len() && errors.len() <= self.options.max_recovery_errors.get())]
+    #[bityzba::expensive_ensures(crate::recovered_morphology_errors_match_regions(
+        errors,
+        error_regions
+    ))]
+    fn append_recovered_failures(
+        &self,
+        mut failures: Vec<RecoveryFailure>,
+        errors: &mut Vec<MorphologyError>,
+        error_regions: &mut Vec<SourceSpan>,
+    ) {
+        failures.sort_by_key(|failure| failure.region.char_start);
+        let mut failures = failures.into_iter().peekable();
+        while let Some(first) = failures.next() {
+            if errors.len() == self.options.max_recovery_errors.get() {
+                break;
+            }
+            if failures
+                .peek()
+                .is_none_or(|next| first.region.char_end <= next.region.char_start)
+            {
+                let first = first.into_data();
+                errors.push(first.error);
+                error_regions.push(first.region);
+                continue;
+            }
+
+            // A constructor can extend a fault across a skipped reader error.
+            // Partition their combined coverage at diagnostic anchors. Keep
+            // the original diagnostics and discard the complete fault unit.
+            let mut start = first.region.char_start;
+            let mut end = first.region.char_end;
+            let mut group = vec![first];
+            while failures
+                .peek()
+                .is_some_and(|next| next.region.char_start < end)
+            {
+                let next = failures.next().expect("an overlapping failure exists");
+                end = end.max(next.region.char_end);
+                group.push(next);
+            }
+            group.sort_by_key(|failure| {
+                morphology_error_recovery_start(&failure.error).unwrap_or(failure.region.char_start)
+            });
+            let mut group = group.into_iter().peekable();
+            while let Some(failure) = group.next() {
+                if errors.len() == self.options.max_recovery_errors.get() {
+                    break;
+                }
+                let boundary = group.peek().map_or(end, |next| {
+                    morphology_error_recovery_start(&next.error).unwrap_or(next.region.char_start)
+                });
+                errors.push(failure.into_data().error);
+                error_regions.push(self.recovery_source_span(start, boundary));
+                start = boundary;
+            }
+        }
     }
 
     #[requires(true)]
@@ -4700,6 +4754,50 @@ mod tests {
         );
         assert_eq!(recovered.error_regions[2].char_start, 14);
         assert_eq!(recovered.error_regions[2].char_end, 23);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_faults_partition_coverage_across_reader_errors() {
+        let cases = [
+            ("bu qqq zei mi", vec![0..3, 3..13], vec![0, 3]),
+            ("mi qqq zei", vec![0..7, 7..10], vec![3, 7]),
+            (
+                "bu qqq bu rrr bu",
+                vec![0..3, 3..10, 10..16],
+                vec![0, 3, 10],
+            ),
+        ];
+        for (source, regions, anchors) in cases {
+            let recovered =
+                crate::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                    source,
+                    &MorphologyOptions::default(),
+                    None,
+                )
+                .into_data()
+                .result;
+            assert!(recovered.words.is_empty(), "{source}");
+            assert_eq!(
+                recovered
+                    .error_regions
+                    .iter()
+                    .map(|region| region.char_start..region.char_end)
+                    .collect::<Vec<_>>(),
+                regions,
+                "{source}",
+            );
+            assert_eq!(
+                recovered
+                    .errors
+                    .iter()
+                    .map(|error| morphology_error_recovery_start(error).expect("native error"))
+                    .collect::<Vec<_>>(),
+                anchors,
+                "{source}",
+            );
+        }
     }
 
     #[test]
