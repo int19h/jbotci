@@ -4784,8 +4784,26 @@ fn vlacku_min_votes_keeps_missing_words_and_exact_word_groups() {
         false,
     );
     assert_eq!(exact.status, CliStatus::Success, "{}", exact.stderr);
-    for word in ["lojbangirzu", "lojbo", "bangu", "girzu"] {
-        assert!(exact.stdout.contains(word), "{}", exact.stdout);
+    let baseline = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "lojbangirzu",
+            "--decompose-lujvo",
+        ],
+        false,
+    );
+    assert_eq!(exact.stdout, baseline.stdout);
+    for (index, word) in ["lojbangirzu", "logji", "bangu", "girzu"]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(
+            exact.stdout.contains(&format!("{}. {word} |", index + 1)),
+            "{}",
+            exact.stdout
+        );
     }
     let pattern = run_cli_capture(
         &[
