@@ -1068,6 +1068,10 @@ fn first_word_label_for_word_like(
         data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => word_label_for_word(mahoi, options),
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => word_label_for_word(zoi, options),
         data!(WordLike::QuotedWords { lohu, .. }) => word_label_for_word(lohu, options),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => word_label_for_word(
+            runs.first().map_or(lehai.as_ref(), |run| &run.marker),
+            options,
+        ),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => word_label_for_word(marker, options),
         data!(WordLike::LerfuWord { base, .. }) => {
             return first_word_label_for_word_like(base, options);

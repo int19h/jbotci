@@ -1,0 +1,16 @@
+id = "adhoc.morphology.replacement-quote.su-hides-tuhe"
+lojban = "mi lo'ai tu'e le'ai su klama"
+tags = ["issue-1045", "replacement-quote", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1045"
+description = "SU cannot find the internal tu'e boundary. It erases the complete prefix."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Gismu { phonemes: Phonemes { text: \"kláma\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None } })]"
+diagnostics = []
+
+[expectations.syntax]
+status = "success"

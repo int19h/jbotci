@@ -3726,6 +3726,8 @@ pub mod generated_model {
     }
 
     /// Sum node for replacement phrase; selects among the `full_text_replacement_free_modifier`, `new_only_text_replacement_free_modifier`, and `close_only_text_replacement_free_modifier` forms.
+    // Morphology supplies one quote. The declared fields retain its syntax view.
+    #[syntax_parser(replacement_quote())]
     rule "replacement phrase" text_replacement_free_modifier -> enum {
         /// Uses the `full_text_replacement_free_modifier` product form, whose payload preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai`.
         full_text_replacement_free_modifier,

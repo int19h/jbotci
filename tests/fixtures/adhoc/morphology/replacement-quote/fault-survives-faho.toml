@@ -1,0 +1,12 @@
+id = "adhoc.morphology.replacement-quote.fault-survives-faho"
+lojban = "mi lo'ai fa'o si"
+tags = ["issue-1045", "replacement-quote", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1045"
+description = "FAhO ends the pass before SI can erase the unfinished marker fault."
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [8, 8], source-text = "", message = "expected Lojban word" }]

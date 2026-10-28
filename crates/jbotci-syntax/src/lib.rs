@@ -814,6 +814,7 @@ pub enum SyntaxWordCategory {
     ProSumti,
     LetterWord,
     Quote,
+    ReplacementQuote,
 }
 
 impl SyntaxWordCategory {
@@ -827,6 +828,7 @@ impl SyntaxWordCategory {
             Self::ProSumti => "PRO-SUMTI",
             Self::LetterWord => "LERFU",
             Self::Quote => "QUOTE",
+            Self::ReplacementQuote => "REPLACEMENT QUOTE",
         }
     }
 }

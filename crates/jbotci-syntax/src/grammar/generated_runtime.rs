@@ -10,6 +10,9 @@ use std::{
 };
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
+pub(super) use super::replacement::{
+    recovered_parser as recovered_replacement_quote, strict as replacement_quote,
+};
 use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
     SyntaxMemoContext, SyntaxParseError,
@@ -2671,6 +2674,10 @@ fn token_matches_word_category(token: &Token, category: SyntaxWordCategory) -> b
         SyntaxWordCategory::ProSumti => is_koha_argument(token),
         SyntaxWordCategory::LetterWord => is_letter_word(token),
         SyntaxWordCategory::Quote => token_is_compound_quote(token),
+        SyntaxWordCategory::ReplacementQuote => matches!(
+            token.core_word().as_data(),
+            bityzba::data!(jbotci_morphology::WordLike::ReplacementQuote { .. })
+        ),
     }
 }
 

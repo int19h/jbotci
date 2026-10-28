@@ -633,6 +633,13 @@ impl DocumentSnapshot {
                 {
                     return CursorCompletionContext::UnfilteredQuotedWord;
                 }
+                data!(WordLike::ReplacementQuote { runs, lehai })
+                    if runs.first().is_some_and(|run| {
+                        run.marker.span().char_end <= replacement_span.char_start
+                    }) && replacement_span.char_end <= lehai.span().char_start =>
+                {
+                    return CursorCompletionContext::UnfilteredQuotedWords;
+                }
                 data!(WordLike::QuotedWords { lohu, lehu, .. })
                     if lohu.span().char_end <= replacement_span.char_start
                         && replacement_span.char_end <= lehu.span().char_start =>
@@ -826,6 +833,10 @@ impl CompletionContext<'_, '_, '_, '_> {
                     self.add_selmaho(Selmaho::By, reason, &provenance, items)
                 }
                 SyntaxWordCategory::Cmevla => self.add_document_cmevla(reason, &provenance, items),
+                SyntaxWordCategory::ReplacementQuote => {
+                    self.add_selmaho(Selmaho::Lohai, reason, &provenance, items);
+                    self.add_selmaho(Selmaho::Lehai, reason, &provenance, items);
+                }
                 SyntaxWordCategory::Quote => {
                     for cmavo in Cmavo::ALL
                         .iter()

@@ -18,6 +18,10 @@
 //! The macro rejects unknown categories and unused grammar categories.
 //! The block generates the enum, `ALL`, `RUNTIME_EMITTED`, `code()` and `message()`.
 
+//! `#[syntax_parser(parser)]` uses an atomic parser for a declared model.
+//! The fields still define the model, constructor labels, and field order.
+//! The override defines the parser and its recovery metadata in every flavor.
+//!
 //! Product rules accept parser-only statements between their fields.
 //! `assert parser;` requires a successful probe without consuming input.
 //! `assert !parser;` requires a failed probe.
@@ -802,7 +806,9 @@ impl SyntaxGrammar {
                 .get(name)
                 .expect("every generated enum has its declaration metadata");
             let doc_attrs = attrs.iter().filter(|attr| attr.path().is_ident("doc"));
-            let other_attrs = attrs.iter().filter(|attr| !attr.path().is_ident("doc"));
+            let other_attrs = attrs.iter().filter(|attr| {
+                !attr.path().is_ident("doc") && !attr.path().is_ident("syntax_parser")
+            });
             let invariants = variants.iter().map(GeneratedVariantModel::invariant_attr);
             quote! {
                 #(#doc_attrs)*
@@ -1327,7 +1333,7 @@ impl GeneratedStructModel {
         let other_attrs = self
             .attrs
             .iter()
-            .filter(|attr| !attr.path().is_ident("doc"));
+            .filter(|attr| !attr.path().is_ident("doc") && !attr.path().is_ident("syntax_parser"));
         let visibility = &self.visibility;
         let ident = &self.ident;
         if self.fields.len() == 1 {
@@ -2221,6 +2227,37 @@ enum Rule {
 }
 
 impl Rule {
+    /// Keep the declared model when one atomic terminal supplies the whole node.
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_override(&self) -> Result<Option<AliasRule>> {
+        let attrs = match self {
+            Self::Alias(_) => return Ok(None),
+            Self::Struct(rule) => &rule.attrs,
+            Self::Enum(rule) => &rule.attrs,
+        };
+        let mut overrides = attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("syntax_parser"));
+        let Some(attr) = overrides.next() else {
+            return Ok(None);
+        };
+        if overrides.next().is_some() {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "a rule has only one syntax_parser",
+            ));
+        }
+        Ok(Some(AliasRule {
+            name: self.name().clone(),
+            arguments: self.arguments().to_vec(),
+            context: self
+                .context_label()
+                .map(|label| LitStr::new(&label, self.name().span())),
+            parser: ParserExpr::Rust(attr.parse_args()?),
+        }))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn name(&self) -> &Ident {
@@ -2260,6 +2297,9 @@ impl Rule {
     #[requires(true)]
     #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
+        if let Some(parser) = self.parser_override()? {
+            return parser.expand_metadata(type_env);
+        }
         match self {
             Rule::Alias(rule) => rule.expand_metadata(type_env),
             Rule::Struct(rule) => rule.expand_metadata("struct", type_env),
@@ -2298,6 +2338,15 @@ impl Rule {
         use_model_construction: bool,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
+        if let Some(parser) = self.parser_override()? {
+            return parser.expand_strict_parser(
+                type_env,
+                generate_model,
+                model_outputs,
+                model_all_rules_local,
+                flavor,
+            );
+        }
         match self {
             Rule::Alias(rule) => rule.expand_strict_parser(
                 type_env,
@@ -2335,6 +2384,14 @@ impl Rule {
         recovered_module: &TokenStream2,
         use_model_construction: bool,
     ) -> Result<TokenStream2> {
+        if let Some(parser) = self.parser_override()? {
+            return parser.expand_recovered_parser(
+                type_env,
+                model_outputs,
+                model_all_rules_local,
+                recovered_module,
+            );
+        }
         match self {
             Rule::Alias(rule) => rule.expand_recovered_parser(
                 type_env,
@@ -6450,6 +6507,11 @@ fn strict_call_parser_expr_tokens(
                 generated_runtime::empty(),
             )))
         }
+        ("replacement_quote", 0) => {
+            let free_modifier =
+                strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            Ok(quote!(generated_runtime::replacement_quote(#free_modifier)))
+        }
         ("relation_word", 0) => Ok(quote!(relation_word())),
         ("tanru_unit_relation_word", 0) => {
             Ok(quote!(generated_runtime::tanru_unit_relation_word()))
@@ -7371,6 +7433,13 @@ fn recovered_call_parser_expr_tokens(
                 generated_runtime::empty(),
             )))
         }
+        ("replacement_quote", 0) => {
+            let free_modifier =
+                recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            Ok(
+                quote!(generated_runtime::recovered_replacement_quote(#free_modifier).map(#recovered_module::Recovered::valid)),
+            )
+        }
         ("relation_word", 0) => {
             Ok(quote!(relation_word().map(#recovered_module::Recovered::valid)))
         }
@@ -8144,6 +8213,7 @@ fn call_rust_parser_output_type(
             | "pa_word",
             0,
         ) => Some(quote!(Token)),
+        ("replacement_quote", 0) => Some(quote!(TextReplacementFreeModifierSyntax)),
         ("word_not_cmavo", _) if !call.args.is_empty() => Some(quote!(Token)),
         ("feature", 1) => Some(quote!(())),
         ("opt", 1) => {
@@ -9634,6 +9704,7 @@ fn classify_call_recovery_expr(
         ("cmevla_word" | "text_leading_cmevla_word", 0) => {
             RecoveryExpr::WordCategory("Cmevla".to_owned())
         }
+        ("replacement_quote", 0) => RecoveryExpr::WordCategory("ReplacementQuote".to_owned()),
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
 
         _ if type_env.rule_known_for_recovery(&name, arguments) => RecoveryExpr::Rule(name),
@@ -10721,6 +10792,31 @@ fn expand_anchor_condition_slice(conditions: &[AnchorCondition]) -> TokenStream2
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn atomic_parser_keeps_declared_model_and_replaces_recovery_metadata() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote::quote! {
+            model;
+            /// A replacement quote retains both markers.
+            #[syntax_parser(replacement_quote())]
+            rule "replacement phrase" text_replacement_free_modifier -> struct {
+                /// The opening marker.
+                field lohai <- cmavo(Lohai);
+                /// The closing marker.
+                field lehai <- cmavo(Lehai);
+            }
+        })
+        .expect("atomic model grammar");
+        let expanded = grammar.expand();
+        let text = expanded.to_string();
+        assert!(!text.contains("compile_error"), "{text}");
+        assert!(text.contains("SyntaxGrammarRecoveryExpr :: WordCategory (crate :: SyntaxWordCategory :: ReplacementQuote)"));
+        assert!(text.contains("pub lohai : Token"));
+        assert!(text.contains("pub lehai : Token"));
+        assert!(!text.contains("# [syntax_parser"));
+    }
+
     use super::*;
     use quote::quote;
 

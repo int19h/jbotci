@@ -1,0 +1,16 @@
+id = "adhoc.morphology.replacement-quote.si-erases-complete-quote"
+lojban = "mi lo'ai do le'ai si klama"
+tags = ["issue-1045", "replacement-quote", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1045"
+description = "SI erases one complete quote and keeps mi."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"mi\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: \"kláma\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None } })]"
+diagnostics = []
+
+[expectations.syntax]
+status = "success"

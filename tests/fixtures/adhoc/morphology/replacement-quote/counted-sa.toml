@@ -1,0 +1,16 @@
+id = "adhoc.morphology.replacement-quote.counted-sa"
+lojban = "mi lo'ai do le'ai lo'ai ti le'ai sa sa sa'ai ta le'ai klama"
+tags = ["issue-1045", "replacement-quote", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1045"
+description = "Two SA words reach the second LOhAI unit and keep mi."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"mi\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), ReplacementQuote { runs: [ReplacementQuoteRun { marker: Cmavo { phonemes: Phonemes { text: \"sa'aĭ\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 39, byte_end: 44, char_start: 39, char_end: 44, start: None, end: None } }, words: [ReplacementQuoteWord { word: PlainWord(Cmavo { phonemes: Phonemes { text: \"ta\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 45, byte_end: 47, char_start: 45, char_end: 47, start: None, end: None } }) }] }], lehai: Cmavo { phonemes: Phonemes { text: \"le'aĭ\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 48, byte_end: 53, char_start: 48, char_end: 53, start: None, end: None } } }, PlainWord(Gismu { phonemes: Phonemes { text: \"kláma\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 54, byte_end: 59, char_start: 54, char_end: 59, start: None, end: None } })]"
+diagnostics = []
+
+[expectations.syntax]
+status = "success"
