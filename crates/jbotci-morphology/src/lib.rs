@@ -1534,6 +1534,7 @@ define_string_enum_metadata! {
         Slinkuhi => ("SLINKUHI", "slinkuhi"),
         InvalidLujvo => ("INVALID_LUJVO", "invalid-lujvo"),
         InvalidQuoteMarker => ("INVALID_QUOTE_MARKER", "invalid-quote-marker"),
+        UnopenedQuote => ("UNOPENED_QUOTE", "unopened-quote"),
         InvalidZoiDelimiter => ("INVALID_ZOI_DELIMITER", "invalid-zoi-delimiter"),
     }
 }
@@ -1559,6 +1560,7 @@ impl MorphologyErrorKind {
             Self::Slinkuhi => "morphology.slinkuhi",
             Self::InvalidLujvo => "morphology.invalid-lujvo",
             Self::InvalidQuoteMarker => "morphology.invalid-quote-marker",
+            Self::UnopenedQuote => "morphology.unopened-quote",
             Self::InvalidZoiDelimiter => "morphology.invalid-zoi-delimiter",
         }
     }
@@ -1583,6 +1585,7 @@ impl MorphologyErrorKind {
             Self::Slinkuhi => "slinku'i form is not a valid word",
             Self::InvalidLujvo => "invalid lujvo decomposition",
             Self::InvalidQuoteMarker => "quote marker must be a single word",
+            Self::UnopenedQuote => "unexpected cmavo",
             Self::InvalidZoiDelimiter => "ZOI delimiter must be a single non-y word",
         }
     }
@@ -4545,6 +4548,7 @@ mod tests {
             features: std::collections::BTreeSet::from([DialectFeature::Cbm]),
         };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+        assert!(options.cmevla_as_relation_words);
         let words = segment_words_with_modifiers_with_options_and_source_id(
             "mi .alis. do sa broda",
             &options,
@@ -4555,7 +4559,7 @@ mod tests {
             .iter()
             .map(|word| base_word(word).expect("base word").phonemes().into_string())
             .collect();
-        assert_eq!(phonemes, vec!["mi".to_owned(), "bróda".to_owned()]);
+        assert_eq!(phonemes, vec!["bróda".to_owned()]);
     }
 
     #[test]

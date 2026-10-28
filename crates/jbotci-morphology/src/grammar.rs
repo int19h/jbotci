@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
@@ -67,6 +69,88 @@ pub(crate) fn segment_words_for_display_attempt(
     segmenter.segment_display_attempt()
 }
 
+/// A failed word operation stays erasable until the word pass ends.
+#[invariant(span.char_start < span.char_end)]
+#[invariant(matches!(error, MorphologyError::Invalid { char_start, char_end, .. } if span.char_start <= *char_start && *char_end <= span.char_end))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MagicWordFault {
+    class: SAMatchTag,
+    span: SourceSpan,
+    error: MorphologyError,
+}
+
+#[invariant(crate::morphology_error_recovery_start(error).is_none_or(|start| region.char_start <= start && start <= region.char_end))]
+#[derive(Debug)]
+struct RecoveryFailure {
+    error: MorphologyError,
+    region: SourceSpan,
+}
+
+#[invariant(true)]
+#[invariant(::Word(_) => true)]
+#[invariant(::Fault(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum StreamUnit {
+    Word(WordLike),
+    Fault(MagicWordFault),
+}
+
+impl StreamUnit {
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Word(_)))]
+    fn word(&self) -> Option<&WordLike> {
+        match self {
+            Self::Word(word) => Some(word),
+            Self::Fault(_) => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.word().is_some_and(is_y_word))]
+    fn is_y(&self) -> bool {
+        self.word().is_some_and(is_y_word)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.word().is_some_and(is_su_boundary))]
+    fn is_su_boundary(&self) -> bool {
+        self.word().is_some_and(is_su_boundary)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(self, Self::Word(word) if ret == sa_match_tag(word)) || matches!(self, Self::Fault(fault) if ret == Some(fault.class)))]
+    fn sa_class(&self) -> Option<SAMatchTag> {
+        match self {
+            Self::Word(word) => sa_match_tag(word),
+            Self::Fault(fault) => Some(fault.class),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.start <= ret.end)]
+    fn char_range(&self) -> std::ops::Range<usize> {
+        match self {
+            Self::Word(word) => {
+                let (start, end) = word_like_char_range(word).expect("a word has a source span");
+                start..end
+            }
+            Self::Fault(fault) => fault.span.char_start..fault.span.char_end,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|words| words.len() <= old(units.len())) || ret.is_err())]
+fn finish_stream(units: Vec<StreamUnit>) -> Result<Vec<WordLike>, MorphologyError> {
+    units
+        .into_iter()
+        .map(|unit| match unit {
+            StreamUnit::Word(word) => Ok(word),
+            StreamUnit::Fault(fault) => Err(fault.into_data().error),
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
 struct SourceChar {
@@ -82,6 +166,7 @@ struct Segmenter<'a> {
     source_id: Option<SourceId>,
     chars: Vec<SourceChar>,
     index: usize,
+    pending: Option<SaReplacement>,
     warnings: Vec<MorphologyWarning>,
     /// Source character positions actually consumed through the new tier.
     /// A dense flag vector keeps speculative revisits idempotent.
@@ -101,7 +186,7 @@ struct RecoveryCheckpoint {
     index: usize,
     word_count: usize,
     warning_count: usize,
-    word_snapshot: Option<Vec<WordLike>>,
+    word_snapshot: Option<Vec<StreamUnit>>,
     expensive_snapshot: Option<RecoveryDeepSnapshot>,
 }
 
@@ -109,7 +194,7 @@ impl RecoveryCheckpoint {
     #[requires(words.len() == self.word_count)]
     #[ensures(ret.word_count == words.len())]
     #[ensures(ret.word_snapshot.as_ref().is_some_and(|snapshot| snapshot.len() == words.len()))]
-    fn with_word_snapshot(self, words: &[WordLike]) -> Self {
+    fn with_word_snapshot(self, words: &[StreamUnit]) -> Self {
         let checkpoint = self.into_data();
         Self::from_data(data!(RecoveryCheckpoint {
             word_snapshot: Some(words.to_vec()),
@@ -121,7 +206,7 @@ impl RecoveryCheckpoint {
 #[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
 #[derive(Debug, Clone)]
 struct RecoveryDeepSnapshot {
-    words: Vec<WordLike>,
+    words: Vec<StreamUnit>,
     warnings: Vec<MorphologyWarning>,
 }
 
@@ -129,7 +214,7 @@ struct RecoveryDeepSnapshot {
 #[requires(true)]
 #[ensures(ret.is_some())]
 fn recovery_deep_snapshot(
-    words: &[WordLike],
+    words: &[StreamUnit],
     warnings: &[MorphologyWarning],
 ) -> Option<RecoveryDeepSnapshot> {
     Some(new!(RecoveryDeepSnapshot {
@@ -142,7 +227,7 @@ fn recovery_deep_snapshot(
 #[requires(true)]
 #[ensures(ret.is_none())]
 fn recovery_deep_snapshot(
-    _words: &[WordLike],
+    _words: &[StreamUnit],
     _warnings: &[MorphologyWarning],
 ) -> Option<RecoveryDeepSnapshot> {
     None
@@ -204,6 +289,7 @@ impl<'a> Segmenter<'a> {
             source_id,
             chars,
             index: 0,
+            pending: None,
             warnings: Vec::new(),
             ignored_character_flags,
             permissive_boundaries_enabled: options.permissive_lexer,
@@ -252,14 +338,26 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn segment_words(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
-        while self.skip_magic_noise(true)? {
-            if self.index == self.chars.len() {
-                break;
+        let result: Result<(), MorphologyError> = (|| {
+            while self.skip_magic_noise(true)? {
+                if self.index == self.chars.len() {
+                    break;
+                }
+                let segment = self.next_segment(SegmentMode::Morphology)?;
+                self.process_segment(&mut acc, segment)?;
             }
-            let segment = self.next_segment(SegmentMode::Morphology)?;
-            self.process_segment(&mut acc, segment)?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => finish_stream(acc),
+            Err(error) => Err(acc
+                .into_iter()
+                .find_map(|unit| match unit {
+                    StreamUnit::Fault(fault) => Some(fault.into_data().error),
+                    StreamUnit::Word(_) => None,
+                })
+                .unwrap_or(error)),
         }
-        Ok(acc)
     }
 
     #[requires(true)]
@@ -312,8 +410,33 @@ impl<'a> Segmenter<'a> {
             }
         }
         self.push_ignored_characters_advice();
+        let mut surviving_words = Vec::with_capacity(words.len());
+        let mut failures: Vec<_> = errors
+            .drain(..)
+            .zip(error_regions.drain(..))
+            .map(|(error, region)| new!(RecoveryFailure { error, region }))
+            .collect();
+        for unit in words {
+            match unit {
+                StreamUnit::Word(word) => surviving_words.push(word),
+                StreamUnit::Fault(fault) => {
+                    let fault = fault.into_data();
+                    failures.push(new!(RecoveryFailure {
+                        error: fault.error,
+                        region: fault.span
+                    }));
+                }
+            }
+        }
+        failures.sort_by_key(|failure| failure.region.char_start);
+        failures.truncate(self.options.max_recovery_errors.get());
+        for failure in failures {
+            let failure = failure.into_data();
+            errors.push(failure.error);
+            error_regions.push(failure.region);
+        }
         new!(RecoveredMorphologySegmentation {
-            words,
+            words: surviving_words,
             errors,
             error_regions,
             warnings: std::mem::take(&mut self.warnings),
@@ -338,7 +461,7 @@ impl<'a> Segmenter<'a> {
     #[ensures(ret.index == self.index)]
     #[ensures(ret.word_count == words.len())]
     #[ensures(ret.warning_count == self.warnings.len())]
-    fn recovery_checkpoint(&self, words: &[WordLike]) -> RecoveryCheckpoint {
+    fn recovery_checkpoint(&self, words: &[StreamUnit]) -> RecoveryCheckpoint {
         new!(RecoveryCheckpoint {
             index: self.index,
             word_count: words.len(),
@@ -356,7 +479,7 @@ impl<'a> Segmenter<'a> {
     fn record_recovered_error(
         &mut self,
         checkpoint: RecoveryCheckpoint,
-        words: &mut Vec<WordLike>,
+        words: &mut Vec<StreamUnit>,
         errors: &mut Vec<MorphologyError>,
         error_regions: &mut Vec<SourceSpan>,
         error: MorphologyError,
@@ -492,6 +615,26 @@ impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(true)]
     fn next_segment(&mut self, mode: SegmentMode) -> Result<Vec<WordLike>, MorphologyError> {
+        if let Some(pending) = self.pending.take() {
+            let pending = pending.into_data();
+            self.trace_step(
+                TraceLevel::Detailed,
+                mode.trace_label(),
+                pending.start,
+                pending.start,
+                || None,
+            );
+            self.index = pending.end;
+            return if pending.words.len() == 1 {
+                self.finish_segment(
+                    pending.words.into_iter().next().expect("one raw word"),
+                    mode,
+                    pending.start,
+                )
+            } else {
+                Ok(pending.words)
+            };
+        }
         self.skip_separators();
         let segment_start = self.index;
         self.trace_step(
@@ -522,6 +665,17 @@ impl<'a> Segmenter<'a> {
         }
         let start = self.index;
         let word = self.next_plain_word()?;
+        self.finish_segment(word, mode, start)
+    }
+
+    #[requires(start <= self.index && self.index <= self.chars.len())]
+    #[ensures(ret.is_err() || self.index <= self.chars.len())]
+    fn finish_segment(
+        &mut self,
+        word: WordLike,
+        mode: SegmentMode,
+        start: usize,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         let word_cmavo = word.cmavo();
         let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
         if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
@@ -581,12 +735,12 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn process_segment(
         &mut self,
-        acc: &mut Vec<WordLike>,
+        acc: &mut Vec<StreamUnit>,
         segment: Vec<WordLike>,
     ) -> Result<(), MorphologyError> {
         if segment.len() != 1 {
             for word in segment {
-                acc.push(word);
+                acc.push(StreamUnit::Word(word));
             }
             return Ok(());
         }
@@ -598,10 +752,20 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn process_token(
         &mut self,
-        acc: &mut Vec<WordLike>,
+        acc: &mut Vec<StreamUnit>,
         token: WordLike,
     ) -> Result<(), MorphologyError> {
         let token_cmavo = token.cmavo();
+        if token_cmavo == Some(Cmavo::Lehu) {
+            let (start, end) = word_like_char_range(&token).expect("LEhU has a source span");
+            let error = self.invalid_span(MorphologyErrorKind::UnopenedQuote, start, end, None);
+            acc.push(StreamUnit::Fault(new!(MagicWordFault {
+                class: SAMatchTag::Cmavo(Cmavo::Lehu),
+                span: self.recovery_source_span(start, end),
+                error,
+            })));
+            return Ok(());
+        }
         if token_cmavo == Some(Cmavo::Bu) {
             self.trace_step(
                 TraceLevel::Detailed,
@@ -610,7 +774,8 @@ impl<'a> Segmenter<'a> {
                 self.index,
                 || None,
             );
-            return self.handle_bu(acc, token);
+            self.handle_bu(acc, token);
+            return Ok(());
         }
         if token_cmavo == Some(Cmavo::Si) {
             self.trace_step(
@@ -657,7 +822,7 @@ impl<'a> Segmenter<'a> {
             );
             return self.handle_zei(acc, token);
         }
-        acc.push(token);
+        acc.push(StreamUnit::Word(token));
         Ok(())
     }
 
@@ -1148,191 +1313,180 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[requires(true)]
-    #[ensures(true)]
-    fn handle_bu(
-        &self,
-        acc: &mut Vec<WordLike>,
-        bu_word_with_modifiers: WordLike,
-    ) -> Result<(), MorphologyError> {
-        let Some(prev) = acc.pop() else {
-            let (start, end) =
-                word_like_char_range(&bu_word_with_modifiers).unwrap_or((self.index, self.index));
-            return Err(self.invalid_span_with_detail(
-                MorphologyErrorKind::ExpectedWord,
-                start,
-                end,
-                word_like_context(&bu_word_with_modifiers, MorphologyContextKind::Bu),
-                Some(new!(MorphologyErrorDetail::ExpectedWord {
-                    expected: ExpectedWordDetailKind::BuOperand,
-                })),
-            ));
-        };
+    #[requires(bu_word_with_modifiers.is_cmavo(Cmavo::Bu))]
+    #[ensures(acc.len() == old(acc.len()).max(1))]
+    fn handle_bu(&self, acc: &mut Vec<StreamUnit>, bu_word_with_modifiers: WordLike) {
+        let (start, end) =
+            word_like_char_range(&bu_word_with_modifiers).expect("BU has a source span");
         let bu_context = word_like_context(&bu_word_with_modifiers, MorphologyContextKind::Bu);
-        let bu = into_bare_word(bu_word_with_modifiers).ok_or_else(|| {
-            self.invalid_span(
-                MorphologyErrorKind::InvalidQuoteMarker,
-                self.index,
-                self.index,
-                bu_context,
-            )
-        })?;
-        acc.push(WordLike::letter(prev, bu));
-        Ok(())
+        let bu = into_bare_word(bu_word_with_modifiers).expect("BU is a bare word");
+        let unit = match acc.pop() {
+            Some(StreamUnit::Word(base)) => StreamUnit::Word(WordLike::letter(base, bu)),
+            Some(StreamUnit::Fault(fault)) => {
+                let fault = fault.into_data();
+                StreamUnit::Fault(new!(MagicWordFault {
+                    class: SAMatchTag::Cmavo(Cmavo::By),
+                    span: self.recovery_source_span(fault.span.char_start, end),
+                    error: fault.error,
+                }))
+            }
+            None => StreamUnit::Fault(new!(MagicWordFault {
+                class: SAMatchTag::Cmavo(Cmavo::By),
+                span: self.recovery_source_span(start, end),
+                error: self.invalid_span_with_detail(
+                    MorphologyErrorKind::ExpectedWord,
+                    start,
+                    end,
+                    bu_context,
+                    Some(new!(MorphologyErrorDetail::ExpectedWord {
+                        expected: ExpectedWordDetailKind::BuOperand,
+                    })),
+                ),
+            })),
+        };
+        acc.push(unit);
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn handle_si(&self, acc: &mut Vec<WordLike>) {
+    #[ensures(acc.len() <= old(acc.len()))]
+    fn handle_si(&self, acc: &mut Vec<StreamUnit>) {
         drop(pop_previous_word_skipping_y(acc));
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn handle_sa(&mut self, acc: &mut Vec<WordLike>) -> Result<(), MorphologyError> {
-        let mut sa_count = 1;
+    #[ensures(self.index <= self.chars.len())]
+    fn handle_sa(&mut self, acc: &mut Vec<StreamUnit>) -> Result<(), MorphologyError> {
+        let mut sa_count = NonZeroUsize::MIN;
         loop {
             self.skip_magic_noise(true)?;
             if self.index == self.chars.len() {
+                acc.clear();
                 return Ok(());
             }
-            let replacement = match self.next_sa_base_segment() {
-                Ok(replacement) => replacement,
-                Err(error @ MorphologyError::UnterminatedZoiQuote { .. }) => return Err(error),
-                Err(error) => return Err(error),
-            };
-            if replacement.len() != 1 {
-                for word in replacement {
-                    self.process_token(acc, word)?;
-                }
-                return Ok(());
-            }
-            let replacement = replacement.into_iter().next().expect("length checked");
-            if replacement.cmavo() == Some(Cmavo::Sa) {
-                sa_count += 1;
+            let replacement = self.next_sa_base_segment()?;
+            if matches!(replacement.words.as_slice(), [word] if word.cmavo() == Some(Cmavo::Sa)) {
+                sa_count = sa_count
+                    .checked_add(1)
+                    .expect("SA count fits the source length");
                 continue;
             }
-            let target_tag = sa_match_tag(self.options, &replacement);
-            let acc_after_erase = target_tag
-                .and_then(|tag| find_nth_matching_word_index(self.options, sa_count, tag, acc))
+            let retained = replacement
+                .key
+                .and_then(|key| find_nth_matching_word_index(sa_count, key, acc))
                 .unwrap_or_default();
-            acc.truncate(acc_after_erase);
-            return self.process_token(acc, replacement);
+            acc.truncate(retained);
+            // The next stream step owns construction and its recovery checkpoint.
+            // A failed replacement reader cannot restore this erased prefix.
+            self.index = replacement.start;
+            self.pending = Some(replacement);
+            return Ok(());
         }
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn next_sa_base_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    #[ensures(ret.is_err() || self.index <= self.chars.len())]
+    fn next_sa_base_segment(&mut self) -> Result<SaReplacement, MorphologyError> {
         self.skip_separators();
+        let start = self.index;
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
             let candidate_end = self.candidate_end(self.index);
             if self.is_digit_sequence_candidate(self.index, candidate_end) {
-                return self.digit_sequence();
+                let words = self.digit_sequence()?;
+                let key = sa_match_tag(words.first().expect("a digit sequence contains a word"));
+                let end = self.index;
+                return Ok(new!(SaReplacement {
+                    key,
+                    words,
+                    start,
+                    end
+                }));
             }
         }
         let word = self.next_plain_word()?;
-        let word_cmavo = word.cmavo();
-        let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
-        if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
-            return self.lohu_quote(word);
-        }
-        if quote_opener_kind == Some(QuoteOpenerKind::DelimitedNonLojban) {
-            return self.zoi_quote(word);
-        }
-        if quote_opener_kind == Some(QuoteOpenerKind::SingleWord) {
-            return self.single_word_quote(word);
-        }
-        if quote_opener_kind == Some(QuoteOpenerKind::ParsedWord) {
-            return self.parsed_word_quote(word);
-        }
-        if word_cmavo == Some(Cmavo::Faho) {
-            self.index = self.chars.len();
-        }
-        Ok(vec![word])
+        // skip_magic_noise keeps Y here only when BU follows it. The shared
+        // Y+BU exception supplies BY before SA chooses the erased span.
+        let key = if is_y_word(&word) {
+            Some(SAMatchTag::Cmavo(Cmavo::By))
+        } else {
+            sa_match_tag(&word)
+        };
+        let end = self.index;
+        let words = vec![word];
+        Ok(new!(SaReplacement {
+            key,
+            words,
+            start,
+            end
+        }))
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn handle_su(&self, acc: &mut Vec<WordLike>) {
+    #[ensures(acc.len() <= old(acc.len()))]
+    fn handle_su(&self, acc: &mut Vec<StreamUnit>) {
         acc.truncate(su_retained_prefix_len(acc));
     }
 
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(zei_word_with_modifiers.is_cmavo(Cmavo::Zei))]
+    #[ensures(self.index <= self.chars.len())]
     fn handle_zei(
         &mut self,
-        acc: &mut Vec<WordLike>,
+        acc: &mut Vec<StreamUnit>,
         zei_word_with_modifiers: WordLike,
     ) -> Result<(), MorphologyError> {
         self.skip_y_words();
+        let (start, marker_end) =
+            word_like_char_range(&zei_word_with_modifiers).expect("ZEI has a source span");
+        let context = word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei);
+        let previous = previous_word_skipping_y_index(acc);
         let next = self.next_plain_word();
-        let prev_index = previous_word_skipping_y_index(acc);
-        match (prev_index, next) {
-            (Some(prev_index), Ok(next)) => {
-                let zei_context =
-                    word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei);
-                let Some(zei) = into_bare_word(zei_word_with_modifiers) else {
-                    return Err(self.invalid_span(
-                        MorphologyErrorKind::InvalidQuoteMarker,
-                        self.index,
-                        self.index,
-                        zei_context,
-                    ));
-                };
-                let right_context = word_like_context(&next, MorphologyContextKind::Zei);
-                let Some(right) = into_bare_word(next) else {
-                    return Err(self.invalid_span_with_detail(
-                        MorphologyErrorKind::ExpectedWord,
-                        self.index,
-                        self.index,
-                        right_context,
-                        Some(new!(MorphologyErrorDetail::ExpectedWord {
-                            expected: ExpectedWordDetailKind::ZeiOperand,
-                        })),
-                    ));
-                };
-                while acc.len() > prev_index + 1 {
-                    acc.pop();
-                }
-                let prev = acc
-                    .pop()
-                    .expect("previous word index was checked as present");
-                acc.push(WordLike::zei_lujvo(prev, zei, right));
-            }
-            (Some(_), Err(error)) if !is_expected_word_error(&error) => {
-                return Err(error_with_fallback_context(
-                    error,
-                    word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei),
-                ));
-            }
-            (None, Ok(_)) => {
-                let (start, end) = word_like_char_range(&zei_word_with_modifiers)
-                    .unwrap_or((self.index, self.index));
-                return Err(self.invalid_span_with_detail(
-                    MorphologyErrorKind::ExpectedWord,
-                    start,
-                    end,
-                    word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei),
-                    Some(new!(MorphologyErrorDetail::ExpectedWord {
-                        expected: ExpectedWordDetailKind::ZeiOperand,
-                    })),
-                ));
-            }
-            (_, Err(_)) => {
-                let (start, end) = word_like_char_range(&zei_word_with_modifiers)
-                    .unwrap_or((self.index, self.index));
-                return Err(self.invalid_span_with_detail(
-                    MorphologyErrorKind::ExpectedWord,
-                    start,
-                    end,
-                    word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei),
-                    Some(new!(MorphologyErrorDetail::ExpectedWord {
-                        expected: ExpectedWordDetailKind::ZeiOperand,
-                    })),
-                ));
-            }
+        if previous.is_some()
+            && let Err(error) = &next
+            && !is_expected_word_error(error)
+        {
+            return Err(error_with_fallback_context(next.unwrap_err(), context));
         }
+        let left = previous.map(|index| {
+            acc.truncate(index + 1);
+            acc.pop().expect("the previous unit exists")
+        });
+        let right = next.ok().and_then(into_bare_word);
+        let end = right
+            .as_ref()
+            .map_or(marker_end, |word| word.span().char_end);
+        let error = || {
+            self.invalid_span_with_detail(
+                MorphologyErrorKind::ExpectedWord,
+                start,
+                marker_end,
+                context.clone(),
+                Some(new!(MorphologyErrorDetail::ExpectedWord {
+                    expected: ExpectedWordDetailKind::ZeiOperand,
+                })),
+            )
+        };
+        let unit = match (left, right) {
+            (Some(StreamUnit::Word(left)), Some(right)) => {
+                let zei = into_bare_word(zei_word_with_modifiers).expect("ZEI is a bare word");
+                StreamUnit::Word(WordLike::zei_lujvo(left, zei, right))
+            }
+            (Some(StreamUnit::Fault(fault)), _) => {
+                let fault = fault.into_data();
+                StreamUnit::Fault(new!(MagicWordFault {
+                    class: SAMatchTag::Brivla,
+                    span: self.recovery_source_span(fault.span.char_start, end),
+                    error: fault.error,
+                }))
+            }
+            (left, _) => {
+                let unit_start = left.as_ref().map_or(start, |unit| unit.char_range().start);
+                StreamUnit::Fault(new!(MagicWordFault {
+                    class: SAMatchTag::Brivla,
+                    span: self.recovery_source_span(unit_start, end),
+                    error: error(),
+                }))
+            }
+        };
+        acc.push(unit);
         Ok(())
     }
 
@@ -1436,6 +1590,9 @@ impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(ret.is_err() || self.index <= self.chars.len())]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
+        if self.pending.is_some() {
+            return Ok(true);
+        }
         loop {
             let before = self.index;
             self.skip_separators();
@@ -2318,15 +2475,23 @@ fn fill_source_prefix_ends(ends: Vec<Option<usize>>) -> Vec<usize> {
         .collect()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Selmaho(_) => true)]
-#[invariant(::ExperimentalQuoteSelmaho(_) => true)]
+#[invariant(::Cmavo(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SAMatchTag {
-    Selmaho(Selmaho),
-    ExperimentalQuoteSelmaho(&'static str),
+    Cmavo(Cmavo),
     Brivla,
     Cmevla,
+}
+
+#[invariant(!words.is_empty())]
+#[invariant(start < end)]
+#[derive(Debug)]
+struct SaReplacement {
+    key: Option<SAMatchTag>,
+    words: Vec<WordLike>,
+    start: usize,
+    end: usize,
 }
 
 #[requires(true)]
@@ -2368,9 +2533,9 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
 
 #[requires(true)]
 #[ensures(true)]
-fn pop_previous_word_skipping_y(acc: &mut Vec<WordLike>) -> Option<WordLike> {
+fn pop_previous_word_skipping_y(acc: &mut Vec<StreamUnit>) -> Option<StreamUnit> {
     let mut last_y = None;
-    while acc.last().is_some_and(is_y_word) {
+    while acc.last().is_some_and(StreamUnit::is_y) {
         last_y = acc.pop();
     }
     acc.pop().or(last_y)
@@ -2378,10 +2543,10 @@ fn pop_previous_word_skipping_y(acc: &mut Vec<WordLike>) -> Option<WordLike> {
 
 #[requires(true)]
 #[ensures(true)]
-fn previous_word_skipping_y_index(acc: &[WordLike]) -> Option<usize> {
+fn previous_word_skipping_y_index(acc: &[StreamUnit]) -> Option<usize> {
     let mut last_y_index = None;
     for (index, token) in acc.iter().enumerate().rev() {
-        if !is_y_word(token) {
+        if !token.is_y() {
             return Some(index);
         }
         last_y_index = Some(index);
@@ -2401,11 +2566,11 @@ fn is_su_boundary(word: &WordLike) -> bool {
 
 #[requires(true)]
 #[ensures(ret <= acc.len())]
-#[ensures(ret == 0 || is_su_boundary(&acc[ret - 1]), "a nonempty retained prefix ends with the preserved SU boundary")]
-#[bityzba::expensive_ensures(ret == acc.iter().rposition(is_su_boundary).map_or(0, |index| index + 1), "SU retains exactly through the nearest structural boundary")]
-fn su_retained_prefix_len(acc: &[WordLike]) -> usize {
+#[ensures(ret == 0 || acc[ret - 1].is_su_boundary(), "a nonempty retained prefix ends with the preserved SU boundary")]
+#[bityzba::expensive_ensures(ret == acc.iter().rposition(StreamUnit::is_su_boundary).map_or(0, |index| index + 1), "SU retains exactly through the nearest structural boundary")]
+fn su_retained_prefix_len(acc: &[StreamUnit]) -> usize {
     for (index, token) in acc.iter().enumerate().rev() {
-        if is_su_boundary(token) {
+        if token.is_su_boundary() {
             return index + 1;
         }
     }
@@ -2413,58 +2578,69 @@ fn su_retained_prefix_len(acc: &[WordLike]) -> usize {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn sa_match_tag(options: &MorphologyOptions, word: &WordLike) -> Option<SAMatchTag> {
+#[ensures((ret == Some(SAMatchTag::Cmevla)) == matches!(word.as_data(), data!(WordLike::PlainWord(word)) if word.kind() == WordKind::Cmevla))]
+fn sa_match_tag(word: &WordLike) -> Option<SAMatchTag> {
     match word.as_data() {
         data!(WordLike::PlainWord(word)) => match word.kind() {
-            WordKind::Cmavo => word.selmaho_kind().map(SAMatchTag::Selmaho),
+            WordKind::Cmavo => word.cmavo().and_then(cmavo_sa_match_tag),
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
-            WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
         data!(WordLike::QuotedWord { .. }) | data!(WordLike::SelmahoQuotedWord { .. }) => {
-            Some(SAMatchTag::Selmaho(Selmaho::Zo))
+            cmavo_sa_match_tag(Cmavo::Zo)
         }
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => {
-            zoi.selmaho_kind().map(SAMatchTag::Selmaho)
+            zoi.cmavo().and_then(cmavo_sa_match_tag)
         }
-        data!(WordLike::QuotedWords { .. }) => Some(SAMatchTag::Selmaho(Selmaho::Lohu)),
+        data!(WordLike::QuotedWords { .. }) => cmavo_sa_match_tag(Cmavo::Lohu),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => {
-            single_word_quote_marker_sa_tag(marker)
+            marker.cmavo().and_then(cmavo_sa_match_tag)
         }
-        data!(WordLike::LerfuWord { .. }) => Some(SAMatchTag::Selmaho(Selmaho::By)),
+        data!(WordLike::LerfuWord { .. }) => cmavo_sa_match_tag(Cmavo::By),
         data!(WordLike::ZeiCompound { .. }) => Some(SAMatchTag::Brivla),
     }
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag> {
-    match marker.cmavo()? {
-        // camxes-exp puts all three single-word quote markers in ZOhOI (camxes-exp.peg:1905).
-        Cmavo::Zohoi | Cmavo::Lahoi | Cmavo::Rahoi => {
-            Some(SAMatchTag::ExperimentalQuoteSelmaho("ZOhOI"))
-        }
-        Cmavo::Mehoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("MEhOI")),
-        _ => None,
-    }
+#[ensures(ret.is_some() == cmavo.primary_selmaho().is_some())]
+fn cmavo_sa_match_tag(cmavo: Cmavo) -> Option<SAMatchTag> {
+    cmavo.primary_selmaho().map(|_| SAMatchTag::Cmavo(cmavo))
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.is_none_or(|index| index < acc.len() && match (target, acc[index].sa_class()) {
+    (SAMatchTag::Cmavo(key), Some(SAMatchTag::Cmavo(candidate))) => Selmaho::ALL.iter().any(|class| class.contains(key) && class.contains(candidate)),
+    (_, Some(class)) => class == target,
+    _ => false,
+}))]
 fn find_nth_matching_word_index(
-    options: &MorphologyOptions,
-    count: usize,
+    count: NonZeroUsize,
     target: SAMatchTag,
-    acc: &[WordLike],
+    acc: &[StreamUnit],
 ) -> Option<usize> {
-    let mut remaining = count;
+    let mut remaining = count.get();
+    let mut class_counts = [count.get(); Selmaho::ALL.len()];
     for (index, token) in acc.iter().enumerate().rev() {
-        if sa_match_tag(options, token) == Some(target) {
-            remaining -= 1;
-            if remaining == 0 {
-                return Some(index);
+        match (target, token.sa_class()) {
+            (SAMatchTag::Cmavo(key), Some(SAMatchTag::Cmavo(candidate))) => {
+                // Each counted reach must share one class with every other
+                // reach. Separate PA and SE matches cannot add to one count.
+                for (class, left) in Selmaho::ALL.iter().zip(&mut class_counts) {
+                    if class.contains(key) && class.contains(candidate) {
+                        *left -= 1;
+                        if *left == 0 {
+                            return Some(index);
+                        }
+                    }
+                }
             }
+            (_, Some(class)) if class == target => {
+                remaining -= 1;
+                if remaining == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
         }
     }
     None
@@ -4240,6 +4416,320 @@ mod tests {
         assert_eq!(error_regions[0].char_start, 0);
         assert_eq!(error_regions[0].char_end, 0);
         assert_eq!(segmenter.index, 0);
+    }
+
+    #[invariant(true)]
+    struct ErasureWordsCase {
+        source: &'static str,
+        expected: &'static [&'static str],
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_reads_raw_keys_and_clears_a_trailing_run() {
+        let cases = [
+            ErasureWordsCase {
+                source: "mi broda sa",
+                expected: &[],
+            },
+            ErasureWordsCase {
+                source: "mi broda sa sa",
+                expected: &[],
+            },
+            ErasureWordsCase {
+                source: "mi broda sa y y",
+                expected: &[],
+            },
+            ErasureWordsCase {
+                source: "mi broda sa 123",
+                expected: &["pa", "re", "ci"],
+            },
+            ErasureWordsCase {
+                source: "li pa li re sa 123",
+                expected: &["li", "pa", "li", "pa", "re", "ci"],
+            },
+            ErasureWordsCase {
+                source: "li pa li re sa sa 123",
+                expected: &["li", "pa", "re", "ci"],
+            },
+            ErasureWordsCase {
+                source: "mi lo'u da le'u broda sa lo'u si",
+                expected: &["mi", "lo'u", "si"],
+            },
+            ErasureWordsCase {
+                source: "mi se broda sa su'ai",
+                expected: &["mi", "su'aĭ"],
+            },
+            ErasureWordsCase {
+                source: "mi su'ai broda sa se",
+                expected: &["mi", "se"],
+            },
+            ErasureWordsCase {
+                source: "mi se broda su'ai sa sa se",
+                expected: &["mi", "se"],
+            },
+            ErasureWordsCase {
+                source: "mi se broda pa sa sa su'ai",
+                expected: &["su'aĭ"],
+            },
+            ErasureWordsCase {
+                source: "lo a'ai broda sa a'ai",
+                expected: &["a'aĭ"],
+            },
+        ];
+        for case in cases {
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                case.source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("the source has valid word forms");
+            assert_eq!(bare_phonemes(&words), case.expected, "{}", case.source);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_keeps_lexical_name_classes_under_cbm() {
+        let definition = jbotci_dialect::parse_dialect_definition("(+CBM)").expect("valid dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&definition);
+        let cases = [
+            ErasureWordsCase {
+                source: "mi .alis. do sa broda",
+                expected: &["bróda"],
+            },
+            ErasureWordsCase {
+                source: "mi .alis. broda sa .bob.",
+                expected: &["mi", "bob"],
+            },
+        ];
+        for case in cases {
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                case.source,
+                &options,
+                None,
+            )
+            .expect("CBM does not merge erasure classes");
+            assert_eq!(bare_phonemes(&words), case.expected, "{}", case.source);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_uses_the_base_key_before_bu_but_recognizes_y_bu() {
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "mi .e do sa .ebu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("the raw E key matches A");
+        assert_eq!(words.len(), 2);
+        assert!(words[0].is_cmavo(Cmavo::Mi));
+        let data!(WordLike::LerfuWord { base, .. }) = words[1].as_data() else {
+            panic!("BU forms the replacement letter word");
+        };
+        assert!(base.is_cmavo(Cmavo::E));
+
+        let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "lo broda bu mi sa y bu",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("Y+BU supplies a BY key");
+        assert_eq!(words.len(), 2);
+        assert!(words[0].is_cmavo(Cmavo::Lo));
+        let data!(WordLike::LerfuWord { base, .. }) = words[1].as_data() else {
+            panic!("Y+BU forms the replacement letter word");
+        };
+        assert!(is_y_word(base));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn erasers_remove_whole_deferred_fault_units() {
+        for source in [
+            "bu si",
+            "bu bu si",
+            "bu zei mi si",
+            "zei mi si",
+            "zei si si",
+            "zei fa'o si",
+            "le'u si",
+            "le'u bu si",
+            "le'u zei mi si",
+            "bu sa",
+            "zei mi sa",
+            "le'u sa",
+            "bu sa fa'o",
+            "zei mi su",
+            "le'u su",
+            "sa bu si",
+            "mi bu sa bu si",
+            "lo mi zei do sa zei da si",
+            "бу си",
+        ] {
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect("the eraser removes the fault");
+            assert!(words.is_empty(), "{source}");
+            let recovered =
+                crate::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                    source,
+                    &MorphologyOptions::default(),
+                    None,
+                )
+                .into_data()
+                .result;
+            assert!(recovered.words.is_empty(), "{source}");
+            assert!(recovered.errors.is_empty(), "{source}");
+            assert!(recovered.error_regions.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn surviving_faults_keep_the_original_error_through_constructors() {
+        for source in ["bu", "bu bu", "bu zei mi", "bu fa'o si", "бу"] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("the BU fault survives");
+            assert_invalid_error(
+                &error,
+                MorphologyErrorKind::ExpectedWord,
+                0,
+                2,
+                Some(MorphologyContextKind::Bu),
+            );
+            let diagnostic = error
+                .to_diagnostic(None, source)
+                .expect("native source span");
+            assert_eq!(diagnostic.message, "expected Lojban word");
+            assert_eq!(diagnostic.primary_label().span.byte_start, 0);
+            assert_eq!(
+                diagnostic.primary_label().span.byte_end,
+                if source == "бу" { 4 } else { 2 }
+            );
+            let recovered =
+                crate::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                    source,
+                    &MorphologyOptions::default(),
+                    None,
+                )
+                .into_data()
+                .result;
+            assert_eq!(recovered.errors.as_slice(), &[error]);
+        }
+        for source in ["zei mi", "zei mi bu", "zei si"] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("the ZEI fault survives");
+            assert_invalid_error(
+                &error,
+                MorphologyErrorKind::ExpectedWord,
+                0,
+                3,
+                Some(MorphologyContextKind::Zei),
+            );
+        }
+        for source in ["le'u", "le'u bu", "le'u zei mi"] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("the unopened quote fault survives");
+            assert_invalid_error(&error, MorphologyErrorKind::UnopenedQuote, 0, 4, None);
+            assert_eq!(
+                error
+                    .to_diagnostic(None, source)
+                    .expect("native source span")
+                    .message,
+                "unexpected cmavo"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_faults_cover_their_units_and_keep_source_order() {
+        let recovered =
+            crate::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                "bu broda le'u brode zei",
+                &MorphologyOptions::default(),
+                None,
+            )
+            .into_data()
+            .result;
+        assert_eq!(bare_phonemes(&recovered.words), ["bróda"]);
+        assert_eq!(recovered.errors.len(), 3);
+        assert_invalid_error(
+            &recovered.errors[0],
+            MorphologyErrorKind::ExpectedWord,
+            0,
+            2,
+            Some(MorphologyContextKind::Bu),
+        );
+        assert_invalid_error(
+            &recovered.errors[1],
+            MorphologyErrorKind::UnopenedQuote,
+            9,
+            13,
+            None,
+        );
+        assert_invalid_error(
+            &recovered.errors[2],
+            MorphologyErrorKind::ExpectedWord,
+            20,
+            23,
+            Some(MorphologyContextKind::Zei),
+        );
+        assert_eq!(recovered.error_regions[2].char_start, 14);
+        assert_eq!(recovered.error_regions[2].char_end, 23);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_erasure_stays_committed_when_the_replacement_reader_fails() {
+        let sources = ["bu sa zo", "bu sa zoi"];
+        for source in sources {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("the quote reader has no target or delimiter");
+            let diagnostic = error
+                .to_diagnostic(None, source)
+                .expect("native source span");
+            assert_eq!(diagnostic.primary_label().span.byte_start, source.len());
+            assert_eq!(diagnostic.primary_label().span.byte_end, source.len());
+            let recovered =
+                crate::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                    source,
+                    &MorphologyOptions::default(),
+                    None,
+                )
+                .into_data()
+                .result;
+            assert_eq!(recovered.errors.as_slice(), &[error]);
+            assert!(recovered.words.is_empty());
+        }
     }
 
     #[requires(true)]
