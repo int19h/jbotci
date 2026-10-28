@@ -1006,8 +1006,7 @@ pub(super) fn clear_route_bound_input_timers() {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_vlacku_url_push(
-    history: Rc<dyn History>,
-    pending_writes: Signal<PendingLocalRouteWrites>,
+    push_route: Callback<JbotciRoute>,
     current: &JbotciRoute,
     state: &VlackuWebState,
     restore_scroll_y: Option<i32>,
@@ -1016,35 +1015,38 @@ pub(super) fn schedule_vlacku_url_push(
     if current.without_hash() == target {
         return;
     }
-    schedule_route_push(
-        history,
-        pending_writes,
-        target,
-        VLACKU_URL_DEBOUNCE_MS,
-        restore_scroll_y,
-    );
+    schedule_route_push(push_route, target, VLACKU_URL_DEBOUNCE_MS, restore_scroll_y);
 }
 
-#[requires(true)]
+#[requires(delay_ms >= 0)]
 #[ensures(true)]
 pub(super) fn schedule_route_push(
-    history: Rc<dyn History>,
-    pending_writes: Signal<PendingLocalRouteWrites>,
+    push_route: Callback<JbotciRoute>,
     target: JbotciRoute,
     delay_ms: i32,
     restore_scroll_y: Option<i32>,
 ) {
     clear_vlacku_url_timer();
     if let Some(handle) = platform::schedule_timeout_once(delay_ms, move || {
-        let mut pending_writes = pending_writes;
-        pending_writes.with_mut(|pending| pending.record(&target));
-        history.push(route_path_for_route(&target));
+        push_route.call(target);
         if let Some(y) = restore_scroll_y {
             schedule_scroll_container_to_y(y);
         }
     }) {
         VLACKU_URL_TIMER.with(|timer| timer.set(Some(handle)));
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn push_vlacku_route(
+    navigator: Navigator,
+    mut pending_writes: Signal<PendingLocalRouteWrites>,
+    target: JbotciRoute,
+) {
+    pending_writes.with_mut(|pending| pending.record(&target));
+    // The router must consume this local write before Back can revisit it.
+    let _ = navigator.push(target);
 }
 
 #[requires(true)]

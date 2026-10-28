@@ -893,7 +893,11 @@ pub(super) fn AppShell() -> Element {
             apply_cukta_pending_scroll(scroll);
         }
     });
-    let vlacku_url_history = app_history.clone();
+    let vlacku_url_navigator = navigator();
+    // The timeout runs outside Dioxus. The callback restores the component context before navigation.
+    let vlacku_push_route = use_callback(move |target| {
+        push_vlacku_route(vlacku_url_navigator, pending_local_route_writes, target);
+    });
     let vlacku_url_route_location = current_route_location.clone();
     let mut vlacku_url_scroll_restore = pending_vlacku_scroll_restore;
     use_effect(move || {
@@ -901,8 +905,7 @@ pub(super) fn AppShell() -> Element {
             let state = vlacku_committed_state.read().clone();
             let restore_scroll_y = vlacku_url_scroll_restore.write().take();
             schedule_vlacku_url_push(
-                vlacku_url_history.clone(),
-                pending_local_route_writes,
+                vlacku_push_route,
                 &vlacku_url_route_location,
                 &state,
                 restore_scroll_y,

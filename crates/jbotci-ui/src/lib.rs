@@ -1,5 +1,6 @@
 use dioxus::core::Task;
 use dioxus::prelude::*;
+use dioxus::router::Navigator;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllEdition, CllInline, CllInterlinearRow,
     CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation,
