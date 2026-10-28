@@ -1454,6 +1454,10 @@ impl<'a> Segmenter<'a> {
 
     #[requires(self.ignored_probe.is_none())]
     #[ensures(self.ignored_probe.is_none())]
+    #[ensures(self.index == old(self.index))]
+    #[ensures(self.warnings.len() == old(self.warnings.len()))]
+    #[bityzba::expensive_ensures(self.warnings == old(self.warnings.clone()))]
+    #[bityzba::expensive_ensures(self.ignored_character_flags == old(self.ignored_character_flags.clone()))]
     fn next_word_is_constructor(&mut self) -> bool {
         let index = self.index;
         let warnings = self.warnings.len();

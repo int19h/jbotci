@@ -92,19 +92,19 @@ tree_model! {
         && runs.first().is_none_or(|run| run.marker.span().byte_end <= lehai.span().byte_start))]
     #[bityzba::expensive_invariant(match self.as_data() {
         data!(WordLike::ReplacementQuote { runs, lehai }) => {
-        let mut end = 0;
-        runs.iter().all(|run| {
-            let ordered = end <= run.marker.span().byte_start;
-            end = run.marker.span().byte_end;
-            ordered && run.words.iter().all(|word| {
-                let mut ordered = true;
-                for span in word.word.source_spans() {
-                    ordered &= end <= span.byte_start;
-                    end = span.byte_end;
-                }
-                ordered
-            })
-        }) && end <= lehai.span().byte_start
+            let mut end = 0;
+            runs.iter().all(|run| {
+                let ordered = end <= run.marker.span().byte_start;
+                end = run.marker.span().byte_end;
+                ordered && run.words.iter().all(|word| {
+                    let mut ordered = true;
+                    for span in word.word.source_spans() {
+                        ordered &= end <= span.byte_start;
+                        end = span.byte_end;
+                    }
+                    ordered
+                })
+            }) && end <= lehai.span().byte_start
         },
         _ => true,
     })]
