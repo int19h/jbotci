@@ -539,6 +539,16 @@ impl ValsiClassification {
         }
     }
 
+    /// Return the raw words and markers of a replacement quote.
+    #[requires(true)]
+    #[ensures(matches!(self.as_data(), data!(ValsiClassification::ReplacementQuote { words }) if ret.len() == words.len()) || (!matches!(self.as_data(), data!(ValsiClassification::ReplacementQuote { .. })) && ret.is_empty()))]
+    pub fn replacement_words(&self) -> &[ValsiClassification] {
+        match self.as_data() {
+            data!(ValsiClassification::ReplacementQuote { words }) => words,
+            _ => &[],
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret.is_some() == matches!(self.as_data(), data!(ValsiClassification::DelimitedWordQuote { .. })))]
     pub fn marker_text(&self) -> Option<&str> {

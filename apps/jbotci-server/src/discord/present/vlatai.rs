@@ -174,6 +174,12 @@ fn classification_lines(
                 "marker: ",
             ));
         }
+        ValsiClassificationKind::ReplacementQuote => {
+            lines.push(format!(
+                "{prefix}replacement quote ({} raw words)",
+                classification.replacement_words().len()
+            ));
+        }
         ValsiClassificationKind::DelimitedWordQuote => {
             lines.push(format!(
                 "{prefix}delimited word quote, marker {}",
