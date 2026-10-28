@@ -4758,3 +4758,45 @@ fn assert_gentufa_error_contains(args: &[&str], expected: &str) {
 fn run_on_normal_stack(test: impl FnOnce()) {
     test();
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_min_votes_keeps_missing_words_and_exact_word_groups() {
+    for (mode, query) in [("--valsi", "brodax"), ("--lujvo", "klabajra")] {
+        let run = run_cli_capture(
+            &["jbotci", "vlacku", mode, query, "--min-votes", "2147483647"],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::ValidMissing, "{}", run.stderr);
+        assert!(run.stdout.contains(query), "{}", run.stdout);
+    }
+    let exact = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "lojbangirzu",
+            "--decompose-lujvo",
+            "--min-votes",
+            "2147483647",
+        ],
+        false,
+    );
+    assert_eq!(exact.status, CliStatus::Success, "{}", exact.stderr);
+    for word in ["lojbangirzu", "lojbo", "bangu", "girzu"] {
+        assert!(exact.stdout.contains(word), "{}", exact.stdout);
+    }
+    let pattern = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "/^lojbangirzu$/",
+            "--min-votes",
+            "2147483647",
+        ],
+        false,
+    );
+    assert!(!pattern.stdout.contains("1. lojbangirzu"));
+}
