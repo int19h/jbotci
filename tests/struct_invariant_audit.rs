@@ -2176,6 +2176,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "settings page snapshots group memoized render inputs whose source settings states own validity",
     ),
     (
+        "crates/jbotci-ui/src/tests.rs:VlackuHistoryTestRoute",
+        "test route wraps one validated JbotciRoute and changes only the page that the test renders",
+    ),
+    (
+        "crates/jbotci-ui/src/vlacku.rs:VlackuDraftState",
+        "draft stores independent text inputs and shared search choices; every field combination is valid, including empty inputs and unnormalized URL values",
+    ),
+    (
         "crates/jbotci-ui/src/vlacku.rs:VlackuPageSnapshot",
         "vlacku page snapshots group memoized dictionary render inputs whose source states own validity",
     ),
