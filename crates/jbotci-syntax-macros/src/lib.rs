@@ -9354,12 +9354,16 @@ fn classify_method_recovery_expr(
                 type_env,
             )?,
         ])),
-        ("not_next_selmaho", 1) => Ok(method
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::NotNextSelmaho)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+        ("not_next_selmaho", 1) => {
+            let selmaho = required_path_expr_last_segment(
+                method.args.first().expect("length checked"),
+                "not_next_selmaho() requires a selma'o path",
+            )?;
+            Ok(RecoveryExpr::Sequence(vec![
+                classify_recovery_expr(&method.receiver, arguments, type_env)?,
+                RecoveryExpr::NotNextSelmaho(selmaho),
+            ]))
+        }
 
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
@@ -10294,6 +10298,13 @@ fn expand_recovery_anchor_metadata(
 #[ensures(ret.as_ref().is_none_or(|tokens| !tokens.is_empty()))]
 fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
     match expr {
+        // A trailing guard consumes nothing. The receiver still supplies the
+        // literal that recovery must find before the guard can apply.
+        RecoveryExpr::Sequence(parts)
+            if matches!(parts.as_slice(), [_, RecoveryExpr::NotNextSelmaho(_)]) =>
+        {
+            literal_start_tokens(&parts[0])
+        }
         RecoveryExpr::Cmavo(cmavo) => Some(BTreeSet::from([AnchorToken::cmavo(cmavo.clone())])),
         RecoveryExpr::Selmaho(selmaho) => {
             Some(BTreeSet::from([AnchorToken::selmaho(selmaho.clone())]))
@@ -10333,8 +10344,19 @@ fn anchor_origin_for_non_literal_expr(expr: &RecoveryExpr) -> AnchorRunOrigin {
         | RecoveryExpr::Arc(inner)
         | RecoveryExpr::WithFreeModifiers { inner, .. }
         | RecoveryExpr::Ignored(inner) => anchor_origin_for_non_literal_expr(inner),
-        RecoveryExpr::Sequence(parts) if parts.len() == 1 => {
-            anchor_origin_for_non_literal_expr(&parts[0])
+        RecoveryExpr::Sequence(parts) => {
+            let mut consuming = parts.iter().filter(|part| {
+                !matches!(
+                    part,
+                    RecoveryExpr::Lookahead(_)
+                        | RecoveryExpr::Not(_)
+                        | RecoveryExpr::NotNextSelmaho(_)
+                )
+            });
+            match (consuming.next(), consuming.next()) {
+                (Some(inner), None) => anchor_origin_for_non_literal_expr(inner),
+                _ => AnchorRunOrigin::FieldFirst,
+            }
         }
         RecoveryExpr::Many(_) | RecoveryExpr::Many1(_) => AnchorRunOrigin::RepetitionElementFirst,
         _ => AnchorRunOrigin::FieldFirst,
@@ -12202,6 +12224,44 @@ mod tests {
                 .to_string();
             assert_eq!(plain_metadata, warned_metadata, "{parser}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn guarded_fields_keep_consumed_tokens_and_anchor_origins() {
+        let env = GrammarTypeEnv::new(&[], &[]);
+        let analyzer = RecoveryAnchorAnalyzer::new(&[], &env);
+        let arguments = BTreeSet::new();
+        let plain = classify_recovery_expr(&parse_quote!(cmavo(Cu)), &arguments, &env).unwrap();
+        let guarded = classify_recovery_expr(
+            &parse_quote!(cmavo(Cu).not_next_selmaho(Cu)),
+            &arguments,
+            &env,
+        )
+        .unwrap();
+        assert_eq!(
+            analyzer.expr_first_entries(&plain).unwrap(),
+            analyzer.expr_first_entries(&guarded).unwrap()
+        );
+        assert!(!analyzer.expr_nullable(&guarded).unwrap());
+        assert_eq!(literal_start_tokens(&plain), literal_start_tokens(&guarded));
+
+        let vector = syn::parse2::<ParserExpr>(quote!([zero_or_more cmavo(Be)])).unwrap();
+        let guarded_vector = syn::parse2::<ParserExpr>(
+            quote!([zero_or_more cmavo(Be)].preceded_by(cmavo(Cu).not())),
+        )
+        .unwrap();
+        let plain = classify_parser_expr(&vector, &arguments, &env).unwrap();
+        let guarded = classify_parser_expr(&guarded_vector, &arguments, &env).unwrap();
+        assert_eq!(
+            analyzer.expr_first_entries(&plain).unwrap(),
+            analyzer.expr_first_entries(&guarded).unwrap()
+        );
+        assert_eq!(
+            anchor_origin_for_non_literal_expr(&plain),
+            anchor_origin_for_non_literal_expr(&guarded)
+        );
     }
 
     #[test]
