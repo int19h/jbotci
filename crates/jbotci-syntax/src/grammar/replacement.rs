@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use bityzba::{data, new, requires};
-use jbotci_morphology::{Cmavo, Word, WordLike};
+use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 
 use super::{
     BoxedParser,
@@ -11,7 +11,10 @@ use super::{
     parser_core::{MapExtra, Parser},
     tokens::token_matching,
 };
-use crate::{ExperimentalConstruct, SyntaxExpectedToken, Token, WithIndicators};
+use crate::{
+    ExperimentalConstruct, SyntaxExpectedToken, SyntaxExpectedTokenData, Token, WithIndicators,
+    WithIndicatorsData, tree::WithFreeModifiers,
+};
 
 /// Consume the opaque quote without exposing its body to syntax terminals.
 #[requires(true)]
@@ -199,7 +202,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
         first.is_none(),
     )
     .into_data();
-    let lehai = crate::WithFreeModifiers::new(markers.closing, Vec::new());
+    let lehai = WithFreeModifiers::new(markers.closing, Vec::new());
     let raw = |word: &Word| Token::bare(WordLike::bare(word.clone()));
     match first {
         None => model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(

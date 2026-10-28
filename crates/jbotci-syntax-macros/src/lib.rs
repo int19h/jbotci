@@ -7436,9 +7436,7 @@ fn recovered_call_parser_expr_tokens(
         ("replacement_quote", 0) => {
             let free_modifier =
                 recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
-            Ok(
-                quote!(generated_runtime::recovered_replacement_quote(#free_modifier).map(#recovered_module::Recovered::valid)),
-            )
+            Ok(quote!(generated_runtime::recovered_replacement_quote(#free_modifier)))
         }
         ("relation_word", 0) => {
             Ok(quote!(relation_word().map(#recovered_module::Recovered::valid)))
