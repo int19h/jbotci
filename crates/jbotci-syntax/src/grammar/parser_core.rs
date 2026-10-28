@@ -498,7 +498,42 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
         }
     }
 
-    /// Runs `parser` as a lookahead probe and keeps nothing of it but its result.
+    /// Read the next token without changing the cursor or inspector.
+    #[requires(true)]
+    #[ensures(ret.is_some() == (self.cursor.index < self.input.tokens.len()))]
+    pub(crate) fn peek_token(&self) -> Option<&'tokens Token> {
+        self.input
+            .tokens
+            .get(self.cursor.index)
+            .map(|token| &token.inner)
+    }
+
+    /// Run the existing probe with private errors, caches, and recovery state.
+    /// Immutable input positions stay shared with the caller.
+    #[requires(true)]
+    #[ensures(self.cursor.index == old(self.cursor.index))]
+    #[ensures(self.state.warnings.len() == old(self.state.warnings.len()))]
+    #[ensures(self.state.syntax_memo.len() == old(self.state.syntax_memo.len()))]
+    #[ensures(self.state.syntax_failure_memo.len() == old(self.state.syntax_failure_memo.len()))]
+    pub(crate) fn isolated_probe<O, P>(
+        &self,
+        parser: P,
+    ) -> Result<(O, SimpleSpan), ProbeFailure<'tokens>>
+    where
+        P: Parser<'tokens, O>,
+    {
+        let mut state = self.state.isolated_probe_state();
+        let mut errors = Errors::default();
+        let mut input = InputRef {
+            input: self.input,
+            cursor: self.cursor,
+            errors: &mut errors,
+            state: &mut state,
+        };
+        input.probe(parser)
+    }
+
+    /// Run `parser` as a lookahead probe and keep only its result.
     ///
     /// A probe only asks whether `parser` would match here. Whatever it does on the way is not
     /// part of the parse, so this rewinds the input and the inspector state, and also restores

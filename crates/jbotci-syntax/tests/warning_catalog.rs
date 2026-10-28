@@ -5,7 +5,7 @@ use jbotci_syntax::ExperimentalConstruct;
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn warning_codes_and_messages_match_main_1960c4b913() {
+fn warning_codes_and_messages_remain_stable() {
     let expected = [
         (
             ExperimentalConstruct::ExperimentalCmavo,
@@ -211,6 +211,11 @@ fn warning_codes_and_messages_match_main_1960c4b913() {
             ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
             "syntax.warning.cll-prohibited-free-modifier-placement",
             "free modifier placement prohibited by CLL grammar",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense,
+            "syntax.warning.experimental-space-before-time-tense",
+            "space before time in one tense. CLL 10.4 puts the time part first",
         ),
     ];
     assert_eq!(ExperimentalConstruct::ALL.len(), expected.len());

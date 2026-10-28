@@ -70,6 +70,7 @@ pub mod generated_model {
                 runtime ExperimentalTermLooseConnection => ("syntax.warning.experimental-term-loose-connection", "loose term or linked-argument connection"),
                 runtime ExperimentalExpDescriptionLeadingSumti => ("syntax.warning.experimental-exp-description-leading-sumti", "full sumti as the leading element of a description tail"),
                 runtime CllProhibitedFreeModifierPlacement => ("syntax.warning.cll-prohibited-free-modifier-placement", "free modifier placement prohibited by CLL grammar"),
+                ExperimentalSpaceBeforeTimeTense => ("syntax.warning.experimental-space-before-time-tense", "space before time in one tense. CLL 10.4 puts the time part first"),
             }
         }
         tree_model {
@@ -4812,7 +4813,14 @@ pub mod generated_model {
     /// Product node for space tense; preserves `space`, `time`, and `caha` in source order.
     rule "space tense" space_then_time_caha_tense(letter_tokens) -> struct {
         /// The shared space child syntax node.
-        field space <- arc(space_tense(letter_tokens));
+        // Keep the probe inside this field to preserve recovery field indices.
+        // A space-only tense is standard. Warn only when a time part follows.
+        field space <- arc(
+            space_tense(letter_tokens)
+                .ignore_then(time_tense(letter_tokens))
+                .warn_if(ExperimentalSpaceBeforeTimeTense)
+                .ignore_then(space_tense(letter_tokens))
+        );
         /// The optional time component.
         field time <- opt(arc(time_tense(letter_tokens)));
         /// The optional caha component.

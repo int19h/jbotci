@@ -1262,8 +1262,8 @@ pub(super) struct SyntaxMemoReplayEffects<'tokens> {
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct ParserState<'tokens> {
-    anchor_token_identities: Vec<TokenIdentity>,
-    syntax_location_byte_offsets: Vec<usize>,
+    anchor_token_identities: Arc<[TokenIdentity]>,
+    syntax_location_byte_offsets: Arc<[usize]>,
     // A source range is attribution, not token identity: dialect expansion
     // siblings deliberately share a range. Token clones share one stable Arc
     // allocation, while distinct expansion siblings do not, making this the
@@ -1338,9 +1338,44 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
+        Self::from_shared_input(
+            words.iter().map(Token::identity).collect(),
+            syntax_location_byte_offsets(words).into(),
+            generated_runtime::SyntaxGrammarEnv::from_options(options),
+            TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
+        )
+    }
+
+    /// Give an inline warning probe private caches and recovery state.
+    #[requires(true)]
+    #[ensures(Arc::ptr_eq(&ret.anchor_token_identities, &self.anchor_token_identities))]
+    #[ensures(Arc::ptr_eq(&ret.syntax_location_byte_offsets, &self.syntax_location_byte_offsets))]
+    #[ensures(ret.syntax_grammar_env == self.syntax_grammar_env)]
+    #[ensures(ret.recovery_checkpoint_collection.is_none() && !ret.track_recovery_branches)]
+    pub(super) fn isolated_probe_state(&self) -> Self {
+        let mut state = Self::from_shared_input(
+            self.anchor_token_identities.clone(),
+            self.syntax_location_byte_offsets.clone(),
+            self.syntax_grammar_env,
+            TraceRecorder::Disabled,
+        );
+        state.continuation_sentinel_index = self.continuation_sentinel_index;
+        state.continuation_time_limit = self.continuation_time_limit;
+        state
+    }
+
+    #[requires(syntax_location_byte_offsets.len() == anchor_token_identities.len() + 1)]
+    #[ensures(ret.syntax_grammar_env == syntax_grammar_env)]
+    #[ensures(ret.warnings.is_empty() && ret.syntax_memo.is_empty() && ret.syntax_failure_memo.is_empty())]
+    fn from_shared_input(
+        anchor_token_identities: Arc<[TokenIdentity]>,
+        syntax_location_byte_offsets: Arc<[usize]>,
+        syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
+        trace: TraceRecorder,
+    ) -> Self {
         Self {
-            anchor_token_identities: words.iter().map(Token::identity).collect(),
-            syntax_location_byte_offsets: syntax_location_byte_offsets(words),
+            anchor_token_identities,
+            syntax_location_byte_offsets,
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
             syntax_failure_memo: HashMap::new(),
@@ -1356,7 +1391,7 @@ impl<'tokens> ParserState<'tokens> {
             root_diagnostic_observations: Vec::new(),
             continuation_diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
-            trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
+            trace,
             active_syntax_contexts: Vec::new(),
             active_syntax_rules: Vec::new(),
             active_syntax_context_stack: SharedStack::empty(),
@@ -1376,7 +1411,7 @@ impl<'tokens> ParserState<'tokens> {
             recovery_tokens: Vec::new(),
             recovery_source: None,
             track_recovery_branches: false,
-            syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
+            syntax_grammar_env,
             continuation_sentinel_index: None,
             continuation_time_limit: None,
             _tokens: PhantomData,
@@ -6859,6 +6894,82 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn space_before_time_warning_preserves_incomplete_space_recovery() {
+        run_on_normal_stack(|| {
+            let source = "fe'eki'a";
+            let words = segment_words_with_modifiers(source).unwrap();
+            let options = ParseOptions::default();
+            let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                &words, source, &options,
+            );
+            assert_eq!(recovered.errors.len(), 1);
+            assert!(recovered.parse_tree.leading_nai.is_empty());
+            assert!(recovered.parse_tree.paragraphs.is_some());
+            assert!(!recovered.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense
+            }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn space_before_time_warning_anchors_the_space_part() {
+        run_on_normal_stack(|| {
+            for (source, start, end) in [
+                ("lo ni'azu crino pezli", 3, 7),
+                ("mi va pu klama", 3, 5),
+                ("mi .e vi pu bo do klama", 6, 8),
+                ("mi na'e va pu klama", 8, 10),
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let options = ParseOptions::default();
+                let strict =
+                    crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                        .unwrap();
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                for warnings in [&strict.warnings, &recovered.warnings] {
+                    let matching: Vec<_> = warnings
+                        .iter()
+                        .filter(|warning| {
+                            warning.kind == ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense
+                        })
+                        .collect();
+                    assert_eq!(matching.len(), 1, "{source}");
+                    assert_eq!(warning_span(matching[0]), [start, end], "{source}");
+                }
+            }
+            for source in [
+                "mi pu va klama",
+                "mi va klama",
+                "mi pu klama",
+                "mi .e pu vi bo do klama",
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let options = ParseOptions::default();
+                let strict =
+                    crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                        .unwrap();
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                for warnings in [&strict.warnings, &recovered.warnings] {
+                    assert!(
+                        !warnings.iter().any(|warning| {
+                            warning.kind == ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense
+                        }),
+                        "{source}"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn split_warning_anchors_the_continuation_in_strict_and_recovered_parsing() {
         run_on_normal_stack(|| {
             let source = "mi panzi be ny ci mei";
@@ -6883,6 +6994,87 @@ mod tests {
                 assert!(matching[0].anchor.is_cmavo(Cmavo::Ci));
             }
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inline_warning_probes_leave_no_memo_or_recovery_observations() {
+        use super::generated_runtime::{inline_warn_if, rule_wrapper};
+        use super::parser_core::{Input, Parser};
+        use super::tokens::{cmavo, spanned_tokens};
+        let words = syntax_tokens(&segment_words_with_modifiers("mi do").unwrap());
+        let tokens = spanned_tokens(&words);
+        let eoi = SimpleSpan::from(5..5);
+        let options = ParseOptions::default();
+        for success in [true, false] {
+            let mut state = ParserState::new_with_recovery_branches(&words, &options);
+            state.record_recovery_checkpoint(
+                "existing",
+                0,
+                0,
+                0,
+                RecoveryCheckpointKind::FieldStart,
+            );
+            state.begin_syntax_memo_rule_frame();
+            let context = state.syntax_memo_context();
+            state.store_syntax_memo_failure(
+                "existing",
+                0,
+                context,
+                SyntaxParseError::custom((0..0).into(), "existing memo".to_owned()),
+            );
+            state.finish_syntax_memo_rule_frame();
+            let inner = cmavo(Cmavo::Mi)
+                .map_with(|token, extra| {
+                    extra
+                        .state()
+                        .warn(ExperimentalConstruct::ExperimentalSplitNumberLerfu, &token);
+                    extra
+                        .state()
+                        .record_diagnostic_candidate(SyntaxParseError::custom(
+                            (3..5).into(),
+                            "probe candidate".to_owned(),
+                        ));
+                    extra.state().record_recovery_checkpoint(
+                        "probe",
+                        0,
+                        0,
+                        0,
+                        RecoveryCheckpointKind::FieldStart,
+                    );
+                    token
+                })
+                .then(cmavo(if success { Cmavo::Do } else { Cmavo::Ko }));
+            inline_warn_if(
+                rule_wrapper("inline_probe", None, inner),
+                ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense,
+            )
+            .ignore_then(cmavo(Cmavo::Mi))
+            .then(cmavo(Cmavo::Do))
+            .parse_with_state(tokens.as_slice().split_spanned(eoi), &mut state)
+            .into_result()
+            .expect("the probe leaves the real input unchanged");
+            assert_eq!(state.warning_count(), usize::from(success));
+            if success {
+                assert_eq!(
+                    state.warnings_since(0)[0].kind,
+                    ExperimentalConstruct::ExperimentalSpaceBeforeTimeTense
+                );
+            }
+            assert!(state.diagnostic_candidates_snapshot().is_empty());
+            assert!(state.syntax_memo.is_empty());
+            assert_eq!(state.syntax_failure_memo.len(), 1);
+            assert!(state.syntax_failure_memo.contains_key(&("existing", 0)));
+            assert_eq!(
+                state
+                    .recovery_checkpoint_collection
+                    .as_ref()
+                    .unwrap()
+                    .observation_count(),
+                1
+            );
+        }
     }
 
     #[test]
