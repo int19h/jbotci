@@ -2181,7 +2181,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-ui/src/vlacku.rs:VlackuDraftState",
-        "draft stores independent text inputs and shared search choices; every field combination is valid, including empty inputs and unnormalized URL values",
+        "draft stores independent text inputs and shared search choices. Every field combination is valid, including empty inputs and unnormalized URL values",
     ),
     (
         "crates/jbotci-ui/src/vlacku.rs:VlackuPageSnapshot",
