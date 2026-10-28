@@ -233,7 +233,8 @@ pub mod generated_model {
     }
 
     /// The text_1 body of a TUhE group, without the initial text envelope.
-    rule "text body" text_body(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+    /// Keep the text diagnostic label that the body used before the type split.
+    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
         /// I-led prefixes before the paragraph tree.
         #[recovery_boundary]
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];

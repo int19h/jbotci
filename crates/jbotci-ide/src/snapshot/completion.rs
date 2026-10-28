@@ -1645,7 +1645,6 @@ mod tests {
         for (marked, opener) in [
             ("mi cusku lu .i ni'o mi cusku zo ni'o zo .i d|o li'u", "lu"),
             ("tu'e .i ni'o mi cusku zo ni'o zo .i d|o tu'u", "tu'e"),
-            ("tu'e mi ku .i ni'o mi cusku zo ni'o zo .i d|o tu'u", "tu'e"),
         ] {
             let source = marked.replacen('|', "", 1);
             let actual_i = source
@@ -1675,6 +1674,29 @@ mod tests {
                 "quoted NIhO and .i tokens must not become statement restarts: {marked}",
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn elided_recovered_text_group_keeps_following_paragraph_restart() {
+        let marked = "tu'e mi ku .i ni'o mi cusku zo ni'o zo .i d|o tu'u";
+        let source = marked.replacen('|', "", 1);
+        // The recovered tree closes TUhE before KU. The following NIhO starts
+        // an outer paragraph. Its preceding I ends the earlier paragraph.
+        let niho = source.find("ni'o mi cusku").expect("real paragraph marker");
+        let snapshot = DocumentSnapshot::new(source, 1);
+        assert!(matches!(
+            snapshot.parse.as_data(),
+            jbotci_syntax::SyntaxRecoveryParseData::Recovered { .. }
+        ));
+        let expected_restart = snapshot
+            .word_at(niho + 1)
+            .expect("NIhO word span")
+            .span
+            .byte_start;
+        let context = tree_context_at_marker(marked);
+        assert_eq!(context.restart_byte, expected_restart);
     }
 
     #[test]
