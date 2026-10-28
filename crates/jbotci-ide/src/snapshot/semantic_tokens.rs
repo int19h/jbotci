@@ -215,6 +215,7 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Lihu
             | Selmaho::Lohu
             | Selmaho::Lu
+            | Selmaho::Mehoi
             | Selmaho::Zo
             | Selmaho::Zohoi
             | Selmaho::Zoi,
