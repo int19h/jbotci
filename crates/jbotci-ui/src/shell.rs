@@ -164,6 +164,7 @@ pub(super) fn critical_startup_css() -> &'static str {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn AppShell() -> Element {
+    use_context_provider(|| Signal::new(None::<ActiveReferenceTooltip>));
     let current_route_location = use_route::<JbotciRoute>();
     let route = use_signal(|| current_route_location.app_route());
     let base_path = router_base_path();
@@ -273,6 +274,15 @@ pub(super) fn AppShell() -> Element {
     let reference_hover = use_signal(ReferenceHoverState::default);
     let reference_tooltip_open = use_signal(|| None::<HoveredReference>);
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
+    use_effect(move || {
+        let _ = gentufa_page.read();
+        let _ = view_mode.read();
+        let _ = route.read();
+        if reference_tooltip_open.peek().is_some() {
+            let mut open = reference_tooltip_open;
+            open.set(None);
+        }
+    });
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let gentufa_diagnostics_open = use_signal(|| true);
     let gentufa_active_diagnostic = use_signal(|| None::<ActiveDiagnosticTarget>);
@@ -1142,6 +1152,7 @@ pub(super) fn AppShell() -> Element {
                     }
                 }
             }
+            ReferenceTooltipLayer { open: reference_tooltip_open, route: route_value }
         }
     }
 }

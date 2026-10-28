@@ -962,6 +962,8 @@ pub(super) fn render_ref_marker(
         let enter_label = marker.label.clone();
         let click_role = marker.role;
         let click_label = marker.label.clone();
+        let click_marker = marker.clone();
+        let click_tooltip = tooltip.clone();
         rsx! {
             span {
                 class: "{host_class}",
@@ -974,7 +976,10 @@ pub(super) fn render_ref_marker(
                     r#type: "button",
                     class: "reference-tooltip-trigger",
                     aria_expanded: reference_tooltip_matches_marker(marker, tooltip_open_state),
-                    onclick: move |_| set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone()),
+                    onclick: move |event| {
+                        set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone());
+                        show_reference_tooltip(&event, &click_marker, &click_tooltip, &base_path, script);
+                    },
                     span {
                         class: "{class}",
                         "data-ref-role": "{role}",
@@ -984,7 +989,6 @@ pub(super) fn render_ref_marker(
                         { render_reference_label(&marker.label) }
                     }
                 }
-                { render_reference_tooltip(tooltip, &base_path, script) }
             }
         }
     } else {

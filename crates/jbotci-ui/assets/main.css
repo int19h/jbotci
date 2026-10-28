@@ -4573,17 +4573,6 @@ body::-webkit-scrollbar-thumb:hover,
   cursor: pointer;
 }
 
-.rich-dictionary-tooltip[popover],
-.rich-reference-tooltip-stack[popover] {
-  inset: auto;
-  margin: 0;
-}
-
-.rich-dictionary-tooltip[popover]:not(:popover-open),
-.rich-reference-tooltip-stack[popover]:not(:popover-open) {
-  display: none;
-}
-
 .dictionary-page .rafsi-split-right.dictionary-tooltip-host {
   display: inline-flex;
 }
@@ -4650,8 +4639,7 @@ body::-webkit-scrollbar-thumb:hover,
   flex-shrink: 0;
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"],
-.reference-tooltip-host.is-open:focus-within > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] {
+.reference-tooltip-overlay[data-jbotci-position-ready="true"] {
   visibility: visible;
   pointer-events: none;
   transition-delay: 0s;
@@ -4669,8 +4657,7 @@ body::-webkit-scrollbar-thumb:hover,
   max-height: min(58vh, 24rem);
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip,
-.reference-tooltip-host.is-open:focus-within > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
+.reference-tooltip-overlay[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
   visibility: visible;
 }
 

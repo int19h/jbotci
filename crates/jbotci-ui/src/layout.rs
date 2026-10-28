@@ -5264,7 +5264,7 @@ pub(super) fn reposition_active_dictionary_tooltip() {
             .item(index)
             .and_then(|node| node.dyn_into::<web_sys::Element>().ok())
             && dictionary_tooltip_element_for_host(&host)
-                .is_some_and(|tooltip| tooltip.matches(":popover-open").unwrap_or(false))
+                .is_some_and(|tooltip| tooltip.has_attribute("data-jbotci-position-ready"))
         {
             position_dictionary_tooltip(&host);
         }
@@ -5328,7 +5328,6 @@ pub(super) fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
     let Some(tooltip) = dictionary_tooltip_element_for_host(host) else {
         return;
     };
-    let _ = tooltip.hide_popover();
     let style = tooltip.style();
     let _ = tooltip.remove_attribute("data-jbotci-position-ready");
     let _ = style.set_property("visibility", "hidden");
@@ -5358,14 +5357,19 @@ pub(super) fn clear_dictionary_tooltip_immediate_hide(host: &web_sys::Element) {
 pub(super) fn dictionary_tooltip_element_for_host(
     host: &web_sys::Element,
 ) -> Option<web_sys::HtmlElement> {
-    host.query_selector(".rich-reference-tooltip-stack")
+    if host.matches(".reference-tooltip-host").unwrap_or(false) {
+        return host
+            .has_attribute("data-reference-tooltip-anchor")
+            .then(|| {
+                host.owner_document()?
+                    .get_element_by_id("reference-tooltip-overlay")
+            })
+            .flatten()
+            .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
+    }
+    host.query_selector(".rich-dictionary-tooltip")
         .ok()
         .flatten()
-        .or_else(|| {
-            host.query_selector(".rich-dictionary-tooltip")
-                .ok()
-                .flatten()
-        })
         .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
 }
 
@@ -5412,10 +5416,6 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         .unwrap_or(false);
     if reference_stack {
         let _ = style.set_property("overflow", "visible");
-    }
-    // The top layer keeps scroll panels from clipping this fixed overlay.
-    if tooltip_html.show_popover().is_err() {
-        return;
     }
     if reference_stack
         && (tooltip_html.scroll_height() > tooltip_html.client_height()
@@ -5511,6 +5511,10 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 return String(shellStyle.getPropertyValue("--topbar-bg") || "").trim().length > 0;
             };
             const tooltipForHost = (host) => {
+                if (host.classList.contains("reference-tooltip-host")) {
+                    return host.hasAttribute("data-reference-tooltip-anchor")
+                        ? document.getElementById("reference-tooltip-overlay") : null;
+                }
                 for (const child of Array.from(host.children)) {
                     if (
                         child.classList &&
@@ -5549,7 +5553,6 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 if (!tooltip) {
                     return;
                 }
-                tooltip.hidePopover();
                 tooltip.removeAttribute("data-jbotci-position-ready");
                 tooltip.style.setProperty("visibility", "hidden");
                 tooltip.style.setProperty("pointer-events", "none");
@@ -5599,7 +5602,6 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 if (referenceStack) {
                     tooltip.style.overflow = "visible";
                 }
-                tooltip.showPopover();
                 if (referenceStack && (tooltip.scrollHeight > tooltip.clientHeight || tooltip.scrollWidth > tooltip.clientWidth)) {
                     tooltip.style.overflow = "auto";
                 }
@@ -5620,6 +5622,13 @@ pub(super) fn install_desktop_tooltip_bridge() {
             };
             const scheduleMeasure = (event) => {
                 const target = event.target;
+                const host = target instanceof Element ? target.closest(".reference-tooltip-host") : null;
+                if (event.type === "click" && host) {
+                    for (const anchor of document.querySelectorAll("[data-reference-tooltip-anchor]")) {
+                        anchor.removeAttribute("data-reference-tooltip-anchor");
+                    }
+                    host.setAttribute("data-reference-tooltip-anchor", "true");
+                }
                 requestAnimationFrame(() => requestAnimationFrame(() => measureHost(target)));
             };
             document.addEventListener("mouseover", scheduleMeasure, true);
@@ -5628,11 +5637,17 @@ pub(super) fn install_desktop_tooltip_bridge() {
             const measureActiveHosts = () => {
                 for (const host of document.querySelectorAll(hostSelector)) {
                     const tooltip = tooltipForHost(host);
-                    if (tooltip && tooltip.matches(":popover-open")) {
+                    if (tooltip && tooltip.hasAttribute("data-jbotci-position-ready")) {
                         measureHost(host);
                     }
                 }
             };
+            document.addEventListener("jbotci-position-reference-tooltip", () => {
+                const host = document.querySelector("[data-reference-tooltip-anchor]");
+                if (host) {
+                    requestAnimationFrame(() => measureHost(host));
+                }
+            });
             window.addEventListener("resize", measureActiveHosts);
             document.addEventListener("scroll", measureActiveHosts, true);
             (async () => {
