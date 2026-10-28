@@ -838,11 +838,11 @@ impl CompletionContext<'_, '_, '_, '_> {
                     self.add_selmaho(Selmaho::Lehai, reason, &provenance, items);
                 }
                 SyntaxWordCategory::Quote => {
-                    for cmavo in Cmavo::ALL
-                        .iter()
-                        .copied()
-                        .filter(|cmavo| cmavo.is_quote_opener())
-                    {
+                    for cmavo in Cmavo::ALL.iter().copied().filter(|cmavo| {
+                        cmavo.is_quote_opener()
+                            && !cmavo.is_selmaho(Selmaho::Lohai)
+                            && !cmavo.is_selmaho(Selmaho::Lehai)
+                    }) {
                         if self.cancellation.is_cancelled() {
                             break;
                         }

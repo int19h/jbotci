@@ -1034,6 +1034,7 @@ const CMAVO_CANONICAL_TEXTS: &[&str] = cmavo_table!(cmavo_canonical_texts);
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum QuoteOpenerKind {
+    Replacement,
     QuotedWords,
     DelimitedNonLojban,
     ParsedWord,
@@ -1087,6 +1088,7 @@ impl Cmavo {
     #[ensures(true)]
     pub(crate) const fn quote_opener_kind(self) -> Option<QuoteOpenerKind> {
         match self {
+            Self::Lohai | Self::Sahai | Self::Lehai => Some(QuoteOpenerKind::Replacement),
             Self::Lohu => Some(QuoteOpenerKind::QuotedWords),
             Self::Zoi | Self::Laho => Some(QuoteOpenerKind::DelimitedNonLojban),
             Self::Zo | Self::Mahoi => Some(QuoteOpenerKind::ParsedWord),

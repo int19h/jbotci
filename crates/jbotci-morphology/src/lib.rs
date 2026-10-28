@@ -5207,6 +5207,9 @@ mod tests {
             .filter(|cmavo| cmavo.is_quote_opener())
             .collect::<std::collections::BTreeSet<_>>();
         let expected = std::collections::BTreeSet::from([
+            Cmavo::Lohai,
+            Cmavo::Sahai,
+            Cmavo::Lehai,
             Cmavo::Lohu,
             Cmavo::Zoi,
             Cmavo::Laho,

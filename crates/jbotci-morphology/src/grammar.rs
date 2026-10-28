@@ -749,22 +749,21 @@ impl<'a> Segmenter<'a> {
         mode: SegmentMode,
         start: usize,
     ) -> Result<Vec<WordLike>, MorphologyError> {
-        let word = if word.is_selmaho(Selmaho::Lohai) || word.is_cmavo(Cmavo::Lehai) {
-            self.replacement_quote_or_marker(word)
-        } else {
-            word
-        };
-        if matches!(word.as_data(), data!(WordLike::ReplacementQuote { .. })) {
-            self.trace_step(
-                TraceLevel::Detailed,
-                "replacement quote",
-                start,
-                self.index,
-                || None,
-            );
-        }
         let word_cmavo = word.cmavo();
         let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
+        if quote_opener_kind == Some(QuoteOpenerKind::Replacement) {
+            let word = self.replacement_quote_or_marker(word);
+            if matches!(word.as_data(), data!(WordLike::ReplacementQuote { .. })) {
+                self.trace_step(
+                    TraceLevel::Detailed,
+                    "replacement quote",
+                    start,
+                    self.index,
+                    || None,
+                );
+            }
+            return Ok(vec![word]);
+        }
         if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
             self.trace_step(
                 TraceLevel::Detailed,
