@@ -1,0 +1,11 @@
+id = "adhoc.syntax.text-envelope.issue-802-i20"
+lojban = "da'o"
+
+[expectations.syntax]
+status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "da'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
+diagnostics = []
+
+[expectations.output.gentufa]
+tree = """Cmavo @[0‥4) "da'o""""
+json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da'o","span":[0,4]}}}}}]}"""

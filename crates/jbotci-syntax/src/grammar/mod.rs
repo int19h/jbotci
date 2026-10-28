@@ -9017,15 +9017,150 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_v0_joik_and_cehe_connective_cases() {
+    fn parses_joik_connective_cases() {
         run_on_normal_stack(|| {
             for source in [
                 "la djeimyz. cebo la djordj. bruna remei",
                 "mi joibo do cu broda",
                 "ju'a nai cy pa ka ce'u ce ke do ke'e simxu cy no kei",
-                "ce'e di",
             ] {
                 parse_source(source, &ParseOptions::default());
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_envelope_keeps_initial_indicators_and_boundaries() {
+        run_on_normal_stack(|| {
+            for source in [
+                "ui mi klama",
+                "cai mi klama",
+                "ui nai mi klama",
+                "fu'e ui mi klama",
+                "fu'e cai mi klama",
+                "fu'e da'o mi klama",
+                "fu'e fu'o mi klama",
+                "da'o mi klama",
+                "fu'o mi klama",
+                "ui da'o fu'o mi klama",
+                "fu'e ui nai cai mi klama",
+                "nai fu'e ui mi klama",
+                "fu'e ui",
+                "da'o",
+                "fu'o",
+                "ui bu",
+                "ba'e fu'e ui mi klama",
+                "fu'e ui fu'o mi klama",
+                "mi fu'e ui klama",
+                "y mi klama",
+                ".alis. ui mi klama",
+                ".alis. fu'e ui mi klama",
+                ".alis. mi klama",
+            ] {
+                parse_source(source, &ParseOptions::default());
+            }
+            // Token attachment remains the subject of #1029 and #1030.
+            for source in [
+                "fu'e",
+                "fu'e mi klama",
+                "mi fu'e klama",
+                "da'o nai mi klama",
+            ] {
+                parse_source(source, &ParseOptions::default());
+            }
+            let words = segment_words_with_modifiers("ui .alis. mi klama").unwrap();
+            assert!(
+                crate::parse_syntax_tree_with_options(&words, &ParseOptions::default()).is_err()
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_envelope_excludes_leading_cehe_and_keeps_gek_guard() {
+        run_on_normal_stack(|| {
+            for source in [
+                "ce'e",
+                "ce'e di",
+                "ce'e mi klama",
+                "ce'e nai mi klama",
+                "ce'e ui mi klama",
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                assert!(
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .is_err(),
+                    "{source}"
+                );
+            }
+            for source in ["je mi klama", "joi mi klama"] {
+                assert!(
+                    parse_source(source, &ParseOptions::default())
+                        .parse_tree
+                        .leading_connective
+                        .is_some()
+                );
+            }
+            for source in ["joi gi mi klama gi do cadzu", "pu gi mi klama gi do cadzu"] {
+                let parsed = parse_source(source, &ParseOptions::default());
+                assert!(parsed.parse_tree.leading_connective.is_none());
+                assert!(parsed.parse_tree.paragraphs.is_some());
+            }
+            parse_source("mi ce'e do klama", &ParseOptions::default());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_envelope_limits_tuhe_to_text_body() {
+        run_on_normal_stack(|| {
+            for source in [
+                "tu'e mi klama tu'u",
+                "tu'e .i mi klama tu'u",
+                "tu'e ni'o mi klama tu'u",
+                "tu'e .i je bo mi klama tu'u",
+                "tu'e tu'u",
+                "tu'e ui mi klama tu'u",
+                "tu'e fu'e ui mi klama tu'u",
+                "tu'e da'o mi klama tu'u",
+                "tu'e fu'o mi klama tu'u",
+                "ba tu'e mi klama tu'u",
+                "lu nai mi klama li'u",
+                "lu .alis. mi klama li'u",
+                "to nai mi klama toi",
+                "to .alis. mi klama toi",
+            ] {
+                parse_source(source, &ParseOptions::default());
+            }
+            for source in [
+                "tu'e nai mi klama tu'u",
+                "tu'e .alis. mi klama tu'u",
+                "tu'e .alis. tu'u",
+                "tu'e je mi klama tu'u",
+                "tu'e joi mi klama tu'u",
+                "tu'e ce'e mi klama tu'u",
+                "tu'e to zo'e toi nai mi klama tu'u",
+                "tu'e to zo'e toi .alis. mi klama tu'u",
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                assert!(
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .is_err(),
+                    "{source}"
+                );
+            }
+            let dialect = parse_dialect_definition("(+cbm)").unwrap();
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            for source in [
+                "tu'e .alis. tu'u",
+                "tu'e .alis. mi tu'u",
+                "tu'e ni'o .alis. tu'u",
+            ] {
+                parse_source(source, &options);
             }
         });
     }

@@ -12,7 +12,7 @@ use jbotci_syntax::{
         InitialParagraphStatementSyntax, InnerMeksoOperatorSyntax, LetterStringSyntax,
         MeksoOperandSyntax, MeksoOperatorSyntax, MeksoSyntax, NumberWordsSyntax, ParagraphSyntax,
         QuoteSyntax, SelbriSyntax, SimpleMeksoOperandSyntax, StatementSyntax, SumtiSyntax,
-        TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextSyntax,
+        TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextBodySyntax, TextSyntax,
     },
     tree::WithFreeModifiers,
 };
@@ -41,6 +41,7 @@ fn ast_node_sizes_stay_within_stack_budget() {
         ("BridiSyntax", size_of::<BridiSyntax>()),
         ("BridiTailSyntax", size_of::<BridiTailSyntax>()),
         ("TextSyntax", size_of::<TextSyntax>()),
+        ("TextBodySyntax", size_of::<TextBodySyntax>()),
         ("ParagraphSyntax", size_of::<ParagraphSyntax>()),
         (
             "InitialParagraphStatementSyntax",

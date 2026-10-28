@@ -10214,7 +10214,9 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                     continue;
                 }
                 let expr = classify_parser_expr(&field.parser, &argument_names, self.type_env)?;
-                if !expr_is_rule_reference(&expr, "text") {
+                if !expr_is_rule_reference(&expr, "text")
+                    && !expr_is_rule_reference(&expr, "text_body")
+                {
                     continue;
                 }
                 let Some((opener_field, opener_tokens)) =

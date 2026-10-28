@@ -655,6 +655,12 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
                 options,
                 syntax_index,
             )),
+            GeneratedSyntaxNodeRef::TextBodySyntax(text) => Some(generated_text_body_tree_value(
+                text,
+                source,
+                options,
+                syntax_index,
+            )),
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
                 generated_multiple_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
@@ -708,8 +714,7 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
         "EkConnective" | "JehiConnective" => "Afterthought",
         "JekConnective" | "ParagraphJekConnective" => "Selbri",
         "GihekConnective" => "BridiTail",
-        "CeheConnective"
-        | "ExpNaJoiConnective"
+        "ExpNaJoiConnective"
         | "ExpParagraphNaJoiConnective"
         | "JoiConnective"
         | "ParagraphJoiConnective"
@@ -933,7 +938,7 @@ fn generated_text_tree_value(
     if let Some(connective) = leading_connective {
         entries.push(TreeEntry {
             label: Some("leading_connective"),
-            value: generated_text_leading_connective_tree_value(
+            value: generated_standard_statement_connective_tree_value(
                 connective,
                 source,
                 options,
@@ -941,8 +946,56 @@ fn generated_text_tree_value(
             ),
         });
     }
+    append_generated_text_body_entries(
+        &mut entries,
+        leading_i_statements,
+        paragraphs.as_deref(),
+        source,
+        options,
+        syntax_index,
+    );
+
+    TreeValue::Node(TreeNode {
+        constructor: "Text",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_text_body_tree_value(
+    text: &generated_model::TextBodySyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+) -> TreeValue {
+    let mut entries = Vec::new();
+    append_generated_text_body_entries(
+        &mut entries,
+        &text.leading_i_statements,
+        text.paragraphs.as_deref(),
+        source,
+        options,
+        syntax_index,
+    );
+    TreeValue::Node(TreeNode {
+        constructor: "Text",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(entries.len() >= old(entries.len()))]
+fn append_generated_text_body_entries(
+    entries: &mut Vec<TreeEntry>,
+    leading_i_statements: &[Arc<generated_model::LeadingIStatementSyntax>],
+    paragraphs: Option<&generated_model::TextParagraphsSyntax>,
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+) {
     let mut paragraph_values = paragraphs
-        .iter()
+        .into_iter()
         .map(|paragraph| {
             required_generated_syntax_subtree_value_with_index(
                 paragraph,
@@ -966,11 +1019,6 @@ fn generated_text_tree_value(
             .into_iter()
             .map(|value| TreeEntry { label: None, value }),
     );
-
-    TreeValue::Node(TreeNode {
-        constructor: "Text",
-        entries,
-    })
 }
 
 #[requires(true)]
@@ -1944,8 +1992,8 @@ fn generated_statement_connective_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_text_leading_connective_tree_value(
-    connective: &generated_model::TextLeadingConnectiveSyntax,
+fn generated_standard_statement_connective_tree_value(
+    connective: &generated_model::StandardStatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
