@@ -2252,6 +2252,14 @@ fn morphology_diagnostic(
     ))
 }
 
+/// Recognize exactly one lexical word without executing quotation, erasure,
+/// attachment, or end-of-text operations. Surrounding separators are allowed.
+#[requires(true)]
+#[ensures(true)]
+pub fn lex_single_word(input: &str) -> Option<Word> {
+    grammar::lex_single_word(input)
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn segment_words_with_modifiers(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
@@ -3046,6 +3054,44 @@ mod tests {
     use jbotci_dialect::{
         CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
     };
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lexical_single_word_identity_does_not_execute_magic_words() {
+        for word in [
+            "me'oi",
+            "ma'oi",
+            "zo'oi",
+            "zo",
+            "zoi",
+            "lo'u",
+            "la'o",
+            "si",
+            "sa",
+            "su",
+            "zei",
+            "bu",
+            "fa'o",
+            "lojbangirzu",
+        ] {
+            assert!(lex_single_word(word).is_some(), "{word}");
+        }
+        for text in [
+            "",
+            "mi klama",
+            "miklama",
+            "zo si",
+            "klama si",
+            "fa'o klama",
+            "klama bu",
+            "broda zei brode",
+            "klama su",
+            "klama sa",
+        ] {
+            assert!(lex_single_word(text).is_none(), "{text}");
+        }
+    }
 
     #[test]
     #[requires(true)]

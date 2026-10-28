@@ -6,7 +6,7 @@ use jbotci_dictionary::{
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData, canonicalize_text,
-    normalize_lojban_input_text, segment_words_with_modifiers,
+    lex_single_word, normalize_lojban_input_text, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
     AlineSimilarityScratch, compare_similarity_then_index, prepare_sound_query,
@@ -1536,9 +1536,7 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
     options: &VlackuSearchOptions,
     admission: SourceAdmission,
 ) -> Vec<VlackuCard> {
-    let exact_word = options
-        .min_votes
-        .and_then(|_| classify_exact_word(query, &normalize_lookup_query(query)));
+    let exact_word = options.min_votes.and_then(|_| lex_single_word(query));
     if exact_word.is_some() {
         for candidate in &mut candidates {
             candidate.exempt_votes();
@@ -1574,7 +1572,7 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
             );
         }
     }
-    if exact_word.is_some_and(|classification| classification.word_type == WordKindTypeKey::Lujvo) {
+    if exact_word.is_some_and(|word| word.kind() == WordKind::Lujvo) {
         for candidate in &mut candidates {
             candidate.exempt_votes();
         }

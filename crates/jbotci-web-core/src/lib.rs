@@ -11171,6 +11171,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_vote_filter_keeps_literal_magic_words() {
+        for word in [
+            "me'oi", "ma'oi", "zo'oi", "zo", "zoi", "lo'u", "la'o", "si", "sa", "su", "zei", "bu",
+            "fa'o",
+        ] {
+            let state = VlackuWebState {
+                query: word.to_owned(),
+                min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+                ..VlackuWebState::default()
+            };
+            let result = build_vlacku_web_result(&state);
+            assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
+            assert!(result.cards.iter().any(|card| card.word == word), "{word}");
+            assert!(!result.hidden_by_vote_filter, "{word}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_vote_filter_steps_cover_all_stops_and_saturate() {
         let mut filter = new!(VlackuVoteFilter::Any);
         assert_eq!(filter.step_down(), filter);

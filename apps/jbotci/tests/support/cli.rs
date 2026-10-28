@@ -4818,3 +4818,44 @@ fn vlacku_min_votes_keeps_missing_words_and_exact_word_groups() {
     );
     assert!(!pattern.stdout.contains("1. lojbangirzu"));
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_min_votes_exempts_literal_magic_words() {
+    for word in [
+        "me'oi", "ma'oi", "zo'oi", "zo", "zoi", "lo'u", "la'o", "si", "sa", "su", "zei", "bu",
+        "fa'o",
+    ] {
+        let baseline = run_cli_capture(&["jbotci", "vlacku", "--valsi", word], false);
+        assert_eq!(
+            baseline.status,
+            CliStatus::Success,
+            "{word}: {}",
+            baseline.stderr
+        );
+        assert!(
+            baseline.stdout.contains(&format!("1. {word} |")),
+            "{}",
+            baseline.stdout
+        );
+        let filtered = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                word,
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert_eq!(
+            filtered.status,
+            CliStatus::Success,
+            "{word}: {}",
+            filtered.stderr
+        );
+        assert_eq!(filtered.stdout, baseline.stdout, "{word}");
+    }
+}
