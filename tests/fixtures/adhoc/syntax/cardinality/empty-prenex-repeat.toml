@@ -1,0 +1,13 @@
+id = "adhoc.syntax.cardinality.empty-prenex-repeat"
+lojban = "zo'u zo'u klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "Each empty prenex has its own warning at ZOhU."
+
+[expectations.syntax]
+raw = { sha256 = "ffe34643eb0d2d64851d7366d7875da41c577e8b6abd4358efb0d12aa1eb8535" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-empty-prenex", byte-span = [0, 4], source-text = "zo'u", message = "experimental syntax: empty prenex", word-index = 0 }, { severity = "warning", code = "syntax.warning.experimental-empty-prenex", byte-span = [5, 9], source-text = "zo'u", message = "experimental syntax: empty prenex", word-index = 1 }]
+status = "success"

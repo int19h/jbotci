@@ -1,0 +1,12 @@
+id = "adhoc.syntax.cardinality.sei-no-terms-cu-nested"
+lojban = "mi sei cu gleki se'u klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "An embedded SEI still needs terms before CU."
+
+[expectations.syntax]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "cu", message = "unexpected cmavo" }]
+status = "failure"

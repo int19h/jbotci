@@ -1,0 +1,13 @@
+id = "adhoc.syntax.cardinality.bare-na-leading"
+lojban = "na cu klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "A bare NA term supplies the experimental leading term before CU."
+
+[expectations.syntax]
+raw = { sha256 = "a6ccb05d948146d9dd262264548676b184e74f6646592c212243ce4b865ac187" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-bare-na-term", byte-span = [0, 2], source-text = "na", message = "experimental syntax: bare NA term/adverbial without KU", word-index = 0 }]
+status = "success"

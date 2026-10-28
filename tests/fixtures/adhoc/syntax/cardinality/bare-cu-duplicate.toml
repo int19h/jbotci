@@ -1,0 +1,12 @@
+id = "adhoc.syntax.cardinality.bare-cu-duplicate"
+lojban = "cu cu klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "Two bare CUs claim the same camxes-exp sentence position."
+
+[expectations.syntax]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "cu", message = "unexpected cmavo" }]
+status = "failure"

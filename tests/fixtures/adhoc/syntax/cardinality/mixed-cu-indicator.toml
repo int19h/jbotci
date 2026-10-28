@@ -1,0 +1,13 @@
+id = "adhoc.syntax.cardinality.mixed-cu-indicator"
+lojban = "mi cu ui cu klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "The mixed CU composite with an indicator stays unchanged under the #887 ruling."
+
+[expectations.syntax]
+raw = { sha256 = "fe484616d692bbd35609c12e4e1b7b908eb133dd649cddcc5cbd9145dfbd640f" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cu-terms-selbri", byte-span = [9, 11], source-text = "cu", message = "experimental syntax: CU followed by terms before the main selbri", word-index = 2 }]
+status = "success"

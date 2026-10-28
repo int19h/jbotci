@@ -1,0 +1,12 @@
+id = "adhoc.syntax.cardinality.bare-cu-free-duplicate"
+lojban = "cu sei gleki se'u cu klama"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "A free modifier does not give the duplicated bare CU another source position."
+
+[expectations.syntax]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "cu", message = "unexpected cmavo" }]
+status = "failure"
