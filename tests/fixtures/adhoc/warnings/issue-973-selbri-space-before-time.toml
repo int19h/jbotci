@@ -1,0 +1,13 @@
+id = "adhoc.warnings.issue-973-selbri-space-before-time"
+lojban = "mi va pu klama"
+tags = ["adhoc", "syntax", "warnings", "issue-973"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #973 tense order"
+description = "The camxes reading stays unchanged. Only space before time in one tense gets the warning."
+
+[expectations.syntax]
+status = "success"
+raw = { sha256 = "bb2fda1471e57432cf8029185aa691c2f70a8add36f8822b7f361c5a5a93755d" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-space-before-time-tense", byte-span = [3, 5], source-text = "va", message = "experimental syntax: space before time in one tense. CLL 10.4 puts the time part first", word-index = 1 }]

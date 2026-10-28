@@ -28,6 +28,13 @@
 //! Recovered generation also probes the strict parser, so the probe never recovers.
 //! `when feature(Name)` or `when !feature(Name)` can condition the warning.
 //! The same conditions select enum arms. A false condition skips the arm entirely.
+//! Inside a field, use `probe.warn_if(Construct).ignore_then(parser)`.
+//! The inline probe returns `()` and consumes no input. It has no recovery
+//! sequence position or anchors. It uses private memo and recovery state.
+//! Use this form before an existing field parser
+//! to keep recovery field indices unchanged. Use the statement form after the
+//! fields when the warning tests a continuation at the current input position.
+//! A statement before existing fields shifts their recovery sequence indices.
 
 mod warnings;
 use warnings::WarningCatalog;
@@ -5139,6 +5146,15 @@ fn strict_chain_parser_expr_tokens(
     })
 }
 
+#[requires(!inner.is_empty())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|tokens| !tokens.is_empty()))]
+fn inline_warning_probe_tokens(inner: TokenStream2, construct: &Expr) -> Result<TokenStream2> {
+    let construct =
+        required_path_expr_last_segment(construct, "warn_if requires a construct path")?;
+    let construct = format_ident!("{construct}");
+    Ok(quote!(generated_runtime::inline_warn_if(#inner, ExperimentalConstruct::#construct)))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn strict_postfix_parser_expr_tokens(
@@ -5833,7 +5849,16 @@ fn strict_method_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> Result<TokenStream2> {
-    if method.method == "elidable_terminator" && method.args.len() == 1 {
+    if method.method == "warn_if" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        inline_warning_probe_tokens(inner, method.args.first().expect("length checked"))
+    } else if method.method == "elidable_terminator" && method.args.len() == 1 {
         strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -6761,7 +6786,25 @@ fn recovered_method_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
-    if method.method == "elidable_terminator" && method.args.len() == 1 {
+    if method.method == "warn_if" && method.args.len() == 1 {
+        let strict_generation = generation.normal_strict_generation();
+        let strict_free_modifier = format_ident!("__generated_strict_free_modifier");
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            &strict_generation,
+            &strict_free_modifier,
+            StrictParserCallMode::Local,
+        )?;
+        let bindings = arguments.iter().map(|argument| {
+            let argument_ident = format_ident!("{argument}");
+            let strict_argument = format_ident!("__strict_{argument}");
+            quote!(let #argument_ident = #strict_argument.clone();)
+        });
+        let probe =
+            inline_warning_probe_tokens(inner, method.args.first().expect("length checked"))?;
+        Ok(quote!({ #(#bindings)* #probe }))
+    } else if method.method == "elidable_terminator" && method.args.len() == 1 {
         recovered_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -7820,7 +7863,9 @@ fn method_rust_parser_output_type(
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
-    if method.method == "warn"
+    if method.method == "warn_if" && method.args.len() == 1 {
+        Some(quote!(()))
+    } else if method.method == "warn"
         || method.method == "elidable_terminator"
         || method.method == "not_next_selmaho"
         || method.method == "followed_by"
@@ -9236,6 +9281,17 @@ fn classify_method_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
+        ("warn_if", 1) => Ok(RecoveryExpr::Sequence(Vec::new())),
+        ("ignore_then", 1)
+            if matches!(method.receiver.as_ref(), Expr::MethodCall(probe)
+            if probe.method == "warn_if" && probe.args.len() == 1) =>
+        {
+            classify_recovery_expr(
+                method.args.first().expect("length checked"),
+                arguments,
+                type_env,
+            )
+        }
         ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
         ("wf", 0) | ("prohibited_wf", 0) => Ok(RecoveryExpr::WithFreeModifiers {
             inner: inner()?,
@@ -12009,5 +12065,102 @@ mod tests {
         assert!(
             text.contains("feature : :: jbotci_dialect :: DialectFeature :: Cbm , negated : true")
         );
+    }
+    #[requires(!parser.is_empty())]
+    #[ensures(!ret.rules.is_empty())]
+    fn inline_probe_test_grammar(parser: TokenStream2) -> SyntaxGrammar {
+        syn::parse2(quote! {
+            warnings {
+                pub enum ExperimentalConstruct {
+                    Probe => ("syntax.warning.probe", "probe"),
+                }
+            }
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+            recursive {
+                item: ItemSyntax;
+                free_modifier: FreeModifierSyntax;
+            }
+            /// The free modifier required by recursive parser generation.
+            rule "free modifier" free_modifier -> struct {
+                /// Its source word.
+                field token <- cmavo(Vau);
+            }
+            /// A recursive input item.
+            rule "item" item -> struct {
+                /// Its source word.
+                field token <- cmavo(Be);
+            }
+            /// A product with a probe inside its middle field.
+            rule "wrapper" wrapper(item) -> struct {
+                /// The leading word.
+                field first <- cmavo(Bo);
+                /// The item after the leading word.
+                field middle <- arc(#parser);
+                /// The final word.
+                field last <- cmavo(Ba);
+            }
+        })
+        .expect("the inline probe grammar parses")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inline_warning_probe_generates_strict_and_recovered_parsers() {
+        let grammar = inline_probe_test_grammar(quote!(item.warn_if(Probe).ignore_then(item)));
+        let text = grammar.expand().to_string();
+        assert!(!text.contains("compile_error"), "{text}");
+        for name in [
+            "strict_wrapper_parser",
+            "recovery_checkpoint_strict_wrapper_parser",
+            "recovered_wrapper_parser",
+        ] {
+            let parser = generated_function_text(&text, name);
+            assert!(
+                parser.contains("generated_runtime :: inline_warn_if"),
+                "{parser}"
+            );
+            assert!(
+                parser.contains("ExperimentalConstruct :: Probe"),
+                "{parser}"
+            );
+            assert!(
+                !parser.contains("inline_warn_if (recovered_item_parser"),
+                "{parser}"
+            );
+        }
+        let recovered = generated_function_text(&text, "recovered_wrapper_parser");
+        assert!(
+            recovered.contains("let item = __strict_item . clone ()"),
+            "{recovered}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inline_warning_probe_preserves_recovery_anchor_metadata() {
+        for parser in [
+            quote!(item),
+            quote!(cmavo(Be)),
+            quote!(opt(item)),
+            quote!(item.wf()),
+        ] {
+            let plain = inline_probe_test_grammar(parser.clone());
+            let warned =
+                inline_probe_test_grammar(quote!(cmavo(Ba).warn_if(Probe).ignore_then(#parser)));
+            let plain_env = GrammarTypeEnv::new(&plain.recursive, &plain.rules);
+            let warned_env = GrammarTypeEnv::new(&warned.recursive, &warned.rules);
+            let plain_metadata = expand_recovery_anchor_metadata(&plain.rules, &plain_env)
+                .unwrap()
+                .to_string();
+            let warned_metadata = expand_recovery_anchor_metadata(&warned.rules, &warned_env)
+                .unwrap()
+                .to_string();
+            assert_eq!(plain_metadata, warned_metadata, "{parser}");
+        }
     }
 }

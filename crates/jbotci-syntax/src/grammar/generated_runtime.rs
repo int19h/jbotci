@@ -476,6 +476,29 @@ pub(crate) fn empty<'tokens>() -> BoxedParser<'tokens, ()> {
     parser_empty().boxed()
 }
 
+/// Keep inline warning probes outside the caller's memo and checkpoint state.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn inline_warn_if<'tokens, O, P>(
+    parser: P,
+    construct: ExperimentalConstruct,
+) -> BoxedParser<'tokens, ()>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let anchor = input.peek_token();
+        if input.isolated_probe(&parser).is_ok() {
+            if let Some(anchor) = anchor {
+                input.state().warn(construct, anchor);
+            }
+        }
+        Ok(())
+    })
+    .boxed()
+}
+
 /// Probe a strict continuation and retain only the requested warning.
 /// Both outcomes preserve the cursor and all diagnostics from before the probe.
 #[requires(true)]
