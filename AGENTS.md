@@ -388,6 +388,9 @@ Prefer to run tests on release builds - the test suite is large and parser perfo
 
 # Lojban
 
+For word operations, obey the [magic words model](docs/magic-words.md).
+This model overrides CLL chapter 19 and the camxes `*_sa` rules where they conflict.
+
 Your knowledge of Lojban is not perfect. When making decisions that require correct understanding of Lojban morphology, syntax, or semantics, you must *always* read the relevant CLL sections using jbotci cukta MCP.
 
 Lojban morphology is highly non-trivial and many common assumptions don't hold. In particular, NEVER assume that spaces are a reliable way to detect word boundaries. The only way to reliably detect Lojban word boundaries in a text stream is to run the morphology parser on it! Similarly, determining whether a given vowel must be a glide requires going through morphology. Hacks that involve operating on raw string level circumventing the morphology parser are wrong and must be avoided.
