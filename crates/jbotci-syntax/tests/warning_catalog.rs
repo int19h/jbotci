@@ -13,6 +13,21 @@ fn warning_codes_and_messages_remain_stable() {
             "experimental cmavo",
         ),
         (
+            ExperimentalConstruct::ExperimentalEmptyPrenex,
+            "syntax.warning.experimental-empty-prenex",
+            "empty prenex",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalMultipleNaFragment,
+            "syntax.warning.experimental-multiple-na-fragment",
+            "multiple NA fragment sequence",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalBareNaTerm,
+            "syntax.warning.experimental-bare-na-term",
+            "bare NA term/adverbial without KU",
+        ),
+        (
             ExperimentalConstruct::ExperimentalZohOiQuote,
             "syntax.warning.experimental-zoh-oi-quote",
             "ZOhOI single-word foreign quote",

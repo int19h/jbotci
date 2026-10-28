@@ -30,6 +30,9 @@ pub mod generated_model {
             #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
             pub enum ExperimentalConstruct {
                 runtime ExperimentalCmavo => ("syntax.warning.experimental-cmavo", "experimental cmavo"),
+                ExperimentalEmptyPrenex => ("syntax.warning.experimental-empty-prenex", "empty prenex"),
+                ExperimentalMultipleNaFragment => ("syntax.warning.experimental-multiple-na-fragment", "multiple NA fragment sequence"),
+                ExperimentalBareNaTerm => ("syntax.warning.experimental-bare-na-term", "bare NA term/adverbial without KU"),
                 ExperimentalZohOiQuote => ("syntax.warning.experimental-zoh-oi-quote", "ZOhOI single-word foreign quote"),
                 ExperimentalMehOiSelbriUnit => ("syntax.warning.experimental-meh-oi-selbri-unit", "MEhOI stage-0 fu'ivla selbri unit"),
                 ExperimentalLohOiBridiDescription => ("syntax.warning.experimental-loh-oi-bridi-description", "LOhOI/KUhAU bridi description sumti"),
@@ -430,7 +433,7 @@ pub mod generated_model {
     /// Product node for fragment; preserves `first_na`, `second_na`, and `additional_na` in source order.
     rule "fragment" multiple_na_fragment -> struct {
         /// A word from selmaho `Na`.
-        field first_na <- selmaho(Na);
+        field first_na <- selmaho(Na).warn(ExperimentalMultipleNaFragment);
         /// A word from selmaho `Na`.
         field second_na <- selmaho(Na);
         /// Ordered sequence of zero or more additional na components.
@@ -533,7 +536,8 @@ pub mod generated_model {
     /// Product node for prenex; preserves `terms` and `zohu` in source order.
     rule "prenex" prenex_fragment(term) -> struct {
         /// Ordered sequence of zero or more terms components.
-        field terms <- [zero_or_more term];
+        field terms <- [zero_or_more term]
+            .preceded_by(cmavo(Zohu).warn_if(ExperimentalEmptyPrenex));
         /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
     }
@@ -541,7 +545,8 @@ pub mod generated_model {
     /// Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_statement` in source order.
     rule "prenex" prenex_statement(statement, term) -> struct {
         /// Ordered sequence of zero or more prenex terms components.
-        field prenex_terms <- [zero_or_more term];
+        field prenex_terms <- [zero_or_more term]
+            .preceded_by(cmavo(Zohu).warn_if(ExperimentalEmptyPrenex));
         /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
         #[tree_child(primary)]
@@ -673,7 +678,9 @@ pub mod generated_model {
     /// leading term sends it to `bridi_with_leading_terms`, whose CU is the sourced one.
     rule "bridi" bare_cu_bridi(sentence_bridi_tail) -> struct {
         /// The `Cu` cmavo marker, camxes-exp's leading-termless CU.
-        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
+        // The outer and first tail CU represent the same camxes-exp position.
+        // Reject its duplicate after free modifiers, but retain the existing tree.
+        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf().not_next_selmaho(Cu));
         /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(sentence_bridi_tail);
     }
@@ -1170,7 +1177,8 @@ pub mod generated_model {
     /// Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_subbridi` in source order.
     rule "prenex" prenex_subbridi(subbridi, term) -> struct {
         /// Ordered sequence of zero or more prenex terms components.
-        field prenex_terms <- [zero_or_more term];
+        field prenex_terms <- [zero_or_more term]
+            .preceded_by(cmavo(Zohu).warn_if(ExperimentalEmptyPrenex));
         /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
         /// The shared inner subbridi child syntax node.
@@ -1960,7 +1968,7 @@ pub mod generated_model {
         // its bare NA term before JOI; the `na-joik` feature gives it camxes-exp's guard.
         assert !feature(NaJoik, (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
         /// A word from selmaho `Na`.
-        field na <- selmaho(Na).wf();
+        field na <- selmaho(Na).warn(ExperimentalBareNaTerm).wf();
         assert !choice((
             selbri
                 .reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection)
@@ -3459,7 +3467,9 @@ pub mod generated_model {
         /// A word from selmaho `Sei`.
         field sei <- selmaho(Sei).wf();
         /// Ordered sequence of zero or more terms components.
-        field terms <- [zero_or_more term];
+        // Both references put CU inside a nonempty terms group. This guard keeps
+        // the flat fields and their recovery indices without a public wrapper.
+        field terms <- [zero_or_more term].preceded_by(selmaho(Cu).not());
         /// The optional `Cu` cmavo marker.
         field cu <- opt(cmavo(Cu).wf());
         /// The shared selbri child syntax node.

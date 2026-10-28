@@ -35,6 +35,9 @@
 //! to keep recovery field indices unchanged. Use the statement form after the
 //! fields when the warning tests a continuation at the current input position.
 //! A statement before existing fields shifts their recovery sequence indices.
+//! A vector or chain field accepts `.preceded_by(prefix)` to discard a prefix
+//! result before parsing its original value. Inline warning prefixes keep the
+//! original recovery anchors and do not add a memoized collection alias.
 
 mod warnings;
 use warnings::WarningCatalog;
@@ -5215,6 +5218,16 @@ fn strict_postfix_parser_expr_tokens(
             }
             Ok(quote!(#inner.map(Into::into)))
         }
+        ("preceded_by", 1) => {
+            let prefix = strict_rust_parser_expr_tokens(
+                args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(#prefix.ignore_then(#inner)))
+        }
         ("ignore_then", 1) => {
             let parser = strict_rust_parser_expr_tokens(
                 args.first().expect("length checked"),
@@ -5573,6 +5586,16 @@ fn recovered_postfix_parser_expr_tokens(
                 ));
             }
             Ok(quote!(#inner.map(Into::into)))
+        }
+        ("preceded_by", 1) => {
+            let prefix = recovered_rust_parser_expr_tokens(
+                args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(#prefix.ignore_then(#inner)))
         }
         ("ignore_then", 1) => {
             let parser = recovered_rust_parser_expr_tokens(
@@ -7669,7 +7692,9 @@ fn postfix_parser_output_type(
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
-        ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
+        ("elidable_terminator" | "preceded_by", 1) => {
+            parser_output_type(receiver, type_env, arguments)
+        }
         ("recursive_output", 1) => {
             let target = required_path_expr_last_segment(&args[0], "recursive parser").ok()?;
             type_env.recursive.get(&target).map(|ty| quote!(#ty))
@@ -9213,6 +9238,19 @@ fn classify_postfix_recovery_expr(
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
+        ("preceded_by", 1) => {
+            let prefix = args.first().expect("length checked");
+            if matches!(prefix, Expr::MethodCall(probe)
+                if probe.method == "warn_if" && probe.args.len() == 1)
+            {
+                classify_parser_expr(receiver, arguments, type_env)
+            } else {
+                Ok(RecoveryExpr::Sequence(vec![
+                    classify_recovery_expr(prefix, arguments, type_env)?,
+                    classify_parser_expr(receiver, arguments, type_env)?,
+                ]))
+            }
+        }
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
             classify_parser_expr(receiver, arguments, type_env)?,
             classify_recovery_expr(args.first().expect("length checked"), arguments, type_env)?,
@@ -12163,6 +12201,84 @@ mod tests {
                 .unwrap()
                 .to_string();
             assert_eq!(plain_metadata, warned_metadata, "{parser}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prefixed_vector_warning_keeps_its_type_and_recovery_anchors() {
+        let grammar = |parser: TokenStream2, warned: bool| {
+            let catalog = if warned {
+                quote! {
+                    warnings {
+                        pub enum ExperimentalConstruct {
+                            Probe => ("syntax.warning.probe", "probe"),
+                        }
+                    }
+                }
+            } else {
+                quote!()
+            };
+            syn::parse2::<SyntaxGrammar>(quote! {
+                #catalog
+                tree_model {}
+                model;
+                env generated_runtime::SyntaxGrammarEnv;
+                strict_parsers;
+                recursive {
+                    item: ItemSyntax;
+                    free_modifier: FreeModifierSyntax;
+                }
+                /// A free modifier for the recursive model.
+                rule "free modifier" free_modifier -> struct {
+                    /// Its source word.
+                    field token <- cmavo(Vau);
+                }
+                /// A recursive item.
+                rule "item" item -> struct {
+                    /// Its source word.
+                    field token <- cmavo(Be);
+                }
+                /// A product with a vector field.
+                rule "wrapper" wrapper(item) -> struct {
+                    /// The parsed items.
+                    field values <- #parser;
+                }
+            })
+            .unwrap()
+        };
+        for parser in [quote!([zero_or_more item]), quote!([one_or_more item])] {
+            let plain = grammar(parser.clone(), false);
+            let warned = grammar(quote!(#parser.preceded_by(cmavo(Ba).warn_if(Probe))), true);
+            let plain_env = GrammarTypeEnv::new(&plain.recursive, &plain.rules);
+            let warned_env = GrammarTypeEnv::new(&warned.recursive, &warned.rules);
+            assert_eq!(
+                expand_recovery_anchor_metadata(&plain.rules, &plain_env)
+                    .unwrap()
+                    .to_string(),
+                expand_recovery_anchor_metadata(&warned.rules, &warned_env)
+                    .unwrap()
+                    .to_string(),
+                "{parser}"
+            );
+            let plain_expanded = plain.expand();
+            let warned_expanded = warned.expand();
+            assert!(
+                !plain_expanded.to_string().contains("compile_error"),
+                "{plain_expanded}"
+            );
+            assert!(
+                !warned_expanded.to_string().contains("compile_error"),
+                "{warned_expanded}"
+            );
+            let plain_output = generated_struct(plain_expanded, "WrapperSyntax");
+            let warned_output = generated_struct(warned_expanded, "WrapperSyntax");
+            assert_eq!(
+                plain_output.fields.to_token_stream().to_string(),
+                warned_output.fields.to_token_stream().to_string(),
+                "{parser}"
+            );
         }
     }
 }
