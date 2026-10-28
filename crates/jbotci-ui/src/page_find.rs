@@ -967,7 +967,10 @@ fn collect_vlacku_page_find_entries(
     result: &VlackuWebResult,
     script: GentufaScript,
 ) {
-    if let Some(message) = &result.message {
+    if result.hidden_by_vote_filter {
+        push_page_find_entry(entries, vote_filter_empty_text(result.state.min_votes));
+        push_page_find_entry(entries, "Show all entries");
+    } else if let Some(message) = &result.message {
         push_page_find_entry(entries, semantic_search_message_visible_text(message));
     }
     for error in &result.errors {

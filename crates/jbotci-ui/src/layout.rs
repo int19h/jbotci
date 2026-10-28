@@ -1584,6 +1584,7 @@ extern "C" {
         limit: usize,
         kind_filters_json: &str,
         corpus_identity_json: &str,
+        entry_eligibility_json: &str,
     ) -> js_sys::Promise;
 }
 
@@ -1938,13 +1939,14 @@ pub(super) async fn load_vlacku_semantic_result(
     state: VlackuWebState,
 ) -> VlackuSemanticResultState {
     let limit = vlacku_semantic_worker_limit(&state);
-    let normalized_state = normalize_vlacku_state(&state);
+    let eligibility = vlacku_semantic_entry_eligibility(&state);
     match embedding_search_json(
         EMBEDDING_CHANNEL_VLACKU_SEMANTIC,
         "vlacku-en",
         &state.query,
         limit,
-        &normalized_state.word_types,
+        &[],
+        Some(eligibility),
     )
     .await
     {
@@ -2007,6 +2009,7 @@ pub(super) async fn load_cukta_semantic_result(
         &state.query,
         limit,
         &kind_filters,
+        None,
     )
     .await
     {
@@ -2100,7 +2103,8 @@ pub(super) fn cukta_loading_page_data(message: &str) -> CuktaPageData {
 #[requires(!message.is_empty())]
 #[ensures(ret.message.as_ref().is_some_and(|value| value == message))]
 pub(super) fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> VlackuWebResult {
-    VlackuWebResult {
+    new!(VlackuWebResult {
+        hidden_by_vote_filter: false,
         state: state.clone(),
         cards: Vec::new(),
         word_type_options: vlacku_word_type_options(&state.word_types),
@@ -2108,7 +2112,7 @@ pub(super) fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> Vl
         has_more: false,
         message: Some(message.to_owned()),
         errors: Vec::new(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -2524,10 +2528,13 @@ pub(super) async fn embedding_search_json(
     query: &str,
     limit: usize,
     kind_filters: &[String],
+    entry_eligibility: Option<VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     configure_embedding_model_key(&load_embedding_model_key());
     let kind_filters_json = serde_json::to_string(kind_filters).unwrap_or_else(|_| "[]".to_owned());
     let corpus = browser_embedding_corpus().await?;
+    let entry_eligibility_json =
+        serde_json::to_string(&entry_eligibility).map_err(|error| error.to_string())?;
     promise_to_string(js_embedding_search(
         channel,
         corpus_id,
@@ -2535,6 +2542,7 @@ pub(super) async fn embedding_search_json(
         limit,
         &kind_filters_json,
         &corpus.identity_json,
+        &entry_eligibility_json,
     ))
     .await
 }
@@ -2548,6 +2556,7 @@ pub(super) async fn embedding_search_json(
     query: &str,
     limit: usize,
     kind_filters: &[String],
+    entry_eligibility: Option<VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     let _ = channel;
     let model_key = load_embedding_model_key();
@@ -2555,7 +2564,14 @@ pub(super) async fn embedding_search_json(
     let query = query.to_owned();
     let kind_filters = kind_filters.to_owned();
     platform::run_native_task(move || {
-        native_embedding_search_json_result(&model_key, &corpus_id, &query, limit, &kind_filters)
+        native_embedding_search_json_result(
+            &model_key,
+            &corpus_id,
+            &query,
+            limit,
+            &kind_filters,
+            entry_eligibility,
+        )
     })
     .await
 }
@@ -2569,6 +2585,7 @@ pub(super) async fn embedding_search_json(
     _query: &str,
     _limit: usize,
     _kind_filters: &[String],
+    _entry_eligibility: Option<VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     Err(SEMANTIC_SEARCH_SETUP_MESSAGE.to_owned())
 }
@@ -2634,6 +2651,7 @@ pub(super) enum NativeEmbeddingSearchCommand {
         query: String,
         count: usize,
         kind_filters: Vec<String>,
+        entry_eligibility: Option<VlackuSemanticEligibility>,
         response: std::sync::mpsc::Sender<Result<String, String>>,
     },
     Clear {
@@ -2654,6 +2672,7 @@ impl NativeEmbeddingSearchWorkerHandle {
         query: &str,
         count: usize,
         kind_filters: &[String],
+        entry_eligibility: Option<VlackuSemanticEligibility>,
     ) -> Result<String, String> {
         let (sender, receiver) = std::sync::mpsc::channel();
         self.sender
@@ -2663,6 +2682,7 @@ impl NativeEmbeddingSearchWorkerHandle {
                 query: query.to_owned(),
                 count,
                 kind_filters: kind_filters.to_owned(),
+                entry_eligibility,
                 response: sender,
             })
             .map_err(|_| "native embedding search worker is unavailable".to_owned())?;
@@ -2807,6 +2827,7 @@ pub(super) fn native_embedding_search_json_result(
     query: &str,
     limit: usize,
     kind_filters: &[String],
+    entry_eligibility: Option<VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     if query.trim().is_empty() {
         return Ok(serde_json::json!({ "hits": [] }).to_string());
@@ -2818,6 +2839,7 @@ pub(super) fn native_embedding_search_json_result(
         query,
         count,
         kind_filters,
+        entry_eligibility,
     )
 }
 
@@ -2835,10 +2857,11 @@ pub(super) fn native_embedding_worker_search_json(
     query: &str,
     count: usize,
     kind_filters: &[String],
+    entry_eligibility: Option<&VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     match corpus_id {
         jbotci_embeddings::VLACKU_CORPUS_ID => {
-            native_embedding_vlacku_search_json(service, query, count)
+            native_embedding_vlacku_search_json(service, query, count, entry_eligibility)
         }
         jbotci_embeddings::CUKTA_CORPUS_ID => {
             native_embedding_cukta_search_json(service, query, count, kind_filters)
@@ -2855,19 +2878,36 @@ pub(super) fn native_embedding_vlacku_search_json(
     service: &mut jbotci_embeddings::native::NativeEmbeddingSearchService,
     query: &str,
     count: usize,
+    entry_eligibility: Option<&VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     let hits = service
-        .semantic_vlacku_hits(query, count)
-        .map_err(native_embedding_search_setup_error)?
-        .into_iter()
-        .map(|hit| {
-            serde_json::json!({
-                "id": hit.entry_index,
-                "score": hit.score,
-            })
+        .semantic_vlacku_hits_filtered(query, count, |index| {
+            entry_eligibility.is_none_or(|filter| filter.eligible.contains(&index))
         })
+        .map_err(native_embedding_search_setup_error)?;
+    let probe = if hits.is_empty() {
+        if let Some(filter) =
+            entry_eligibility.filter(|filter| !filter.without_vote_filter.is_empty())
+        {
+            service
+                .semantic_vlacku_hits_filtered(query, 1, |index| {
+                    filter.without_vote_filter.contains(&index)
+                })
+                .map_err(native_embedding_search_setup_error)?
+                .into_iter()
+                .next()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let hits = hits
+        .into_iter()
+        .map(|hit| serde_json::json!({ "id": hit.entry_index, "score": hit.score }))
         .collect::<Vec<_>>();
-    Ok(serde_json::json!({ "hits": hits }).to_string())
+    let probe = probe.map(|hit| serde_json::json!({ "id": hit.entry_index, "score": hit.score }));
+    Ok(serde_json::json!({ "hits": hits, "voteFilterProbe": probe }).to_string())
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -2966,6 +3006,7 @@ pub(super) fn native_embedding_search_worker_loop(
                 query,
                 count,
                 kind_filters,
+                entry_eligibility,
                 response,
             } => {
                 let result = native_embedding_search_worker_command(
@@ -2975,6 +3016,7 @@ pub(super) fn native_embedding_search_worker_loop(
                     &query,
                     count,
                     &kind_filters,
+                    entry_eligibility.as_ref(),
                 );
                 let _ = response.send(result);
             }
@@ -2998,6 +3040,7 @@ pub(super) fn native_embedding_search_worker_command(
     query: &str,
     count: usize,
     kind_filters: &[String],
+    entry_eligibility: Option<&VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     if service
         .as_ref()
@@ -3011,7 +3054,15 @@ pub(super) fn native_embedding_search_worker_command(
     let service = service
         .as_mut()
         .ok_or_else(|| "native embedding search service was not initialized".to_owned())?;
-    native_embedding_worker_search_json(service, model_key, corpus_id, query, count, kind_filters)
+    native_embedding_worker_search_json(
+        service,
+        model_key,
+        corpus_id,
+        query,
+        count,
+        kind_filters,
+        entry_eligibility,
+    )
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -3373,11 +3424,18 @@ pub(super) fn parse_vlacku_semantic_search_json(
 ) -> (Vec<VlackuSemanticSearchHit>, Option<String>) {
     let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
     let message = semantic_search_response_message(&value);
+    let probe = value.get("voteFilterProbe").filter(|_| {
+        value
+            .get("hits")
+            .and_then(serde_json::Value::as_array)
+            .is_none_or(Vec::is_empty)
+    });
     let hits = value
         .get("hits")
         .and_then(serde_json::Value::as_array)
         .into_iter()
         .flatten()
+        .chain(probe)
         .filter_map(|hit| {
             Some(VlackuSemanticSearchHit {
                 entry_index: hit.get("id")?.as_u64()? as usize,

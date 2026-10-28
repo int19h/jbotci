@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use directories::ProjectDirs;
 use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaSearchWindow,
@@ -4661,5 +4661,76 @@ mod tests {
         )
         .expect("cached semantic vlacku search");
         assert_eq!(second_hits, first_hits);
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_and_word_type_eligibility_precedes_native_result_limit() {
+        use jbotci_search::vlacku::{
+            VlackuSearchOptions, WordTypeFilter, dictionary_entry_passes_vlacku_entry_filters,
+        };
+        let dictionary = jbotci_dictionary_data::english();
+        let window = 21;
+        let low_votes = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| entry.score.get() < 20.0)
+            .take(window)
+            .collect::<Vec<_>>();
+        let high_votes = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| entry.score.get() >= 20.0)
+            .take(window)
+            .collect::<Vec<_>>();
+        let wrong_type = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| entry.word_type == jbotci_dictionary::WordType::Cmavo)
+            .take(window)
+            .collect::<Vec<_>>();
+        let right_type = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| entry.word_type == jbotci_dictionary::WordType::Gismu)
+            .take(window)
+            .collect::<Vec<_>>();
+        for (excluded, admitted, options) in [
+            (
+                low_votes,
+                high_votes,
+                VlackuSearchOptions::default().with_data(data! { min_votes: Some(20) }),
+            ),
+            (
+                wrong_type,
+                right_type,
+                VlackuSearchOptions::default()
+                    .with_data(data! { word_types: vec![WordTypeFilter::Gismu] }),
+            ),
+        ] {
+            assert_eq!(excluded.len(), window);
+            assert_eq!(admitted.len(), window);
+            let entries = excluded.into_iter().chain(admitted).collect::<Vec<_>>();
+            let values = (0..entries.len())
+                .map(|row| (entries.len() - row) as f32)
+                .collect::<Vec<_>>();
+            let unfiltered = top_vector_hits(&values, 1, &[1.0], entries.len(), window);
+            assert!(
+                unfiltered
+                    .iter()
+                    .all(|hit| !dictionary_entry_passes_vlacku_entry_filters(
+                        entries[hit.row_index],
+                        &options
+                    ))
+            );
+            let filtered =
+                top_vector_hits_by_row(&values, 1, &[1.0], entries.len(), window, |row| {
+                    dictionary_entry_passes_vlacku_entry_filters(entries[row], &options)
+                });
+            assert_eq!(
+                filtered.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
+                (window..2 * window).collect::<Vec<_>>()
+            );
+        }
     }
 }

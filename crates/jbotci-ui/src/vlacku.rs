@@ -10,6 +10,7 @@ pub(super) struct VlackuDraftState {
     sound_query: String,
     meaning_query: String,
     count: usize,
+    min_votes: VlackuVoteFilter,
     word_types: Vec<String>,
 }
 
@@ -17,6 +18,7 @@ impl VlackuDraftState {
     #[requires(true)]
     #[ensures(ret.mode == old(state.mode))]
     #[ensures(ret.count == old(state.count))]
+    #[ensures(ret.min_votes == old(state.min_votes))]
     #[expensive_ensures(ret.web_state() == old(state.clone()))]
     pub(super) fn from_state(state: VlackuWebState) -> Self {
         let mut draft = Self {
@@ -26,6 +28,7 @@ impl VlackuDraftState {
             sound_query: String::new(),
             meaning_query: String::new(),
             count: state.count,
+            min_votes: state.min_votes,
             word_types: Vec::new(),
         };
         draft.apply_state(state);
@@ -45,12 +48,14 @@ impl VlackuDraftState {
 
     #[requires(true)]
     #[ensures(ret.mode == self.mode)]
+    #[ensures(ret.min_votes == self.min_votes)]
     #[ensures(ret.query == self.query_for(self.mode))]
     pub(super) fn web_state(&self) -> VlackuWebState {
         VlackuWebState {
             mode: self.mode,
             query: self.query_for(self.mode).to_owned(),
             count: self.count,
+            min_votes: self.min_votes,
             word_types: self.word_types.clone(),
         }
     }
@@ -59,6 +64,7 @@ impl VlackuDraftState {
     #[requires(true)]
     #[ensures(self.mode == old(state.mode))]
     #[ensures(self.count == old(state.count))]
+    #[ensures(self.min_votes == old(state.min_votes))]
     #[expensive_ensures(self.web_state() == old(state.clone()))]
     pub(super) fn apply_state(&mut self, state: VlackuWebState) {
         self.mode = state.mode;
@@ -70,6 +76,7 @@ impl VlackuDraftState {
         };
         *query = state.query;
         self.count = state.count;
+        self.min_votes = state.min_votes;
         self.word_types = state.word_types;
     }
 
@@ -77,12 +84,14 @@ impl VlackuDraftState {
     #[ensures(ret.mode == mode)]
     #[ensures(ret.query == self.query_for(mode))]
     #[ensures(ret.count == VLACKU_WEB_DEFAULT_COUNT)]
+    #[ensures(ret.min_votes == self.min_votes)]
     #[ensures(ret.word_types == self.word_types)]
     pub(super) fn select_mode(&self, mode: VlackuWebMode) -> VlackuWebState {
         VlackuWebState {
             mode,
             query: self.query_for(mode).to_owned(),
             count: VLACKU_WEB_DEFAULT_COUNT,
+            min_votes: self.min_votes,
             word_types: self.word_types.clone(),
         }
     }
@@ -164,8 +173,8 @@ pub(super) fn VlackuPage(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_page(
-    vlacku_draft_state: Signal<VlackuDraftState>,
-    vlacku_committed_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
+    mut vlacku_committed_state: Signal<VlackuWebState>,
     snapshot: &VlackuPageSnapshot,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
@@ -196,7 +205,16 @@ pub(super) fn render_vlacku_page(
                 if let Some(info) = &result.dictionary_info {
                     { render_dictionary_info(info) }
                 }
-                if let Some(message) = &result.message {
+                if result.hidden_by_vote_filter {
+                    p { class: "dictionary-empty",
+                        { render_page_find_text(page_find, &vote_filter_empty_text(result.state.min_votes)) }
+                        " "
+                        button { class: "dictionary-empty-action", r#type: "button",
+                            onclick: move |_| set_vlacku_vote_filter(&mut vlacku_draft_state, &mut vlacku_committed_state, new!(jbotci_web_core::VlackuVoteFilter::Any)),
+                            { render_page_find_text(page_find, "Show all entries") }
+                        }
+                    }
+                } else if let Some(message) = &result.message {
                     { render_semantic_search_message("dictionary-empty", message, Some(page_find)) }
                 }
                 for error in result.errors.iter() {
@@ -284,6 +302,8 @@ pub(super) fn render_vlacku_controls(
                     }
                 }
                 div { class: "dictionary-word-type-control",
+                    { render_vlacku_vote_filter(vlacku_draft_state, vlacku_committed_state, state.min_votes) }
+                    div { class: "vote-filter-divider", aria_hidden: "true" }
                     { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
                 }
             }
@@ -1008,6 +1028,7 @@ pub(super) fn render_vlacku_headword_line(
     let word_href = vlacku_web_url(
         base_path,
         &VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: card.word.clone(),
             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -1457,6 +1478,7 @@ pub(super) fn render_composition_piece(
                 let href = vlacku_web_url(
                     base_path,
                     &VlackuWebState {
+                        min_votes: Default::default(),
                         mode: VlackuWebMode::Word,
                         query: source.clone(),
                         count: VLACKU_WEB_DEFAULT_COUNT,
@@ -2219,4 +2241,112 @@ pub(super) fn set_vlacku_jvozba_pane(
 ) {
     save_vlacku_jvozba_pane_state(&state);
     jvozba_pane.set(state);
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn vote_filter_display_text(filter: VlackuVoteFilter) -> String {
+    filter
+        .as_search_min_votes()
+        .map_or_else(|| "any".to_owned(), jbotci_search::vlacku::format_votes)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn vote_filter_value_text(filter: VlackuVoteFilter) -> String {
+    match filter.as_search_min_votes() {
+        None => "any number of votes".to_owned(),
+        Some(votes) => format!(
+            "at least {} {}",
+            jbotci_search::vlacku::format_votes(votes),
+            if votes == 1 { "vote" } else { "votes" }
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures((-11..=20).contains(&ret))]
+pub(super) fn vote_filter_aria_now(filter: VlackuVoteFilter) -> i32 {
+    filter.as_search_min_votes().unwrap_or(-11)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn vote_filter_key(filter: VlackuVoteFilter, key: Key) -> Option<VlackuVoteFilter> {
+    match key {
+        Key::ArrowUp => Some(filter.step_up()),
+        Key::ArrowDown => Some(filter.step_down()),
+        Key::PageUp => Some(filter.step_by(5)),
+        Key::PageDown => Some(filter.step_by(-5)),
+        Key::Home => Some(new!(jbotci_web_core::VlackuVoteFilter::Any)),
+        Key::End => Some(filter.step_by(i32::MAX)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(committed.peek().min_votes == filter)]
+#[ensures(committed.peek().count == VLACKU_WEB_DEFAULT_COUNT)]
+pub(super) fn set_vlacku_vote_filter(
+    draft: &mut Signal<VlackuDraftState>,
+    committed: &mut Signal<VlackuWebState>,
+    filter: VlackuVoteFilter,
+) {
+    let mut next = draft.read().web_state();
+    next.min_votes = filter;
+    next.count = VLACKU_WEB_DEFAULT_COUNT;
+    set_vlacku_state_immediate(draft, committed, next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_vote_filter(
+    mut draft: Signal<VlackuDraftState>,
+    mut committed: Signal<VlackuWebState>,
+    filter: VlackuVoteFilter,
+) -> Element {
+    let any = filter.as_search_min_votes().is_none();
+    rsx! {
+        div { class: "vote-filter", title: "Hide dictionary entries with fewer community votes. Official words always show.",
+            span { class: "vote-filter-caption", id: "vlacku-vote-filter-caption", "min votes" }
+            div { class: "vote-filter-stepper",
+                button { class: "vote-filter-step is-decrease", r#type: "button", tabindex: "-1",
+                    aria_label: "Require fewer votes", title: "Require fewer votes", disabled: any,
+                    onclick: move |_| {
+                        let next = draft.read().min_votes.step_down();
+                        set_vlacku_vote_filter(&mut draft, &mut committed, next);
+                    },
+                    "−"
+                }
+                span { class: if any { "vote-filter-value is-any" } else { "vote-filter-value" },
+                    role: "spinbutton", tabindex: "0", aria_labelledby: "vlacku-vote-filter-caption",
+                    aria_valuemin: "-11", aria_valuemax: "20", aria_valuenow: "{vote_filter_aria_now(filter)}",
+                    aria_valuetext: vote_filter_value_text(filter),
+                    onkeydown: move |event| {
+                        let current = draft.read().min_votes;
+                        if let Some(next) = vote_filter_key(current, event.key()) {
+                            event.prevent_default();
+                            set_vlacku_vote_filter(&mut draft, &mut committed, next);
+                        }
+                    },
+                    "{vote_filter_display_text(filter)}"
+                }
+                button { class: "vote-filter-step is-increase", r#type: "button", tabindex: "-1",
+                    aria_label: "Require more votes", title: "Require more votes",
+                    disabled: filter.as_search_min_votes() == Some(20),
+                    onclick: move |_| {
+                        let next = draft.read().min_votes.step_up();
+                        set_vlacku_vote_filter(&mut draft, &mut committed, next);
+                    },
+                    "+"
+                }
+            }
+        }
+    }
+}
+
+#[requires(filter.as_search_min_votes().is_some())]
+#[ensures(ret.starts_with("No matches with at least "))]
+pub(super) fn vote_filter_empty_text(filter: VlackuVoteFilter) -> String {
+    format!("No matches with {}.", vote_filter_value_text(filter))
 }

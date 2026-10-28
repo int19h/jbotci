@@ -669,7 +669,8 @@ fn page_find_collects_cukta_content_but_not_toc() {
 #[requires(true)]
 #[ensures(true)]
 fn page_find_collects_vlacku_card_text_without_controls() {
-    let result = VlackuWebResult {
+    let result = new!(VlackuWebResult {
+        hidden_by_vote_filter: false,
         state: VlackuWebState::default(),
         cards: vec![VlackuWebCard {
             rank: 1,
@@ -714,7 +715,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         has_more: true,
         message: Some("semantic message".to_owned()),
         errors: vec!["visible error".to_owned()],
-    };
+    });
     let mut entries = Vec::new();
 
     collect_vlacku_page_find_entries(&mut entries, &result, GentufaScript::Latin);
@@ -2896,6 +2897,7 @@ fn horizontal_ranges_overlap_requires_shared_interior() {
 #[ensures(true)]
 fn vlacku_semantic_worker_limit_bounds_unfiltered_results() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
@@ -2909,6 +2911,7 @@ fn vlacku_semantic_worker_limit_bounds_unfiltered_results() {
 #[ensures(true)]
 fn vlacku_semantic_worker_limit_bounds_filtered_results() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
@@ -2922,6 +2925,7 @@ fn vlacku_semantic_worker_limit_bounds_filtered_results() {
 #[ensures(true)]
 fn vlacku_semantic_worker_limit_clamps_unfiltered_results() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: usize::MAX,
@@ -2935,6 +2939,7 @@ fn vlacku_semantic_worker_limit_clamps_unfiltered_results() {
 #[ensures(true)]
 fn vlacku_load_more_state_only_expands_count() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Rafsi,
         query: "kla".to_owned(),
         count: 20,
@@ -2954,6 +2959,7 @@ fn vlacku_load_more_state_only_expands_count() {
 #[ensures(true)]
 fn vlacku_load_more_state_clamps_count() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Word,
         query: "klama".to_owned(),
         count: VLACKU_WEB_MAX_COUNT,
@@ -2990,6 +2996,7 @@ fn stable_jvozba_pane_top_uses_fallback_until_results_render() {
 #[ensures(true)]
 fn vlacku_semantic_result_is_pending_for_stale_or_loading_results() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
@@ -3013,12 +3020,14 @@ fn vlacku_semantic_result_is_pending_for_stale_or_loading_results() {
 #[ensures(true)]
 fn vlacku_semantic_pending_page_preserves_existing_result() {
     let previous_state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
         word_types: Vec::new(),
     };
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama!".to_owned(),
         count: 20,
@@ -3053,6 +3062,7 @@ fn vlacku_semantic_pending_page_preserves_existing_result() {
 #[ensures(true)]
 fn vlacku_semantic_pending_page_shows_explicit_loading_message() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
@@ -3085,6 +3095,7 @@ fn vlacku_semantic_pending_page_shows_explicit_loading_message() {
 #[ensures(true)]
 fn vlacku_semantic_result_ready_uses_compute_worker_path() {
     let state = VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Meaning,
         query: "klama".to_owned(),
         count: 20,
@@ -3831,6 +3842,7 @@ fn vlacku_inputs_are_independent_for_every_mode() {
     ];
     for initial_mode in modes {
         let initial = VlackuWebState {
+            min_votes: Default::default(),
             mode: initial_mode,
             query: "initial input".to_owned(),
             count: 80,
@@ -4018,4 +4030,150 @@ fn vlacku_url_push_notifies_the_router_before_history_navigation() {
     assert_eq!(dioxus::ssr::render(&dom), "/vlacku/blanu");
     assert_eq!(history.current_route(), "/vlacku/blanu");
     assert!(pending.peek().routes.is_empty());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_vote_filter_keyboard_has_bounded_stops_and_leaves_other_keys_alone() {
+    let filter = VlackuVoteFilter::default();
+    for (key, expected) in [
+        (Key::ArrowUp, Some(2)),
+        (Key::ArrowDown, Some(0)),
+        (Key::PageUp, Some(6)),
+        (Key::PageDown, Some(-4)),
+        (Key::Home, None),
+        (Key::End, Some(20)),
+    ] {
+        assert_eq!(
+            vote_filter_key(filter, key)
+                .expect("handled key")
+                .as_search_min_votes(),
+            expected
+        );
+    }
+    for key in [
+        Key::Tab,
+        Key::ArrowLeft,
+        Key::ArrowRight,
+        Key::Character("5".to_owned()),
+    ] {
+        assert!(vote_filter_key(filter, key).is_none());
+    }
+    assert_eq!(vote_filter_value_text(filter), "at least +1 vote");
+    assert_eq!(vote_filter_display_text(filter), "+1");
+    assert_eq!(
+        vote_filter_value_text(new!(jbotci_web_core::VlackuVoteFilter::Any)),
+        "any number of votes"
+    );
+    assert_eq!(
+        vote_filter_aria_now(new!(jbotci_web_core::VlackuVoteFilter::Any)),
+        -11
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_vote_filter_control_and_state_share_one_value() {
+    let draft_slot = Rc::new(Cell::new(None::<Signal<VlackuDraftState>>));
+    let committed_slot = Rc::new(Cell::new(None::<Signal<VlackuWebState>>));
+    let mut dom = VirtualDom::new(|| {
+        let draft_slot = consume_context::<Rc<Cell<Option<Signal<VlackuDraftState>>>>>();
+        let committed_slot = consume_context::<Rc<Cell<Option<Signal<VlackuWebState>>>>>();
+        let committed = use_signal(|| VlackuWebState {
+            query: "lojbangirzu".to_owned(),
+            count: 80,
+            ..VlackuWebState::default()
+        });
+        let draft = use_signal(|| VlackuDraftState::from_state(committed.read().clone()));
+        draft_slot.set(Some(draft));
+        committed_slot.set(Some(committed));
+        let state = draft.read().web_state();
+        render_vlacku_controls(
+            draft,
+            committed,
+            &state,
+            &vlacku_word_type_options(&state.word_types),
+        )
+    })
+    .with_root_context(draft_slot.clone())
+    .with_root_context(committed_slot.clone());
+    dom.rebuild_in_place();
+    let html = dioxus::ssr::render(&dom);
+    assert!(
+        html.find("class=\"vote-filter\"").unwrap()
+            < html.find("class=\"word-type-grid\"").unwrap()
+    );
+    for text in [
+        "role=\"spinbutton\"",
+        "aria-valuemin=\"-11\"",
+        "aria-valuemax=\"20\"",
+        "aria-valuenow=\"1\"",
+        "aria-valuetext=\"at least +1 vote\"",
+        "aria-labelledby=\"vlacku-vote-filter-caption\"",
+    ] {
+        assert!(html.contains(text), "{text}: {html}");
+    }
+    let mut draft = draft_slot.get().expect("mounted draft");
+    let mut committed = committed_slot.get().expect("mounted committed state");
+    for filter in [
+        new!(jbotci_web_core::VlackuVoteFilter::Any),
+        new!(jbotci_web_core::VlackuVoteFilter::AtLeast { votes: 20 }),
+    ] {
+        dom.in_scope(ScopeId::ROOT, || {
+            set_vlacku_vote_filter(&mut draft, &mut committed, filter)
+        });
+        dom.render_immediate_to_vec();
+        assert_eq!(draft.read().web_state(), *committed.read());
+        assert_eq!(committed.read().count, VLACKU_WEB_DEFAULT_COUNT);
+        assert_eq!(committed.read().query, "lojbangirzu");
+        assert_eq!(committed.read().min_votes, filter);
+        assert_eq!(
+            draft.read().select_mode(VlackuWebMode::Sound).min_votes,
+            filter
+        );
+        let html = dioxus::ssr::render(&dom);
+        let class = if filter.as_search_min_votes().is_none() {
+            "is-decrease"
+        } else {
+            "is-increase"
+        };
+        let button = html
+            .split(&format!("class=\"vote-filter-step {class}\""))
+            .nth(1)
+            .expect("step button")
+            .split('>')
+            .next()
+            .unwrap();
+        assert!(button.contains("disabled"), "{button}");
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_empty_vote_filter_probe_reaches_the_typed_notice() {
+    let eligibility = vlacku_semantic_entry_eligibility(&VlackuWebState::default());
+    let index = eligibility
+        .without_vote_filter
+        .difference(&eligibility.eligible)
+        .next()
+        .copied()
+        .expect("entry hidden by votes");
+    let json = serde_json::json!({ "hits": [], "voteFilterProbe": { "id": index, "score": 0.9 }, "message": null }).to_string();
+    let (hits, message) = parse_vlacku_semantic_search_json(&json);
+    assert_eq!(hits.len(), 1);
+    let result = jbotci_web_core::build_vlacku_semantic_web_result_with_loading(
+        &VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "test".to_owned(),
+            ..VlackuWebState::default()
+        },
+        &hits,
+        message,
+        false,
+    );
+    assert!(result.cards.is_empty());
+    assert!(result.hidden_by_vote_filter);
 }

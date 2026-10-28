@@ -1411,6 +1411,7 @@ pub(super) fn vlacku_word_href(base_path: &str, word: &str) -> String {
     vlacku_web_url(
         base_path,
         &VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: word.to_owned(),
             count: VLACKU_WEB_DEFAULT_COUNT,

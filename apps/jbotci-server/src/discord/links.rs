@@ -181,6 +181,7 @@ fn gentufa_state(request: &GentufaRequest) -> GentufaWebState {
 fn vlacku_state(request: &VlackuRequest) -> VlackuWebState {
     let options = request.options;
     VlackuWebState {
+        min_votes: Default::default(),
         // The page has no separate lujvo search: a lujvo query is the same
         // word lookup, which shows the entry and its parts.
         mode: match options.mode {

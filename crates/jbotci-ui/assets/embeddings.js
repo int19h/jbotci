@@ -305,6 +305,7 @@ export function jbotciEmbeddingSearch(
   limit,
   kindFiltersJson = "[]",
   corpusIdentityJson,
+  entryEligibilityJson = "null",
 ) {
   return request(channel, "search", {
     corpusIdentityJson,
@@ -312,6 +313,7 @@ export function jbotciEmbeddingSearch(
     query,
     limit,
     kindFiltersJson,
+    entryEligibilityJson,
   });
 }
 
