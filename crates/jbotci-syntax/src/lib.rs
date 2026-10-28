@@ -4563,6 +4563,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn prefixed_prenex_keeps_valid_terms_before_a_failed_term() {
+        let source = "ju'a nai cy no nu do gleki kei\n.i do gleki\n.i ma goi ko'a se ki'u cy no pu ku ze'u ku zo'u do zukte ko'a";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).unwrap();
+        let dialect = jbotci_dialect::parse_dialect_definition("(+split-number-lerfu)").unwrap();
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+        assert_eq!(recovered.errors.len(), 1);
+        assert!(recovered_syntax_parse_conserves_word_spans(
+            &words, &recovered
+        ));
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+        let prenex_spans = words
+            .iter()
+            .filter_map(WordLike::byte_range)
+            .filter(|span| span.start >= 46 && span.end <= 68)
+            .map(|span| (span.start, span.end))
+            .collect::<Vec<_>>();
+        assert_eq!(prenex_spans.len(), 6);
+        for span in prenex_spans {
+            assert!(
+                visitor.valid_spans.contains(&span),
+                "the valid prenex word remains a tree atom at {span:?}"
+            );
+        }
+        assert_eq!(visitor.recovery_spans, [(69, 71), (72, 74), (75, 77)]);
+        assert_eq!(visitor.missing_count, 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_syntax_literal_run_anchors_keep_tree_content() {
         for source in ["le ku do"] {
             let probe = recovered_syntax_probe(source);
@@ -4587,10 +4623,11 @@ mod tests {
             .collect::<String>()
     }
 
-    #[derive(Default)]
     #[invariant(true)]
+    #[derive(Default)]
     struct RecoveredTokenAndErrorVisitor {
         valid_tokens: Vec<String>,
+        valid_spans: Vec<(usize, usize)>,
         recovery_spans: Vec<(usize, usize)>,
         missing_count: usize,
     }
@@ -4641,6 +4678,9 @@ mod tests {
         #[ensures(true)]
         fn visit_atom(&mut self, atom: Self::Atom) {
             let generated_model::recovered::AtomRef::Token(token) = atom;
+            if let Some(span) = token.core_word().byte_range() {
+                self.valid_spans.push((span.start, span.end));
+            }
             let token = token.core_word().to_string();
             let token = token
                 .split_once(':')

@@ -4605,6 +4605,76 @@ fn strict_sequence_parser_tokens(
     Ok((parser, pattern))
 }
 
+// These postfixes keep the vector output. Its elements still need the field's
+// repetition checkpoints and recovery actions through every outer postfix.
+#[requires(true)]
+#[ensures(true)]
+fn repeated_vector_field<'a>(
+    parser: &'a ParserExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeSet<String>,
+) -> Option<&'a VectorExpr> {
+    match parser {
+        ParserExpr::Vector(vector) => Some(vector),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => match (method.to_string().as_str(), args.len()) {
+            ("preceded_by" | "elidable_terminator" | "reject_output", 1) | ("lookahead", 0) => {
+                repeated_vector_field(receiver, type_env, arguments)
+            }
+            // This method discards the vector even if the next parser happens
+            // to return the same type. Its elements do not belong to the field.
+            ("ignore_then", 1) => None,
+            _ => {
+                // Output conversions can name the same vector type. In that
+                // case, element recovery still belongs to this field.
+                let argument_types = argument_type_map(arguments, type_env)?;
+                let before = parser_output_type(receiver, type_env, &argument_types)?;
+                let after = parser_output_type(parser, type_env, &argument_types)?;
+                type_token_streams_match(&before, &after)
+                    .then(|| repeated_vector_field(receiver, type_env, arguments))
+                    .flatten()
+            }
+        },
+        ParserExpr::Rust(_) | ParserExpr::Chain(_) => None,
+    }
+}
+
+#[requires({
+    let mut base = parser;
+    while let ParserExpr::Postfix { receiver, .. } = base {
+        base = receiver;
+    }
+    matches!(base, ParserExpr::Vector(_))
+})]
+#[requires(!inner.is_empty())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|tokens| !tokens.is_empty()))]
+fn vector_field_postfix_tokens<F>(
+    parser: &ParserExpr,
+    inner: TokenStream2,
+    apply_postfix: &F,
+) -> Result<TokenStream2>
+where
+    F: Fn(&ParserExpr, &Ident, &[Expr], TokenStream2) -> Result<TokenStream2>,
+{
+    match parser {
+        ParserExpr::Vector(_) => Ok(inner),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => {
+            let inner = vector_field_postfix_tokens(receiver, inner, apply_postfix)?;
+            apply_postfix(receiver, method, args, inner)
+        }
+        ParserExpr::Rust(_) | ParserExpr::Chain(_) => {
+            unreachable!("vector field postfixes end at a vector")
+        }
+    }
+}
+
 #[requires(!rule_name.is_empty())]
 #[ensures(true)]
 fn recovery_checkpoint_strict_field_parser_expr_tokens(
@@ -4616,7 +4686,7 @@ fn recovery_checkpoint_strict_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> Result<TokenStream2> {
-    if let ParserExpr::Vector(vector) = parser {
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
         if let [item] = vector.items.as_slice() {
             let repeated = match item {
                 VectorItem::ZeroOrMore(expr) => {
@@ -4709,7 +4779,31 @@ fn recovery_checkpoint_strict_field_parser_expr_tokens(
                 VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
             };
             if let Some(repeated) = repeated {
-                return Ok(repeated);
+                if matches!(parser, ParserExpr::Vector(_)) {
+                    return Ok(repeated);
+                }
+                let inner = vector_field_postfix_tokens(
+                    parser,
+                    repeated,
+                    &|receiver, method, args, inner| {
+                        strict_postfix_with_inner_tokens(
+                            receiver,
+                            method,
+                            args,
+                            inner,
+                            arguments,
+                            generation,
+                            free_modifier_parser,
+                            mode,
+                        )
+                    },
+                )?;
+                // Keep prefix and postfix failures inside this field's recovery.
+                return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+                    #rule_name,
+                    #field_index,
+                    #inner
+                )));
             }
         }
     }
@@ -4823,7 +4917,7 @@ fn recovery_checkpoint_recovered_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
-    if let ParserExpr::Vector(vector) = parser {
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
         if let [item] = vector.items.as_slice() {
             let repeated = match item {
                 VectorItem::ZeroOrMore(expr) => {
@@ -4916,7 +5010,31 @@ fn recovery_checkpoint_recovered_field_parser_expr_tokens(
                 VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
             };
             if let Some(repeated) = repeated {
-                return Ok(repeated);
+                if matches!(parser, ParserExpr::Vector(_)) {
+                    return Ok(repeated);
+                }
+                let inner = vector_field_postfix_tokens(
+                    parser,
+                    repeated,
+                    &|receiver, method, args, inner| {
+                        recovered_postfix_with_inner_tokens(
+                            receiver,
+                            method,
+                            args,
+                            inner,
+                            arguments,
+                            generation,
+                            free_modifier_parser,
+                            mode,
+                        )
+                    },
+                )?;
+                // Keep prefix and postfix failures inside this field's recovery.
+                return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+                    #rule_name,
+                    #field_index,
+                    #inner
+                )));
             }
         }
     }
@@ -4942,7 +5060,7 @@ fn recovered_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
-    if let ParserExpr::Vector(vector) = parser {
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
         if let [item] = vector.items.as_slice() {
             let repeated = match item {
                 VectorItem::ZeroOrMore(expr) => {
@@ -5039,7 +5157,31 @@ fn recovered_field_parser_expr_tokens(
                 VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
             };
             if let Some(repeated) = repeated {
-                return Ok(repeated);
+                if matches!(parser, ParserExpr::Vector(_)) {
+                    return Ok(repeated);
+                }
+                let inner = vector_field_postfix_tokens(
+                    parser,
+                    repeated,
+                    &|receiver, method, args, inner| {
+                        recovered_postfix_with_inner_tokens(
+                            receiver,
+                            method,
+                            args,
+                            inner,
+                            arguments,
+                            generation,
+                            free_modifier_parser,
+                            mode,
+                        )
+                    },
+                )?;
+                // Keep prefix and postfix failures inside this field's recovery.
+                return Ok(quote!(generated_runtime::recovered_field_parser(
+                    #rule_name,
+                    #field_index,
+                    #inner
+                )));
             }
         }
     }
@@ -5171,6 +5313,30 @@ fn strict_postfix_parser_expr_tokens(
 ) -> Result<TokenStream2> {
     let inner =
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
+    strict_postfix_with_inner_tokens(
+        receiver,
+        method,
+        args,
+        inner,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )
+}
+
+#[requires(!inner.is_empty())]
+#[ensures(true)]
+fn strict_postfix_with_inner_tokens(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    inner: TokenStream2,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Result<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
         ("warn_if", 2) => {
             let construct =
@@ -5546,6 +5712,30 @@ fn recovered_postfix_parser_expr_tokens(
     }
     let inner =
         recovered_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
+    recovered_postfix_with_inner_tokens(
+        receiver,
+        method,
+        args,
+        inner,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )
+}
+
+#[requires(!inner.is_empty())]
+#[ensures(true)]
+fn recovered_postfix_with_inner_tokens(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    inner: TokenStream2,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
@@ -12339,6 +12529,123 @@ mod tests {
                 warned_output.fields.to_token_stream().to_string(),
                 "{parser}"
             );
+        }
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vector_postfixes_keep_element_recovery_and_field_boundaries() {
+        for vector in [
+            quote!([zero_or_more item]),
+            quote!([one_or_more item]),
+            quote!([zero_or_more..[item]]),
+            quote!([one_or_more..[item]]),
+        ] {
+            for parser in [
+                quote!(#vector.preceded_by(cmavo(Cu).not())),
+                quote!(#vector.preceded_by(cmavo(Cu).not()).preceded_by(cmavo(Zohu).lookahead())),
+                quote!(#vector.reject_output(RejectEmpty)),
+                quote!(#vector.map_to(items)),
+                quote!(#vector.map_to(items).preceded_by(cmavo(Cu).not())),
+                quote!(#vector.lookahead()),
+                quote!(#vector.preceded_by(cmavo(Cu).not()).lookahead()),
+            ] {
+                let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+                    tree_model {}
+                    model;
+                    env generated_runtime::SyntaxGrammarEnv;
+                    strict_parsers;
+                    recursive {
+                        item: ItemSyntax;
+                        free_modifier: FreeModifierSyntax;
+                    }
+                    /// A free modifier.
+                    rule "free modifier" free_modifier -> struct {
+                        /// Its word.
+                        field token <- cmavo(Vau);
+                    }
+                    /// A repeated item.
+                    rule "item" item -> struct {
+                        /// Its word.
+                        field token <- cmavo(Be);
+                    }
+                    alias "items" items(item) = #vector;
+                    /// A vector after another field.
+                    rule "wrapper" wrapper(item) -> struct {
+                        /// The first word.
+                        field first <- cmavo(Ba);
+                        /// The repeated items.
+                        #[recovery_boundary]
+                        field values <- #parser;
+                    }
+                })
+                .unwrap();
+                let text = grammar.expand().to_string();
+                assert!(!text.contains("compile_error"), "{parser}: {text}");
+                for (name, helper) in [
+                    (
+                        "recovery_checkpoint_strict_wrapper_parser",
+                        "recovery_checkpoint_greedy_many_field_parser",
+                    ),
+                    (
+                        "recovered_wrapper_parser",
+                        "recovery_checkpoint_recovered_greedy_many_field_parser",
+                    ),
+                    (
+                        "recovered_wrapper_parser",
+                        "recovered_greedy_many_field_parser",
+                    ),
+                ] {
+                    let body = generated_function_text(&text, name);
+                    let marker = format!("generated_runtime :: {helper} (\"wrapper\" , 1usize ,");
+                    assert_eq!(body.matches(&marker).count(), 1, "{parser}: {body}");
+                    let repeated_start = body.find(&marker).unwrap();
+                    let outer = if helper == "recovered_greedy_many_field_parser" {
+                        "recovered_field_parser"
+                    } else {
+                        "recovery_checkpoint_field_parser"
+                    };
+                    let outer_marker =
+                        format!("generated_runtime :: {outer} (\"wrapper\" , 1usize ,");
+                    let outer_start = body[..repeated_start].rfind(&outer_marker).unwrap();
+                    let prefix_count = parser.to_string().matches("preceded_by").count();
+                    assert_eq!(
+                        body[outer_start..repeated_start]
+                            .matches("ignore_then")
+                            .count(),
+                        prefix_count,
+                        "each prefix is inside the field handler and outside the repetition: {body}"
+                    );
+                    if helper == "recovered_greedy_many_field_parser" {
+                        let count = if vector.to_string().contains("one_or_more") {
+                            "1usize"
+                        } else {
+                            "0usize"
+                        };
+                        assert!(
+                            body[repeated_start..]
+                                .starts_with(&format!("{marker} {count} , true ,")),
+                            "{body}"
+                        );
+                    }
+                    assert!(
+                        !body.contains("generated_runtime :: recovered_greedy_many_parser"),
+                        "{parser}: {body}"
+                    );
+                    let paths = if name == "recovered_wrapper_parser" {
+                        2
+                    } else {
+                        1
+                    };
+                    let expected_prefixes =
+                        parser.to_string().matches("preceded_by").count() * paths;
+                    assert_eq!(
+                        body.matches("ignore_then").count(),
+                        expected_prefixes,
+                        "each prefix applies once: {body}"
+                    );
+                }
+            }
         }
     }
 }
