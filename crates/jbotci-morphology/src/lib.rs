@@ -1535,8 +1535,9 @@ where
             map_word_spans(*marker, map_span)?,
             map_verbatim_span(*quoted_text, map_span)?,
         ),
-        data!(WordLike::ReplacementQuote { runs, lehai }) => WordLike::replacement_quote(
-            runs.into_iter()
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            let runs = runs
+                .into_iter()
                 .map(|run| {
                     let run = run.into_data();
                     let marker = map_word_spans(run.marker, map_span)?;
@@ -1550,9 +1551,15 @@ where
                         .collect::<Result<Vec<_>, String>>()?;
                     Ok(new!(ReplacementQuoteRun { marker, words }))
                 })
-                .collect::<Result<Vec<_>, String>>()?,
-            map_word_spans(*lehai, map_span)?,
-        ),
+                .collect::<Result<Vec<_>, String>>()?;
+            let lehai = map_word_spans(*lehai, map_span)?;
+            // A mapper can reorder separate spans. The combined quote must still have ordered spans.
+            try_new!(WordLike::ReplacementQuote {
+                runs,
+                lehai: Box::new(lehai)
+            })
+            .map_err(|_| "Source spans in the replacement quote are out of order.".to_owned())?
+        }
         data!(WordLike::LerfuWord { base, bu }) => WordLike::letter(
             map_word_like_spans(*base, map_span)?,
             map_word_spans(*bu, map_span)?,

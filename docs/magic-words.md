@@ -92,7 +92,7 @@ A leading `sa'ai` supplies new text without old text.
 A bare `le'ai` supplies the close-only form.
 Jbotci warns that this syntax is experimental.
 
-A second `lo'ai` remains part of the quoted old text.
+After an opening `lo'ai`, a second `lo'ai` remains part of the quoted old text.
 With a leading `sa'ai`, both runs form the quoted new text.
 Emphasis marks the opening word, and indicators after the quote attach to its closing word.
 Free modifiers after LEhAI attach to that closing word too.

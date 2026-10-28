@@ -2554,67 +2554,75 @@ fn all_short_vowel_symbols() -> &'static [&'static str] {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret.is_empty())]
 fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
-    flatten_word_like_ipa_in_context(word_like, LeadingPauseContext::IndependentWord)
+    let mut chunks = Vec::new();
+    append_word_like_ipa(word_like, LeadingPauseContext::IndependentWord, &mut chunks);
+    chunks
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn flatten_word_like_ipa_in_context(
-    word_like: &WordLike,
+#[ensures(chunks.len() > old(chunks.len()))]
+fn append_word_like_ipa<'word>(
+    word_like: &'word WordLike,
     leading_pause_context: LeadingPauseContext,
-) -> Vec<IpaSurfaceChunk<'_>> {
+    chunks: &mut Vec<IpaSurfaceChunk<'word>>,
+) {
     match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => vec![IpaSurfaceChunk::Word {
+        data!(WordLike::PlainWord(word)) => chunks.push(IpaSurfaceChunk::Word {
             word,
             leading_pause_context,
-        }],
+        }),
         data!(WordLike::QuotedWord { zo, word }) => {
-            vec![word_ipa_chunk(zo), word_ipa_chunk(word)]
+            chunks.extend([word_ipa_chunk(zo), word_ipa_chunk(word)])
         }
         data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            vec![word_ipa_chunk(mahoi), word_ipa_chunk(word)]
+            chunks.extend([word_ipa_chunk(mahoi), word_ipa_chunk(word)])
         }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
-            closing_delimiter,
-        }) => vec![
+            closing_delimiter
+        }) => chunks.extend([
             word_ipa_chunk(zoi),
             word_ipa_chunk(opening_delimiter),
             IpaSurfaceChunk::Text(drop_leading_zoi_separator_ref(&quoted_text.text)),
             word_ipa_chunk(closing_delimiter),
-        ],
+        ]),
         data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
-            lehu,
+            lehu
         }) => {
-            let mut chunks = vec![word_ipa_chunk(lohu)];
+            chunks.push(word_ipa_chunk(lohu));
             chunks.extend(quoted_words.iter().map(word_ipa_chunk));
             chunks.push(word_ipa_chunk(lehu));
-            chunks
+        }
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            for run in runs {
+                chunks.push(word_ipa_chunk(&run.marker));
+                for word in &run.words {
+                    append_word_like_ipa(&word.word, LeadingPauseContext::IndependentWord, chunks);
+                }
+            }
+            chunks.push(word_ipa_chunk(lehai));
         }
         data!(WordLike::DelimitedWordQuote {
             marker,
-            quoted_text,
-        }) => vec![
+            quoted_text
+        }) => chunks.extend([
             word_ipa_chunk(marker),
             IpaSurfaceChunk::Text(&quoted_text.text),
-        ],
+        ]),
         data!(WordLike::LerfuWord { base, bu }) => {
-            let mut chunks =
-                flatten_word_like_ipa_in_context(base, LeadingPauseContext::BuLetterBase);
+            append_word_like_ipa(base, LeadingPauseContext::BuLetterBase, chunks);
             chunks.push(word_ipa_chunk(bu));
-            chunks
         }
         data!(WordLike::ZeiCompound { left, zei, right }) => {
-            let mut chunks = flatten_word_like_ipa(left);
+            append_word_like_ipa(left, LeadingPauseContext::IndependentWord, chunks);
             chunks.push(word_ipa_chunk(zei));
             chunks.push(word_ipa_chunk(right));
-            chunks
         }
     }
 }
@@ -3171,6 +3179,49 @@ mod tests {
         .iter()
         .map(|text| tokenize_ipa_text(text).expect("property corpus tokenizes"))
         .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn replacement_quote_ipa_retains_raw_words_and_y_bu_context() {
+        use jbotci_morphology::Cmavo;
+        let words =
+            jbotci_morphology::segment_words_with_modifiers("lo'ai y bu le'u sa'ai mi le'ai")
+                .expect("one replacement quote");
+        assert_eq!(words.len(), 1);
+        let chunks = flatten_word_like_ipa(&words[0]);
+        let mut identities = Vec::new();
+        for chunk in chunks {
+            let IpaSurfaceChunk::Word {
+                word,
+                leading_pause_context,
+            } = chunk
+            else {
+                panic!("raw Lojban words")
+            };
+            identities.push(word.cmavo().expect("raw cmavo"));
+            assert_eq!(
+                leading_pause_context,
+                if word.is_cmavo(Cmavo::Y) {
+                    LeadingPauseContext::BuLetterBase
+                } else {
+                    LeadingPauseContext::IndependentWord
+                }
+            );
+        }
+        assert_eq!(
+            identities,
+            [
+                Cmavo::Lohai,
+                Cmavo::Y,
+                Cmavo::Bu,
+                Cmavo::Lehu,
+                Cmavo::Sahai,
+                Cmavo::Mi,
+                Cmavo::Lehai
+            ]
+        );
     }
 
     #[test]
