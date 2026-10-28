@@ -10180,12 +10180,14 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "klama");
+        assert_eq!(result.state.query, "клама");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
-        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+        let url = vlacku_web_url("", &result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "клама");
 
         let glide_result = build_vlacku_web_result(&VlackuWebState {
             min_votes: Default::default(),
@@ -10196,12 +10198,14 @@ mod tests {
         });
 
         assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
-        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(glide_result.state.query, "шой");
         assert_eq!(
             glide_result.cards.first().map(|card| card.word.as_str()),
             Some("coi")
         );
-        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
+        let url = vlacku_web_url("", &glide_result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "шой");
     }
 
     #[test]
@@ -10217,12 +10221,20 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "klama");
+        assert_eq!(
+            result.state.query,
+            "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}"
+        );
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
-        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+        let url = vlacku_web_url("", &result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(
+            parse_vlacku_web_route(&url, "").query,
+            "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}"
+        );
 
         let glide_result = build_vlacku_web_result(&VlackuWebState {
             min_votes: Default::default(),
@@ -10233,12 +10245,14 @@ mod tests {
         });
 
         assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
-        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(glide_result.state.query, "\u{ed86}\u{eda8}");
         assert_eq!(
             glide_result.cards.first().map(|card| card.word.as_str()),
             Some("coi")
         );
-        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
+        let url = vlacku_web_url("", &glide_result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "\u{ed86}\u{eda8}");
     }
 
     #[test]
