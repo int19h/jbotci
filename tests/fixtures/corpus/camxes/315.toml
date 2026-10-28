@@ -5,19 +5,12 @@ lojban = "lo'u mi le'u si le'u"
 kind = "corpus"
 corpus = "camxes"
 entry-id = "315"
+# The surviving unopened LEhU is a morphology fault. Its diagnostic keeps the original word span and message.
 
 [expectations.morphology]
-status = "success"
-raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "le'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None } })]"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unopened-quote", byte-span = [16, 20], source-text = "le'u", message = "unexpected cmavo" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [16, 20], source-text = "le'u", message = "unexpected cmavo" }]
-
-[expectations.output.vlasei]
-brackets = "le'u"
-tree = """
-[
-  Cmavo @[16‥20) "le'u",
-]"""
-json = """[{"PlainWord":{"Cmavo":{"phonemes":"le'u","span":[16,20]}}}]"""
+diagnostics = [{ severity = "error", code = "morphology.unopened-quote", byte-span = [16, 20], source-text = "le'u", message = "unexpected cmavo" }]

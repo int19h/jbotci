@@ -5,23 +5,17 @@ lojban = "<- colorado, usa"
 kind = "corpus"
 corpus = "camxes"
 entry-id = "22446"
+# Morphology reads usa as U followed by SA. The terminal SA clears the prefix, so the text has no surviving words.
 
 [expectations.morphology]
 status = "success"
-raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "co" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ra" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 14, char_start: 13, char_end: 14, start: None, end: None } })]'
+raw = "[]"
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "co", message = "unexpected cmavo" }]
+status = "success"
+diagnostics = []
 
 [expectations.output.vlasei]
-brackets = "(co lo ra do .u)"
-tree = """
-[
-  Cmavo @[3‥5) "co",
-  Cmavo @[5‥7) "lo",
-  Cmavo @[7‥9) "ra",
-  Cmavo @[9‥11) "do",
-  Cmavo @[13‥14) "u",
-]"""
-json = '[{"PlainWord":{"Cmavo":{"phonemes":"co","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[7,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"u","span":[13,14]}}}]'
+brackets = ""
+tree = "[]"
+json = "[]"

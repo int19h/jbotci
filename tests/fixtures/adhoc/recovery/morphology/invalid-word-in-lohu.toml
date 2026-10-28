@@ -2,10 +2,15 @@ id = "adhoc.recovery.morphology.invalid-word-in-lohu"
 lojban = "lo'u broda @@@ le'u"
 tags = ["adhoc", "recovery", "morphology"]
 
+[[provenance]]
+kind = "other"
+name = "#1031"
+description = "The failed quote reader leaves its later LEhU unopened during recovery. The surviving fault keeps its own diagnostic."
+
 [expectations.morphology]
 status = "failure"
 diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [11, 12], source-text = "@", message = "invalid character in Lojban word" }]
 
 [expectations.morphology.recovered]
 status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [11, 12], source-text = "@", message = "invalid character in Lojban word" }]
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [11, 12], source-text = "@", message = "invalid character in Lojban word" }, { severity = "error", code = "morphology.unopened-quote", byte-span = [15, 19], source-text = "le'u", message = "unexpected cmavo" }]

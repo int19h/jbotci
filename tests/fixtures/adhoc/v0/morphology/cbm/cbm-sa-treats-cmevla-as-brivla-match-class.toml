@@ -3,15 +3,19 @@ lojban = "mi .alis. do sa broda"
 dialect = "(cbm)"
 tags = ["v0-adhoc", "morphology"]
 
+[[provenance]]
+kind = "other"
+name = "#1031"
+description = "SA keeps CMEVLA separate from BRIVLA under CBM. No BRIVLA precedes SA, so only the replacement broda remains."
+
 [expectations.morphology]
 status = "success"
-raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None } })]'
+raw = '[PlainWord(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None } })]'
 
 [expectations.output.vlasei]
-brackets = "(mi bróda)"
+brackets = "bróda"
 tree = """
 [
-  Cmavo @[0‥2) "mi",
   Gismu @[16‥21) "bróda",
 ]"""
-json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[16,21]}}}]'
+json = '[{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[16,21]}}}]'

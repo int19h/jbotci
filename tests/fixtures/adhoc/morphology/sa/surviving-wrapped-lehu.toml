@@ -1,0 +1,12 @@
+id = "adhoc.morphology.sa.surviving-wrapped-lehu"
+lojban = "le'u bu"
+tags = ["issue-1031", "sa", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 regression"
+description = "Regression case. The surviving fault keeps its original primary span and diagnostic text."
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unopened-quote", byte-span = [0, 4], source-text = "le'u", message = "unexpected cmavo" }]

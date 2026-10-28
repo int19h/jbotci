@@ -5,20 +5,12 @@ lojban = "lo'u mi le'u co si si le'u klama"
 kind = "corpus"
 corpus = "camxes"
 entry-id = "305"
+# The surviving unopened LEhU is a morphology fault. Its diagnostic keeps the original word span and message.
 
 [expectations.morphology]
-status = "success"
-raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "le'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 26, char_start: 22, char_end: 26, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 32, char_start: 27, char_end: 32, start: None, end: None } })]"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unopened-quote", byte-span = [22, 26], source-text = "le'u", message = "unexpected cmavo" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 26], source-text = "le'u", message = "unexpected cmavo" }]
-
-[expectations.output.vlasei]
-brackets = "(le'u kláma)"
-tree = """
-[
-  Cmavo @[22‥26) "le'u",
-  Gismu @[27‥32) "kláma",
-]"""
-json = """[{"PlainWord":{"Cmavo":{"phonemes":"le'u","span":[22,26]}}},{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[27,32]}}}]"""
+diagnostics = [{ severity = "error", code = "morphology.unopened-quote", byte-span = [22, 26], source-text = "le'u", message = "unexpected cmavo" }]

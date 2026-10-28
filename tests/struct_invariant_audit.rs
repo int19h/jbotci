@@ -960,6 +960,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw-brackets depth and construct-filter settings are independent and every typed combination is valid",
     ),
     (
+        "crates/jbotci-morphology/src/grammar.rs:ErasureWordsCase",
+        "Test data keeps source text and expected words independent. The test assertion compares their parsed result.",
+    ),
+    (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
         "segmenter is mutable parser state whose invariants are algorithm-local",
     ),

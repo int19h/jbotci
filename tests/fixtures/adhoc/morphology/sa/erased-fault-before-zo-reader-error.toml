@@ -1,0 +1,12 @@
+id = "adhoc.morphology.sa.erased-fault-before-zo-reader-error"
+lojban = "bu sa zo"
+tags = ["issue-1031", "sa", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 regression"
+description = "Regression case. SA erases the BU fault before ZO reports its missing target."
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.expected-word", byte-span = [8, 8], source-text = "", message = "expected Lojban word" }]

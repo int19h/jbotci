@@ -1,0 +1,13 @@
+id = "adhoc.morphology.sa.incomplete-lohu-body-stays-literal"
+lojban = "mi lo'u da le'u broda sa lo'u si"
+tags = ["issue-1031", "sa", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "#1031 regression"
+description = "Regression case. LOhU supplies the key. The replacement has no LEhU, and its SI remains quoted material for syntax diagnostics."
+
+[expectations.morphology]
+status = "success"
+raw = "[PlainWord(Cmavo { phonemes: Phonemes { text: \"mi\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"lo'u\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 25, byte_end: 29, char_start: 25, char_end: 29, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: \"si\" }, span: SourceSpan { source_id: Some(SourceId(\"<fixture>\")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None } })]"
+diagnostics = []
