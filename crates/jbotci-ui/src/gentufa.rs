@@ -970,14 +970,19 @@ pub(super) fn render_ref_marker(
                     clear_reference_hover(leave_hover);
                     clear_reference_tooltip_open(leave_tooltip_open);
                 },
-                onclick: move |_| set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone()),
-                span {
-                    class: "{class}",
-                    "data-ref-role": "{role}",
-                    "data-ref-kind": "{kind}",
-                    "data-ref-label": "{label}",
-                    "data-ref-base": "{base}",
-                    { render_reference_label(&marker.label) }
+                button {
+                    r#type: "button",
+                    class: "reference-tooltip-trigger",
+                    aria_expanded: reference_tooltip_matches_marker(marker, tooltip_open_state),
+                    onclick: move |_| set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone()),
+                    span {
+                        class: "{class}",
+                        "data-ref-role": "{role}",
+                        "data-ref-kind": "{kind}",
+                        "data-ref-label": "{label}",
+                        "data-ref-base": "{base}",
+                        { render_reference_label(&marker.label) }
+                    }
                 }
                 { render_reference_tooltip(tooltip, &base_path, script) }
             }

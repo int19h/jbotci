@@ -678,7 +678,7 @@ pub(super) fn render_dictionary_tooltip(
 ) -> Element {
     let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
-        span { class: "rich-dictionary-tooltip", role: "tooltip",
+        span { class: "rich-dictionary-tooltip", role: "tooltip", popover: "manual",
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
                     if show_link {
@@ -782,7 +782,7 @@ pub(super) fn render_reference_tooltip(
     script: GentufaScript,
 ) -> Element {
     rsx! {
-        span { class: "rich-reference-tooltip-stack", role: "tooltip",
+        span { class: "rich-reference-tooltip-stack", role: "tooltip", popover: "manual",
             if let Some(card) = &tooltip.card {
                 { render_reference_dictionary_card(card, tooltip, base_path, script) }
             } else if let Some(word) = &tooltip.missing_word {
