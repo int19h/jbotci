@@ -1628,12 +1628,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment kind is a closed presentation selector with no payload to constrain",
     ),
     (
-        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::ExperimentalQuoteSelmaho",
-        "experimental quote erasure tags are private static category names",
-    ),
-    (
-        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Selmaho",
-        "selmaho erasure tags carry validated Selmaho values",
+        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Cmavo",
+        "Cmavo selects its class set from the typed inventory. Every class set, including the empty set, is valid.",
     ),
     (
         "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Display",
@@ -1642,6 +1638,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Morphology",
         "segment mode is a private closed selector for trace label and FAhO handling",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:StreamUnit::Fault",
+        "MagicWordFault validates its source span and diagnostic anchor. The stream wrapper adds no fields.",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:StreamUnit::Word",
+        "WordLike validates the complete word unit. The stream wrapper adds no fields.",
     ),
     (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
