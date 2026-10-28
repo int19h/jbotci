@@ -27,3 +27,21 @@ fn lexical_single_word_identity_preserves_written_boundaries() {
         assert!(lex_single_word(text).is_some(), "{text}");
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn lexical_single_word_identity_precedes_magic_word_fault_recovery() {
+    let marker = lex_single_word("me'oi").expect("the quote marker is one lexical word");
+    assert_eq!(marker.selmaho(), Some("MEhOI"));
+    for text in [
+        "bu si",
+        "zei si",
+        "le'u si",
+        "bu sa klama",
+        "zei sa klama",
+        "me'oi klama",
+    ] {
+        assert!(lex_single_word(text).is_none(), "{text}");
+    }
+}
