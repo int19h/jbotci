@@ -4183,3 +4183,70 @@ fn vlacku_empty_vote_filter_probe_reaches_the_typed_notice() {
     assert!(result.cards.is_empty());
     assert!(result.hidden_by_vote_filter);
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn native_vlacku_wrapper_filters_before_the_ranking_limit() {
+    use jbotci_embeddings::DictionarySemanticHit;
+    let count = 20;
+    for state in [
+        VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            min_votes: new!(jbotci_web_core::VlackuVoteFilter::AtLeast { votes: 20 }),
+            ..VlackuWebState::default()
+        },
+        VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            min_votes: new!(jbotci_web_core::VlackuVoteFilter::Any),
+            word_types: vec!["gismu".to_owned()],
+            ..VlackuWebState::default()
+        },
+    ] {
+        let eligibility = jbotci_web_core::vlacku_semantic_entry_eligibility(&state);
+        let rejected = (0..)
+            .filter(|id| !eligibility.eligible.contains(id))
+            .take(count + 1);
+        let admitted = eligibility
+            .eligible
+            .iter()
+            .copied()
+            .take(count + 1)
+            .collect::<Vec<_>>();
+        assert_eq!(admitted.len(), count + 1);
+        let ranked = rejected.chain(admitted.iter().copied()).collect::<Vec<_>>();
+        let mut calls = 0;
+        let json = native_embedding_vlacku_search_json(
+            |query, limit, allowed| {
+                calls += 1;
+                assert_eq!(query, "deterministic query");
+                Ok(ranked
+                    .iter()
+                    .copied()
+                    .filter(|id| allowed(*id))
+                    .take(limit)
+                    .map(|entry_index| DictionarySemanticHit {
+                        entry_index,
+                        score: 0.5,
+                    })
+                    .collect())
+            },
+            "deterministic query",
+            count + 1,
+            Some(&eligibility),
+        )
+        .expect("native wrapper result");
+        assert_eq!(calls, 1);
+        let response: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            response["hits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|hit| hit["id"].as_u64().unwrap() as usize)
+                .collect::<Vec<_>>(),
+            admitted
+        );
+        assert!(response["voteFilterProbe"].is_null());
+    }
+}

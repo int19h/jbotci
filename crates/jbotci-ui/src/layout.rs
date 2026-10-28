@@ -2860,9 +2860,12 @@ pub(super) fn native_embedding_worker_search_json(
     entry_eligibility: Option<&VlackuSemanticEligibility>,
 ) -> Result<String, String> {
     match corpus_id {
-        jbotci_embeddings::VLACKU_CORPUS_ID => {
-            native_embedding_vlacku_search_json(service, query, count, entry_eligibility)
-        }
+        jbotci_embeddings::VLACKU_CORPUS_ID => native_embedding_vlacku_search_json(
+            |query, count, allowed| service.semantic_vlacku_hits_filtered(query, count, allowed),
+            query,
+            count,
+            entry_eligibility,
+        ),
         jbotci_embeddings::CUKTA_CORPUS_ID => {
             native_embedding_cukta_search_json(service, query, count, kind_filters)
         }
@@ -2870,32 +2873,37 @@ pub(super) fn native_embedding_worker_search_json(
     }
 }
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[cfg(any(test, all(not(target_arch = "wasm32"), feature = "desktop")))]
 #[requires(!query.trim().is_empty())]
 #[requires(count > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 pub(super) fn native_embedding_vlacku_search_json(
-    service: &mut jbotci_embeddings::native::NativeEmbeddingSearchService,
+    mut rank: impl FnMut(
+        &str,
+        usize,
+        &mut dyn FnMut(usize) -> bool,
+    ) -> Result<
+        Vec<jbotci_embeddings::DictionarySemanticHit>,
+        jbotci_embeddings::EmbeddingError,
+    >,
     query: &str,
     count: usize,
     entry_eligibility: Option<&VlackuSemanticEligibility>,
 ) -> Result<String, String> {
-    let hits = service
-        .semantic_vlacku_hits_filtered(query, count, |index| {
-            entry_eligibility.is_none_or(|filter| filter.eligible.contains(&index))
-        })
-        .map_err(native_embedding_search_setup_error)?;
+    let hits = rank(query, count, &mut |index| {
+        entry_eligibility.is_none_or(|filter| filter.eligible.contains(&index))
+    })
+    .map_err(native_embedding_search_setup_error)?;
     let probe = if hits.is_empty() {
         if let Some(filter) =
             entry_eligibility.filter(|filter| !filter.without_vote_filter.is_empty())
         {
-            service
-                .semantic_vlacku_hits_filtered(query, 1, |index| {
-                    filter.without_vote_filter.contains(&index)
-                })
-                .map_err(native_embedding_search_setup_error)?
-                .into_iter()
-                .next()
+            rank(query, 1, &mut |index| {
+                filter.without_vote_filter.contains(&index)
+            })
+            .map_err(native_embedding_search_setup_error)?
+            .into_iter()
+            .next()
         } else {
             None
         }
@@ -3091,7 +3099,7 @@ pub(super) fn native_cukta_target_filter(kind_filters: &[String]) -> jbotci_cll:
     }
 }
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[cfg(any(test, all(not(target_arch = "wasm32"), feature = "desktop")))]
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn native_embedding_search_setup_error(
