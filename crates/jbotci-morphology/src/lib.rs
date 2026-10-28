@@ -1539,16 +1539,16 @@ where
             runs.into_iter()
                 .map(|run| {
                     let run = run.into_data();
-                    Ok(new!(ReplacementQuoteRun {
-                        marker: map_word_spans(run.marker, map_span)?,
-                        words: run
-                            .words
-                            .into_iter()
-                            .map(|word| Ok(new!(ReplacementQuoteWord {
-                                word: map_word_like_spans(word.into_data().word, map_span)?
-                            })))
-                            .collect::<Result<Vec<_>, String>>()?,
-                    }))
+                    let marker = map_word_spans(run.marker, map_span)?;
+                    let words = run
+                        .words
+                        .into_iter()
+                        .map(|word| {
+                            let word = map_word_like_spans(word.into_data().word, map_span)?;
+                            Ok(new!(ReplacementQuoteWord { word }))
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    Ok(new!(ReplacementQuoteRun { marker, words }))
                 })
                 .collect::<Result<Vec<_>, String>>()?,
             map_word_spans(*lehai, map_span)?,

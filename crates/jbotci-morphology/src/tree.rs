@@ -90,7 +90,8 @@ tree_model! {
     #[invariant(::QuotedWords => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]
     #[invariant(::ReplacementQuote => runs.len() <= 2 && lehai.is_cmavo(Cmavo::Lehai)
         && runs.first().is_none_or(|run| run.marker.span().byte_end <= lehai.span().byte_start))]
-    #[bityzba::expensive_invariant(::ReplacementQuote => {
+    #[bityzba::expensive_invariant(match self.as_data() {
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
         let mut end = 0;
         runs.iter().all(|run| {
             let ordered = end <= run.marker.span().byte_start;
@@ -104,6 +105,8 @@ tree_model! {
                 ordered
             })
         }) && end <= lehai.span().byte_start
+        },
+        _ => true,
     })]
     #[invariant(::DelimitedWordQuote => super::is_single_word_quote_marker(marker))]
     #[invariant(::LerfuWord => bu.is_cmavo(Cmavo::Bu))]
