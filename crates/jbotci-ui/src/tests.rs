@@ -4117,6 +4117,12 @@ fn vlacku_vote_filter_control_and_state_share_one_value() {
     }
     let mut draft = draft_slot.get().expect("mounted draft");
     let mut committed = committed_slot.get().expect("mounted committed state");
+    dom.in_scope(ScopeId::ROOT, || {
+        set_vlacku_vote_filter(&mut draft, &mut committed, VlackuVoteFilter::default())
+    });
+    dom.render_immediate_to_vec();
+    assert_eq!(committed.read().count, 80);
+    assert_eq!(draft.read().web_state(), *committed.read());
     for filter in [
         new!(jbotci_web_core::VlackuVoteFilter::Any),
         new!(jbotci_web_core::VlackuVoteFilter::AtLeast { votes: 20 }),

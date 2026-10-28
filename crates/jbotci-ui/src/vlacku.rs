@@ -2286,12 +2286,16 @@ pub(super) fn vote_filter_key(filter: VlackuVoteFilter, key: Key) -> Option<Vlac
 
 #[requires(true)]
 #[ensures(committed.peek().min_votes == filter)]
-#[ensures(committed.peek().count == VLACKU_WEB_DEFAULT_COUNT)]
+#[ensures(old(draft.peek().min_votes != filter || committed.peek().min_votes != filter) -> committed.peek().count == VLACKU_WEB_DEFAULT_COUNT)]
+#[ensures(old(draft.peek().min_votes == filter && committed.peek().min_votes == filter) -> committed.peek().count == old(committed.peek().count))]
 pub(super) fn set_vlacku_vote_filter(
     draft: &mut Signal<VlackuDraftState>,
     committed: &mut Signal<VlackuWebState>,
     filter: VlackuVoteFilter,
 ) {
+    if draft.peek().min_votes == filter && committed.peek().min_votes == filter {
+        return;
+    }
     let mut next = draft.read().web_state();
     next.min_votes = filter;
     next.count = VLACKU_WEB_DEFAULT_COUNT;
