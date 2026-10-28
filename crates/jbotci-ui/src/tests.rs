@@ -3816,3 +3816,204 @@ fn has_css_class(class_name: &str, expected: &str) -> bool {
         .split_whitespace()
         .any(|class_name| class_name == expected)
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_inputs_are_independent_for_every_mode() {
+    let modes = [
+        VlackuWebMode::Word,
+        VlackuWebMode::Rafsi,
+        VlackuWebMode::Sound,
+        VlackuWebMode::Meaning,
+    ];
+    for initial_mode in modes {
+        let initial = VlackuWebState {
+            mode: initial_mode,
+            query: "initial input".to_owned(),
+            count: 80,
+            word_types: vec!["gismu".to_owned()],
+        };
+        let mut draft = VlackuDraftState::from_state(initial.clone());
+        assert_eq!(draft.web_state(), initial);
+        for mode in modes {
+            let mut next = draft.select_mode(mode);
+            assert_eq!(
+                next.query,
+                if mode == initial_mode {
+                    "initial input"
+                } else {
+                    ""
+                }
+            );
+            assert_eq!(next.count, VLACKU_WEB_DEFAULT_COUNT);
+            assert_eq!(next.word_types, initial.word_types);
+            next.query = format!("{mode:?} input");
+            draft.apply_state(next);
+        }
+        for mode in modes {
+            let next = draft.select_mode(mode);
+            assert_eq!(next.query, format!("{mode:?} input"));
+            draft.apply_state(next.clone());
+            assert_eq!(draft.web_state(), next);
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_navigation_restores_only_the_active_input() {
+    let mut draft = VlackuDraftState::from_state(VlackuWebState {
+        query: "klama".to_owned(),
+        ..VlackuWebState::default()
+    });
+    let mut rafsi = draft.select_mode(VlackuWebMode::Rafsi);
+    rafsi.query = "kla".to_owned();
+    draft.apply_state(rafsi.clone());
+    let word_url = vlacku_web_url(
+        "",
+        &VlackuWebState {
+            query: "blanu".to_owned(),
+            count: 40,
+            word_types: vec!["gismu".to_owned()],
+            ..VlackuWebState::default()
+        },
+    );
+    let location = jbotci_route_from_href("", &word_url).expect("word route");
+    let WebRoute::Vlacku(word) = location.web_route.clone() else {
+        panic!("expected a dictionary route");
+    };
+    draft.apply_state(word.clone());
+    assert_eq!(draft.web_state(), word);
+    assert_eq!(draft.select_mode(VlackuWebMode::Rafsi).query, "kla");
+    draft.apply_state(rafsi);
+    assert_eq!(draft.web_state().query, "kla");
+    assert_eq!(draft.select_mode(VlackuWebMode::Word).query, "blanu");
+    draft.apply_state(word.clone());
+    assert_eq!(draft.web_state(), word);
+
+    let mut cleared = draft.web_state();
+    cleared.query.clear();
+    draft.apply_state(cleared);
+    draft.apply_state(draft.select_mode(VlackuWebMode::Rafsi));
+    assert!(draft.select_mode(VlackuWebMode::Word).query.is_empty());
+
+    let reloaded = VlackuDraftState::from_state(word.clone());
+    assert_eq!(reloaded.web_state(), word);
+    assert!(reloaded.select_mode(VlackuWebMode::Rafsi).query.is_empty());
+}
+
+/// The router test uses the real route model and mounts only its notification probe.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VlackuHistoryTestRoute {
+    location: JbotciRoute,
+}
+
+impl FromStr for VlackuHistoryTestRoute {
+    type Err = JbotciRouteParseError;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        raw.parse().map(|location| Self { location })
+    }
+}
+
+impl fmt::Display for VlackuHistoryTestRoute {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.location, formatter)
+    }
+}
+
+impl Routable for VlackuHistoryTestRoute {
+    const SITE_MAP: &'static [dioxus::router::SiteMapSegment] = JbotciRoute::SITE_MAP;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render(&self, level: usize) -> Element {
+        if level == 0 {
+            rsx! { VlackuHistoryProbe { route: self.clone() } }
+        } else {
+            rsx! {}
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+fn VlackuHistoryProbe(route: VlackuHistoryTestRoute) -> Element {
+    let pending = use_signal(PendingLocalRouteWrites::default);
+    let navigator_slot = consume_context::<Rc<Cell<Option<Navigator>>>>();
+    let pending_slot = consume_context::<Rc<Cell<Option<Signal<PendingLocalRouteWrites>>>>>();
+    let route_navigator = navigator();
+    let push_route = use_callback(move |target| {
+        push_vlacku_route(route_navigator, pending, target);
+    });
+    let push_slot = consume_context::<Rc<Cell<Option<Callback<JbotciRoute>>>>>();
+    navigator_slot.set(Some(route_navigator));
+    pending_slot.set(Some(pending));
+    push_slot.set(Some(push_route));
+    rsx! { "{route}" }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_url_push_notifies_the_router_before_history_navigation() {
+    let navigator_slot = Rc::new(Cell::new(None::<Navigator>));
+    let pending_slot = Rc::new(Cell::new(None::<Signal<PendingLocalRouteWrites>>));
+    let push_slot = Rc::new(Cell::new(None::<Callback<JbotciRoute>>));
+    let history: Rc<dyn History> = Rc::new(dioxus::history::MemoryHistory::with_initial_path(
+        "/vlacku/klama",
+    ));
+    let mut dom = VirtualDom::new(|| rsx! { Router::<VlackuHistoryTestRoute> {} })
+        .with_root_context(history.clone())
+        .with_root_context(navigator_slot.clone())
+        .with_root_context(pending_slot.clone())
+        .with_root_context(push_slot.clone());
+    dom.rebuild_in_place();
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/klama");
+    let navigator = navigator_slot.get().expect("mounted router");
+    let mut pending = pending_slot.get().expect("mounted pending writes");
+    let push_route = push_slot.get().expect("mounted route callback");
+    let mut current = parse_test_route("", "/vlacku/klama");
+
+    for query in ["melbi", "blanu"] {
+        let target = JbotciRoute::from_web_route(
+            WebRoute::Vlacku(VlackuWebState {
+                query: query.to_owned(),
+                ..VlackuWebState::default()
+            }),
+            false,
+        );
+        let WebRoute::Vlacku(state) = &target.web_route else {
+            panic!("expected a dictionary route");
+        };
+        schedule_vlacku_url_push(push_route, &current, state, None);
+        dom.render_immediate_to_vec();
+        assert_eq!(dioxus::ssr::render(&dom), target.to_string());
+        assert_eq!(history.current_route(), target.to_string());
+        assert!(dom.in_scope(ScopeId::ROOT, || {
+            pending.with_mut(|pending| pending.consume(&target))
+        }));
+        current = target;
+    }
+
+    dom.in_scope(ScopeId::ROOT, || navigator.go_back());
+    dom.render_immediate_to_vec();
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/melbi");
+    assert_eq!(history.current_route(), "/vlacku/melbi");
+    assert!(pending.peek().routes.is_empty());
+
+    dom.in_scope(ScopeId::ROOT, || navigator.go_forward());
+    dom.render_immediate_to_vec();
+    assert_eq!(dioxus::ssr::render(&dom), "/vlacku/blanu");
+    assert_eq!(history.current_route(), "/vlacku/blanu");
+    assert!(pending.peek().routes.is_empty());
+}

@@ -1,5 +1,6 @@
 use dioxus::core::Task;
 use dioxus::prelude::*;
+use dioxus::router::Navigator;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllEdition, CllInline, CllInterlinearRow,
     CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation,
@@ -56,7 +57,7 @@ use jbotci_web_core::{
 use jbotci_web_core::build_page_head;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 use serde::{Deserialize, Serialize};
 
