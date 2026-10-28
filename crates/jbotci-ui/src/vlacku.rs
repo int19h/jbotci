@@ -1,4 +1,93 @@
 use super::*;
+use bityzba::expensive_ensures;
+
+/// The draft owns one input per mode. Searches and URLs use its active input.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct VlackuDraftState {
+    mode: VlackuWebMode,
+    word_query: String,
+    rafsi_query: String,
+    sound_query: String,
+    meaning_query: String,
+    count: usize,
+    word_types: Vec<String>,
+}
+
+impl VlackuDraftState {
+    #[requires(true)]
+    #[ensures(ret.mode == old(state.mode))]
+    #[ensures(ret.count == old(state.count))]
+    #[expensive_ensures(ret.web_state() == old(state.clone()))]
+    pub(super) fn from_state(state: VlackuWebState) -> Self {
+        let mut draft = Self {
+            mode: state.mode,
+            word_query: String::new(),
+            rafsi_query: String::new(),
+            sound_query: String::new(),
+            meaning_query: String::new(),
+            count: state.count,
+            word_types: Vec::new(),
+        };
+        draft.apply_state(state);
+        draft
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn query_for(&self, mode: VlackuWebMode) -> &str {
+        match mode {
+            VlackuWebMode::Word => &self.word_query,
+            VlackuWebMode::Rafsi => &self.rafsi_query,
+            VlackuWebMode::Sound => &self.sound_query,
+            VlackuWebMode::Meaning => &self.meaning_query,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.mode == self.mode)]
+    #[ensures(ret.query == self.query_for(self.mode))]
+    pub(super) fn web_state(&self) -> VlackuWebState {
+        VlackuWebState {
+            mode: self.mode,
+            query: self.query_for(self.mode).to_owned(),
+            count: self.count,
+            word_types: self.word_types.clone(),
+        }
+    }
+
+    /// Navigation replaces the active input and retains the other inputs.
+    #[requires(true)]
+    #[ensures(self.mode == old(state.mode))]
+    #[ensures(self.count == old(state.count))]
+    #[expensive_ensures(self.web_state() == old(state.clone()))]
+    pub(super) fn apply_state(&mut self, state: VlackuWebState) {
+        self.mode = state.mode;
+        let query = match state.mode {
+            VlackuWebMode::Word => &mut self.word_query,
+            VlackuWebMode::Rafsi => &mut self.rafsi_query,
+            VlackuWebMode::Sound => &mut self.sound_query,
+            VlackuWebMode::Meaning => &mut self.meaning_query,
+        };
+        *query = state.query;
+        self.count = state.count;
+        self.word_types = state.word_types;
+    }
+
+    #[requires(true)]
+    #[ensures(ret.mode == mode)]
+    #[ensures(ret.query == self.query_for(mode))]
+    #[ensures(ret.count == VLACKU_WEB_DEFAULT_COUNT)]
+    #[ensures(ret.word_types == self.word_types)]
+    pub(super) fn select_mode(&self, mode: VlackuWebMode) -> VlackuWebState {
+        VlackuWebState {
+            mode,
+            query: self.query_for(mode).to_owned(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: self.word_types.clone(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
@@ -14,13 +103,13 @@ pub(super) struct VlackuPageSnapshot {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn vlacku_page_snapshot(
-    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     vlacku_result: Signal<VlackuAsyncResultState>,
     jvozba_available: Signal<bool>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
 ) -> VlackuPageSnapshot {
-    let draft_state = vlacku_draft_state.peek().clone();
+    let draft_state = vlacku_draft_state.read().web_state();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     VlackuPageSnapshot {
         committed_state: vlacku_committed_state.read().clone(),
@@ -37,7 +126,7 @@ pub(super) fn vlacku_page_snapshot(
 #[ensures(true)]
 #[component]
 pub(super) fn VlackuPage(
-    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     vlacku_result: Signal<VlackuAsyncResultState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
@@ -76,7 +165,7 @@ pub(super) fn VlackuPage(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_page(
-    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     snapshot: &VlackuPageSnapshot,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
@@ -171,7 +260,7 @@ pub(super) fn render_semantic_search_message(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_controls(
-    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     state: &VlackuWebState,
     word_type_options: &[VlackuWordTypeOption],
@@ -208,10 +297,10 @@ pub(super) fn render_vlacku_controls(
                     spellcheck: "false",
                     value: "{state.query}",
                     oninput: move |event| {
-                        let mut next = vlacku_draft_state.read().clone();
+                        let mut next = vlacku_draft_state.read().web_state();
                         next.query = event.value();
                         next.count = VLACKU_WEB_DEFAULT_COUNT;
-                        vlacku_draft_state.set(next.clone());
+                        vlacku_draft_state.write().apply_state(next.clone());
                         schedule_vlacku_search_commit(vlacku_committed_state, next);
                     },
                 }
@@ -223,7 +312,7 @@ pub(super) fn render_vlacku_controls(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_mode_button(
-    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     current: VlackuWebMode,
     mode: VlackuWebMode,
@@ -239,9 +328,7 @@ pub(super) fn render_vlacku_mode_button(
             aria_pressed: pressed_attr(current == mode),
             onclick: move |_| {
                 if !disabled {
-                    let mut next = vlacku_draft_state.read().clone();
-                    next.mode = mode;
-                    next.count = VLACKU_WEB_DEFAULT_COUNT;
+                    let next = vlacku_draft_state.read().select_mode(mode);
                     set_vlacku_state_immediate(
                         &mut vlacku_draft_state,
                         &mut vlacku_committed_state,
@@ -257,7 +344,7 @@ pub(super) fn render_vlacku_mode_button(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_word_type_controls(
-    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     options: &[VlackuWordTypeOption],
 ) -> Element {
@@ -295,7 +382,7 @@ pub(super) fn render_vlacku_word_type_controls(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_word_type_filter_value(
-    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     options: &[VlackuWordTypeOption],
     value: &'static str,
@@ -310,7 +397,7 @@ pub(super) fn render_word_type_filter_value(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_word_type_filter(
-    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     option: &VlackuWordTypeOption,
 ) -> Element {
@@ -346,7 +433,7 @@ pub(super) fn render_word_type_filter(
 #[ensures(true)]
 pub(super) fn render_vlacku_body(
     result: &jbotci_web_core::VlackuWebResult,
-    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
@@ -372,7 +459,7 @@ pub(super) fn render_vlacku_body(
                         r#type: "button",
                         onclick: move |_| {
                             pending_vlacku_scroll_restore.set(Some(current_scroll_y()));
-                            let next = vlacku_load_more_state(&vlacku_draft_state.read());
+                            let next = vlacku_load_more_state(&vlacku_draft_state.read().web_state());
                             set_vlacku_state_immediate(
                                 &mut vlacku_draft_state,
                                 &mut vlacku_committed_state,
@@ -1893,11 +1980,11 @@ pub(super) fn vlacku_query_placeholder(mode: VlackuWebMode) -> &'static str {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn toggle_vlacku_word_type(
-    vlacku_draft_state: &mut Signal<VlackuWebState>,
+    vlacku_draft_state: &mut Signal<VlackuDraftState>,
     vlacku_committed_state: &mut Signal<VlackuWebState>,
     value: &str,
 ) {
-    let mut next = vlacku_draft_state.read().clone();
+    let mut next = vlacku_draft_state.read().web_state();
     next.word_types = toggle_vlacku_word_type_selection(&next.word_types, value);
     next.count = VLACKU_WEB_DEFAULT_COUNT;
     set_vlacku_state_immediate(vlacku_draft_state, vlacku_committed_state, next);

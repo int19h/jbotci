@@ -233,7 +233,7 @@ pub(super) fn AppShell() -> Element {
         claim: use_signal(CuktaEditionFitClaim::new),
     };
     let initial_vlacku = initial_vlacku_state(&current_route_location);
-    let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
+    let vlacku_draft_state = use_signal(|| VlackuDraftState::from_state(initial_vlacku.clone()));
     let vlacku_committed_state = use_signal(|| initial_vlacku);
     let pending_vlacku_scroll_restore = use_signal(|| None::<i32>);
     let vlacku_semantic_result = use_signal(VlackuSemanticResultState::default);
@@ -958,7 +958,7 @@ pub(super) fn AppShell() -> Element {
     }));
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
-            let state = vlacku_draft_state.read().clone();
+            let state = vlacku_draft_state.read().web_state();
             let pane_open = jvozba_pane.read().open;
             let pane_available = *jvozba_available.read();
             set_brivla_toggle_indeterminate(vlacku_brivla_filter_indeterminate(&state.word_types));

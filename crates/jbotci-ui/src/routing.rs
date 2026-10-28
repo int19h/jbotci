@@ -455,7 +455,7 @@ pub(super) fn apply_web_route_to_client_state(
     mut route: Signal<AppRoute>,
     mut cukta_draft_state: Signal<CuktaWebState>,
     mut cukta_committed_state: Signal<CuktaWebState>,
-    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuDraftState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
@@ -504,7 +504,7 @@ pub(super) fn apply_web_route_to_client_state(
         WebRoute::Vlacku(state) => {
             clear_vlacku_url_timer();
             clear_vlacku_search_timer();
-            vlacku_draft_state.set(state.clone());
+            vlacku_draft_state.write().apply_state(state.clone());
             vlacku_committed_state.set(state.clone());
         }
         WebRoute::Gimfihi(state) => {
@@ -926,13 +926,13 @@ pub(super) fn vlacku_load_more_state(state: &VlackuWebState) -> VlackuWebState {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn set_vlacku_state_immediate(
-    draft_state: &mut Signal<VlackuWebState>,
+    draft_state: &mut Signal<VlackuDraftState>,
     committed_state: &mut Signal<VlackuWebState>,
     state: VlackuWebState,
 ) {
     clear_vlacku_url_timer();
     clear_vlacku_search_timer();
-    draft_state.set(state.clone());
+    draft_state.write().apply_state(state.clone());
     committed_state.set(state);
 }
 

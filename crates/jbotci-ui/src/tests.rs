@@ -3816,3 +3816,90 @@ fn has_css_class(class_name: &str, expected: &str) -> bool {
         .split_whitespace()
         .any(|class_name| class_name == expected)
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_inputs_are_independent_for_every_mode() {
+    let modes = [
+        VlackuWebMode::Word,
+        VlackuWebMode::Rafsi,
+        VlackuWebMode::Sound,
+        VlackuWebMode::Meaning,
+    ];
+    for initial_mode in modes {
+        let initial = VlackuWebState {
+            mode: initial_mode,
+            query: "initial input".to_owned(),
+            count: 80,
+            word_types: vec!["gismu".to_owned()],
+        };
+        let mut draft = VlackuDraftState::from_state(initial.clone());
+        assert_eq!(draft.web_state(), initial);
+        for mode in modes {
+            let mut next = draft.select_mode(mode);
+            assert_eq!(
+                next.query,
+                if mode == initial_mode {
+                    "initial input"
+                } else {
+                    ""
+                }
+            );
+            assert_eq!(next.count, VLACKU_WEB_DEFAULT_COUNT);
+            assert_eq!(next.word_types, initial.word_types);
+            next.query = format!("{mode:?} input");
+            draft.apply_state(next);
+        }
+        for mode in modes {
+            let next = draft.select_mode(mode);
+            assert_eq!(next.query, format!("{mode:?} input"));
+            draft.apply_state(next.clone());
+            assert_eq!(draft.web_state(), next);
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_navigation_restores_only_the_active_input() {
+    let mut draft = VlackuDraftState::from_state(VlackuWebState {
+        query: "klama".to_owned(),
+        ..VlackuWebState::default()
+    });
+    let mut rafsi = draft.select_mode(VlackuWebMode::Rafsi);
+    rafsi.query = "kla".to_owned();
+    draft.apply_state(rafsi.clone());
+    let word_url = vlacku_web_url(
+        "",
+        &VlackuWebState {
+            query: "blanu".to_owned(),
+            count: 40,
+            word_types: vec!["gismu".to_owned()],
+            ..VlackuWebState::default()
+        },
+    );
+    let location = jbotci_route_from_href("", &word_url).expect("word route");
+    let WebRoute::Vlacku(word) = location.web_route.clone() else {
+        panic!("expected a dictionary route");
+    };
+    draft.apply_state(word.clone());
+    assert_eq!(draft.web_state(), word);
+    assert_eq!(draft.select_mode(VlackuWebMode::Rafsi).query, "kla");
+    draft.apply_state(rafsi);
+    assert_eq!(draft.web_state().query, "kla");
+    assert_eq!(draft.select_mode(VlackuWebMode::Word).query, "blanu");
+    draft.apply_state(word.clone());
+    assert_eq!(draft.web_state(), word);
+
+    let mut cleared = draft.web_state();
+    cleared.query.clear();
+    draft.apply_state(cleared);
+    draft.apply_state(draft.select_mode(VlackuWebMode::Rafsi));
+    assert!(draft.select_mode(VlackuWebMode::Word).query.is_empty());
+
+    let reloaded = VlackuDraftState::from_state(word.clone());
+    assert_eq!(reloaded.web_state(), word);
+    assert!(reloaded.select_mode(VlackuWebMode::Rafsi).query.is_empty());
+}
