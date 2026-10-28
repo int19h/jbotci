@@ -1,5 +1,4 @@
 use super::*;
-use bityzba::expensive_ensures;
 
 /// The draft owns one input per mode. Searches and URLs use its active input.
 #[invariant(true)]
