@@ -901,6 +901,9 @@ fn cards_for_valsi(
         return cards_for_valsi_pattern(dictionary, query.trim(), options);
     }
 
+    // Lookup keys discard pauses and stress. Only the original input can
+    // establish whether the vote exemption applies.
+    let lexical_word = lex_single_word(query);
     let Some(query) = normalize_exact_lojban_query(query) else {
         return invalid_lojban_word_output(query);
     };
@@ -918,6 +921,7 @@ fn cards_for_valsi(
             None,
             options,
             SourceAdmission::WhenShown,
+            lexical_word.as_ref(),
         ));
     }
 
@@ -929,7 +933,7 @@ fn cards_for_valsi(
         return found_or_missing(cards_for_candidates(dictionary, candidates, options, false));
     }
 
-    missing_exact_output(dictionary, query, options)
+    missing_exact_output(dictionary, query, options, lexical_word.as_ref())
 }
 
 #[requires(true)]
@@ -1483,6 +1487,7 @@ fn missing_exact_output(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
+    lexical_word: Option<&Word>,
 ) -> VlackuSearchOutput {
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
@@ -1500,6 +1505,7 @@ fn missing_exact_output(
                 decomposition.as_ref(),
                 options,
                 SourceAdmission::Always,
+                lexical_word,
             );
             VlackuSearchOutput {
                 cards,
@@ -1535,8 +1541,9 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
     runtime_decomposition: Option<&LujvoDecomposition<'_>>,
     options: &VlackuSearchOptions,
     admission: SourceAdmission,
+    lexical_word: Option<&Word>,
 ) -> Vec<VlackuCard> {
-    let exact_word = options.min_votes.and_then(|_| lex_single_word(query));
+    let exact_word = options.min_votes.and(lexical_word);
     if exact_word.is_some() {
         for candidate in &mut candidates {
             candidate.exempt_votes();

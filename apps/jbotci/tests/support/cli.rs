@@ -4859,3 +4859,70 @@ fn vlacku_min_votes_exempts_literal_magic_words() {
         assert_eq!(filtered.stdout, baseline.stdout, "{word}");
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_vote_exemption_uses_original_word_boundaries() {
+    for query in [
+        "lo.jban.girzu",
+        "LOjbangirzu",
+        "me.hoi",
+        "ло.жбан.гирзу",
+        "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+    ] {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                query,
+                "--decompose-lujvo",
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert!(
+            run.stdout.contains("No matches found"),
+            "{query}: {}",
+            run.stdout
+        );
+    }
+    for (query, expected) in [
+        (".klama.", "klama"),
+        (" klama ", "klama"),
+        ("LojbangIrzu", "lojbangirzu"),
+        ("lo,jban,girzu", "lojbangirzu"),
+        ("mehoi", "me'oi"),
+        ("ложбангирзу", "lojbangirzu"),
+        (
+            "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+            "lojbangirzu",
+        ),
+    ] {
+        let baseline = run_cli_capture(
+            &["jbotci", "vlacku", "--valsi", query, "--decompose-lujvo"],
+            false,
+        );
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                query,
+                "--decompose-lujvo",
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::Success, "{query}: {}", run.stderr);
+        assert_eq!(run.stdout, baseline.stdout, "{query}");
+        assert!(
+            run.stdout.contains(&format!("1. {expected} |")),
+            "{query}: {}",
+            run.stdout
+        );
+    }
+}

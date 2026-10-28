@@ -4795,7 +4795,10 @@ fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
         VlackuWebMode::Word | VlackuWebMode::Rafsi if vlacku_exact_query_is_pattern(query) => {
             query.trim().to_owned()
         }
-        VlackuWebMode::Word | VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
+        // Word identity depends on the written boundaries and stress. The
+        // search retains lexical evidence before it creates a lookup key.
+        VlackuWebMode::Word => query.trim().to_owned(),
+        VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
         VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
     }
 }
@@ -8926,15 +8929,16 @@ mod tests {
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
 
-        // A query in another script stays as written; the search folds it,
-        // and the canonical URL is built from that folded state.
+        // Word queries retain their spelling in search state and URLs.
+        // The search creates its lookup key after it checks lexical identity.
         let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
         assert_eq!(cyrillic.query, "клама");
-        assert_eq!(normalize_vlacku_state(&cyrillic).query, "klama");
+        assert_eq!(normalize_vlacku_state(&cyrillic).query, "клама");
         assert_eq!(
-            vlacku_web_url("", &normalize_vlacku_state(&cyrillic)),
-            "/vlacku/klama"
+            parse_vlacku_web_route(&vlacku_web_url("", &normalize_vlacku_state(&cyrillic)), "")
+                .query,
+            "клама"
         );
         assert_eq!(
             parse_vlacku_web_route(&vlacku_web_url("", &cyrillic), "").query,
@@ -8944,16 +8948,22 @@ mod tests {
 
         let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
         assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "coi");
+        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "шой");
 
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&zbalermorna).query, "klama");
+        assert_eq!(
+            normalize_vlacku_state(&zbalermorna).query,
+            zbalermorna.query
+        );
 
         let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&zbalermorna_glide).query, "coi");
+        assert_eq!(
+            normalize_vlacku_state(&zbalermorna_glide).query,
+            zbalermorna_glide.query
+        );
     }
 
     #[test]
@@ -11185,6 +11195,49 @@ mod tests {
             assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
             assert!(result.cards.iter().any(|card| card.word == word), "{word}");
             assert!(!result.hidden_by_vote_filter, "{word}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_exemption_preserves_original_spelling_and_boundaries() {
+        for (query, expected) in [
+            ("lo.jban.girzu", None),
+            ("LOjbangirzu", None),
+            ("me.hoi", None),
+            ("ло.жбан.гирзу", None),
+            (
+                "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+                None,
+            ),
+            (".klama.", Some("klama")),
+            (" klama ", Some("klama")),
+            ("LojbangIrzu", Some("lojbangirzu")),
+            ("lo,jban,girzu", Some("lojbangirzu")),
+            ("mehoi", Some("me'oi")),
+            ("ложбангирзу", Some("lojbangirzu")),
+            (
+                "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+                Some("lojbangirzu"),
+            ),
+        ] {
+            let state = VlackuWebState {
+                query: query.to_owned(),
+                min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+                ..VlackuWebState::default()
+            };
+            let result = build_vlacku_web_result(&state);
+            assert_eq!(result.state.query, query.trim());
+            match expected {
+                Some(word) => assert!(result.cards.iter().any(|card| card.word == word), "{query}"),
+                None => assert!(result.cards.is_empty(), "{query}: {:?}", result.cards),
+            }
+            let url = vlacku_web_url("", &result.state);
+            let (path, query_string) = url.split_once('?').unwrap_or((&url, ""));
+            let reloaded = build_vlacku_web_result(&parse_vlacku_web_route(path, query_string));
+            assert_eq!(reloaded.cards, result.cards, "reload: {query}");
+            assert_eq!(reloaded.state.query, result.state.query);
         }
     }
 
