@@ -1,0 +1,13 @@
+id = "adhoc.warnings.issue-973-alice-space-before-time"
+lojban = "lo ni'azu crino pezli"
+tags = ["adhoc", "syntax", "warnings", "issue-973"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #973 tense order"
+description = "The camxes reading stays unchanged. Only space before time in one tense gets the warning."
+
+[expectations.syntax]
+status = "success"
+raw = { sha256 = "9c38771b12bbd9b6a1d060bb83685a02927f4288b139a9e45d5cdd9aa49ad584" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-space-before-time-tense", byte-span = [3, 7], source-text = "ni'a", message = "experimental syntax: space before time in one tense. CLL 10.4 puts the time part first", word-index = 1 }]
