@@ -5,7 +5,7 @@ use jbotci_dictionary::{
 };
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
-    LujvoPart, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
+    LujvoPart, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData, canonicalize_text,
     normalize_lojban_input_text, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
@@ -374,6 +374,7 @@ pub struct VlackuCompositionPiece {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedWordDictionaryMatch {
     pub lookup_text: String,
+    pub word_key: Option<WordKey>,
     pub byte_start: usize,
     pub byte_end: usize,
     pub char_start: usize,
@@ -387,6 +388,7 @@ pub struct ParsedWordDictionaryMatch {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ParsedWordLookupTarget {
     lookup_text: String,
+    word_key: Option<WordKey>,
     is_lujvo: bool,
     byte_start: usize,
     byte_end: usize,
@@ -498,6 +500,7 @@ pub fn dictionary_matches_for_word_likes(
             let target = target.into_data();
             matches.push(new!(ParsedWordDictionaryMatch {
                 lookup_text: target.lookup_text,
+                word_key: target.word_key,
                 byte_start: target.byte_start,
                 byte_end: target.byte_end,
                 char_start: target.char_start,
@@ -765,6 +768,7 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
 fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
     targets.push(new!(ParsedWordLookupTarget {
         lookup_text: word_lookup_text(word),
+        word_key: Some(word.key()),
         is_lujvo: word.kind() == WordKind::Lujvo,
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
@@ -791,6 +795,7 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
     }
     Some(new!(ParsedWordLookupTarget {
         lookup_text,
+        word_key: None,
         is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })),
         byte_start,
         byte_end,

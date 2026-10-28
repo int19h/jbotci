@@ -24,8 +24,8 @@ use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_morphology::{
     Cmavo, LeadingPauseContext, LeadingPauseVowelMode, NodeRef as MorphologyNodeRef,
-    PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Verbatim, Word, WordKind,
-    WordLike, word_needs_leading_pause_in_context,
+    PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Verbatim, Word, WordKey,
+    WordKind, WordLike, word_needs_leading_pause_in_context,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -242,6 +242,7 @@ pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
     parent_block_id.as_ref().is_none_or(|parent| parent != block_id),
     "a block is never its own parent"
 )]
+#[invariant(word_key.as_ref().is_none_or(|key| *is_leaf && role.is_normal() && *token_kind == Some(key.kind)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
@@ -260,6 +261,9 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_index: Option<usize>,
     pub token_kind: Option<WordKind>,
+    /// Parsed identity keeps words that share a dialect source range distinct.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub word_key: Option<WordKey>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compound_kind: Option<GentufaCompoundKind>,
     pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
@@ -396,10 +400,16 @@ pub struct GentufaBlockAnnotation<Tooltip = ()> {
     pub tooltip: Option<Tooltip>,
 }
 
+#[invariant(::Word { text, .. } => !text.is_empty())]
 #[invariant(::SourceRange { text, .. } => text.as_ref().is_none_or(|text| !text.is_empty()))]
 #[invariant(::Block { block_id, .. } => !block_id.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GentufaAnnotationTarget {
+    Word {
+        range: WebSourceRange,
+        key: WordKey,
+        text: String,
+    },
     SourceRange {
         range: WebSourceRange,
         text: Option<String>,
@@ -416,6 +426,7 @@ impl<Tooltip> GentufaBlockAnnotation<Tooltip> {
     pub fn range(&self) -> WebSourceRange {
         match self.target.as_data() {
             data!(GentufaAnnotationTarget::SourceRange { range, .. })
+            | data!(GentufaAnnotationTarget::Word { range, .. })
             | data!(GentufaAnnotationTarget::Block { range, .. }) => *range,
         }
     }
@@ -425,6 +436,7 @@ impl<Tooltip> GentufaBlockAnnotation<Tooltip> {
     pub fn text(&self) -> Option<&str> {
         match self.target.as_data() {
             data!(GentufaAnnotationTarget::SourceRange { text, .. }) => text.as_deref(),
+            data!(GentufaAnnotationTarget::Word { text, .. }) => Some(text),
             _ => None,
         }
     }
@@ -1176,6 +1188,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             role: GentufaBlockRole::Normal,
             error_index: None,
             token_kind: None,
+            word_key: None,
             raw_text: raw_text.clone(),
             display_text: raw_text,
             origin: new!(BlockLeafOrigin::Verbatim),
@@ -1202,6 +1215,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             role: GentufaBlockRole::Normal,
             error_index: None,
             token_kind: Some(word.kind()),
+            word_key: Some(word.key()),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word_in_context(word, self.options, context),
             origin: origin.unwrap_or_else(|| if word.kind() == WordKind::Cmavo {
@@ -1241,6 +1255,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             role: GentufaBlockRole::Elided,
             error_index: None,
             token_kind: Some(WordKind::Cmavo),
+            word_key: None,
             raw_text: String::new(),
             display_text: render_elided_cmavo(cmavo, self.options),
             origin: new!(BlockLeafOrigin::Elided),
@@ -1276,6 +1291,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             role: GentufaBlockRole::Error,
             error_index: Some(error_index),
             token_kind: None,
+            word_key: None,
             raw_text: raw_text.clone(),
             display_text: raw_text,
             origin: new!(BlockLeafOrigin::Error),
@@ -1805,6 +1821,7 @@ struct BlockTreeNode {
 #[invariant(role.is_error() == matches!(origin.as_data(), data!(BlockLeafOrigin::Error)))]
 #[invariant(role.is_elided() == matches!(origin.as_data(), data!(BlockLeafOrigin::Elided)))]
 #[invariant(match origin.as_data() {data!(BlockLeafOrigin::Compound {..}) => columns.get() >= 2, _ => columns.get() == 1})]
+#[invariant(word_key.as_ref().is_none_or(|key| role.is_normal() && *token_kind == Some(key.kind)))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BlockLeafPart {
     id: RawSyntaxNodeId,
@@ -1812,6 +1829,7 @@ struct BlockLeafPart {
     role: GentufaBlockRole,
     error_index: Option<usize>,
     token_kind: Option<WordKind>,
+    word_key: Option<WordKey>,
     raw_text: String,
     display_text: String,
     origin: BlockLeafOrigin,
@@ -2278,6 +2296,7 @@ fn synthetic_leaf_block<Tooltip>(
         role: part.role,
         error_index: part.error_index,
         token_kind: part.token_kind,
+        word_key: part.word_key.clone(),
         compound_kind: part_compound_kind(part),
         ref_markers: Vec::new(),
         span: Some(part.range),
@@ -2392,6 +2411,13 @@ fn block_from_tree_node<Tooltip>(
         role: node.role,
         error_index: node.error_index,
         token_kind: node.token_kind,
+        word_key: if is_leaf {
+            node.leaf_parts
+                .first()
+                .and_then(|part| part.word_key.clone())
+        } else {
+            None
+        },
         compound_kind: node_compound_kind(node),
         ref_markers: node.ref_markers.clone(),
         span: node.span,
@@ -2501,56 +2527,64 @@ pub fn block_annotation_recipients<'a, Tooltip, ReferenceTooltip>(
 ) -> Vec<Option<&'a GentufaBlockAnnotation<Tooltip>>> {
     let mut recipients = vec![None; blocks.len()];
     for annotation in annotations {
-        if let Some(index) = annotation_recipient(blocks, &annotation.target) {
+        let recipient = match annotation.target.as_data() {
+            data!(GentufaAnnotationTarget::Word { range, key, .. }) => {
+                for (index, block) in blocks.iter().enumerate() {
+                    if block.role.is_normal()
+                        && block.is_leaf
+                        && block.span == Some(*range)
+                        && block.word_key.as_ref() == Some(key)
+                    {
+                        recipients[index].get_or_insert(annotation);
+                    }
+                }
+                None
+            }
+            data!(GentufaAnnotationTarget::Block { block_id, range }) => {
+                blocks.iter().position(|block| {
+                    block.block_id == *block_id
+                        && block.span == Some(*range)
+                        && block.role.is_normal()
+                        && block.is_leaf
+                        && block.compound_kind.is_some()
+                })
+            }
+            data!(GentufaAnnotationTarget::SourceRange { range, text }) => {
+                if range.byte_start == range.byte_end {
+                    text.as_ref().and_then(|text| {
+                        blocks.iter().position(|block| {
+                            block.role.is_elided()
+                                && block.span == Some(*range)
+                                && block.display_text == *text
+                        })
+                    })
+                } else {
+                    let mut leaves = blocks.iter().enumerate().filter(|(_, block)| {
+                        block.role.is_normal() && block.is_leaf && block.span == Some(*range)
+                    });
+                    let first = leaves.next();
+                    if first.is_some() && leaves.next().is_none() {
+                        first.map(|(index, _)| index)
+                    } else {
+                        blocks
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, block)| {
+                                block.role.is_normal()
+                                    && !block.is_leaf
+                                    && block.span == Some(*range)
+                            })
+                            .max_by_key(|(index, block)| (block.row, Reverse(*index)))
+                            .map(|(index, _)| index)
+                    }
+                }
+            }
+        };
+        if let Some(index) = recipient {
             recipients[index].get_or_insert(annotation);
         }
     }
     recipients
-}
-
-/// Resolve one presentation host, shared by initial annotation and later enrichment.
-#[requires(true)]
-#[ensures(ret.is_none_or(|index| index < blocks.len()))]
-fn annotation_recipient<Tooltip, ReferenceTooltip>(
-    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
-    target: &GentufaAnnotationTarget,
-) -> Option<usize> {
-    match target.as_data() {
-        data!(GentufaAnnotationTarget::Block { block_id, range }) => {
-            blocks.iter().position(|block| {
-                block.block_id == *block_id
-                    && block.span == Some(*range)
-                    && block.role.is_normal()
-                    && block.is_leaf
-                    && block.compound_kind.is_some()
-            })
-        }
-        data!(GentufaAnnotationTarget::SourceRange { range, text }) => {
-            if range.byte_start == range.byte_end {
-                let text = text.as_ref()?;
-                return blocks.iter().position(|block| {
-                    block.role.is_elided()
-                        && block.span == Some(*range)
-                        && block.display_text == *text
-                });
-            }
-            let mut leaves = blocks.iter().enumerate().filter(|(_, block)| {
-                block.role.is_normal() && block.is_leaf && block.span == Some(*range)
-            });
-            let first = leaves.next();
-            if first.is_some() && leaves.next().is_none() {
-                return first.map(|(index, _)| index);
-            }
-            blocks
-                .iter()
-                .enumerate()
-                .filter(|(_, block)| {
-                    block.role.is_normal() && !block.is_leaf && block.span == Some(*range)
-                })
-                .max_by_key(|(index, block)| (block.row, Reverse(*index)))
-                .map(|(index, _)| index)
-        }
-    }
 }
 
 #[requires(true)]
@@ -3379,6 +3413,7 @@ mod tests {
                     role: GentufaBlockRole::Normal,
                     error_index: None,
                     token_kind: token_kind_for_text(&format!("w{index}")),
+                    word_key: None,
                     raw_text: format!("w{index}"),
                     display_text: format!("w{index}"),
                 })
@@ -3588,6 +3623,7 @@ mod tests {
             role: GentufaBlockRole::Normal,
             error_index: None,
             token_kind: token_kind_for_text(display_text),
+            word_key: None,
             raw_text: display_text.to_owned(),
             display_text: display_text.to_owned(),
         })

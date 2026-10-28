@@ -490,6 +490,7 @@ fn finish_rewrite_node(
             role: GentufaBlockRole::Normal,
             error_index: None,
             token_kind,
+            word_key: None,
             raw_text: source_text_for_range(source, Some(group.spec.range)),
             display_text,
             origin: new!(BlockLeafOrigin::Compound {
@@ -900,6 +901,7 @@ mod tests {
                 role: GentufaBlockRole::Normal,
                 error_index: None,
                 token_kind: Some(WordKind::Cmavo),
+                word_key: None,
                 raw_text: word.canonical_phonemes(),
                 display_text: word.canonical_phonemes(),
                 origin: new!(BlockLeafOrigin::PlainCmavo {
