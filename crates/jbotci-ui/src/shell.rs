@@ -1152,7 +1152,7 @@ pub(super) fn AppShell() -> Element {
                     }
                 }
             }
-            ReferenceTooltipLayer { open: reference_tooltip_open, route: route_value }
+            ReferenceTooltipLayer { open: reference_tooltip_open, route: route_value, script: settings_value.script }
         }
     }
 }

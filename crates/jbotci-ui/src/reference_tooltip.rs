@@ -7,7 +7,6 @@ pub(super) struct ActiveReferenceTooltip {
     marker: HoveredReference,
     tooltip: ReferenceTooltip,
     base_path: String,
-    script: GentufaScript,
 }
 
 #[requires(true)]
@@ -17,7 +16,6 @@ pub(super) fn show_reference_tooltip(
     marker: &ReferenceMarker,
     tooltip: &ReferenceTooltip,
     base_path: &str,
-    script: GentufaScript,
 ) {
     let Some(mut active) = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>() else {
         return;
@@ -30,7 +28,6 @@ pub(super) fn show_reference_tooltip(
         },
         tooltip: tooltip.clone(),
         base_path: base_path.to_owned(),
-        script,
     }));
 }
 
@@ -76,6 +73,7 @@ fn mark_reference_tooltip_anchor(_event: &MouseEvent) {}
 pub(super) fn ReferenceTooltipLayer(
     open: Signal<Option<HoveredReference>>,
     route: AppRoute,
+    script: GentufaScript,
 ) -> Element {
     let active = use_context::<Signal<Option<ActiveReferenceTooltip>>>();
     use_effect(move || {
@@ -90,7 +88,7 @@ pub(super) fn ReferenceTooltipLayer(
     }
     match active.as_ref() {
         Some(active) if open.as_ref() == Some(&active.marker) => {
-            render_reference_tooltip(&active.tooltip, &active.base_path, active.script)
+            render_reference_tooltip(&active.tooltip, &active.base_path, script)
         }
         _ => rsx! {},
     }
@@ -107,6 +105,7 @@ fn schedule_reference_tooltip_position() {
         if let Some(document) = web_sys::window().and_then(|window| window.document())
             && let Ok(Some(host)) = document.query_selector("[data-reference-tooltip-anchor]")
         {
+            activate_dictionary_tooltip_host(&host);
             position_dictionary_tooltip(&host);
         }
     });
@@ -142,7 +141,7 @@ mod tests {
         rsx! {
             div { id: "shell",
                 div { id: "panel", "reference label" }
-                ReferenceTooltipLayer { open, route: AppRoute::Gentufa }
+                ReferenceTooltipLayer { open, route: AppRoute::Gentufa, script: GentufaScript::Latin }
             }
         }
     }
@@ -166,7 +165,6 @@ mod tests {
                 rows: Vec::new(),
             }),
             base_path: String::new(),
-            script: GentufaScript::Latin,
         };
         let mut dom = VirtualDom::new(ShellLayerTest);
         let active = dom.in_runtime(|| Signal::new_in_scope(Some(presentation), ScopeId::ROOT));
