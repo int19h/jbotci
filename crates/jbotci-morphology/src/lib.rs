@@ -1229,7 +1229,11 @@ impl WordLike {
     }
 
     #[requires(runs.len() <= 2 && lehai.is_cmavo(Cmavo::Lehai))]
-    #[requires(runs.first().is_none_or(|run| run.marker.span().byte_end <= lehai.span().byte_start))]
+    #[requires(runs.first().is_none_or(|run| {
+        run.marker.span().byte_end <= lehai.span().byte_start
+            && run.marker.span().char_end <= lehai.span().char_start
+    }))]
+    #[bityzba::expensive_requires(replacement_quote_spans_in_source_order(&runs, &lehai))]
     #[ensures(ret.quote_marker_cmavo().is_some_and(|marker| marker.is_selmaho(Selmaho::Lohai) || marker == Cmavo::Lehai))]
     pub fn replacement_quote(runs: Vec<ReplacementQuoteRun>, lehai: Word) -> Self {
         new!(WordLike::ReplacementQuote {
@@ -1487,6 +1491,37 @@ impl fmt::Display for WordLike {
             }
         }
     }
+}
+
+/// Construction and the type invariant use the same source order.
+#[requires(true)]
+#[ensures(!ret || runs.first().is_none_or(|run| {
+    run.marker.span().byte_end <= lehai.span().byte_start
+        && run.marker.span().char_end <= lehai.span().char_start
+}))]
+pub(crate) fn replacement_quote_spans_in_source_order(
+    runs: &[ReplacementQuoteRun],
+    lehai: &Word,
+) -> bool {
+    let mut byte_end = 0;
+    let mut char_end = 0;
+    for run in runs {
+        if byte_end > run.marker.span().byte_start || char_end > run.marker.span().char_start {
+            return false;
+        }
+        byte_end = run.marker.span().byte_end;
+        char_end = run.marker.span().char_end;
+        for word in &run.words {
+            for span in word.word.source_spans() {
+                if byte_end > span.byte_start || char_end > span.char_start {
+                    return false;
+                }
+                byte_end = span.byte_end;
+                char_end = span.char_end;
+            }
+        }
+    }
+    byte_end <= lehai.span().byte_start && char_end <= lehai.span().char_start
 }
 
 #[requires(true)]

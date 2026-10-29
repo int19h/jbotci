@@ -89,22 +89,13 @@ tree_model! {
         && quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
     #[invariant(::QuotedWords => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]
     #[invariant(::ReplacementQuote => runs.len() <= 2 && lehai.is_cmavo(Cmavo::Lehai)
-        && runs.first().is_none_or(|run| run.marker.span().byte_end <= lehai.span().byte_start))]
+        && runs.first().is_none_or(|run| {
+            run.marker.span().byte_end <= lehai.span().byte_start
+                && run.marker.span().char_end <= lehai.span().char_start
+        }))]
     #[bityzba::expensive_invariant(match self.as_data() {
         data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            let mut end = 0;
-            runs.iter().all(|run| {
-                let ordered = end <= run.marker.span().byte_start;
-                end = run.marker.span().byte_end;
-                ordered && run.words.iter().all(|word| {
-                    let mut ordered = true;
-                    for span in word.word.source_spans() {
-                        ordered &= end <= span.byte_start;
-                        end = span.byte_end;
-                    }
-                    ordered
-                })
-            }) && end <= lehai.span().byte_start
+            crate::replacement_quote_spans_in_source_order(runs, lehai)
         },
         _ => true,
     })]

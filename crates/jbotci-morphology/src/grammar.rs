@@ -2962,19 +2962,32 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn replacement_quote_span_mapper_reports_reordered_markers() {
-        let mut words = crate::segment_words_with_modifiers("lo'ai mi le'ai").expect("quote");
-        let result = crate::map_word_like_spans(words.remove(0), &|span| {
-            if span.char_start == 9 {
-                SourceSpan::new(span.source_id.clone(), 0, 5, 0, 5)
+        let words = crate::segment_words_with_modifiers("lo'ai mi le'ai").expect("quote");
+        for reorder_bytes in [true, false] {
+            let result = crate::map_word_like_spans(words[0].clone(), &|span| {
+                if span.char_start == 9 {
+                    let byte_start = if reorder_bytes { 0 } else { span.byte_start };
+                    let byte_end = if reorder_bytes { 5 } else { span.byte_end };
+                    let char_start = if reorder_bytes { span.char_start } else { 0 };
+                    let char_end = if reorder_bytes { span.char_end } else { 5 };
+                    SourceSpan::new(
+                        span.source_id.clone(),
+                        byte_start,
+                        byte_end,
+                        char_start,
+                        char_end,
+                    )
                     .map_err(|error| error.to_string())
-            } else {
-                Ok(span)
-            }
-        });
-        assert!(
-            result.is_err(),
-            "the fallible mapper must reject the reordered quote"
-        );
+                } else {
+                    Ok(span)
+                }
+            });
+            assert!(
+                result.is_err(),
+                "the mapper must reject reordered {} spans",
+                if reorder_bytes { "byte" } else { "character" },
+            );
+        }
     }
 
     #[test]
