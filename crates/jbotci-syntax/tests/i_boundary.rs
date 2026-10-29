@@ -235,3 +235,35 @@ fn ek_inside_stag_is_default_and_warns_on_its_connector() {
         }
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn inherited_prohibited_stag_placements_remain_warned() {
+    for source in [
+        "mi klama .i pa to broda toi roi bo do cadzu",
+        "mi klama .i fe'e to broda toi ta'e bo do cadzu",
+        "mi klama .i mo'i to broda toi zu'a bo do cadzu",
+    ] {
+        let parsed = parse(source, "()");
+        let warning = parsed
+            .warnings
+            .iter()
+            .find(|warning| {
+                warning.kind == ExperimentalConstruct::CllProhibitedFreeModifierPlacement
+            })
+            .expect("the actual modifier has a placement warning");
+        assert_eq!(warning.anchor.cmavo(), Some(Cmavo::To));
+    }
+    for source in [
+        "mi klama .i pa roi bo do cadzu",
+        "mi klama .i fe'e ta'e bo do cadzu",
+        "mi klama .i mo'i zu'a bo do cadzu",
+    ] {
+        let parsed = parse(source, "()");
+        assert!(!parsed.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::CllProhibitedFreeModifierPlacement
+                || warning.kind == ExperimentalConstruct::ExperimentalStatementStag
+        }));
+    }
+}

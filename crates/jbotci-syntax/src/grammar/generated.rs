@@ -5359,11 +5359,11 @@ pub mod generated_model {
     }
 
     /// The adopted exp tag family supplies its own typed consumer entry.
-    rule "experimental statement stag" exp_statement_stag(selbri, sumti, mekso) -> struct {
+    rule "experimental statement stag" exp_statement_stag(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
         /// The complete first atom run, without the generic tag ownership filter.
-        field first <- arc(exp_tag_atom_run_body(selbri, sumti, mekso));
+        field first <- arc(statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier));
         /// Connectives and later atom runs in source order.
-        field continuations <- [zero_or_more exp_statement_stag_tail(selbri, sumti, mekso)];
+        field continuations <- [zero_or_more exp_statement_stag_tail(selbri, sumti, mekso, letter_tokens, free_modifier)];
     }
 
     /// The full standard tense-modal fallback of stag.
@@ -5381,11 +5381,113 @@ pub mod generated_model {
     }
 
     /// A camxes-exp joik_jek followed by another complete atom run.
-    rule "experimental statement stag" exp_statement_stag_tail(selbri, sumti, mekso) -> struct {
+    rule "experimental statement stag" exp_statement_stag_tail(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
         /// The complete connector and its trailing free modifiers.
         field connective <- exp_stag_connective().wf();
         /// The next atom run.
-        field tense <- arc(exp_tag_atom_run_body(selbri, sumti, mekso));
+        field tense <- arc(statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier));
+    }
+
+    /// The atom run at this consumer includes the approved prohibited free positions.
+    rule "statement stag atom run" statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The first atom and its prefixes.
+        field first <- arc(statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier));
+        /// The later atoms in the same run.
+        field additional <- [zero_or_more arc(statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier))];
+    }
+
+    /// Prefix placement follows the existing tag policy from #847.
+    rule "statement stag prefixed atom" statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// NAhE permits the prohibited placement with its warning.
+        field nahe <- opt(selmaho(Nahe).prohibited_wf());
+        /// A free modifier after SE requires the unrestricted feature.
+        field se <- opt(selmaho(Se).wf_when(UnrestrictedFree));
+        /// Every complete atom has the sourced trailing free boundary.
+        field atom <- arc(statement_stag_atom(selbri, sumti, mekso, letter_tokens, free_modifier)).wf();
+    }
+
+    /// The extra arms require an actual free modifier at the prohibited position.
+    rule "statement stag atom" statement_stag_atom(selbri, sumti, mekso, letter_tokens, free_modifier) -> enum {
+        /// A number and a free modifier before ROI.
+        statement_stag_number_free_roi,
+        /// A free modifier after the FEhE prefix.
+        statement_stag_fehe_free_property,
+        /// A free modifier between MOhI and FAhA.
+        statement_stag_mohi_free_faha,
+        // The exact camxes-exp atom inventory.
+        splice exp_tag_atom,
+    }
+
+    /// A required free modifier distinguishes this arm from the sourced ROI arm.
+    rule "statement stag ROI placement" statement_stag_number_free_roi(letter_tokens, free_modifier) -> struct {
+        /// The inherited standard number language, with the split feature applied.
+        field number <- number_words(letter_tokens);
+        /// Actual modifiers carry the prohibited-placement warning on their first words.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// The ROI word after the modifiers.
+        field roi <- selmaho(Roi);
+    }
+
+    /// A required free modifier distinguishes this arm from a sourced FEhE atom.
+    rule "statement stag FEhE placement" statement_stag_fehe_free_property(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The spatial-property prefix.
+        field fehe <- cmavo(Fehe);
+        /// Actual modifiers carry the prohibited-placement warning.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// A property without another FEhE prefix.
+        field property <- statement_stag_fehe_property(selbri, sumti, mekso, letter_tokens, free_modifier);
+    }
+
+    /// Each ROI alternative includes its closing word, so a partial number cannot hide another arm.
+    rule "statement stag spatial property" statement_stag_fehe_property(selbri, sumti, mekso, letter_tokens, free_modifier) -> enum {
+        /// A further prohibited placement before ROI.
+        statement_stag_number_free_roi,
+        /// The complete experimental number or VEI payload followed by ROI.
+        statement_stag_exp_roi,
+        /// The complete standard number followed by ROI.
+        statement_stag_standard_roi,
+        /// A TAhE property.
+        statement_stag_tahe,
+        /// A ZAhO property.
+        statement_stag_zaho,
+    }
+
+    /// A complete experimental ROI property without a second FEhE prefix.
+    rule "statement stag spatial property" statement_stag_exp_roi(selbri, sumti, mekso) -> struct {
+        /// The sourced experimental interval payload.
+        field interval <- exp_roi_interval(selbri, sumti, mekso);
+        /// The required ROI word.
+        field roi <- selmaho(Roi);
+    }
+
+    /// A complete standard number and ROI, including the normal mixed number policy.
+    rule "statement stag spatial property" statement_stag_standard_roi(letter_tokens) -> struct {
+        /// The standard number language under the fixture dialect.
+        field number <- number_words(letter_tokens);
+        /// The required ROI word.
+        field roi <- selmaho(Roi);
+    }
+
+    /// TAhE without a second FEhE prefix.
+    rule "statement stag spatial property" statement_stag_tahe -> struct {
+        /// The interval-property word.
+        field tahe <- selmaho(Tahe);
+    }
+
+    /// ZAhO without a second FEhE prefix.
+    rule "statement stag spatial property" statement_stag_zaho -> struct {
+        /// The interval-property word.
+        field zaho <- selmaho(Zaho);
+    }
+
+    /// A required free modifier distinguishes this arm from sourced MOhI FAhA.
+    rule "statement stag MOhI placement" statement_stag_mohi_free_faha(free_modifier) -> struct {
+        /// The motion prefix.
+        field mohi <- selmaho(Mohi);
+        /// Actual modifiers carry the prohibited-placement warning.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// The required direction word.
+        field faha <- selmaho(Faha);
     }
 
     /// The source joik_jek inventory inside an experimental stag.
