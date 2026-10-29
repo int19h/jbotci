@@ -18,9 +18,8 @@
 //! The macro rejects unknown categories and unused grammar categories.
 //! The block generates the enum, `ALL`, `RUNTIME_EMITTED`, `code()` and `message()`.
 
-//! `#[syntax_parser(parser)]` uses an atomic parser for a declared model.
-//! The fields still define the model, constructor labels, and field order.
-//! The override defines the parser and its recovery metadata in every flavor.
+//! `terminal "label" name = parser => enum { ... }` declares one terminal and its AST schema.
+//! Its parser defines recovery metadata and anchors. The nested products define AST fields only.
 //!
 //! Product rules accept parser-only statements between their fields.
 //! `assert parser;` requires a successful probe without consuming input.
@@ -79,6 +78,7 @@ pub fn syntax_grammar(input: TokenStream) -> TokenStream {
 mod kw {
     syn::custom_keyword!(warnings);
     syn::custom_keyword!(runtime);
+    syn::custom_keyword!(terminal);
     syn::custom_keyword!(alias);
     syn::custom_keyword!(assert);
     syn::custom_keyword!(warn_if);
@@ -460,14 +460,19 @@ impl Parse for SyntaxGrammar {
                 recursive = parse_recursive_block(input)?;
             } else if input.peek(kw::alias) {
                 parsed_rules.push(new!(ParsedRule::Resolved(Rule::Alias(input.parse()?))));
+            } else if input.peek(kw::terminal) {
+                parsed_rules.push(new!(ParsedRule::Resolved(Rule::Terminal(
+                    parse_terminal_rule(input)?
+                ))));
             } else if input.peek(kw::rule) || input.peek(Token![#]) {
                 parsed_rules.push(parse_explicit_rule(input)?);
             } else {
-                return Err(input.error("expected `recursive`, `alias`, or `rule`"));
+                return Err(input.error("expected `recursive`, `alias`, `terminal`, or `rule`"));
             }
         }
         validate_unique_recursive_rules(&recursive)?;
         let rules = resolve_enum_splices(UniqueParsedRules::new(parsed_rules)?)?;
+        validate_unique_rules(rules.iter().flat_map(Rule::model_rules).map(Rule::name))?;
 
         Ok(Self {
             warnings,
@@ -592,8 +597,12 @@ impl SyntaxGrammar {
         let outputs = self
             .rules
             .iter()
+            .flat_map(Rule::model_rules)
             .filter_map(|rule| match rule {
                 Rule::Alias(_) => None,
+                Rule::Terminal(_) => {
+                    unreachable!("terminal schemas contain only products and their enum")
+                }
                 Rule::Struct(rule) => simple_type_ident(&rule.output),
                 Rule::Enum(rule) => simple_type_ident(&rule.output),
             })
@@ -666,7 +675,7 @@ impl SyntaxGrammar {
         let mut variant_struct_outputs = BTreeSet::<(String, String)>::new();
         let mut constructor_labels = BTreeMap::<String, String>::new();
         let mut elidable_terminator_fields = BTreeMap::<String, String>::new();
-        for rule in &self.rules {
+        for rule in self.rules.iter().flat_map(Rule::model_rules) {
             collect_chain_link_element_fields_for_rule(
                 rule,
                 type_env,
@@ -674,6 +683,7 @@ impl SyntaxGrammar {
             )?;
             let rule = match rule {
                 Rule::Alias(_) => continue,
+                Rule::Terminal(_) => unreachable!("terminal schemas contain no terminals"),
                 Rule::Struct(rule) => rule,
                 Rule::Enum(rule) => {
                     let Some(output) = simple_type_ident(&rule.output) else {
@@ -806,9 +816,7 @@ impl SyntaxGrammar {
                 .get(name)
                 .expect("every generated enum has its declaration metadata");
             let doc_attrs = attrs.iter().filter(|attr| attr.path().is_ident("doc"));
-            let other_attrs = attrs.iter().filter(|attr| {
-                !attr.path().is_ident("doc") && !attr.path().is_ident("syntax_parser")
-            });
+            let other_attrs = attrs.iter().filter(|attr| !attr.path().is_ident("doc"));
             let invariants = variants.iter().map(GeneratedVariantModel::invariant_attr);
             quote! {
                 #(#doc_attrs)*
@@ -908,6 +916,7 @@ impl SyntaxGrammar {
         let name = name.to_string();
         self.rules
             .iter()
+            .flat_map(Rule::model_rules)
             .find(|rule| rule.name().to_string() == name)
             .and_then(Rule::context_label)
     }
@@ -948,6 +957,12 @@ fn collect_chain_link_element_fields_for_rule(
             Ok(())
         }
         Rule::Enum(_) => Ok(()),
+        Rule::Terminal(rule) => {
+            for model in &rule.models {
+                collect_chain_link_element_fields_for_rule(model, type_env, fields)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -1333,7 +1348,7 @@ impl GeneratedStructModel {
         let other_attrs = self
             .attrs
             .iter()
-            .filter(|attr| !attr.path().is_ident("doc") && !attr.path().is_ident("syntax_parser"));
+            .filter(|attr| !attr.path().is_ident("doc"));
         let visibility = &self.visibility;
         let ident = &self.ident;
         if self.fields.len() == 1 {
@@ -2220,42 +2235,34 @@ impl VectorItem {
 #[invariant(::Alias(_) => true)]
 #[invariant(::Enum(_) => true)]
 #[invariant(::Struct(_) => true)]
+#[invariant(::Terminal(_) => true)]
 enum Rule {
     Alias(AliasRule),
     Struct(NodeRule),
     Enum(EnumRule),
+    Terminal(TerminalRule),
+}
+
+/// One grammar terminal and the model types that its result uses.
+#[invariant(!models.is_empty() && matches!(&models[0], Rule::Enum(model) if model.name == parser.name
+    && model.branches.len() + 1 == models.len()
+    && model.branches.iter().zip(&models[1..]).all(|(branch, model)| {
+        matches!(model, Rule::Struct(product) if product.name == branch.name)
+    })))]
+struct TerminalRule {
+    parser: AliasRule,
+    models: Vec<Rule>,
 }
 
 impl Rule {
-    /// Keep the declared model when one atomic terminal supplies the whole node.
+    /// Terminal schemas generate model types, not additional grammar productions.
     #[requires(true)]
-    #[ensures(true)]
-    fn parser_override(&self) -> Result<Option<AliasRule>> {
-        let attrs = match self {
-            Self::Alias(_) => return Ok(None),
-            Self::Struct(rule) => &rule.attrs,
-            Self::Enum(rule) => &rule.attrs,
-        };
-        let mut overrides = attrs
-            .iter()
-            .filter(|attr| attr.path().is_ident("syntax_parser"));
-        let Some(attr) = overrides.next() else {
-            return Ok(None);
-        };
-        if overrides.next().is_some() {
-            return Err(syn::Error::new_spanned(
-                attr,
-                "a rule has only one syntax_parser",
-            ));
+    #[ensures(!ret.is_empty())]
+    fn model_rules(&self) -> &[Rule] {
+        match self {
+            Self::Terminal(rule) => &rule.models,
+            _ => std::slice::from_ref(self),
         }
-        Ok(Some(AliasRule {
-            name: self.name().clone(),
-            arguments: self.arguments().to_vec(),
-            context: self
-                .context_label()
-                .map(|label| LitStr::new(&label, self.name().span())),
-            parser: ParserExpr::Rust(attr.parse_args()?),
-        }))
     }
 
     #[requires(true)]
@@ -2265,6 +2272,7 @@ impl Rule {
             Rule::Alias(rule) => &rule.name,
             Rule::Struct(rule) => &rule.name,
             Rule::Enum(rule) => &rule.name,
+            Rule::Terminal(rule) => &rule.parser.name,
         }
     }
 
@@ -2281,6 +2289,7 @@ impl Rule {
             Rule::Alias(_) => None,
             Rule::Struct(rule) => Some(&rule.output),
             Rule::Enum(rule) => Some(&rule.output),
+            Rule::Terminal(rule) => rule.models[0].declared_output(),
         }
     }
 
@@ -2291,19 +2300,18 @@ impl Rule {
             Rule::Alias(rule) => rule.context.as_ref().map(LitStr::value),
             Rule::Struct(rule) => rule.context.as_ref().map(LitStr::value),
             Rule::Enum(rule) => Some(rule.context.value()),
+            Rule::Terminal(rule) => rule.parser.context.as_ref().map(LitStr::value),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
-        if let Some(parser) = self.parser_override()? {
-            return parser.expand_metadata(type_env);
-        }
         match self {
-            Rule::Alias(rule) => rule.expand_metadata(type_env),
+            Rule::Alias(rule) => rule.expand_metadata("alias", type_env),
             Rule::Struct(rule) => rule.expand_metadata("struct", type_env),
             Rule::Enum(rule) => rule.expand_metadata(type_env),
+            Rule::Terminal(rule) => rule.parser.expand_metadata("terminal", type_env),
         }
     }
 
@@ -2314,6 +2322,7 @@ impl Rule {
             Rule::Alias(rule) => &rule.arguments,
             Rule::Struct(rule) => &rule.arguments,
             Rule::Enum(rule) => &rule.arguments,
+            Rule::Terminal(rule) => &rule.parser.arguments,
         }
     }
 
@@ -2324,6 +2333,7 @@ impl Rule {
             Rule::Alias(rule) => rule.argument_types(type_env),
             Rule::Struct(rule) => rule.argument_types(type_env),
             Rule::Enum(rule) => rule.argument_types(type_env),
+            Rule::Terminal(rule) => rule.parser.argument_types(type_env),
         }
     }
 
@@ -2338,17 +2348,15 @@ impl Rule {
         use_model_construction: bool,
         flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
-        if let Some(parser) = self.parser_override()? {
-            return parser.expand_strict_parser(
+        match self {
+            Rule::Alias(rule) => rule.expand_strict_parser(
                 type_env,
                 generate_model,
                 model_outputs,
                 model_all_rules_local,
                 flavor,
-            );
-        }
-        match self {
-            Rule::Alias(rule) => rule.expand_strict_parser(
+            ),
+            Rule::Terminal(rule) => rule.parser.expand_strict_parser(
                 type_env,
                 generate_model,
                 model_outputs,
@@ -2384,16 +2392,14 @@ impl Rule {
         recovered_module: &TokenStream2,
         use_model_construction: bool,
     ) -> Result<TokenStream2> {
-        if let Some(parser) = self.parser_override()? {
-            return parser.expand_recovered_parser(
+        match self {
+            Rule::Alias(rule) => rule.expand_recovered_parser(
                 type_env,
                 model_outputs,
                 model_all_rules_local,
                 recovered_module,
-            );
-        }
-        match self {
-            Rule::Alias(rule) => rule.expand_recovered_parser(
+            ),
+            Rule::Terminal(rule) => rule.parser.expand_recovered_parser(
                 type_env,
                 model_outputs,
                 model_all_rules_local,
@@ -2428,7 +2434,11 @@ struct AliasRule {
 impl AliasRule {
     #[requires(true)]
     #[ensures(true)]
-    fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
+    fn expand_metadata(
+        &self,
+        kind: &'static str,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
         let output = type_env
@@ -2457,14 +2467,14 @@ impl AliasRule {
         let recovery = classify_parser_expr(&self.parser, &argument_names, type_env)?.expand();
         Ok(quote! {
             SyntaxGrammarRule {
-                kind: "alias",
+                kind: #kind,
                 name: #name,
                 arguments: &[#(#arguments),*],
                 output: #output,
                 context: #context,
                 fields: &[
                     SyntaxGrammarField {
-                    kind: "alias",
+                    kind: #kind,
                     name: "",
                     parser: #parser,
                     recovery: #recovery,
@@ -2927,6 +2937,9 @@ impl<'a> SpliceDeclarations<'a> {
                 }
                 data!(ParsedRule::Resolved(Rule::Struct(rule))) => {
                     other_rule_kinds.insert(rule.name.to_string(), "a struct rule");
+                }
+                data!(ParsedRule::Resolved(Rule::Terminal(rule))) => {
+                    other_rule_kinds.insert(rule.parser.name.to_string(), "terminal");
                 }
                 data!(ParsedRule::Resolved(Rule::Enum(rule))) => {
                     unreachable!(
@@ -4037,6 +4050,7 @@ struct GrammarTypeEnv {
     model_nodes: BTreeSet<String>,
     /// The context label of every labelled rule and alias, by name.
     rule_labels: BTreeMap<String, String>,
+    grammar_rules: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4264,7 +4278,10 @@ impl GrammarTypeEnv {
     #[requires(true)]
     #[ensures(true)]
     fn new(recursive: &[RecursiveRule], rules: &[Rule]) -> Self {
+        let grammar_rules = rules.iter().map(|rule| rule.name().to_string()).collect();
+        let rules = rules.iter().flat_map(Rule::model_rules).collect::<Vec<_>>();
         let mut type_env = Self {
+            grammar_rules,
             recursive: recursive
                 .iter()
                 .map(|rule| (rule.name.to_string(), rule.output.clone()))
@@ -4298,7 +4315,7 @@ impl GrammarTypeEnv {
                 .collect(),
         };
 
-        for rule in rules {
+        for rule in &rules {
             if let Some(output) = rule.declared_output() {
                 type_env
                     .rules
@@ -4308,7 +4325,7 @@ impl GrammarTypeEnv {
 
         loop {
             let mut inserted = false;
-            for rule in rules {
+            for rule in &rules {
                 let Rule::Alias(alias) = rule else {
                     continue;
                 };
@@ -4426,7 +4443,8 @@ impl GrammarTypeEnv {
     #[requires(true)]
     #[ensures(true)]
     fn rule_known_for_recovery(&self, name: &str, arguments: &BTreeSet<String>) -> bool {
-        arguments.contains(name) || self.rules.contains_key(name)
+        arguments.contains(name)
+            || (self.grammar_rules.contains(name) && self.rules.contains_key(name))
     }
 
     #[requires(true)]
@@ -8659,7 +8677,88 @@ fn is_unit_type(output: &Type) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn parse_terminal_rule(input: ParseStream<'_>) -> Result<TerminalRule> {
+    let attrs = input.call(Attribute::parse_outer)?;
+    input.parse::<kw::terminal>()?;
+    let context: LitStr = input.parse()?;
+    let name: Ident = input.parse()?;
+    let arguments = parse_optional_arguments(input)?;
+    input.parse::<Token![=]>()?;
+    let parser = input.parse()?;
+    input.parse::<Token![=>]>()?;
+    input.parse::<Token![enum]>()?;
+    let content;
+    braced!(content in input);
+    let mut branches = Vec::new();
+    let mut products = Vec::new();
+    while !content.is_empty() {
+        let attrs = content.call(Attribute::parse_outer)?;
+        let branch_name: Ident = content.parse()?;
+        let field_override = if content.peek(Token![as]) {
+            content.parse::<Token![as]>()?;
+            Some(content.parse()?)
+        } else {
+            None
+        };
+        content.parse::<Token![->]>()?;
+        content.parse::<Token![struct]>()?;
+        let fields;
+        braced!(fields in content);
+        products.push(Rule::Struct(NodeRule {
+            attrs: attrs.clone(),
+            output: syntax_type_for_rule(&branch_name),
+            name: branch_name.clone(),
+            arguments: arguments.clone(),
+            context: Some(context.clone()),
+            fields: parse_explicit_struct_fields(&fields)?,
+        }));
+        branches.push(EnumBranch {
+            attrs,
+            conditions: Vec::new(),
+            name: branch_name,
+            field_override,
+            origin: EnumBranchOrigin::Own,
+        });
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+        } else if !content.is_empty() {
+            return Err(content.error("expected `,` between terminal model products"));
+        }
+    }
+    if branches.is_empty() {
+        return Err(content.error("a terminal model needs at least one product"));
+    }
+    let mut models = Vec::with_capacity(products.len() + 1);
+    models.push(Rule::Enum(EnumRule::from_data(data!(EnumRule {
+        attrs,
+        name: name.clone(),
+        arguments: arguments.clone(),
+        output: syntax_type_for_rule(&name),
+        context: context.clone(),
+        branches,
+    }))));
+    models.extend(products);
+    Ok(new!(TerminalRule {
+        parser: AliasRule {
+            name,
+            arguments,
+            context: Some(context),
+            parser,
+        },
+        models,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_rule(input: ParseStream<'_>) -> Result<ParsedRule> {
+    let fork = input.fork();
+    fork.call(Attribute::parse_outer)?;
+    if fork.peek(kw::terminal) {
+        return Ok(new!(ParsedRule::Resolved(Rule::Terminal(
+            parse_terminal_rule(input)?
+        ))));
+    }
     let attrs = input.call(Attribute::parse_outer)?;
     input.parse::<kw::rule>()?;
     let context: LitStr = input.parse()?;
@@ -10287,6 +10386,12 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
         }
         let entries = if let Some(index) = self.rule_indices.get(rule_name).copied() {
             match &self.rules[index] {
+                Rule::Terminal(terminal) => {
+                    let rule = &terminal.parser;
+                    let argument_names = rule.argument_name_set();
+                    let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
+                    self.expr_first_entries(&expr)?
+                }
                 Rule::Alias(rule) => {
                     let argument_names = rule.argument_name_set();
                     let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
@@ -10462,6 +10567,12 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
         }
         let nullable = if let Some(index) = self.rule_indices.get(rule_name).copied() {
             match &self.rules[index] {
+                Rule::Terminal(terminal) => {
+                    let rule = &terminal.parser;
+                    let argument_names = rule.argument_name_set();
+                    let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
+                    self.expr_nullable(&expr)?
+                }
                 Rule::Alias(rule) => {
                     let argument_names = rule.argument_name_set();
                     let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
@@ -10793,27 +10904,78 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn atomic_parser_keeps_declared_model_and_replaces_recovery_metadata() {
+    fn terminal_schema_keeps_model_fields_out_of_parser_metadata() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote::quote! {
             model;
             env SyntaxGrammarEnv;
-            /// A replacement quote retains both markers.
-            #[syntax_parser(replacement_quote())]
-            rule "replacement phrase" text_replacement_free_modifier -> struct {
-                /// The opening marker.
-                field lohai <- cmavo(Lohai);
-                /// The closing marker.
-                field lehai <- cmavo(Lehai);
+            strict_parsers;
+            /// One opaque replacement unit.
+            terminal "replacement phrase" text_replacement_free_modifier = replacement_quote() => enum {
+                /// The full replacement retains both markers.
+                full_text_replacement_free_modifier -> struct {
+                    /// The opening marker.
+                    field lohai <- cmavo(Lohai);
+                    /// The closing marker.
+                    field lehai <- cmavo(Lehai);
+                },
             }
-        })
-        .expect("atomic model grammar");
-        let expanded = grammar.expand();
-        let text = expanded.to_string();
-        assert!(!text.contains("compile_error"), "{text}");
-        assert!(text.contains("SyntaxGrammarRecoveryExpr :: WordCategory (crate :: SyntaxWordCategory :: ReplacementQuote)"), "{text}");
-        assert!(text.contains("pub lohai : Token"));
-        assert!(text.contains("pub lehai : Token"));
-        assert!(!text.contains("# [syntax_parser"));
+        }).expect("terminal grammar");
+        assert_eq!(grammar.rules.len(), 1);
+        let env = GrammarTypeEnv::new(&grammar.recursive, &grammar.rules);
+        assert!(
+            !env.rule_known_for_recovery("full_text_replacement_free_modifier", &BTreeSet::new())
+        );
+        let anchors = RecoveryAnchorAnalyzer::new(&grammar.rules, &env);
+        assert!(
+            anchors
+                .rule_first_entries("text_replacement_free_modifier")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            !anchors
+                .rule_nullable("text_replacement_free_modifier")
+                .unwrap()
+        );
+        assert!(
+            anchors
+                .field_anchor_specs(&grammar.rules[0])
+                .unwrap()
+                .is_empty()
+        );
+        let metadata = grammar.rules[0].expand_metadata(&env).unwrap().to_string();
+        assert!(metadata.contains("kind : \"terminal\""), "{metadata}");
+        assert!(metadata.contains("SyntaxGrammarRecoveryExpr :: WordCategory (crate :: SyntaxWordCategory :: ReplacementQuote)"), "{metadata}");
+        assert!(!metadata.contains("full_text_replacement_free_modifier"));
+        let expanded = grammar.expand().to_string();
+        assert!(!expanded.contains("compile_error"), "{expanded}");
+        assert!(expanded.contains("pub lohai : Token"));
+        assert!(expanded.contains("pub lehai : Token"));
+        assert!(!expanded.contains("fn full_text_replacement_free_modifier_parser"));
+        assert!(expanded.contains("generated_runtime :: replacement_quote"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_schema_rejects_an_empty_model_and_name_collisions() {
+        assert!(
+            syn::parse2::<SyntaxGrammar>(quote::quote! {
+                terminal "quote" quote = replacement_quote() => enum {}
+            })
+            .is_err()
+        );
+        let result = syn::parse2::<SyntaxGrammar>(quote::quote! {
+            terminal "quote" quote = replacement_quote() => enum {
+                /// A marker.
+                marker -> struct { field word <- cmavo(Lohai); },
+            }
+            rule "marker" marker -> struct { field word <- cmavo(Lohai); }
+        });
+        assert!(
+            result.is_err(),
+            "a terminal model name cannot hide a grammar rule"
+        );
     }
 
     use super::*;
@@ -10997,7 +11159,7 @@ mod tests {
             assert!(
                 error
                     .to_string()
-                    .contains("expected `recursive`, `alias`, or `rule`"),
+                    .contains("expected `recursive`, `alias`, `terminal`, or `rule`"),
                 "unexpected error: {error}"
             );
         }

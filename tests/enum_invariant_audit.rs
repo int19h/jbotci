@@ -2296,6 +2296,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:Rule::Terminal",
+        "the terminal model invariant pairs its enum branches with the typed product declarations",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::Assert",
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),

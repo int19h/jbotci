@@ -3725,52 +3725,35 @@ pub mod generated_model {
         field sehu <- opt(cmavo(Sehu).wf()).elidable_terminator(Sehu);
     }
 
-    /// Sum node for replacement phrase; selects among the `full_text_replacement_free_modifier`, `new_only_text_replacement_free_modifier`, and `close_only_text_replacement_free_modifier` forms.
-    // Morphology supplies one quote. The declared fields retain its syntax view.
-    #[syntax_parser(replacement_quote())]
-    rule "replacement phrase" text_replacement_free_modifier -> enum {
-        /// Uses the `full_text_replacement_free_modifier` product form, whose payload preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai`.
-        full_text_replacement_free_modifier,
-        /// Uses the `new_only_text_replacement_free_modifier` product form, whose payload preserves `sahai`, `new_words`, and `lehai`.
-        new_only_text_replacement_free_modifier,
-        /// Uses the `close_only_text_replacement_free_modifier` product form, whose payload preserves `lehai`.
-        close_only_text_replacement_free_modifier,
-    }
-
-    alias "replacement free modifier word" word_before_sahai_or_lehai =
-        word_not_cmavo(Sahai, Lehai);
-
-    alias "replacement free modifier word" word_before_lehai =
-        word_not_cmavo(Lehai);
-
-    /// Product node for replacement phrase; preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai` in source order.
-    rule "replacement phrase" full_text_replacement_free_modifier -> struct {
-        /// The `Lohai` cmavo marker.
-        field lohai <- cmavo(Lohai);
-        /// Ordered sequence of zero or more old words components.
-        field old_words <- [zero_or_more word_before_sahai_or_lehai()];
-        /// The optional `Sahai` cmavo marker.
-        field sahai <- opt(cmavo(Sahai));
-        /// Ordered sequence of zero or more new words components.
-        field new_words <- [zero_or_more word_before_lehai()];
-        /// The `Lehai` cmavo marker.
-        field lehai <- cmavo(Lehai).wf();
-    }
-
-    /// Product node for replacement phrase; preserves `sahai`, `new_words`, and `lehai` in source order.
-    rule "replacement phrase" new_only_text_replacement_free_modifier -> struct {
-        /// The `Sahai` cmavo marker.
-        field sahai <- cmavo(Sahai);
-        /// Ordered sequence of zero or more new words components.
-        field new_words <- [zero_or_more word_before_lehai()];
-        /// The `Lehai` cmavo marker.
-        field lehai <- cmavo(Lehai).wf();
-    }
-
-    /// Transparent product node for replacement phrase; preserves the `lehai` component.
-    rule "replacement phrase" close_only_text_replacement_free_modifier -> struct {
-        /// The `Lehai` cmavo marker.
-        field lehai <- cmavo(Lehai).wf();
+    /// One replacement quote, projected into its existing syntax forms.
+    terminal "replacement phrase" text_replacement_free_modifier = replacement_quote() => enum {
+        /// The full replacement keeps lohai, old_words, sahai, new_words, and lehai.
+        full_text_replacement_free_modifier -> struct {
+            /// The `Lohai` cmavo marker.
+            field lohai <- cmavo(Lohai);
+            /// Ordered sequence of zero or more old words components.
+            field old_words <- [zero_or_more word_not_cmavo(Sahai, Lehai)];
+            /// The optional `Sahai` cmavo marker.
+            field sahai <- opt(cmavo(Sahai));
+            /// Ordered sequence of zero or more new words components.
+            field new_words <- [zero_or_more word_not_cmavo(Lehai)];
+            /// The `Lehai` cmavo marker.
+            field lehai <- cmavo(Lehai).wf();
+        },
+        /// The new-only replacement keeps sahai, new_words, and lehai.
+        new_only_text_replacement_free_modifier -> struct {
+            /// The `Sahai` cmavo marker.
+            field sahai <- cmavo(Sahai);
+            /// Ordered sequence of zero or more new words components.
+            field new_words <- [zero_or_more word_not_cmavo(Lehai)];
+            /// The `Lehai` cmavo marker.
+            field lehai <- cmavo(Lehai).wf();
+        },
+        /// The close-only replacement keeps lehai.
+        close_only_text_replacement_free_modifier -> struct {
+            /// The `Lehai` cmavo marker.
+            field lehai <- cmavo(Lehai).wf();
+        },
     }
 
     /// Sum node for relative clauses; gives the completed camxes-exp continuation route first choice, then reparses baseline ZIhE surfaces through the standard arm.
