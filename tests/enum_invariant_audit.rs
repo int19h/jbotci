@@ -2956,10 +2956,15 @@ fn qualified_invariant_attributes_are_audited_by_final_path_segment() {
         "#[bityzba::invariant(\n",
         "    ::Qualified { .. } => true\n",
         ")]\n",
+        "#[bityzba::expensive_invariant(::Expensive(..) => true)]\n",
+        "#[bityzba::expensive_invariant(match self {\n",
+        "    _ => true,\n",
+        "})]\n",
         "#[bityzba::not_invariant(::NearMiss => true)]\n",
         "enum Example {\n",
         "    Unqualified,\n",
         "    Qualified,\n",
+        "    Expensive,\n",
         "    NearMiss,\n",
         "}\n",
     );
@@ -2975,6 +2980,7 @@ fn qualified_invariant_attributes_are_audited_by_final_path_segment() {
         placeholders,
         BTreeSet::from([
             "tests/qualified_invariant_fixture.rs:Example::Qualified".to_owned(),
+            "tests/qualified_invariant_fixture.rs:Example::Expensive".to_owned(),
             "tests/qualified_invariant_fixture.rs:Example::Unqualified".to_owned(),
         ]),
     );
@@ -3100,7 +3106,10 @@ fn invariant_attribute_arguments(attribute: &str) -> Option<&str> {
     let attribute = attribute.trim().strip_prefix("#[")?;
     let open = attribute.find('(')?;
     let path = attribute[..open].trim();
-    if path.rsplit("::").next()?.trim() != "invariant" {
+    if !matches!(
+        path.rsplit("::").next()?.trim(),
+        "invariant" | "expensive_invariant"
+    ) {
         return None;
     }
     Some(&attribute[open + 1..])
