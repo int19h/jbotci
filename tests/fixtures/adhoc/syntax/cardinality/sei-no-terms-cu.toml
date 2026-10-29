@@ -1,0 +1,12 @@
+id = "adhoc.syntax.cardinality.sei-no-terms-cu"
+lojban = "sei cu klama se'u"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "CU needs a nonempty terms group inside SEI."
+
+[expectations.syntax]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [4, 6], source-text = "cu", message = "unexpected cmavo" }]
+status = "failure"

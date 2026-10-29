@@ -6914,6 +6914,220 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cardinality_warnings_anchor_strict_and_recovered_constructs() {
+        run_on_normal_stack(|| {
+            for (source, kind, span) in [
+                (
+                    "zo'u",
+                    ExperimentalConstruct::ExperimentalEmptyPrenex,
+                    [0, 4],
+                ),
+                (
+                    "zo'u mi klama",
+                    ExperimentalConstruct::ExperimentalEmptyPrenex,
+                    [0, 4],
+                ),
+                (
+                    "lo broda poi zo'u mi brode ku'o cu brodi",
+                    ExperimentalConstruct::ExperimentalEmptyPrenex,
+                    [13, 17],
+                ),
+                (
+                    "na na na",
+                    ExperimentalConstruct::ExperimentalMultipleNaFragment,
+                    [0, 2],
+                ),
+                (
+                    "na ui na",
+                    ExperimentalConstruct::ExperimentalMultipleNaFragment,
+                    [0, 2],
+                ),
+                (
+                    "mi klama na",
+                    ExperimentalConstruct::ExperimentalBareNaTerm,
+                    [9, 11],
+                ),
+                (
+                    "na cu klama",
+                    ExperimentalConstruct::ExperimentalBareNaTerm,
+                    [0, 2],
+                ),
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let options = ParseOptions::default();
+                let strict =
+                    crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                        .unwrap();
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                assert!(recovered.errors.is_empty(), "{source}");
+                for warnings in [&strict.warnings, &recovered.warnings] {
+                    let mut matching = warnings.iter().filter(|warning| warning.kind == kind);
+                    assert_eq!(warning_span(matching.next().unwrap()), span, "{source}");
+                    assert!(matching.next().is_none(), "{source}");
+                }
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinality_warnings_exclude_standard_forms_and_abandoned_candidates() {
+        run_on_normal_stack(|| {
+            for source in [
+                "da zo'u da klama",
+                "da zo'u",
+                "na",
+                "na ui",
+                "na sei gleki se'u",
+                "na ku",
+                "mi na ku klama",
+                "mi na klama",
+                "na klama",
+                "mi cu klama",
+                "cu klama",
+                "sei mi cu klama se'u",
+                "pa",
+                "vei pa su'i re ve'o",
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let options = ParseOptions::default();
+                let strict =
+                    crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                        .unwrap();
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                for warnings in [&strict.warnings, &recovered.warnings] {
+                    assert!(
+                        !warnings.iter().any(|warning| matches!(
+                            warning.kind,
+                            ExperimentalConstruct::ExperimentalEmptyPrenex
+                                | ExperimentalConstruct::ExperimentalMultipleNaFragment
+                                | ExperimentalConstruct::ExperimentalBareNaTerm
+                        )),
+                        "{source}"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinality_warnings_survive_an_error_after_the_construct() {
+        run_on_normal_stack(|| {
+            for (source, kind) in [
+                (
+                    "zo'u mi klama .i ku",
+                    ExperimentalConstruct::ExperimentalEmptyPrenex,
+                ),
+                (
+                    "na na .i ku",
+                    ExperimentalConstruct::ExperimentalMultipleNaFragment,
+                ),
+                (
+                    "mi klama na .i ku",
+                    ExperimentalConstruct::ExperimentalBareNaTerm,
+                ),
+            ] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words,
+                    source,
+                    &ParseOptions::default(),
+                );
+                assert!(!recovered.errors.is_empty(), "{source}");
+                assert_eq!(
+                    recovered
+                        .warnings
+                        .iter()
+                        .filter(|warning| warning.kind == kind)
+                        .count(),
+                    1,
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinality_cu_boundaries_hold_in_every_feature() {
+        run_on_normal_stack(|| {
+            for feature in
+                std::iter::once(None).chain(DialectFeature::ALL.iter().copied().map(Some))
+            {
+                let options = match feature {
+                    Some(feature) => ParseOptions::default().with_dialect_definition(
+                        &jbotci_dialect::parse_dialect_definition(&format!(
+                            "(+{})",
+                            feature.name()
+                        ))
+                        .unwrap(),
+                    ),
+                    None => ParseOptions::default(),
+                };
+                for source in [
+                    "sei cu klama se'u",
+                    "mi sei cu gleki se'u klama",
+                    "sei cu klama",
+                    "sei to ui toi cu klama se'u",
+                    "cu cu klama",
+                    "cu sei gleki se'u cu klama",
+                ] {
+                    let words = segment_words_with_modifiers(source).unwrap();
+                    assert!(
+                        crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                            .is_err(),
+                        "{source}: {feature:?}"
+                    );
+                }
+                for source in [
+                    "sei klama se'u",
+                    "sei mi cu klama se'u",
+                    "sei zo cu cu klama se'u",
+                    "sei to ui toi mi cu klama se'u",
+                    "cu klama",
+                    "cu mi cu klama",
+                    "mi cu do cu klama",
+                    "mi cu cu klama",
+                    "mi cu ui cu klama",
+                ] {
+                    let words = segment_words_with_modifiers(source).unwrap();
+                    assert!(
+                        crate::parse_syntax_tree_with_source_and_options(&words, source, &options)
+                            .is_ok(),
+                        "{source}: {feature:?}"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinality_changes_keep_the_deferred_exp_acceptances_rejected() {
+        run_on_normal_stack(|| {
+            for source in ["na mi", "na sei gleki se'u na", "pa su'i re"] {
+                let words = segment_words_with_modifiers(source).unwrap();
+                assert!(
+                    crate::parse_syntax_tree_with_options(&words, &ParseOptions::default())
+                        .is_err(),
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn space_before_time_warning_anchors_the_space_part() {
         run_on_normal_stack(|| {
             for (source, start, end) in [

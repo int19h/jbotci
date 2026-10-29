@@ -1,0 +1,13 @@
+id = "adhoc.syntax.cardinality.empty-prenex-fragment"
+lojban = "zo'u"
+tags = ["adhoc", "syntax", "issue-804"]
+
+[[provenance]]
+kind = "other"
+name = "Issue #804 cardinality boundary"
+description = "Camxes-exp permits an empty prenex, which needs a warning."
+
+[expectations.syntax]
+raw = { sha256 = "ab16fc2136147fb85222201dbbe4d03e97fe0d6dd3b6b7b585cad13d16869723" }
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-empty-prenex", byte-span = [0, 4], source-text = "zo'u", message = "experimental syntax: empty prenex", word-index = 0 }]
+status = "success"
