@@ -4732,6 +4732,7 @@ mod tests {
         [
             format!("rule\"{normalized_construct}\""),
             format!("alias\"{normalized_construct}\""),
+            format!("terminal\"{normalized_construct}\""),
             format!("context\"{normalized_construct}\""),
             format!("syntax_context(\"{normalized_construct}\""),
             format!("Some(\"{normalized_construct}\")"),
