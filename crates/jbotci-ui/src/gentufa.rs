@@ -981,6 +981,7 @@ pub(super) fn render_ref_marker(
                     class: "reference-tooltip-trigger",
                     aria_expanded: reference_tooltip_matches_marker(marker, tooltip_open_state),
                     aria_controls: "reference-tooltip-overlay",
+                    aria_haspopup: "dialog",
                     onkeydown: move |event| {
                         if event.key() == Key::ArrowDown {
                             event.prevent_default();

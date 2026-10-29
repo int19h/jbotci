@@ -782,7 +782,8 @@ pub(super) fn render_reference_tooltip(
     script: GentufaScript,
 ) -> Element {
     rsx! {
-        span { id: "reference-tooltip-overlay", class: "rich-reference-tooltip-stack reference-tooltip-overlay", role: "tooltip",
+        span { id: "reference-tooltip-overlay", class: "rich-reference-tooltip-stack reference-tooltip-overlay", role: "dialog",
+            aria_label: "Reference card",
             tabindex: "0",
             onclick: move |event| event.stop_propagation(),
             if let Some(card) = &tooltip.card {

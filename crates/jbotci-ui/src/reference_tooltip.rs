@@ -405,6 +405,8 @@ mod tests {
                 let card = html.find("id=\"reference-tooltip-overlay\"").unwrap();
                 assert!(panel_end < card, "{html}");
                 assert!(html.contains("klama"), "{html}");
+                assert!(html.contains("role=\"dialog\""), "{html}");
+                assert!(html.contains("aria-label=\"Reference card\""), "{html}");
             }
         }
     }
