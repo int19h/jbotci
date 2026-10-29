@@ -63,7 +63,7 @@ fn change_reference_tooltip(
         });
     drop(current);
     if close {
-        close_reference_tooltip(open, false);
+        close_reference_tooltip(open, true);
         return false;
     }
     active.set(Some(ActiveReferenceTooltip {
@@ -118,11 +118,13 @@ pub(super) fn focus_reference_tooltip_card() {
     let Some(mut active) = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>() else {
         return;
     };
-    let Some(mut card) = active.peek().clone() else {
-        return;
-    };
-    card.mode = ReferenceTooltipMode::Clicked;
-    active.set(Some(card));
+    {
+        let mut value = active.write();
+        let Some(card) = value.as_mut() else {
+            return;
+        };
+        card.mode = ReferenceTooltipMode::Clicked;
+    }
     #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
     spawn(async move {
         let _ = document::eval("document.querySelector('#reference-tooltip-overlay .rich-dictionary-tooltip')?.focus({preventScroll:true});").await;
