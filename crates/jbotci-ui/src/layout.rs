@@ -5328,6 +5328,14 @@ pub(super) fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
     let Some(tooltip) = dictionary_tooltip_element_for_host(host) else {
         return;
     };
+    if tooltip
+        .closest("[data-reference-tooltip-mode='clicked']")
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        return;
+    }
     let style = tooltip.style();
     let _ = tooltip.remove_attribute("data-jbotci-position-ready");
     let _ = style.set_property("visibility", "hidden");
@@ -5403,17 +5411,29 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         width: viewport_width,
         height: viewport_height,
     };
-    let style = tooltip_html.style();
-    let _ = style.set_property(
-        "--dictionary-tooltip-max-height",
-        &format!(
-            "{}px",
-            platform::tooltip_height_limit(viewport, DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX)
-        ),
-    );
     let reference_stack = tooltip_html
         .matches(".rich-reference-tooltip-stack")
         .unwrap_or(false);
+    let height_limit = if reference_stack {
+        platform::reference_tooltip_height_limit(
+            platform::Rect {
+                left: host_rect.left(),
+                top: host_rect.top(),
+                width: host_rect.width(),
+                height: host_rect.height(),
+            },
+            viewport,
+            DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+            DICTIONARY_TOOLTIP_HOST_GAP_PX,
+        )
+    } else {
+        platform::tooltip_height_limit(viewport, DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX)
+    };
+    let style = tooltip_html.style();
+    let _ = style.set_property(
+        "--dictionary-tooltip-max-height",
+        &format!("{}px", height_limit),
+    );
     if reference_stack {
         let _ = style.set_property("overflow", "visible");
     }
@@ -5499,6 +5519,10 @@ pub(super) fn install_desktop_tooltip_bridge() {
             "const tooltipViewportMargin = {};\n",
             DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX
         );
+        script.push_str(&format!(
+            "const referenceTooltipGap = {};\n",
+            DICTIONARY_TOOLTIP_HOST_GAP_PX
+        ));
         script.push_str(r#"
             let nextTooltipId = 1;
             const hostSelector = ".dictionary-tooltip-host, .reference-tooltip-host";
@@ -5553,6 +5577,9 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 if (!tooltip) {
                     return;
                 }
+                if (tooltip.closest("[data-reference-tooltip-mode='clicked']")) {
+                    return;
+                }
                 tooltip.removeAttribute("data-jbotci-position-ready");
                 tooltip.style.setProperty("visibility", "hidden");
                 tooltip.style.setProperty("pointer-events", "none");
@@ -5596,9 +5623,14 @@ pub(super) fn install_desktop_tooltip_bridge() {
                     return;
                 }
                 activateHost(host);
-                tooltip.style.setProperty("--dictionary-tooltip-max-height",
-                    `${Math.max(1, Number(window.innerHeight || 1) - visibleViewportTop() - 2 * tooltipViewportMargin)}px`);
                 const referenceStack = tooltip.classList.contains("rich-reference-tooltip-stack");
+                const fullHeight = Math.max(1, Number(window.innerHeight || 1) - visibleViewportTop() - 2 * tooltipViewportMargin);
+                const hostRect = host.getBoundingClientRect();
+                const gap = referenceTooltipGap;
+                const above = Math.min(fullHeight, Math.max(0, hostRect.top - gap - visibleViewportTop() - tooltipViewportMargin));
+                const below = Math.min(fullHeight, Math.max(0, Number(window.innerHeight || 1) - tooltipViewportMargin - hostRect.bottom - gap));
+                const heightLimit = referenceStack ? Math.max(1, above, below) : fullHeight;
+                tooltip.style.setProperty("--dictionary-tooltip-max-height", `${heightLimit}px`);
                 if (referenceStack) {
                     tooltip.style.overflow = "visible";
                 }
@@ -5623,7 +5655,8 @@ pub(super) fn install_desktop_tooltip_bridge() {
             const scheduleMeasure = (event) => {
                 const target = event.target;
                 const host = target instanceof Element ? target.closest(".reference-tooltip-host") : null;
-                if (event.type === "click" && host) {
+                if (host && (event.type === "click" || (event.type === "mouseover"
+                    && !document.querySelector("[data-reference-tooltip-mode='clicked']")))) {
                     for (const anchor of document.querySelectorAll("[data-reference-tooltip-anchor]")) {
                         anchor.removeAttribute("data-reference-tooltip-anchor");
                     }

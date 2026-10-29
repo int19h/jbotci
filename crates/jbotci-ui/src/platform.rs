@@ -348,6 +348,26 @@ pub fn tooltip_height_limit(viewport: Viewport, margin: f64) -> f64 {
     (viewport.height - viewport.top - 2.0 * margin.max(0.0)).max(1.0)
 }
 
+// Keep the label outside the card so that a second click can close it.
+#[requires(viewport.top.is_finite() && viewport.top >= 0.0)]
+#[requires(viewport.height.is_finite() && viewport.height >= 0.0)]
+#[requires(host.top.is_finite() && host.height.is_finite() && host.height >= 0.0)]
+#[requires(margin.is_finite() && gap.is_finite())]
+#[ensures(ret.is_finite() && ret >= 1.0)]
+#[ensures(ret <= tooltip_height_limit(viewport, margin))]
+pub fn reference_tooltip_height_limit(
+    host: Rect,
+    viewport: Viewport,
+    margin: f64,
+    gap: f64,
+) -> f64 {
+    let limit = tooltip_height_limit(viewport, margin);
+    let above = (host.top - gap.max(0.0) - viewport.top - margin.max(0.0)).clamp(0.0, limit);
+    let below =
+        (viewport.height - margin.max(0.0) - host.bottom() - gap.max(0.0)).clamp(0.0, limit);
+    above.max(below).max(1.0)
+}
+
 #[requires(host.width >= 0.0)]
 #[requires(host.height >= 0.0)]
 #[requires(tooltip.width >= 0.0)]
@@ -735,6 +755,35 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_card_fits_without_covering_its_label() {
+        for height in [240.0, 540.0, 844.0] {
+            let viewport = Viewport {
+                top: 34.0,
+                width: 390.0,
+                height,
+            };
+            for top in [42.0, height / 2.0, height - 20.0] {
+                let host = Rect {
+                    left: 180.0,
+                    top,
+                    width: 20.0,
+                    height: 12.0,
+                };
+                let size = Size {
+                    width: 352.0,
+                    height: reference_tooltip_height_limit(host, viewport, 8.0, 8.0),
+                };
+                let placement = place_tooltip(host, size, viewport, 8.0, 8.0);
+                assert!(placement.top >= viewport.top);
+                assert!(placement.top + size.height <= height);
+                assert!(placement.top + size.height <= host.top || placement.top >= host.bottom());
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]

@@ -4641,7 +4641,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .reference-tooltip-overlay[data-jbotci-position-ready="true"] {
   visibility: visible;
-  pointer-events: none;
+  pointer-events: auto;
   transition-delay: 0s;
 }
 
@@ -4659,6 +4659,12 @@ body::-webkit-scrollbar-thumb:hover,
 
 .reference-tooltip-overlay[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
   visibility: visible;
+  pointer-events: auto;
+}
+
+.reference-tooltip-interaction[data-reference-tooltip-mode="hover"] .reference-tooltip-overlay,
+.reference-tooltip-interaction[data-reference-tooltip-mode="hover"] .rich-dictionary-tooltip {
+  pointer-events: none;
 }
 
 .tooltip-indexed-place {

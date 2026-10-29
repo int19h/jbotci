@@ -278,10 +278,7 @@ pub(super) fn AppShell() -> Element {
         let _ = gentufa_page.read();
         let _ = view_mode.read();
         let _ = route.read();
-        if reference_tooltip_open.peek().is_some() {
-            let mut open = reference_tooltip_open;
-            open.set(None);
-        }
+        close_reference_tooltip(reference_tooltip_open, false);
     });
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let gentufa_diagnostics_open = use_signal(|| true);
@@ -1041,6 +1038,12 @@ pub(super) fn AppShell() -> Element {
         document::Link { rel: "shortcut icon", r#type: "image/png", href: "{favicon_href}" }
         document::Link { rel: "apple-touch-icon", href: "{apple_touch_icon_href}" }
         div { class: "{app_class}",
+            onclick: move |_| close_reference_tooltip(reference_tooltip_open, false),
+            onkeydown: move |event| {
+                if event.key() == Key::Escape {
+                    close_reference_tooltip(reference_tooltip_open, true);
+                }
+            },
             { render_topbar(
                 route_value,
                 settings,

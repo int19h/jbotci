@@ -959,25 +959,37 @@ pub(super) fn render_ref_marker(
         let click_tooltip_open = reference_tooltip_open;
         let enter_role = marker.role;
         let enter_label = marker.label.clone();
-        let click_role = marker.role;
-        let click_label = marker.label.clone();
+        let enter_tooltip_open = reference_tooltip_open;
+        let enter_marker = marker.clone();
+        let enter_tooltip = tooltip.clone();
+        let enter_base_path = base_path.clone();
         let click_marker = marker.clone();
         let click_tooltip = tooltip.clone();
         rsx! {
             span {
                 class: "{host_class}",
-                onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
+                onmouseenter: move |event| {
+                    set_reference_hover(enter_hover, enter_role, enter_label.clone());
+                    show_reference_tooltip(&event, enter_tooltip_open, &enter_marker, &enter_tooltip, &enter_base_path, ReferenceTooltipMode::Hover);
+                },
                 onmouseleave: move |_| {
                     clear_reference_hover(leave_hover);
-                    clear_reference_tooltip_open(leave_tooltip_open);
+                    leave_reference_tooltip(leave_tooltip_open);
                 },
                 button {
                     r#type: "button",
                     class: "reference-tooltip-trigger",
                     aria_expanded: reference_tooltip_matches_marker(marker, tooltip_open_state),
+                    aria_controls: "reference-tooltip-overlay",
+                    onkeydown: move |event| {
+                        if event.key() == Key::ArrowDown {
+                            event.prevent_default();
+                            focus_reference_tooltip_card();
+                        }
+                    },
                     onclick: move |event| {
-                        set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone());
-                        show_reference_tooltip(&event, &click_marker, &click_tooltip, &base_path);
+                        event.stop_propagation();
+                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, &click_tooltip, &base_path, ReferenceTooltipMode::Clicked);
                     },
                     span {
                         class: "{class}",
@@ -1006,7 +1018,7 @@ pub(super) fn render_ref_marker(
                 onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
                 onmouseleave: move |_| {
                     clear_reference_hover(leave_hover);
-                    clear_reference_tooltip_open(leave_tooltip_open);
+                    leave_reference_tooltip(leave_tooltip_open);
                 },
                 { render_reference_label(&marker.label) }
             }
