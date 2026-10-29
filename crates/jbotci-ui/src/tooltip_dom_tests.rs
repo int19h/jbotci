@@ -12,7 +12,10 @@ fn TooltipCardsDomApp() -> Element {
         highlighted_places: Vec::new(),
         definition: Vec::new(),
         notes: Vec::new(),
-        rows: Vec::new(),
+        rows: vec![new!(ReferenceTooltipRow {
+            label: ReferenceLabel::new("k", None, None),
+            target_text: "mi".to_owned(),
+        })],
     });
     rsx! {
         div { id: "missing", { render_dictionary_tooltip(&missing, false, "", GentufaScript::Latin) } }
@@ -37,6 +40,17 @@ fn shared_hover_renderer_adds_ordered_components_only_for_missing_lujvo() {
     assert!(missing.contains("dictionary-tooltip-stack"));
     assert!(!known.contains("dictionary-tooltip-stack"));
     assert_eq!(known.matches("class=\"tooltip-word\"").count(), 1);
+    assert_eq!(
+        reference
+            .matches("id=\"reference-tooltip-overlay\"")
+            .count(),
+        1
+    );
+    assert!(
+        reference.find("reference-component-card").unwrap()
+            < reference.find("reference-resolution-tooltip").unwrap()
+    );
+    assert!(reference.contains("class=\"reference-row-target\">mi</span>"));
     for stack in [missing, reference] {
         let positions = ["klabajra", "klama", "bajra"].map(|word| {
             stack

@@ -5415,7 +5415,9 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         .matches(".rich-reference-tooltip-stack")
         .unwrap_or(false);
     let height_limit = if reference_stack
-        || tooltip_html.matches(".dictionary-tooltip-stack").unwrap_or(false)
+        || tooltip_html
+            .matches(".dictionary-tooltip-stack")
+            .unwrap_or(false)
     {
         platform::tooltip_height_limit_for_host(
             platform::Rect {
