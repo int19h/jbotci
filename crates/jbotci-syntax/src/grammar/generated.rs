@@ -701,24 +701,24 @@ pub mod generated_model {
     rule "sentence trailer" standard_sentence_trailer_tag_bo(statement_stag) -> struct {
         /// The optional stag.
         field stag <- opt(arc(statement_stag));
-        /// BO and its following free modifiers.
-        field bo <- cmavo(Bo).wf();
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
     }
 
     /// Experimental stag before a trailer BO.
     rule "sentence trailer" exp_sentence_trailer_tag_bo(exp_statement_stag) -> struct {
         /// The experimental stag and its warning.
         field stag <- arc(exp_statement_stag.warn_if(ExperimentalStatementStag).ignore_then(exp_statement_stag));
-        /// BO and its following free modifiers.
-        field bo <- cmavo(Bo).wf();
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
     }
 
     /// A complete candidate for the explicitly unrestricted free boundaries.
     rule "sentence trailer" unrestricted_sentence_trailer_tag_bo(tense_modal) -> struct {
         /// The unrestricted stag and its warning.
         field stag <- arc(tense_modal.warn_if(ExperimentalStatementStag).ignore_then(tense_modal));
-        /// BO and its following free modifiers.
-        field bo <- cmavo(Bo).wf();
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
     }
 
     /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.

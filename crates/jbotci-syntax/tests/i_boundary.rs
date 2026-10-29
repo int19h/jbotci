@@ -310,3 +310,29 @@ fn a_sentence_trailer_stays_inside_an_elided_soi_adverbial() {
     assert!(boundaries(&baseline).soi.is_empty());
     assert!(baseline.warnings.is_empty());
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_trailer_warns_for_free_modifiers_between_bo_and_i() {
+    for dialect in ["()", "(+unrestricted-free)"] {
+        let parsed = parse("mi klama je bo to broda toi .i do cadzu", dialect);
+        let warning = parsed
+            .warnings
+            .iter()
+            .find(|warning| {
+                warning.kind == ExperimentalConstruct::CllProhibitedFreeModifierPlacement
+            })
+            .expect("the free modifier before I has a placement warning");
+        assert_eq!(warning.anchor.cmavo(), Some(Cmavo::To));
+    }
+    for source in [
+        "mi klama je bo .i to broda toi do cadzu",
+        "mi klama je bo .i do cadzu",
+    ] {
+        let parsed = parse(source, "()");
+        assert!(parsed.warnings.iter().all(|warning| {
+            warning.kind != ExperimentalConstruct::CllProhibitedFreeModifierPlacement
+        }));
+    }
+}
