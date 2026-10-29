@@ -4628,12 +4628,14 @@ fn repeated_vector_field<'a>(
             // to return the same type. Its elements do not belong to the field.
             ("ignore_then", 1) => None,
             _ => {
-                // Output conversions can name the same vector type. In that
-                // case, element recovery still belongs to this field.
+                // A conversion can keep the element type while it changes
+                // the vector's cardinality. Element recovery still belongs here.
                 let argument_types = argument_type_map(arguments, type_env)?;
                 let before = parser_output_type(receiver, type_env, &argument_types)?;
                 let after = parser_output_type(parser, type_env, &argument_types)?;
-                type_token_streams_match(&before, &after)
+                let before_element = vector_collection_element_type(&before)?;
+                let after_element = vector_collection_element_type(&after)?;
+                type_token_streams_match(&before_element, &after_element)
                     .then(|| repeated_vector_field(receiver, type_env, arguments))
                     .flatten()
             }
@@ -12546,6 +12548,7 @@ mod tests {
                 quote!(#vector.preceded_by(cmavo(Cu).not()).preceded_by(cmavo(Zohu).lookahead())),
                 quote!(#vector.reject_output(RejectEmpty)),
                 quote!(#vector.map_to(items)),
+                quote!(#vector.map_to(optional_items)),
                 quote!(#vector.map_to(items).preceded_by(cmavo(Cu).not())),
                 quote!(#vector.lookahead()),
                 quote!(#vector.preceded_by(cmavo(Cu).not()).lookahead()),
@@ -12570,6 +12573,7 @@ mod tests {
                         field token <- cmavo(Be);
                     }
                     alias "items" items(item) = #vector;
+                    alias "optional items" optional_items(item) = [zero_or_more item];
                     /// A vector after another field.
                     rule "wrapper" wrapper(item) -> struct {
                         /// The first word.
