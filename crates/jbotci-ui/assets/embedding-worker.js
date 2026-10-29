@@ -102,6 +102,7 @@ self.onmessage = async (event) => {
         payload?.limit || 0,
         payload?.kindFiltersJson || "[]",
         forceWasm,
+        payload?.entryEligibilityJson || "null",
       );
     } else {
       throw new Error(`unknown embedding worker request: ${type}`);
@@ -627,7 +628,8 @@ async function removeSelectedModel() {
   return status();
 }
 
-async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJson, forceWasm) {
+async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJson, forceWasm, entryEligibilityJson = "null") {
+  const eligibility = parseEntryEligibility(entryEligibilityJson);
   const trimmedQuery = String(query || "").trim();
   if (!trimmedQuery) {
     return { hits: [], message: null };
@@ -679,12 +681,10 @@ async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJso
   if (isCustomWebGpuRuntime(runtime)) {
     const loadedRuntime = await ensureModel(forceWasm);
     const scores = await loadedRuntime.scoreF16Vectors(corpus, queryEmbedding[0], getBinary);
-    const hits = rankHitsFromScores(scores, corpus.items, limit, kindFilters);
-    return { hits, message: hits.length === 0 ? "No matches found." : null };
+    return rankSearchResults((count, allowed) => rankHitsFromScores(scores, corpus.items, count, kindFilters, allowed), limit, eligibility);
   }
   const vectors = await readCorpusVectors(corpus);
-  const hits = rankHits(vectors, queryEmbedding[0], corpus.items, corpus.dimensions, limit, kindFilters);
-  return { hits, message: hits.length === 0 ? "No matches found." : null };
+  return rankSearchResults((count, allowed) => rankHits(vectors, queryEmbedding[0], corpus.items, corpus.dimensions, count, kindFilters, allowed), limit, eligibility);
 }
 
 async function ensureModel(forceWasm = false) {
@@ -2434,15 +2434,44 @@ function f32ToF16Bits(value) {
   return sign | ((exponent + 15) << 10) | (fraction & 0x03ff);
 }
 
-function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
+// Rust computes both sets with the shared dictionary eligibility predicate.
+function parseEntryEligibility(json) {
+  const value = JSON.parse(json);
+  if (value === null) return null;
+  if (typeof value !== "object" || !Array.isArray(value.eligible) || !Array.isArray(value.withoutVoteFilter)) {
+    throw new Error("embedding entry eligibility must contain two arrays of entry IDs");
+  }
+  for (const ids of [value.eligible, value.withoutVoteFilter]) {
+    if (!ids.every((id) => Number.isSafeInteger(id) && id >= 0)) {
+      throw new Error("embedding entry IDs must be nonnegative safe integers");
+    }
+  }
+  const eligible = new Set(value.eligible);
+  const withoutVoteFilter = new Set(value.withoutVoteFilter);
+  for (const id of eligible) {
+    if (!withoutVoteFilter.has(id)) throw new Error("eligible entries must also pass without the vote filter");
+  }
+  return { eligible, withoutVoteFilter };
+}
+
+// The one-hit retry tells Rust whether votes caused an empty result.
+function rankSearchResults(rank, count, eligibility) {
+  const hits = rank(count, eligibility?.eligible ?? null);
+  const voteFilterProbe = hits.length === 0 && eligibility !== null
+    ? rank(1, eligibility.withoutVoteFilter)[0] ?? null
+    : null;
+  return { hits, voteFilterProbe, message: hits.length === 0 && voteFilterProbe === null ? "No matches found." : null };
+}
+
+function rankHits(vectors, query, items, dimensions, limit, kindFilters, eligibleIds = null) {
   const rowCount = Math.min(items.length, Math.floor(vectors.length / dimensions));
   const limitCount = Math.trunc(Number(limit) || 0);
   if (limitCount <= 0) {
-    return rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters);
+    return rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters, eligibleIds);
   }
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
-    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+    if (!itemMatchesKindFilters(items[row], kindFilters) || (eligibleIds !== null && !eligibleIds.has(items[row].id))) {
       continue;
     }
     let score = 0;
@@ -2464,15 +2493,15 @@ function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
   return hits;
 }
 
-function rankHitsFromScores(scores, items, limit, kindFilters) {
+function rankHitsFromScores(scores, items, limit, kindFilters, eligibleIds = null) {
   const rowCount = Math.min(items.length, scores.length);
   const limitCount = Math.trunc(Number(limit) || 0);
   if (limitCount <= 0) {
-    return rankAllHitsFromScores(scores, items, rowCount, kindFilters);
+    return rankAllHitsFromScores(scores, items, rowCount, kindFilters, eligibleIds);
   }
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
-    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+    if (!itemMatchesKindFilters(items[row], kindFilters) || (eligibleIds !== null && !eligibleIds.has(items[row].id))) {
       continue;
     }
     const candidate = { id: items[row].id, score: scores[row] };
@@ -2489,10 +2518,10 @@ function rankHitsFromScores(scores, items, limit, kindFilters) {
   return hits;
 }
 
-function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters) {
+function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters, eligibleIds) {
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
-    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+    if (!itemMatchesKindFilters(items[row], kindFilters) || (eligibleIds !== null && !eligibleIds.has(items[row].id))) {
       continue;
     }
     let score = 0;
@@ -2506,10 +2535,10 @@ function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters) {
   return hits;
 }
 
-function rankAllHitsFromScores(scores, items, rowCount, kindFilters) {
+function rankAllHitsFromScores(scores, items, rowCount, kindFilters, eligibleIds) {
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
-    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+    if (!itemMatchesKindFilters(items[row], kindFilters) || (eligibleIds !== null && !eligibleIds.has(items[row].id))) {
       continue;
     }
     hits.push({ id: items[row].id, score: scores[row] });
@@ -2884,6 +2913,10 @@ async function removeOpfsDirectory(root, path) {
 }
 
 export {
+  parseEntryEligibility,
+  rankHits,
+  rankHitsFromScores,
+  rankSearchResults,
   installPackForSetup,
   packCorpusCompatibilityIssue,
   searchPackCompatibilityError,

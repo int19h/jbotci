@@ -2838,6 +2838,7 @@ pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &s
         CllLinkKind::Rafsi => vlacku_web_url(
             base_path,
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Rafsi,
                 query: target.to_owned(),
                 count: VLACKU_WEB_DEFAULT_COUNT,

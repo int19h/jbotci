@@ -2320,10 +2320,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku cards are renderer transport data derived from dictionary/search result cards",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebResult",
-        "vlacku result payload is assembled from dictionary/search APIs and covered by web-core tests",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebState",
         "vlacku web state is a direct URL/local UI state envelope normalized by the result builder",
     ),

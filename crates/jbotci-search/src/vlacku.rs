@@ -6,7 +6,7 @@ use jbotci_dictionary::{
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData, canonicalize_text,
-    normalize_lojban_input_text, segment_words_with_modifiers,
+    lex_single_word, normalize_lojban_input_text, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
     AlineSimilarityScratch, compare_similarity_then_index, prepare_sound_query,
@@ -615,12 +615,13 @@ pub fn dictionary_entry_passes_vlacku_filters(
     similarity: Option<f32>,
     similarity_mode: bool,
 ) -> bool {
-    let entry_filters_ok = dictionary_entry_passes_vlacku_entry_filters(entry, options);
-    let similarity_ok = !similarity_mode
-        || options
-            .min_similarity
-            .is_none_or(|min_similarity| similarity.unwrap_or(0.0) * 100.0 >= min_similarity);
-    entry_filters_ok && similarity_ok
+    dictionary_entry_passes_vlacku_filters_with_min_votes(
+        entry,
+        options,
+        similarity,
+        similarity_mode,
+        options.min_votes,
+    )
 }
 
 #[requires(true)]
@@ -629,14 +630,55 @@ pub fn dictionary_entry_passes_vlacku_entry_filters(
     entry: &DictionaryEntry<'_>,
     options: &VlackuSearchOptions,
 ) -> bool {
-    let word_type_ok = options.word_types.is_empty()
+    dictionary_entry_passes_vlacku_filters_with_min_votes(
+        entry,
+        options,
+        None,
+        false,
+        options.min_votes,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_entry_passes_vlacku_filters_with_min_votes(
+    entry: &DictionaryEntry<'_>,
+    options: &VlackuSearchOptions,
+    similarity: Option<f32>,
+    similarity_mode: bool,
+    min_votes: Option<i32>,
+) -> bool {
+    let entry_ok = vlacku_entry_eligible(
+        Some(WordTypeFilter::from_word_type(entry.word_type)),
+        Some(entry_vote_count(entry)),
+        options,
+        min_votes,
+    );
+    let similarity_ok = !similarity_mode
         || options
-            .word_types
-            .iter()
-            .any(|wanted| wanted.matches_word_type(entry.word_type));
-    let votes_ok = options
-        .min_votes
-        .is_none_or(|min_votes| entry_vote_count(entry) >= min_votes);
+            .min_similarity
+            .is_none_or(|minimum| similarity.unwrap_or(0.0) * 100.0 >= minimum);
+    entry_ok && similarity_ok
+}
+
+/// Every host uses this predicate for entry eligibility before pagination.
+/// An exact word candidate passes `None` as its vote threshold.
+#[requires(true)]
+#[ensures(options.word_types.is_empty() && votes.is_none() -> ret)]
+fn vlacku_entry_eligible(
+    word_type: Option<WordTypeFilter>,
+    votes: Option<i32>,
+    options: &VlackuSearchOptions,
+    min_votes: Option<i32>,
+) -> bool {
+    let word_type_ok = options.word_types.is_empty()
+        || word_type.is_some_and(|actual| {
+            options
+                .word_types
+                .iter()
+                .any(|wanted| wanted.matches_filter(actual))
+        });
+    let votes_ok = min_votes.is_none_or(|minimum| votes.is_none_or(|votes| votes >= minimum));
     word_type_ok && votes_ok
 }
 
@@ -859,6 +901,9 @@ fn cards_for_valsi(
         return cards_for_valsi_pattern(dictionary, query.trim(), options);
     }
 
+    // Lookup keys discard pauses and stress. Only the original input can
+    // establish whether the vote exemption applies.
+    let lexical_word = options.min_votes.and_then(|_| lex_single_word(query));
     let Some(query) = normalize_exact_lojban_query(query) else {
         return invalid_lojban_word_output(query);
     };
@@ -876,6 +921,7 @@ fn cards_for_valsi(
             None,
             options,
             SourceAdmission::WhenShown,
+            lexical_word.as_ref(),
         ));
     }
 
@@ -887,7 +933,7 @@ fn cards_for_valsi(
         return found_or_missing(cards_for_candidates(dictionary, candidates, options, false));
     }
 
-    missing_exact_output(dictionary, query, options)
+    missing_exact_output(dictionary, query, options, lexical_word.as_ref())
 }
 
 #[requires(true)]
@@ -953,6 +999,7 @@ fn cards_for_lujvo(
                 entry,
                 similarity: Some(1.0),
                 decomposition: EntryDecomposition::Always,
+                ignore_votes: false,
             }));
         }
         if let Some(decomposition) = dictionary_decomposition {
@@ -1054,6 +1101,7 @@ enum VlackuCandidate<'dictionary> {
         entry: &'dictionary DictionaryEntry<'dictionary>,
         similarity: Option<f32>,
         decomposition: EntryDecomposition,
+        ignore_votes: bool,
     },
     Missing {
         card: VlackuCard,
@@ -1080,7 +1128,28 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
             entry,
             similarity: Some(1.0),
             decomposition: EntryDecomposition::AsRequested,
+            ignore_votes: false,
         })
+    }
+
+    /// Exact word lookups retain this entry regardless of its vote count.
+    #[requires(true)]
+    #[ensures(match self.as_data() { data!(VlackuCandidate::Entry { ignore_votes, .. }) => *ignore_votes, data!(VlackuCandidate::Missing { .. }) => true })]
+    fn exempt_votes(&mut self) {
+        if let data!(VlackuCandidate::Entry {
+            entry,
+            similarity,
+            decomposition,
+            ..
+        }) = self.as_data()
+        {
+            *self = new!(VlackuCandidate::Entry {
+                entry: *entry,
+                similarity: *similarity,
+                decomposition: *decomposition,
+                ignore_votes: true
+            });
+        }
     }
 
     /// Whether the reader's filters keep this result. An entry is tested as
@@ -1093,10 +1162,19 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
             data!(VlackuCandidate::Entry {
                 entry,
                 similarity,
+                ignore_votes,
                 ..
-            }) => {
-                dictionary_entry_passes_vlacku_filters(entry, options, *similarity, similarity_mode)
-            }
+            }) => dictionary_entry_passes_vlacku_filters_with_min_votes(
+                entry,
+                options,
+                *similarity,
+                similarity_mode,
+                if *ignore_votes {
+                    None
+                } else {
+                    options.min_votes
+                },
+            ),
             data!(VlackuCandidate::Missing { card }) => {
                 passes_filters(card, options, similarity_mode)
             }
@@ -1179,11 +1257,13 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
                 entry,
                 similarity,
                 decomposition: EntryDecomposition::AsRequested,
+                ..
             }) => dictionary_entry_card(dictionary, entry, similarity, decompose_lujvo),
             data!(VlackuCandidate::Entry {
                 entry,
                 similarity,
                 decomposition: EntryDecomposition::Always,
+                ..
             }) => entry_card_with_dictionary_decomposition(
                 entry,
                 similarity,
@@ -1407,6 +1487,7 @@ fn missing_exact_output(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
+    lexical_word: Option<&Word>,
 ) -> VlackuSearchOutput {
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
@@ -1424,6 +1505,7 @@ fn missing_exact_output(
                 decomposition.as_ref(),
                 options,
                 SourceAdmission::Always,
+                lexical_word,
             );
             VlackuSearchOutput {
                 cards,
@@ -1459,7 +1541,14 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
     runtime_decomposition: Option<&LujvoDecomposition<'_>>,
     options: &VlackuSearchOptions,
     admission: SourceAdmission,
+    lexical_word: Option<&Word>,
 ) -> Vec<VlackuCard> {
+    let exact_word = options.min_votes.and(lexical_word);
+    if exact_word.is_some() {
+        for candidate in &mut candidates {
+            candidate.exempt_votes();
+        }
+    }
     // Whether the word has parts is the decomposition's answer to give, so
     // the only question asked here is whether any result is admitted at all.
     let should_decompose_sources = options.decompose_lujvo
@@ -1488,6 +1577,11 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
                 dictionary,
                 options,
             );
+        }
+    }
+    if exact_word.is_some_and(|word| word.kind() == WordKind::Lujvo) {
+        for candidate in &mut candidates {
+            candidate.exempt_votes();
         }
     }
     cards_for_candidates(dictionary, candidates, options, false)
@@ -1946,22 +2040,17 @@ fn format_keyword(keyword: &Keyword<'_>) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn passes_filters(card: &VlackuCard, options: &VlackuSearchOptions, similarity_mode: bool) -> bool {
-    let card_word_type = WordTypeFilter::parse(&card.word_type);
-    let word_type_ok = options.word_types.is_empty()
-        || card_word_type.is_some_and(|actual| {
-            options
-                .word_types
-                .iter()
-                .any(|wanted| wanted.matches_filter(actual))
-        });
-    let votes_ok = options
-        .min_votes
-        .is_none_or(|min_votes| card.votes.unwrap_or(0) >= min_votes);
+    let entry_ok = vlacku_entry_eligible(
+        WordTypeFilter::parse(&card.word_type),
+        card.votes,
+        options,
+        options.min_votes,
+    );
     let similarity_ok = !similarity_mode
         || options
             .min_similarity
             .is_none_or(|min_similarity| card.similarity.unwrap_or(0.0) * 100.0 >= min_similarity);
-    word_type_ok && votes_ok && similarity_ok
+    entry_ok && similarity_ok
 }
 
 #[derive(Debug, Clone)]
@@ -3291,6 +3380,80 @@ mod tests {
                 .and_then(|parsed_match| parsed_match.cards.first())
                 .map(|card| card.word.as_str()),
             Some("abu zei sance")
+        );
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_word_vote_exemption_is_scoped_to_the_word_and_lujvo_sources() {
+        let dictionary = jbotci_dictionary_data::english();
+        let high = VlackuSearchOptions::default()
+            .with_data(data! { min_votes: Some(i32::MAX), decompose_lujvo: true });
+        for word in ["lojbangirzu", "ci'artai", "jenjigu'ydi'e"] {
+            let request = VlackuRequest::valsi(word.to_owned());
+            let expected = run_vlacku_requests(
+                dictionary,
+                std::slice::from_ref(&request),
+                &VlackuSearchOptions::default().with_data(data! { decompose_lujvo: true }),
+            );
+            let actual = run_vlacku_requests(dictionary, &[request], &high);
+            assert_eq!(actual.cards, expected.cards, "{word}");
+        }
+        for query in ["/^lojbangirzu$/", "lojban*", "klama bajra"] {
+            assert!(
+                run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query.to_owned())], &high)
+                    .cards
+                    .is_empty(),
+                "{query}"
+            );
+        }
+        let name = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("mumymast".to_owned())],
+            &high,
+        );
+        assert_eq!(words(&name.cards), vec!["mumymast"]);
+        let mixed = run_vlacku_requests(
+            dictionary,
+            &[
+                VlackuRequest::valsi("klama".to_owned()),
+                VlackuRequest::rafsi("kla".to_owned()),
+                VlackuRequest::valsi("/^bajra$/".to_owned()),
+            ],
+            &high,
+        );
+        assert_eq!(words(&mixed.cards), vec!["klama"]);
+        let gismu_only = high.with_data(data! { word_types: vec![WordTypeFilter::Gismu] });
+        assert!(
+            run_vlacku_requests(
+                dictionary,
+                &[VlackuRequest::valsi("lojbangirzu".to_owned())],
+                &gismu_only
+            )
+            .cards
+            .is_empty()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_filter_keeps_cards_without_votes() {
+        let classification = classify_exact_word("brodax", "brodax").expect("valid missing word");
+        let card = unknown_card(classification, None);
+        let options = VlackuSearchOptions::default().with_data(data! { min_votes: Some(i32::MAX) });
+        assert!(card.votes.is_none());
+        assert!(passes_filters(&card, &options, false));
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::lujvo("klabajra".to_owned())],
+            &options,
+        );
+        assert!(
+            output
+                .cards
+                .iter()
+                .any(|card| !card.known && card.votes.is_none())
         );
     }
 }

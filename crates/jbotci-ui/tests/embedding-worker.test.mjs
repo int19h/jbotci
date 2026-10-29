@@ -168,3 +168,45 @@ test("explicit setup retains browser-local fallback after a remote miss", async 
   assert.equal(localBuildCount, 1);
   assert.equal(outcome.installed, true);
 });
+
+const { parseEntryEligibility, rankHits, rankHitsFromScores, rankSearchResults } = await import("../assets/embedding-worker.js");
+
+test("vote eligibility precedes the result limit in both browser rankers", () => {
+  const count = 20;
+  const items = Array.from({ length: 42 }, (_, row) => ({ id: row + 100, kind: "gismu" }));
+  const scores = Float32Array.from(items, (_, row) => 42 - row);
+  const eligibility = parseEntryEligibility(JSON.stringify({ eligible: items.slice(count + 1).map((item) => item.id), withoutVoteFilter: items.map((item) => item.id) }));
+  for (const rank of [
+    (limit, allowed) => rankHits(scores, [1], items, 1, limit, [], allowed),
+    (limit, allowed) => rankHitsFromScores(scores, items, limit, [], allowed),
+  ]) {
+    assert.deepEqual(rank(count + 1, null).map((hit) => hit.id), items.slice(0, count + 1).map((item) => item.id));
+    const result = rankSearchResults(rank, count + 1, eligibility);
+    assert.deepEqual(result.hits.map((hit) => hit.id), items.slice(count + 1).map((item) => item.id));
+    assert.equal(result.voteFilterProbe, null);
+    assert.equal(result.message, null);
+  }
+});
+
+test("word-type eligibility precedes the result limit", () => {
+  const items = Array.from({ length: 42 }, (_, id) => ({ id, kind: id < 21 ? "cmavo" : "gismu" }));
+  const scores = Float32Array.from(items, (_, row) => 42 - row);
+  for (const hits of [rankHits(scores, [1], items, 1, 21, ["gismu"]), rankHitsFromScores(scores, items, 21, ["gismu"])]) {
+    assert.deepEqual(hits.map((hit) => hit.id), items.slice(21).map((item) => item.id));
+  }
+});
+
+test("empty filtered results carry one unfiltered probe for the notice", () => {
+  const items = [{ id: 7, kind: "lujvo" }];
+  const rank = (count, allowed) => rankHitsFromScores([1], items, count, [], allowed);
+  const result = rankSearchResults(rank, 21, parseEntryEligibility('{"eligible":[],"withoutVoteFilter":[7]}'));
+  assert.deepEqual(result.hits, []);
+  assert.deepEqual(result.voteFilterProbe, { id: 7, score: 1 });
+  assert.equal(result.message, null);
+  const empty = rankSearchResults(rank, 21, parseEntryEligibility('{"eligible":[],"withoutVoteFilter":[]}'));
+  assert.equal(empty.voteFilterProbe, null);
+  assert.equal(empty.message, "No matches found.");
+  for (const json of ['{}', '{"eligible":[-1],"withoutVoteFilter":[-1]}', '{"eligible":[1],"withoutVoteFilter":[]}']) {
+    assert.throws(() => parseEntryEligibility(json));
+  }
+});

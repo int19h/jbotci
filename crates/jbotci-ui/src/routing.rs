@@ -916,6 +916,7 @@ pub(super) fn restore_scroll_for_url(url: &str) {
 #[ensures(ret.mode == state.mode)]
 #[ensures(ret.query == state.query)]
 #[ensures(ret.word_types == state.word_types)]
+#[ensures(ret.min_votes == state.min_votes)]
 #[ensures(ret.count >= 1 && ret.count <= VLACKU_WEB_MAX_COUNT)]
 pub(super) fn vlacku_load_more_state(state: &VlackuWebState) -> VlackuWebState {
     let mut next = state.clone();

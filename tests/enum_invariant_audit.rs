@@ -2668,6 +2668,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vote display variant carries no payload beyond the discriminant",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:VlackuVoteFilter::Any",
+        "the no-filter variant carries no data and its only value disables the vote threshold",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Meaning",
         "web search mode is a closed UI selector serialized directly in URLs and local state",
     ),

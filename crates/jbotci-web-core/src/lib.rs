@@ -16,7 +16,7 @@ use std::fmt;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_cll::{
     CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaSearchWindow,
     CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT,
@@ -81,9 +81,9 @@ use jbotci_search::compounds::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
-    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
-    vlacku_exact_query_is_pattern,
+    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
+    dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
+    is_brivla_like, normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, SelbriPlaceFrameId,
@@ -1974,10 +1974,96 @@ impl Default for VlackuWebMode {
     }
 }
 
+pub const VLACKU_MIN_VOTES_LOWEST: i32 = -10;
+pub const VLACKU_MIN_VOTES_HIGHEST: i32 = 20;
+pub const VLACKU_WEB_DEFAULT_MIN_VOTES: i32 = 1;
+
+/// The minimum vote count, or no vote filter.
+#[invariant(::Any => true)]
+#[invariant(::AtLeast { votes } => (VLACKU_MIN_VOTES_LOWEST..=VLACKU_MIN_VOTES_HIGHEST).contains(votes))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VlackuVoteFilter {
+    Any,
+    AtLeast { votes: i32 },
+}
+
+impl Default for VlackuVoteFilter {
+    #[requires(true)]
+    #[ensures(ret.as_search_min_votes() == Some(VLACKU_WEB_DEFAULT_MIN_VOTES))]
+    fn default() -> Self {
+        new!(VlackuVoteFilter::AtLeast {
+            votes: VLACKU_WEB_DEFAULT_MIN_VOTES
+        })
+    }
+}
+
+impl VlackuVoteFilter {
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|votes| (VLACKU_MIN_VOTES_LOWEST..=VLACKU_MIN_VOTES_HIGHEST).contains(&votes)))]
+    pub fn as_search_min_votes(self) -> Option<i32> {
+        match self.into_data() {
+            data!(VlackuVoteFilter::Any) => None,
+            data!(VlackuVoteFilter::AtLeast { votes }) => Some(votes),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_search_min_votes().unwrap_or(VLACKU_MIN_VOTES_LOWEST - 1) >= self.as_search_min_votes().unwrap_or(VLACKU_MIN_VOTES_LOWEST - 1))]
+    pub fn step_up(self) -> Self {
+        self.step_by(1)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_search_min_votes().unwrap_or(VLACKU_MIN_VOTES_LOWEST - 1) <= self.as_search_min_votes().unwrap_or(VLACKU_MIN_VOTES_LOWEST - 1))]
+    pub fn step_down(self) -> Self {
+        self.step_by(-1)
+    }
+
+    #[requires(true)]
+    #[ensures(steps == 0 -> ret == self)]
+    pub fn step_by(self, steps: i32) -> Self {
+        let stop = self
+            .as_search_min_votes()
+            .unwrap_or(VLACKU_MIN_VOTES_LOWEST - 1)
+            .saturating_add(steps)
+            .clamp(VLACKU_MIN_VOTES_LOWEST - 1, VLACKU_MIN_VOTES_HIGHEST);
+        if stop < VLACKU_MIN_VOTES_LOWEST {
+            new!(VlackuVoteFilter::Any)
+        } else {
+            new!(VlackuVoteFilter::AtLeast { votes: stop })
+        }
+    }
+
+    /// URL input is clamped before it enters the typed state.
+    #[requires(true)]
+    #[ensures(value == "any" -> ret.as_search_min_votes().is_none())]
+    fn from_url_value(value: &str) -> Self {
+        if value == "any" {
+            return new!(VlackuVoteFilter::Any);
+        }
+        let digits = value.strip_prefix(['+', '-']).unwrap_or(value);
+        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Self::default();
+        }
+        let votes = value
+            .parse::<i32>()
+            .map(|votes| votes.clamp(VLACKU_MIN_VOTES_LOWEST, VLACKU_MIN_VOTES_HIGHEST))
+            .unwrap_or(if value.starts_with('-') {
+                VLACKU_MIN_VOTES_LOWEST
+            } else {
+                VLACKU_MIN_VOTES_HIGHEST
+            });
+        new!(VlackuVoteFilter::AtLeast { votes })
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebState {
+    #[serde(default)]
+    pub min_votes: VlackuVoteFilter,
     pub mode: VlackuWebMode,
     pub query: String,
     pub count: usize,
@@ -1990,6 +2076,7 @@ impl Default for VlackuWebState {
     #[ensures(ret.count == VLACKU_WEB_DEFAULT_COUNT)]
     fn default() -> Self {
         Self {
+            min_votes: VlackuVoteFilter::default(),
             mode: VlackuWebMode::Word,
             query: String::new(),
             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -2159,10 +2246,12 @@ pub const MANIFEST_ASSET_PATH: &str = "/assets/manifest.webmanifest";
 pub const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
 pub const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
 
-#[invariant(true)]
+#[invariant(!*hidden_by_vote_filter || (cards.is_empty() && state.min_votes.as_search_min_votes().is_some()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebResult {
+    #[serde(default)]
+    pub hidden_by_vote_filter: bool,
     pub state: VlackuWebState,
     pub cards: Vec<VlackuWebCard>,
     pub word_type_options: Vec<VlackuWordTypeOption>,
@@ -2170,6 +2259,45 @@ pub struct VlackuWebResult {
     pub has_more: bool,
     pub message: Option<String>,
     pub errors: Vec<String>,
+}
+
+/// Entry IDs that the ranker can admit, with a second set for the empty-result notice.
+#[invariant(eligible.len() <= without_vote_filter.len())]
+#[expensive_invariant(eligible.is_subset(without_vote_filter))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VlackuSemanticEligibility {
+    pub eligible: BTreeSet<usize>,
+    pub without_vote_filter: BTreeSet<usize>,
+}
+
+#[requires(true)]
+#[ensures(ret.eligible.len() <= ret.without_vote_filter.len())]
+pub fn vlacku_semantic_entry_eligibility(state: &VlackuWebState) -> VlackuSemanticEligibility {
+    let state = normalize_vlacku_state(state);
+    let options = VlackuSearchOptions::default().with_data(data! {
+        word_types: vlacku_search_word_type_filters(&state.word_types),
+        min_votes: state.min_votes.as_search_min_votes(),
+    });
+    let unfiltered = options.clone().with_data(data! { min_votes: None });
+    let mut eligible = BTreeSet::new();
+    let mut without_vote_filter = BTreeSet::new();
+    for (index, entry) in jbotci_dictionary_data::english()
+        .entries()
+        .iter()
+        .enumerate()
+    {
+        if dictionary_entry_passes_vlacku_entry_filters(entry, &unfiltered) {
+            without_vote_filter.insert(index);
+            if dictionary_entry_passes_vlacku_entry_filters(entry, &options) {
+                eligible.insert(index);
+            }
+        }
+    }
+    new!(VlackuSemanticEligibility {
+        eligible,
+        without_vote_filter
+    })
 }
 
 #[invariant(true)]
@@ -2546,7 +2674,8 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
     if normalized_state.query.trim().is_empty() {
-        return VlackuWebResult {
+        return new!(VlackuWebResult {
+            hidden_by_vote_filter: false,
             state: normalized_state,
             cards: Vec::new(),
             word_type_options,
@@ -2554,10 +2683,11 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
             has_more: false,
             message: None,
             errors: Vec::new(),
-        };
+        });
     }
     if normalized_state.mode == VlackuWebMode::Meaning {
-        return VlackuWebResult {
+        return new!(VlackuWebResult {
+            hidden_by_vote_filter: false,
             state: normalized_state,
             cards: Vec::new(),
             word_type_options,
@@ -2565,7 +2695,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
             has_more: false,
             message: Some("Meaning search is not available yet.".to_owned()),
             errors: Vec::new(),
-        };
+        });
     }
 
     let request = match normalized_state.mode {
@@ -2580,13 +2710,28 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .min(VLACKU_WEB_MAX_COUNT);
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[request],
+        std::slice::from_ref(&request),
         &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
             word_types: vlacku_search_word_type_filters(&normalized_state.word_types),
+            min_votes: normalized_state.min_votes.as_search_min_votes(),
             decompose_lujvo: true,
         }),
     );
+    let hidden_by_vote_filter = output.cards.is_empty()
+        && output.diagnostics.is_empty()
+        && normalized_state.min_votes.as_search_min_votes().is_some()
+        && !run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            std::slice::from_ref(&request),
+            &VlackuSearchOptions::default().with_data(data! {
+                count: 1,
+                word_types: vlacku_search_word_type_filters(&normalized_state.word_types),
+                decompose_lujvo: true,
+            }),
+        )
+        .cards
+        .is_empty();
     let has_more = output.cards.len() > normalized_state.count;
     let cards = output
         .cards
@@ -2601,7 +2746,8 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         None
     };
 
-    VlackuWebResult {
+    new!(VlackuWebResult {
+        hidden_by_vote_filter,
         state: normalized_state,
         cards,
         word_type_options,
@@ -2609,7 +2755,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         has_more,
         message,
         errors: output.diagnostics,
-    }
+    })
 }
 
 #[requires(true)]
@@ -2730,7 +2876,8 @@ pub fn build_vlacku_semantic_web_result_with_loading(
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
     if normalized_state.query.trim().is_empty() {
-        return VlackuWebResult {
+        return new!(VlackuWebResult {
+            hidden_by_vote_filter: false,
             state: normalized_state,
             cards: Vec::new(),
             word_type_options,
@@ -2738,10 +2885,11 @@ pub fn build_vlacku_semantic_web_result_with_loading(
             has_more: false,
             message: None,
             errors: Vec::new(),
-        };
+        });
     }
     if let Some(message) = message {
-        return VlackuWebResult {
+        return new!(VlackuWebResult {
+            hidden_by_vote_filter: false,
             state: normalized_state,
             cards: Vec::new(),
             word_type_options,
@@ -2749,10 +2897,11 @@ pub fn build_vlacku_semantic_web_result_with_loading(
             has_more: false,
             message: Some(message),
             errors: Vec::new(),
-        };
+        });
     }
     if loading {
-        return VlackuWebResult {
+        return new!(VlackuWebResult {
+            hidden_by_vote_filter: false,
             state: normalized_state,
             cards: Vec::new(),
             word_type_options,
@@ -2760,7 +2909,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
             has_more: false,
             message,
             errors: Vec::new(),
-        };
+        });
     }
 
     let fetch_count = normalized_state
@@ -2771,6 +2920,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
     let options = VlackuSearchOptions::default().with_data(data! {
         count: fetch_count,
         word_types: vlacku_search_word_type_filters(&normalized_state.word_types),
+            min_votes: normalized_state.min_votes.as_search_min_votes(),
         decompose_lujvo: true,
     });
     let filtered = hits
@@ -2787,6 +2937,25 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         .take(fetch_count)
         .map(|(score, entry)| dictionary_entry_card(dictionary, entry, Some(score), true))
         .collect::<Vec<_>>();
+    let hidden_by_vote_filter =
+        filtered.is_empty() && normalized_state.min_votes.as_search_min_votes().is_some() && {
+            let unfiltered_options = options.with_data(data! { min_votes: None });
+            hits.iter()
+                .filter_map(|hit| {
+                    dictionary
+                        .entries()
+                        .get(hit.entry_index)
+                        .map(|entry| (hit.score, entry))
+                })
+                .any(|(score, entry)| {
+                    dictionary_entry_passes_vlacku_filters(
+                        entry,
+                        &unfiltered_options,
+                        Some(score),
+                        true,
+                    )
+                })
+        };
     let has_more = filtered.len() > normalized_state.count;
     let cards = filtered
         .into_iter()
@@ -2800,7 +2969,8 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         None
     };
 
-    VlackuWebResult {
+    new!(VlackuWebResult {
+        hidden_by_vote_filter,
         state: normalized_state,
         cards,
         word_type_options,
@@ -2808,7 +2978,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         has_more,
         message,
         errors: Vec::new(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -3157,6 +3327,7 @@ pub mod blocking {
             &VlackuSearchOptions::default().with_data(data! {
                 count: 1,
                 word_types: vlacku_search_word_type_filters(&state.word_types),
+                min_votes: state.min_votes.as_search_min_votes(),
                 decompose_lujvo: true,
             }),
         );
@@ -4624,7 +4795,10 @@ fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
         VlackuWebMode::Word | VlackuWebMode::Rafsi if vlacku_exact_query_is_pattern(query) => {
             query.trim().to_owned()
         }
-        VlackuWebMode::Word | VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
+        // Word identity depends on the written boundaries and stress. The
+        // search retains lexical evidence before it creates a lookup key.
+        VlackuWebMode::Word => query.trim().to_owned(),
+        VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
         VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
     }
 }
@@ -4638,6 +4812,7 @@ fn normalize_lojban_exact_query(query: &str) -> String {
 
 #[requires(true)]
 #[ensures(ret.count >= 1)]
+#[ensures(ret.min_votes == state.min_votes)]
 pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     let mut word_types = Vec::new();
     for raw in &state.word_types {
@@ -4655,6 +4830,7 @@ pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
         }
     }
     VlackuWebState {
+        min_votes: state.min_votes,
         mode: state.mode,
         query: normalize_vlacku_search_query(state.mode, &state.query),
         count: state.count.clamp(1, VLACKU_WEB_MAX_COUNT),
@@ -4686,6 +4862,9 @@ pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
                 if let Ok(count) = value.parse::<usize>() {
                     state.count = count;
                 }
+            }
+            "minVotes" | "min-votes" | "min_votes" => {
+                state.min_votes = VlackuVoteFilter::from_url_value(&value)
             }
             "wordType" | "word-type" | "word_type" => state.word_types.push(value),
             _ => {}
@@ -4868,6 +5047,7 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
         && !state.query.is_empty()
         && state.count == VLACKU_WEB_DEFAULT_COUNT
         && state.word_types.is_empty()
+        && state.min_votes == VlackuVoteFilter::default()
     {
         return format!("{prefix}/vlacku/{}", percent_encode(&state.query));
     }
@@ -4883,6 +5063,15 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
     }
     if state.count != VLACKU_WEB_DEFAULT_COUNT {
         pairs.push(("count".to_owned(), state.count.to_string()));
+    }
+    if state.min_votes != VlackuVoteFilter::default() {
+        pairs.push((
+            "minVotes".to_owned(),
+            state
+                .min_votes
+                .as_search_min_votes()
+                .map_or_else(|| "any".to_owned(), |votes| votes.to_string()),
+        ));
     }
     for word_type in vlacku_url_word_type_values(&state.word_types) {
         pairs.push(("wordType".to_owned(), word_type));
@@ -5500,6 +5689,7 @@ fn dictionary_tooltip_card_from_search_card(
     let word_href = vlacku_web_url(
         base_path,
         &VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: card.word.clone(),
             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -5533,6 +5723,7 @@ fn dictionary_tooltip_card_from_search_card(
                     vlacku_web_url(
                         base_path,
                         &VlackuWebState {
+                            min_votes: Default::default(),
                             mode: VlackuWebMode::Word,
                             query: source.clone(),
                             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -5932,6 +6123,7 @@ fn web_card_from_search_card(
                     vlacku_web_url(
                         "",
                         &VlackuWebState {
+                            min_votes: Default::default(),
                             mode: VlackuWebMode::Word,
                             query: source.clone(),
                             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -5988,6 +6180,7 @@ pub fn vlacku_word_type_options(selected_values: &[String]) -> Vec<VlackuWordTyp
 #[ensures(true)]
 pub fn toggle_vlacku_word_type_selection(selected_values: &[String], value: &str) -> Vec<String> {
     let selected = normalize_vlacku_state(&VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Word,
         query: String::new(),
         count: VLACKU_WEB_DEFAULT_COUNT,
@@ -6022,6 +6215,7 @@ pub fn toggle_vlacku_word_type_selection(selected_values: &[String], value: &str
 #[ensures(true)]
 pub fn vlacku_brivla_filter_indeterminate(selected_values: &[String]) -> bool {
     let selected = normalize_vlacku_state(&VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Word,
         query: String::new(),
         count: VLACKU_WEB_DEFAULT_COUNT,
@@ -6040,6 +6234,7 @@ pub fn vlacku_brivla_filter_indeterminate(selected_values: &[String]) -> bool {
 #[ensures(true)]
 fn dictionary_word_type_options(selected_values: &[String]) -> Vec<VlackuWordTypeOption> {
     let selected_values = normalize_vlacku_state(&VlackuWebState {
+        min_votes: Default::default(),
         mode: VlackuWebMode::Word,
         query: String::new(),
         count: VLACKU_WEB_DEFAULT_COUNT,
@@ -6525,6 +6720,7 @@ fn append_vlacku_text_inlines(
                 href: vlacku_web_url(
                     "",
                     &VlackuWebState {
+                        min_votes: Default::default(),
                         mode: VlackuWebMode::Word,
                         query: link_value.to_owned(),
                         count: VLACKU_WEB_DEFAULT_COUNT,
@@ -8263,6 +8459,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_full_cards_include_author_and_etymology() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "abniena".to_owned(),
             count: 20,
@@ -8287,6 +8484,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_full_cards_use_author_for_official_vote_marker() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "birka".to_owned(),
             count: 20,
@@ -8731,15 +8929,16 @@ mod tests {
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
 
-        // A query in another script stays as written; the search folds it,
-        // and the canonical URL is built from that folded state.
+        // Word queries retain their spelling in search state and URLs.
+        // The search creates its lookup key after it checks lexical identity.
         let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
         assert_eq!(cyrillic.query, "клама");
-        assert_eq!(normalize_vlacku_state(&cyrillic).query, "klama");
+        assert_eq!(normalize_vlacku_state(&cyrillic).query, "клама");
         assert_eq!(
-            vlacku_web_url("", &normalize_vlacku_state(&cyrillic)),
-            "/vlacku/klama"
+            parse_vlacku_web_route(&vlacku_web_url("", &normalize_vlacku_state(&cyrillic)), "")
+                .query,
+            "клама"
         );
         assert_eq!(
             parse_vlacku_web_route(&vlacku_web_url("", &cyrillic), "").query,
@@ -8749,16 +8948,22 @@ mod tests {
 
         let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
         assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "coi");
+        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "шой");
 
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&zbalermorna).query, "klama");
+        assert_eq!(
+            normalize_vlacku_state(&zbalermorna).query,
+            zbalermorna.query
+        );
 
         let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
-        assert_eq!(normalize_vlacku_state(&zbalermorna_glide).query, "coi");
+        assert_eq!(
+            normalize_vlacku_state(&zbalermorna_glide).query,
+            zbalermorna_glide.query
+        );
     }
 
     #[test]
@@ -8976,6 +9181,7 @@ mod tests {
         // The vlacku description names the top match, which takes a dictionary
         // search; the route reports the query and the mode instead.
         let vlacku_state = VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "klama".to_owned(),
             count: VLACKU_WEB_DEFAULT_COUNT,
@@ -9227,6 +9433,7 @@ mod tests {
 
         // The same exactness holds for the other linked tools' queries.
         let vlacku = VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Meaning,
             query: "  going & coming  ".to_owned(),
             count: 40,
@@ -9547,6 +9754,7 @@ mod tests {
         );
 
         let vlacku_state = VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "klama".to_owned(),
             count: 10,
@@ -9880,6 +10088,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_returns_cards() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "klama".to_owned(),
             count: 20,
@@ -9904,6 +10113,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_source_backs_fuhivla_lujvo_component() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "jenjigu'ydi'e".to_owned(),
             count: 20,
@@ -9941,6 +10151,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_allows_fuhivla_self_core_for_jvozba() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "jenjigu".to_owned(),
             count: 20,
@@ -9961,6 +10172,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_accepts_cyrillic_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "клама".to_owned(),
             count: 20,
@@ -9968,14 +10180,17 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "klama");
+        assert_eq!(result.state.query, "клама");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
-        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+        let url = vlacku_web_url("", &result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "клама");
 
         let glide_result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "шой".to_owned(),
             count: 20,
@@ -9983,12 +10198,14 @@ mod tests {
         });
 
         assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
-        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(glide_result.state.query, "шой");
         assert_eq!(
             glide_result.cards.first().map(|card| card.word.as_str()),
             Some("coi")
         );
-        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
+        let url = vlacku_web_url("", &glide_result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "шой");
     }
 
     #[test]
@@ -9996,6 +10213,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_accepts_zbalermorna_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}".to_owned(),
             count: 20,
@@ -10003,14 +10221,23 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "klama");
+        assert_eq!(
+            result.state.query,
+            "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}"
+        );
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
-        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+        let url = vlacku_web_url("", &result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(
+            parse_vlacku_web_route(&url, "").query,
+            "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}"
+        );
 
         let glide_result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "\u{ed86}\u{eda8}".to_owned(),
             count: 20,
@@ -10018,12 +10245,14 @@ mod tests {
         });
 
         assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
-        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(glide_result.state.query, "\u{ed86}\u{eda8}");
         assert_eq!(
             glide_result.cards.first().map(|card| card.word.as_str()),
             Some("coi")
         );
-        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
+        let url = vlacku_web_url("", &glide_result.state);
+        assert!(!url.contains('?'), "default word links stay short");
+        assert_eq!(parse_vlacku_web_route(&url, "").query, "\u{ed86}\u{eda8}");
     }
 
     #[test]
@@ -10031,6 +10260,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_rafsi_search_accepts_cyrillic_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Rafsi,
             query: "кла".to_owned(),
             count: 20,
@@ -10054,6 +10284,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_rafsi_search_accepts_zbalermorna_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Rafsi,
             query: "\u{ed82}\u{ed84}\u{eda0}".to_owned(),
             count: 20,
@@ -10077,6 +10308,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_pattern_search_preserves_query_syntax() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: " klam@ ".to_owned(),
             count: 20,
@@ -10102,6 +10334,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_rafsi_pattern_search_preserves_query_syntax() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Rafsi,
             query: " kl@ ".to_owned(),
             count: 20,
@@ -10122,6 +10355,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_segments_multiword_query_like_v0() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "mi klama".to_owned(),
             count: 20,
@@ -10144,6 +10378,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_prefers_exact_phrase_before_segmenting() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "ca ma".to_owned(),
             count: 20,
@@ -10168,6 +10403,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_filters_segmented_components_after_lookup() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "mi klama".to_owned(),
             count: 20,
@@ -10190,6 +10426,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_word_search_does_not_return_partial_segmented_results() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "mi brodau".to_owned(),
             count: 20,
@@ -10210,6 +10447,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_punctuation_only_word_search_reports_invalid_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "!!!".to_owned(),
             count: 20,
@@ -10229,6 +10467,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_segmented_word_lookup_does_not_apply_to_rafsi_mode() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Rafsi,
             query: "kla bau".to_owned(),
             count: 20,
@@ -10262,6 +10501,7 @@ mod tests {
             .expect("klama exists");
         let meaning = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Meaning,
                 query: "go somewhere".to_owned(),
                 count: 20,
@@ -10285,6 +10525,7 @@ mod tests {
 
         let missing = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Meaning,
                 query: "klama".to_owned(),
                 count: 20,
@@ -10298,6 +10539,7 @@ mod tests {
 
         let loading = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Meaning,
                 query: "nonsense".to_owned(),
                 count: 20,
@@ -10313,6 +10555,7 @@ mod tests {
 
         let empty = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Meaning,
                 query: "nonsense".to_owned(),
                 count: 20,
@@ -10474,6 +10717,7 @@ mod tests {
 
         let result = build_vlacku_semantic_web_result_with_loading(
             &VlackuWebState {
+                min_votes: Default::default(),
                 mode: VlackuWebMode::Meaning,
                 query: "nonsense".to_owned(),
                 count: 20,
@@ -10511,6 +10755,7 @@ mod tests {
             &serde_json::to_string(&WebComputeRequest::VlackuSemanticPage {
                 base_path: "/jbotci".to_owned(),
                 state: VlackuWebState {
+                    min_votes: Default::default(),
                     mode: VlackuWebMode::Meaning,
                     query: "nonsense".to_owned(),
                     count: 20,
@@ -10541,6 +10786,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_exact_missing_card_keeps_lujvo_decomposition() {
         let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
             mode: VlackuWebMode::Word,
             query: "brodau".to_owned(),
             count: 20,
@@ -10895,6 +11141,277 @@ mod tests {
                     tone: VlackuJvozbaSegmentTone::Hyphen,
                 },
             ]
+        );
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_filter_url_values_are_bounded_and_canonical() {
+        for (raw, expected, suffix) in [
+            ("50", Some(20), "?q=klama&minVotes=20"),
+            ("-50", Some(-10), "?q=klama&minVotes=-10"),
+            ("any", None, "?q=klama&minVotes=any"),
+            ("bad", Some(1), "/klama"),
+            ("", Some(1), "/klama"),
+            ("%2B5", Some(5), "?q=klama&minVotes=5"),
+            ("0", Some(0), "?q=klama&minVotes=0"),
+            ("-3", Some(-3), "?q=klama&minVotes=-3"),
+            ("1", Some(1), "/klama"),
+            (
+                "99999999999999999999999999999999999",
+                Some(20),
+                "?q=klama&minVotes=20",
+            ),
+            (
+                "-99999999999999999999999999999999999",
+                Some(-10),
+                "?q=klama&minVotes=-10",
+            ),
+            ("99999999999999999999999999999999999x", Some(1), "/klama"),
+        ] {
+            let state = parse_vlacku_web_route("/vlacku", &format!("q=klama&minVotes={raw}"));
+            assert_eq!(state.min_votes.as_search_min_votes(), expected, "{raw}");
+            let url = vlacku_web_url("", &state);
+            assert_eq!(url, format!("/vlacku{suffix}"), "{raw}");
+            let (path, query) = url.split_once('?').unwrap_or((&url, ""));
+            assert_eq!(parse_vlacku_web_route(path, query), state, "{raw}");
+            assert_eq!(normalize_vlacku_state(&state).min_votes, state.min_votes);
+        }
+        for key in ["min-votes", "min_votes"] {
+            assert_eq!(
+                parse_vlacku_web_route("/vlacku", &format!("{key}=0"))
+                    .min_votes
+                    .as_search_min_votes(),
+                Some(0)
+            );
+        }
+        let old: VlackuWebState =
+            serde_json::from_str(r#"{"mode":"word","query":"klama","count":20,"word-types":[]}"#)
+                .expect("old state");
+        assert_eq!(old.min_votes, VlackuVoteFilter::default());
+        assert!(serde_json::from_str::<VlackuVoteFilter>(r#"{"at-least":{"votes":50}}"#).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_filter_keeps_literal_magic_words() {
+        for word in [
+            "me'oi", "ma'oi", "zo'oi", "zo", "zoi", "lo'u", "la'o", "si", "sa", "su", "zei", "bu",
+            "fa'o",
+        ] {
+            let state = VlackuWebState {
+                query: word.to_owned(),
+                min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+                ..VlackuWebState::default()
+            };
+            let result = build_vlacku_web_result(&state);
+            assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
+            assert!(result.cards.iter().any(|card| card.word == word), "{word}");
+            assert!(!result.hidden_by_vote_filter, "{word}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_exemption_preserves_original_spelling_and_boundaries() {
+        for (query, expected) in [
+            ("lo.jban.girzu", None),
+            ("LOjbangirzu", None),
+            ("me.hoi", None),
+            ("ло.жбан.гирзу", None),
+            (
+                "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+                None,
+            ),
+            (".klama.", Some("klama")),
+            (" klama ", Some("klama")),
+            ("LojbangIrzu", Some("lojbangirzu")),
+            ("lo,jban,girzu", Some("lojbangirzu")),
+            ("mehoi", Some("me'oi")),
+            ("ложбангирзу", Some("lojbangirzu")),
+            (
+                "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+                Some("lojbangirzu"),
+            ),
+        ] {
+            let state = VlackuWebState {
+                query: query.to_owned(),
+                min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+                ..VlackuWebState::default()
+            };
+            let result = build_vlacku_web_result(&state);
+            assert_eq!(result.state.query, query.trim());
+            match expected {
+                Some(word) => assert!(result.cards.iter().any(|card| card.word == word), "{query}"),
+                None => assert!(result.cards.is_empty(), "{query}: {:?}", result.cards),
+            }
+            let url = vlacku_web_url("", &result.state);
+            let (path, query_string) = url.split_once('?').unwrap_or((&url, ""));
+            let reloaded = build_vlacku_web_result(&parse_vlacku_web_route(path, query_string));
+            assert_eq!(reloaded.cards, result.cards, "reload: {query}");
+            assert_eq!(reloaded.state.query, result.state.query);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_filter_steps_cover_all_stops_and_saturate() {
+        let mut filter = new!(VlackuVoteFilter::Any);
+        assert_eq!(filter.step_down(), filter);
+        for votes in -10..=20 {
+            filter = filter.step_up();
+            assert_eq!(filter.as_search_min_votes(), Some(votes));
+        }
+        assert_eq!(filter.step_up(), filter);
+        assert_eq!(filter.step_by(i32::MIN).as_search_min_votes(), None);
+        assert_eq!(filter.step_by(i32::MAX).as_search_min_votes(), Some(20));
+        for votes in (-10..20).rev() {
+            filter = filter.step_down();
+            assert_eq!(filter.as_search_min_votes(), Some(votes));
+        }
+        assert_eq!(filter.step_down().as_search_min_votes(), None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_vote_filter_applies_to_all_modes_and_reports_hidden_matches() {
+        let dictionary = jbotci_dictionary_data::english();
+        let entry = dictionary
+            .entries()
+            .iter()
+            .find(|entry| entry.score.get() == 0.0 && !entry.word.is_empty())
+            .expect("zero-vote entry");
+        let index = dictionary
+            .entries()
+            .iter()
+            .position(|candidate| std::ptr::eq(candidate, entry))
+            .expect("entry index");
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "test".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let hits = [VlackuSemanticSearchHit {
+            entry_index: index,
+            score: 0.8,
+        }];
+        let hidden = build_vlacku_semantic_web_result_with_loading(&state, &hits, None, false);
+        assert!(hidden.cards.is_empty());
+        assert!(hidden.hidden_by_vote_filter);
+        let any = VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            ..state.clone()
+        };
+        assert_eq!(
+            build_vlacku_semantic_web_result_with_loading(&any, &hits, None, false)
+                .cards
+                .len(),
+            1
+        );
+        assert!(
+            !build_vlacku_semantic_web_result_with_loading(&state, &[], None, false)
+                .hidden_by_vote_filter
+        );
+        assert!(
+            !build_vlacku_semantic_web_result_with_loading(&state, &hits, None, true)
+                .hidden_by_vote_filter
+        );
+        assert!(
+            !build_vlacku_semantic_web_result_with_loading(
+                &state,
+                &hits,
+                Some("Loading".to_owned()),
+                false
+            )
+            .hidden_by_vote_filter
+        );
+        for mode in [
+            VlackuWebMode::Word,
+            VlackuWebMode::Rafsi,
+            VlackuWebMode::Sound,
+        ] {
+            let query = match mode {
+                VlackuWebMode::Word => "/.*/",
+                VlackuWebMode::Rafsi => "*",
+                _ => "klama",
+            };
+            let result = build_vlacku_web_result(&VlackuWebState {
+                mode,
+                query: query.to_owned(),
+                min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+                ..VlackuWebState::default()
+            });
+            assert!(
+                !result.cards.is_empty(),
+                "official entries survive {mode:?}"
+            );
+            assert!(
+                result.cards.iter().all(|card| match &card.votes {
+                    VlackuVoteDisplay::Hidden => false,
+                    VlackuVoteDisplay::Unknown => true,
+                    VlackuVoteDisplay::Known(votes) =>
+                        votes == "∞" || votes.parse::<i32>().is_ok_and(|votes| votes >= 20),
+                }),
+                "{mode:?}"
+            );
+        }
+        let empty = VlackuWebState {
+            query: "/^lojbangirzu$/".to_owned(),
+            min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+            ..VlackuWebState::default()
+        };
+        assert!(build_vlacku_web_result(&empty).hidden_by_vote_filter);
+        let exact = VlackuWebState {
+            query: "lojbangirzu".to_owned(),
+            ..empty
+        };
+        assert!(!build_vlacku_web_result(&exact).cards.is_empty());
+        assert!(!build_vlacku_web_result(&VlackuWebState::default()).hidden_by_vote_filter);
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_eligibility_uses_the_shared_vote_and_word_type_predicate() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "test".to_owned(),
+            word_types: vec!["gismu".to_owned()],
+            min_votes: new!(VlackuVoteFilter::AtLeast { votes: 20 }),
+            ..VlackuWebState::default()
+        };
+        let eligibility = vlacku_semantic_entry_eligibility(&state);
+        let json = serde_json::to_value(&eligibility).expect("eligibility transport");
+        assert!(json["eligible"].is_array());
+        assert!(json["withoutVoteFilter"].is_array());
+        assert_eq!(
+            serde_json::from_value::<VlackuSemanticEligibility>(json)
+                .expect("eligibility round trip"),
+            eligibility
+        );
+        let options = VlackuSearchOptions::default()
+            .with_data(data! { word_types: vec![WordTypeFilter::Gismu], min_votes: Some(20) });
+        for (index, entry) in jbotci_dictionary_data::english()
+            .entries()
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                eligibility.eligible.contains(&index),
+                dictionary_entry_passes_vlacku_entry_filters(entry, &options)
+            );
+            assert_eq!(
+                eligibility.without_vote_filter.contains(&index),
+                WordTypeFilter::Gismu.matches_word_type(entry.word_type)
+            );
+        }
+        assert!(
+            eligibility
+                .eligible
+                .is_subset(&eligibility.without_vote_filter)
         );
     }
 }

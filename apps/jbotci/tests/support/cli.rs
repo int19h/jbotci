@@ -4758,3 +4758,171 @@ fn assert_gentufa_error_contains(args: &[&str], expected: &str) {
 fn run_on_normal_stack(test: impl FnOnce()) {
     test();
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_min_votes_keeps_missing_words_and_exact_word_groups() {
+    for (mode, query) in [("--valsi", "brodax"), ("--lujvo", "klabajra")] {
+        let run = run_cli_capture(
+            &["jbotci", "vlacku", mode, query, "--min-votes", "2147483647"],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::ValidMissing, "{}", run.stderr);
+        assert!(run.stdout.contains(query), "{}", run.stdout);
+    }
+    let exact = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "lojbangirzu",
+            "--decompose-lujvo",
+            "--min-votes",
+            "2147483647",
+        ],
+        false,
+    );
+    assert_eq!(exact.status, CliStatus::Success, "{}", exact.stderr);
+    let baseline = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "lojbangirzu",
+            "--decompose-lujvo",
+        ],
+        false,
+    );
+    assert_eq!(exact.stdout, baseline.stdout);
+    for (index, word) in ["lojbangirzu", "logji", "bangu", "girzu"]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(
+            exact.stdout.contains(&format!("{}. {word} |", index + 1)),
+            "{}",
+            exact.stdout
+        );
+    }
+    let pattern = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--valsi",
+            "/^lojbangirzu$/",
+            "--min-votes",
+            "2147483647",
+        ],
+        false,
+    );
+    assert!(!pattern.stdout.contains("1. lojbangirzu"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_min_votes_exempts_literal_magic_words() {
+    for word in [
+        "me'oi", "ma'oi", "zo'oi", "zo", "zoi", "lo'u", "la'o", "si", "sa", "su", "zei", "bu",
+        "fa'o",
+    ] {
+        let baseline = run_cli_capture(&["jbotci", "vlacku", "--valsi", word], false);
+        assert_eq!(
+            baseline.status,
+            CliStatus::Success,
+            "{word}: {}",
+            baseline.stderr
+        );
+        assert!(
+            baseline.stdout.contains(&format!("1. {word} |")),
+            "{}",
+            baseline.stdout
+        );
+        let filtered = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                word,
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert_eq!(
+            filtered.status,
+            CliStatus::Success,
+            "{word}: {}",
+            filtered.stderr
+        );
+        assert_eq!(filtered.stdout, baseline.stdout, "{word}");
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_vote_exemption_uses_original_word_boundaries() {
+    for query in [
+        "lo.jban.girzu",
+        "LOjbangirzu",
+        "me.hoi",
+        "ло.жбан.гирзу",
+        "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+    ] {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                query,
+                "--decompose-lujvo",
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert!(
+            run.stdout.contains("No matches found"),
+            "{query}: {}",
+            run.stdout
+        );
+    }
+    for (query, expected) in [
+        (".klama.", "klama"),
+        (" klama ", "klama"),
+        ("LojbangIrzu", "lojbangirzu"),
+        ("lo,jban,girzu", "lojbangirzu"),
+        ("mehoi", "me'oi"),
+        ("ложбангирзу", "lojbangirzu"),
+        (
+            "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+            "lojbangirzu",
+        ),
+    ] {
+        let baseline = run_cli_capture(
+            &["jbotci", "vlacku", "--valsi", query, "--decompose-lujvo"],
+            false,
+        );
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlacku",
+                "--valsi",
+                query,
+                "--decompose-lujvo",
+                "--min-votes",
+                "2147483647",
+            ],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::Success, "{query}: {}", run.stderr);
+        assert_eq!(run.stdout, baseline.stdout, "{query}");
+        assert!(
+            run.stdout.contains(&format!("1. {expected} |")),
+            "{query}: {}",
+            run.stdout
+        );
+    }
+}

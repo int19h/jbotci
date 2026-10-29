@@ -21,6 +21,22 @@ use crate::{
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn lex_single_word(input: &str) -> Option<Word> {
+    let options = MorphologyOptions::default();
+    let mut segmenter = Segmenter::new(input, &options, None);
+    let word = segmenter.next_plain_word().ok()?;
+    segmenter.skip_separators();
+    if segmenter.index != segmenter.chars.len() {
+        return None;
+    }
+    match word.into_data() {
+        data!(WordLike::PlainWord(word)) => Some(word),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn segment_words_with_modifiers_attempt(
     input: &str,
     options: &MorphologyOptions,
