@@ -2484,14 +2484,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the test child accepts every string. The enum adds no constraint",
     ),
     (
-        "crates/jbotci-ui/src/reference_tooltip.rs:ReferenceTooltipMode::Hover",
-        "hover is a unit state with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/reference_tooltip.rs:ReferenceTooltipMode::Clicked",
-        "clicked is a unit state with no payload to constrain",
-    ),
-    (
         "crates/jbotci-ui/src/compound_dom_tests.rs:CompoundDomRoute::CompoundDomPage",
         "the DOM test router has one payload-free page and no route parameters to constrain",
     ),
