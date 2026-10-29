@@ -10,3 +10,9 @@ description = "The same reservation at the second guard consumer, the BE/BEI lin
 [expectations.syntax]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [26, 31], source-text = "brode", message = "unexpected brivla" }]
+
+# Recovery chooses a sumti tail and omits the BO warning.
+# Issue #1050 records this recovery ranking witness.
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [26, 31], source-text = "brode", message = "unexpected brivla" }]

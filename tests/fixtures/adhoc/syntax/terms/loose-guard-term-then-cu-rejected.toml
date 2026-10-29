@@ -10,3 +10,9 @@ description = "The explicit-CU variant of the reserved shape; the guard covers t
 [expectations.syntax]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "cu", message = "unexpected cmavo" }]
+
+# Recovery chooses a sumti tail and omits the BO warning.
+# Issue #1050 records this recovery ranking witness.
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "cu", message = "unexpected cmavo" }]
