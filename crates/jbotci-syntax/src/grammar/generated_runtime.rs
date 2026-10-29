@@ -10,9 +10,6 @@ use std::{
 };
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
-pub(super) use super::replacement::{
-    recovered_parser as recovered_replacement_quote, strict as replacement_quote,
-};
 use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
     SyntaxMemoContext, SyntaxParseError,
@@ -2547,6 +2544,23 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_category<'tokens>(category: SyntaxWordCategory) -> BoxedParser<'tokens, Token> {
+    if category == SyntaxWordCategory::ReplacementQuote {
+        return token_matching(
+            "replacement quote",
+            "LOhAI/LEhAI quote",
+            vec![
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lohai)),
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Sahai)),
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lehai)),
+            ],
+            move |token, _state| token_matches_word_category(token, category),
+        )
+        .map_with(|token, extra: &mut MapExtra<'tokens, '_>| {
+            super::replacement::warn_markers(&token, extra.state());
+            token
+        })
+        .boxed();
+    }
     token_matching_with_experimental_context(
         category.display_name(),
         category.display_name(),

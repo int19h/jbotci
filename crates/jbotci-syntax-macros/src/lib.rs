@@ -20,6 +20,8 @@
 
 //! `terminal "label" name = parser => enum { ... }` declares one terminal and its AST schema.
 //! Its parser defines recovery metadata and anchors. The nested products define AST fields only.
+//! `.project(strict_mapper, recovered_mapper, target_rule)` maps parsed values into a model.
+//! A projection consumes no input and keeps the receiver's recovery metadata.
 //!
 //! Product rules accept parser-only statements between their fields.
 //! `assert parser;` requires a successful probe without consuming input.
@@ -5377,6 +5379,40 @@ fn inline_warning_probe_tokens(inner: TokenStream2, construct: &Expr) -> Result<
     Ok(quote!(generated_runtime::inline_warn_if(#inner, ExperimentalConstruct::#construct)))
 }
 
+/// A model projection receives a value, so it cannot consume parser input.
+#[requires(!inner.is_empty())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|tokens| !tokens.is_empty()))]
+fn project_parser_tokens(
+    inner: TokenStream2,
+    strict_mapper: &Expr,
+    recovered_mapper: &Expr,
+    target: &Expr,
+    type_env: &GrammarTypeEnv,
+    use_recovered_mapper: bool,
+) -> Result<TokenStream2> {
+    let (Expr::Path(strict_mapper), Expr::Path(recovered_mapper)) =
+        (strict_mapper, recovered_mapper)
+    else {
+        return Err(syn::Error::new_spanned(
+            target,
+            "project() requires strict and recovered mapper function paths",
+        ));
+    };
+    let name = required_path_expr_last_segment(target, "project() requires a target rule")?;
+    if !type_env.rules.contains_key(&name) {
+        return Err(syn::Error::new_spanned(
+            target,
+            "project() names an unknown target rule",
+        ));
+    }
+    let mapper = if use_recovered_mapper {
+        recovered_mapper
+    } else {
+        strict_mapper
+    };
+    Ok(quote!(#inner.map(#mapper)))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn strict_postfix_parser_expr_tokens(
@@ -5415,6 +5451,14 @@ fn strict_postfix_with_inner_tokens(
     mode: StrictParserCallMode,
 ) -> Result<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
+        ("project", 3) => project_parser_tokens(
+            inner,
+            &args[0],
+            &args[1],
+            &args[2],
+            generation.type_env,
+            false,
+        ),
         ("warn_if", 2) => {
             let construct =
                 required_path_expr_last_segment(&args[0], "warn_if requires a construct path")?;
@@ -5814,6 +5858,14 @@ fn recovered_postfix_with_inner_tokens(
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
+        ("project", 3) => project_parser_tokens(
+            inner,
+            &args[0],
+            &args[1],
+            &args[2],
+            generation.type_env,
+            true,
+        ),
         ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => {
             let expected = generation.type_env.probe_construct_tokens(receiver);
@@ -6290,6 +6342,22 @@ fn strict_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "project" && method.args.len() == 3 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        project_parser_tokens(
+            inner,
+            &method.args[0],
+            &method.args[1],
+            &method.args[2],
+            generation.type_env,
+            false,
+        )
     } else if method.method == "map_to" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6524,11 +6592,6 @@ fn strict_call_parser_expr_tokens(
                 ::jbotci_dialect::DialectFeature::#feature,
                 generated_runtime::empty(),
             )))
-        }
-        ("replacement_quote", 0) => {
-            let free_modifier =
-                strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
-            Ok(quote!(generated_runtime::replacement_quote(#free_modifier)))
         }
         ("relation_word", 0) => Ok(quote!(relation_word())),
         ("tanru_unit_relation_word", 0) => {
@@ -7247,6 +7310,22 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "project" && method.args.len() == 3 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        project_parser_tokens(
+            inner,
+            &method.args[0],
+            &method.args[1],
+            &method.args[2],
+            generation.type_env,
+            true,
+        )
     } else if method.method == "map_to" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7450,11 +7529,6 @@ fn recovered_call_parser_expr_tokens(
                 ::jbotci_dialect::DialectFeature::#feature,
                 generated_runtime::empty(),
             )))
-        }
-        ("replacement_quote", 0) => {
-            let free_modifier =
-                recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
-            Ok(quote!(generated_runtime::recovered_replacement_quote(#free_modifier)))
         }
         ("relation_word", 0) => {
             Ok(quote!(relation_word().map(#recovered_module::Recovered::valid)))
@@ -7969,6 +8043,10 @@ fn postfix_parser_output_type(
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
+        ("project", 3) => {
+            let target = required_path_expr_last_segment(&args[2], "project target").ok()?;
+            type_env.rules.get(&target).map(|ty| quote!(#ty))
+        }
         ("elidable_terminator" | "preceded_by", 1) => {
             parser_output_type(receiver, type_env, arguments)
         }
@@ -8175,6 +8253,11 @@ fn method_rust_parser_output_type(
         || method.method == "reject_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
+    } else if method.method == "project" && method.args.len() == 3 {
+        let target =
+            required_path_expr_last_segment(&method.args[2], "project() requires a target rule")
+                .ok()?;
+        type_env.rules.get(&target).map(|ty| quote!(#ty))
     } else if method.method == "map_to" && method.args.len() == 1 {
         let target = required_path_expr_last_segment(
             method.args.first().expect("length checked"),
@@ -8229,7 +8312,6 @@ fn call_rust_parser_output_type(
             | "pa_word",
             0,
         ) => Some(quote!(Token)),
-        ("replacement_quote", 0) => Some(quote!(TextReplacementFreeModifierSyntax)),
         ("word_not_cmavo", _) if !call.args.is_empty() => Some(quote!(Token)),
         ("feature", 1) => Some(quote!(())),
         ("opt", 1) => {
@@ -9593,7 +9675,8 @@ fn classify_postfix_recovery_expr(
         | ("elidable_terminator", 1)
         | ("reject_output", 1)
         | ("map_to", 1)
-        | ("recursive_output", 1) => classify_parser_expr(receiver, arguments, type_env),
+        | ("recursive_output", 1)
+        | ("project", 3) => classify_parser_expr(receiver, arguments, type_env),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
@@ -9700,9 +9783,11 @@ fn classify_method_recovery_expr(
                 method.args.first().expect("length checked"),
             )?),
         }),
-        ("warn", 1) | ("reject_output", 1) | ("map_to", 1) | ("recursive_output", 1) => {
-            classify_recovery_expr(&method.receiver, arguments, type_env)
-        }
+        ("warn", 1)
+        | ("reject_output", 1)
+        | ("map_to", 1)
+        | ("recursive_output", 1)
+        | ("project", 3) => classify_recovery_expr(&method.receiver, arguments, type_env),
 
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
@@ -9801,7 +9886,6 @@ fn classify_call_recovery_expr(
         ("cmevla_word" | "text_leading_cmevla_word", 0) => {
             RecoveryExpr::WordCategory("Cmevla".to_owned())
         }
-        ("replacement_quote", 0) => RecoveryExpr::WordCategory("ReplacementQuote".to_owned()),
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
 
         _ if type_env.rule_known_for_recovery(&name, arguments) => RecoveryExpr::Rule(name),
@@ -10910,7 +10994,7 @@ mod tests {
             env SyntaxGrammarEnv;
             strict_parsers;
             /// One opaque replacement unit.
-            terminal "replacement phrase" text_replacement_free_modifier = replacement_quote() => enum {
+            terminal "replacement phrase" text_replacement_free_modifier = word_category(ReplacementQuote).wf().project(project_strict, project_recovered, text_replacement_free_modifier) => enum {
                 /// The full replacement retains both markers.
                 full_text_replacement_free_modifier -> struct {
                     /// The opening marker.
@@ -10952,7 +11036,10 @@ mod tests {
         assert!(expanded.contains("pub lohai : Token"));
         assert!(expanded.contains("pub lehai : Token"));
         assert!(!expanded.contains("fn full_text_replacement_free_modifier_parser"));
-        assert!(expanded.contains("generated_runtime :: replacement_quote"));
+        assert!(expanded.contains("generated_runtime :: word_category"));
+        assert!(metadata.contains("WithFreeModifiers"), "{metadata}");
+        assert!(expanded.contains("map (project_strict)"), "{expanded}");
+        assert!(expanded.contains("map (project_recovered)"), "{expanded}");
     }
 
     #[test]
@@ -10961,12 +11048,12 @@ mod tests {
     fn terminal_schema_rejects_an_empty_model_and_name_collisions() {
         assert!(
             syn::parse2::<SyntaxGrammar>(quote::quote! {
-                terminal "quote" quote = replacement_quote() => enum {}
+                terminal "quote" quote = word_category(ReplacementQuote) => enum {}
             })
             .is_err()
         );
         let result = syn::parse2::<SyntaxGrammar>(quote::quote! {
-            terminal "quote" quote = replacement_quote() => enum {
+            terminal "quote" quote = word_category(ReplacementQuote) => enum {
                 /// A marker.
                 marker -> struct { field word <- cmavo(Lohai); },
             }

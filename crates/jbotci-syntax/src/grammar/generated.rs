@@ -3726,7 +3726,12 @@ pub mod generated_model {
     }
 
     /// One replacement quote, projected into its existing syntax forms.
-    terminal "replacement phrase" text_replacement_free_modifier = replacement_quote() => enum {
+    terminal "replacement phrase" text_replacement_free_modifier =
+        word_category(ReplacementQuote).wf().project(
+            crate::grammar::replacement::project_strict,
+            crate::grammar::replacement::project_recovered,
+            text_replacement_free_modifier
+        ) => enum {
         /// The full replacement keeps lohai, old_words, sahai, new_words, and lehai.
         full_text_replacement_free_modifier -> struct {
             /// The `Lohai` cmavo marker.

@@ -1,4 +1,4 @@
-//! Projection of one morphology quote into the replacement syntax fields.
+//! Project one parsed replacement quote into its existing syntax fields.
 
 use std::sync::Arc;
 
@@ -6,119 +6,105 @@ use bityzba::{data, new, requires};
 use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 
 use super::{
-    BoxedParser,
+    ParserState,
     generated_model::{self as model, recovered},
-    parser_core::{MapExtra, Parser},
-    tokens::token_matching,
 };
 use crate::{
-    ExperimentalConstruct, SyntaxExpectedToken, SyntaxExpectedTokenData, Token, WithIndicators,
-    WithIndicatorsData, tree::WithFreeModifiers,
+    ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData, tree::WithFreeModifiers,
 };
 
-/// Consume the opaque quote without exposing its body to syntax terminals.
-#[requires(true)]
+#[requires(matches!(token.core_word().as_data(), data!(WordLike::ReplacementQuote { .. })))]
 #[ensures(true)]
-fn quote_token<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching(
-        "replacement quote",
-        "LOhAI/LEhAI quote",
-        vec![
-            new!(SyntaxExpectedToken::Cmavo(Cmavo::Lohai)),
-            new!(SyntaxExpectedToken::Cmavo(Cmavo::Sahai)),
-            new!(SyntaxExpectedToken::Cmavo(Cmavo::Lehai)),
-        ],
-        |token, _| {
-            matches!(
-                token.core_word().as_data(),
-                data!(WordLike::ReplacementQuote { .. })
-            )
-        },
-    )
-    .map_with(|token, extra: &mut MapExtra<'tokens, '_>| {
-        let data!(WordLike::ReplacementQuote { runs, lehai }) = token.core_word().as_data() else {
-            unreachable!("the terminal requires a replacement quote")
-        };
-        if let Some(first) = runs.first() {
-            extra.state().warn_word(
-                ExperimentalConstruct::ExperimentalLohAiReplacementFree,
-                &token,
-                &first.marker,
-            );
-            if first.marker.is_cmavo(Cmavo::Lohai)
-                && let Some(second) = runs.get(1)
-                && second.marker.is_cmavo(Cmavo::Sahai)
-            {
-                extra.state().warn_word(
-                    ExperimentalConstruct::ExperimentalLohAiReplacementFree,
-                    &token,
-                    &second.marker,
-                );
-            }
-        }
-        extra.state().warn_word(
+pub(super) fn warn_markers(token: &Token, state: &mut ParserState<'_>) {
+    let data!(WordLike::ReplacementQuote { runs, lehai }) = token.core_word().as_data() else {
+        unreachable!("the word category requires a replacement quote")
+    };
+    if let Some(first) = runs.first() {
+        state.warn_word(
             ExperimentalConstruct::ExperimentalLohAiReplacementFree,
-            &token,
-            lehai,
+            token,
+            &first.marker,
         );
-        token
-    })
-    .boxed()
+        if first.marker.is_cmavo(Cmavo::Lohai)
+            && let Some(second) = runs.get(1)
+            && second.marker.is_cmavo(Cmavo::Sahai)
+        {
+            state.warn_word(
+                ExperimentalConstruct::ExperimentalLohAiReplacementFree,
+                token,
+                &second.marker,
+            );
+        }
+    }
+    state.warn_word(
+        ExperimentalConstruct::ExperimentalLohAiReplacementFree,
+        token,
+        lehai,
+    );
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn strict<'tokens>(
-    free: BoxedParser<'tokens, model::FreeModifierSyntax>,
-) -> BoxedParser<'tokens, model::TextReplacementFreeModifierSyntax> {
-    quote_token()
-        .then(super::generated_runtime::strict_free_modifier_list_parser(
-            free,
-        ))
-        .map(|(token, free)| {
-            let mut node = project(&token);
-            let free = free.into_iter().map(Arc::new).collect();
-            match &mut node {
-                model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(
-                    inner,
-                ) => Arc::make_mut(inner).lehai.free_modifiers = free,
-                model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(
-                    inner,
-                ) => Arc::make_mut(inner).lehai.free_modifiers = free,
-                model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(
-                    inner,
-                ) => Arc::make_mut(inner).0.free_modifiers = free,
-            }
-            node
-        })
-        .boxed()
+#[requires(matches!(quote.value.core_word().as_data(), data!(WordLike::ReplacementQuote { .. })))]
+#[ensures(match &ret {
+    model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) => node.lehai.free_modifiers.len() == old(quote.free_modifiers.len()),
+    model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(node) => node.lehai.free_modifiers.len() == old(quote.free_modifiers.len()),
+    model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(node) => node.0.free_modifiers.len() == old(quote.free_modifiers.len()),
+})]
+pub(super) fn project_strict(
+    quote: WithFreeModifiers<Token, model::FreeModifierSyntax>,
+) -> model::TextReplacementFreeModifierSyntax {
+    let mut node = project(&quote.value);
+    let free = quote.free_modifiers.into_iter().map(Arc::new).collect();
+    match &mut node {
+        model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(inner) => {
+            Arc::make_mut(inner).lehai.free_modifiers = free
+        }
+        model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(inner) => {
+            Arc::make_mut(inner).lehai.free_modifiers = free
+        }
+        model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(inner) => {
+            Arc::make_mut(inner).0.free_modifiers = free
+        }
+    }
+    node
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn recovered_parser<'tokens>(
-    free: BoxedParser<'tokens, recovered::FreeModifierSyntax>,
-) -> BoxedParser<'tokens, recovered::TextReplacementFreeModifierSyntax> {
-    quote_token().then(super::generated_runtime::recovered_free_modifier_list_parser(free))
-        .map(|(token, free)| {
-            let mut node = recovered::TextReplacementFreeModifierSyntax::from_valid(project(&token));
-            let free = free.into_iter().map(Arc::new).collect();
-            match &mut node {
-                recovered::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(inner) => {
-                    let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else { unreachable!("projection is valid") };
-                    inner.lehai.free_modifiers = free;
-                }
-                recovered::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(inner) => {
-                    let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else { unreachable!("projection is valid") };
-                    inner.lehai.free_modifiers = free;
-                }
-                recovered::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(inner) => {
-                    let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else { unreachable!("projection is valid") };
-                    inner.0.free_modifiers = free;
-                }
-            }
-            node
-        }).boxed()
+#[requires(matches!(&quote.value, recovered::Recovered::Valid(token) if matches!(token.core_word().as_data(), data!(WordLike::ReplacementQuote { .. }))))]
+#[ensures(match &ret {
+    recovered::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.lehai.free_modifiers.len() == old(quote.free_modifiers.len())),
+    recovered::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.lehai.free_modifiers.len() == old(quote.free_modifiers.len())),
+    recovered::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.0.free_modifiers.len() == old(quote.free_modifiers.len())),
+})]
+pub(super) fn project_recovered(
+    quote: recovered::WithFreeModifiers<recovered::Recovered<Token>>,
+) -> recovered::TextReplacementFreeModifierSyntax {
+    let recovered::Recovered::Valid(token) = quote.value else {
+        unreachable!("the terminal maps a matched token")
+    };
+    let mut node = recovered::TextReplacementFreeModifierSyntax::from_valid(project(&token));
+    let free = quote.free_modifiers.into_iter().map(Arc::new).collect();
+    match &mut node {
+        recovered::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(inner) => {
+            let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else {
+                unreachable!("projection is valid")
+            };
+            inner.lehai.free_modifiers = free;
+        }
+        recovered::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(inner) => {
+            let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else {
+                unreachable!("projection is valid")
+            };
+            inner.lehai.free_modifiers = free;
+        }
+        recovered::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(
+            inner,
+        ) => {
+            let jbotci_tree::Recovered::Valid(inner) = Arc::make_mut(inner) else {
+                unreachable!("projection is valid")
+            };
+            inner.0.free_modifiers = free;
+        }
+    }
+    node
 }
 
 /// Keep emphasis on the opening marker and indicators on the closing marker.
@@ -274,6 +260,82 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dsl_terminal_preserves_closing_modifiers_and_marker_warnings() {
+        use jbotci_tree::TreeVisitor;
+
+        #[bityzba::invariant(true)]
+        struct QuoteNode<'tree> {
+            value: Option<&'tree model::FullTextReplacementFreeModifierSyntax>,
+        }
+
+        impl<'tree> TreeVisitor<'tree> for QuoteNode<'tree> {
+            type Node = model::NodeRef<'tree>;
+            type Atom = model::AtomRef<'tree>;
+
+            #[requires(true)]
+            #[ensures(true)]
+            fn enter_node(&mut self, node: Self::Node) {
+                if let model::NodeRef::FullTextReplacementFreeModifierSyntax(value) = node {
+                    self.value = Some(value);
+                }
+            }
+        }
+
+        let source = "mi ba'e lo'ai do le'ai ui to ti klama toi klama";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("words");
+        let parsed = crate::parse_syntax_tree_with_source_and_options(
+            &words,
+            source,
+            &crate::ParseOptions::default(),
+        )
+        .expect("replacement and closing free modifier");
+        let mut found = QuoteNode { value: None };
+        model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut found);
+        let node = found.value.expect("full replacement");
+        assert_eq!(node.lohai.core_word().byte_range(), Some(8..13));
+        assert_eq!(node.lehai.value.core_word().byte_range(), Some(17..22));
+        assert!(matches!(
+            node.lohai.as_indicators().as_data(),
+            data!(WithIndicators::Emphasized { .. })
+        ));
+        assert!(matches!(
+            node.lehai.value.as_indicators().as_data(),
+            data!(WithIndicators::WithIndicator { .. })
+        ));
+        assert_eq!(node.lehai.free_modifiers.len(), 1);
+        assert_eq!(parsed.warnings.len(), 2);
+        assert!(
+            parsed
+                .warnings
+                .iter()
+                .all(|warning| warning.kind
+                    == ExperimentalConstruct::ExperimentalLohAiReplacementFree)
+        );
+
+        let free = Arc::unwrap_or_clone(Arc::clone(&node.lehai.free_modifiers[0]));
+        let unit = words
+            .into_iter()
+            .find(|word| matches!(word.as_data(), data!(WordLike::ReplacementQuote { .. })))
+            .expect("opaque unit");
+        let token = Token::bare(unit);
+        let strict = project_strict(WithFreeModifiers::new(token.clone(), vec![free.clone()]));
+        let recovered = project_recovered(recovered::WithFreeModifiers {
+            value: recovered::Recovered::valid(token),
+            free_modifiers: vec![recovered::Recovered::valid(
+                recovered::FreeModifierSyntax::from_valid(free),
+            )],
+        });
+        assert_eq!(
+            recovered
+                .try_into_valid()
+                .expect("complete projected value"),
+            strict
+        );
+    }
 
     #[test]
     #[requires(true)]
