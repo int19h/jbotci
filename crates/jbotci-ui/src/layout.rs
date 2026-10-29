@@ -5414,7 +5414,9 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
     let reference_stack = tooltip_html
         .matches(".rich-reference-tooltip-stack")
         .unwrap_or(false);
-    let height_limit = if reference_stack {
+    let height_limit = if reference_stack
+        || tooltip_html.matches(".dictionary-tooltip-stack").unwrap_or(false)
+    {
         platform::tooltip_height_limit_for_host(
             platform::Rect {
                 left: host_rect.left(),
@@ -5630,7 +5632,8 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 const gap = tooltipHostGap;
                 const above = Math.min(fullHeight, Math.max(0, hostRect.top - gap - visibleViewportTop() - tooltipViewportMargin));
                 const below = Math.min(fullHeight, Math.max(0, Number(window.innerHeight || 1) - tooltipViewportMargin - hostRect.bottom - gap));
-                const heightLimit = referenceStack ? Math.max(1, above, below) : fullHeight;
+                const constrainedStack = referenceStack || tooltip.classList.contains("dictionary-tooltip-stack");
+                const heightLimit = constrainedStack ? Math.max(1, above, below) : fullHeight;
                 tooltip.style.setProperty("--dictionary-tooltip-max-height", `${heightLimit}px`);
                 if (referenceStack) {
                     tooltip.style.overflow = tooltip.scrollHeight > tooltip.clientHeight || tooltip.scrollWidth > tooltip.clientWidth
