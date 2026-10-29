@@ -10795,6 +10795,7 @@ mod tests {
     #[ensures(true)]
     fn atomic_parser_keeps_declared_model_and_replaces_recovery_metadata() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote::quote! {
+            env SyntaxGrammarEnv;
             model;
             /// A replacement quote retains both markers.
             #[syntax_parser(replacement_quote())]
@@ -10809,7 +10810,7 @@ mod tests {
         let expanded = grammar.expand();
         let text = expanded.to_string();
         assert!(!text.contains("compile_error"), "{text}");
-        assert!(text.contains("SyntaxGrammarRecoveryExpr :: WordCategory (crate :: SyntaxWordCategory :: ReplacementQuote)"));
+        assert!(text.contains("SyntaxGrammarRecoveryExpr :: WordCategory (crate :: SyntaxWordCategory :: ReplacementQuote)"), "{text}");
         assert!(text.contains("pub lohai : Token"));
         assert!(text.contains("pub lehai : Token"));
         assert!(!text.contains("# [syntax_parser"));
