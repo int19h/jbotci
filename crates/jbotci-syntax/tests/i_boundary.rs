@@ -336,3 +336,101 @@ fn a_trailer_warns_for_free_modifiers_between_bo_and_i() {
         }));
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn na_joi_in_the_new_source_slots_needs_no_dialect_feature() {
+    for dialect in ["()", "(+na-joik)"] {
+        for source in [
+            "mi klama na joi .i do cadzu",
+            "mi klama na joi pu bo .i do cadzu",
+            "mi klama na se joi nai .i do cadzu",
+        ] {
+            let parsed = parse(source, dialect);
+            let nodes = boundaries(&parsed);
+            assert_eq!(nodes.trailers.len(), 1, "{source}");
+            assert!(matches!(
+                nodes.trailers[0].connective.value.as_ref(),
+                model::SentenceTrailerConnectiveSyntax::TrailerExpParagraphNaJoiConnective(_)
+            ));
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalNaJoiConnective)
+                .expect("the connector has its NA JOI warning");
+            assert_eq!(warning.anchor.cmavo(), Some(Cmavo::Joi));
+        }
+        for source in [
+            "mi klama .i pu na joi ba bo do cadzu",
+            "mi klama .i fi'o broda fe'u na joi pu bo do cadzu",
+        ] {
+            let parsed = parse(source, dialect);
+            let nodes = boundaries(&parsed);
+            assert_eq!(nodes.bo.len(), 1, "{source}");
+            assert!(nodes.following.is_empty(), "{source}");
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalNaJoiConnective
+            }));
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn the_na_joi_prefix_refusal_preserves_the_standard_forethought_reading() {
+    let parsed = parse("mi klama .i na joi gi do cadzu gi ti tavla", "()");
+    let nodes = boundaries(&parsed);
+    assert_eq!(nodes.following.len(), 1);
+    assert!(nodes.joins.is_empty());
+    assert!(
+        parsed
+            .warnings
+            .iter()
+            .all(|warning| { warning.kind != ExperimentalConstruct::ExperimentalNaJoiConnective })
+    );
+    let free = parse("mi klama na to broda toi joi .i do cadzu", "()");
+    assert!(
+        free.warnings
+            .iter()
+            .all(|warning| { warning.kind != ExperimentalConstruct::ExperimentalNaJoiConnective })
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_pre_i_negation_stays_with_its_converted_connector() {
+    for dialect in ["()", "(+na-joik)"] {
+        for source in [
+            "mi klama na se je .i do cadzu",
+            "mi klama na je .i do cadzu",
+        ] {
+            let parsed = parse(source, dialect);
+            let nodes = boundaries(&parsed);
+            let model::SentenceTrailerConnectiveSyntax::TrailerParagraphJekConnective(connector) =
+                nodes.trailers[0].connective.value.as_ref()
+            else {
+                panic!("the trailer has a JEK connector");
+            };
+            assert!(connector.na.is_some());
+        }
+        let parsed = parse("mi klama na se .e .i do cadzu", dialect);
+        let nodes = boundaries(&parsed);
+        let model::SentenceTrailerConnectiveSyntax::TrailerEkConnective(connector) =
+            nodes.trailers[0].connective.value.as_ref()
+        else {
+            panic!("the trailer has an EK connector");
+        };
+        assert!(connector.na.is_some());
+        let parsed = parse("mi klama na to broda toi se je .i do cadzu", dialect);
+        let nodes = boundaries(&parsed);
+        let model::SentenceTrailerConnectiveSyntax::TrailerParagraphJekConnective(connector) =
+            nodes.trailers[0].connective.value.as_ref()
+        else {
+            panic!("the trailer has a JEK connector after the free modifier");
+        };
+        assert!(connector.na.is_none());
+    }
+}

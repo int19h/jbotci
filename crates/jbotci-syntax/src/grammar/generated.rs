@@ -697,6 +697,23 @@ pub mod generated_model {
         when feature(UnrestrictedFree) unrestricted_sentence_trailer_tag_bo,
     }
 
+    // camxes-exp.peg:347 gives the three NA-prefixed connective forms.
+    // Required NA keeps this probe's start set exact. The BO suffix stays shared.
+    alias "negated sentence trailer prefix" negated_sentence_trailer_prefix(
+        statement_stag,
+        exp_statement_stag,
+        tense_modal,
+    ) = (
+        (
+            selmaho(Na),
+            opt(selmaho(Se)),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(A))),
+            opt(cmavo(Nai)),
+        ).wf(),
+        opt(sentence_trailer_tag_bo(statement_stag, exp_statement_stag, tense_modal)),
+        cmavo(I),
+    ).ignored();
+
     /// Standard stag before a trailer BO.
     rule "sentence trailer" standard_sentence_trailer_tag_bo(statement_stag) -> struct {
         /// The optional stag.
@@ -1277,7 +1294,7 @@ pub mod generated_model {
     /// branch. A branch would wrap the lower level in a public variant, which Debug and serde
     /// output would show as an extra level. The splice gives this enum the variants of every
     /// lower level directly, so each level adds only its own connection.
-    rule "term" term(gek_termset, exp_subsentence, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" term(gek_termset, exp_subsentence, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         // The CEhE level and the levels below it.
@@ -1286,7 +1303,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, exp_subsentence, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" cehe_term(gek_termset, exp_subsentence, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         // The loose connective level and the levels below it.
@@ -1296,7 +1313,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" loose_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         // The BO-bound level and the leaves below it.
@@ -1312,7 +1329,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek) -> enum {
+    rule "term" nonabs_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1343,7 +1360,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 12 forms including `place_tagged_sumti_term`, `elided_nahe_fiho_tag_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" simple_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1377,7 +1394,7 @@ pub mod generated_model {
     ///
     /// The leaves come from a splice of `simple_term`, not from a `simple_term` branch: a branch
     /// would add a public wrapper variant to Debug and serde output.
-    rule "term" bound_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, simple_term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" bound_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, simple_term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         // The absorption-guarded leaves.
@@ -1470,7 +1487,7 @@ pub mod generated_model {
     /// Each level of this ladder splices the level below it, exactly as the other ladders do: a
     /// branch would add a public wrapper variant to Debug and serde output. The leaves are those
     /// of `normal_term_atom`.
-    rule "term" normal_term(gek_termset, exp_subsentence, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek) -> enum {
+    rule "term" normal_term(gek_termset, exp_subsentence, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
         // The BO-bound level and the unguarded leaves below it.
@@ -1496,7 +1513,7 @@ pub mod generated_model {
     }
 
     /// The optional-stag BO-bound level of the normal-flavour term constituent.
-    rule "term" bound_normal_term(gek_termset, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, exp_guard_gek) -> enum {
+    rule "term" bound_normal_term(gek_termset, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
         // The unguarded leaves.
@@ -1538,7 +1555,7 @@ pub mod generated_model {
     /// their absorption-guarded twins. A splice cannot express that swap, so this rule lists its
     /// leaves itself, and the `normal_term_atom_swaps_only_the_guarded_tag_leaves` test in
     /// `grammar/mod.rs` checks that the two inventories stay aligned.
-    rule "term" normal_term_atom(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_guard_gek) -> enum {
+    rule "term" normal_term_atom(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -2022,15 +2039,17 @@ pub mod generated_model {
     }
 
     /// Transparent product node for NA term; preserves the `na` component.
-    rule "NA term" bare_na_term(selbri, tense_modal) -> struct {
+    rule "NA term" bare_na_term(selbri, tense_modal, statement_stag, exp_statement_stag) -> struct {
         // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), checked before
         // NA, and its merged `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective. So
         // `na joi` and `na se je` never begin a bare NA term there, but a free modifier between
         // NA and JOI does, because NA_clause takes no free modifier. The default grammar keeps
-        // its bare NA term before JOI; the `na-joik` feature gives it camxes-exp's guard.
+        // its bare NA term before JOI outside a pre-I trailer. The `na-joik` feature
+        // gives the other sites camxes-exp's guard.
         assert !feature(NaJoik, (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
-        /// A word from selmaho `Na`.
-        field na <- selmaho(Na).warn(ExperimentalBareNaTerm).wf();
+        /// The complete pre-I connector prefix owns NA at this boundary.
+        field na <- negated_sentence_trailer_prefix(statement_stag, exp_statement_stag, tense_modal)
+            .lookahead().not().ignore_then(selmaho(Na).warn(ExperimentalBareNaTerm).wf());
         assert !choice((
             selbri
                 .reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection)
@@ -4362,7 +4381,7 @@ pub mod generated_model {
         /// The trailer paragraph jek connective alternative.
         trailer_paragraph_jek_connective,
         /// The trailer exp paragraph na joi connective alternative.
-        when feature(NaJoik) trailer_exp_paragraph_na_joi_connective,
+        trailer_exp_paragraph_na_joi_connective,
         /// The trailer ek connective alternative.
         trailer_ek_connective,
         /// The trailer vuhu connective alternative.
@@ -5483,12 +5502,26 @@ pub mod generated_model {
 
     /// The source joik_jek inventory inside an experimental stag.
     rule "experimental stag connective" exp_stag_connective -> enum {
-        // JA and JOI, with the existing NA JOI feature.
+        /// NA JOI is sourced here even when the global feature is off.
+        paragraph_na_joi_stag_connective,
+        // The other JA and JOI forms.
         splice paragraph_standard_statement_connective,
         /// EK is sourced inside camxes-exp stag, independently of the I connector slot.
         paragraph_ek_connective,
         /// VUhU is sourced only in joik_jek, not the bare BO connector.
         vuhu_nonlogical_connective,
+    }
+
+    /// NA JOI inside a stag does not have a standard reading to preserve.
+    rule "experimental stag connective" paragraph_na_joi_stag_connective -> struct {
+        /// The required negation prefix.
+        field na <- selmaho(Na);
+        /// The optional conversion prefix.
+        field se <- opt(selmaho(Se));
+        /// The JOI word carries the construct warning.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective).wf_when(UnrestrictedFree);
+        /// The optional NAI suffix.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// The bare EK used inside camxes-exp stag.
