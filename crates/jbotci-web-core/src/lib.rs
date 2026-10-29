@@ -8476,6 +8476,7 @@ mod tests {
             ("klamybajra", ["klama", "bajra"]),
             ("klaklama", ["klama", "klama"]),
             ("brodau", ["xebro", "darlu"]),
+            ("blable", ["blanu", "ruble"]),
         ] {
             let card = dictionary_tooltip_for_word("/tools", word).expect("lujvo tooltip");
             assert!(!card.known, "{word}");
@@ -8531,7 +8532,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn known_and_non_lujvo_tooltips_do_not_gain_component_cards() {
-        for word in ["brivla", "klama", "blable", "feklat"] {
+        for word in ["brivla", "klama", "feklat"] {
             let card = dictionary_tooltip_for_word("", word).expect("word tooltip");
             assert!(card.components.is_empty(), "{word}");
         }
