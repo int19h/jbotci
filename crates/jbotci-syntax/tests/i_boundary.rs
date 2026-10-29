@@ -244,6 +244,9 @@ fn inherited_prohibited_stag_placements_remain_warned() {
         "mi klama .i pa to broda toi roi bo do cadzu",
         "mi klama .i fe'e to broda toi ta'e bo do cadzu",
         "mi klama .i mo'i to broda toi zu'a bo do cadzu",
+        "mi klama .i pa to broda toi roi nai bo do cadzu",
+        "mi klama .i fe'e to broda toi ta'e nai bo do cadzu",
+        "mi klama .i mo'i to broda toi zu'a nai va bo do cadzu",
     ] {
         let parsed = parse(source, "()");
         let warning = parsed
@@ -259,6 +262,9 @@ fn inherited_prohibited_stag_placements_remain_warned() {
         "mi klama .i pa roi bo do cadzu",
         "mi klama .i fe'e ta'e bo do cadzu",
         "mi klama .i mo'i zu'a bo do cadzu",
+        "mi klama .i pa roi nai bo do cadzu",
+        "mi klama .i fe'e ta'e nai bo do cadzu",
+        "mi klama .i mo'i zu'a nai va bo do cadzu",
     ] {
         let parsed = parse(source, "()");
         assert!(!parsed.warnings.iter().any(|warning| {

@@ -5426,6 +5426,8 @@ pub mod generated_model {
         field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
         /// The ROI word after the modifiers.
         field roi <- selmaho(Roi);
+        /// The standard adjacent NAI suffix.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// A required free modifier distinguishes this arm from a sourced FEhE atom.
@@ -5442,14 +5444,14 @@ pub mod generated_model {
     rule "statement stag spatial property" statement_stag_fehe_property(selbri, sumti, mekso, letter_tokens, free_modifier) -> enum {
         /// A further prohibited placement before ROI.
         statement_stag_number_free_roi,
+        /// The complete standard number, ROI, and optional NAI.
+        statement_stag_standard_roi,
         /// The complete experimental number or VEI payload followed by ROI.
         statement_stag_exp_roi,
-        /// The complete standard number followed by ROI.
-        statement_stag_standard_roi,
         /// A TAhE property.
-        statement_stag_tahe,
+        bare_tahe_interval_property_tense,
         /// A ZAhO property.
-        statement_stag_zaho,
+        bare_zaho_interval_property_tense,
     }
 
     /// A complete experimental ROI property without a second FEhE prefix.
@@ -5466,18 +5468,8 @@ pub mod generated_model {
         field number <- number_words(letter_tokens);
         /// The required ROI word.
         field roi <- selmaho(Roi);
-    }
-
-    /// TAhE without a second FEhE prefix.
-    rule "statement stag spatial property" statement_stag_tahe -> struct {
-        /// The interval-property word.
-        field tahe <- selmaho(Tahe);
-    }
-
-    /// ZAhO without a second FEhE prefix.
-    rule "statement stag spatial property" statement_stag_zaho -> struct {
-        /// The interval-property word.
-        field zaho <- selmaho(Zaho);
+        /// The standard adjacent NAI suffix.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// A required free modifier distinguishes this arm from sourced MOhI FAhA.
@@ -5486,8 +5478,8 @@ pub mod generated_model {
         field mohi <- selmaho(Mohi);
         /// Actual modifiers carry the prohibited-placement warning.
         field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
-        /// The required direction word.
-        field faha <- selmaho(Faha);
+        /// The complete standard offset, with its adjacent NAI and VA words.
+        field offset <- bare_faha_space_offset_tense();
     }
 
     /// The source joik_jek inventory inside an experimental stag.
