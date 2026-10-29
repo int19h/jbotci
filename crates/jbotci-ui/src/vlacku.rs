@@ -793,7 +793,7 @@ pub(super) fn render_reference_tooltip(
                 {
                     let display_word = display_lojban_text(script, word);
                     rsx! {
-                        span { class: "rich-dictionary-tooltip reference-missing-card", tabindex: "0",
+                        span { class: "rich-dictionary-tooltip reference-missing-card",
                             span { class: "tooltip-word-line",
                                 span { class: "tooltip-headword",
                                     span { class: "tooltip-word", "{display_word}" }
@@ -823,7 +823,7 @@ pub(super) fn render_reference_dictionary_card(
 ) -> Element {
     let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
-        span { class: "rich-dictionary-tooltip reference-definition-card", tabindex: "0",
+        span { class: "rich-dictionary-tooltip reference-definition-card",
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
                     span { class: "tooltip-word", "{display_word}" }

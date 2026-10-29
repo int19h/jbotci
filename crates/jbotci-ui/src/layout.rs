@@ -5435,13 +5435,14 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         &format!("{}px", height_limit),
     );
     if reference_stack {
-        let _ = style.set_property("overflow", "visible");
-    }
-    if reference_stack
-        && (tooltip_html.scroll_height() > tooltip_html.client_height()
-            || tooltip_html.scroll_width() > tooltip_html.client_width())
-    {
-        let _ = style.set_property("overflow", "auto");
+        let overflow = if tooltip_html.scroll_height() > tooltip_html.client_height()
+            || tooltip_html.scroll_width() > tooltip_html.client_width()
+        {
+            "auto"
+        } else {
+            "visible"
+        };
+        let _ = style.set_property("overflow", overflow);
     }
     let tooltip_rect = tooltip_html.get_bounding_client_rect();
     let position = platform::place_tooltip(
@@ -5632,10 +5633,8 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 const heightLimit = referenceStack ? Math.max(1, above, below) : fullHeight;
                 tooltip.style.setProperty("--dictionary-tooltip-max-height", `${heightLimit}px`);
                 if (referenceStack) {
-                    tooltip.style.overflow = "visible";
-                }
-                if (referenceStack && (tooltip.scrollHeight > tooltip.clientHeight || tooltip.scrollWidth > tooltip.clientWidth)) {
-                    tooltip.style.overflow = "auto";
+                    tooltip.style.overflow = tooltip.scrollHeight > tooltip.clientHeight || tooltip.scrollWidth > tooltip.clientWidth
+                        ? "auto" : "visible";
                 }
                 const tooltipRect = tooltip.getBoundingClientRect();
                 dioxus.send({

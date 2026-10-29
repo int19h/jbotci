@@ -147,7 +147,10 @@ pub(super) fn focus_reference_tooltip_card(marker: &HoveredReference) -> bool {
     }
     #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
     spawn(async move {
-        let _ = document::eval("document.querySelector('#reference-tooltip-overlay .rich-dictionary-tooltip')?.focus({preventScroll:true});").await;
+        let _ = document::eval(
+            "document.getElementById('reference-tooltip-overlay')?.focus({preventScroll:true});",
+        )
+        .await;
     });
     true
 }

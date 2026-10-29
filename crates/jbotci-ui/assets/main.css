@@ -4648,13 +4648,14 @@ body::-webkit-scrollbar-thumb:hover,
 .rich-reference-tooltip-stack .rich-dictionary-tooltip {
   position: static;
   max-width: 100%;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   left: auto;
   top: auto;
   transition: none;
   width: min(22rem, calc(100vw - 2rem));
-  max-height: min(58vh, 24rem);
+  max-height: none;
+  overflow: visible;
 }
 
 .reference-tooltip-overlay[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
