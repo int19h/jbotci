@@ -434,3 +434,27 @@ fn a_pre_i_negation_stays_with_its_converted_connector() {
         assert!(connector.na.is_none());
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn unrestricted_free_keeps_the_legacy_pre_i_nai_attachment() {
+    for source in [
+        "mi klama je to broda toi nai .i do cadzu",
+        "mi klama na joi to broda toi nai .i do cadzu",
+        "mi klama bi'i to broda toi nai .i do cadzu",
+        "mi klama .e to broda toi nai .i do cadzu",
+    ] {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        assert!(
+            parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default(),)
+                .is_err(),
+            "{source}"
+        );
+        let parsed = parse(source, "(+unrestricted-free)");
+        assert_eq!(boundaries(&parsed).trailers.len(), 1, "{source}");
+        assert!(parsed.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalPreISentenceTrailer
+        }));
+    }
+}

@@ -707,7 +707,7 @@ pub mod generated_model {
         (
             selmaho(Na),
             opt(selmaho(Se)),
-            choice((selmaho(Joi), selmaho(Ja), selmaho(A))),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(A))).wf_when(UnrestrictedFree),
             opt(cmavo(Nai)),
         ).wf(),
         opt(sentence_trailer_tag_bo(statement_stag, exp_statement_stag, tense_modal)),
@@ -4395,7 +4395,7 @@ pub mod generated_model {
         /// The se in source order.
         field se <- opt(selmaho(Se));
         /// The a in source order.
-        field a <- selmaho(A).warn(ExperimentalPreISentenceTrailer);
+        field a <- selmaho(A).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
         /// The nai in source order.
         field nai <- opt(cmavo(Nai));
     }
@@ -4427,7 +4427,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Joi`.
-        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer);
+        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4437,7 +4437,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Bihi`.
-        field bihi <- selmaho(Bihi).warn(ExperimentalPreISentenceTrailer);
+        field bihi <- selmaho(Bihi).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4449,7 +4449,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Ja`.
-        field ja <- selmaho(Ja).warn(ExperimentalPreISentenceTrailer);
+        field ja <- selmaho(Ja).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4461,7 +4461,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// The JOI word, which carries the warning for the construct.
-        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer).warn(ExperimentalNaJoiConnective);
+        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer).warn(ExperimentalNaJoiConnective).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
