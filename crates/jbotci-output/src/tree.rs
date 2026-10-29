@@ -18,14 +18,12 @@ use jbotci_syntax::generated_model::recovered::{
     TreeNode as RecoveredSyntaxAstTreeNode,
 };
 use jbotci_syntax::generated_model::{
-    self, AtomRef as GeneratedSyntaxAtomRef,
-    IStatementConnectionTailSyntax as GeneratedIStatementConnectionTailSyntax,
-    NodeRef as GeneratedSyntaxNodeRef, TextSyntax as GeneratedTextSyntax,
-    TreeNode as GeneratedSyntaxAstTreeNode,
+    self, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
+    TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxAstTreeNode,
 };
 use jbotci_syntax::{
     RecoveredSyntaxParse, SyntaxError, Token, WithIndicators, WithIndicatorsData,
-    elidable_terminator_for_absent_field_ref, tree::WithFreeModifiers,
+    elidable_terminator_for_absent_field_ref,
 };
 use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
@@ -725,14 +723,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             GeneratedSyntaxNodeRef::StatementBaseSyntaxBridiStatement(statement) => Some(
                 generated_bridi_statement_tree_value(statement, source, options, syntax_index),
             ),
-            GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement) => {
-                Some(generated_i_statement_connection_tree_value(
-                    statement,
-                    source,
-                    options,
-                    syntax_index,
-                ))
-            }
             _ => None,
         }
     }
@@ -752,11 +742,10 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
     let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
     match constructor {
         "Regular" => "TextSyntax",
-        "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
-        "FollowingParagraphStatement"
-        | "IParagraphStatement"
-        | "InitialParagraphStatement"
-        | "TrailingIjekParagraphStatement" => "ParagraphStatementSyntax",
+        "Paragraph" | "NihoParagraph" => "ParagraphSyntax",
+        "FollowingParagraphStatement" | "IParagraphStatement" | "InitialParagraphStatement" => {
+            "ParagraphStatementSyntax"
+        }
         "PrenexFragment" => "Prenex",
         "EkConnective" | "JehiConnective" => "Afterthought",
         "JekConnective" | "ParagraphJekConnective" => "Selbri",
@@ -1081,16 +1070,6 @@ fn labelled_tree_collection_entry_from_values(
         label: Some(label),
         value: TreeValue::Collection(values),
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_free_modifier_tree_values(
-    free_modifiers: &[Arc<generated_model::FreeModifierSyntax>],
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<TreeValue> {
-    generated_free_modifier_tree_values_with_index(free_modifiers, source, options, None)
 }
 
 #[requires(true)]
@@ -1795,191 +1774,6 @@ fn generated_bridi_statement_tree_value(
     )
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct GeneratedStatementConnectionPart {
-    i: TreeValue,
-    connective: TreeValue,
-    connective_has_bo: bool,
-    trailing_statement: TreeValue,
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_i_statement_connection_tree_value(
-    statement: &generated_model::StatementSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    let generated_model::StatementSyntax::IStatementConnection(i_statement_connection) = statement
-    else {
-        return required_generated_syntax_subtree_value_with_index(
-            statement,
-            source,
-            options,
-            syntax_index,
-        );
-    };
-    let statement = i_statement_connection;
-
-    let mut statements = vec![required_generated_syntax_subtree_value_with_index(
-        statement.leading_statement.as_ref(),
-        source,
-        options,
-        syntax_index,
-    )];
-    let mut connectors = Vec::new();
-    for continuation in &statement.continuations {
-        let part = generated_statement_connection_part(continuation, source, options, syntax_index);
-        statements.push(part.trailing_statement.clone());
-        connectors.push(part);
-    }
-
-    let mut right_statement = statements
-        .pop()
-        .expect("I statement connection has a leading statement");
-    let mut pending_non_bo = Vec::new();
-    while let Some(connector) = connectors.pop() {
-        let left_statement = statements
-            .pop()
-            .expect("connectors are paired with leading statements");
-        if connector.connective_has_bo {
-            right_statement = generated_statement_connection_tree_node(
-                connector.i,
-                connector.connective,
-                left_statement,
-                right_statement,
-            );
-        } else {
-            pending_non_bo.push(GeneratedStatementConnectionPart {
-                trailing_statement: right_statement,
-                ..connector
-            });
-            right_statement = left_statement;
-        }
-    }
-
-    let mut connected_statement = right_statement;
-    for connector in pending_non_bo.into_iter().rev() {
-        connected_statement = generated_statement_connection_tree_node(
-            connector.i,
-            connector.connective,
-            connected_statement,
-            connector.trailing_statement,
-        );
-    }
-    connected_statement
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_statement_connection_part(
-    continuation: &GeneratedIStatementConnectionTailSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> GeneratedStatementConnectionPart {
-    match continuation {
-        GeneratedIStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
-            simple_i_connective_statement_tail,
-        ) => {
-            let tail = simple_i_connective_statement_tail;
-            GeneratedStatementConnectionPart {
-                i: generated_token_tree_value(&tail.i, source, options),
-                connective: generated_i_statement_connective_tree_value(
-                    &tail.connective,
-                    source,
-                    options,
-                    syntax_index,
-                ),
-                connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
-                trailing_statement: required_generated_syntax_subtree_value_with_index(
-                    tail.trailing_statement.as_ref(),
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            }
-        }
-        GeneratedIStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(
-            chained_i_connective_statement_tail,
-        ) => {
-            let tail = chained_i_connective_statement_tail;
-            let first_pending = tail.pending.first();
-            let mut extra = Vec::new();
-            for pending_connective in tail.pending.iter().skip(1) {
-                extra.push(generated_token_tree_value(
-                    &pending_connective.i,
-                    source,
-                    options,
-                ));
-                extra.push(generated_statement_connective_tree_value(
-                    &pending_connective.connective,
-                    source,
-                    options,
-                    syntax_index,
-                ));
-            }
-            extra.push(generated_token_tree_value(&tail.i, source, options));
-            extra.push(generated_i_statement_connective_tree_value(
-                &tail.connective,
-                source,
-                options,
-                syntax_index,
-            ));
-            GeneratedStatementConnectionPart {
-                i: generated_token_tree_value(&first_pending.i, source, options),
-                connective: generated_statement_connective_tree_value_with_extra_words(
-                    &first_pending.connective,
-                    extra,
-                    source,
-                    options,
-                    syntax_index,
-                ),
-                connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
-                trailing_statement: required_generated_syntax_subtree_value_with_index(
-                    tail.trailing_statement.as_ref(),
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_statement_connection_tree_node(
-    i: TreeValue,
-    connective: TreeValue,
-    leading_statement: TreeValue,
-    trailing_statement: TreeValue,
-) -> TreeValue {
-    TreeValue::Node(TreeNode {
-        constructor: "StatementConnection",
-        entries: vec![
-            TreeEntry {
-                label: Some("leading_statement"),
-                value: leading_statement,
-            },
-            TreeEntry {
-                label: Some("i"),
-                value: i,
-            },
-            TreeEntry {
-                label: Some("connective"),
-                value: connective,
-            },
-            TreeEntry {
-                label: Some("trailing_statement"),
-                value: trailing_statement,
-            },
-        ],
-    })
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn generated_token_tree_value(
@@ -1988,53 +1782,6 @@ fn generated_token_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     with_indicators_tree_value(token.as_indicators(), source, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_with_free_modifiers_token_tree_value(
-    token: &WithFreeModifiers<Token, Arc<generated_model::FreeModifierSyntax>>,
-    source: &str,
-    options: TreeRenderOptions,
-) -> TreeValue {
-    let value = generated_token_tree_value(&token.value, source, options);
-    if token.free_modifiers.is_empty() {
-        return value;
-    }
-
-    TreeValue::Node(TreeNode {
-        constructor: "WithFreeModifiers",
-        entries: vec![
-            TreeEntry {
-                label: Some("value"),
-                value,
-            },
-            TreeEntry {
-                label: Some("free_modifiers"),
-                value: TreeValue::Collection(generated_free_modifier_tree_values(
-                    &token.free_modifiers,
-                    source,
-                    options,
-                )),
-            },
-        ],
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_statement_connective_tree_value(
-    connective: &generated_model::StatementConnectiveSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value_with_index(
-        connective,
-        source,
-        options,
-        syntax_index,
-    ))
 }
 
 #[requires(true)]
@@ -2061,334 +1808,12 @@ fn generated_paragraph_i_statement_connective_tree_value(
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    match connective {
-        generated_model::IParagraphStatementConnectiveSyntax::IStandardParagraphStatementConnective(
-            i_standard_paragraph_statement_connective,
-        ) => {
-            let connective = i_standard_paragraph_statement_connective.connective.as_ref();
-            if let Some((tense_modal, bo)) =
-                &i_standard_paragraph_statement_connective.tag_bo
-            {
-                let mut extra = Vec::new();
-                if let Some(tense_modal) = tense_modal {
-                    extra.extend(generated_tense_modal_word_tree_values(
-                        tense_modal.as_ref(),
-                        source,
-                        options,
-                    ));
-                }
-                extra.push(generated_token_tree_value(bo, source, options));
-                generated_paragraph_standard_statement_connective_tree_value_with_extra_words(
-                    connective,
-                    extra,
-                    source,
-                    options,
-                    syntax_index,
-                )
-            } else {
-                collapse_value(required_generated_syntax_subtree_value_with_index(
-                    connective,
-                    source,
-                    options,
-                    syntax_index,
-                ))
-            }
-        }
-        generated_model::IParagraphStatementConnectiveSyntax::ITagBoParagraphStatementConnective(
-            i_tag_bo_paragraph_statement_connective,
-        ) => {
-            let mut words = Vec::new();
-            if let Some(tense_modal) = &i_tag_bo_paragraph_statement_connective.tense_modal {
-                words.extend(generated_tense_modal_word_tree_values(
-                    tense_modal.as_ref(),
-                    source,
-                    options,
-                ));
-            }
-            words.push(generated_token_tree_value(
-                &i_tag_bo_paragraph_statement_connective.bo,
-                source,
-                options,
-            ));
-            generated_connective_word_node("Selbri", words)
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_i_statement_connective_tree_value(
-    connective: &generated_model::IStatementConnectiveSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    match connective {
-        generated_model::IStatementConnectiveSyntax::IStandardStatementConnective(
-            i_standard_statement_connective,
-        ) => {
-            let connective = i_standard_statement_connective.connective.as_ref();
-            if let Some((tense_modal, bo)) = &i_standard_statement_connective.tag_bo {
-                let mut extra = Vec::new();
-                if let Some(tense_modal) = tense_modal {
-                    extra.extend(generated_tense_modal_word_tree_values(
-                        tense_modal.as_ref(),
-                        source,
-                        options,
-                    ));
-                }
-                extra.push(generated_with_free_modifiers_token_tree_value(
-                    bo, source, options,
-                ));
-                generated_statement_connective_tree_value_with_extra_words(
-                    connective,
-                    extra,
-                    source,
-                    options,
-                    syntax_index,
-                )
-            } else {
-                collapse_value(required_generated_syntax_subtree_value_with_index(
-                    connective,
-                    source,
-                    options,
-                    syntax_index,
-                ))
-            }
-        }
-        generated_model::IStatementConnectiveSyntax::ITagBoStatementConnective(
-            i_tag_bo_statement_connective,
-        ) => {
-            let mut words = Vec::new();
-            if let Some(tense_modal) = &i_tag_bo_statement_connective.tense_modal {
-                words.extend(generated_tense_modal_word_tree_values(
-                    tense_modal.as_ref(),
-                    source,
-                    options,
-                ));
-            }
-            words.push(generated_with_free_modifiers_token_tree_value(
-                &i_tag_bo_statement_connective.bo,
-                source,
-                options,
-            ));
-            generated_connective_word_node("Selbri", words)
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_tense_modal_word_tree_values(
-    tense_modal: &generated_model::TenseModalSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<TreeValue> {
-    let mut visitor = GeneratedSyntaxTokenTreeValueCollector {
-        source,
-        options,
-        values: Vec::new(),
-    };
-    tense_modal.visit_in_order(&mut visitor);
-    visitor.values
-}
-
-#[invariant(true)]
-struct GeneratedSyntaxTokenTreeValueCollector<'source> {
-    source: &'source str,
-    options: TreeRenderOptions,
-    values: Vec<TreeValue>,
-}
-
-impl<'source, 'tree> TreeVisitor<'tree> for GeneratedSyntaxTokenTreeValueCollector<'source> {
-    type Node = GeneratedSyntaxNodeRef<'tree>;
-    type Atom = GeneratedSyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        let GeneratedSyntaxAtomRef::Token(token) = atom;
-        self.values
-            .push(generated_token_tree_value(token, self.source, self.options));
-    }
-}
-
-#[requires(!constructor.is_empty())]
-#[ensures(true)]
-fn generated_connective_word_node(constructor: &'static str, words: Vec<TreeValue>) -> TreeValue {
-    TreeValue::Node(TreeNode {
-        constructor,
-        entries: words
-            .into_iter()
-            .map(|value| TreeEntry { label: None, value })
-            .collect(),
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_statement_connective_tree_value_with_extra_words(
-    connective: &generated_model::StatementConnectiveSyntax,
-    extra_words: Vec<TreeValue>,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    generated_connective_tree_value_with_extra_words(
+    collapse_value(required_generated_syntax_subtree_value_with_index(
         connective,
-        generated_statement_connective_constructor(connective),
-        extra_words,
         source,
         options,
         syntax_index,
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_paragraph_standard_statement_connective_tree_value_with_extra_words(
-    connective: &generated_model::ParagraphStandardStatementConnectiveSyntax,
-    extra_words: Vec<TreeValue>,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    generated_connective_tree_value_with_extra_words(
-        connective,
-        generated_paragraph_standard_statement_connective_constructor(connective),
-        extra_words,
-        source,
-        options,
-        syntax_index,
-    )
-}
-
-#[requires(!constructor.is_empty())]
-#[ensures(true)]
-fn generated_connective_tree_value_with_extra_words<T>(
-    connective: &T,
-    constructor: &'static str,
-    extra_words: Vec<TreeValue>,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue
-where
-    T: GeneratedSyntaxAstTreeNode,
-{
-    append_primary_tree_values(
-        collapse_value(required_generated_syntax_subtree_value_with_index(
-            connective,
-            source,
-            options,
-            syntax_index,
-        )),
-        constructor,
-        extra_words,
-    )
-}
-
-#[requires(!constructor.is_empty())]
-#[ensures(true)]
-fn append_primary_tree_values(
-    value: TreeValue,
-    constructor: &'static str,
-    extra_values: Vec<TreeValue>,
-) -> TreeValue {
-    match value {
-        TreeValue::Node(mut node) => {
-            node.entries.extend(
-                extra_values
-                    .into_iter()
-                    .map(|value| TreeEntry { label: None, value }),
-            );
-            TreeValue::Node(node)
-        }
-        TreeValue::Syntax { syntax_ids, value } => syntax_value(
-            syntax_ids,
-            append_primary_tree_values(*value, constructor, extra_values),
-        ),
-        TreeValue::Collection(items) => TreeValue::Node(TreeNode {
-            constructor,
-            entries: items
-                .into_iter()
-                .chain(extra_values)
-                .map(|value| TreeEntry { label: None, value })
-                .collect(),
-        }),
-        value => TreeValue::Node(TreeNode {
-            constructor,
-            entries: std::iter::once(value)
-                .chain(extra_values)
-                .map(|value| TreeEntry { label: None, value })
-                .collect(),
-        }),
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_joik_connective_constructor(
-    connective: &generated_model::JoikConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::JoikConnectiveSyntax::JoiConnective { .. }
-        | generated_model::JoikConnectiveSyntax::ExpNaJoiConnective { .. } => "NonLogical",
-        generated_model::JoikConnectiveSyntax::SimpleIntervalConnective { .. }
-        | generated_model::JoikConnectiveSyntax::ClosedIntervalConnective { .. } => "Interval",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_statement_connective_constructor(
-    connective: &generated_model::StatementConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::StatementConnectiveSyntax::JoikConnective(joik_connective) => {
-            generated_joik_connective_constructor(joik_connective)
-        }
-        generated_model::StatementConnectiveSyntax::JekConnective { .. } => "Selbri",
-        generated_model::StatementConnectiveSyntax::EkConnective { .. } => "Afterthought",
-        generated_model::StatementConnectiveSyntax::VuhuNonlogicalConnective { .. } => "NonLogical",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_paragraph_standard_statement_connective_constructor(
-    connective: &generated_model::ParagraphStandardStatementConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJoiConnective {
-            ..
-        }
-        | generated_model::ParagraphStandardStatementConnectiveSyntax::ExpParagraphNaJoiConnective {
-            ..
-        } => "NonLogical",
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphSimpleIntervalConnective {
-            ..
-        }
-        | generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphClosedIntervalConnective {
-            ..
-        } => "Interval",
-        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective {
-            ..
-        } => "Selbri",
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_i_statement_connective_has_bo(
-    connective: &generated_model::IStatementConnectiveSyntax,
-) -> bool {
-    match connective {
-        generated_model::IStatementConnectiveSyntax::IStandardStatementConnective(
-            i_standard_statement_connective,
-        ) => i_standard_statement_connective.tag_bo.is_some(),
-        generated_model::IStatementConnectiveSyntax::ITagBoStatementConnective { .. } => true,
-    }
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

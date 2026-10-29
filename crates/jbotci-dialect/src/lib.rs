@@ -88,6 +88,8 @@ define_dialect_features! {
         "With unrestricted-free, free modifiers can follow more grammar constructs.",
     NaJoik => "na-joik",
         "With na-joik, NA before JOI forms one connective at every connective site, as in camxes-exp. For example, ko'a na joi ko'e broda joins ko'a and ko'e with na joi. Without it, that na is a separate NA term.",
+    EkStatementConnective => "ek-statement-connective",
+        "With ek-statement-connective, an A-family connector can join statements after I. For example, mi klama .i .e reads .e as a rightless statement connector. Without it, .i starts a paragraph item that contains an EK fragment.",
     MexQuantifier => "mex-quantifier",
         "With mex-quantifier, a mex without VEI can be a quantifier, as in camxes-exp. In ci su'i re prenu cu klama, ci su'i re is the quantifier. Without it, a quantifier is a number or a VEI mex. The feature also changes the reading of some texts that standard Lojban accepts.",
     LaheMex => "lahe-mex",

@@ -8898,6 +8898,38 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn i_boundary_metadata_uses_the_declared_connection_tiers() {
+        use generated::generated_model::SyntaxGrammarAnchorToken::Cmavo as AnchorCmavo;
+
+        for rule in [
+            "statement_join",
+            "standard_bo_statement_connective",
+            "exp_bo_statement_connective",
+        ] {
+            let metadata = generated_anchor_metadata(rule);
+            assert!(!metadata.first.is_empty(), "{rule}");
+            for start in metadata.first {
+                assert_eq!(start.tokens, &[AnchorCmavo(Cmavo::I)], "{rule}");
+            }
+        }
+        let paragraph = generated_anchor_metadata("paragraph");
+        assert!(
+            paragraph
+                .first
+                .iter()
+                .all(|start| { !start.tokens.contains(&AnchorCmavo(Cmavo::I)) })
+        );
+        for rule in ["statement_join", "bo_statement_connection"] {
+            let metadata = generated_anchor_metadata(rule);
+            assert_eq!(metadata.fields.len(), 3, "{rule}");
+            assert_eq!(metadata.fields[2].field_name, "trailing_statement");
+            assert_eq!(metadata.fields[2].field_index, 2);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_recovery_anchor_metadata_snapshot_matches() {
         let snapshot = recovery_anchor_metadata_snapshot();
         let path = Path::new(RECOVERY_ANCHOR_SNAPSHOT_PATH);
