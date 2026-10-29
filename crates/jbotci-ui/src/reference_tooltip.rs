@@ -4,7 +4,7 @@ use super::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ReferenceTooltipMode {
     Hover,
-    Clicked,
+    Pinned,
 }
 
 // The shell owns the card so that scrolling panels cannot clip it.
@@ -29,7 +29,7 @@ pub(super) fn show_reference_tooltip(
 ) {
     if change_reference_tooltip(open, marker, tooltip, base_path, mode) {
         mark_reference_tooltip_anchor(event);
-        if mode == ReferenceTooltipMode::Clicked {
+        if mode == ReferenceTooltipMode::Pinned {
             focus_reference_tooltip_anchor();
         }
     }
@@ -51,13 +51,13 @@ fn change_reference_tooltip(
     if mode == ReferenceTooltipMode::Hover
         && current
             .as_ref()
-            .is_some_and(|active| active.mode == ReferenceTooltipMode::Clicked)
+            .is_some_and(|active| active.mode == ReferenceTooltipMode::Pinned)
     {
         return false;
     }
-    let close = mode == ReferenceTooltipMode::Clicked
+    let close = mode == ReferenceTooltipMode::Pinned
         && current.as_ref().is_some_and(|active| {
-            active.mode == ReferenceTooltipMode::Clicked && &active.marker == marker
+            active.mode == ReferenceTooltipMode::Pinned && &active.marker == marker
         });
     drop(current);
     if close {
@@ -93,17 +93,39 @@ pub(super) fn leave_reference_tooltip(open: Signal<Option<HoveredReference>>) {
 #[ensures(true)]
 pub(super) fn close_reference_tooltip(open: Signal<Option<HoveredReference>>, restore_focus: bool) {
     let was_open = open.peek().is_some();
-    if restore_focus && was_open {
+    let active = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>();
+    let pinned = active.as_ref().is_some_and(|active| {
+        active
+            .peek()
+            .as_ref()
+            .is_some_and(|card| card.mode == ReferenceTooltipMode::Pinned)
+    });
+    if restore_focus && was_open && pinned {
         focus_reference_tooltip_anchor();
     }
     if was_open {
         clear_reference_tooltip_open(open);
     }
-    if let Some(mut active) = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>() {
+    if let Some(mut active) = active {
         let has_active = active.peek().is_some();
         if has_active {
             active.set(None);
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn pin_reference_tooltip() {
+    let Some(mut active) = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>() else {
+        return;
+    };
+    let hovered = active
+        .peek()
+        .as_ref()
+        .is_some_and(|card| card.mode == ReferenceTooltipMode::Hover);
+    if hovered && let Some(card) = active.write().as_mut() {
+        card.mode = ReferenceTooltipMode::Pinned;
     }
 }
 
@@ -121,7 +143,7 @@ pub(super) fn focus_reference_tooltip_card(marker: &HoveredReference) -> bool {
         if &card.marker != marker {
             return false;
         }
-        card.mode = ReferenceTooltipMode::Clicked;
+        card.mode = ReferenceTooltipMode::Pinned;
     }
     #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
     spawn(async move {
@@ -205,7 +227,7 @@ pub(super) fn ReferenceTooltipLayer(
         Some(active) if open.as_ref() == Some(&active.marker) => {
             let mode = match active.mode {
                 ReferenceTooltipMode::Hover => "hover",
-                ReferenceTooltipMode::Clicked => "clicked",
+                ReferenceTooltipMode::Pinned => "pinned",
             };
             rsx! {
                 div { class: "reference-tooltip-interaction", "data-reference-tooltip-mode": mode,
@@ -299,12 +321,23 @@ mod tests {
                 "",
                 ReferenceTooltipMode::Hover
             ));
+            pin_reference_tooltip();
+            leave_reference_tooltip(open);
+            assert_eq!(open.peek().as_ref(), Some(&marker));
+            close_reference_tooltip(open, false);
             assert!(change_reference_tooltip(
                 open,
                 &marker,
                 Rc::clone(&tooltip),
                 "",
-                ReferenceTooltipMode::Clicked
+                ReferenceTooltipMode::Hover
+            ));
+            assert!(change_reference_tooltip(
+                open,
+                &marker,
+                Rc::clone(&tooltip),
+                "",
+                ReferenceTooltipMode::Pinned
             ));
             assert!(!focus_reference_tooltip_card(&other));
             assert!(focus_reference_tooltip_card(&marker));
@@ -322,7 +355,7 @@ mod tests {
                 &marker,
                 Rc::clone(&tooltip),
                 "",
-                ReferenceTooltipMode::Clicked
+                ReferenceTooltipMode::Pinned
             ));
             assert!(open.peek().is_none());
             assert!(change_reference_tooltip(
@@ -330,7 +363,7 @@ mod tests {
                 &other,
                 Rc::clone(&tooltip),
                 "",
-                ReferenceTooltipMode::Clicked
+                ReferenceTooltipMode::Pinned
             ));
             close_reference_tooltip(open, false);
             assert!(open.peek().is_none());

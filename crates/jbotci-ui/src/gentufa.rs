@@ -993,7 +993,7 @@ pub(super) fn render_ref_marker(
                     },
                     onclick: move |event| {
                         event.stop_propagation();
-                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, Rc::clone(&click_tooltip), &base_path, ReferenceTooltipMode::Clicked);
+                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, Rc::clone(&click_tooltip), &base_path, ReferenceTooltipMode::Pinned);
                     },
                     span {
                         class: "{class}",

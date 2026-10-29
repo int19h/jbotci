@@ -5329,7 +5329,7 @@ pub(super) fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
         return;
     };
     if tooltip
-        .closest("[data-reference-tooltip-mode='clicked']")
+        .closest("[data-reference-tooltip-mode='pinned']")
         .ok()
         .flatten()
         .is_some()
@@ -5577,7 +5577,7 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 if (!tooltip) {
                     return;
                 }
-                if (tooltip.closest("[data-reference-tooltip-mode='clicked']")) {
+                if (tooltip.closest("[data-reference-tooltip-mode='pinned']")) {
                     return;
                 }
                 tooltip.removeAttribute("data-jbotci-position-ready");
@@ -5656,7 +5656,7 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 const target = event.target;
                 const host = target instanceof Element ? target.closest(".reference-tooltip-host") : null;
                 if (host && (event.type === "click" || (event.type === "mouseover"
-                    && !document.querySelector("[data-reference-tooltip-mode='clicked']")))) {
+                    && !document.querySelector("[data-reference-tooltip-mode='pinned']")))) {
                     for (const anchor of document.querySelectorAll("[data-reference-tooltip-anchor]")) {
                         anchor.removeAttribute("data-reference-tooltip-anchor");
                     }
