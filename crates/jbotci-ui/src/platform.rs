@@ -348,19 +348,14 @@ pub fn tooltip_height_limit(viewport: Viewport, margin: f64) -> f64 {
     (viewport.height - viewport.top - 2.0 * margin.max(0.0)).max(1.0)
 }
 
-// Keep the label outside the card so that a second click can close it.
+// Keep the source label outside the card so that it remains clickable.
 #[requires(viewport.top.is_finite() && viewport.top >= 0.0)]
 #[requires(viewport.height.is_finite() && viewport.height >= 0.0)]
 #[requires(host.top.is_finite() && host.height.is_finite() && host.height >= 0.0)]
 #[requires(margin.is_finite() && gap.is_finite())]
 #[ensures(ret.is_finite() && ret >= 1.0)]
 #[ensures(ret <= tooltip_height_limit(viewport, margin))]
-pub fn reference_tooltip_height_limit(
-    host: Rect,
-    viewport: Viewport,
-    margin: f64,
-    gap: f64,
-) -> f64 {
+pub fn tooltip_height_limit_for_host(host: Rect, viewport: Viewport, margin: f64, gap: f64) -> f64 {
     let limit = tooltip_height_limit(viewport, margin);
     let above = (host.top - gap.max(0.0) - viewport.top - margin.max(0.0)).clamp(0.0, limit);
     let below =
@@ -775,7 +770,7 @@ mod tests {
                 };
                 let size = Size {
                     width: 352.0,
-                    height: reference_tooltip_height_limit(host, viewport, 8.0, 8.0),
+                    height: tooltip_height_limit_for_host(host, viewport, 8.0, 8.0),
                 };
                 let placement = place_tooltip(host, size, viewport, 8.0, 8.0);
                 assert!(placement.top >= viewport.top);

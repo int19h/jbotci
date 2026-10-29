@@ -960,17 +960,21 @@ pub(super) fn render_ref_marker(
         let enter_role = marker.role;
         let enter_label = marker.label.clone();
         let enter_tooltip_open = reference_tooltip_open;
-        let enter_marker = marker.clone();
-        let enter_tooltip = tooltip.clone();
+        let enter_marker = HoveredReference {
+            role: marker.role,
+            label: marker.label.clone(),
+        };
         let enter_base_path = base_path.clone();
-        let click_marker = marker.clone();
-        let click_tooltip = tooltip.clone();
+        let key_marker = enter_marker.clone();
+        let click_marker = enter_marker.clone();
+        let click_tooltip = Rc::new(tooltip.clone());
+        let enter_tooltip = Rc::clone(&click_tooltip);
         rsx! {
             span {
                 class: "{host_class}",
                 onmouseenter: move |event| {
                     set_reference_hover(enter_hover, enter_role, enter_label.clone());
-                    show_reference_tooltip(&event, enter_tooltip_open, &enter_marker, &enter_tooltip, &enter_base_path, ReferenceTooltipMode::Hover);
+                    show_reference_tooltip(&event, enter_tooltip_open, &enter_marker, Rc::clone(&enter_tooltip), &enter_base_path, ReferenceTooltipMode::Hover);
                 },
                 onmouseleave: move |_| {
                     clear_reference_hover(leave_hover);
@@ -983,14 +987,13 @@ pub(super) fn render_ref_marker(
                     aria_controls: "reference-tooltip-overlay",
                     aria_haspopup: "dialog",
                     onkeydown: move |event| {
-                        if event.key() == Key::ArrowDown {
+                        if event.key() == Key::ArrowDown && focus_reference_tooltip_card(&key_marker) {
                             event.prevent_default();
-                            focus_reference_tooltip_card();
                         }
                     },
                     onclick: move |event| {
                         event.stop_propagation();
-                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, &click_tooltip, &base_path, ReferenceTooltipMode::Clicked);
+                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, Rc::clone(&click_tooltip), &base_path, ReferenceTooltipMode::Clicked);
                     },
                     span {
                         class: "{class}",

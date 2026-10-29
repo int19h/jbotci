@@ -12,7 +12,7 @@ pub(super) enum ReferenceTooltipMode {
 #[derive(Clone)]
 pub(super) struct ActiveReferenceTooltip {
     marker: HoveredReference,
-    tooltip: ReferenceTooltip,
+    tooltip: Rc<ReferenceTooltip>,
     base_path: String,
     mode: ReferenceTooltipMode,
 }
@@ -22,8 +22,8 @@ pub(super) struct ActiveReferenceTooltip {
 pub(super) fn show_reference_tooltip(
     event: &MouseEvent,
     open: Signal<Option<HoveredReference>>,
-    marker: &ReferenceMarker,
-    tooltip: &ReferenceTooltip,
+    marker: &HoveredReference,
+    tooltip: Rc<ReferenceTooltip>,
     base_path: &str,
     mode: ReferenceTooltipMode,
 ) {
@@ -39,8 +39,8 @@ pub(super) fn show_reference_tooltip(
 #[ensures(true)]
 fn change_reference_tooltip(
     open: Signal<Option<HoveredReference>>,
-    marker: &ReferenceMarker,
-    tooltip: &ReferenceTooltip,
+    marker: &HoveredReference,
+    tooltip: Rc<ReferenceTooltip>,
     base_path: &str,
     mode: ReferenceTooltipMode,
 ) -> bool {
@@ -57,9 +57,7 @@ fn change_reference_tooltip(
     }
     let close = mode == ReferenceTooltipMode::Clicked
         && current.as_ref().is_some_and(|active| {
-            active.mode == ReferenceTooltipMode::Clicked
-                && active.marker.role == marker.role
-                && active.marker.label == marker.label
+            active.mode == ReferenceTooltipMode::Clicked && &active.marker == marker
         });
     drop(current);
     if close {
@@ -67,11 +65,8 @@ fn change_reference_tooltip(
         return false;
     }
     active.set(Some(ActiveReferenceTooltip {
-        marker: HoveredReference {
-            role: marker.role,
-            label: marker.label.clone(),
-        },
-        tooltip: tooltip.clone(),
+        marker: marker.clone(),
+        tooltip,
         base_path: base_path.to_owned(),
         mode,
     }));
@@ -114,21 +109,25 @@ pub(super) fn close_reference_tooltip(open: Signal<Option<HoveredReference>>, re
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn focus_reference_tooltip_card() {
+pub(super) fn focus_reference_tooltip_card(marker: &HoveredReference) -> bool {
     let Some(mut active) = try_consume_context::<Signal<Option<ActiveReferenceTooltip>>>() else {
-        return;
+        return false;
     };
     {
         let mut value = active.write();
         let Some(card) = value.as_mut() else {
-            return;
+            return false;
         };
+        if &card.marker != marker {
+            return false;
+        }
         card.mode = ReferenceTooltipMode::Clicked;
     }
     #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
     spawn(async move {
         let _ = document::eval("document.querySelector('#reference-tooltip-overlay .rich-dictionary-tooltip')?.focus({preventScroll:true});").await;
     });
+    true
 }
 
 #[cfg(any(target_arch = "wasm32", feature = "desktop"))]
@@ -267,22 +266,19 @@ mod tests {
         let open = dom.in_runtime(|| Signal::new_in_scope(None::<HoveredReference>, ScopeId::ROOT));
         dom.insert_any_root_context(Box::new(active));
         dom.insert_any_root_context(Box::new(open));
-        let tooltip = new!(ReferenceTooltip {
+        let tooltip = Rc::new(new!(ReferenceTooltip {
             card: None,
             missing_word: Some("klama".to_owned()),
             highlighted_places: Vec::new(),
             definition: Vec::new(),
             notes: Vec::new(),
             rows: Vec::new(),
-        });
-        let marker = ReferenceMarker {
+        }));
+        let marker = HoveredReference {
             role: ReferenceMarkerRole::Reference,
-            kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new("k", None, None),
-            source: None,
-            tooltip: Some(tooltip.clone()),
         };
-        let other = ReferenceMarker {
+        let other = HoveredReference {
             label: ReferenceLabel::new("b", None, None),
             ..marker.clone()
         };
@@ -290,7 +286,7 @@ mod tests {
             assert!(change_reference_tooltip(
                 open,
                 &marker,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Hover
             ));
@@ -299,30 +295,32 @@ mod tests {
             assert!(change_reference_tooltip(
                 open,
                 &marker,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Hover
             ));
             assert!(change_reference_tooltip(
                 open,
                 &marker,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Clicked
             ));
+            assert!(!focus_reference_tooltip_card(&other));
+            assert!(focus_reference_tooltip_card(&marker));
             leave_reference_tooltip(open);
             assert!(!change_reference_tooltip(
                 open,
                 &other,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Hover
             ));
-            assert!(reference_tooltip_matches_marker(&marker, &open.peek()));
+            assert_eq!(open.peek().as_ref(), Some(&marker));
             assert!(!change_reference_tooltip(
                 open,
                 &marker,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Clicked
             ));
@@ -330,7 +328,7 @@ mod tests {
             assert!(change_reference_tooltip(
                 open,
                 &other,
-                &tooltip,
+                Rc::clone(&tooltip),
                 "",
                 ReferenceTooltipMode::Clicked
             ));
@@ -363,14 +361,14 @@ mod tests {
         };
         let presentation = ActiveReferenceTooltip {
             marker: marker.clone(),
-            tooltip: new!(ReferenceTooltip {
+            tooltip: Rc::new(new!(ReferenceTooltip {
                 card: None,
                 missing_word: Some("klama".to_owned()),
                 highlighted_places: Vec::new(),
                 definition: Vec::new(),
                 notes: Vec::new(),
                 rows: Vec::new(),
-            }),
+            })),
             base_path: String::new(),
             mode: ReferenceTooltipMode::Hover,
         };

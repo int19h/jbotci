@@ -5415,7 +5415,7 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         .matches(".rich-reference-tooltip-stack")
         .unwrap_or(false);
     let height_limit = if reference_stack {
-        platform::reference_tooltip_height_limit(
+        platform::tooltip_height_limit_for_host(
             platform::Rect {
                 left: host_rect.left(),
                 top: host_rect.top(),
@@ -5520,7 +5520,7 @@ pub(super) fn install_desktop_tooltip_bridge() {
             DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX
         );
         script.push_str(&format!(
-            "const referenceTooltipGap = {};\n",
+            "const tooltipHostGap = {};\n",
             DICTIONARY_TOOLTIP_HOST_GAP_PX
         ));
         script.push_str(r#"
@@ -5626,7 +5626,7 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 const referenceStack = tooltip.classList.contains("rich-reference-tooltip-stack");
                 const fullHeight = Math.max(1, Number(window.innerHeight || 1) - visibleViewportTop() - 2 * tooltipViewportMargin);
                 const hostRect = host.getBoundingClientRect();
-                const gap = referenceTooltipGap;
+                const gap = tooltipHostGap;
                 const above = Math.min(fullHeight, Math.max(0, hostRect.top - gap - visibleViewportTop() - tooltipViewportMargin));
                 const below = Math.min(fullHeight, Math.max(0, Number(window.innerHeight || 1) - tooltipViewportMargin - hostRect.bottom - gap));
                 const heightLimit = referenceStack ? Math.max(1, above, below) : fullHeight;
