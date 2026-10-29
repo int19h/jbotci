@@ -641,8 +641,7 @@ pub mod generated_model {
         field linkargs <- linkargs;
     }
 
-    /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bare_cu_bridi`, and
-    /// `relation_only_bridi` forms.
+    /// A sentence body, with or without the camxes-exp sentence trailers.
     ///
     /// camxes-standard's sentence carries one leading `terms CU_elidible? free*` group
     /// (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
@@ -4196,7 +4195,7 @@ pub mod generated_model {
         jek_connective,
     }
 
-    /// Sum node for statement connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
+    /// An ordinary I join permits a bare connector or a VUhU word.
     rule "statement connective" ordinary_statement_connective -> enum {
         // The standard bare family, with feature-gated EK.
         splice bare_statement_connective,
@@ -4224,7 +4223,7 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai));
     }
 
-    /// Sum node for statement connective; selects among the `i_standard_paragraph_statement_connective` and `i_tag_bo_paragraph_statement_connective` forms.
+    /// The optional connector and BO suffix after a leading I.
     rule "statement connective" i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
         /// A complete BO connector after the prefix I.
         paragraph_bo_connective,
@@ -4272,7 +4271,7 @@ pub mod generated_model {
         field bo <- cmavo(Bo);
     }
 
-    /// Paragraph JOIK family with the same mixed ownership ordering as `joik_connective`.
+    /// The bare JA and JOI families, including interval connectors.
     rule "statement connective" paragraph_standard_statement_connective -> enum {
         /// Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.
         paragraph_closed_interval_connective,

@@ -189,46 +189,8 @@ fn subsentence_opens_with_leading_sumti(value: view::SubbridiSyntaxRef<'_>) -> b
         view::SubbridiSyntaxView::BridiSubbridi(bridi) => bridi.valid().is_some_and(|bridi| {
             let view::BridiSubbridiSyntaxView(bridi) = bridi.get();
             bridi.valid().is_some_and(|bridi| match bridi.get() {
-                view::BridiSyntaxView::ExpTrailedBridi(sentence) => {
-                    sentence.valid().is_some_and(|sentence| {
-                        let view::ExpTrailedBridiSyntaxView { first, trailers: _ } = sentence.get();
-                        first.valid().is_some_and(|first| match first.get() {
-                            view::PlainBridiSyntaxView::BridiWithLeadingTerms(bridi) => {
-                                bridi.valid().is_some_and(|bridi| {
-                                    let view::BridiWithLeadingTermsSyntaxView {
-                                        leading_terms,
-                                        cu: _,
-                                        bridi_tail: _,
-                                    } = bridi.get();
-                                    leading_terms
-                                        .get(0)
-                                        .and_then(Slot::valid)
-                                        .is_some_and(|term| match term.get() {
-                                            view::TermSyntaxView::SumtiTerm(_) => true,
-                                            view::TermSyntaxView::PeheTermsetConnection(_)
-                                            | view::TermSyntaxView::TermsetGroup(_)
-                                            | view::TermSyntaxView::ConnectedTerm(_)
-                                            | view::TermSyntaxView::StagBoundTermConnection(_)
-                                            | view::TermSyntaxView::FaChainTaggedSumtiTerm(_)
-                                            | view::TermSyntaxView::PlaceTaggedSumtiTerm(_)
-                                            | view::TermSyntaxView::ElidedNaheFihoTagTerm(_)
-                                            | view::TermSyntaxView::TaggedSumtiBeforeTagTerm(_)
-                                            | view::TermSyntaxView::TaggedSumtiTerm(_)
-                                            | view::TermSyntaxView::FihoiProposalAdverbialTerm(_)
-                                            | view::TermSyntaxView::ExpSoiAdverbialTerm(_)
-                                            | view::TermSyntaxView::NaKuTerm(_)
-                                            | view::TermSyntaxView::BareNaTerm(_)
-                                            | view::TermSyntaxView::GekTermset(_)
-                                            | view::TermSyntaxView::ForethoughtTermset(_)
-                                            | view::TermSyntaxView::NuhiTermset(_) => false,
-                                        })
-                                })
-                            }
-                            view::PlainBridiSyntaxView::BareCuBridi(_)
-                            | view::PlainBridiSyntaxView::RelationOnlyBridi(_) => false,
-                        })
-                    })
-                }
+                // A pre-I trailer has no standard reciprocal reading to preserve.
+                view::BridiSyntaxView::ExpTrailedBridi(_) => false,
                 view::BridiSyntaxView::BridiWithLeadingTerms(bridi) => {
                     bridi.valid().is_some_and(|bridi| {
                         let view::BridiWithLeadingTermsSyntaxView {

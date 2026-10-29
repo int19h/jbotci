@@ -19,6 +19,7 @@ struct Boundaries<'tree> {
     bo: Vec<&'tree model::BoStatementConnectionSyntax>,
     following: Vec<&'tree model::FollowingParagraphStatementSyntax>,
     trailers: Vec<&'tree model::ExpSentenceTrailerSyntax>,
+    soi: Vec<&'tree model::ExpSoiSubsentenceAdverbialSyntax>,
 }
 
 impl<'tree> model::TreeWalker<'tree> for Boundaries<'tree> {
@@ -51,6 +52,16 @@ impl<'tree> model::TreeWalker<'tree> for Boundaries<'tree> {
     fn walk_exp_sentence_trailer(&mut self, node: &'tree model::ExpSentenceTrailerSyntax) {
         self.trailers.push(node);
         model::walk::exp_sentence_trailer(self, node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.soi.len() >= old(self.soi.len()) + 1)]
+    fn walk_exp_soi_subsentence_adverbial(
+        &mut self,
+        node: &'tree model::ExpSoiSubsentenceAdverbialSyntax,
+    ) {
+        self.soi.push(node);
+        model::walk::exp_soi_subsentence_adverbial(self, node);
     }
 }
 
@@ -272,4 +283,30 @@ fn inherited_prohibited_stag_placements_remain_warned() {
                 || warning.kind == ExperimentalConstruct::ExperimentalStatementStag
         }));
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_sentence_trailer_stays_inside_an_elided_soi_adverbial() {
+    let parsed = parse("mi klama soi do cadzu je .i ti tavla", "()");
+    let nodes = boundaries(&parsed);
+    assert_eq!(nodes.soi.len(), 1);
+    let model::SubbridiSyntax::BridiSubbridi(inner) = nodes.soi[0].subsentence.as_ref() else {
+        panic!("the SOI body is a sentence");
+    };
+    assert!(matches!(
+        inner.0.as_ref(),
+        model::BridiSyntax::ExpTrailedBridi(_)
+    ));
+    assert!(
+        parsed
+            .warnings
+            .iter()
+            .any(|warning| { warning.kind == ExperimentalConstruct::ExperimentalSoiAdverbial })
+    );
+
+    let baseline = parse("mi klama soi do cadzu", "()");
+    assert!(boundaries(&baseline).soi.is_empty());
+    assert!(baseline.warnings.is_empty());
 }
