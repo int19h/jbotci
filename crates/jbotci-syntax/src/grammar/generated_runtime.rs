@@ -2591,22 +2591,6 @@ pub(crate) fn quote_marker<'tokens>(marker: Cmavo) -> BoxedParser<'tokens, Token
     )
 }
 
-#[requires(!terminators.is_empty())]
-#[ensures(true)]
-pub(crate) fn word_not_cmavo<'tokens>(
-    terminators: &'static [Cmavo],
-) -> BoxedParser<'tokens, Token> {
-    token_matching(
-        "word other than terminator cmavo",
-        "WORD",
-        vec![new!(SyntaxExpectedToken::Named(
-            "non-terminator word".to_owned()
-        ))],
-        move |token, _state| !token.is_one_of_cmavo(terminators),
-    )
-    .boxed()
-}
-
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token> {
