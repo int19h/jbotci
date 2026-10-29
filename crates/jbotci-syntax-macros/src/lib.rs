@@ -10795,8 +10795,8 @@ mod tests {
     #[ensures(true)]
     fn atomic_parser_keeps_declared_model_and_replaces_recovery_metadata() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote::quote! {
-            env SyntaxGrammarEnv;
             model;
+            env SyntaxGrammarEnv;
             /// A replacement quote retains both markers.
             #[syntax_parser(replacement_quote())]
             rule "replacement phrase" text_replacement_free_modifier -> struct {
