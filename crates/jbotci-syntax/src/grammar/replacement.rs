@@ -69,11 +69,20 @@ pub(super) fn project_strict(
 }
 
 #[requires(matches!(&quote.value, recovered::Recovered::Valid(token) if matches!(token.core_word().as_data(), data!(WordLike::ReplacementQuote { .. }))))]
-#[ensures(match &ret {
-    recovered::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.lehai.free_modifiers.len() == old(quote.free_modifiers.len())),
-    recovered::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.lehai.free_modifiers.len() == old(quote.free_modifiers.len())),
-    recovered::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(node) => matches!(node.as_ref(), recovered::Recovered::Valid(node) if node.0.free_modifiers.len() == old(quote.free_modifiers.len())),
-})]
+#[ensures((match &ret {
+    recovered::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) => match node.as_ref() {
+        recovered::Recovered::Valid(node) => Some(node.lehai.free_modifiers.len()),
+        _ => None,
+    },
+    recovered::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(node) => match node.as_ref() {
+        recovered::Recovered::Valid(node) => Some(node.lehai.free_modifiers.len()),
+        _ => None,
+    },
+    recovered::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(node) => match node.as_ref() {
+        recovered::Recovered::Valid(node) => Some(node.0.free_modifiers.len()),
+        _ => None,
+    },
+}) == Some(old(quote.free_modifiers.len())))]
 pub(super) fn project_recovered(
     quote: recovered::WithFreeModifiers<recovered::Recovered<Token>>,
 ) -> recovered::TextReplacementFreeModifierSyntax {
