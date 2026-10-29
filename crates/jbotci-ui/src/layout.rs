@@ -3754,10 +3754,12 @@ pub(super) fn install_browser_dom_handlers(
     let tooltip_pointer_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         position_dictionary_tooltip_from_event(&event);
     }) as Box<dyn FnMut(_)>);
-    let _ = document.add_event_listener_with_callback(
-        "mouseover",
-        tooltip_pointer_closure.as_ref().unchecked_ref(),
-    );
+    for event_name in ["mouseover", "click"] {
+        let _ = document.add_event_listener_with_callback(
+            event_name,
+            tooltip_pointer_closure.as_ref().unchecked_ref(),
+        );
+    }
     tooltip_pointer_closure.forget();
 
     let tooltip_focus_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
@@ -3796,6 +3798,7 @@ pub(super) fn install_browser_dom_handlers(
         update_cukta_toc_forced_autohide(resize_cukta_toc_forced_autohide);
         schedule_cukta_edition_release_fit_measure(resize_cukta_edition_release_fits);
         schedule_vlacku_jvozba_pane_metrics_sync();
+        reposition_active_dictionary_tooltip();
     }) as Box<dyn FnMut(_)>);
     let _ =
         window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
@@ -3855,6 +3858,7 @@ pub(super) fn install_browser_dom_handlers(
     schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
     let document_scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        reposition_active_dictionary_tooltip();
         save_current_scroll_position();
     }) as Box<dyn FnMut(_)>);
     let _ = document.add_event_listener_with_callback_and_bool(
@@ -3865,6 +3869,7 @@ pub(super) fn install_browser_dom_handlers(
     document_scroll_closure.forget();
 
     let window_scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        reposition_active_dictionary_tooltip();
         save_current_scroll_position();
     }) as Box<dyn FnMut(_)>);
     let _ = window
@@ -5245,6 +5250,30 @@ pub(super) fn block_reference_target_for_block(
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+pub(super) fn reposition_active_dictionary_tooltip() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(hosts) = document.query_selector_all(
+        ".dictionary-tooltip-host:hover, .dictionary-tooltip-host:focus-within, .reference-tooltip-host.is-open",
+    ) else {
+        return;
+    };
+    for index in 0..hosts.length() {
+        if let Some(host) = hosts
+            .item(index)
+            .and_then(|node| node.dyn_into::<web_sys::Element>().ok())
+            && dictionary_tooltip_element_for_host(&host)
+                .is_some_and(|tooltip| tooltip.has_attribute("data-jbotci-position-ready"))
+        {
+            position_dictionary_tooltip(&host);
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn position_dictionary_tooltip_from_event(event: &web_sys::Event) {
     let Some(document) = web_sys::window().and_then(|window| window.document()) else {
         return;
@@ -5299,6 +5328,14 @@ pub(super) fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
     let Some(tooltip) = dictionary_tooltip_element_for_host(host) else {
         return;
     };
+    if tooltip
+        .closest("[data-reference-tooltip-mode='pinned']")
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        return;
+    }
     let style = tooltip.style();
     let _ = tooltip.remove_attribute("data-jbotci-position-ready");
     let _ = style.set_property("visibility", "hidden");
@@ -5328,14 +5365,19 @@ pub(super) fn clear_dictionary_tooltip_immediate_hide(host: &web_sys::Element) {
 pub(super) fn dictionary_tooltip_element_for_host(
     host: &web_sys::Element,
 ) -> Option<web_sys::HtmlElement> {
-    host.query_selector(".rich-reference-tooltip-stack")
+    if host.matches(".reference-tooltip-host").unwrap_or(false) {
+        return host
+            .has_attribute("data-reference-tooltip-anchor")
+            .then(|| {
+                host.owner_document()?
+                    .get_element_by_id("reference-tooltip-overlay")
+            })
+            .flatten()
+            .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
+    }
+    host.query_selector(".rich-dictionary-tooltip")
         .ok()
         .flatten()
-        .or_else(|| {
-            host.query_selector(".rich-dictionary-tooltip")
-                .ok()
-                .flatten()
-        })
         .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
 }
 
@@ -5354,7 +5396,6 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
     };
     let _ = tooltip_html.remove_attribute("data-jbotci-position-ready");
     let host_rect = host.get_bounding_client_rect();
-    let tooltip_rect = tooltip_html.get_bounding_client_rect();
     let viewport_width = window
         .inner_width()
         .ok()
@@ -5365,7 +5406,45 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
         .ok()
         .and_then(|height| height.as_f64())
         .unwrap_or(1.0);
-    let viewport_top = dictionary_tooltip_visible_top(&document);
+    let viewport = platform::Viewport {
+        top: dictionary_tooltip_visible_top(&document),
+        width: viewport_width,
+        height: viewport_height,
+    };
+    let reference_stack = tooltip_html
+        .matches(".rich-reference-tooltip-stack")
+        .unwrap_or(false);
+    let height_limit = if reference_stack {
+        platform::tooltip_height_limit_for_host(
+            platform::Rect {
+                left: host_rect.left(),
+                top: host_rect.top(),
+                width: host_rect.width(),
+                height: host_rect.height(),
+            },
+            viewport,
+            DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+            DICTIONARY_TOOLTIP_HOST_GAP_PX,
+        )
+    } else {
+        platform::tooltip_height_limit(viewport, DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX)
+    };
+    let style = tooltip_html.style();
+    let _ = style.set_property(
+        "--dictionary-tooltip-max-height",
+        &format!("{}px", height_limit),
+    );
+    if reference_stack {
+        let overflow = if tooltip_html.scroll_height() > tooltip_html.client_height()
+            || tooltip_html.scroll_width() > tooltip_html.client_width()
+        {
+            "auto"
+        } else {
+            "visible"
+        };
+        let _ = style.set_property("overflow", overflow);
+    }
+    let tooltip_rect = tooltip_html.get_bounding_client_rect();
     let position = platform::place_tooltip(
         platform::Rect {
             left: host_rect.left(),
@@ -5377,15 +5456,10 @@ pub(super) fn position_dictionary_tooltip(host: &web_sys::Element) {
             width: tooltip_rect.width(),
             height: tooltip_rect.height(),
         },
-        platform::Viewport {
-            top: viewport_top,
-            width: viewport_width,
-            height: viewport_height,
-        },
+        viewport,
         DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
         DICTIONARY_TOOLTIP_HOST_GAP_PX,
     );
-    let style = tooltip_html.style();
     let _ = style.set_property(
         "--dictionary-tooltip-left",
         &format!("{:.2}px", position.left),
@@ -5442,8 +5516,15 @@ pub(super) struct DesktopTooltipPlacement {
 #[ensures(true)]
 pub(super) fn install_desktop_tooltip_bridge() {
     spawn(async move {
-        let mut eval = document::eval(
-            r#"
+        let mut script = format!(
+            "const tooltipViewportMargin = {};\n",
+            DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX
+        );
+        script.push_str(&format!(
+            "const tooltipHostGap = {};\n",
+            DICTIONARY_TOOLTIP_HOST_GAP_PX
+        ));
+        script.push_str(r#"
             let nextTooltipId = 1;
             const hostSelector = ".dictionary-tooltip-host, .reference-tooltip-host";
             const stylesReady = () => {
@@ -5455,6 +5536,10 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 return String(shellStyle.getPropertyValue("--topbar-bg") || "").trim().length > 0;
             };
             const tooltipForHost = (host) => {
+                if (host.classList.contains("reference-tooltip-host")) {
+                    return host.hasAttribute("data-reference-tooltip-anchor")
+                        ? document.getElementById("reference-tooltip-overlay") : null;
+                }
                 for (const child of Array.from(host.children)) {
                     if (
                         child.classList &&
@@ -5491,6 +5576,9 @@ pub(super) fn install_desktop_tooltip_bridge() {
             const hideInactiveTooltip = (host) => {
                 const tooltip = tooltipForHost(host);
                 if (!tooltip) {
+                    return;
+                }
+                if (tooltip.closest("[data-reference-tooltip-mode='pinned']")) {
                     return;
                 }
                 tooltip.removeAttribute("data-jbotci-position-ready");
@@ -5536,6 +5624,18 @@ pub(super) fn install_desktop_tooltip_bridge() {
                     return;
                 }
                 activateHost(host);
+                const referenceStack = tooltip.classList.contains("rich-reference-tooltip-stack");
+                const fullHeight = Math.max(1, Number(window.innerHeight || 1) - visibleViewportTop() - 2 * tooltipViewportMargin);
+                const hostRect = host.getBoundingClientRect();
+                const gap = tooltipHostGap;
+                const above = Math.min(fullHeight, Math.max(0, hostRect.top - gap - visibleViewportTop() - tooltipViewportMargin));
+                const below = Math.min(fullHeight, Math.max(0, Number(window.innerHeight || 1) - tooltipViewportMargin - hostRect.bottom - gap));
+                const heightLimit = referenceStack ? Math.max(1, above, below) : fullHeight;
+                tooltip.style.setProperty("--dictionary-tooltip-max-height", `${heightLimit}px`);
+                if (referenceStack) {
+                    tooltip.style.overflow = tooltip.scrollHeight > tooltip.clientHeight || tooltip.scrollWidth > tooltip.clientWidth
+                        ? "auto" : "visible";
+                }
                 const tooltipRect = tooltip.getBoundingClientRect();
                 dioxus.send({
                     id: host.dataset.jbotciTooltipId,
@@ -5553,11 +5653,35 @@ pub(super) fn install_desktop_tooltip_bridge() {
             };
             const scheduleMeasure = (event) => {
                 const target = event.target;
+                const host = target instanceof Element ? target.closest(".reference-tooltip-host") : null;
+                if (host && (event.type === "click" || (event.type === "mouseover"
+                    && !document.querySelector("[data-reference-tooltip-mode='pinned']")))) {
+                    for (const anchor of document.querySelectorAll("[data-reference-tooltip-anchor]")) {
+                        anchor.removeAttribute("data-reference-tooltip-anchor");
+                    }
+                    host.setAttribute("data-reference-tooltip-anchor", "true");
+                }
                 requestAnimationFrame(() => requestAnimationFrame(() => measureHost(target)));
             };
             document.addEventListener("mouseover", scheduleMeasure, true);
             document.addEventListener("focusin", scheduleMeasure, true);
             document.addEventListener("click", scheduleMeasure, true);
+            const measureActiveHosts = () => {
+                for (const host of document.querySelectorAll(hostSelector)) {
+                    const tooltip = tooltipForHost(host);
+                    if (tooltip && tooltip.hasAttribute("data-jbotci-position-ready")) {
+                        measureHost(host);
+                    }
+                }
+            };
+            document.addEventListener("jbotci-position-reference-tooltip", () => {
+                const host = document.querySelector("[data-reference-tooltip-anchor]");
+                if (host) {
+                    requestAnimationFrame(() => measureHost(host));
+                }
+            });
+            window.addEventListener("resize", measureActiveHosts);
+            document.addEventListener("scroll", measureActiveHosts, true);
             (async () => {
                 while (true) {
                     const placement = await dioxus.recv();
@@ -5579,8 +5703,8 @@ pub(super) fn install_desktop_tooltip_bridge() {
                 }
             })();
             await new Promise(() => {});
-            "#,
-        );
+            "#);
+        let mut eval = document::eval(&script);
         while let Ok(measure) = eval.recv::<DesktopTooltipMeasure>().await {
             let position = platform::place_tooltip(
                 platform_rect_from_reference_rect(measure.host_rect),

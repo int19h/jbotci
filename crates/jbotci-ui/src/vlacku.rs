@@ -782,7 +782,11 @@ pub(super) fn render_reference_tooltip(
     script: GentufaScript,
 ) -> Element {
     rsx! {
-        span { class: "rich-reference-tooltip-stack", role: "tooltip",
+        span { id: "reference-tooltip-overlay", class: "rich-reference-tooltip-stack reference-tooltip-overlay", role: "dialog",
+            aria_label: "Reference card",
+            tabindex: "0",
+            onfocusin: move |_| pin_reference_tooltip(),
+            onclick: move |event| event.stop_propagation(),
             if let Some(card) = &tooltip.card {
                 { render_reference_dictionary_card(card, tooltip, base_path, script) }
             } else if let Some(word) = &tooltip.missing_word {

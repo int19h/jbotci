@@ -101,6 +101,8 @@ mod routing;
 use routing::*;
 mod shell;
 use shell::*;
+mod reference_tooltip;
+use reference_tooltip::*;
 mod layout;
 use layout::*;
 

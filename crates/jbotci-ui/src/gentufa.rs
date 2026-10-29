@@ -331,7 +331,7 @@ pub(super) fn render_success(
                     { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task, page_find) }
                 },
                 GentufaWebViewMode::Tree => rsx! {
-                    { render_tree(success, reference_hover, reference_tooltip_open, settings_value.script, page_find) }
+                    { render_tree(success, reference_hover, reference_tooltip_open, page_find) }
                 },
                 GentufaWebViewMode::Ipa => rsx! {
                     { render_ipa_output(success, page_find) }
@@ -824,7 +824,7 @@ pub(super) fn render_block(
                 span { class: "{incoming_class}",
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "ref-math ref-line",
-                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, export_script) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                         }
                     }
                 }
@@ -866,7 +866,7 @@ pub(super) fn render_block(
                     span { class: "ref-math",
                         for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
                             span { class: "ref-arrow", "→" }
-                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, export_script) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                         }
                     }
                 }
@@ -943,7 +943,6 @@ pub(super) fn render_ref_marker(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
-    script: GentufaScript,
 ) -> Element {
     let view = reference_marker_view_model(marker, hover_state).into_data();
     let class = view.class;
@@ -960,26 +959,51 @@ pub(super) fn render_ref_marker(
         let click_tooltip_open = reference_tooltip_open;
         let enter_role = marker.role;
         let enter_label = marker.label.clone();
-        let click_role = marker.role;
-        let click_label = marker.label.clone();
+        let enter_tooltip_open = reference_tooltip_open;
+        let enter_marker = HoveredReference {
+            role: marker.role,
+            label: marker.label.clone(),
+        };
+        let enter_base_path = base_path.clone();
+        let key_marker = enter_marker.clone();
+        let click_marker = enter_marker.clone();
+        let click_tooltip = Rc::new(tooltip.clone());
+        let enter_tooltip = Rc::clone(&click_tooltip);
         rsx! {
             span {
                 class: "{host_class}",
-                onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
+                onmouseenter: move |event| {
+                    set_reference_hover(enter_hover, enter_role, enter_label.clone());
+                    show_reference_tooltip(&event, enter_tooltip_open, &enter_marker, Rc::clone(&enter_tooltip), &enter_base_path, ReferenceTooltipMode::Hover);
+                },
                 onmouseleave: move |_| {
                     clear_reference_hover(leave_hover);
-                    clear_reference_tooltip_open(leave_tooltip_open);
+                    leave_reference_tooltip(leave_tooltip_open);
                 },
-                onclick: move |_| set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone()),
-                span {
-                    class: "{class}",
-                    "data-ref-role": "{role}",
-                    "data-ref-kind": "{kind}",
-                    "data-ref-label": "{label}",
-                    "data-ref-base": "{base}",
-                    { render_reference_label(&marker.label) }
+                button {
+                    r#type: "button",
+                    class: "reference-tooltip-trigger",
+                    aria_expanded: reference_tooltip_matches_marker(marker, tooltip_open_state),
+                    aria_controls: "reference-tooltip-overlay",
+                    aria_haspopup: "dialog",
+                    onkeydown: move |event| {
+                        if event.key() == Key::ArrowDown && focus_reference_tooltip_card(&key_marker) {
+                            event.prevent_default();
+                        }
+                    },
+                    onclick: move |event| {
+                        event.stop_propagation();
+                        show_reference_tooltip(&event, click_tooltip_open, &click_marker, Rc::clone(&click_tooltip), &base_path, ReferenceTooltipMode::Pinned);
+                    },
+                    span {
+                        class: "{class}",
+                        "data-ref-role": "{role}",
+                        "data-ref-kind": "{kind}",
+                        "data-ref-label": "{label}",
+                        "data-ref-base": "{base}",
+                        { render_reference_label(&marker.label) }
+                    }
                 }
-                { render_reference_tooltip(tooltip, &base_path, script) }
             }
         }
     } else {
@@ -998,7 +1022,7 @@ pub(super) fn render_ref_marker(
                 onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
                 onmouseleave: move |_| {
                     clear_reference_hover(leave_hover);
-                    clear_reference_tooltip_open(leave_tooltip_open);
+                    leave_reference_tooltip(leave_tooltip_open);
                 },
                 { render_reference_label(&marker.label) }
             }
@@ -1286,7 +1310,6 @@ pub(super) fn render_tree(
     success: &GentufaSuccess,
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
-    script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
     rsx! {
@@ -1296,7 +1319,7 @@ pub(super) fn render_tree(
                 table { class: "parse-table spa-gentufa-table",
                         tbody {
                             for row in success.tree_rows.iter() {
-                            { render_tree_row(row, reference_hover, reference_tooltip_open, script, page_find) }
+                            { render_tree_row(row, reference_hover, reference_tooltip_open, page_find) }
                             }
                         }
                 }
@@ -1311,7 +1334,6 @@ pub(super) fn render_tree_row(
     row: &GentufaTreeRow,
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
-    script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
     let row_class = class_names(
@@ -1372,13 +1394,13 @@ pub(super) fn render_tree_row(
                     }
                 }
             }
-            { render_tree_edge_cell(incoming_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, script) }
+            { render_tree_edge_cell(incoming_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
             td { class: "col-text",
                 div { class: "cell-pad tree-text-cell",
                     for cell in row.cells.iter() {
                         { render_tree_cell(cell, page_find) }
                     }
-                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, script) }
+                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                 }
             }
         }
@@ -1408,14 +1430,13 @@ pub(super) fn render_tree_edge_cell(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
-    script: GentufaScript,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
         td { class: "col-edge col-edge-in",
             div { class: "cell-pad edge-cell",
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state, script) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
                 }
                 if has_markers {
                     span { class: "ref-arrow edge-arrow", "→" }
@@ -1433,7 +1454,6 @@ pub(super) fn render_tree_outgoing_edges(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
-    script: GentufaScript,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
@@ -1441,7 +1461,7 @@ pub(super) fn render_tree_outgoing_edges(
             span { class: "tree-outgoing-edge edge-cell",
                 span { class: "ref-arrow edge-arrow", "→" }
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state, script) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
                 }
             }
         }

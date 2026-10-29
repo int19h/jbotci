@@ -1997,11 +1997,6 @@ body::-webkit-scrollbar-thumb:hover,
   font-style: normal;
 }
 
-.parse-page .block-ref-target:has(.reference-tooltip-host.is-open),
-.parse-page .block-ref-source:has(.reference-tooltip-host.is-open) {
-  z-index: 22001;
-}
-
 .parse-page .block-ref-target {
   top: var(--blocks-ref-pad-y);
   left: var(--blocks-ref-pad-x);
@@ -2446,12 +2441,6 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: flex-end;
   gap: 0.18rem;
   white-space: nowrap;
-}
-
-.parse-page .parse-table td:has(.reference-tooltip-host.is-open),
-.parse-page .parse-table .edge-cell:has(.reference-tooltip-host.is-open),
-.parse-page .parse-table .tree-outgoing-edge:has(.reference-tooltip-host.is-open) {
-  z-index: 22001;
 }
 
 .parse-page .parse-table .col-edge-in .edge-cell {
@@ -4572,6 +4561,18 @@ body::-webkit-scrollbar-thumb:hover,
   overflow: visible;
 }
 
+.reference-tooltip-trigger {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
 .dictionary-page .rafsi-split-right.dictionary-tooltip-host {
   display: inline-flex;
 }
@@ -4584,7 +4585,7 @@ body::-webkit-scrollbar-thumb:hover,
   display: grid;
   gap: 0.46rem;
   width: min(22rem, calc(100vw - 2rem));
-  max-height: min(70vh, 28rem);
+  max-height: min(70vh, 28rem, var(--dictionary-tooltip-max-height, 100vh));
   overflow: auto;
   padding: 0.72rem 0.78rem;
   border: 1px solid var(--app-border-strong);
@@ -4617,33 +4618,54 @@ body::-webkit-scrollbar-thumb:hover,
   z-index: 21000;
   left: var(--dictionary-tooltip-left, 0);
   top: var(--dictionary-tooltip-top, 0);
-  display: grid;
-  justify-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
   width: max-content;
   max-width: calc(100vw - 2rem);
+  max-height: var(--dictionary-tooltip-max-height, 100vh);
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   visibility: hidden;
   pointer-events: none;
   transition: none;
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] {
+.rich-reference-tooltip-stack > .reference-resolution-tooltip {
+  flex-shrink: 0;
+}
+
+.reference-tooltip-overlay[data-jbotci-position-ready="true"] {
   visibility: visible;
-  pointer-events: none;
+  pointer-events: auto;
   transition-delay: 0s;
 }
 
 .rich-reference-tooltip-stack .rich-dictionary-tooltip {
   position: static;
+  max-width: 100%;
+  flex: 0 0 auto;
+  min-height: 0;
   left: auto;
   top: auto;
   transition: none;
   width: min(22rem, calc(100vw - 2rem));
-  max-height: min(58vh, 24rem);
+  max-height: none;
+  overflow: visible;
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
+.reference-tooltip-overlay[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
   visibility: visible;
+  pointer-events: auto;
+}
+
+.reference-tooltip-interaction[data-reference-tooltip-mode="hover"] .reference-tooltip-overlay,
+.reference-tooltip-interaction[data-reference-tooltip-mode="hover"] .rich-dictionary-tooltip {
+  pointer-events: none;
 }
 
 .tooltip-indexed-place {

@@ -1976,6 +1976,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "desktop tree metrics are direct layout measurements used to derive overlay geometry",
     ),
     (
+        "crates/jbotci-ui/src/reference_tooltip.rs:ActiveReferenceTooltip",
+        "the active card pairs independent validated content, marker identity, route prefix and interaction mode",
+    ),
+    (
         "crates/jbotci-ui/src/layout.rs:DesktopTooltipMeasure",
         "desktop tooltip measurement is direct platform geometry consumed by placement code",
     ),

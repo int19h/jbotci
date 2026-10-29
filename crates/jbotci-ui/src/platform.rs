@@ -339,6 +339,30 @@ impl ExportService for UnsupportedExportService {
     }
 }
 
+#[requires(viewport.top.is_finite() && viewport.top >= 0.0)]
+#[requires(viewport.height.is_finite() && viewport.height >= 0.0)]
+#[requires(margin.is_finite())]
+#[ensures(ret.is_finite() && ret >= 1.0)]
+#[ensures(ret <= (viewport.height - viewport.top).max(1.0))]
+pub fn tooltip_height_limit(viewport: Viewport, margin: f64) -> f64 {
+    (viewport.height - viewport.top - 2.0 * margin.max(0.0)).max(1.0)
+}
+
+// Keep the source label outside the card so that it remains clickable.
+#[requires(viewport.top.is_finite() && viewport.top >= 0.0)]
+#[requires(viewport.height.is_finite() && viewport.height >= 0.0)]
+#[requires(host.top.is_finite() && host.height.is_finite() && host.height >= 0.0)]
+#[requires(margin.is_finite() && gap.is_finite())]
+#[ensures(ret.is_finite() && ret >= 1.0)]
+#[ensures(ret <= tooltip_height_limit(viewport, margin))]
+pub fn tooltip_height_limit_for_host(host: Rect, viewport: Viewport, margin: f64, gap: f64) -> f64 {
+    let limit = tooltip_height_limit(viewport, margin);
+    let above = (host.top - gap.max(0.0) - viewport.top - margin.max(0.0)).clamp(0.0, limit);
+    let below =
+        (viewport.height - margin.max(0.0) - host.bottom() - gap.max(0.0)).clamp(0.0, limit);
+    above.max(below).max(1.0)
+}
+
 #[requires(host.width >= 0.0)]
 #[requires(host.height >= 0.0)]
 #[requires(tooltip.width >= 0.0)]
@@ -726,6 +750,76 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_card_fits_without_covering_its_label() {
+        for height in [240.0, 540.0, 844.0] {
+            let viewport = Viewport {
+                top: 34.0,
+                width: 390.0,
+                height,
+            };
+            for top in [42.0, height / 2.0, height - 20.0] {
+                let host = Rect {
+                    left: 180.0,
+                    top,
+                    width: 20.0,
+                    height: 12.0,
+                };
+                let size = Size {
+                    width: 352.0,
+                    height: tooltip_height_limit_for_host(host, viewport, 8.0, 8.0),
+                };
+                let placement = place_tooltip(host, size, viewport, 8.0, 8.0);
+                assert!(placement.top >= viewport.top);
+                assert!(placement.top + size.height <= height);
+                assert!(placement.top + size.height <= host.top || placement.top >= host.bottom());
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn constrained_tooltips_fit_at_every_viewport_edge() {
+        for width in [320.0, 650.0, 1280.0] {
+            for height in [240.0, 540.0, 844.0] {
+                let viewport = Viewport {
+                    top: 34.0,
+                    width,
+                    height,
+                };
+                for natural_height in [80.0_f64, 260.0, 900.0] {
+                    let tooltip = Size {
+                        width: 352.0_f64.min(width - 16.0),
+                        height: natural_height.min(tooltip_height_limit(viewport, 8.0)),
+                    };
+                    for left in [0.0, width / 2.0, width - 10.0] {
+                        for top in [34.0, height / 2.0, height - 10.0] {
+                            let position = place_tooltip(
+                                Rect {
+                                    left,
+                                    top,
+                                    width: 10.0,
+                                    height: 10.0,
+                                },
+                                tooltip,
+                                viewport,
+                                8.0,
+                                8.0,
+                            );
+                            assert!(position.left >= 0.0);
+                            assert!(position.top >= viewport.top);
+                            assert!(position.left + tooltip.width <= width);
+                            assert!(position.top + tooltip.height <= height);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]
