@@ -2232,10 +2232,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web Cukta route state is normalized by parse_cukta_web_route and normalize_cukta_state",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:DictionaryTooltipCard",
-        "dictionary tooltip cards are presentation payloads projected from validated vlacku cards",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:GentufaBlocksProjectionOptions",
         "projection options pair already validated block options with an independent compound toggle",
     ),

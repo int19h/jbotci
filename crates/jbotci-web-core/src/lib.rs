@@ -303,11 +303,15 @@ pub enum GentufaBracketFragment {
     },
 }
 
+#[invariant(!word.is_empty())]
+#[invariant(*known || definition.is_empty())]
+#[invariant(components.is_empty() || (!*known && word_type_key == "lujvo"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct DictionaryTooltipCard {
     pub word: String,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub known: bool,
     pub display_word: String,
     pub href: String,
     pub word_type: String,
@@ -322,6 +326,22 @@ pub struct DictionaryTooltipCard {
     pub notes: Vec<VlackuInline>,
     pub decomposition: Vec<VlackuCompositionPiece>,
     pub can_add_to_jvozba: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<DictionaryTooltipComponentCard>,
+}
+
+// Component cards are leaves. A component cannot start another card stack.
+#[invariant(card.components.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DictionaryTooltipComponentCard {
+    pub card: DictionaryTooltipCard,
+}
+
+#[requires(true)]
+#[ensures(ret == *value)]
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 #[invariant(!self.username.is_empty())]
@@ -5685,6 +5705,31 @@ fn dictionary_tooltip_card_from_search_card(
     base_path: &str,
     card: VlackuCard,
 ) -> DictionaryTooltipCard {
+    let components = if !card.known && normalize_word_type_filter(&card.word_type) == "lujvo" {
+        card.decomposition
+            .iter()
+            .filter(|piece| piece.kind == VlackuCompositionKind::Rafsi)
+            .filter_map(|piece| piece.source.as_deref())
+            .filter_map(dictionary_tooltip_search_card_for_word)
+            .map(|card| {
+                new!(DictionaryTooltipComponentCard {
+                    card: dictionary_tooltip_card_without_components(base_path, card),
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    dictionary_tooltip_card_without_components(base_path, card)
+        .with_data(data! { components: components })
+}
+
+#[requires(true)]
+#[ensures(ret.components.is_empty())]
+fn dictionary_tooltip_card_without_components(
+    base_path: &str,
+    card: VlackuCard,
+) -> DictionaryTooltipCard {
     let card = card.into_data();
     let word_href = vlacku_web_url(
         base_path,
@@ -5696,8 +5741,9 @@ fn dictionary_tooltip_card_from_search_card(
             word_types: Vec::new(),
         },
     );
-    DictionaryTooltipCard {
+    new!(DictionaryTooltipCard {
         word: card.word.clone(),
+        known: card.known,
         display_word: card.word.clone(),
         href: word_href,
         word_type: card.word_type.clone(),
@@ -5753,7 +5799,8 @@ fn dictionary_tooltip_card_from_search_card(
             jbotci_dictionary_data::english(),
             &card.word,
         ),
-    }
+        components: Vec::new(),
+    })
 }
 
 #[requires(true)]
@@ -8418,6 +8465,110 @@ mod tests {
         assert!(!card.definition.is_empty());
         assert!(matches!(card.votes, VlackuVoteDisplay::Known(_)));
         assert_eq!(card.href, "/vlacku/klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_lujvo_tooltips_keep_component_order_and_repetitions() {
+        for (word, expected) in [
+            ("klabajra", ["klama", "bajra"]),
+            ("klamybajra", ["klama", "bajra"]),
+            ("klaklama", ["klama", "klama"]),
+            ("brodau", ["xebro", "darlu"]),
+            ("blable", ["blanu", "ruble"]),
+        ] {
+            let card = dictionary_tooltip_for_word("/tools", word).expect("lujvo tooltip");
+            assert!(!card.known, "{word}");
+            assert!(card.definition.is_empty(), "{word}");
+            assert_eq!(
+                card.components
+                    .iter()
+                    .map(|component| component.card.word.as_str())
+                    .collect::<Vec<_>>(),
+                expected,
+                "{word}"
+            );
+            for component in &card.components {
+                assert!(component.card.known, "{word}");
+                assert!(!component.card.definition.is_empty(), "{word}");
+                assert_eq!(
+                    component.card.href,
+                    format!("/tools/vlacku/{}", component.card.word)
+                );
+                assert!(component.card.components.is_empty());
+            }
+            let json = serde_json::to_string(&card).unwrap();
+            assert_eq!(
+                serde_json::from_str::<DictionaryTooltipCard>(&json).unwrap(),
+                card
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_and_reference_tooltips_keep_missing_lujvo_components() {
+        let GentufaWebResult::Success(success) = parse_gentufa_for_web(&GentufaWebRequest {
+            text: "mi klabajra".to_owned(),
+            options: GentufaWebOptions::default(),
+        }) else {
+            panic!("the tooltip fixture must parse");
+        };
+        let card = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.raw_text == "klabajra")
+            .and_then(|block| block.tooltip.as_ref())
+            .expect("missing lujvo block tooltip");
+        assert_eq!(card.components.len(), 2);
+        let reference = reference_tooltip_for_lookup_word("", "klabajra", Vec::new(), Vec::new());
+        assert_eq!(reference.card.as_ref().unwrap().components, card.components);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn known_and_non_lujvo_tooltips_do_not_gain_component_cards() {
+        for word in ["brivla", "klama", "feklat"] {
+            let card = dictionary_tooltip_for_word("", word).expect("word tooltip");
+            assert!(card.components.is_empty(), "{word}");
+        }
+        let known = dictionary_tooltip_search_card_for_word("brivla").unwrap();
+        assert!(known.known);
+        assert!(!known.decomposition.is_empty());
+        let known = known.with_data(data! { definition: String::new() });
+        let card = dictionary_tooltip_card_from_search_card("", known);
+        assert!(card.known);
+        assert!(card.definition.is_empty());
+        assert!(card.components.is_empty());
+        let json = serde_json::to_value(&card).unwrap();
+        assert!(json.get("components").is_none());
+        assert!(json.get("known").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tooltip_contracts_reject_nested_stacks_and_known_word_components() {
+        let card = dictionary_tooltip_for_word("", "klabajra").unwrap();
+        assert!(!card.components.is_empty());
+        assert!(
+            DictionaryTooltipComponentCard::try_from_data(data!(DictionaryTooltipComponentCard {
+                card: card.clone(),
+            }))
+            .is_err()
+        );
+        let data = card.into_data();
+        assert!(
+            DictionaryTooltipCard::try_from_data(data!(DictionaryTooltipCard {
+                known: true,
+                ..data
+            }))
+            .is_err()
+        );
     }
 
     #[test]

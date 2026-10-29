@@ -1121,3 +1121,6 @@ mod tests;
 
 #[cfg(test)]
 mod compound_dom_tests;
+
+#[cfg(test)]
+mod tooltip_dom_tests;
