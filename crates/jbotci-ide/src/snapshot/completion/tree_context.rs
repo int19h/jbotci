@@ -553,6 +553,14 @@ impl<'tree> generated_model::recovered::TreeWalker<'tree> for RecoveredSkippedTo
 
     #[requires(true)]
     #[ensures(true)]
+    fn walk_text_body(&mut self, node: &'tree generated_model::recovered::TextBodySyntax) {
+        self.walk_text_root(|visitor| {
+            generated_model::recovered::walk::text_body(visitor, node);
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn walk_recovered_error(&mut self, item: &'tree SyntaxRecoveryItem) {
         if let Some(tokens) = item.skipped_tokens() {
             self.record_skipped_tokens(tokens);
@@ -687,7 +695,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredTreeContextVisitor {
 #[requires(true)]
 #[ensures(true)]
 fn is_text_root_constructor(constructor: &str) -> bool {
-    constructor == "TextSyntax"
+    matches!(constructor, "TextSyntax" | "TextBodySyntax")
 }
 
 #[requires(true)]

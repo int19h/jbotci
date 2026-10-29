@@ -10,13 +10,10 @@ entry-id = "4"
 status = "success"
 raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ce'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "di" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None } })]"""
 
+# SA correctly leaves ce'e di. Leading CEhE is not a text.
+# The camxes acceptance is a known SA bug. See #1031.
 [expectations.syntax]
-status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(CeheConnective(CeheConnectiveSyntax { cehe: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ce'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None } })), free_modifiers: [] }, nai: None })), leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(TermsFragment(TermsFragmentSyntax { terms: [SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(ProSumti(ProSumtiSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "di" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None } })), free_modifiers: [] }))), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None }))], vau: None }))), following: [], trailing: [] })), additional_niho: [] })) }"""
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+status = "failure"
 
 [expectations.output.vlasei]
 brackets = "(ce'e di)"
@@ -26,11 +23,3 @@ tree = """
   Cmavo @[52‥54) "di",
 ]"""
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[47,51]}}},{"PlainWord":{"Cmavo":{"phonemes":"di","span":[52,54]}}}]"""
-
-[expectations.output.gentufa]
-tree = """
-Text @[47‥54) {
-  leading_connective: Cmavo @[47‥51) "ce'e",
-  Cmavo @[52‥54) "di",
-}"""
-json = """{"leading_connective":{"CeheConnective":{"cehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[47,51]}}}}}},"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di","span":[52,54]}}}}}}}}}}}}}]}}}}}}}}"""

@@ -1,0 +1,7 @@
+# The independent NAI indicator is outside #802. See #1030.
+id = "adhoc.syntax.text-envelope.issue-802-t25"
+lojban = "mi nai klama"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 6], source-text = "nai", message = "unexpected cmavo" }]

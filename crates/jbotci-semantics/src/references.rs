@@ -3131,6 +3131,19 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
+    fn walk_text_body(&mut self, node: &'tree generated::TextBodySyntax) {
+        for statement in &node.leading_i_statements {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
+            }
+        }
+        if let Some(paragraphs) = node.paragraphs.as_deref() {
+            self.walk_node(paragraphs);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn walk_text_paragraphs(&mut self, node: &'tree generated::TextParagraphsSyntax) {
         match node {
             generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
@@ -6585,6 +6598,19 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         for free_modifier in &node.leading_free_modifiers {
             self.walk_node(free_modifier);
         }
+        for statement in &node.leading_i_statements {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
+            }
+        }
+        if let Some(paragraphs) = node.paragraphs.as_deref() {
+            self.walk_node(paragraphs);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_text_body(&mut self, node: &'tree generated::TextBodySyntax) {
         for statement in &node.leading_i_statements {
             for free_modifier in &statement.free_modifiers {
                 self.walk_node(free_modifier);

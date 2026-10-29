@@ -1,0 +1,22 @@
+id = "adhoc.syntax.text-envelope.issue-802-t28-cbm"
+lojban = "tu'e ni'o .alis. tu'u"
+dialect = "(+cbm)"
+
+[expectations.syntax]
+status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(TextGroupStatement(TextGroupStatementSyntax { tense_modal: None, tuhe: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "tu'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, text: TextBodySyntax { leading_i_statements: [], paragraphs: Some(TextNihoParagraphs(TextNihoParagraphsSyntax([NihoParagraphSyntax { niho: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ni'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }))], free_modifiers: [], statements: Some(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] }) }]))) }, tuhu: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "tu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } })), free_modifiers: [] }) }))))), following: [], trailing: [] })), additional_niho: [] })) }"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cbm-cmevla-selbri-word", byte-span = [11, 15], source-text = "alis", message = "experimental syntax: CBM cmevla used as a selbri word", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+TextGroupStatement @[0‥21) {
+  tuhe: Cmavo @[0‥4) "tu'e",
+  Paragraph @[5‥15) {
+    niho: [
+      Cmavo @[5‥9) "ni'o",
+    ],
+    Cmevla @[11‥15) "alis",
+  },
+  tuhu: Cmavo @[17‥21) "tu'u",
+}"""
+json = """{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"TextGroupStatement":{"tuhe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'e","span":[0,4]}}}},"text":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[5,9]}}}}],"statements":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[11,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}},"tuhu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'u","span":[17,21]}}}}}}}}}}}}}"""

@@ -84,6 +84,7 @@ pub mod generated_model {
 
     recursive {
         text: TextSyntax;
+        text_body: TextBodySyntax;
         // The run of NIhO-led paragraphs, as a text reads it after its first paragraph or from
         // its first NIhO. It is recursive so that the generated parser exposes it as a root in
         // every flavor: `SyntaxParseEntry::NihoParagraphs` parses from it, so that a paragraph
@@ -217,13 +218,28 @@ pub mod generated_model {
         field leading_connective <- opt(
             modal_forethought_connective(tense_modal)
                 .not()
-                .ignore_then(text_leading_connective),
+                .ignore_then(standard_statement_connective),
         );
         /// I-led statement prefixes that occur before the paragraph tree.
         #[recovery_boundary]
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
         #[tree_child(primary)]
         /// The primary paragraph subtree, absent when the text contains only leading material.
+        field paragraphs <- opt(arc(text_paragraphs(
+            paragraph,
+            statement_or_fragment,
+            free_modifier,
+        )));
+    }
+
+    /// The text_1 body of a TUhE group, without the initial text envelope.
+    /// Keep the text diagnostic label that the body used before the type split.
+    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+        /// I-led prefixes before the paragraph tree.
+        #[recovery_boundary]
+        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
+        #[tree_child(primary)]
+        /// The paragraph tree, absent in an empty group.
         field paragraphs <- opt(arc(text_paragraphs(
             paragraph,
             statement_or_fragment,
@@ -345,7 +361,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `i_statement_connection`, `preposed_i_statement_connection`, and `statement_base` forms.
-    rule "statement" statement(statement, bridi, term, tense_modal, text) -> enum {
+    rule "statement" statement(statement, bridi, term, tense_modal, text_body) -> enum {
         /// Uses the `i_statement_connection` product form, whose payload preserves `leading_statement` and `continuations`.
         i_statement_connection,
         /// Uses the `preposed_i_statement_connection` product form, whose payload preserves `leading_statement`, `connective`, `i`, and `trailing_statement`.
@@ -355,7 +371,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `prenex_statement`, `bridi_statement`, and `text_group_statement` forms.
-    rule "statement" statement_base(statement, bridi, term, text, tense_modal) -> enum {
+    rule "statement" statement_base(statement, bridi, term, text_body, tense_modal) -> enum {
         /// Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.
         prenex_statement,
         // The forms without a prenex.
@@ -404,7 +420,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `bridi_statement` and `text_group_statement` forms.
-    rule "statement" statement_after_i_connective(bridi, tense_modal, text) -> enum {
+    rule "statement" statement_after_i_connective(bridi, tense_modal, text_body) -> enum {
         /// Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.
         bridi_statement,
         /// Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.
@@ -442,12 +458,12 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `leading_statement` and `continuations` in source order.
-    rule "statement connection" i_statement_connection(statement, bridi, term, tense_modal, text) -> struct {
+    rule "statement connection" i_statement_connection(statement, bridi, term, tense_modal, text_body) -> struct {
         /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, text, tense_modal));
+        field leading_statement <- arc(statement_base(statement, bridi, term, text_body, tense_modal));
         /// Non-empty ordered sequence of continuations components.
         #[recovery_boundary]
-        field continuations <- [one_or_more i_statement_connection_tail(bridi, tense_modal, text)];
+        field continuations <- [one_or_more i_statement_connection_tail(bridi, tense_modal, text_body)];
     }
 
     /// Product node for statement connective; preserves `i` and `connective` in source order.
@@ -460,7 +476,7 @@ pub mod generated_model {
     }
 
     /// Sum node for statement connection; selects among the `chained_i_connective_statement_tail` and `simple_i_connective_statement_tail` forms.
-    rule "statement connection" i_statement_connection_tail(bridi, tense_modal, text) -> enum {
+    rule "statement connection" i_statement_connection_tail(bridi, tense_modal, text_body) -> enum {
         /// Uses the `chained_i_connective_statement_tail` product form, whose payload preserves `pending`, `i`, `connective`, and `trailing_statement`.
         chained_i_connective_statement_tail,
         /// Uses the `simple_i_connective_statement_tail` product form, whose payload preserves `i`, `connective`, and `trailing_statement`.
@@ -468,7 +484,7 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `pending`, `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" chained_i_connective_statement_tail(bridi, tense_modal, text) -> struct {
+    rule "statement connection" chained_i_connective_statement_tail(bridi, tense_modal, text_body) -> struct {
         /// Non-empty ordered sequence of pending components.
         field pending <- [one_or_more pending_i_connective];
         /// The `I` cmavo marker.
@@ -476,40 +492,40 @@ pub mod generated_model {
         /// The `i_statement_connective` connective joining the adjacent constituents of the `chained_i_connective_statement_tail` production.
         field connective <- i_statement_connective(tense_modal);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
     }
 
     /// Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" simple_i_connective_statement_tail(bridi, tense_modal, text) -> struct {
+    rule "statement connection" simple_i_connective_statement_tail(bridi, tense_modal, text_body) -> struct {
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The `i_statement_connective` connective joining the adjacent constituents of the `simple_i_connective_statement_tail` production.
         field connective <- i_statement_connective(tense_modal);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
     }
 
     /// Product node for statement connection; preserves `leading_statement`, `connective`, `i`, and `trailing_statement` in source order.
-    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, text, tense_modal) -> struct {
+    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, text_body, tense_modal) -> struct {
         /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, text, tense_modal));
+        field leading_statement <- arc(statement_base(statement, bridi, term, text_body, tense_modal));
         /// The `statement_connective` connective joining the adjacent constituents of the `preposed_i_statement_connection` production.
         field connective <- statement_connective;
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
     }
 
     /// Product node for text group; preserves `tense_modal`, `tuhe`, `text`, and `tuhu` in source order.
-    rule "text group" text_group_statement(text, tense_modal) -> struct {
+    rule "text group" text_group_statement(text_body, tense_modal) -> struct {
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Tuhe` cmavo marker.
         field tuhe <- cmavo(Tuhe).wf();
         #[tree_child(primary)]
-        /// The shared text child syntax node.
-        field text <- arc(text);
+        /// The text_1 body. LU and TO still use the full text rule.
+        field text <- arc(text_body);
         /// The optional `Tuhu` cmavo marker.
         field tuhu <- opt(cmavo(Tuhu).wf()).elidable_terminator(Tuhu);
     }
@@ -4127,14 +4143,6 @@ pub mod generated_model {
         vuhu_nonlogical_connective,
     }
 
-    /// Sum node for text connective; selects among the `standard_statement_connective` and `cehe_connective` forms.
-    rule "text connective" text_leading_connective -> enum {
-        /// Uses the nested `standard_statement_connective` sum form and preserves its selected alternative.
-        standard_statement_connective,
-        /// Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.
-        cehe_connective,
-    }
-
     /// Sum node for statement connective; selects among the `i_standard_statement_connective` and `i_tag_bo_statement_connective` forms.
     rule "statement connective" i_statement_connective(tense_modal) -> enum {
         /// Uses the `i_standard_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.
@@ -4263,15 +4271,6 @@ pub mod generated_model {
         field tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-    }
-
-    /// Product node for termset connective; preserves `cehe` and `nai` in source order.
-    rule "termset connective" cehe_connective -> struct {
-        #[tree_child(primary)]
-        /// The `Cehe` cmavo marker.
-        field cehe <- cmavo(Cehe).wf();
-        /// The optional `Nai` cmavo marker.
-        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for gihek; preserves `na`, `se`, `giha`, and `nai` in source order.

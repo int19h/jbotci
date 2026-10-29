@@ -364,6 +364,7 @@ mod anchor_metadata {
 
         recursive {
             text: TextSyntax;
+            text_body: TextBodySyntax;
             item: ItemSyntax;
         }
 
@@ -436,6 +437,16 @@ mod anchor_metadata {
         rule "explicit argument item" explicit_argument_item(item) -> struct {
             /// The source-ordered `inner` component retained by the `explicit_argument_item` syntax node.
             field inner <- literal_item(item);
+        }
+
+        /// A group contains the typed text body between its markers.
+        rule "text group" text_group(text_body) -> struct {
+            /// The opening marker.
+            field be <- cmavo(Be).wf();
+            /// The body between the markers.
+            field text <- arc(text_body);
+            /// The optional closing marker.
+            field bo <- opt(cmavo(Bo).wf()).elidable_terminator(Bo);
         }
 
         /// Syntax model for text quote parsed by the `text_quote` grammar rule.
@@ -601,20 +612,24 @@ mod anchor_metadata {
     #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_derives_subtext_containers() {
-        assert_eq!(SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS.len(), 1);
-        let container = &SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS[0];
-        assert_eq!(container.rule, "text_quote");
-        assert_eq!(container.opener_field, 0);
-        assert_eq!(container.text_field, 1);
-        assert_eq!(container.closer_field, 2);
-        assert!(token_set_contains(
-            container.opener_tokens,
-            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
-        ));
-        assert!(token_set_contains(
-            container.closer_tokens,
-            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
-        ));
+        assert_eq!(SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS.len(), 2);
+        for rule in ["text_quote", "text_group"] {
+            let container = SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
+                .iter()
+                .find(|container| container.rule == rule)
+                .expect("both text types form subtext containers");
+            assert_eq!(container.opener_field, 0);
+            assert_eq!(container.text_field, 1);
+            assert_eq!(container.closer_field, 2);
+            assert!(token_set_contains(
+                container.opener_tokens,
+                SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+            ));
+            assert!(token_set_contains(
+                container.closer_tokens,
+                SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+            ));
+        }
     }
 }
 

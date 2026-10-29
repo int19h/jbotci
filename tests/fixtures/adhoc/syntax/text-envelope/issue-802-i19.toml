@@ -1,0 +1,15 @@
+id = "adhoc.syntax.text-envelope.issue-802-i19"
+lojban = "fu'e ui"
+
+[expectations.syntax]
+status = "success"
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fu'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "ŭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }, nai_bahe: [], nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None }"""
+diagnostics = []
+
+[expectations.output.gentufa]
+tree = """
+WithIndicator @[0‥7) {
+  Cmavo @[0‥4) "fu'e",
+  indicator: Cmavo @[5‥7) "ŭi",
+}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'e","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[5,7]}}}}}]}"""
