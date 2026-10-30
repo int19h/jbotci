@@ -8,6 +8,22 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-budget/src/bytes.rs:BudgetedWriter",
+        "A writer is closed or owns a buffer with validated bounds. A panic closes it.",
+    ),
+    (
+        "crates/jbotci-budget/src/bytes.rs:OutputBudget",
+        "The shared state carries the byte limit and counter invariant.",
+    ),
+    (
+        "crates/jbotci-budget/src/bytes.rs:OutputLimitError",
+        "The error carries an already validated byte limit.",
+    ),
+    (
+        "crates/jbotci-budget/src/lib.rs:RenderLimits",
+        "Each byte limit is already validated and every pair is valid.",
+    ),
+    (
         "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
         "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
     ),
