@@ -1727,6 +1727,7 @@ mod bounded_output_tests {
                 indent,
                 ..JsonRenderOptions::default()
             };
+            let raw_indent = (indent == Indentation::compact()).then_some(indent);
             let unlimited = ByteLimit::new(usize::MAX).unwrap();
             let outputs = [
                 compact_morphology_json_string_with_limit(&words, json_options, unlimited).unwrap(),
@@ -1739,7 +1740,7 @@ mod bounded_output_tests {
                 )
                 .unwrap(),
                 ipa_morphology_text_with_limit(&words, source, unlimited).unwrap(),
-                raw_with_limit(&words, Some(indent), unlimited).unwrap(),
+                raw_with_limit(&words, raw_indent, unlimited).unwrap(),
             ];
             for (format, expected) in outputs.iter().enumerate() {
                 for bytes in [expected.len() - 1, expected.len()] {
@@ -1754,7 +1755,7 @@ mod bounded_output_tests {
                             limit,
                         ),
                         3 => ipa_morphology_text_with_limit(&words, source, limit),
-                        _ => raw_with_limit(&words, Some(indent), limit),
+                        _ => raw_with_limit(&words, raw_indent, limit),
                     };
                     if bytes == expected.len() {
                         assert_eq!(result.unwrap(), *expected);
