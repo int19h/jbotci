@@ -52,7 +52,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     let text = input.read_text_with_stdin(stdin_text)?;
     let dialect = input.dialect_definition()?;
     let morphology_options = MorphologyOptions::default()
-        .with_dialect_definition(&dialect)
+        .try_with_dialect_definition(&dialect)?
         .with_max_recovery_errors(input.max_errors.get())
         .with_trace_options(morphology_trace_options);
     let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(

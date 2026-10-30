@@ -1716,6 +1716,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment kind is a closed presentation selector with no payload to constrain",
     ),
     (
+        "crates/jbotci-morphology/src/dialect.rs:DialectCompilationError::ExpansionLimit",
+        "DialectExpansionViolation validates the source word, formula, typed limit and excessive count.",
+    ),
+    (
         "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Cmavo",
         "Cmavo selects its class set from the typed inventory. Every class set, including the empty set, is valid.",
     ),
@@ -1734,6 +1738,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/grammar.rs:StreamUnit::Word",
         "WordLike validates the complete word unit. The stream wrapper adds no fields.",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::DialectExpansion",
+        "DialectExpansionFailure validates the source span and the structured expansion violation.",
     ),
     (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",

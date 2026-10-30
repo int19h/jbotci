@@ -7277,6 +7277,33 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn shared_gentufa_morphology_reports_dialect_expansion_limits() {
+        let chain = format!("({})", "(mi -> mi mi) ".repeat(30).trim_end());
+        let options = GentufaWebOptions {
+            dialect: Some(chain.clone()),
+            ..GentufaWebOptions::default()
+        };
+        let analysis = analyze_gentufa_morphology_source("mi", &options).unwrap();
+        assert!(analysis.morphology.words.is_empty());
+        assert_eq!(analysis.diagnostics.len(), 1);
+        assert_eq!(
+            analysis.diagnostics[0].code,
+            "morphology.dialect-expansion-limit"
+        );
+        assert!(analysis.diagnostics[0].message.contains("source word `mi`"));
+        assert!(analysis.diagnostics[0].message.contains(&chain));
+        let oversized = format!("((mi -> {}))", vec!["mi"; 11].join(" "));
+        let options = GentufaWebOptions {
+            dialect: Some(oversized),
+            ..GentufaWebOptions::default()
+        };
+        let error = analyze_gentufa_morphology_source("mi", &options).unwrap_err();
+        assert!(error.to_string().contains("limit is 10"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn search_cards_reject_a_designation_without_a_paragraph_projection() {
         let card = |kind: &str, role: &str| {
             format!(

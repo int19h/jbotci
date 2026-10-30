@@ -5004,3 +5004,37 @@ fn indentation_eight_renders_json_and_tree_through_the_cli() {
         }
     });
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn dialect_expansion_limits_reach_each_cli_morphology_command() {
+    let chain = format!("({})", "(mi -> mi mi) ".repeat(30).trim_end());
+    let oversized = format!("((mi -> {}))", vec!["mi"; 11].join(" "));
+    for command in ["vlatai", "vlasei", "gentufa"] {
+        let cli = Cli::try_parse_from(["jbotci", command, "--dialect", &oversized, "mi"]).unwrap();
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false).unwrap_err();
+        assert!(error.to_string().contains("source word `mi`"), "{error}");
+        assert!(error.to_string().contains("limit is 10"), "{error}");
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                command,
+                "--dialect",
+                &chain,
+                "--format",
+                "json",
+                "mi",
+            ],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::Failure, "{command}");
+        assert!(
+            run.stdout.contains("morphology.dialect-expansion-limit"),
+            "{}",
+            run.stdout
+        );
+        assert!(run.stdout.contains("source word `mi`"), "{}", run.stdout);
+        assert!(run.stdout.contains(&chain), "{}", run.stdout);
+    }
+}

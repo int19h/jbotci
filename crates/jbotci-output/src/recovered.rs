@@ -98,6 +98,10 @@ fn morphology_recovery_item(
             "morphology.unterminated-zoi-quote".to_owned(),
             vec![format!("closing delimiter `{delimiter}`")],
         ),
+        MorphologyError::DialectExpansion(failure) => (
+            "morphology.dialect-expansion-limit".to_owned(),
+            vec![failure.to_string()],
+        ),
         MorphologyError::SourceSpan(_) => (
             "morphology.source-span".to_owned(),
             vec!["valid source span".to_owned()],

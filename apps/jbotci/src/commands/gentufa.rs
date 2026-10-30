@@ -98,7 +98,7 @@ fn analyze_gentufa_input(
     let text = input.read_text_with_stdin(stdin_text)?;
     let dialect = input.dialect_definition()?;
     let mut morphology_options = MorphologyOptions::default()
-        .with_dialect_definition(&dialect)
+        .try_with_dialect_definition(&dialect)?
         .with_trace_options(morphology_trace_options);
     if let Some(max_errors) = input.max_errors {
         morphology_options = morphology_options.with_max_recovery_errors(max_errors.get());

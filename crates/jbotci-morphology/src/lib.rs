@@ -47,7 +47,7 @@ mod surface;
 mod syntax_eq;
 pub mod tree;
 
-use std::{fmt, num::NonZeroUsize, sync::Arc};
+use std::{cell::OnceCell, fmt, num::NonZeroUsize, sync::Arc};
 
 use bityzba::{contract_trait, data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
@@ -72,7 +72,9 @@ pub use diacritics::{
 };
 pub use dialect::{
     CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData, CompiledDialectWord,
-    DialectCompilationError, DialectCompilationErrorData,
+    DialectCompilationError, DialectCompilationErrorData, DialectExpansionFailure,
+    DialectExpansionFailureData, DialectExpansionLimit, DialectExpansionLimitData,
+    DialectExpansionViolation, DialectExpansionViolationData,
 };
 pub use lujvo::{
     ConsonantPairClass, GismuShape, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData,
@@ -374,6 +376,7 @@ fn morphology_error_recovery_start(error: &MorphologyError) -> Option<usize> {
     match error {
         MorphologyError::Invalid { char_start, .. } => Some(*char_start),
         MorphologyError::UnterminatedZoiQuote { char_offset, .. } => Some(*char_offset),
+        MorphologyError::DialectExpansion(failure) => Some(failure.span.char_start),
         MorphologyError::SourceSpan(_) => None,
     }
 }
@@ -2196,8 +2199,11 @@ impl MorphologyErrorDetail {
 #[invariant(::Invalid => true)]
 #[invariant(::UnterminatedZoiQuote => true)]
 #[invariant(::SourceSpan(_) => true)]
+#[invariant(::DialectExpansion(_) => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MorphologyError {
+    #[error(transparent)]
+    DialectExpansion(#[from] DialectExpansionFailure),
     #[error("{kind} at character {char_start}: `{text}`")]
     Invalid {
         kind: MorphologyErrorKind,
@@ -2278,6 +2284,19 @@ impl MorphologyError {
                     "expected closing delimiter",
                 )]))
             }
+            Self::DialectExpansion(failure) => morphology_diagnostic(
+                source_id,
+                source,
+                new!(MorphologyDiagnosticDetails {
+                    severity: DiagnosticSeverity::Error,
+                    code: "morphology.dialect-expansion-limit",
+                    message: failure.to_string(),
+                }),
+                failure.span.char_start,
+                failure.span.char_end,
+                "source word exceeds the dialect expansion limit",
+                None,
+            ),
             Self::SourceSpan(error) => {
                 let span = source_span_from_char_offsets(source_id, source, 0, 0)?;
                 Ok(Diagnostic::new(
@@ -2664,7 +2683,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
     let data = attempt.into_data();
     let result = data
         .result
-        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect));
+        .and_then(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect, input));
     new!(MorphologySegmentAttempt {
         result,
         warnings: data.warnings,
@@ -2693,22 +2712,7 @@ pub fn segment_words_with_modifiers_recovered_with_options_and_source_id_attempt
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> RecoveredMorphologySegmentAttempt {
-    let attempt =
-        grammar::segment_words_with_modifiers_recovered_attempt(input, options, source_id);
-    let attempt = attempt.into_data();
-    let result = attempt.result.into_data();
-    let words = apply_compiled_dialect_entries(result.words, &options.compiled_dialect);
-    let result =
-        RecoveredMorphologySegmentation::from_data(data!(RecoveredMorphologySegmentation {
-            words,
-            errors: result.errors,
-            error_regions: result.error_regions,
-            warnings: result.warnings,
-        }));
-    new!(RecoveredMorphologySegmentAttempt {
-        result,
-        trace: attempt.trace,
-    })
+    grammar::segment_words_with_modifiers_recovered_attempt(input, options, source_id)
 }
 
 #[requires(true)]
@@ -2736,7 +2740,7 @@ pub fn segment_words_for_display_with_options_and_source_id_attempt(
     let data = attempt.into_data();
     let result = data
         .result
-        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect));
+        .and_then(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect, input));
     new!(MorphologySegmentAttempt {
         result,
         warnings: data.warnings,
@@ -2754,45 +2758,74 @@ pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, Strin
 #[requires(true)]
 #[ensures(true)]
 fn apply_compiled_dialect_entries(
-    mut words: Vec<WordLike>,
-    dialect: &CompiledDialectDefinition,
-) -> Vec<WordLike> {
-    for entry in &dialect.entries {
-        words = apply_compiled_dialect_entry(words, entry);
-    }
-    words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn apply_compiled_dialect_entry(
     words: Vec<WordLike>,
-    entry: &CompiledDialectEntry,
-) -> Vec<WordLike> {
-    words
-        .into_iter()
-        .flat_map(|word_like| apply_compiled_dialect_entry_to_word_like(word_like, entry))
-        .collect()
+    dialect: &CompiledDialectDefinition,
+    source: &str,
+) -> Result<Vec<WordLike>, MorphologyError> {
+    if dialect.entries.is_empty() {
+        return Ok(words);
+    }
+    let application = DialectApplication::new(dialect, source);
+    let mut expanded = Vec::with_capacity(words.len());
+    for word in words {
+        expanded.extend(application.apply_word(word)?);
+    }
+    Ok(expanded)
 }
 
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn apply_compiled_dialect_entry_to_word_like(
-    word_like: WordLike,
-    entry: &CompiledDialectEntry,
-) -> Vec<WordLike> {
-    let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
-        return vec![word_like];
-    };
-    let key = word.key();
-    let Some(replacement) = entry.replacement_for(&key) else {
-        return vec![word_like];
-    };
-    let span = word.span().clone();
-    replacement
-        .into_iter()
-        .map(|word| word.to_word_like_with_span(&span))
-        .collect()
+// Errors own a shared formula so that recovery does not copy it for each word.
+#[invariant(formula.get().is_none_or(|formula| !formula.is_empty()))]
+struct DialectApplication<'a> {
+    dialect: &'a CompiledDialectDefinition,
+    source: &'a str,
+    formula: OnceCell<Arc<str>>,
+}
+
+impl<'a> DialectApplication<'a> {
+    #[requires(true)]
+    #[ensures(ret.formula.get().is_none())]
+    fn new(dialect: &'a CompiledDialectDefinition, source: &'a str) -> Self {
+        new!(DialectApplication {
+            dialect,
+            source,
+            formula: OnceCell::new()
+        })
+    }
+
+    #[requires(match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => word.span().char_start < word.span().char_end && self.source.get(word.span().byte_start..word.span().byte_end).is_some_and(|text| !text.is_empty()),
+        _ => true,
+    })]
+    #[ensures(ret.as_ref().is_ok_and(|words| !words.is_empty() && words.len() <= DialectExpansionLimit::default().words) || ret.is_err())]
+    fn apply_word(&self, word_like: WordLike) -> Result<Vec<WordLike>, DialectExpansionFailure> {
+        let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
+            return Ok(vec![word_like]);
+        };
+        let plan = self
+            .dialect
+            .plan_word(&word.key())
+            .map_err(|attempted_words| {
+                new!(DialectExpansionFailure {
+                    span: word.span().clone(),
+                    violation: new!(DialectExpansionViolation {
+                        source_word: self.source[word.span().byte_start..word.span().byte_end]
+                            .to_owned(),
+                        formula: Arc::clone(
+                            self.formula.get_or_init(|| self.dialect.formula().into())
+                        ),
+                        limit: DialectExpansionLimit::default(),
+                        attempted_words,
+                    }),
+                })
+            })?;
+        match plan {
+            None => Ok(vec![word_like]),
+            Some(words) => Ok(words
+                .into_iter()
+                .map(|replacement| replacement.to_word_like_with_span(word.span()))
+                .collect()),
+        }
+    }
 }
 
 #[requires(true)]
