@@ -1577,7 +1577,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cases = [
             ("9.6", "mi", "| mi | viska | do | sepi'o |"),
-            ("ebnf-tanru", "BRIVLA", "**tanru-unit** ⩴"),
+            ("ebnf-selbri", "BRIVLA", "**tanru-unit** ⩴"),
             (
                 "2.1",
                 "bridi",
@@ -1720,10 +1720,9 @@ mod tests {
     #[ensures(true)]
     fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
-        // text changed in both (the camxes MIT notice; the EBNF section became
-        // 21.3). The renderer itself did not change: with the book at 1.3.4,
-        // this code still reproduces the previous hashes exactly.
+        // The v1.3.6 source moves the EBNF rules onto subsection pages.
+        // Section 2.1 changes only its chapter image filename. The copyright
+        // and modal-relative sections retain their previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1731,7 +1730,7 @@ mod tests {
             ),
             (
                 "2.1",
-                "d2c62de569f7761ee9119d7d23541c853d2ea004517db9020c85e87e8b3d2655",
+                "023795f7d45976303dd5d8d29eedfdeab602372060e16f1e63eeed45cae63e56",
             ),
             (
                 "9.6",
@@ -1739,7 +1738,11 @@ mod tests {
             ),
             (
                 "section-EBNF",
-                "418269c42bcbe8d247ae081f6a33eda90566018e620d528505085308c2d77a8c",
+                "8be62e2e13a915ecb445091193aebc71c41b48370b74a6739655080889994d51",
+            ),
+            (
+                "ebnf-text",
+                "f197c0d57ebac2e2c51daffd4ad7292b58cd0dd97c5e8d31bca08234b388d687",
             ),
         ];
 
@@ -1764,10 +1767,9 @@ mod tests {
     #[ensures(true)]
     fn web_html_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
-        // text changed in both (the camxes MIT notice; the EBNF section became
-        // 21.3). The renderer itself did not change: with the book at 1.3.4,
-        // this code still reproduces the previous hashes exactly.
+        // The v1.3.6 source moves the EBNF rules onto subsection pages.
+        // Section 2.1 changes only its chapter image filename. The copyright
+        // and modal-relative sections retain their previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1775,7 +1777,7 @@ mod tests {
             ),
             (
                 "2.1",
-                "99e79b0d0171b7f134309d5dd94fdcd2b129c36dea1587bbc4c38f2bcaa68351",
+                "30680685cbf3b8114750fb1cbebee2975eeb3ff69d0adc6a79530b2b98c736c9",
             ),
             (
                 "9.6",
@@ -1783,7 +1785,11 @@ mod tests {
             ),
             (
                 "section-EBNF",
-                "c0e026bd7b77ea09e442f49a358b5cfdc666b4793bb05e123580ab143bd9ec16",
+                "caca05fd31563de630e773315c010e50b73d7d2ce2cb1d27f0c6ca2be198c5bc",
+            ),
+            (
+                "ebnf-text",
+                "700ce701130a2454c2ce85fada4cf2317fa41437c1678e00a7b5d22a7e47d451",
             ),
         ];
 
@@ -1951,12 +1957,14 @@ mod tests {
                     for entry in entries {
                         for token in &entry.rhs {
                             if let CllEbnfToken::Nonterminal { body, href } = token {
-                                if ["any-word", "anything", "null"].contains(&body.as_str()) {
+                                // The non-formal null rule names an undefined utterance.
+                                if body == "utterance" {
+                                    assert!(href.is_none());
                                     continue;
                                 }
                                 let href = href
                                     .as_ref()
-                                    .expect("every grammar nonterminal has a target");
+                                    .unwrap_or_else(|| panic!("missing rule target: {body}"));
                                 let (page, anchor) = href.split_once('#').expect("rule fragment");
                                 let target = if page.is_empty() {
                                     section
@@ -2171,9 +2179,8 @@ mod tests {
             ["chapter-morphology", "chapter-phonology"]
         );
 
-        // Chapter 21's EBNF section is the one variable list that gets the
-        // bespoke EBNF treatment; every other variable list in the book, the
-        // PEG subsections' included, renders as a definition list.
+        // EBNF lists retain grammar tokens across subsection pages. Other
+        // variable lists, including the PEG rules, remain definition lists.
         let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
             .expect("the EBNF section should exist");
         assert!(

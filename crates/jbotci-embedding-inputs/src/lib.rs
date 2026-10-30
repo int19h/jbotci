@@ -822,15 +822,15 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "3a13c970bc597d0a4f04e4bb35663eadbaf576cce40371d9b5ebbfce88a571b9"
+            "76dab60b4080c0ff08ab39a61e77bbfade5638709175aa3f5cfffa11fe1f5fe6"
         );
         assert_eq!(
             corpus.dictionary_hash,
-            "0087b842603223a581491262ffb75088bb5d2075e619d184c53560d86ec57851"
+            "09931d1a384abc36d59128bc3a8cce4266c0a3a82f247764ea869cd1ce0e46ed"
         );
         assert_eq!(
             corpus.cll_hash,
-            "a1456e9912c9478f993e99dc6d266d2d433735b5f7997120048da1282faddf65"
+            "5a73c26291bc816d941ecb883d263cc5b03763c520eb32e3fce508bb1b9ee136"
         );
         assert_eq!(corpus.input_hash.len(), 64);
         assert!(

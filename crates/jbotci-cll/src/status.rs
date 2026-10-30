@@ -2,6 +2,7 @@
 
 use std::collections::BTreeSet;
 
+#[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use serde::{Deserialize, Serialize};
 

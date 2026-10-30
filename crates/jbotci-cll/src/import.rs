@@ -4361,11 +4361,9 @@ mod tests {
         );
     }
 
-    /// The book's only nested sections (colojban 1.3.5's PEG grammar under
-    /// 21.2) carry no index terms or examples and all have ids, so this probe
-    /// pins what the real corpus cannot: a subsection's terms and examples
-    /// belong to the subsection, an id-less subsection gets a fallback id
-    /// derived from its parent, and nesting two levels deep is rejected.
+    /// This probe covers subsection ownership independently of the book.
+    /// Terms and examples belong to their subsection. An id-less subsection
+    /// gets an id from its parent, and nesting two levels deep is rejected.
     #[test]
     #[requires(true)]
     #[ensures(true)]

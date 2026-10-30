@@ -10742,7 +10742,7 @@ mod tests {
         );
 
         let cmavo = dictionary_count_node(&info.count_tree, "cmavo");
-        assert_eq!(cmavo.count, 1_681);
+        assert_eq!(cmavo.count, 1_705);
         assert_eq!(
             dictionary_count_node_labels(&cmavo.children),
             vec!["regular", "experimental", "obsolete"]
@@ -10755,44 +10755,40 @@ mod tests {
         );
         assert_eq!(
             dictionary_count_node(&cmavo.children, "experimental").count,
-            1_080
+            1_104
         );
         assert_eq!(dictionary_count_node(&cmavo.children, "obsolete").count, 3);
         assert_eq!(
             dictionary_count_node(&info.count_tree, "cmavo compounds").count,
-            734
+            740
         );
 
         let brivla = dictionary_count_node(&info.count_tree, "brivla");
-        assert_eq!(brivla.count, 28_150);
+        assert_eq!(brivla.count, 28_371);
         assert_eq!(
             dictionary_count_node_labels(&brivla.children),
             vec!["gismu", "lujvo", "fu'ivla"]
         );
         let gismu = dictionary_count_node(&brivla.children, "gismu");
-        assert_eq!(gismu.count, 2_098);
+        assert_eq!(gismu.count, 2_109);
         assert_eq!(
             dictionary_count_node(&gismu.children, "experimental").count,
-            760
+            771
         );
-        // Both rafsi counts are unique-form counts, so each is the snapshot's
-        // own forms plus exactly the 35 the extracted table (issue #768,
-        // re-audited in #881 and the 2026-10 refresh) adds to 32 experimental
-        // gismu: 1_504 + 35 and 73 + 35. The gismu total is 1_432 official
-        // forms plus the 73 experimental ones, less `kej`, which `ckeji` and
-        // `kenjo` share.
-        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_539);
+        // Counts include selected structured claims and the 32 retained
+        // extracted forms. The refresh adds three unique gismu rafsi forms.
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_542);
         assert_eq!(
             dictionary_count_node(
                 &dictionary_count_node(&gismu.children, "experimental").children,
                 "rafsi",
             )
             .count,
-            108
+            111
         );
 
         let lujvo = dictionary_count_node(&brivla.children, "lujvo");
-        assert_eq!(lujvo.count, 13_048);
+        assert_eq!(lujvo.count, 13_194);
         assert_eq!(
             dictionary_count_node_labels(&lujvo.children),
             vec!["zei-lujvo", "obsolete zei-lujvo"]
@@ -10807,14 +10803,14 @@ mod tests {
         );
 
         let fuivla = dictionary_count_node(&brivla.children, "fu'ivla");
-        assert_eq!(fuivla.count, 13_004);
+        assert_eq!(fuivla.count, 13_068);
         assert_eq!(
             dictionary_count_node(&fuivla.children, "obsolete").count,
             373
         );
 
         let cmevla = dictionary_count_node(&info.count_tree, "cmevla");
-        assert_eq!(cmevla.count, 594);
+        assert_eq!(cmevla.count, 593);
         assert_eq!(
             dictionary_count_node(&cmevla.children, "obsolete").count,
             33
@@ -10823,7 +10819,7 @@ mod tests {
             dictionary_count_node(&info.count_tree, "letterals").count,
             59
         );
-        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 29);
+        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 35);
         assert_eq!(dictionary_count_node(&info.count_tree, "untyped").count, 1);
     }
 
