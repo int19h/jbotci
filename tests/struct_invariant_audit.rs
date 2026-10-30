@@ -1008,6 +1008,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
     ),
     (
+        "crates/jbotci-output/src/indentation.rs:InvalidIndentation",
+        "unit error marker carries no data and has no invalid state",
+    ),
+    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -1025,7 +1029,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/lib.rs:JsonRenderOptions",
-        "JSON indentation accepts any width chosen by callers",
+        "the indentation type validates its width; all combinations with the independent rendering flags are valid",
     ),
     (
         "crates/jbotci-output/src/lib.rs:TreeRenderOptions",
