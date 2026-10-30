@@ -41,7 +41,10 @@ impl<'tree> TreeVisitor<'tree> for RecoveryStructureVisitor {
                 | generated_model::recovered::NodeRef::StatementBaseSyntaxBridiStatement(_)
                 | generated_model::recovered::NodeRef::StatementAtomSyntaxBridiStatement(_)
                 | generated_model::recovered::NodeRef::BoStatementSyntaxBridiStatement(_)
-                | generated_model::recovered::NodeRef::StatementJoinSyntax(_)
+                | generated_model::recovered::NodeRef::StatementJoinSyntaxCompletedEkStatementJoin(
+                    _
+                )
+                | generated_model::recovered::NodeRef::StatementJoinSyntaxOrdinaryStatementJoin(_)
         ) {
             self.active_paragraph_statement_starts
                 .borrow_mut()
@@ -60,7 +63,10 @@ impl<'tree> TreeVisitor<'tree> for RecoveryStructureVisitor {
                 | generated_model::recovered::NodeRef::StatementBaseSyntaxBridiStatement(_)
                 | generated_model::recovered::NodeRef::StatementAtomSyntaxBridiStatement(_)
                 | generated_model::recovered::NodeRef::BoStatementSyntaxBridiStatement(_)
-                | generated_model::recovered::NodeRef::StatementJoinSyntax(_)
+                | generated_model::recovered::NodeRef::StatementJoinSyntaxCompletedEkStatementJoin(
+                    _
+                )
+                | generated_model::recovered::NodeRef::StatementJoinSyntaxOrdinaryStatementJoin(_)
         ) {
             let start = self
                 .active_paragraph_statement_starts

@@ -17,6 +17,7 @@ use jbotci_syntax::{
 struct Boundaries<'tree> {
     joins: Vec<&'tree model::StatementJoinSyntax>,
     bo: Vec<&'tree model::BoStatementConnectionSyntax>,
+    completed_ek_bo: Vec<&'tree model::CompletedEkBoStatementConnectionSyntax>,
     following: Vec<&'tree model::FollowingParagraphStatementSyntax>,
     trailers: Vec<&'tree model::ExpSentenceTrailerSyntax>,
     soi: Vec<&'tree model::ExpSoiSubsentenceAdverbialSyntax>,
@@ -35,6 +36,16 @@ impl<'tree> model::TreeWalker<'tree> for Boundaries<'tree> {
     fn walk_bo_statement_connection(&mut self, node: &'tree model::BoStatementConnectionSyntax) {
         self.bo.push(node);
         model::walk::bo_statement_connection(self, node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.completed_ek_bo.len() >= old(self.completed_ek_bo.len()) + 1)]
+    fn walk_completed_ek_bo_statement_connection(
+        &mut self,
+        node: &'tree model::CompletedEkBoStatementConnectionSyntax,
+    ) {
+        self.completed_ek_bo.push(node);
+        model::walk::completed_ek_bo_statement_connection(self, node);
     }
 
     #[requires(true)]
@@ -86,6 +97,19 @@ fn boundaries(parsed: &SyntaxParse) -> Boundaries<'_> {
     visitor
 }
 
+#[requires(true)]
+#[ensures(matches!(join, model::StatementJoinSyntax::CompletedEkStatementJoin(_)) -> ret.is_some())]
+fn join_right(join: &model::StatementJoinSyntax) -> Option<&model::BoStatementSyntax> {
+    match join {
+        model::StatementJoinSyntax::CompletedEkStatementJoin(join) => {
+            Some(&join.trailing_statement)
+        }
+        model::StatementJoinSyntax::OrdinaryStatementJoin(join) => {
+            join.trailing_statement.as_deref()
+        }
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -98,15 +122,15 @@ fn rightless_joins_resume_at_a_later_bare_i() {
         let parsed = parse(source, "()");
         let nodes = boundaries(&parsed);
         assert_eq!(nodes.joins.len(), 1, "{source}");
-        assert!(nodes.joins[0].trailing_statement.is_none(), "{source}");
+        assert!(join_right(nodes.joins[0]).is_none(), "{source}");
         assert_eq!(nodes.following.len(), 1, "{source}");
         assert!(nodes.following[0].statement.is_some(), "{source}");
     }
     let parsed = parse("mi klama .i je .i joi do cadzu", "()");
     let nodes = boundaries(&parsed);
     assert_eq!(nodes.joins.len(), 2);
-    assert!(nodes.joins[0].trailing_statement.is_none());
-    assert!(nodes.joins[1].trailing_statement.is_some());
+    assert!(join_right(nodes.joins[0]).is_none());
+    assert!(join_right(nodes.joins[1]).is_some());
     assert!(nodes.following.is_empty());
 }
 
@@ -127,7 +151,7 @@ fn bo_owns_its_right_recursive_operand() {
     let nodes = boundaries(&parsed);
     assert_eq!(nodes.joins.len(), 1);
     assert!(matches!(
-        nodes.joins[0].trailing_statement.as_deref(),
+        join_right(nodes.joins[0]),
         Some(model::BoStatementSyntax::BoStatementConnection(_))
     ));
     assert_eq!(nodes.bo.len(), 1);
@@ -457,4 +481,40 @@ fn unrestricted_free_keeps_the_legacy_pre_i_nai_attachment() {
             warning.kind == ExperimentalConstruct::ExperimentalPreISentenceTrailer
         }));
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn completed_ek_joins_keep_the_exp_owner_without_the_feature() {
+    for source in [
+        "y xu jibri galfi .iji jibri zvati galfi",
+        " i lu e'upei mi'a troci lo drata morna be fi le xasyjukni vonseldansu sei la cpicinfo cu di'a cusku iji aupei la jitfa cakyrespa cu sanga da do li'u ",
+        "mi klama .i .e do klama",
+        "mi klama .i .e do cadzu",
+        "mi klama .i .e bo do cadzu",
+        "mi klama .i je .i .e do cadzu",
+        "lu mi klama .i ji .au pei la jitfa cakyrespa cu sanga da do li'u",
+        ".i .e mi klama",
+        ".i .e bo mi klama",
+        ".i .e ro da zo'u mi klama",
+    ] {
+        let default = parse(source, "()");
+        let enabled = parse(source, "(+ek-statement-connective)");
+        assert_eq!(default.parse_tree, enabled.parse_tree, "{source}");
+        assert_eq!(default.warnings, enabled.warnings, "{source}");
+        assert!(
+            default.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalEkStatementConnective
+            }),
+            "{source}"
+        );
+    }
+    let bo = parse("mi klama .i .e bo do cadzu", "()");
+    let nodes = boundaries(&bo);
+    assert_eq!(nodes.completed_ek_bo.len(), 1);
+    assert!(matches!(
+        nodes.completed_ek_bo[0].trailing_statement.as_ref(),
+        model::BoStatementSyntax::BridiStatement(_)
+    ));
 }

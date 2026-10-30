@@ -214,7 +214,7 @@ pub mod generated_model {
     }
 
     /// Ordinary text with source-ordered leading material and an optional paragraph tree.
-    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, statement_stag, exp_statement_stag) -> struct {
+    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, statement_stag, exp_statement_stag, statement) -> struct {
         /// NAI words that precede the first formal text construct.
         field leading_nai <- [zero_or_more cmavo(Nai)];
         /// CMEVLA words accepted before the first formal text construct.
@@ -231,7 +231,7 @@ pub mod generated_model {
         );
         /// I-led statement prefixes that occur before the paragraph tree.
         #[recovery_boundary]
-        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal)];
+        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal, statement)];
         #[tree_child(primary)]
         /// The primary paragraph subtree, absent when the text contains only leading material.
         field paragraphs <- opt(arc(text_paragraphs(
@@ -243,10 +243,10 @@ pub mod generated_model {
 
     /// The text_1 body of a TUhE group, without the initial text envelope.
     /// Keep the text diagnostic label that the body used before the type split.
-    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, statement_stag, exp_statement_stag, tense_modal) -> struct {
+    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, statement_stag, exp_statement_stag, tense_modal, statement) -> struct {
         /// I-led prefixes before the paragraph tree.
         #[recovery_boundary]
-        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal)];
+        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal, statement)];
         #[tree_child(primary)]
         /// The paragraph tree, absent in an empty group.
         field paragraphs <- opt(arc(text_paragraphs(
@@ -282,11 +282,11 @@ pub mod generated_model {
     }
 
     /// Product node for paragraph statement; preserves `i`, `connective`, and `free_modifiers` in source order.
-    rule "paragraph statement" leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal) -> struct {
+    rule "paragraph statement" leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal, statement) -> struct {
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The optional connective component.
-        field connective <- opt(arc(i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal)));
+        field connective <- opt(arc(i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal, free_modifier, statement)));
         /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
     }
@@ -339,9 +339,11 @@ pub mod generated_model {
     }
 
     /// Both statement connection tiers, or an atom or prenex fallback.
-    rule "statement" statement(statement, bo_statement, statement_atom, bridi, term, tense_modal, text_body, statement_stag, exp_statement_stag) -> enum {
+    rule "statement" statement(statement, bo_statement, statement_atom, bridi, term, tense_modal, text_body, statement_stag, exp_statement_stag, free_modifier) -> enum {
         /// Ordinary joins bind less tightly than BO joins.
         i_statement_connection,
+        /// A completed EK BO join has a required right operand.
+        completed_ek_bo_statement_connection,
         /// A BO join groups to the right.
         bo_statement_connection,
         /// A plain atom or a prenex enclosing a complete statement.
@@ -406,7 +408,9 @@ pub mod generated_model {
     }
 
     /// The right operand tier of both statement joins.
-    rule "BO statement" bo_statement(bo_statement, statement_atom, bridi, tense_modal, text_body, statement_stag, exp_statement_stag) -> enum {
+    rule "BO statement" bo_statement(bo_statement, statement_atom, bridi, tense_modal, text_body, statement_stag, exp_statement_stag, free_modifier) -> enum {
+        /// A completed EK BO join has a required right operand.
+        completed_ek_bo_statement_connection,
         /// A right-recursive BO connection.
         bo_statement_connection,
         // A sentence or TUhE group.
@@ -452,14 +456,52 @@ pub mod generated_model {
         field continuations <- [one_or_more statement_join(bo_statement)];
     }
 
+    /// Completed EK joins are default-on. Only the rightless EK form needs a feature.
+    rule "statement join" statement_join(bo_statement) -> enum {
+        /// The right operand must be present for this default-on EK form.
+        completed_ek_statement_join,
+        /// Other ordinary joins, including the feature-gated rightless EK form.
+        ordinary_statement_join,
+    }
+
+    /// Camxes-exp's completed EK connection, with its actual right operand.
+    rule "statement join" completed_ek_statement_join(bo_statement) -> struct {
+        /// The I boundary.
+        field i <- cmavo(I);
+        /// The EK connector carries the experimental warning.
+        field connective <- exp_ek_statement_connective().wf();
+        /// A required BO-level right operand.
+        field trailing_statement <- arc(bo_statement);
+    }
+
     /// One ordinary join. A later bare I belongs to the paragraph.
-    rule "statement join" statement_join(bo_statement) -> struct {
+    rule "statement join" ordinary_statement_join(bo_statement) -> struct {
         /// The I that starts this join.
         field i <- cmavo(I);
         /// The complete connector, then its free modifiers.
         field connective <- ordinary_statement_connective().wf();
         /// The right operand, absent in a rightless join.
         field trailing_statement <- opt(arc(bo_statement));
+    }
+
+    /// A completed EK BO join requires the actual right statement.
+    rule "BO statement connection" completed_ek_bo_statement_connection(bo_statement, statement_atom, statement_stag, exp_statement_stag, tense_modal, free_modifier) -> struct {
+        /// The left sentence or TUhE group.
+        field leading_statement <- arc(statement_atom);
+        /// The I-led EK connector and its BO suffix.
+        field connective <- completed_ek_bo_statement_connective(statement_stag, exp_statement_stag, tense_modal, free_modifier);
+        /// A required recursive right operand.
+        field trailing_statement <- arc(bo_statement);
+    }
+
+    /// The complete I-led EK and BO prefix.
+    rule "BO statement connective" completed_ek_bo_statement_connective(statement_stag, exp_statement_stag, tense_modal, free_modifier) -> struct {
+        /// The I boundary.
+        field i <- cmavo(I);
+        /// The EK connector, optional stag, and BO.
+        field connective <- completed_ek_paragraph_bo_connective(statement_stag, exp_statement_stag, tense_modal);
+        /// Free modifiers after BO belong to the complete prefix.
+        field free_modifiers <- [zero_or_more free_modifier];
     }
 
     /// BO owns its recursive right operand in the syntax tree.
@@ -4243,11 +4285,79 @@ pub mod generated_model {
     }
 
     /// The optional connector and BO suffix after a leading I.
-    rule "statement connective" i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
+    rule "statement connective" i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal, free_modifier, statement) -> enum {
+        /// EK with BO, followed by a complete statement in the parent text.
+        completed_ek_leading_bo_connective,
+        /// EK without BO, followed by a complete statement in the parent text.
+        completed_ek_leading_plain_connective,
         /// A complete BO connector after the prefix I.
         paragraph_bo_connective,
         /// A bare connector with no BO suffix.
         bare_statement_connective,
+    }
+
+    /// The parent text owns the right statement. Probe that real rule, not a token class.
+    rule "statement connective" completed_ek_leading_bo_connective(statement_stag, exp_statement_stag, tense_modal, free_modifier, statement) -> struct {
+        #[tree_child(primary)]
+        /// The complete EK and BO prefix.
+        field connective <- completed_ek_paragraph_bo_connective(statement_stag, exp_statement_stag, tense_modal);
+        assert completed_ek_prefix_statement(free_modifier, statement);
+    }
+
+    /// A plain EK prefix also needs an actual right statement to be default-on.
+    rule "statement connective" completed_ek_leading_plain_connective(free_modifier, statement) -> struct {
+        #[tree_child(primary)]
+        /// The EK word and its adjacent prefixes and suffix.
+        field connective <- exp_ek_statement_connective;
+        assert completed_ek_prefix_statement(free_modifier, statement);
+    }
+
+    /// The parent text keeps this statement after the leading prefix.
+    rule "statement" completed_ek_prefix_statement(free_modifier, statement) -> struct {
+        /// Free modifiers between the complete prefix and its body.
+        field free_modifiers <- [zero_or_more free_modifier];
+        /// A required right statement, with its normal prenex and connection tiers.
+        field statement <- arc(statement);
+    }
+
+    /// A required EK connector before BO, with the ordered stag alternatives.
+    rule "statement connective" completed_ek_paragraph_bo_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
+        /// The standard stag route has priority.
+        completed_ek_standard_paragraph_bo_connective,
+        /// The sourced extended stag route.
+        completed_ek_exp_paragraph_bo_connective,
+        /// Legacy free placement still needs its existing feature.
+        when feature(UnrestrictedFree) completed_ek_unrestricted_paragraph_bo_connective,
+    }
+
+    /// A completed EK connector with the standard stag before BO.
+    rule "statement connective" completed_ek_standard_paragraph_bo_connective(statement_stag) -> struct {
+        /// Free modifiers inside this bare boundary get the placement warning.
+        field connective <- exp_ek_statement_connective().prohibited_wf();
+        /// The optional standard stag.
+        field stag <- opt(arc(statement_stag));
+        /// The required BO word.
+        field bo <- cmavo(Bo);
+    }
+
+    /// A completed EK connector with the experimental stag before BO.
+    rule "statement connective" completed_ek_exp_paragraph_bo_connective(exp_statement_stag) -> struct {
+        /// The required EK connector.
+        field connective <- exp_ek_statement_connective().prohibited_wf();
+        /// The complete experimental stag.
+        field stag <- arc(exp_statement_stag.warn_if(ExperimentalStatementStag).ignore_then(exp_statement_stag));
+        /// The required BO word.
+        field bo <- cmavo(Bo);
+    }
+
+    /// A completed EK connector with explicitly unrestricted free placement.
+    rule "statement connective" completed_ek_unrestricted_paragraph_bo_connective(tense_modal) -> struct {
+        /// The required EK connector.
+        field connective <- exp_ek_statement_connective().prohibited_wf();
+        /// The unrestricted stag.
+        field stag <- arc(tense_modal.warn_if(ExperimentalStatementStag).ignore_then(tense_modal));
+        /// The required BO word.
+        field bo <- cmavo(Bo);
     }
 
     /// The prefix I stays on its enclosing leading-I node.
