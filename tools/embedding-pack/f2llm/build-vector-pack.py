@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin, urlparse
@@ -271,24 +272,131 @@ def build_provenance() -> dict[str, object]:
     }
 
 
+def protobuf_varint(stream, end: int) -> int:
+    value = 0
+    for shift in range(0, 70, 7):
+        if stream.tell() >= end:
+            raise ValueError("truncated ONNX protobuf varint")
+        data = stream.read(1)
+        if not data:
+            raise ValueError("truncated ONNX protobuf varint")
+        byte = data[0]
+        if shift == 63 and byte > 1:
+            raise ValueError("overflowing ONNX protobuf varint")
+        value |= (byte & 127) << shift
+        if not byte & 128:
+            return value
+    raise ValueError("invalid ONNX protobuf varint")
+
+
+def protobuf_tag(stream, end: int) -> tuple[int, int]:
+    tag = protobuf_varint(stream, end)
+    number, wire = tag >> 3, tag & 7
+    if not 0 < number < (1 << 29) or wire > 5:
+        raise ValueError("invalid ONNX protobuf tag")
+    return number, wire
+
+
+def skip_protobuf_field(stream, number: int, wire: int, end: int) -> None:
+    if wire == 0:
+        protobuf_varint(stream, end)
+        return
+    if wire == 3:
+        # Unknown protobuf groups are legal. Skip their contents without
+        # interpreting them as ONNX tensors, and require the matching end tag.
+        while stream.tell() < end:
+            child, child_wire = protobuf_tag(stream, end)
+            if child_wire == 4:
+                if child != number:
+                    raise ValueError("mismatched ONNX protobuf group")
+                return
+            skip_protobuf_field(stream, child, child_wire, end)
+        raise ValueError("unterminated ONNX protobuf group")
+    if wire == 2:
+        length = protobuf_varint(stream, end)
+    elif wire in (1, 5):
+        length = 8 if wire == 1 else 4
+    else:
+        raise ValueError("unexpected ONNX protobuf end group")
+    target = stream.tell() + length
+    if target > end:
+        raise ValueError("truncated ONNX protobuf field")
+    stream.seek(target)
+
+
+@dataclass
+class OnnxMetadataState:
+    singular_messages: dict[int, OnnxMetadataState] = field(default_factory=dict)
+    data_location: int | None = None
+    external_data: dict[str, str] = field(default_factory=dict)
+
+
+def scan_external_data(stream, descriptor, end: int, locations: set[str]) -> None:
+    state = OnnxMetadataState()
+    scan_onnx_message(stream, descriptor, end, locations, state)
+    collect_external_locations(descriptor, state, locations)
+
+
+def collect_external_locations(descriptor, state: OnnxMetadataState, locations: set[str]) -> None:
+    import onnx
+
+    if descriptor.full_name == "onnx.TensorProto" and state.data_location == onnx.TensorProto.EXTERNAL:
+        if "location" not in state.external_data:
+            raise ValueError("ONNX external tensor lacks its location")
+        locations.add(state.external_data["location"])
+    for number, child in state.singular_messages.items():
+        collect_external_locations(descriptor.fields_by_number[number].message_type, child, locations)
+
+
+def scan_onnx_message(stream, descriptor, end: int, locations: set[str], state: OnnxMetadataState) -> None:
+    import onnx
+
+    # Follow the generated schema through graphs, attributes and functions.
+    # Seek past bytes fields (including inline tensor data), strings and packed
+    # scalars. Only external-data key/value entries need protobuf decoding.
+    # Protobuf merges repeated occurrences of a singular message. Retain that
+    # metadata until its parent closes, so split tensor messages cannot hide a
+    # later external-data location. Repeated message entries are independent.
+    tensor = descriptor.full_name == "onnx.TensorProto"
+    while stream.tell() < end:
+        number, wire = protobuf_tag(stream, end)
+        field = descriptor.fields_by_number.get(number)
+        if tensor and field is not None and field.name == "data_location" and wire == 0:
+            state.data_location = protobuf_varint(stream, end)
+        elif wire == 2 and field is not None and field.message_type is not None:
+            length = protobuf_varint(stream, end)
+            child_end = stream.tell() + length
+            if child_end > end:
+                raise ValueError("truncated ONNX protobuf message")
+            if tensor and field.name == "external_data":
+                entry = onnx.StringStringEntryProto.FromString(stream.read(length))
+                state.external_data[entry.key] = entry.value
+            else:
+                # New protobuf versions replace `label` with `is_repeated`.
+                repeated = (field.is_repeated if hasattr(field, "is_repeated")
+                            else field.label == field.LABEL_REPEATED)
+                if repeated:
+                    child = OnnxMetadataState()
+                else:
+                    child = state.singular_messages.get(number)
+                    if child is None:
+                        child = OnnxMetadataState()
+                        state.singular_messages[number] = child
+                scan_onnx_message(stream, field.message_type, child_end, locations, child)
+                if repeated:
+                    collect_external_locations(field.message_type, child, locations)
+        else:
+            skip_protobuf_field(stream, number, wire, end)
+
+
 def external_data_hashes(path: Path) -> dict[str, str]:
     import onnx
 
-    # Parse graph metadata only. Hash each referenced file's raw bytes in chunks.
-    graph = onnx.load(path, load_external_data=False)
+    # Do not load the model to discover its references: inline tensor payloads
+    # can be large too. The schema-directed scan only reads message metadata.
     locations = set()
-
-    def tensors(message):
-        if message.DESCRIPTOR.full_name == "onnx.TensorProto":
-            if onnx.external_data_helper.uses_external_data(message):
-                entries = {entry.key: entry.value for entry in message.external_data}
-                locations.add(entries["location"])
-        for field, value in message.ListFields():
-            if field.type == field.TYPE_MESSAGE:
-                for child in value if field.is_repeated else [value]:
-                    tensors(child)
-
-    tensors(graph)
+    with path.open("rb") as stream:
+        scan_external_data(stream, onnx.ModelProto.DESCRIPTOR, path.stat().st_size, locations)
     result = {}
     for location in sorted(locations):
         external = Path(source_child(str(path), location))

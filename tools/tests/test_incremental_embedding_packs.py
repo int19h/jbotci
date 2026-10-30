@@ -23,7 +23,9 @@ except ImportError:
 SCRIPT = Path(__file__).resolve().parents[1] / 'embedding-pack/f2llm/build-vector-pack.py'
 SPEC = importlib.util.spec_from_file_location('vector_pack', SCRIPT)
 pack = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = pack
 SPEC.loader.exec_module(pack)
+external_data_hashes = pack.external_data_hashes
 
 
 class Tokenizer:
@@ -70,6 +72,9 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
             'transformers': types.SimpleNamespace(AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **k: Tokenizer())),
             'onnx': types.SimpleNamespace(load=lambda path, **k: types.SimpleNamespace(DESCRIPTOR=types.SimpleNamespace(full_name='onnx.ModelProto'), ListFields=lambda: [])),
         })
+        hashes = mock.patch.object(pack, 'external_data_hashes', return_value={})
+        hashes.start()
+        self.addCleanup(hashes.stop)
         self.modules.start()
         self.addCleanup(self.modules.stop)
         versions = mock.patch.object(pack, 'version', return_value='test-version')
@@ -267,24 +272,6 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         _, _, embed, _ = self.build('new-model', self.old, '--reuse-catalog', str(catalog), '--new-model', pack.MODEL_KEY)
         self.assertEqual(sum(len(call.args[0]) for call in embed.call_args_list), 5)
 
-    def test_external_model_files_hash_raw_bytes_without_loading_weights(self):
-        external = self.root / 'weights.bin'
-        external.write_bytes(b'raw external weights')
-        tensor = types.SimpleNamespace(
-            DESCRIPTOR=types.SimpleNamespace(full_name='onnx.TensorProto'), ListFields=lambda: [],
-            external_data=[types.SimpleNamespace(key='location', value='weights.bin')])
-        field = types.SimpleNamespace(type=11, TYPE_MESSAGE=11, is_repeated=True)
-        graph = types.SimpleNamespace(DESCRIPTOR=types.SimpleNamespace(full_name='onnx.ModelProto'), ListFields=lambda: [(field, [tensor])])
-        loader = mock.Mock(return_value=graph)
-        onnx = types.SimpleNamespace(load=loader, external_data_helper=types.SimpleNamespace(uses_external_data=lambda value: True))
-        with mock.patch.dict(sys.modules, {'onnx': onnx}):
-            before = pack.external_data_hashes(self.model)
-            external.write_bytes(b'changed raw weights')
-            after = pack.external_data_hashes(self.model)
-        self.assertNotEqual(before, after)
-        self.assertEqual(after, {'weights.bin': pack.sha256(b'changed raw weights')})
-        loader.assert_called_with(self.model, load_external_data=False)
-
     def test_validator_accepts_new_metadata_and_refuses_duplicate_corpora(self):
         spec = importlib.util.spec_from_file_location('validate_vectors', SCRIPT.with_name('validate-vector-pack.py'))
         validator = importlib.util.module_from_spec(spec)
@@ -307,19 +294,61 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         tensor = real_onnx.TensorProto(name='weight', data_type=real_onnx.TensorProto.FLOAT, dims=[1],
                                       data_location=real_onnx.TensorProto.EXTERNAL)
         tensor.external_data.add(key='location', value=external.name)
-        model = real_onnx.helper.make_model(real_onnx.helper.make_graph([], 'tiny-hash-test', [], [], [tensor]))
+        inline = real_onnx.helper.make_tensor('inline', real_onnx.TensorProto.FLOAT, [8192], b'x' * 32768, raw=True)
+        node = real_onnx.helper.make_node('Constant', [], ['x'], value=tensor)
+        model = real_onnx.helper.make_model(real_onnx.helper.make_graph([node], 'tiny-hash-test', [], [], [tensor, inline]))
+        model.functions.append(real_onnx.helper.make_function('test', 'constant', [], ['x'], [node],
+                                                            [real_onnx.helper.make_opsetid('', 13)]))
         graph = self.root / 'real.onnx'
         raw_graph = model.SerializeToString()
         graph.write_bytes(raw_graph)
-        with mock.patch.dict(sys.modules, {'onnx': real_onnx}), mock.patch.object(real_onnx, 'load', wraps=real_onnx.load) as load:
-            before = pack.external_data_hashes(graph)
+        with mock.patch.dict(sys.modules, {'onnx': real_onnx}), mock.patch.object(real_onnx, 'load', side_effect=AssertionError('must not load the model')) as load:
+            before = external_data_hashes(graph)
             external.write_bytes(np.array([2.0], dtype='<f4').tobytes())
-            after = pack.external_data_hashes(graph)
+            after = external_data_hashes(graph)
         self.assertNotEqual(before, after)
         self.assertEqual(pack.file_sha256(graph), pack.sha256(raw_graph))
         self.assertEqual(after, {external.name: pack.file_sha256(external)})
-        for call in load.call_args_list:
-            self.assertFalse(call.kwargs['load_external_data'])
+        load.assert_not_called()
+        class RecordingFile(io.BytesIO):
+            bytes_read = 0
+            def read(self, size=-1):
+                value = super().read(size)
+                self.bytes_read += len(value)
+                return value
+        source = RecordingFile(raw_graph)
+        with mock.patch.dict(sys.modules, {'onnx': real_onnx}):
+            pack.scan_external_data(source, real_onnx.ModelProto.DESCRIPTOR, len(raw_graph), set())
+        self.assertLess(source.bytes_read, 1024, 'the scanner must seek past inline tensor payloads')
+
+    def test_streaming_metadata_refuses_truncated_protobuf(self):
+        for data in [b'\x80', b'\x80' * 10, b'\x00', b'\x0a\x10short', b'\x0c', b'\x0b\x14']:
+            descriptor = types.SimpleNamespace(full_name='unknown', fields_by_number={})
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                pack.scan_external_data(io.BytesIO(data), descriptor, len(data), set())
+
+    @unittest.skipIf(real_onnx is None, 'requires onnx from the builder requirements')
+    def test_streamed_metadata_obeys_protobuf_message_merging(self):
+        def varint(value):
+            result = bytearray()
+            while value > 127:
+                result.append((value & 127) | 128)
+                value >>= 7
+            result.append(value)
+            return bytes(result)
+        def message(field, payload):
+            return varint((field << 3) | 2) + varint(len(payload)) + payload
+        first = real_onnx.TensorProto(data_location=real_onnx.TensorProto.EXTERNAL)
+        first.external_data.add(key='location', value='old.weights')
+        second = real_onnx.TensorProto()
+        second.external_data.add(key='location', value='current.weights')
+        # AttributeProto.t is singular: protobuf merges its two occurrences.
+        tensor_field = real_onnx.AttributeProto.DESCRIPTOR.fields_by_name['t'].number
+        raw = message(tensor_field, first.SerializeToString()) + message(tensor_field, second.SerializeToString())
+        locations = set()
+        with mock.patch.dict(sys.modules, {'onnx': real_onnx}):
+            pack.scan_external_data(io.BytesIO(raw), real_onnx.AttributeProto.DESCRIPTOR, len(raw), locations)
+        self.assertEqual(locations, {'current.weights'})
 
 
 if __name__ == '__main__':
