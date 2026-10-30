@@ -1,0 +1,13 @@
+id = "adhoc.syntax.i-boundary.s72-ek"
+lojban = "mi klama sei lu broda .i .e do tavla se'u"
+dialect = "(+ek-statement-connective)"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The feature twin of S72."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [37, 41], source-text = "se'u", message = "unexpected cmavo" }]

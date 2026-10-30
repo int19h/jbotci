@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.p08"
+lojban = "mi klama .i bo ro da zo'u do cadzu"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "BO right excludes a prenex"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 25], source-text = "zo'u", message = "unexpected cmavo" }]

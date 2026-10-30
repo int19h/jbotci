@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.j12"
+lojban = ".i .e mi klama"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "bare versus free-bearing connector slots and sentence trailer operands"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "mi", message = "unexpected cmavo" }]

@@ -1,0 +1,14 @@
+id = "adhoc.syntax.i-boundary.s68-ek"
+lojban = ".i .e"
+dialect = "(+ek-statement-connective)"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The feature twin of S68."
+
+[expectations.syntax]
+status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [LeadingIStatementSyntax { i: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } })), connective: Some(BareStatementConnective(ExpEkStatementConnective(ExpEkStatementConnectiveSyntax { na: None, se: None, a: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None } })), nai: None }))), free_modifiers: [] }], paragraphs: None }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ek-statement-connective", byte-span = [4, 5], source-text = "e", message = "experimental syntax: EK used as a statement connective after I", word-index = 1 }]

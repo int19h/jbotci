@@ -11,4 +11,4 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 # Issue #1050 records this recovery ranking witness.
 [expectations.syntax.recovered]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 30], source-text = "be'o", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-pre-i-sentence-trailer", byte-span = [21, 22], source-text = "e", message = "experimental syntax: connective before I inside a sentence", word-index = 5 }, { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 30], source-text = "be'o", message = "unexpected cmavo" }]

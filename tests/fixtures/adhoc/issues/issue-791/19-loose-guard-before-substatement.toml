@@ -5,9 +5,9 @@ tags = ["issue-791", "recovery", "syntax", "term-hierarchy-epoch"]
 # v1 now rejects at `i`, pinning the guard's redirected error boundary.
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 24], source-text = "i", message = "unexpected cmavo" }]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-pre-i-sentence-trailer", byte-span = [15, 16], source-text = "e", message = "experimental syntax: connective before I inside a sentence", word-index = 3 }]
 
 [expectations.syntax.recovered]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 24], source-text = "i", message = "unexpected cmavo" }]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-pre-i-sentence-trailer", byte-span = [15, 16], source-text = "e", message = "experimental syntax: connective before I inside a sentence", word-index = 3 }]
