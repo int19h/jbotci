@@ -1009,7 +1009,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/indentation.rs:InvalidIndentation",
-        "unit error marker carries no data and has no invalid state",
+        "The unit error marker carries no data and has no invalid state.",
     ),
     (
         "crates/jbotci-output/src/json.rs:JsonEntry",
@@ -1029,7 +1029,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/lib.rs:JsonRenderOptions",
-        "the indentation type validates its width; all combinations with the independent rendering flags are valid",
+        "The indentation type bounds the width. The rendering flags are independent.",
     ),
     (
         "crates/jbotci-output/src/lib.rs:TreeRenderOptions",
