@@ -1,7 +1,7 @@
 //! Target-neutral tokenizer, windowing, quantization-layout, and vector-pooling logic.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 #[allow(unused_imports)]
@@ -12,7 +12,7 @@ use unicode_normalization::UnicodeNormalization;
 
 pub const DEFAULT_MAX_SEQUENCE_LENGTH: usize = 512;
 
-const TOKEN_PATTERN: &str = r"('s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
+const TOKEN_PATTERN: &str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
 
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
@@ -21,12 +21,41 @@ struct TokenizerArtifact {
     vocab: HashMap<String, u32>,
     merges: Vec<MergeSpec>,
     special_tokens: SpecialTokens,
+    pre_tokenizer_pattern: String,
+    added_tokens: Vec<AddedTokenSpec>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
 struct SpecialTokens {
     eos_id: u32,
+}
+
+// Serde reads unchecked metadata. The loader rejects unsupported matching rules.
+#[invariant(true)]
+#[derive(Debug, Deserialize)]
+struct AddedTokenSpec {
+    id: u32,
+    content: String,
+    single_word: bool,
+    lstrip: bool,
+    rstrip: bool,
+    normalized: bool,
+    special: bool,
+}
+
+/// A literal token that matches before NFC, including tokens not marked special.
+#[invariant(!content.is_empty())]
+#[derive(Debug)]
+struct AddedToken {
+    id: u32,
+    content: String,
+}
+
+#[invariant(true)]
+struct AddedTokenMatch<'a> {
+    token: &'a AddedToken,
+    byte_start: usize,
 }
 
 #[invariant(::Text(_) => true)]
@@ -49,6 +78,7 @@ pub struct QwenByteBpeTokenizer {
     merge_ranks: HashMap<(String, String), usize>,
     cache: RefCell<HashMap<String, Vec<u32>>>,
     pattern: Regex,
+    added_tokens: Vec<AddedToken>,
 }
 
 impl QwenByteBpeTokenizer {
@@ -69,6 +99,35 @@ impl QwenByteBpeTokenizer {
         if artifact.vocab.is_empty() {
             return Err("F2LLM tokenizer vocabulary must not be empty".to_owned());
         }
+        if artifact.pre_tokenizer_pattern != TOKEN_PATTERN {
+            return Err(
+                "F2LLM tokenizer pre_tokenizer_pattern must match the pinned pattern".to_owned(),
+            );
+        }
+        let mut added_tokens = Vec::with_capacity(artifact.added_tokens.len());
+        let mut added_ids = HashSet::new();
+        let mut added_contents = HashSet::new();
+        for spec in artifact.added_tokens {
+            if spec.content.is_empty() {
+                return Err("F2LLM added token content must not be empty".to_owned());
+            }
+            // The pinned table uses literal matching before normalization, with no stripping.
+            if spec.single_word || spec.lstrip || spec.rstrip || spec.normalized {
+                return Err(format!(
+                    "unsupported F2LLM added token matching rules: {:?}",
+                    spec.content
+                ));
+            }
+            if !added_ids.insert(spec.id) || !added_contents.insert(spec.content.clone()) {
+                return Err("F2LLM added token IDs and contents must be unique".to_owned());
+            }
+            // `special` controls decoding. Encoding recognizes both kinds of added token.
+            let _ = spec.special;
+            added_tokens.push(new!(AddedToken {
+                id: spec.id,
+                content: spec.content
+            }));
+        }
         let mut merge_ranks = HashMap::with_capacity(artifact.merges.len());
         for (rank, merge) in artifact.merges.into_iter().enumerate() {
             if let Some((left, right)) = merge_pair(merge) {
@@ -84,6 +143,7 @@ impl QwenByteBpeTokenizer {
             merge_ranks,
             cache: RefCell::new(HashMap::new()),
             pattern: pattern,
+            added_tokens,
         }))
     }
 
@@ -94,18 +154,49 @@ impl QwenByteBpeTokenizer {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|ids| !ids.is_empty()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|ids| ids.last() == Some(&self.eos_id)) || ret.is_err())]
     pub fn encode_untruncated(&self, text: &str) -> Result<Vec<u32>, String> {
-        let normalized = String::from(text).nfc().collect::<String>();
         let mut ids = Vec::new();
+        let mut remaining = text;
+        while let Some(hit) = self.next_added_token(remaining) {
+            self.append_ordinary(&remaining[..hit.byte_start], &mut ids)?;
+            ids.push(hit.token.id);
+            remaining = &remaining[hit.byte_start + hit.token.content.len()..];
+        }
+        self.append_ordinary(remaining, &mut ids)?;
+        ids.push(self.eos_id);
+        Ok(ids)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|hit| hit.byte_start + hit.token.content.len() <= text.len()
+        && text.is_char_boundary(hit.byte_start)
+        && text.is_char_boundary(hit.byte_start + hit.token.content.len())))]
+    fn next_added_token<'a>(&'a self, text: &str) -> Option<AddedTokenMatch<'a>> {
+        self.added_tokens
+            .iter()
+            .filter_map(|token| {
+                text.find(&token.content)
+                    .map(|byte_start| AddedTokenMatch { token, byte_start })
+            })
+            .min_by(|left, right| {
+                left.byte_start
+                    .cmp(&right.byte_start)
+                    .then_with(|| right.token.content.len().cmp(&left.token.content.len()))
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(ids.len() >= old(ids.len()))]
+    fn append_ordinary(&self, text: &str, ids: &mut Vec<u32>) -> Result<(), String> {
+        let normalized = text.nfc().collect::<String>();
         for match_result in self.pattern.find_iter(&normalized) {
             let token_match =
                 match_result.map_err(|error| format!("F2LLM tokenizer regex failed: {error}"))?;
             let byte_level = self.byte_level_encode(token_match.as_str());
             ids.extend(self.bpe(&byte_level)?);
         }
-        ids.push(self.eos_id);
-        Ok(ids)
+        Ok(())
     }
 
     #[requires(max_length > 0)]
@@ -829,7 +920,8 @@ mod tests {
     #[requires(true)]
     #[ensures(ret.eos_id() == 999)]
     fn tiny_tokenizer() -> QwenByteBpeTokenizer {
-        let json = br#"{
+        let mut json: serde_json::Value = serde_json::from_slice(
+            br#"{
   "schema_version": 1,
   "vocab": {
     "h": 1,
@@ -869,7 +961,11 @@ mod tests {
   "special_tokens": {
     "eos_id": 999
   }
-}"#;
-        QwenByteBpeTokenizer::from_compact_json(json).unwrap()
+}"#,
+        )
+        .unwrap();
+        json["pre_tokenizer_pattern"] = serde_json::json!(TOKEN_PATTERN);
+        json["added_tokens"] = serde_json::json!([]);
+        QwenByteBpeTokenizer::from_compact_json(&serde_json::to_vec(&json).unwrap()).unwrap()
     }
 }

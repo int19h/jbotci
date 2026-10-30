@@ -1,0 +1,955 @@
+{
+  "source_model": "codefuse-ai/F2LLM-v2-80M",
+  "source_revision": "f4a16a11c9f5c8c7e22694653de6ce75430f4538",
+  "tokenizer_sha256": "7e295e5bb91a3d35335f92fa4294a6e4e0ab4aa586db853e14312a62135bfddc",
+  "tokenizer": {
+    "schema_version": 1,
+    "tokenizer_type": "qwen2-byte-bpe",
+    "normalizer": "NFC",
+    "pre_tokenizer": "qwen2_regex_bytelevel",
+    "pre_tokenizer_pattern": "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+    "added_tokens": [
+      {
+        "id": 151643,
+        "content": "<|endoftext|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151644,
+        "content": "<|im_start|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151645,
+        "content": "<|im_end|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151646,
+        "content": "<|object_ref_start|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151647,
+        "content": "<|object_ref_end|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151648,
+        "content": "<|box_start|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151649,
+        "content": "<|box_end|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151650,
+        "content": "<|quad_start|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151651,
+        "content": "<|quad_end|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151652,
+        "content": "<|vision_start|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151653,
+        "content": "<|vision_end|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151654,
+        "content": "<|vision_pad|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151655,
+        "content": "<|image_pad|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151656,
+        "content": "<|video_pad|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": true
+      },
+      {
+        "id": 151657,
+        "content": "<tool_call>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151658,
+        "content": "</tool_call>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151659,
+        "content": "<|fim_prefix|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151660,
+        "content": "<|fim_middle|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151661,
+        "content": "<|fim_suffix|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151662,
+        "content": "<|fim_pad|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151663,
+        "content": "<|repo_name|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151664,
+        "content": "<|file_sep|>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151665,
+        "content": "<tool_response>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151666,
+        "content": "</tool_response>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151667,
+        "content": "<think>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      },
+      {
+        "id": 151668,
+        "content": "</think>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false,
+        "special": false
+      }
+    ],
+    "post_processor": "append_eos",
+    "vocab": {
+      "'": 6,
+      "'M": 27603,
+      "'RE": 94153,
+      "'S": 13272,
+      "'T": 17323,
+      "'m": 2776,
+      "<": 27,
+      "<T": 3125,
+      ">": 29,
+      "E": 36,
+      "H": 39,
+      "HE": 1799,
+      "I": 40,
+      "IN": 687,
+      "INK": 11637,
+      "K": 42,
+      "M": 44,
+      "N": 45,
+      "R": 49,
+      "RE": 787,
+      "S": 50,
+      "T": 51,
+      "THE": 17229,
+      "Y": 56,
+      "a": 64,
+      "after": 10694,
+      "am": 309,
+      "ama": 3029,
+      "ar": 277,
+      "b": 65,
+      "before": 14801,
+      "c": 66,
+      "ca": 924,
+      "ci": 5855,
+      "d": 67,
+      "e": 68,
+      "ef": 823,
+      "efore": 4642,
+      "el": 301,
+      "ello": 4791,
+      "er": 261,
+      "f": 69,
+      "fter": 1046,
+      "fÃ©": 58858,
+      "h": 71,
+      "hello": 14990,
+      "i": 72,
+      "k": 74,
+      "l": 75,
+      "ld": 507,
+      "le": 273,
+      "lo": 385,
+      "m": 76,
+      "mi": 8155,
+      "o": 78,
+      "or": 269,
+      "ore": 460,
+      "orld": 1385,
+      "p": 79,
+      "r": 81,
+      "re": 265,
+      "t": 83,
+      "te": 665,
+      "ter": 465,
+      "u": 84,
+      "um": 372,
+      "ump": 1510,
+      "v": 85,
+      "ve": 586,
+      "w": 86,
+      "z": 89,
+      "¥": 98,
+      "©": 102,
+      "½": 121,
+      "Ã": 127,
+      "Ã©": 963,
+      "ä": 160,
+      "ä½": 8519,
+      "ä½ł": 56568,
+      "ä½łå¥½": 108386,
+      "å": 161,
+      "å¥": 27095,
+      "å¥½": 52801,
+      "ð": 172,
+      "ðŁ": 9284,
+      "ĉ": 197,
+      "ĉĠ": 3677,
+      "Ċ": 198,
+      "Ġ": 220,
+      "Ġk": 595,
+      "Ġkl": 20226,
+      "Ġle": 512,
+      "Ġw": 289,
+      "Ġworld": 1879,
+      "Ġz": 1147,
+      "Ġzar": 58824,
+      "ĠðŁ": 11162,
+      "ĠĊ": 715,
+      "ĠĠ": 256,
+      "Į": 234,
+      "į": 235,
+      "Ł": 253,
+      "ł": 254
+    },
+    "merges": [
+      [
+        "Ġ",
+        "Ġ"
+      ],
+      [
+        "e",
+        "r"
+      ],
+      [
+        "r",
+        "e"
+      ],
+      [
+        "o",
+        "r"
+      ],
+      [
+        "l",
+        "e"
+      ],
+      [
+        "a",
+        "r"
+      ],
+      [
+        "Ġ",
+        "w"
+      ],
+      [
+        "e",
+        "l"
+      ],
+      [
+        "a",
+        "m"
+      ],
+      [
+        "u",
+        "m"
+      ],
+      [
+        "l",
+        "o"
+      ],
+      [
+        "o",
+        "re"
+      ],
+      [
+        "t",
+        "er"
+      ],
+      [
+        "l",
+        "d"
+      ],
+      [
+        "Ġ",
+        "le"
+      ],
+      [
+        "v",
+        "e"
+      ],
+      [
+        "Ġ",
+        "k"
+      ],
+      [
+        "t",
+        "e"
+      ],
+      [
+        "I",
+        "N"
+      ],
+      [
+        "Ġ",
+        "Ċ"
+      ],
+      [
+        "R",
+        "E"
+      ],
+      [
+        "e",
+        "f"
+      ],
+      [
+        "c",
+        "a"
+      ],
+      [
+        "Ã",
+        "©"
+      ],
+      [
+        "f",
+        "ter"
+      ],
+      [
+        "Ġ",
+        "z"
+      ],
+      [
+        "or",
+        "ld"
+      ],
+      [
+        "um",
+        "p"
+      ],
+      [
+        "H",
+        "E"
+      ],
+      [
+        "Ġw",
+        "orld"
+      ],
+      [
+        "'",
+        "m"
+      ],
+      [
+        "am",
+        "a"
+      ],
+      [
+        "<",
+        "T"
+      ],
+      [
+        "ĉ",
+        "Ġ"
+      ],
+      [
+        "ef",
+        "ore"
+      ],
+      [
+        "el",
+        "lo"
+      ],
+      [
+        "c",
+        "i"
+      ],
+      [
+        "m",
+        "i"
+      ],
+      [
+        "ä",
+        "½"
+      ],
+      [
+        "ð",
+        "Ł"
+      ],
+      [
+        "a",
+        "fter"
+      ],
+      [
+        "Ġ",
+        "ðŁ"
+      ],
+      [
+        "IN",
+        "K"
+      ],
+      [
+        "'",
+        "S"
+      ],
+      [
+        "b",
+        "efore"
+      ],
+      [
+        "h",
+        "ello"
+      ],
+      [
+        "T",
+        "HE"
+      ],
+      [
+        "'",
+        "T"
+      ],
+      [
+        "Ġk",
+        "l"
+      ],
+      [
+        "å",
+        "¥"
+      ],
+      [
+        "'",
+        "M"
+      ],
+      [
+        "å¥",
+        "½"
+      ],
+      [
+        "ä½",
+        "ł"
+      ],
+      [
+        "Ġz",
+        "ar"
+      ],
+      [
+        "f",
+        "Ã©"
+      ],
+      [
+        "'",
+        "RE"
+      ],
+      [
+        "ä½ł",
+        "å¥½"
+      ]
+    ],
+    "special_tokens": {
+      "eos_token": "<|im_end|>",
+      "eos_id": 151645
+    }
+  },
+  "cases": [
+    {
+      "text": "",
+      "token_ids": [
+        151645
+      ]
+    },
+    {
+      "text": "'Steve",
+      "token_ids": [
+        13272,
+        665,
+        586,
+        151645
+      ]
+    },
+    {
+      "text": "'Trump",
+      "token_ids": [
+        17323,
+        81,
+        1510,
+        151645
+      ]
+    },
+    {
+      "text": "THEY'RE",
+      "token_ids": [
+        17229,
+        56,
+        94153,
+        151645
+      ]
+    },
+    {
+      "text": "I'M",
+      "token_ids": [
+        40,
+        27603,
+        151645
+      ]
+    },
+    {
+      "text": "I'm",
+      "token_ids": [
+        40,
+        2776,
+        151645
+      ]
+    },
+    {
+      "text": "hello world",
+      "token_ids": [
+        14990,
+        1879,
+        151645
+      ]
+    },
+    {
+      "text": "mi klama le zarci",
+      "token_ids": [
+        8155,
+        20226,
+        3029,
+        512,
+        58824,
+        5855,
+        151645
+      ]
+    },
+    {
+      "text": "café",
+      "token_ids": [
+        924,
+        58858,
+        151645
+      ]
+    },
+    {
+      "text": "café",
+      "token_ids": [
+        924,
+        58858,
+        151645
+      ]
+    },
+    {
+      "text": "你好 🌍",
+      "token_ids": [
+        108386,
+        11162,
+        234,
+        235,
+        151645
+      ]
+    },
+    {
+      "text": " \n\t ",
+      "token_ids": [
+        715,
+        3677,
+        151645
+      ]
+    },
+    {
+      "text": "<THINK>",
+      "token_ids": [
+        3125,
+        39,
+        11637,
+        29,
+        151645
+      ]
+    },
+    {
+      "text": "before<think>after<|im_end|>",
+      "token_ids": [
+        14801,
+        151667,
+        10694,
+        151645,
+        151645
+      ]
+    },
+    {
+      "text": "<think></think><|im_end|><|im_end|>",
+      "token_ids": [
+        151667,
+        151668,
+        151645,
+        151645,
+        151645
+      ]
+    },
+    {
+      "text": "é<think>é",
+      "token_ids": [
+        963,
+        151667,
+        963,
+        151645
+      ]
+    },
+    {
+      "text": " <think>  ",
+      "token_ids": [
+        220,
+        151667,
+        256,
+        151645
+      ]
+    },
+    {
+      "text": "<|endoftext|>",
+      "token_ids": [
+        151643,
+        151645
+      ]
+    },
+    {
+      "text": "<|im_start|>",
+      "token_ids": [
+        151644,
+        151645
+      ]
+    },
+    {
+      "text": "<|im_end|>",
+      "token_ids": [
+        151645,
+        151645
+      ]
+    },
+    {
+      "text": "<|object_ref_start|>",
+      "token_ids": [
+        151646,
+        151645
+      ]
+    },
+    {
+      "text": "<|object_ref_end|>",
+      "token_ids": [
+        151647,
+        151645
+      ]
+    },
+    {
+      "text": "<|box_start|>",
+      "token_ids": [
+        151648,
+        151645
+      ]
+    },
+    {
+      "text": "<|box_end|>",
+      "token_ids": [
+        151649,
+        151645
+      ]
+    },
+    {
+      "text": "<|quad_start|>",
+      "token_ids": [
+        151650,
+        151645
+      ]
+    },
+    {
+      "text": "<|quad_end|>",
+      "token_ids": [
+        151651,
+        151645
+      ]
+    },
+    {
+      "text": "<|vision_start|>",
+      "token_ids": [
+        151652,
+        151645
+      ]
+    },
+    {
+      "text": "<|vision_end|>",
+      "token_ids": [
+        151653,
+        151645
+      ]
+    },
+    {
+      "text": "<|vision_pad|>",
+      "token_ids": [
+        151654,
+        151645
+      ]
+    },
+    {
+      "text": "<|image_pad|>",
+      "token_ids": [
+        151655,
+        151645
+      ]
+    },
+    {
+      "text": "<|video_pad|>",
+      "token_ids": [
+        151656,
+        151645
+      ]
+    },
+    {
+      "text": "<tool_call>",
+      "token_ids": [
+        151657,
+        151645
+      ]
+    },
+    {
+      "text": "</tool_call>",
+      "token_ids": [
+        151658,
+        151645
+      ]
+    },
+    {
+      "text": "<|fim_prefix|>",
+      "token_ids": [
+        151659,
+        151645
+      ]
+    },
+    {
+      "text": "<|fim_middle|>",
+      "token_ids": [
+        151660,
+        151645
+      ]
+    },
+    {
+      "text": "<|fim_suffix|>",
+      "token_ids": [
+        151661,
+        151645
+      ]
+    },
+    {
+      "text": "<|fim_pad|>",
+      "token_ids": [
+        151662,
+        151645
+      ]
+    },
+    {
+      "text": "<|repo_name|>",
+      "token_ids": [
+        151663,
+        151645
+      ]
+    },
+    {
+      "text": "<|file_sep|>",
+      "token_ids": [
+        151664,
+        151645
+      ]
+    },
+    {
+      "text": "<tool_response>",
+      "token_ids": [
+        151665,
+        151645
+      ]
+    },
+    {
+      "text": "</tool_response>",
+      "token_ids": [
+        151666,
+        151645
+      ]
+    },
+    {
+      "text": "<think>",
+      "token_ids": [
+        151667,
+        151645
+      ]
+    },
+    {
+      "text": "</think>",
+      "token_ids": [
+        151668,
+        151645
+      ]
+    },
+    {
+      "text": "<|endoftext|><|im_start|><|im_end|><|object_ref_start|><|object_ref_end|><|box_start|><|box_end|><|quad_start|><|quad_end|><|vision_start|><|vision_end|><|vision_pad|><|image_pad|><|video_pad|><tool_call></tool_call><|fim_prefix|><|fim_middle|><|fim_suffix|><|fim_pad|><|repo_name|><|file_sep|><tool_response></tool_response><think></think>",
+      "token_ids": [
+        151643,
+        151644,
+        151645,
+        151646,
+        151647,
+        151648,
+        151649,
+        151650,
+        151651,
+        151652,
+        151653,
+        151654,
+        151655,
+        151656,
+        151657,
+        151658,
+        151659,
+        151660,
+        151661,
+        151662,
+        151663,
+        151664,
+        151665,
+        151666,
+        151667,
+        151668,
+        151645
+      ]
+    }
+  ]
+}

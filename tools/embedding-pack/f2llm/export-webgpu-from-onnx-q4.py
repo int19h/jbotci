@@ -170,6 +170,8 @@ def write_tokenizer(model_root: Path, out_root: Path) -> dict[str, object]:
         "tokenizer_type": "qwen2-byte-bpe",
         "normalizer": "NFC",
         "pre_tokenizer": "qwen2_regex_bytelevel",
+        "pre_tokenizer_pattern": tokenizer["pre_tokenizer"]["pretokenizers"][0]["pattern"]["Regex"],
+        "added_tokens": tokenizer["added_tokens"],
         "post_processor": "append_eos",
         "vocab": tokenizer["model"]["vocab"],
         "merges": tokenizer["model"]["merges"],
