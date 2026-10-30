@@ -22,15 +22,16 @@ modelCatalog = { defaultDesktopModelKey: manifest.model_key, models: {
         vectorElementType: manifest.element_type, outputPooling: manifest.pooling,
         maxSequenceLength: manifest.max_sequence_length }
 } };
+const identity = { modelRevision: "revision", modelSha256: manifest.q4_onnx_sha256,
+  tokenizerSha256: "b".repeat(64), artifactManifestSha256: "c".repeat(64) };
+manifest.model_revision = identity.modelRevision;
+modelRuntime = { modelIdentity: identity };
 const corpus = { inputHash: manifest.input_hash, inputFormatVersion: manifest.input_format_version };
 assert.equal(manifestCompatibilityIssue(manifest, corpus, manifest.compatible_query_runtimes[0]), null);
 assert.equal(manifestCompatibilityIssue({ ...manifest, dimensions: 1 }, corpus,
     manifest.compatible_query_runtimes[0]).field, "dimensions");
 const releaseRuntime = { ...manifest.compatible_query_runtimes[0], version: releaseVersion };
 assert.equal(manifestCompatibilityIssue(manifest, corpus, releaseRuntime).field, "compatible_query_runtimes");
-const identity = { modelRevision: "revision", modelSha256: "a".repeat(64),
-  tokenizerSha256: "b".repeat(64), artifactManifestSha256: "c".repeat(64) };
-modelRuntime = { modelIdentity: identity };
 modelCatalog.models[manifest.model_key].localVectorSpaceKey = releaseSpace;
 const oldPack = { source: "browser", modelKey: manifest.model_key, modelIdentity: identity,
   compatibleQueryRuntimes: manifest.compatible_query_runtimes, inputHash: corpus.inputHash,
