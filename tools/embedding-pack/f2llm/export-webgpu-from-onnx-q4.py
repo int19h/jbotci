@@ -131,6 +131,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_manifest(config: dict[str, object], args: argparse.Namespace, onnx_model_path: Path) -> dict[str, object]:
+    digest = hashlib.sha256()
+    with onnx_model_path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    model_sha256 = digest.hexdigest()
     return {
         "schema_version": SCHEMA_VERSION,
         "runtime": RUNTIME,
@@ -139,6 +144,7 @@ def build_manifest(config: dict[str, object], args: argparse.Namespace, onnx_mod
         "source_model": args.source_model,
         "source_revision": args.source_revision,
         "source_quantized_onnx": str(onnx_model_path),
+        "q4_onnx_sha256": model_sha256,
         "max_sequence_length": args.max_sequence_length,
         "quantization": {
             "kind": "onnx_hqq_q4_block32",

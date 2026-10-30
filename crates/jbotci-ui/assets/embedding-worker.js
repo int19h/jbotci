@@ -672,6 +672,8 @@ async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJso
   }
   await ensureModel(forceWasm);
   const runtime = activeQueryRuntime();
+  const modelIssue = modelIdentityCompatibilityIssue(pack.modelIdentity, modelRuntime.modelIdentity);
+  if (modelIssue !== null) return searchPackCompatibilityError(modelIssue);
   if (!packCompatibleWithRuntime(pack, runtime)) {
     return {
       hits: [],
@@ -679,9 +681,10 @@ async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJso
     };
   }
   const queryEmbedding = await embedTexts([queryInput]);
+  requireVector(queryEmbedding[0], activeModelSpec().dimensions, "query");
   if (isCustomWebGpuRuntime(runtime)) {
     const loadedRuntime = await ensureModel(forceWasm);
-    const scores = await loadedRuntime.scoreF16Vectors(corpus, queryEmbedding[0], getBinary);
+    const scores = await loadedRuntime.scoreF16Vectors(corpus, queryEmbedding[0], validatedVectorStore(corpus));
     return rankSearchResults((count, allowed) => rankHitsFromScores(scores, corpus.items, count, kindFilters, allowed), limit, eligibility);
   }
   const vectors = await readCorpusVectors(corpus);
@@ -720,6 +723,7 @@ async function loadCustomRuntime(spec, forceWasm = false) {
     indeterminateProgress("model", `${spec.label} ${runtime.dtype}/${runtime.device}`),
   );
   const appModule = await f2llmRuntimeModule();
+  const source = modelArtifactSource(spec, cachedFetchArrayBufferForSpec(spec));
   const loaded = await appModule.jbotciF2LlmWebGpuRuntimeLoad({
     baseUrl: runtime.artifactBaseUrl,
     expectedModelKey: spec.modelKey,
@@ -727,7 +731,7 @@ async function loadCustomRuntime(spec, forceWasm = false) {
     expectedVersion: runtime.version,
     maxSequenceLength: spec.maxSequenceLength,
     dimensions: spec.dimensions,
-  }, cachedFetchArrayBufferForSpec(spec), async (progress) => {
+  }, source.fetchArrayBuffer, async (progress) => {
       await updateStatus(
         progress.status || "downloading-model",
         progress.detail || `Downloading ${spec.label} WebGPU artifact.`,
@@ -736,6 +740,7 @@ async function loadCustomRuntime(spec, forceWasm = false) {
   });
   modelRuntime = {
     modelKey: spec.modelKey,
+    modelIdentity: source.identity(),
     runtime: runtime.runtime,
     version: runtime.version,
     dtype: runtime.dtype,
@@ -759,8 +764,8 @@ async function loadOnnxWasmRuntime(spec) {
     f2llmRuntimeModule(),
     ortModule(),
   ]);
-  const tokenizer = await loadF2LlmTokenizer(spec, appModule);
-  const onnxBytes = await cachedFetchArrayBufferForSpec(spec)(runtime.onnxUrl, `${spec.label} ONNX q4 model`);
+  const { tokenizer, modelIdentity } = await loadF2LlmTokenizer(spec, appModule);
+  const onnxBytes = await loadOnnxModelBytes(spec, modelIdentity);
   const session = await ort.InferenceSession.create(new Uint8Array(onnxBytes), {
     executionProviders: ["wasm"],
     graphOptimizationLevel: "all",
@@ -774,6 +779,7 @@ async function loadOnnxWasmRuntime(spec) {
   });
   modelRuntime = {
     modelKey: spec.modelKey,
+    modelIdentity,
     runtime: runtime.runtime,
     version: runtime.version,
     dtype: runtime.dtype,
@@ -857,7 +863,7 @@ class F2LlmOnnxWasmRuntime {
     const outputs = await this.session.run(feeds);
     const outputName = selectOnnxOutputName(outputs);
     const vector = pooledOnnxVector(outputs[outputName], tokenIds.length, this.dimensions);
-    normalize(vector);
+    normalize(vector, this.dimensions);
     return vector;
   }
 
@@ -905,24 +911,110 @@ function meanPoolNormalized(vectors, dimensions) {
     throw new Error("F2LLM produced no token windows");
   }
   if (vectors.length === 1) {
+    requireVector(vectors[0], dimensions, "F2LLM window");
     return vectors[0];
   }
   const output = new Float32Array(dimensions);
   for (const vector of vectors) {
-    if (vector.length !== dimensions) {
-      throw new Error(`F2LLM window vector dimension mismatch: expected ${dimensions}, got ${vector.length}`);
-    }
+    requireVector(vector, dimensions, "F2LLM window");
     for (let dim = 0; dim < dimensions; dim += 1) {
       output[dim] += vector[dim] / vectors.length;
     }
   }
-  normalize(output);
+  normalize(output, dimensions);
   return output;
+}
+
+function requireSha256(value, label) {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`${label} must be a lowercase SHA-256 digest`);
+  return value;
+}
+
+async function readModelArtifactIdentity(bytes, spec) {
+  const manifest = parseJsonBytes(bytes, "WebGPU model manifest");
+  for (const [field, actual, expected] of [
+    ["schema_version", manifest.schema_version, 1],
+    ["runtime", manifest.runtime, spec.customRuntime.runtime],
+    ["model_key", manifest.model_key, spec.modelKey],
+    ["artifact_version", manifest.artifact_version, spec.customRuntime.version],
+    ["max_sequence_length", manifest.max_sequence_length, spec.maxSequenceLength],
+    ["hidden_size", manifest.model?.hidden_size, spec.dimensions],
+  ]) {
+    if (actual !== expected) throw new Error(`model manifest ${field} mismatch`);
+  }
+  if (typeof manifest.source_revision !== "string" || manifest.source_revision.length === 0) {
+    throw new Error("model manifest source_revision is required");
+  }
+  return { manifest, modelIdentity: Object.freeze({
+    modelRevision: manifest.source_revision,
+    modelSha256: requireSha256(manifest.q4_onnx_sha256, "model digest"),
+    tokenizerSha256: requireSha256(manifest.tokenizer?.canonical_json_sha256, "tokenizer digest"),
+    artifactManifestSha256: await sha256Hex(bytes),
+  }) };
+}
+
+// Capture the same manifest bytes that the Rust loader reads, without a second fetch.
+function modelArtifactSource(spec, fetchBinary) {
+  let identity = null;
+  return {
+    fetchArrayBuffer: async (url, label) => {
+      const bytes = await fetchBinary(url, label);
+      if (isModelManifestUrl(url)) identity = (await readModelArtifactIdentity(bytes, spec)).modelIdentity;
+      return bytes;
+    },
+    identity: () => {
+      if (identity === null) throw new Error("the model loader did not read its identity manifest");
+      return identity;
+    },
+  };
+}
+
+async function loadOnnxModelBytes(spec, identity, fetchManifest = fetchArrayBufferFresh, fetchModel = cachedFetchArrayBuffer) {
+  const runtime = spec.wasmRuntime;
+  const modelUrl = new URL(runtime.onnxUrl, globalThis.location.href).href;
+  const manifestUrl = new URL("manifest.json", modelUrl).href;
+  const manifest = parseJsonBytes(await fetchManifest(manifestUrl, "ONNX manifest"), "ONNX manifest");
+  for (const [field, actual, expected] of [
+    ["schema_version", manifest.schema_version, 1],
+    ["model_key", manifest.model_key, spec.modelKey],
+    ["runtime", manifest.runtime, runtime.runtime],
+    ["artifact_version", manifest.artifact_version, runtime.version],
+    ["dimensions", manifest.dimensions, spec.dimensions],
+    ["max_sequence_length", manifest.max_sequence_length, spec.maxSequenceLength],
+    ["model_sha256", manifest.model_sha256, identity.modelSha256],
+  ]) {
+    if (actual !== expected) throw new Error(`ONNX manifest ${field} mismatch`);
+  }
+  if (typeof manifest.model_url !== "string" || new URL(manifest.model_url, manifestUrl).href !== modelUrl) {
+    throw new Error("ONNX manifest model_url mismatch");
+  }
+  const bytes = await fetchModel(spec, modelUrl, `${spec.label} ONNX model`, requireSha256(manifest.model_sha256, "ONNX digest"));
+  if (bytes.byteLength !== manifest.model_byte_length) throw new Error("ONNX model byte length mismatch");
+  return bytes;
+}
+
+function modelIdentityCompatibilityIssue(actual, expected = null) {
+  for (const field of ["modelRevision", "modelSha256", "tokenizerSha256", "artifactManifestSha256"]) {
+    const required = field === "modelRevision" || field === "modelSha256";
+    const value = actual?.[field];
+    if (!required && value == null) continue;
+    const valid = field === "modelRevision" ? typeof value === "string" && value.length > 0
+      : typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+    if (!valid || (expected !== null && value !== expected[field])) {
+      return { field, expected: expected?.[field] || "valid model identity", actual: value ?? null };
+    }
+  }
+  return null;
+}
+
+function manifestModelIdentity(manifest) {
+  return { modelRevision: manifest.model_revision, modelSha256: manifest.q4_onnx_sha256 };
 }
 
 async function loadF2LlmTokenizer(spec, appModule) {
   const fetchModel = cachedFetchArrayBufferForSpec(spec);
-  const manifest = await fetchJsonWith(fetchModel, `${spec.customRuntime.artifactBaseUrl}/manifest.json`, `${spec.label} WebGPU manifest`);
+  const manifestBytes = await fetchModel(`${spec.customRuntime.artifactBaseUrl}/manifest.json`, `${spec.label} WebGPU manifest`);
+  const { manifest, modelIdentity } = await readModelArtifactIdentity(manifestBytes, spec);
   const tokenizerSpec = manifest.tokenizer;
   const bytes = await fetchModel(
     `${spec.customRuntime.artifactBaseUrl}/${tokenizerSpec.url}`,
@@ -937,7 +1029,7 @@ async function loadF2LlmTokenizer(spec, appModule) {
   if (tokenizer.schema_version !== 1) {
     throw new Error(`unsupported F2LLM tokenizer schema version: ${tokenizer.schema_version}`);
   }
-  return appModule.jbotciF2LlmTokenizerLoad(bytes);
+  return { tokenizer: appModule.jbotciF2LlmTokenizerLoad(bytes), modelIdentity };
 }
 
 function selectOnnxOutputName(outputs) {
@@ -1135,13 +1227,9 @@ async function embedTexts(texts, progressContext = null) {
   for (let start = 0; start < texts.length; start += spec.embedBatchSize) {
     const batch = texts.slice(start, start + spec.embedBatchSize);
     const rows = await loaded.embedTexts(batch);
+    if (rows.length !== batch.length) throw new Error("runtime returned the wrong embedding row count");
     for (const vector of rows) {
-      if (vector.length !== spec.dimensions) {
-        throw new Error(
-          `${spec.label} embedding dimension mismatch: expected ${spec.dimensions}, got ${vector.length}`,
-        );
-      }
-      normalize(vector);
+      normalize(vector, spec.dimensions);
       output.push(vector);
     }
     if (progressContext !== null) {
@@ -1166,6 +1254,7 @@ async function buildLocalPack(corpus) {
   const vectorSpaceKey = spec.localVectorSpaceKey || `jbotci-browser-f2llm-${runtime.dtype}-${elementType}`;
   const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
   const buildContext = {
+    modelIdentity: modelRuntime.modelIdentity,
     packId,
     inputHash: corpus.inputHash,
     inputFormatVersion: corpus.inputFormatVersion,
@@ -1214,6 +1303,7 @@ async function buildLocalPack(corpus) {
     source: "browser",
     packId,
     modelKey: spec.modelKey,
+    modelIdentity: modelRuntime.modelIdentity,
     inputHash: corpus.inputHash,
     inputFormatVersion: corpus.inputFormatVersion,
     vectorSpaceKey,
@@ -1263,6 +1353,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusabl
     const rowCount = Math.min(chunkRows, docs.length - rowStart);
     const reusableShard = reusablePartialShards.get(rowStart);
     if (reusableShard && reusableShard.rowCount === rowCount) {
+      await readVectorShard({ dimensions: spec.dimensions, elementType }, reusableShard);
       shards.push(reusableShard);
       reused += rowCount;
       await updateStatus(
@@ -1373,12 +1464,7 @@ async function embedLocalRows(docs, rows, vectors, elementType, progressContext)
     }
     for (let index = 0; index < batchVectors.length; index += 1) {
       const vector = batchVectors[index];
-      if (vector.length !== spec.dimensions) {
-        throw new Error(
-          `${spec.label} embedding dimension mismatch: expected ${spec.dimensions}, got ${vector.length}`,
-        );
-      }
-      normalize(vector);
+      normalize(vector, spec.dimensions);
       writeLocalVector(vectors, rows[start + index], vector, spec.dimensions, elementType);
     }
     const done = progressContext.completedRows + Math.min(start + batchDocs.length, docs.length);
@@ -1450,7 +1536,8 @@ function partialLocalBuildCompatible(build, context) {
   if (!build || build.source !== "browser-partial") {
     return false;
   }
-  return build.modelKey === activeModelSpec().modelKey
+  return modelIdentityCompatibilityIssue(build.modelIdentity, context.modelIdentity) === null
+    && build.modelKey === activeModelSpec().modelKey
     && build.packId === context.packId
     && build.inputHash === context.inputHash
     && build.inputFormatVersion === context.inputFormatVersion
@@ -1527,6 +1614,7 @@ async function putLocalBuildCheckpoint(context, corpus) {
   };
   await putModelMeta("localBuild", {
     source: "browser-partial",
+    modelIdentity: context.modelIdentity,
     packId: context.packId,
     modelKey: activeModelSpec().modelKey,
     inputHash: context.inputHash,
@@ -1703,6 +1791,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     source: "remote",
     packId: manifest.pack_id,
     modelKey: spec.modelKey,
+    modelIdentity: manifestModelIdentity(manifest),
     inputHash: manifest.input_hash,
     inputFormatVersion: manifest.input_format_version,
     vectorSpaceKey: manifest.vector_space_key,
@@ -1783,8 +1872,10 @@ function manifestSummary(manifest) {
   };
 }
 
-function manifestCompatibilityIssue(manifest, corpus, runtime) {
-  const spec = activeModelSpec();
+function manifestCompatibilityIssue(manifest, corpus, runtime, identity = modelRuntime?.modelIdentity, spec = activeModelSpec()) {
+  if (!identity) return { field: "modelIdentity", expected: "loaded query model", actual: null };
+  const modelIssue = modelIdentityCompatibilityIssue(manifestModelIdentity(manifest), identity);
+  if (modelIssue !== null) return modelIssue;
   const expectedElementType = spec.vectorElementType || "f32le";
   for (const [field, actual, expected] of [
     ["schema_version", manifest.schema_version, 1],
@@ -1810,7 +1901,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime) {
     }
   }
   if (!(manifest.compatible_query_runtimes || []).some((candidate) =>
-    runtimeMatches(candidate, runtime)
+    runtimeMatches(candidate, runtime, spec)
   )) {
     return {
       field: "compatible_query_runtimes",
@@ -1877,14 +1968,14 @@ function summarizeCompatibilityValue(value) {
   return value;
 }
 
-function runtimeMatches(candidate, runtime) {
+function runtimeMatches(candidate, runtime, spec = activeModelSpec()) {
   return typeof candidate?.runtime === "string"
     && candidate.runtime === runtime?.runtime
     && candidate?.dtype === runtime?.dtype
     && (!candidate.device || candidate.device === runtime?.device)
     && (!candidate.version || candidate.version === runtime?.version)
-    && candidate?.pooling === activeOutputPooling()
-    && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
+    && candidate?.pooling === spec.outputPooling
+    && candidate?.max_window_tokens === spec.maxSequenceLength;
 }
 
 function f2llmRuntimeDescriptor(runtime) {
@@ -1933,6 +2024,8 @@ function packCompatibilityIssue(pack, corpusIdentity) {
   if (corpusIssue !== null) {
     return corpusIssue;
   }
+  const identityIssue = modelIdentityCompatibilityIssue(pack.modelIdentity, modelRuntime?.modelIdentity);
+  if (identityIssue !== null) return identityIssue;
   const spec = activeModelSpec();
   for (const [field, actual, expected] of [
     ["modelKey", pack.modelKey, spec.modelKey],
@@ -2059,7 +2152,8 @@ function modelBytesForRuntime(runtime) {
 }
 
 function packCompatibleWithRuntime(pack, runtime) {
-  if (!pack || pack.modelKey !== activeModelSpec().modelKey) {
+  if (!pack || pack.modelKey !== activeModelSpec().modelKey
+      || modelIdentityCompatibilityIssue(pack.modelIdentity, modelRuntime?.modelIdentity) !== null) {
     return false;
   }
   const runtimes = pack.compatibleQueryRuntimes || (pack.runtime ? [pack.runtime] : []);
@@ -2138,7 +2232,8 @@ function cachedFetchArrayBufferForSpec(spec) {
   return (url, label = "model artifact") => cachedFetchArrayBuffer(spec, url, label);
 }
 
-async function cachedFetchArrayBuffer(spec, url, label) {
+async function cachedFetchArrayBuffer(spec, url, label, expectedSha256 = null) {
+  if (expectedSha256 !== null) requireSha256(expectedSha256, "model digest");
   const normalizedUrl = new URL(url, globalThis.location.href).href;
   logInfo("fetching cached model artifact", {
     modelKey: spec.modelKey,
@@ -2149,7 +2244,9 @@ async function cachedFetchArrayBuffer(spec, url, label) {
     return fetchArrayBufferFresh(normalizedUrl, label);
   }
   if (typeof caches === "undefined") {
-    return fetchArrayBuffer(normalizedUrl, label);
+    const bytes = await fetchArrayBufferFresh(normalizedUrl, label);
+    if (expectedSha256 !== null) await verifySha256(bytes, expectedSha256, label);
+    return bytes;
   }
   const cache = await caches.open(MODEL_CACHE_NAME);
   const request = new Request(normalizedUrl, { method: "GET" });
@@ -2161,20 +2258,24 @@ async function cachedFetchArrayBuffer(spec, url, label) {
       url: normalizedUrl,
       contentLength: cached.headers.get("content-length"),
     });
-    return cached.arrayBuffer();
+    const bytes = await cached.arrayBuffer();
+    if (expectedSha256 === null || await sha256Hex(bytes) === expectedSha256) return bytes;
+    await cache.delete(request);
   }
-  const response = await fetch(normalizedUrl);
+  const response = await fetch(new Request(normalizedUrl, { cache: "reload" }));
   if (!response.ok) {
     throw new Error(`failed to fetch ${label} from ${normalizedUrl}: ${response.status}`);
   }
-  await cache.put(request, response.clone());
+  const bytes = await response.arrayBuffer();
+  if (expectedSha256 !== null) await verifySha256(bytes, expectedSha256, label);
+  await cache.put(request, new Response(bytes, { headers: response.headers }));
   logInfo("stored model artifact in cache", {
     modelKey: spec.modelKey,
     label,
     url: normalizedUrl,
     contentLength: response.headers.get("content-length"),
   });
-  return response.arrayBuffer();
+  return bytes;
 }
 
 function isModelManifestUrl(url) {
@@ -2338,7 +2439,7 @@ function looksLikeHtmlResponse(response, text) {
   return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html");
 }
 
-async function readCorpusVectors(corpus) {
+async function readCorpusVectors(corpus, readBinary = getBinary) {
   const cacheKey = corpusVectorCacheKey(corpus);
   const cached = vectorCache.get(cacheKey);
   if (cached) {
@@ -2347,7 +2448,7 @@ async function readCorpusVectors(corpus) {
   const buffers = [];
   let totalBytes = 0;
   for (const shard of corpus.shards || []) {
-    const buffer = await getBinary(shard.key);
+    const buffer = await readVectorShard(corpus, shard, readBinary);
     buffers.push(buffer);
     totalBytes += buffer.byteLength;
   }
@@ -2366,6 +2467,7 @@ async function readCorpusVectors(corpus) {
   if (vectors === null) {
     throw new Error(`unsupported CPU vector element type: ${elementType}`);
   }
+  if (vectors.length !== corpus.rowCount * corpus.dimensions) throw new Error("stored vector row count is incorrect");
   vectorCache.set(cacheKey, vectors);
   return vectors;
 }
@@ -2408,34 +2510,32 @@ function f16ToF32(bits) {
   return sign * 2 ** (exponent - 15) * (1 + fraction / 1024);
 }
 
+const F32_BITS = new DataView(new ArrayBuffer(4));
+
+function roundShiftToEven(value, shift) {
+  const divisor = 2 ** shift;
+  const quotient = Math.floor(value / divisor);
+  const remainder = value % divisor;
+  return quotient + Number(remainder > divisor / 2 || (remainder === divisor / 2 && quotient % 2 === 1));
+}
+
 function f32ToF16Bits(value) {
-  if (Number.isNaN(value)) {
-    return 0x7e00;
+  F32_BITS.setFloat32(0, value, true);
+  const bits = F32_BITS.getUint32(0, true);
+  const sign = (bits >>> 16) & 0x8000;
+  const exponent = (bits >>> 23) & 0xff;
+  const fraction = bits & 0x7fffff;
+  if (exponent === 0xff) {
+    return sign | 0x7c00 | (fraction === 0 ? 0 : 0x0200);
   }
-  const sign = value < 0 || Object.is(value, -0) ? 0x8000 : 0;
-  const abs = Math.abs(value);
-  if (abs === 0) {
-    return sign;
+  const unbiased = exponent - 127;
+  if (unbiased > 15) return sign | 0x7c00;
+  if (unbiased < -25) return sign;
+  if (unbiased < -14) {
+    return sign | roundShiftToEven(0x800000 | fraction, -unbiased - 1);
   }
-  if (abs === Infinity) {
-    return sign | 0x7c00;
-  }
-  if (abs >= 65504) {
-    return sign | 0x7bff;
-  }
-  if (abs < 2 ** -24) {
-    return sign;
-  }
-  if (abs < 2 ** -14) {
-    return sign | Math.round(abs / (2 ** -24));
-  }
-  let exponent = Math.floor(Math.log2(abs));
-  let fraction = Math.round((abs / (2 ** exponent) - 1) * 1024);
-  if (fraction === 1024) {
-    exponent += 1;
-    fraction = 0;
-  }
-  return sign | ((exponent + 15) << 10) | (fraction & 0x03ff);
+  // Addition carries a rounded significand into the exponent, including infinity.
+  return sign | (((unbiased + 15) << 10) + roundShiftToEven(fraction, 13));
 }
 
 // Rust computes both sets with the shared dictionary eligibility predicate.
@@ -2468,7 +2568,11 @@ function rankSearchResults(rank, count, eligibility) {
 }
 
 function rankHits(vectors, query, items, dimensions, limit, kindFilters, eligibleIds = null) {
-  const rowCount = Math.min(items.length, Math.floor(vectors.length / dimensions));
+  requireVector(query, dimensions, "query");
+  if (vectors.length !== items.length * dimensions) {
+    throw new Error("stored vector dimensions do not match the item count");
+  }
+  const rowCount = items.length;
   const limitCount = Math.trunc(Number(limit) || 0);
   if (limitCount <= 0) {
     return rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters, eligibleIds);
@@ -2483,6 +2587,7 @@ function rankHits(vectors, query, items, dimensions, limit, kindFilters, eligibl
     for (let dim = 0; dim < dimensions; dim += 1) {
       score += vectors[base + dim] * query[dim];
     }
+    requireFiniteScore(score);
     const candidate = { id: items[row].id, score };
     if (hits.length < limitCount) {
       hits.push(candidate);
@@ -2498,7 +2603,9 @@ function rankHits(vectors, query, items, dimensions, limit, kindFilters, eligibl
 }
 
 function rankHitsFromScores(scores, items, limit, kindFilters, eligibleIds = null) {
-  const rowCount = Math.min(items.length, scores.length);
+  if (scores.length !== items.length) throw new Error("score count does not match the item count");
+  for (const score of scores) requireFiniteScore(score);
+  const rowCount = items.length;
   const limitCount = Math.trunc(Number(limit) || 0);
   if (limitCount <= 0) {
     return rankAllHitsFromScores(scores, items, rowCount, kindFilters, eligibleIds);
@@ -2533,6 +2640,7 @@ function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters, e
     for (let dim = 0; dim < dimensions; dim += 1) {
       score += vectors[base + dim] * query[dim];
     }
+    requireFiniteScore(score);
     hits.push({ id: items[row].id, score });
   }
   hits.sort(compareHits);
@@ -2637,18 +2745,57 @@ function parseStringArray(json) {
   return value.filter((item) => typeof item === "string");
 }
 
-function normalize(vector) {
-  let sum = 0;
+function requireFiniteScore(score) {
+  if (!Number.isFinite(score)) throw new Error("embedding score must be finite");
+}
+
+function requireVector(vector, dimensions, label = "embedding") {
+  if (!Number.isSafeInteger(dimensions) || dimensions <= 0 || vector?.length !== dimensions) {
+    throw new Error(`${label} dimension mismatch: expected ${dimensions}, got ${vector?.length}`);
+  }
+  let norm = 0;
   for (const value of vector) {
-    sum += value * value;
+    if (!Number.isFinite(value)) throw new Error(`${label} contains a non-finite component`);
+    norm = Math.hypot(norm, value);
   }
-  const magnitude = Math.sqrt(sum);
-  if (magnitude === 0) {
-    return;
+  if (!Number.isFinite(norm) || norm <= 0) throw new Error(`${label} norm must be finite and positive`);
+  return norm;
+}
+
+function normalize(vector, dimensions) {
+  const norm = requireVector(vector, dimensions);
+  for (let index = 0; index < vector.length; index += 1) vector[index] /= norm;
+}
+
+function validateVectorBytes(buffer, dimensions, elementType) {
+  const elementSize = bytesPerVectorElement(elementType);
+  if (!Number.isSafeInteger(dimensions) || dimensions <= 0 || buffer.byteLength % (dimensions * elementSize) !== 0) {
+    throw new Error("stored vector bytes do not contain complete rows");
   }
-  for (let index = 0; index < vector.length; index += 1) {
-    vector[index] /= magnitude;
+  const view = new DataView(buffer);
+  const vector = new Float32Array(dimensions);
+  for (let offset = 0; offset < buffer.byteLength; offset += dimensions * elementSize) {
+    for (let dim = 0; dim < dimensions; dim += 1) {
+      const position = offset + dim * elementSize;
+      vector[dim] = elementType === "f16le" ? f16ToF32(view.getUint16(position, true)) : view.getFloat32(position, true);
+    }
+    requireVector(vector, dimensions, "stored vector");
   }
+}
+
+async function readVectorShard(corpus, shard, readBinary = getBinary) {
+  const buffer = await readBinary(shard.key);
+  if (buffer.byteLength !== shard.byteLen) throw new Error("stored vector shard has the wrong size");
+  validateVectorBytes(buffer, corpus.dimensions, corpus.elementType || "f32le");
+  return buffer;
+}
+
+function validatedVectorStore(corpus, readBinary = getBinary) {
+  return async (key) => {
+    const shard = corpus.shards.find((item) => item.key === key);
+    if (!shard) throw new Error("unknown vector shard");
+    return readVectorShard(corpus, shard, readBinary);
+  };
 }
 
 async function requestPersistentStorage() {
@@ -2917,6 +3064,22 @@ async function removeOpfsDirectory(root, path) {
 }
 
 export {
+  cachedFetchArrayBuffer,
+  loadOnnxModelBytes,
+  readModelArtifactIdentity,
+  modelArtifactSource,
+  modelIdentityCompatibilityIssue,
+  manifestCompatibilityIssue,
+  f32ToF16Bits,
+  f16ToF32,
+  requireVector,
+  normalize,
+  meanPoolNormalized,
+  pooledOnnxVector,
+  F2LlmOnnxWasmRuntime,
+  validateVectorBytes,
+  readCorpusVectors,
+  validatedVectorStore,
   parseEntryEligibility,
   rankHits,
   rankHitsFromScores,
