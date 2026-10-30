@@ -1797,7 +1797,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/lib.rs:OutputError::References",
-        "error wrapper carries reference analysis diagnostics",
+        "wraps the typed reference analysis error unchanged",
     ),
     (
         "crates/jbotci-output/src/recovered.rs:RecoveredMorphologySequenceItem::Valid",
@@ -2050,6 +2050,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
         "composition kind is a closed display tag; surface/source fields carry data validity",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:NextPlace::Numbered",
+        "wraps NonZeroU8, which excludes zero by construction",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceAnalysisError::NumberedPlaceExhausted",
+        "carries the opaque frame ID where the numbered cursor is exhausted",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::NaKu",

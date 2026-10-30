@@ -162,7 +162,7 @@ pub enum OutputError {
     #[error("failed to render IPA: {0}")]
     Ipa(String),
     #[error("failed to analyze semantic references: {0}")]
-    References(String),
+    References(#[from] jbotci_semantics::ReferenceAnalysisError),
     #[error("failed to render recovered parse: {0}")]
     Recovery(String),
 }

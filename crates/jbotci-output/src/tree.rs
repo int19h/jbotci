@@ -197,10 +197,7 @@ pub fn pretty_generated_model_tree_with_limit(
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
     let reference_analysis = if options.show_refs {
-        Some(
-            GeneratedReferenceAnalysis::analyze(tree)
-                .map_err(|error| OutputError::References(error.to_string()))?,
-        )
+        Some(GeneratedReferenceAnalysis::analyze(tree).map_err(OutputError::References)?)
     } else {
         None
     };
@@ -244,8 +241,8 @@ pub fn generated_reference_display<'tree>(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
-    let reference_analysis = GeneratedReferenceAnalysis::analyze(generated_tree)
-        .map_err(|error| OutputError::References(error.to_string()))?;
+    let reference_analysis =
+        GeneratedReferenceAnalysis::analyze(generated_tree).map_err(OutputError::References)?;
     let generated_value = projected_generated_syntax_tree_value_with_index(
         generated_tree,
         source,
