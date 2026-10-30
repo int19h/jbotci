@@ -1931,6 +1931,93 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn ebnf_subsection_links_resolve_to_the_pages_that_define_the_rules() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let text = &site.sections_by_id["ebnf-text"];
+        let html = render_section(site, text, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        assert!(
+            html.contains("section/ebnf-statements#ebnf-rule-statement"),
+            "{html}"
+        );
+        assert!(html.contains("#ebnf-rule-text-1"), "{html}");
+        let all_html = ebnf_sections(site)
+            .map(|section| {
+                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+            })
+            .collect::<String>();
+        for section in ebnf_sections(site) {
+            for block in &section.blocks {
+                if let CllBlock::Ebnf { entries, .. } = block {
+                    for entry in entries {
+                        for token in &entry.rhs {
+                            if let CllEbnfToken::Nonterminal { body, href } = token {
+                                if ["any-word", "anything", "null"].contains(&body.as_str()) {
+                                    continue;
+                                }
+                                let href = href
+                                    .as_ref()
+                                    .expect("every grammar nonterminal has a target");
+                                let (page, anchor) = href.split_once('#').expect("rule fragment");
+                                let target = if page.is_empty() {
+                                    section
+                                } else {
+                                    &site.sections_by_id
+                                        [page.strip_prefix("section/").expect("section route")]
+                                };
+                                let rendered = render_section(
+                                    site,
+                                    target,
+                                    CllRenderFormat::Html,
+                                    CllLinkRenderMode::Web,
+                                );
+                                assert!(
+                                    rendered.contains(&format!("id=\"{anchor}\"")),
+                                    "{body}: {href}"
+                                );
+                                assert!(all_html.contains(&format!("id=\"{anchor}\"")));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn structured_rule_authority_survives_import_and_search_projection() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let chunks = cll_search_all_chunks(site);
+        let notes = chunks
+            .iter()
+            .filter_map(|chunk| match chunk.role.as_ref()?.as_data() {
+                data!(CllParagraphRole::StatusNoteWithCondition { condition }) => Some(condition),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.status == CllRuleStatus::Editorial)
+        );
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.status == CllRuleStatus::Historical)
+        );
+        let adopted = notes
+            .iter()
+            .find(|note| note.status == CllRuleStatus::BpfkApproved)
+            .expect("committee decision");
+        assert_eq!(adopted.governing_body(), Some(CllStatusBody::Bpfk));
+        let date = adopted.date.as_ref().expect("decision date");
+        assert_eq!((date.year, date.month, date.day), (2016, Some(3), Some(15)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn import_metadata_drives_special_cll_ids() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let metadata = cll_import_metadata();

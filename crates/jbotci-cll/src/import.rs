@@ -129,7 +129,8 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
             .map_err(|error| CllError::Parse(format!("{source_path}: {error}")))?;
         let root = document.root_element();
         for node in root.descendants().filter(|node| node.has_tag_name("para")) {
-            if attr_value(node, "role").is_some_and(|role| role.eq_ignore_ascii_case("status-note"))
+            if attr_value(node, "role")
+                .is_some_and(|role| role.trim().eq_ignore_ascii_case("status-note"))
             {
                 if let Some(condition) = attr_value(node, "condition") {
                     CllStatusCondition::parse(condition)

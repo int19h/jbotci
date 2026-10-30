@@ -621,6 +621,7 @@ fn cll_site_example_references_are_consistent(
 /// CLL v1.3.6 adds structured conditions to some notes. Bare notes keep their
 /// generic designation. Conditioned notes preserve the stated authority and date.
 #[invariant(true)]
+#[invariant(::StatusNoteWithCondition => true, "the condition type enforces its own constraints")]
 #[invariant(
     ::Presentation { name } => name.trim() == name.as_str()
         && !name.is_empty()
