@@ -2247,7 +2247,9 @@ async function cachedFetchArrayBuffer(spec, url, label, expectedSha256 = null) {
     url: normalizedUrl,
   });
   if (isModelManifestUrl(normalizedUrl)) {
-    return fetchArrayBufferFresh(normalizedUrl, label);
+    const bytes = await fetchArrayBufferFresh(normalizedUrl, label);
+    if (expectedSha256 !== null) await verifySha256(bytes, expectedSha256, label);
+    return bytes;
   }
   if (typeof caches === "undefined") {
     const bytes = await fetchArrayBufferFresh(normalizedUrl, label);

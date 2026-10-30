@@ -145,3 +145,9 @@ test("a new model artifact cannot overwrite the previous local pack's shards", a
   assert.equal(firstId, localVectorPackId("space", "same-corpus", first));
   assert.throws(() => localVectorPackId("space", "same-corpus", {}), /artifact identity/);
 });
+
+test("a supplied digest is enforced even for a manifest-shaped URL", async (t) => {
+  installCache(t, null);
+  const url = new URL("manifest.json", spec.wasmRuntime.onnxUrl).href;
+  await assert.rejects(cachedFetchArrayBuffer(spec, url, "manifest", identity.modelSha256), /SHA-256 mismatch/);
+});
