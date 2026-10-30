@@ -1340,7 +1340,15 @@ fn private_note(
     let (shown, _) = markdown::truncate_units_in_scope(&escaped, room, &scope);
     let content = scope.format(format_args!("{summary}\n{shown}\n{attached}"));
     let detail = scope.copy(reason).into_bytes();
-    Ok((scope.finish(content)?, Some(detail)))
+    let content = scope.finish(content)?;
+    if content
+        .len()
+        .checked_add(detail.len())
+        .is_none_or(|bytes| bytes > limit.get())
+    {
+        return Err(jbotci_output::budget::OutputLimitError { limit });
+    }
+    Ok((content, Some(detail)))
 }
 
 /// What is left of one absolute deadline. Called from inside the admitted
