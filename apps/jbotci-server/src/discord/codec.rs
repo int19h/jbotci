@@ -1383,3 +1383,47 @@ mod tests {
         assert_round_trip(&published);
     }
 }
+
+#[cfg(test)]
+/// Encode the source fields as the input block.
+///
+/// Layout (every line ends the previous one with `\n`; the block has no
+/// trailing newline):
+///
+/// ```text
+/// <primary value lines, escaped>          only when the primary field is non-empty
+/// -# <secondary label>                    only for non-empty secondary fields
+/// <secondary value lines, escaped>
+/// -# <status>                             terminator; `status` starts with the tool name
+/// ```
+///
+/// Because `-` is always escaped inside values, a value line can never start
+/// with the header prefix, so the block parses unambiguously for any input,
+/// including empty lines, a final newline and header look-alike text. Which
+/// fields are present (as opposed to non-empty) is carried by the header's
+/// presence mask, not by the block.
+#[requires(fields.len() == tool.fields().len())]
+#[requires(fields.iter().zip(tool.fields()).all(|((field, _), expected)| field == expected))]
+#[requires(status.starts_with(tool.name()) && !status.contains('\n') && !status.contains('\r'))]
+#[ensures(ret.ends_with(status) && !ret.ends_with('\n'))]
+pub(crate) fn encode_input_block(
+    tool: DiscordTool,
+    fields: &[(SourceField, Option<&str>)],
+    status: &str,
+) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    encode_input_block_in_scope(tool, fields, status, &scope)
+}
+
+#[cfg(test)]
+/// Escape one line of a source value for a Text Display. This is the
+/// workspace's Discord text escape, so a value renders exactly as typed, can
+/// never look like a header line, and decodes back to itself.
+#[requires(!line.contains('\n'))]
+#[ensures(!ret.starts_with(HEADER_PREFIX) && !ret.starts_with('-'))]
+#[ensures(unescape_value_line(&ret).as_deref() == Ok(line))]
+pub(crate) fn escape_value_line(line: &str) -> String {
+    escape_discord_markdown_line(line)
+}

@@ -4881,3 +4881,13 @@ mod tests {
         std::fs::remove_dir_all(public_dir).unwrap();
     }
 }
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn router_with_page_meta_builder(
+    config: ServerConfig,
+    page_meta_builder: PageMetaBuilder,
+) -> Router {
+    router_with_builder_and_policy(config, page_meta_builder, ServerPolicy::default())
+}

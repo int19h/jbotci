@@ -227,3 +227,73 @@ mod tests {
         assert_eq!(percent(0.4567), "46%");
     }
 }
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn inline_code(text: &str) -> String {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = inline_code_in_scope(text, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn code_block(text: &str) -> String {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = code_block_in_scope(text, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn split_paragraphs(markdown: &str) -> Vec<String> {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = split_paragraphs_in_scope(markdown, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn truncate_units(text: &str, max_units: usize) -> (String, bool) {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = truncate_units_in_scope(text, max_units, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn percent(similarity: f32) -> String {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = percent_in_scope(similarity, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
