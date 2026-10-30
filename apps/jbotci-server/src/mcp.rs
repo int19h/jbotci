@@ -1034,7 +1034,7 @@ async fn admitted_tool_json_response(
         }
     );
     if refusal {
-        return refusal_json_response(id, result, context).await;
+        return coded_error_json_response(id, result, context).await;
     }
     let policy = context.execution.policy.clone();
     let error_id = id.clone();
@@ -1046,38 +1046,34 @@ async fn admitted_tool_json_response(
         Err(error) => {
             let mut refusal = ToolResult::work_error(error);
             refusal.context = Some(context.clone());
-            if matches!(
-                &refusal.payload,
-                ToolPayload::Error {
-                    code: Some(ServerErrorCode::Busy | ServerErrorCode::Deadline),
-                    ..
-                }
-            ) {
-                refusal_json_response(error_id, refusal, context).await
-            } else {
-                crate::execution::work_error_response(crate::work::WorkError::Panicked {
-                    lane: crate::work::WorkLane::Compute,
-                })
-            }
+            coded_error_json_response(error_id, refusal, context).await
         }
     }
 }
 
-/// Encode only the canonical refusal. This never runs a tool or accepts its output.
-#[requires(matches!(&result.payload, ToolPayload::Error {
-    code: Some(ServerErrorCode::Busy | ServerErrorCode::Deadline), ..
-}))]
+/// Encode only a canonical error. This never runs a tool or accepts its output.
+#[requires(matches!(&result.payload, ToolPayload::Error { code: Some(_), .. }))]
 #[ensures(true)]
-async fn refusal_json_response(
+async fn coded_error_json_response(
     id: Value,
     result: ToolResult,
     context: crate::execution::AdmittedWorkContext,
 ) -> Response<Body> {
     let policy = context.execution.policy.clone();
-    let deadline = context
-        .deadline
-        .checked_add(policy.error_delivery)
-        .unwrap_or(context.deadline);
+    let deadline = if matches!(
+        &result.payload,
+        ToolPayload::Error {
+            code: Some(ServerErrorCode::Busy | ServerErrorCode::Deadline),
+            ..
+        }
+    ) {
+        context
+            .deadline
+            .checked_add(policy.error_delivery)
+            .unwrap_or(context.deadline)
+    } else {
+        context.deadline
+    };
     match crate::work::run_admitted(context.lease.clone(), deadline, move || {
         tool_json_response(id, result, &policy)
     })
