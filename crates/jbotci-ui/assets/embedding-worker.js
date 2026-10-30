@@ -2230,10 +2230,6 @@ async function fetchJsonIfAvailable(url, label = "JSON") {
   }
 }
 
-async function fetchJsonWith(fetchArrayBuffer, url, label = "JSON") {
-  return parseJsonBytes(await fetchArrayBuffer(url, label), label);
-}
-
 function cachedFetchArrayBufferForSpec(spec) {
   return (url, label = "model artifact") => cachedFetchArrayBuffer(spec, url, label);
 }
