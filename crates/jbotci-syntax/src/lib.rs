@@ -4204,27 +4204,24 @@ mod tests {
         recovered_syntax_probe(source)
     }
 
-    // The next three inputs each fail at an error whose first-phase recovery
-    // candidates are all tried and rejected. Recovery must then consult the
-    // final candidates, exactly as it does when the first phase offers none,
-    // instead of degrading the whole text: each keeps the valid prefix as
-    // structure and skips only the construct that could not be completed.
-    // Each input degrades to one invalid item when the fallback is disabled (#927).
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
-        let probe = recovered_syntax_probe_at_strict_error("mi broda .e pu cu brode", 12);
+    fn recovered_syntax_preserves_bridi_before_failed_sentence_trailer() {
+        let probe = recovered_syntax_probe_at_strict_error("mi broda .e pu cu brode", 15);
 
-        assert_eq!(probe.error_byte_starts, [12]);
-        assert_eq!(probe.valid_tokens, ["mi", "bróda", "e"]);
+        assert_eq!(probe.error_byte_starts, [15]);
+        assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
         assert_eq!(
             probe.recovery_spans,
-            [(12, 14), (15, 17), (18, 23), (12, 12), (12, 12)]
+            [(10, 11), (12, 14), (15, 17), (18, 23)]
         );
-        assert_eq!(probe.missing_count, 2);
+        assert_eq!(probe.missing_count, 0);
     }
+
+    // The forethought and later-error tests below need the final recovery
+    // candidates after the first phase fails. Each keeps a valid prefix.
+    // Without the fallback, each input degrades to one invalid item (#927).
 
     #[test]
     #[requires(true)]
