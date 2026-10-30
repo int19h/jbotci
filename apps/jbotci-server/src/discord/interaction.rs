@@ -2408,7 +2408,10 @@ mod tests {
             api_base: discord.base_url.clone(),
             public_base_url: "https://jbotci.app".to_owned(),
         });
-        let tools = ToolServices::with_execution(crate::execution::ServerExecution::new(policy));
+        let tools = ToolServices::with_worker_and_execution(
+            crate::execution::ServerExecution::new(policy),
+            || |_job| panic!("Discord delivery tests do not dispatch embedding jobs"),
+        );
         Arc::new(DiscordService::new(config, tools))
     }
     #[requires(true)]
@@ -2558,8 +2561,10 @@ mod tests {
     async fn stalled_patch_reports_only_a_coded_error_inside_the_original_window() {
         let discord = FakeDiscord::start().await;
         let policy = crate::ServerPolicy::default().with_data(data! {
-            deadline: Duration::from_millis(100), error_delivery: Duration::from_millis(100),
+            deadline: Duration::from_secs(1),
         });
+        let operation_time = policy.deadline;
+        let delivery_time = policy.error_delivery;
         let service = service_with_policy(&discord, policy);
         discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
         discord.plan_writes(&[Reply::Stall]);
@@ -2567,10 +2572,10 @@ mod tests {
             .state
             .stall_followup
             .store(true, std::sync::atomic::Ordering::Release);
-        let original = Instant::now() + Duration::from_millis(100);
-        let window_end = original + Duration::from_millis(100);
+        let original = Instant::now() + operation_time;
+        let window_end = original + delivery_time;
         tokio::time::timeout(
-            Duration::from_millis(500),
+            operation_time + delivery_time + Duration::from_secs(1),
             service.write_and_confirm(
                 &failure_target(),
                 &text_only_payload("normal result").unwrap(),
