@@ -2975,6 +2975,55 @@ mod tests {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mcp_indentation_abuse_is_rejected_in_constrained_process() {
+        const CHILD_FLAG: &str = "JBOTCI_INDENTATION_PROBE_CHILD";
+        if std::env::var_os(CHILD_FLAG).is_none() {
+            // A removed bound must fail this child instead of exhausting the test host.
+            let output = std::process::Command::new("prlimit")
+                .args(["--as=2147483648", "--cpu=20", "--"])
+                .arg(std::env::current_exe().expect("test executable"))
+                .args([
+                    "--exact",
+                    "tests::mcp_indentation_abuse_is_rejected_in_constrained_process",
+                    "--nocapture",
+                ])
+                .env(CHILD_FLAG, "1")
+                .output()
+                .expect("start constrained local probe");
+            assert!(
+                output.status.success(),
+                "status={}\n{}\n{}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
+            let app = router(test_config(test_static_dir()));
+            for name in ["gentufa", "vlasei"] {
+                for format in ["tree", "json"] {
+                    for indent in [9usize, 1_073_741_824, usize::MAX] {
+                        let response = post_json(app.clone(), "/mcp", serde_json::json!({
+                            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                            "params": {"name": name, "arguments": {"text": "mi klama", "format": format, "indent": indent}}
+                        })).await;
+                        assert_eq!(response.status(), StatusCode::OK);
+                        let body = response_json(response).await;
+                        assert_eq!(body["result"]["isError"], true, "{name} {format}: {body}");
+                        let error = body["result"]["content"][0]["text"].as_str().unwrap();
+                        assert!(error.contains("Invalid tool arguments"), "{error}");
+                        assert!(error.contains("between 0 and 8"), "{error}");
+                    }
+                }
+            }
+        });
+    }
+
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]

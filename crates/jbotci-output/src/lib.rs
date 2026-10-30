@@ -4,6 +4,7 @@
 
 mod brackets;
 mod diagnostics;
+mod indentation;
 mod json;
 mod markdown;
 mod places;
@@ -21,6 +22,7 @@ use bityzba::{invariant, requires};
 pub use diagnostics::{
     DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
 };
+pub use indentation::{Indentation, InvalidIndentation};
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
@@ -248,7 +250,7 @@ pub struct BracketRenderOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct JsonRenderOptions {
-    pub indent: usize,
+    pub indent: Indentation,
     pub phonemes: PhonemeRenderOptions,
     pub show_elided: bool,
     pub color: bool,
@@ -256,13 +258,13 @@ pub struct JsonRenderOptions {
 
 impl Default for JsonRenderOptions {
     #[requires(true)]
-    #[ensures(ret.indent == 2)]
+    #[ensures(ret.indent == Indentation::default())]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
     #[ensures(!ret.show_elided)]
     #[ensures(!ret.color)]
     fn default() -> Self {
         Self {
-            indent: 2,
+            indent: crate::Indentation::default(),
             phonemes: PhonemeRenderOptions::default(),
             show_elided: false,
             color: false,
@@ -274,7 +276,7 @@ impl Default for JsonRenderOptions {
 #[invariant(true)]
 pub struct TreeRenderOptions {
     pub color: bool,
-    pub indent: usize,
+    pub indent: Indentation,
     pub phonemes: PhonemeRenderOptions,
     pub glyphs: GlyphStyle,
     pub show_spans: bool,
@@ -286,7 +288,7 @@ pub struct TreeRenderOptions {
 impl Default for TreeRenderOptions {
     #[requires(true)]
     #[ensures(!ret.color)]
-    #[ensures(ret.indent == 2)]
+    #[ensures(ret.indent == Indentation::default())]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
     #[ensures(ret.glyphs == GlyphStyle::default())]
     #[ensures(!ret.show_spans)]
@@ -296,7 +298,7 @@ impl Default for TreeRenderOptions {
     fn default() -> Self {
         Self {
             color: false,
-            indent: 2,
+            indent: crate::Indentation::default(),
             phonemes: PhonemeRenderOptions::default(),
             glyphs: GlyphStyle::default(),
             show_spans: false,
@@ -560,7 +562,7 @@ fn format_standard_json_array(
             json_punctuation("]", options)
         );
     }
-    if options.indent == 0 {
+    if options.indent.spaces() == 0 {
         let separator = json_punctuation(",", options);
         let items = items
             .iter()
@@ -574,7 +576,7 @@ fn format_standard_json_array(
         );
     }
 
-    let item_indent = indent + options.indent;
+    let item_indent = indent + options.indent.spaces();
     let pad = " ".repeat(item_indent);
     let end = " ".repeat(indent);
     let mut output = format!("{}\n", json_punctuation("[", options));
@@ -606,7 +608,7 @@ fn format_standard_json_object(
         );
     }
     let constructor_object = is_constructor_object(object);
-    if options.indent == 0 {
+    if options.indent.spaces() == 0 {
         let separator = json_punctuation(",", options);
         let fields = object
             .iter()
@@ -627,7 +629,7 @@ fn format_standard_json_object(
         );
     }
 
-    let field_indent = indent + options.indent;
+    let field_indent = indent + options.indent.spaces();
     let pad = " ".repeat(field_indent);
     let end = " ".repeat(indent);
     let mut output = format!("{}\n", json_punctuation("{", options));
@@ -653,8 +655,8 @@ fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRender
     if items.is_empty() {
         return "[]".to_owned();
     }
-    if options.indent == 0 || items.iter().all(is_compact_json_scalar) {
-        let separator = if options.indent == 0 {
+    if options.indent.spaces() == 0 || items.iter().all(is_compact_json_scalar) {
+        let separator = if options.indent.spaces() == 0 {
             json_punctuation(",", options)
         } else {
             format!("{} ", json_punctuation(",", options))
@@ -671,7 +673,7 @@ fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRender
         );
     }
 
-    let item_indent = indent + options.indent;
+    let item_indent = indent + options.indent.spaces();
     let pad = " ".repeat(item_indent);
     let end = " ".repeat(indent);
     let mut output = format!("{}\n", json_punctuation("[", options));
@@ -702,7 +704,7 @@ fn format_compact_json_object(
             json_punctuation("}", options)
         );
     }
-    if options.indent == 0 {
+    if options.indent.spaces() == 0 {
         let fields = object
             .iter()
             .map(|(key, value)| {
@@ -722,7 +724,7 @@ fn format_compact_json_object(
         );
     }
 
-    let field_indent = indent + options.indent;
+    let field_indent = indent + options.indent.spaces();
     let pad = " ".repeat(field_indent);
     let end = " ".repeat(indent);
     let mut output = format!("{}\n", json_punctuation("{", options));
@@ -756,7 +758,7 @@ fn format_compact_json_constructor(
     let (constructor, payload) = object.iter().next().expect("constructor object has item");
     let constructor = json_key(constructor, true, options);
     match payload {
-        Value::Object(fields) if fields.is_empty() && options.indent == 0 => {
+        Value::Object(fields) if fields.is_empty() && options.indent.spaces() == 0 => {
             format!(
                 "{}{constructor}{}{}{}{}",
                 json_punctuation("{", options),
@@ -774,7 +776,7 @@ fn format_compact_json_constructor(
             json_punctuation("}", options),
             json_punctuation("}", options)
         ),
-        Value::Object(fields) if options.indent == 0 => {
+        Value::Object(fields) if options.indent.spaces() == 0 => {
             let fields = fields
                 .iter()
                 .map(|(key, value)| {
@@ -798,7 +800,7 @@ fn format_compact_json_constructor(
             )
         }
         Value::Object(fields) => {
-            let field_indent = constructor_indent + options.indent;
+            let field_indent = constructor_indent + options.indent.spaces();
             let pad = " ".repeat(field_indent);
             let end = " ".repeat(constructor_indent);
             let mut output = format!(
@@ -827,7 +829,7 @@ fn format_compact_json_constructor(
             output.push_str(&json_punctuation("}", options));
             output
         }
-        other if options.indent == 0 => format!(
+        other if options.indent.spaces() == 0 => format!(
             "{}{constructor}{}{}{}",
             json_punctuation("{", options),
             json_punctuation(":", options),
@@ -838,7 +840,7 @@ fn format_compact_json_constructor(
             "{}{constructor}{} {}{}",
             json_punctuation("{", options),
             json_punctuation(":", options),
-            format_compact_json_value(other, constructor_indent + options.indent, options),
+            format_compact_json_value(other, constructor_indent + options.indent.spaces(), options),
             json_punctuation("}", options)
         ),
     }
@@ -1755,7 +1757,7 @@ mod tests {
     #[ensures(true)]
     fn json_formatter_colorizes_typed_roles() {
         let options = JsonRenderOptions {
-            indent: 0,
+            indent: crate::Indentation::compact(),
             color: true,
             ..JsonRenderOptions::default()
         };
@@ -1798,7 +1800,7 @@ mod tests {
             render_json_value_with_options(
                 &value,
                 JsonRenderOptions {
-                    indent: 0,
+                    indent: crate::Indentation::compact(),
                     ..JsonRenderOptions::default()
                 },
             ),
@@ -1808,7 +1810,7 @@ mod tests {
             render_json_value_with_options(
                 &value,
                 JsonRenderOptions {
-                    indent: 2,
+                    indent: crate::Indentation::default(),
                     ..JsonRenderOptions::default()
                 },
             ),

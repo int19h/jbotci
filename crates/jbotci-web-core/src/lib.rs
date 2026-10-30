@@ -918,7 +918,7 @@ fn gentufa_blocks_projection_options(
 fn gentufa_blocks_reference_options(options: &GentufaBlockOptions) -> TreeRenderOptions {
     TreeRenderOptions {
         color: false,
-        indent: 2,
+        indent: jbotci_output::Indentation::default(),
         phonemes: options.phonemes,
         glyphs: GlyphStyle::Unicode,
         show_spans: false,
@@ -1518,7 +1518,7 @@ pub(crate) fn dialect_definition(
 fn tree_render_options(phonemes: PhonemeRenderOptions, show_elided: bool) -> TreeRenderOptions {
     TreeRenderOptions {
         color: false,
-        indent: 2,
+        indent: jbotci_output::Indentation::default(),
         phonemes,
         glyphs: GlyphStyle::Unicode,
         show_spans: false,

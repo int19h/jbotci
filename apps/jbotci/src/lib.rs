@@ -3,6 +3,8 @@
 // the same kind of deep auto-trait traversal as generating that model itself.
 #![recursion_limit = "2048"]
 
+use jbotci_output::Indentation;
+
 mod benchmark;
 mod cli;
 mod commands;
@@ -631,8 +633,12 @@ pub struct VlaseiInput {
     pub trace: Option<Option<String>>,
     #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
-    #[arg(long = "indent")]
-    pub indent: Option<usize>,
+    #[arg(
+        long = "indent",
+        allow_hyphen_values = true,
+        help = "Spaces per indentation level (0 through 8)"
+    )]
+    pub indent: Option<Indentation>,
     #[arg(long = "mark-stress", value_enum)]
     pub mark_stress: Option<CliStressMark>,
     #[arg(long = "mark-glides", value_enum)]
@@ -679,8 +685,12 @@ pub struct VlataiInput {
         value_enum
     )]
     pub format: VlataiFormat,
-    #[arg(long = "indent")]
-    pub indent: Option<usize>,
+    #[arg(
+        long = "indent",
+        allow_hyphen_values = true,
+        help = "Spaces per indentation level (0 through 8)"
+    )]
+    pub indent: Option<Indentation>,
     #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
     #[arg(long = "mark-stress", value_enum)]
@@ -714,8 +724,12 @@ pub struct TextInput {
     pub trace: Option<Option<String>>,
     #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
     pub dialect: Option<String>,
-    #[arg(long = "indent")]
-    pub indent: Option<usize>,
+    #[arg(
+        long = "indent",
+        allow_hyphen_values = true,
+        help = "Spaces per indentation level (0 through 8)"
+    )]
+    pub indent: Option<Indentation>,
     #[arg()]
     pub text: Vec<String>,
 }
@@ -778,8 +792,12 @@ pub struct GentufaInput {
     pub dialect: Option<String>,
     #[arg(long = "show-defs")]
     pub show_defs: bool,
-    #[arg(long = "indent")]
-    pub indent: Option<usize>,
+    #[arg(
+        long = "indent",
+        allow_hyphen_values = true,
+        help = "Spaces per indentation level (0 through 8)"
+    )]
+    pub indent: Option<Indentation>,
     #[arg(long = "mark-stress", value_enum)]
     pub mark_stress: Option<CliStressMark>,
     #[arg(long = "mark-glides", value_enum)]
@@ -1940,7 +1958,7 @@ fn validate_ascii_phoneme_projection(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_no_indent(indent: Option<usize>, message: &str) -> Result<()> {
+fn validate_no_indent(indent: Option<Indentation>, message: &str) -> Result<()> {
     if indent.is_some() {
         return Err(anyhow!(message.to_owned()));
     }
@@ -1973,9 +1991,9 @@ fn validate_no_phoneme_projection(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_raw_indent(indent: Option<usize>) -> Result<()> {
+fn validate_raw_indent(indent: Option<Indentation>) -> Result<()> {
     if let Some(indent) = indent
-        && indent != 0
+        && indent.spaces() != 0
     {
         return Err(anyhow!(
             "`--indent` for raw output only supports `0`, because Rust Debug formatting only supports pretty or compact output"
@@ -1989,9 +2007,9 @@ fn validate_raw_indent(indent: Option<usize>) -> Result<()> {
 fn write_debug_output<W: Write, T: std::fmt::Debug>(
     stdout: &mut W,
     value: &T,
-    indent: Option<usize>,
+    indent: Option<Indentation>,
 ) -> Result<()> {
-    if indent == Some(0) {
+    if indent == Some(Indentation::compact()) {
         writeln!(stdout, "{value:?}")?;
     } else {
         writeln!(stdout, "{value:#?}")?;
@@ -2001,8 +2019,8 @@ fn write_debug_output<W: Write, T: std::fmt::Debug>(
 
 #[requires(true)]
 #[ensures(ret.ends_with('\n'))]
-fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<usize>) -> String {
-    if indent == Some(0) {
+fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<Indentation>) -> String {
+    if indent == Some(Indentation::compact()) {
         format!("{value:?}\n")
     } else {
         format!("{value:#?}\n")

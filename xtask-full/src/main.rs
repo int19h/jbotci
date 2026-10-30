@@ -10234,7 +10234,7 @@ fn render_vlasei_tree_words_fixture(
         &fixture.test_case.lojban,
         TreeRenderOptions {
             color: false,
-            indent: 2,
+            indent: jbotci_output::Indentation::default(),
             show_spans: true,
             ..TreeRenderOptions::default()
         },
@@ -10255,7 +10255,7 @@ fn render_vlasei_json_words_fixture(words: &[WordLike]) -> std::result::Result<S
     compact_morphology_json_string_with_options(
         words,
         JsonRenderOptions {
-            indent: 0,
+            indent: jbotci_output::Indentation::compact(),
             ..JsonRenderOptions::default()
         },
     )
@@ -10532,7 +10532,7 @@ fn refresh_morphology_success_expectations(
         compact_morphology_json_string_with_options(
             words,
             JsonRenderOptions {
-                indent: 0,
+                indent: jbotci_output::Indentation::compact(),
                 ..JsonRenderOptions::default()
             },
         )?,
@@ -10552,7 +10552,7 @@ fn refresh_morphology_success_expectations(
         &fixture.test_case.lojban,
         TreeRenderOptions {
             color: false,
-            indent: 2,
+            indent: jbotci_output::Indentation::default(),
             show_spans: true,
             ..TreeRenderOptions::default()
         },
@@ -10768,7 +10768,7 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                     compact_generated_model_json_string_with_options(
                         generated_model,
                         JsonRenderOptions {
-                            indent: 0,
+                            indent: jbotci_output::Indentation::compact(),
                             ..JsonRenderOptions::default()
                         },
                     )?,
@@ -10778,7 +10778,7 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                     &fixture.test_case.lojban,
                     TreeRenderOptions {
                         color: false,
-                        indent: 2,
+                        indent: jbotci_output::Indentation::default(),
                         show_spans: true,
                         ..TreeRenderOptions::default()
                     },
@@ -10797,7 +10797,7 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                     &fixture.test_case.lojban,
                     TreeRenderOptions {
                         color: false,
-                        indent: 2,
+                        indent: jbotci_output::Indentation::default(),
                         show_spans: true,
                         ..TreeRenderOptions::default()
                     },
@@ -11000,7 +11000,7 @@ fn pretty_generated_fixture_tree(
         &fixture.test_case.lojban,
         TreeRenderOptions {
             color: false,
-            indent: 2,
+            indent: jbotci_output::Indentation::default(),
             show_spans: true,
             show_elided,
             ..TreeRenderOptions::default()
@@ -11018,7 +11018,7 @@ fn compact_generated_fixture_json(
     compact_generated_model_json_string_with_options(
         generated_model,
         JsonRenderOptions {
-            indent: 0,
+            indent: jbotci_output::Indentation::compact(),
             show_elided,
             ..JsonRenderOptions::default()
         },
@@ -11297,7 +11297,7 @@ fn refresh_fixture_expectations(
                 compact_morphology_json_string_with_options(
                     &morphology_words,
                     JsonRenderOptions {
-                        indent: 0,
+                        indent: jbotci_output::Indentation::compact(),
                         ..JsonRenderOptions::default()
                     },
                 )?,
@@ -11317,7 +11317,7 @@ fn refresh_fixture_expectations(
                 &fixture.test_case.lojban,
                 TreeRenderOptions {
                     color: false,
-                    indent: 2,
+                    indent: jbotci_output::Indentation::default(),
                     show_spans: true,
                     ..TreeRenderOptions::default()
                 },
@@ -11438,7 +11438,7 @@ fn refresh_fixture_expectations(
                         compact_generated_model_json_string_with_options(
                             generated_model,
                             JsonRenderOptions {
-                                indent: 0,
+                                indent: jbotci_output::Indentation::compact(),
                                 ..JsonRenderOptions::default()
                             },
                         )?,
@@ -11449,7 +11449,7 @@ fn refresh_fixture_expectations(
                             &fixture.test_case.lojban,
                             TreeRenderOptions {
                                 color: false,
-                                indent: 2,
+                                indent: jbotci_output::Indentation::default(),
                                 show_spans: true,
                                 ..TreeRenderOptions::default()
                             },
@@ -11468,7 +11468,7 @@ fn refresh_fixture_expectations(
                         &fixture.test_case.lojban,
                         TreeRenderOptions {
                             color: false,
-                            indent: 2,
+                            indent: jbotci_output::Indentation::default(),
                             show_spans: true,
                             ..TreeRenderOptions::default()
                         },
