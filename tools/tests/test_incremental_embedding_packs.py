@@ -97,6 +97,146 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         manifest = next(output.rglob('manifest.json'))
         return output, manifest, embed, stdout.getvalue()
 
+    def contents(self, root):
+        return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+
+    def interrupt(self, name, rows, *flags):
+        original = pack.embed_texts
+        calls = 0
+        def failing(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise RuntimeError('injected backend failure')
+            return original(*args, **kwargs)
+        with mock.patch.object(pack, 'embed_texts', side_effect=failing):
+            with self.assertRaisesRegex(RuntimeError, 'injected backend failure'):
+                self.build(name, rows, '--chunk-rows', '1', *flags)
+        partial = self.root / f'{name}.partial'
+        checkpoint = pack.read_json(partial / 'checkpoint.json')
+        self.assertEqual(len(checkpoint['chunks']), 2)
+        self.assertFalse((self.root / name).exists())
+        return partial
+
+    def test_resume_only_embeds_unfinished_rows_and_matches_full_bytes(self):
+        full, _, _, _ = self.build('full', self.old, '--chunk-rows', '1')
+        partial = self.interrupt('retry', self.old)
+        retry, _, embed, output = self.build('retry', self.old, '--chunk-rows', '1')
+        self.assertEqual([c.args[0] for c in embed.call_args_list],
+                         [['remove'], ['CLL keep'], ['another CLL windowed document']])
+        self.assertIn('resumed 2 chunks (2 rows)', output)
+        self.assertEqual(self.contents(full), self.contents(retry))
+        self.assertFalse(partial.exists())
+
+    def test_backend_failure_leaves_only_completed_chunks(self):
+        rows = {'dictionary': [document(i, str(i)) for i in range(5)], 'cll': []}
+        full, _, _, _ = self.build('full', rows, '--chunk-rows', '1')
+        original = Session.run
+        calls = 0
+        def fail_third(session, *args):
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise RuntimeError('stub backend stopped')
+            return original(session, *args)
+        with mock.patch.object(Session, 'run', fail_third):
+            with self.assertRaisesRegex(RuntimeError, 'stub backend stopped'):
+                self.build('retry', rows, '--chunk-rows', '1')
+        with mock.patch.object(Session, 'run', autospec=True, side_effect=original) as backend:
+            retry, _, _, _ = self.build('retry', rows, '--chunk-rows', '1')
+        self.assertEqual(backend.call_count, 3)
+        self.assertEqual(self.contents(full), self.contents(retry))
+
+    def test_checkpoint_corpus_identity_and_layout_changes_discard_all(self):
+        for change in ('corpus', 'model', 'tokenizer', 'layout', 'fresh'):
+            with self.subTest(change=change):
+                name = 'retry-' + change
+                self.interrupt(name, self.old)
+                rows = self.new if change == 'corpus' else self.old
+                flags = ['--chunk-rows', '2' if change == 'layout' else '1']
+                if change == 'model':
+                    self.model.write_bytes(b'changed-model')
+                if change == 'fresh':
+                    flags += ['--discard-checkpoint']
+                with mock.patch.object(Tokenizer.backend_tokenizer, 'to_str',
+                                       return_value='changed' if change == 'tokenizer' else 'test-tokenizer-v1'):
+                    full, _, _, _ = self.build('full-' + change, rows, *flags)
+                    retry, _, embed, output = self.build(name, rows, *flags)
+                self.assertIn('Discarding checkpoint', output)
+                self.assertEqual(sum(len(c.args[0]) for c in embed.call_args_list), 5)
+                self.assertEqual(self.contents(full), self.contents(retry))
+                self.model.write_bytes(b'test-model')
+
+    def test_bad_chunk_reembeds_only_its_rows(self):
+        full, _, _, _ = self.build('full', self.old, '--chunk-rows', '1')
+        for kind in ('missing', 'corrupt'):
+            with self.subTest(kind=kind):
+                name = 'retry-' + kind
+                partial = self.interrupt(name, self.old)
+                chunk = partial / 'vlacku-en-0.f16'
+                if kind == 'missing':
+                    chunk.unlink()
+                else:
+                    chunk.write_bytes(b'xxxxxx')
+                retry, _, embed, output = self.build(name, self.old, '--chunk-rows', '1')
+                self.assertEqual(sum(len(c.args[0]) for c in embed.call_args_list), 4)
+                self.assertNotIn(['change'], [c.args[0] for c in embed.call_args_list])
+                self.assertIn('Discarding checkpoint chunk vlacku-en-0.f16', output)
+                self.assertEqual(self.contents(full), self.contents(retry))
+
+    def test_resume_with_reuse_matches_uninterrupted_pack(self):
+        _, previous, _, _ = self.build('previous', self.old)
+        flags = ['--reuse-from', str(previous)]
+        full, _, _, _ = self.build('full', self.new, '--chunk-rows', '1', *flags)
+        self.interrupt('retry', self.new, *flags)
+        retry, _, embed, output = self.build('retry', self.new, '--chunk-rows', '1', *flags)
+        self.assertEqual([c.args[0] for c in embed.call_args_list], [['added'], [], []])
+        self.assertIn('cukta-cll: reused 2 rows, embedded 0 rows', output)
+        self.assertIn('resumed 2 chunks (2 rows)', output)
+        self.assertEqual(self.contents(full), self.contents(retry))
+
+    def test_orphan_chunk_after_checkpoint_write_failure_is_recomputed(self):
+        original = pack.atomic_write
+        calls = 0
+        def fail_checkpoint(path, content):
+            nonlocal calls
+            if path.name == 'checkpoint.json':
+                calls += 1
+                if calls == 2:
+                    raise RuntimeError('checkpoint write failed')
+            return original(path, content)
+        with mock.patch.object(pack, 'atomic_write', side_effect=fail_checkpoint):
+            with self.assertRaisesRegex(RuntimeError, 'checkpoint write failed'):
+                self.build('retry', self.old, '--chunk-rows', '1')
+        self.assertTrue((self.root / 'retry.partial/vlacku-en-0.f16').exists())
+        full, _, _, _ = self.build('full', self.old, '--chunk-rows', '1')
+        retry, _, embed, _ = self.build('retry', self.old, '--chunk-rows', '1')
+        self.assertEqual(sum(len(c.args[0]) for c in embed.call_args_list), 5)
+        self.assertEqual(self.contents(full), self.contents(retry))
+
+    def test_completed_aggregate_part_reuses_checkpoint_without_backend_calls(self):
+        full, _, _, _ = self.build('full', self.old)
+        self.build('part', self.old, '--keep-work')
+        self.assertTrue((self.root / 'part.partial').exists())
+        retry, _, embed, output = self.build('part', self.old, '--overwrite')
+        self.assertEqual(embed.call_count, 0)
+        self.assertIn('resumed 1 chunks (3 rows)', output)
+        self.assertEqual(self.contents(full), self.contents(retry))
+        self.assertFalse((self.root / 'part.partial').exists())
+
+    def test_explicit_work_directory_and_path_separation(self):
+        work = self.root / 'saved-chunks'
+        with mock.patch.object(pack, 'promote', side_effect=RuntimeError('promotion failed')):
+            with self.assertRaisesRegex(RuntimeError, 'promotion failed'):
+                self.build('retry', self.old, '--work-dir', str(work))
+        self.assertTrue(work.is_dir())
+        _, _, embed, _ = self.build('retry', self.old, '--work-dir', str(work))
+        self.assertEqual(embed.call_count, 0)
+        self.assertFalse(work.exists())
+        for path in (self.root / 'bad', self.root, self.root / 'bad.staging'):
+            with self.assertRaisesRegex(ValueError, 'non-overlapping'):
+                self.build('bad', self.old, '--work-dir', str(path))
+
     def test_incremental_matches_full_and_only_embeds_changed_and_added_rows(self):
         previous, manifest, _, _ = self.build('previous', self.old)
         full, _, _, _ = self.build('full', self.new)

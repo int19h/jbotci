@@ -63,8 +63,11 @@ def main() -> None:
         )
     corpus = read_json(Path(args.input))
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
-    if stage == output:
-        raise ValueError("--stage must differ from --out")
+    work = Path(args.work_dir) if args.work_dir else Path(f"{output}.partial")
+    paths = [path.resolve() for path in (output, stage, work)]
+    if any(a == b or a in b.parents or b in a.parents
+           for i, a in enumerate(paths) for b in paths[i + 1:]):
+        raise ValueError("--out, --stage and --work-dir must be separate, non-overlapping paths")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
     session_options = ort.SessionOptions()
     if args.threads is not None:
@@ -92,6 +95,7 @@ def main() -> None:
     pack_root = stage / "models" / args.model_key / "spaces" / args.vector_space_key / "packs" / pack_id
     pack_root.mkdir(parents=True)
 
+    checkpoint = open_checkpoint(work, args, identity, pack_id, corpus)
     corpora = []
     for corpus_id, source_key, id_field in CORPORA:
         corpora.append(write_corpus(
@@ -107,6 +111,9 @@ def main() -> None:
             max_sequence_length=args.max_sequence_length,
             progress_label=f"{args.model_key} {corpus_id}",
             reusable_rows=reusable_rows,
+            work=work,
+            checkpoint=checkpoint,
+            chunk_rows=args.chunk_rows,
         ))
 
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
@@ -156,6 +163,8 @@ def main() -> None:
     }
     write_json(stage / "catalog.json", catalog)
     promote(stage, output, args.overwrite)
+    if not args.keep_work:
+        shutil.rmtree(work)
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,6 +174,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    parser.add_argument("--keep-work", action="store_true", help="retain chunks until an aggregate build promotes its output")
+    parser.add_argument("--work-dir", help="persistent chunks (default: <out>.partial)")
+    parser.add_argument("--discard-checkpoint", action="store_true", help="discard saved chunks before building")
+    parser.add_argument("--chunk-rows", type=int, default=256)
     reuse = parser.add_mutually_exclusive_group()
     reuse.add_argument("--reuse-from", help="previous pack directory or manifest URL")
     reuse.add_argument("--reuse-catalog", help="previous catalog path or URL, selected by model and space")
@@ -195,6 +208,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.reuse_from == "" or args.reuse_catalog == "":
         raise ValueError("reuse source must not be empty")
+    if args.chunk_rows <= 0:
+        raise ValueError("--chunk-rows must be positive")
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
     if args.threads is not None and args.threads <= 0:
@@ -513,6 +528,68 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarra
     return result
 
 
+def atomic_write(path: Path, content: bytes) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    with temporary.open("wb") as target:
+        target.write(content)
+        target.flush()
+        os.fsync(target.fileno())
+    temporary.replace(path)
+    # Persist the rename before the checkpoint can refer to this file.
+    descriptor = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def open_checkpoint(work, args, identity, pack_id, corpus):
+    row_hashes = {}
+    layout = {}
+    for corpus_id, source_key, _ in CORPORA:
+        docs = corpus.get(source_key, [])
+        if not isinstance(docs, list):
+            raise ValueError(f"corpus field {source_key} must be an array")
+        for doc in docs:
+            if sha256(doc["input"].encode("utf-8")) != doc["inputHash"]:
+                raise ValueError(f"{corpus_id}: inputHash does not match exact input text")
+        row_hashes[corpus_id] = [doc["inputHash"] for doc in docs]
+        layout[corpus_id] = [[start, min(args.chunk_rows, len(docs) - start)]
+                             for start in range(0, len(docs), args.chunk_rows)]
+    header = {"schema_version": 1, "identity": identity, "pack_id": pack_id,
+              "row_hashes": row_hashes, "layout": layout, "chunk_rows": args.chunk_rows,
+              "corpus_sha256": sha256(json_bytes(corpus)),
+              "legacy_adoption": getattr(args, "legacy_adoption", None)}
+    checkpoint = None
+    if work.exists():
+        try:
+            checkpoint = read_json(work / "checkpoint.json")
+            if not isinstance(checkpoint, dict) or checkpoint.get("header") != header:
+                checkpoint = None
+            elif not isinstance(checkpoint.get("chunks"), dict):
+                checkpoint = None
+        except (OSError, ValueError):
+            pass
+        if args.discard_checkpoint or checkpoint is None:
+            print(f"Discarding checkpoint {work}: fresh start requested or identity, corpus, or layout differs", flush=True)
+            shutil.rmtree(work)
+            checkpoint = None
+    work.mkdir(parents=True, exist_ok=True)
+    if checkpoint is None:
+        checkpoint = {"header": header, "chunks": {}}
+    # Only generated names from the expected layout can select files.
+    expected = {f"{corpus_id}-{start}.f16": count * args.dimensions * 2
+                for corpus_id, chunks in layout.items() for start, count in chunks}
+    for name in list(checkpoint["chunks"]):
+        path = work / name if name in expected else None
+        if (path is None or not path.is_file() or path.stat().st_size != expected[name]
+                or file_sha256(path) != checkpoint["chunks"][name]):
+            print(f"Discarding checkpoint chunk {name}: missing or SHA-256 mismatch", flush=True)
+            del checkpoint["chunks"][name]
+    atomic_write(work / "checkpoint.json", json_bytes(checkpoint))
+    return checkpoint
+
+
 def write_corpus(
     pack_root: Path,
     corpus: dict[str, object],
@@ -525,32 +602,42 @@ def write_corpus(
     dimensions: int,
     max_sequence_length: int,
     progress_label: str,
-    reusable_rows: dict[str, np.ndarray] | None = None,
+    reusable_rows: dict[str, np.ndarray],
+    work: Path,
+    checkpoint: dict,
+    chunk_rows: int,
 ) -> dict[str, object]:
+    # open_checkpoint validated every input before exposing any saved chunk.
     docs = corpus.get(source_key, [])
-    if not isinstance(docs, list):
-        raise ValueError(f"corpus field {source_key} must be an array")
-    reusable_rows = reusable_rows or {}
-    # Verify the exact text rather than trusting an unchecked export's inputHash.
-    for doc in docs:
-        if sha256(doc["input"].encode("utf-8")) != doc["inputHash"]:
-            raise ValueError(f"{corpus_id}: inputHash does not match exact input text")
-    missing = [row for row, doc in enumerate(docs) if doc["inputHash"] not in reusable_rows]
-    fresh = embed_texts(
-        [docs[row]["input"] for row in missing],
-        tokenizer,
-        session,
-        batch_size,
-        dimensions,
-        max_sequence_length,
-        progress_label,
-    )
-    vectors = np.empty((len(docs), dimensions), dtype="<f2")
-    fresh_rows = iter(fresh)
-    for row, doc in enumerate(docs):
-        reused = reusable_rows.get(doc["inputHash"])
-        vectors[row] = reused if reused is not None else next(fresh_rows)
-    print(f"{progress_label}: reused {len(docs) - len(missing)} rows, embedded {len(missing)} rows", flush=True)
+    resumed_chunks = resumed_rows = reused_rows = embedded_rows = 0
+    chunk_paths = []
+    for start in range(0, len(docs), chunk_rows):
+        chunk = docs[start:start + chunk_rows]
+        name = f"{corpus_id}-{start}.f16"
+        path = work / name
+        if name in checkpoint["chunks"]:
+            resumed_chunks += 1
+            resumed_rows += len(chunk)
+        else:
+            missing = [doc for doc in chunk if doc["inputHash"] not in reusable_rows]
+            fresh = iter(embed_texts(
+                [doc["input"] for doc in missing], tokenizer, session, batch_size,
+                dimensions, max_sequence_length, progress_label))
+            vectors = np.empty((len(chunk), dimensions), dtype="<f2")
+            for row, doc in enumerate(chunk):
+                reused = reusable_rows.get(doc["inputHash"])
+                vectors[row] = reused if reused is not None else next(fresh)
+            content = vectors.tobytes()
+            atomic_write(path, content)
+            checkpoint["chunks"][name] = sha256(content)
+            atomic_write(work / "checkpoint.json", json_bytes(checkpoint))
+            reused_rows += len(chunk) - len(missing)
+            embedded_rows += len(missing)
+        chunk_paths.append(path)
+    if not docs:
+        embed_texts([], tokenizer, session, batch_size, dimensions, max_sequence_length, progress_label)
+    print(f"{progress_label}: reused {reused_rows} rows, embedded {embedded_rows} rows, "
+          f"resumed {resumed_chunks} chunks ({resumed_rows} rows)", flush=True)
     corpus_dir = pack_root / "corpora" / corpus_id
     corpus_dir.mkdir(parents=True)
     items = [
@@ -566,10 +653,15 @@ def write_corpus(
     items_sha256 = sha256(items_bytes)
     items_name = f"items.{items_sha256}.json"
     (corpus_dir / items_name).write_bytes(items_bytes)
-    vector_bytes = vectors.astype("<f2", copy=False).tobytes()
-    vector_sha256 = sha256(vector_bytes)
+    assembled = corpus_dir / "vectors.tmp"
+    with assembled.open("wb") as target:
+        for path in chunk_paths:
+            with path.open("rb") as source:
+                shutil.copyfileobj(source, target)
+    vector_sha256 = file_sha256(assembled)
     vector_name = f"vectors.{vector_sha256}.f16"
-    (corpus_dir / vector_name).write_bytes(vector_bytes)
+    vector_byte_len = assembled.stat().st_size
+    assembled.rename(corpus_dir / vector_name)
     return {
         "corpus_id": corpus_id,
         "input_format_version": corpus["inputFormatVersion"],
@@ -579,7 +671,7 @@ def write_corpus(
         "items_url": f"corpora/{corpus_id}/{items_name}",
         "items_sha256": items_sha256,
         "vector_url": f"corpora/{corpus_id}/{vector_name}",
-        "vector_byte_len": len(vector_bytes),
+        "vector_byte_len": vector_byte_len,
         "vector_sha256": vector_sha256,
     }
 
