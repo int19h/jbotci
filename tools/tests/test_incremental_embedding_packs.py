@@ -5,6 +5,7 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import sys
 import tempfile
 import types
@@ -127,6 +128,55 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         self.assertIn('resumed 2 chunks (2 rows)', output)
         self.assertEqual(self.contents(full), self.contents(retry))
         self.assertFalse(partial.exists())
+
+    def test_windows_checkpoint_replacement_and_resume(self):
+        original = pack.durable_replace
+        seen = []
+
+        def move(source, destination, flags):
+            self.assertEqual(flags, 0x1 | 0x8)
+            seen.append((Path(destination).name, Path(destination).exists()))
+            os.replace(source, destination)
+            return 1
+
+        api = mock.Mock(side_effect=move)
+        kernel = types.SimpleNamespace(MoveFileExW=api)
+        with mock.patch.object(pack.ctypes, 'WinDLL', return_value=kernel, create=True), \
+                mock.patch.object(pack, 'durable_replace',
+                                  side_effect=lambda a, b: original(a, b, platform='nt')):
+            full, _, _, _ = self.build('full', self.old, '--chunk-rows', '1')
+            partial = self.interrupt('retry', self.old)
+            checkpoint = pack.read_json(partial / 'checkpoint.json')
+            self.assertEqual(len(checkpoint['chunks']), 2)
+            retry, _, embed, output = self.build('retry', self.old, '--chunk-rows', '1')
+        self.assertIn(('checkpoint.json', False), seen)
+        self.assertIn(('checkpoint.json', True), seen)
+        self.assertEqual([c.args[0] for c in embed.call_args_list],
+                         [['remove'], ['CLL keep'], ['another CLL windowed document']])
+        self.assertIn('resumed 2 chunks (2 rows)', output)
+        self.assertEqual(self.contents(full), self.contents(retry))
+        self.assertFalse(partial.exists())
+
+    def test_atomic_write_propagates_sync_and_windows_move_errors(self):
+        target = self.root / 'atomic.json'
+        target.write_bytes(b'old')
+        # A failed file sync must not replace the destination.
+        with mock.patch.object(pack.os, 'fsync', side_effect=OSError('file sync failed')):
+            with self.assertRaisesRegex(OSError, 'file sync failed'):
+                pack.atomic_write(target, b'new')
+        self.assertEqual(target.read_bytes(), b'old')
+        # A directory sync error must also reach the caller.
+        with mock.patch.object(pack.os, 'open', return_value=123), \
+                mock.patch.object(pack.os, 'close'), \
+                mock.patch.object(pack.os, 'fsync', side_effect=OSError('directory sync failed')):
+            with self.assertRaisesRegex(OSError, 'directory sync failed'):
+                pack.durable_replace(target.with_name('atomic.json.tmp'), target, platform='posix')
+        kernel = types.SimpleNamespace(MoveFileExW=mock.Mock(return_value=0))
+        with mock.patch.object(pack.ctypes, 'WinDLL', return_value=kernel, create=True), \
+                mock.patch.object(pack.ctypes, 'get_last_error', return_value=5, create=True), \
+                mock.patch.object(pack.ctypes, 'WinError', return_value=OSError('write-through failed'), create=True):
+            with self.assertRaisesRegex(OSError, 'write-through failed'):
+                pack.durable_replace(target, self.root / 'other.json', platform='nt')
 
     def test_backend_failure_leaves_only_completed_chunks(self):
         rows = {'dictionary': [document(i, str(i)) for i in range(5)], 'cll': []}

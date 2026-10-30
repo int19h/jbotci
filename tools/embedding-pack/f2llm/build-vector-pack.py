@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+from ctypes import wintypes
 import hashlib
 import json
 import os
@@ -15,6 +17,9 @@ from importlib.metadata import version
 
 import numpy as np
 
+
+MOVEFILE_REPLACE_EXISTING = 0x1
+MOVEFILE_WRITE_THROUGH = 0x8
 
 SCHEMA_VERSION = 1
 ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v1"
@@ -534,13 +539,27 @@ def atomic_write(path: Path, content: bytes) -> None:
         target.write(content)
         target.flush()
         os.fsync(target.fileno())
-    temporary.replace(path)
-    # Persist the rename before the checkpoint can refer to this file.
-    descriptor = os.open(path.parent, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+    durable_replace(temporary, path)
+
+
+def durable_replace(source: Path, destination: Path, *, platform: str | None = None) -> None:
+    # Persist the rename before a checkpoint can refer to the file.
+    if (os.name if platform is None else platform) == "nt":
+        move = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        move.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+        move.restype = wintypes.BOOL
+        # Resolve the parent without following a leaf symlink.
+        parent = destination.parent.resolve()
+        if not move(str(parent / source.name), str(parent / destination.name),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH):
+            raise ctypes.WinError(ctypes.get_last_error())
+    else:
+        source.replace(destination)
+        descriptor = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
 
 def open_checkpoint(work, args, identity, pack_id, corpus):
