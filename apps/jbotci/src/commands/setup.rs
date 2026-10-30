@@ -37,6 +37,9 @@ pub(crate) fn run_setup<WOut: Write>(
             return Err(anyhow!(error.to_string()));
         }
     };
+    if let Some(path) = &input.report_json {
+        jbotci_embeddings::write_json_file(path, &report)?;
+    }
     writeln!(
         stdout,
         "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\nsource: {}\ndictionary rows: {}\nCLL rows: {}",

@@ -41,7 +41,8 @@ pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
 pub const DEFAULT_GGUF_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/gguf/v1";
 
-const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 2;
+const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 3;
+const NATIVE_MAX_WINDOW_TOKENS: u32 = 2048;
 const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
 const NATIVE_PARTIAL_BUILD_FILE: &str = "native-local-build.json";
 const NATIVE_VECTOR_CHUNK_ROWS: usize = 256;
@@ -269,6 +270,27 @@ pub struct CorpusManifest {
     pub shards: Vec<VectorShardManifest>,
 }
 
+/// GGUF bytes also contain the effective tokenizer. These parameters complete
+/// the vector function together with the manifest's model and vector format.
+/// Backend versions and execution providers remain provenance only.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeVectorParameters {
+    pub window_size: u32,
+    pub window_scheme: String,
+    pub pooling: String,
+}
+
+#[requires(true)]
+#[ensures(ret.window_size == NATIVE_MAX_WINDOW_TOKENS)]
+fn native_vector_parameters() -> NativeVectorParameters {
+    NativeVectorParameters {
+        window_size: NATIVE_MAX_WINDOW_TOKENS,
+        window_scheme: "gguf-special-tokens-then-nonoverlapping-windows-v1".to_owned(),
+        pooling: "token-weighted-mean-of-normalized-last-token-windows".to_owned(),
+    }
+}
+
 /// Build environment facts do not determine vector reuse compatibility.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -304,8 +326,8 @@ pub struct EmbeddingPackManifest {
     pub build_provenance: Option<NativeBuildProvenance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_adoption: Option<LegacyPackAdoption>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub row_counts: Vec<CorpusRowCounts>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vector_parameters: Option<NativeVectorParameters>,
     pub schema_version: u32,
     pub model_key: String,
     pub model_revision: String,
@@ -358,6 +380,9 @@ struct NativePartialBuildCheckpoint {
     model_sha256: Option<String>,
     input_format_version: String,
     built_by: EmbeddingRuntime,
+    vector_parameters: NativeVectorParameters,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    legacy_adoption: Option<LegacyPackAdoption>,
     dimensions: usize,
     element_type: String,
     normalized: bool,
@@ -526,7 +551,7 @@ impl SetupIndexSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct SetupReport {
     pub row_counts: Vec<CorpusRowCounts>,
@@ -996,8 +1021,102 @@ fn write_json_file_atomically<T: Serialize>(path: &Path, value: &T) -> Result<()
         context: format!("failed to flush `{}`", temp_path.display()),
         source,
     })?;
-    rename_replacing(&temp_path, path)?;
+    sync_file(writer.get_ref(), &temp_path)?;
+    drop(writer);
+    rename_file_durably(&temp_path, path)?;
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sync_file(file: &File, path: &Path) -> Result<(), EmbeddingError> {
+    file.sync_all().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to sync `{}`", path.display()),
+        source,
+    })
+}
+
+#[requires(!destination.as_os_str().is_empty())]
+#[requires(source != destination)]
+#[requires(source.parent() == destination.parent())]
+#[ensures(ret.is_err() || (destination.is_file() && !source.exists()))]
+fn rename_file_durably(source: &Path, destination: &Path) -> Result<(), EmbeddingError> {
+    #[cfg(not(windows))]
+    {
+        rename_replacing(source, destination)?;
+        let parent = destination
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let directory = File::open(parent).map_err(|source| EmbeddingError::Io {
+            context: format!("failed to open directory `{}`", parent.display()),
+            source,
+        })?;
+        sync_file(&directory, parent)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
+        };
+        // The canonical parent retains Windows extended-length path syntax.
+        // Keep both file names intact so the rename does not follow a leaf link.
+        let source_name = source.file_name().ok_or_else(|| EmbeddingError::Io {
+            context: format!("source `{}` has no file name", source.display()),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "source has no file name",
+            ),
+        })?;
+        let parent = destination
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let file_name = destination.file_name().ok_or_else(|| EmbeddingError::Io {
+            context: format!("destination `{}` has no file name", destination.display()),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "destination has no file name",
+            ),
+        })?;
+        let parent = fs::canonicalize(parent).map_err(|error| EmbeddingError::Io {
+            context: format!("failed to resolve `{}`", parent.display()),
+            source: error,
+        })?;
+        let source = parent.join(source_name);
+        let destination = parent.join(file_name);
+        let source_wide = source
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        let destination_wide = destination
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        // Windows provides a write-through rename instead of directory fsync.
+        // Both terminated path buffers remain live for the whole system call.
+        let succeeded = unsafe {
+            MoveFileExW(
+                source_wide.as_ptr(),
+                destination_wide.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        };
+        if succeeded == 0 {
+            return Err(EmbeddingError::Io {
+                context: format!(
+                    "failed to move `{}` to `{}` durably",
+                    source.display(),
+                    destination.display()
+                ),
+                source: std::io::Error::last_os_error(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[requires(!path.as_os_str().is_empty())]
@@ -1127,7 +1246,9 @@ fn write_vector_chunk_file(
         context: format!("failed to flush `{}`", temp_path.display()),
         source,
     })?;
-    rename_replacing(&temp_path, &path)?;
+    sync_file(file.get_ref(), &temp_path)?;
+    drop(file);
+    rename_file_durably(&temp_path, &path)?;
     let byte_len = fs::metadata(&path)
         .map_err(|source| EmbeddingError::Io {
             context: format!("failed to inspect `{}`", path.display()),
@@ -1336,12 +1457,22 @@ fn sibling_path_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf, Embedd
 pub fn deterministic_pack_id(
     input_format_version: &str,
     model_revision: &str,
+    model_sha256: &str,
     dictionary_fingerprint: &str,
     cll_fingerprint: &str,
 ) -> String {
+    let parameters = native_vector_parameters();
+    let identity = sha256_hex_bytes(
+        format!(
+            "{model_sha256}:{}:{}:{}",
+            parameters.window_size, parameters.window_scheme, parameters.pooling
+        )
+        .as_bytes(),
+    );
     format!(
-        "{}-{}-{}-{}",
+        "{}-{}-{}-{}-{}",
         input_format_version,
+        identity,
         short_fingerprint(model_revision),
         short_fingerprint(dictionary_fingerprint),
         short_fingerprint(cll_fingerprint)
@@ -1425,6 +1556,8 @@ fn initial_native_partial_checkpoint(
         model_sha256: model_sha256.map(str::to_owned),
         input_format_version: spec.input_format_version.clone(),
         built_by: native_embedding_runtime(),
+        vector_parameters: native_vector_parameters(),
+        legacy_adoption: None,
         dimensions,
         element_type: "f32le".to_owned(),
         normalized: true,
@@ -1457,7 +1590,7 @@ fn load_compatible_native_partial_checkpoint(
     if !path.is_file() {
         return None;
     }
-    let checkpoint: NativePartialBuildCheckpoint = read_json_file(&path).ok()?;
+    let mut checkpoint: NativePartialBuildCheckpoint = read_json_file(&path).ok()?;
     if !native_partial_header_matches(
         &checkpoint,
         spec,
@@ -1478,6 +1611,15 @@ fn load_compatible_native_partial_checkpoint(
         {
             return None;
         }
+    }
+    // A durable checkpoint can survive a missing or damaged shard. Keep every
+    // other finished chunk and recompute only the missing rows.
+    for corpus in &mut checkpoint.corpora {
+        let mut shards = std::mem::take(&mut corpus.shards);
+        shards.retain(|shard| {
+            native_partial_shard_is_compatible(pack_root, corpus, shard, dimensions)
+        });
+        corpus.shards = shards;
     }
     Some(checkpoint)
 }
@@ -1502,9 +1644,10 @@ fn native_partial_header_matches(
         && checkpoint.model_key == spec.model_key
         && checkpoint.model_revision == spec.model_revision
         && checkpoint.native_sha256 == spec.native_sha256
+        && model_sha256.is_some()
         && checkpoint.model_sha256.as_deref() == model_sha256
         && checkpoint.input_format_version == spec.input_format_version
-        && checkpoint.built_by == native_embedding_runtime()
+        && checkpoint.vector_parameters == native_vector_parameters()
         && checkpoint.dimensions == dimensions
         && checkpoint.element_type == "f32le"
         && checkpoint.normalized
@@ -1553,9 +1696,6 @@ fn native_partial_corpus_is_compatible(
     let mut seen_starts = HashMap::new();
     for shard in &corpus.shards {
         if seen_starts.insert(shard.row_start, ()).is_some() {
-            return false;
-        }
-        if !native_partial_shard_is_compatible(pack_root, corpus, shard, dimensions) {
             return false;
         }
     }
@@ -1713,6 +1853,20 @@ pub fn ensure_model_file_with_progress(
     }
     download_model_file_with_progress(spec, path, progress)?;
     validate_model_file_with_progress(spec, path, skip_hash_validation, progress)
+}
+
+// The loaded backend owns the successful file-identity verdict. Queries use
+// that backend without reopening or hashing the model file.
+#[cfg(any(test, feature = "native-llama"))]
+#[requires(path.is_file())]
+#[ensures(true)]
+fn load_validated_search_backend<B>(
+    spec: &EmbeddingModelSpec,
+    path: &Path,
+    load: impl FnOnce(&EmbeddingModelSpec, &Path) -> Result<B, EmbeddingError>,
+) -> Result<B, EmbeddingError> {
+    validate_model_file(spec, path)?;
+    load(spec, path)
 }
 
 #[requires(path.is_file())]
@@ -1967,6 +2121,38 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
     model_sha256: Option<String>,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<SetupReport, EmbeddingError> {
+    if let Some(hash) = &model_sha256
+        && hash != &spec.native_sha256
+    {
+        return Err(EmbeddingError::InvalidModel {
+            message: "build GGUF SHA-256 differs from the pinned model".to_owned(),
+        });
+    }
+    if let Some(source) = &reusable_source {
+        if model_sha256.as_deref() != Some(spec.native_sha256.as_str()) {
+            return Err(EmbeddingError::InvalidIndex {
+                message: "row reuse requires the pinned GGUF SHA-256".to_owned(),
+            });
+        }
+        let manifest = &source.manifest;
+        let dictionary = manifest_corpus(manifest, VLACKU_CORPUS_ID)?;
+        let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
+        let purpose = if manifest.model_sha256.is_none() || manifest.vector_parameters.is_none() {
+            NativePackValidation::LegacyRows
+        } else {
+            NativePackValidation::ReusableRows
+        };
+        validate_native_pack_manifest(
+            manifest,
+            spec,
+            &manifest.pack_id,
+            &dictionary.fingerprint,
+            dictionary.row_count,
+            &cll.fingerprint,
+            cll.row_count,
+            purpose,
+        )?;
+    }
     let dimensions = backend.dimensions()?;
     if dimensions != spec.dimensions {
         return Err(EmbeddingError::DimensionMismatch {
@@ -1979,6 +2165,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
     let pack_id = deterministic_pack_id(
         &spec.input_format_version,
         &spec.model_revision,
+        &spec.native_sha256,
         &dictionary_fingerprint,
         &cll_fingerprint,
     );
@@ -1987,6 +2174,18 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
     let cll_rows = cll_chunks.len();
     let total_rows = (dictionary_rows + cll_rows) as u64;
     if final_pack_root.join("manifest.json").is_file() && !force {
+        let manifest = read_json_file(&final_pack_root.join("manifest.json"))?;
+        validate_native_pack_manifest(
+            &manifest,
+            spec,
+            &pack_id,
+            &dictionary_fingerprint,
+            dictionary_rows,
+            &cll_fingerprint,
+            cll_rows,
+            NativePackValidation::CurrentCorpus,
+        )?;
+        validate_pack_dir(&final_pack_root)?;
         progress(SetupProgress::determinate(
             SetupProgressPhase::ReusingIndex,
             "index",
@@ -2047,12 +2246,13 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
         source,
     })?;
     let mut checkpoint = checkpoint.expect("checkpoint was initialized");
-    write_native_partial_checkpoint(&checkpoint_path, &checkpoint)?;
-    let legacy_adoption = reusable_source.as_ref().and_then(|source| {
+    let source_adoption = reusable_source.as_ref().and_then(|source| {
         if let Some(adoption) = &source.manifest.legacy_adoption {
             // Reused vectors retain their original owner attestation.
             Some(adoption.clone())
-        } else if source.manifest.model_sha256.is_none() {
+        } else if source.manifest.model_sha256.is_none()
+            || source.manifest.vector_parameters.is_none()
+        {
             Some(new!(LegacyPackAdoption {
                 source: source.pack_dir.display().to_string(),
                 compatibility: "owner-attested-unrecorded-identity".to_owned(),
@@ -2061,6 +2261,11 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
             None
         }
     });
+    if checkpoint.legacy_adoption.is_none() {
+        checkpoint.legacy_adoption = source_adoption;
+    }
+    let legacy_adoption = checkpoint.legacy_adoption.clone();
+    write_native_partial_checkpoint(&checkpoint_path, &checkpoint)?;
     let reusable_rows = reusable_source.map(|source| source.into_data().rows);
     let mut dictionary_counts = CorpusRowCounts {
         corpus_id: VLACKU_CORPUS_ID.to_owned(),
@@ -2126,7 +2331,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
             bindings_version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
         }),
         legacy_adoption,
-        row_counts: row_counts.clone(),
+        vector_parameters: Some(native_vector_parameters()),
         schema_version: INDEX_SCHEMA_VERSION,
         model_key: spec.model_key.clone(),
         model_revision: spec.model_revision.clone(),
@@ -2344,7 +2549,7 @@ where
     let url_prefix = format!("corpora/{corpus_id}");
     let items_path = corpus_dir.join("items.json");
     let items = rows.iter().map(|row| row.item.clone()).collect::<Vec<_>>();
-    write_json_file(&items_path, &items)?;
+    write_json_file_atomically(&items_path, &items)?;
     let items_sha256 = sha256_hex_file(&items_path)?;
     let items_url = format!("{url_prefix}/items.json");
     let mut partial_shards = native_partial_shards_by_row_start(checkpoint, corpus_id);
@@ -2466,20 +2671,24 @@ pub fn reuse_existing_embedding_pack_with_progress(
     let pack_id = deterministic_pack_id(
         &spec.input_format_version,
         &spec.model_revision,
+        &spec.native_sha256,
         &dictionary_fingerprint,
         &cll_fingerprint,
     );
-    let pack_dir = pack_root(index_root, &spec.model_key, &pack_id);
-    if !pack_dir.join("manifest.json").is_file() {
+    let expected_dir = pack_root(index_root, &spec.model_key, &pack_id);
+    let pack_dir = if expected_dir.join("manifest.json").is_file() {
+        expected_dir
+    } else if catalog_path(index_root)?.is_file() {
+        read_latest_pack_manifest(index_root, &spec.model_key)?.0
+    } else {
         return Ok(None);
-    }
+    };
     progress(SetupProgress::indeterminate(
         SetupProgressPhase::ValidatingIndex,
         "validate",
         "Validating embedding index",
         "Checking existing embedding vector pack.",
     ));
-    validate_pack_dir(&pack_dir)?;
     let manifest: EmbeddingPackManifest = read_json_file(&pack_dir.join("manifest.json"))?;
     validate_native_pack_manifest(
         &manifest,
@@ -2491,6 +2700,7 @@ pub fn reuse_existing_embedding_pack_with_progress(
         cll_chunks.len(),
         NativePackValidation::CurrentCorpus,
     )?;
+    validate_pack_dir(&pack_dir)?;
     write_catalog(index_root, spec, &pack_id)?;
     let total_rows = (dictionary.entries().len() + cll_chunks.len()) as u64;
     progress(SetupProgress::determinate(
@@ -2535,6 +2745,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
     let expected_pack_id = deterministic_pack_id(
         &spec.input_format_version,
         &spec.model_revision,
+        &spec.native_sha256,
         &dictionary_fingerprint,
         &cll_fingerprint,
     );
@@ -2794,6 +3005,29 @@ fn validate_native_pack_manifest(
             ),
         });
     }
+    match manifest.model_sha256.as_deref() {
+        Some(hash) if hash != spec.native_sha256 => return Err(EmbeddingError::InvalidIndex {
+            message: "embedding pack GGUF SHA-256 mismatch. Rebuild with --force".to_owned(),
+        }),
+        None if purpose != NativePackValidation::LegacyRows => return Err(EmbeddingError::InvalidIndex {
+            message: "legacy pack requires --adopt-legacy-pack with --reuse-index-dir, or rebuild with --force".to_owned(),
+        }),
+        _ => {}
+    }
+    match &manifest.vector_parameters {
+        Some(parameters) if parameters != &native_vector_parameters() => return Err(EmbeddingError::InvalidIndex {
+            message: "embedding pack window or pooling differs. Rebuild with --force".to_owned(),
+        }),
+        None if purpose != NativePackValidation::LegacyRows => return Err(EmbeddingError::InvalidIndex {
+            message: "legacy pack requires --adopt-legacy-pack with --reuse-index-dir, or rebuild with --force".to_owned(),
+        }),
+        _ => {}
+    }
+    if manifest.corpora.len() != 2 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "embedding pack requires two distinct corpora".to_owned(),
+        });
+    }
     if manifest.pack_id != expected_pack_id {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
@@ -2823,18 +3057,12 @@ fn validate_native_pack_manifest(
             message: "embedding pack must contain normalized f32le dot-product vectors".to_owned(),
         });
     }
-    if purpose != NativePackValidation::ReusableRows
-        && !manifest
-            .compatible_query_runtimes
-            .iter()
-            .any(|runtime| runtime == &native_embedding_runtime())
-    {
-        return Err(EmbeddingError::MissingCompatiblePack {
-            model_key: spec.model_key.clone(),
-        });
-    }
     if purpose == NativePackValidation::LegacyRows
-        && manifest.built_by != native_embedding_runtime()
+        && (manifest.built_by.runtime != "llama-cpp-4"
+            || !manifest
+                .compatible_query_runtimes
+                .iter()
+                .any(|runtime| runtime.runtime == "llama-cpp-4"))
     {
         return Err(EmbeddingError::InvalidIndex {
             message: "legacy reuse runtime differs".to_owned(),
@@ -3018,6 +3246,7 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
             ),
         });
     }
+    native_pack_remote_paths(&manifest)?;
     for corpus in &manifest.corpora {
         let items_path = path.join(&corpus.items_url);
         require_index_file(&items_path, "embedding corpus items file")?;
@@ -3038,23 +3267,90 @@ pub fn load_latest_pack(
     index_root: &Path,
     model_key: &str,
 ) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
-    let (pack_dir, manifest) = load_latest_pack_metadata(index_root, model_key)?;
-    if !manifest
-        .compatible_query_runtimes
-        .iter()
-        .any(|runtime| runtime.runtime == "llama-cpp-4")
-    {
-        return Err(EmbeddingError::MissingCompatiblePack {
-            model_key: model_key.to_owned(),
-        });
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    load_pack_for_identity(index_root, &spec, current_native_corpus_identity()?)
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+struct NativeCorpusIdentity {
+    dictionary_fingerprint: String,
+    dictionary_rows: usize,
+    cll_fingerprint: String,
+    cll_rows: usize,
+}
+
+#[requires(true)]
+#[ensures(ret.dictionary_rows == dictionary.entries().len() && ret.cll_rows == chunks.len())]
+fn native_corpus_identity(
+    dictionary: &Dictionary<'_>,
+    chunks: &[CllSearchChunk],
+) -> NativeCorpusIdentity {
+    NativeCorpusIdentity {
+        dictionary_fingerprint: dictionary_fingerprint(dictionary),
+        dictionary_rows: dictionary.entries().len(),
+        cll_fingerprint: cll_fingerprint(chunks),
+        cll_rows: chunks.len(),
     }
+}
+
+// The embedded corpora cannot change while this process runs. Hash them once.
+#[requires(true)]
+#[ensures(true)]
+fn current_native_corpus_identity() -> Result<&'static NativeCorpusIdentity, EmbeddingError> {
+    static IDENTITY: OnceLock<Result<NativeCorpusIdentity, String>> = OnceLock::new();
+    IDENTITY
+        .get_or_init(|| {
+            jbotci_cll::embedded_cll_site()
+                .map(|site| {
+                    native_corpus_identity(
+                        jbotci_dictionary_data::english(),
+                        cll_search_all_chunks(site),
+                    )
+                })
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map_err(|message| EmbeddingError::InvalidIndex {
+            message: message.clone(),
+        })
+}
+
+#[requires(spec.dimensions > 0)]
+#[ensures(true)]
+fn load_pack_for_identity(
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    identity: &NativeCorpusIdentity,
+) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
+    let (pack_dir, manifest) = read_latest_pack_manifest(index_root, &spec.model_key)?;
+    let expected_pack_id = deterministic_pack_id(
+        &spec.input_format_version,
+        &spec.model_revision,
+        &spec.native_sha256,
+        &identity.dictionary_fingerprint,
+        &identity.cll_fingerprint,
+    );
+    validate_native_pack_manifest(
+        &manifest,
+        spec,
+        &expected_pack_id,
+        &identity.dictionary_fingerprint,
+        identity.dictionary_rows,
+        &identity.cll_fingerprint,
+        identity.cll_rows,
+        NativePackValidation::CurrentCorpus,
+    )?;
     Ok((pack_dir, manifest))
 }
 
-// Row reuse validates the vector function independently of query host versions.
+/// Read untrusted metadata for export or explicit reuse. Search must use
+/// `load_latest_pack`, which also requires the pinned model and live corpora.
 #[requires(!model_key.is_empty())]
 #[ensures(true)]
-fn load_latest_pack_metadata(
+pub fn read_latest_pack_manifest(
     index_root: &Path,
     model_key: &str,
 ) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
@@ -3065,6 +3361,11 @@ fn load_latest_pack_metadata(
         });
     }
     let catalog: EmbeddingCatalog = read_json_file(&catalog_path)?;
+    if catalog.schema_version != INDEX_SCHEMA_VERSION {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "unsupported embedding catalog schema version".to_owned(),
+        });
+    }
     let model = catalog
         .models
         .iter()
@@ -3083,6 +3384,11 @@ fn load_latest_pack_metadata(
     let manifest_path = pack_dir.join("manifest.json");
     require_index_file(&manifest_path, "embedding pack manifest")?;
     let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
+    if manifest.model_key != model_key || manifest.pack_id != model.latest_pack_id {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "embedding catalog and manifest identity differ".to_owned(),
+        });
+    }
     Ok((pack_dir.to_owned(), manifest))
 }
 
@@ -3114,7 +3420,7 @@ pub fn validate_native_reuse_source_with_adoption(
     spec: &EmbeddingModelSpec,
     adopt_legacy_pack: bool,
 ) -> Result<NativeReuseSource, EmbeddingError> {
-    let (pack_dir, manifest) = load_latest_pack_metadata(index_root, &spec.model_key)?;
+    let (pack_dir, manifest) = read_latest_pack_manifest(index_root, &spec.model_key)?;
     if safe_pack_relative_path(&manifest.pack_id)?
         .components()
         .count()
@@ -3128,22 +3434,15 @@ pub fn validate_native_reuse_source_with_adoption(
     }
     let dictionary = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
     let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
-    match manifest.model_sha256.as_deref() {
-        Some(hash) if hash != spec.native_sha256 => {
-            return Err(EmbeddingError::InvalidIndex {
-                message: "reuse GGUF SHA-256 mismatch".to_owned(),
-            });
-        }
-        None if !adopt_legacy_pack => {
-            return Err(EmbeddingError::InvalidIndex {
-                message: "legacy pack requires --adopt-legacy-pack".to_owned(),
-            });
-        }
-        _ => {}
+    if (manifest.model_sha256.is_none() || manifest.vector_parameters.is_none())
+        && !adopt_legacy_pack
+    {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "legacy pack requires --adopt-legacy-pack".to_owned(),
+        });
     }
-    // Legacy runtime identity is the only recorded evidence of its vector function.
-    // Exact per-row hashes identify inputs independently of export format versions.
-    let purpose = if manifest.model_sha256.is_some() {
+    // Exact row hashes identify inputs independently of export format versions.
+    let purpose = if manifest.model_sha256.is_some() && manifest.vector_parameters.is_some() {
         NativePackValidation::ReusableRows
     } else {
         NativePackValidation::LegacyRows
@@ -3405,6 +3704,31 @@ where
     }))
 }
 
+#[requires(dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|values| values.len() == dimensions) || ret.is_err())]
+fn embed_query_for_dimensions<B: EmbeddingBackend>(
+    backend: &mut B,
+    query: &str,
+    dimensions: usize,
+) -> Result<Vec<f32>, EmbeddingError> {
+    let actual = backend.dimensions()?;
+    if actual != dimensions {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: dimensions,
+            actual,
+        });
+    }
+    let mut values = backend.embed(&build_retrieval_query_input(query))?.values;
+    if values.len() != dimensions {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: dimensions,
+            actual: values.len(),
+        });
+    }
+    normalize_vector(&mut values);
+    Ok(values)
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
 pub fn semantic_vlacku_hits<B: EmbeddingBackend>(
@@ -3429,17 +3753,46 @@ pub fn semantic_vlacku_hits_filtered<B, F>(
     count: usize,
     index_root: &Path,
     model_key: &str,
+    entry_allowed: F,
+) -> Result<Vec<DictionarySemanticHit>, EmbeddingError>
+where
+    B: EmbeddingBackend,
+    F: FnMut(usize) -> bool,
+{
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    semantic_vlacku_hits_with_identity(
+        backend,
+        query,
+        count,
+        index_root,
+        &spec,
+        current_native_corpus_identity()?,
+        entry_allowed,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
+fn semantic_vlacku_hits_with_identity<B, F>(
+    backend: &mut B,
+    query: &str,
+    count: usize,
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    identity: &NativeCorpusIdentity,
     mut entry_allowed: F,
 ) -> Result<Vec<DictionarySemanticHit>, EmbeddingError>
 where
     B: EmbeddingBackend,
     F: FnMut(usize) -> bool,
 {
-    let (pack_dir, manifest) = load_latest_pack(index_root, model_key)?;
+    let (pack_dir, manifest) = load_pack_for_identity(index_root, spec, identity)?;
     let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
     let loaded = load_cached_dictionary_corpus(&pack_dir, &manifest, corpus)?;
-    let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
-    normalize_vector(&mut query_embedding);
+    let query_embedding = embed_query_for_dimensions(backend, query, manifest.dimensions)?;
     let items = &loaded.items;
     let hits = top_vector_hits_by_row(
         &loaded.values,
@@ -3476,6 +3829,43 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
     index_root: &Path,
     model_key: &str,
 ) -> Result<CuktaSearchOutput, EmbeddingError> {
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    let current = current_native_corpus_identity()?;
+    let site = jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
+        message: error.to_string(),
+    })?;
+    let supplied;
+    let identity = if std::ptr::eq(chunks, cll_search_all_chunks(site)) {
+        current
+    } else {
+        supplied = NativeCorpusIdentity {
+            dictionary_fingerprint: current.dictionary_fingerprint.clone(),
+            dictionary_rows: current.dictionary_rows,
+            cll_fingerprint: cll_fingerprint(chunks),
+            cll_rows: chunks.len(),
+        };
+        &supplied
+    };
+    semantic_cukta_output_with_identity(
+        backend, chunks, query, window, targets, index_root, &spec, identity,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn semantic_cukta_output_with_identity<B: EmbeddingBackend>(
+    backend: &mut B,
+    chunks: &[CllSearchChunk],
+    query: &str,
+    window: CuktaSearchWindow,
+    targets: CuktaTargetFilter,
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    identity: &NativeCorpusIdentity,
+) -> Result<CuktaSearchOutput, EmbeddingError> {
     let count = window.count;
     if !targets.sections && !targets.paragraphs && !targets.examples {
         return Ok(CuktaSearchOutput {
@@ -3487,11 +3877,10 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
             has_more: false,
         });
     }
-    let (pack_dir, manifest) = load_latest_pack(index_root, model_key)?;
+    let (pack_dir, manifest) = load_pack_for_identity(index_root, spec, identity)?;
     let corpus = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
     let loaded = load_cached_cll_corpus(&pack_dir, &manifest, corpus)?;
-    let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
-    normalize_vector(&mut query_embedding);
+    let query_embedding = embed_query_for_dimensions(backend, query, manifest.dimensions)?;
     // The ranking has to reach the end of the window, and one further to
     // know whether anything follows it. What is ranked is a row and a score;
     // the book's text is copied below, for the window alone.
@@ -3725,6 +4114,33 @@ mod tests {
         }
     }
 
+    #[invariant(true)]
+    struct CheckpointFailureBackend {
+        inner: FakeBackend,
+        checkpoint_temp: PathBuf,
+    }
+
+    #[contract_trait]
+    impl EmbeddingBackend for CheckpointFailureBackend {
+        #[requires(true)]
+        #[ensures(ret.as_ref().is_ok_and(|dimensions| *dimensions > 0) || ret.is_err())]
+        fn dimensions(&self) -> Result<usize, EmbeddingError> {
+            self.inner.dimensions()
+        }
+
+        #[requires(!input.is_empty())]
+        #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == self.inner.dimensions) || ret.is_err())]
+        fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
+            let embedding = self.inner.embed(input)?;
+            if self.inner.calls == 2 * NATIVE_VECTOR_CHUNK_ROWS {
+                // The next chunk write succeeds, but its checkpoint cannot be
+                // replaced. This leaves the same state as an interrupted save.
+                fs::create_dir(&self.checkpoint_temp).unwrap();
+            }
+            Ok(embedding)
+        }
+    }
+
     #[requires(dimensions > 0)]
     #[requires(!input.is_empty())]
     #[ensures(ret.len() == dimensions)]
@@ -3800,7 +4216,7 @@ mod tests {
         };
         let mut backend = ContentHashBackend { calls: 0 };
         build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false).unwrap();
-        let (root, original) = load_latest_pack(dir.path(), &spec.model_key).unwrap();
+        let (root, original) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
         let path = root.join("manifest.json");
         let mut changed = original.clone();
         changed.built_by.version = "different-backend-version".to_owned();
@@ -3845,7 +4261,7 @@ mod tests {
         .unwrap();
         assert_eq!(backend.calls, 0);
         assert_eq!(report.row_counts[1].reused, 2);
-        let (_, adopted) = load_latest_pack(&output, &spec.model_key).unwrap();
+        let (_, adopted) = read_latest_pack_manifest(&output, &spec.model_key).unwrap();
         assert_eq!(
             adopted.legacy_adoption.unwrap().compatibility,
             "owner-attested-unrecorded-identity"
@@ -4183,6 +4599,7 @@ mod tests {
         let pack_id = deterministic_pack_id(
             &spec.input_format_version,
             &spec.model_revision,
+            &spec.native_sha256,
             &dictionary_fingerprint(dictionary),
             &cll_fingerprint(cll_chunks),
         );
@@ -4288,7 +4705,7 @@ mod tests {
             model_sha256: None,
             build_provenance: None,
             legacy_adoption: None,
-            row_counts: Vec::new(),
+            vector_parameters: None,
             schema_version: INDEX_SCHEMA_VERSION,
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             model_revision: DEFAULT_MODEL_REVISION.to_owned(),
@@ -4324,7 +4741,8 @@ mod tests {
     #[ensures(true)]
     fn missing_catalog_returns_missing_compatible_pack() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let error = load_latest_pack(dir.path(), DEFAULT_MODEL_KEY).expect_err("missing catalog");
+        let error =
+            read_latest_pack_manifest(dir.path(), DEFAULT_MODEL_KEY).expect_err("missing catalog");
         assert!(matches!(
             error,
             EmbeddingError::MissingCompatiblePack { .. }
@@ -4339,7 +4757,8 @@ mod tests {
         let spec = EmbeddingModelSpec::default_f2llm();
         write_catalog(dir.path(), &spec, "missing-pack").expect("catalog");
 
-        let error = load_latest_pack(dir.path(), &spec.model_key).expect_err("missing manifest");
+        let error =
+            read_latest_pack_manifest(dir.path(), &spec.model_key).expect_err("missing manifest");
         assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
         assert!(error.to_string().contains("manifest"));
     }
@@ -4746,7 +5165,7 @@ mod tests {
             chunks[3].clone(),
         ];
         backend.calls = 0;
-        build_embedding_pack_with_progress(
+        let incremental_report = build_embedding_pack_with_progress(
             &mut backend,
             &dictionary,
             &new_chunks,
@@ -4773,12 +5192,16 @@ mod tests {
         .expect("full pack");
         assert_eq!(backend.calls, 3);
         let (incremental_pack, incremental_manifest) =
-            load_latest_pack(&incremental, &spec.model_key).expect("incremental manifest");
+            read_latest_pack_manifest(&incremental, &spec.model_key).expect("incremental manifest");
         let (full_pack, full_manifest) =
-            load_latest_pack(&full, &spec.model_key).expect("full manifest");
-        assert_eq!(incremental_manifest.corpora, full_manifest.corpora);
-        assert_eq!(incremental_manifest.row_counts[1].reused, 1);
-        assert_eq!(incremental_manifest.row_counts[1].embedded, 2);
+            read_latest_pack_manifest(&full, &spec.model_key).expect("full manifest");
+        assert_eq!(incremental_manifest, full_manifest);
+        assert_eq!(
+            fs::read(incremental_pack.join("manifest.json")).unwrap(),
+            fs::read(full_pack.join("manifest.json")).unwrap()
+        );
+        assert_eq!(incremental_report.row_counts[1].reused, 1);
+        assert_eq!(incremental_report.row_counts[1].embedded, 2);
         for relative in native_pack_remote_paths(&full_manifest)
             .expect("files")
             .into_iter()
@@ -5018,6 +5441,10 @@ mod tests {
             "model_sha256",
             "native_sha256",
             "layout",
+            "window",
+            "pooling",
+            "backend-version",
+            "unverified",
             "corpus",
             "missing",
             "corrupt",
@@ -5037,7 +5464,7 @@ mod tests {
                 &spec,
                 true,
                 None,
-                Some("actual-model-hash".to_owned()),
+                (change != "unverified").then(|| spec.native_sha256.clone()),
                 &mut |_| {},
             )
             .expect_err("interruption");
@@ -5048,6 +5475,9 @@ mod tests {
                 "model_sha256" => checkpoint.model_sha256 = Some("other-model".to_owned()),
                 "native_sha256" => checkpoint.native_sha256 = "other-pinned-model".to_owned(),
                 "layout" => checkpoint.chunk_rows += 1,
+                "window" => checkpoint.vector_parameters.window_size /= 2,
+                "pooling" => checkpoint.vector_parameters.pooling = "other".to_owned(),
+                "backend-version" => checkpoint.built_by.version = "other".to_owned(),
                 "corpus" => checkpoint.cll_fingerprint.push_str("different"),
                 "missing" | "corrupt" => {
                     let shard = checkpoint
@@ -5080,13 +5510,17 @@ mod tests {
                 &spec,
                 true,
                 None,
-                Some("actual-model-hash".to_owned()),
+                (change != "unverified").then(|| spec.native_sha256.clone()),
                 &mut |_| {},
             )
             .unwrap();
             assert_eq!(
                 retry.calls,
-                if change == "none" { 7 } else { chunks.len() },
+                if matches!(change, "none" | "backend-version") {
+                    7
+                } else {
+                    chunks.len()
+                },
                 "{change}"
             );
             assert!(!work.exists());
@@ -5101,16 +5535,23 @@ mod tests {
                 &spec,
                 true,
                 None,
-                Some("actual-model-hash".to_owned()),
+                (change != "unverified").then(|| spec.native_sha256.clone()),
                 &mut |_| {},
             )
             .unwrap();
-            let (actual_root, actual) = load_latest_pack(dir.path(), &spec.model_key).unwrap();
-            let (full_root, expected) = load_latest_pack(full.path(), &spec.model_key).unwrap();
-            assert_eq!(actual.corpora, expected.corpora, "{change}");
+            let (actual_root, actual) =
+                read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+            let (full_root, expected) =
+                read_latest_pack_manifest(full.path(), &spec.model_key).unwrap();
+            assert_eq!(actual, expected, "{change}");
+            assert_eq!(
+                fs::read(actual_root.join("manifest.json")).unwrap(),
+                fs::read(full_root.join("manifest.json")).unwrap(),
+                "{change}"
+            );
             assert_eq!(
                 report.row_counts.iter().map(|c| c.resumed).sum::<usize>(),
-                if change == "none" {
+                if matches!(change, "none" | "backend-version") {
                     NATIVE_VECTOR_CHUNK_ROWS
                 } else {
                     0
@@ -5213,8 +5654,9 @@ mod tests {
             &mut |_| {},
         )
         .unwrap();
-        let (root, actual) = load_latest_pack(target.path(), &spec.model_key).unwrap();
-        let (expected_root, expected) = load_latest_pack(full.path(), &spec.model_key).unwrap();
+        let (root, actual) = read_latest_pack_manifest(target.path(), &spec.model_key).unwrap();
+        let (expected_root, expected) =
+            read_latest_pack_manifest(full.path(), &spec.model_key).unwrap();
         assert_eq!(actual.corpora, expected.corpora);
         for corpus in actual.corpora {
             for shard in corpus.shards {
@@ -5299,7 +5741,7 @@ mod tests {
         )
         .expect("build fixture pack");
 
-        let deep = semantic_cukta_output(
+        let deep = semantic_cukta_output_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5309,7 +5751,8 @@ mod tests {
             CuktaSearchWindow::after(jbotci_cll::MAX_CUKTA_RESULT_COUNT + 5, 5),
             CuktaTargetFilter::default(),
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
         )
         .expect("semantic cukta window");
         assert_eq!(deep.matches.len(), 5);
@@ -5323,7 +5766,7 @@ mod tests {
         // Windows that overlap agree about the results they share, so the
         // stretch a window shows is the stretch of one ranking rather than a
         // ranking of its own.
-        let overlapping = semantic_cukta_output(
+        let overlapping = semantic_cukta_output_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5333,7 +5776,8 @@ mod tests {
             CuktaSearchWindow::after(jbotci_cll::MAX_CUKTA_RESULT_COUNT, 10),
             CuktaTargetFilter::default(),
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
         )
         .expect("semantic cukta overlapping window");
         let shared = |matched: &CllSearchMatch| {
@@ -5392,7 +5836,7 @@ mod tests {
         )
         .expect("build fixture pack");
 
-        let hits = semantic_vlacku_hits(
+        let hits = semantic_vlacku_hits_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5400,12 +5844,14 @@ mod tests {
             "go somewhere",
             3,
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
+            |_| true,
         )
         .expect("semantic vlacku search");
         assert_eq!(hits.len(), 3);
 
-        let output = semantic_cukta_output(
+        let output = semantic_cukta_output_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5419,12 +5865,13 @@ mod tests {
                 examples: true,
             },
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
         )
         .expect("semantic cukta search");
         assert_eq!(output.matches.len(), 2);
 
-        let section_output = semantic_cukta_output(
+        let section_output = semantic_cukta_output_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5438,7 +5885,8 @@ mod tests {
                 examples: false,
             },
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
         )
         .expect("semantic cukta section search");
         assert_eq!(section_output.matches.len(), 1);
@@ -5447,7 +5895,7 @@ mod tests {
         // The same ranking, asked for from further in: the match keeps the
         // place it holds in the whole ranking, and the chunks passed over are
         // never copied.
-        let second = semantic_cukta_output(
+        let second = semantic_cukta_output_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5461,7 +5909,8 @@ mod tests {
                 examples: false,
             },
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
         )
         .expect("semantic cukta section window");
         assert_eq!(second.matches.len(), 1);
@@ -5504,7 +5953,7 @@ mod tests {
         )
         .expect("build fixture pack");
 
-        let first_hits = semantic_vlacku_hits(
+        let first_hits = semantic_vlacku_hits_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5512,20 +5961,22 @@ mod tests {
             "go somewhere",
             2,
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
+            |_| true,
         )
         .expect("initial semantic vlacku search");
         assert_eq!(first_hits.len(), 2);
 
         let (pack_dir, manifest) =
-            load_latest_pack(dir.path(), &spec.model_key).expect("latest pack");
+            read_latest_pack_manifest(dir.path(), &spec.model_key).expect("latest pack");
         let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID).expect("vlacku corpus");
         std::fs::remove_file(pack_dir.join(&corpus.items_url)).expect("remove items");
         for shard in &corpus.shards {
             std::fs::remove_file(pack_dir.join(&shard.url)).expect("remove vector shard");
         }
 
-        let second_hits = semantic_vlacku_hits(
+        let second_hits = semantic_vlacku_hits_with_identity(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
@@ -5533,7 +5984,9 @@ mod tests {
             "go somewhere",
             2,
             dir.path(),
-            &spec.model_key,
+            &spec,
+            &native_corpus_identity(dictionary, cll_chunks),
+            |_| true,
         )
         .expect("cached semantic vlacku search");
         assert_eq!(second_hits, first_hits);
@@ -5608,5 +6061,421 @@ mod tests {
                 (window..2 * window).collect::<Vec<_>>()
             );
         }
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn installed_shortcuts_require_the_full_vector_function() {
+        let dir = tempfile::tempdir().unwrap();
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let (root, original) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+        for change in [
+            "hash",
+            "missing-hash",
+            "window",
+            "scheme",
+            "pooling",
+            "missing-parameters",
+        ] {
+            let mut manifest = original.clone();
+            match change {
+                "hash" => manifest.model_sha256 = Some("f".repeat(64)),
+                "missing-hash" => manifest.model_sha256 = None,
+                "window" => manifest.vector_parameters.as_mut().unwrap().window_size /= 2,
+                "scheme" => {
+                    manifest.vector_parameters.as_mut().unwrap().window_scheme = "other".to_owned()
+                }
+                "pooling" => {
+                    manifest.vector_parameters.as_mut().unwrap().pooling = "other".to_owned()
+                }
+                "missing-parameters" => manifest.vector_parameters = None,
+                _ => unreachable!(),
+            }
+            write_json_file(&root.join("manifest.json"), &manifest).unwrap();
+            let error = reuse_existing_embedding_pack_with_progress(
+                &dictionary,
+                chunks,
+                dir.path(),
+                &spec,
+                &mut |_| {},
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("--force"), "{change}: {error}");
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            let error = build_embedding_pack_with_reuse(
+                &mut backend,
+                &dictionary,
+                chunks,
+                dir.path(),
+                &spec,
+                false,
+                None,
+                Some(spec.native_sha256.clone()),
+                &mut |_| {},
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("--force"), "{change}: {error}");
+            assert_eq!(backend.calls, 0);
+            for adopt in [false, true] {
+                let result = validate_native_reuse_source_with_adoption(dir.path(), &spec, adopt);
+                assert_eq!(
+                    result.is_ok(),
+                    adopt && matches!(change, "missing-hash" | "missing-parameters"),
+                    "{change}, adopt={adopt}"
+                );
+            }
+        }
+        let mut environment = original.clone();
+        environment.built_by.version = "new-bindings".to_owned();
+        environment.compatible_query_runtimes.clear();
+        write_json_file(&root.join("manifest.json"), &environment).unwrap();
+        reuse_existing_embedding_pack_with_progress(
+            &dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            &mut |_| {},
+        )
+        .unwrap()
+        .unwrap();
+        let identity = native_corpus_identity(&dictionary, chunks);
+        load_pack_for_identity(dir.path(), &spec, &identity).unwrap();
+        let other = EmbeddingModelSpec {
+            native_sha256: "e".repeat(64),
+            ..spec.clone()
+        };
+        assert_ne!(
+            deterministic_pack_id(
+                &spec.input_format_version,
+                &spec.model_revision,
+                &spec.native_sha256,
+                &identity.dictionary_fingerprint,
+                &identity.cll_fingerprint
+            ),
+            deterministic_pack_id(
+                &other.input_format_version,
+                &other.model_revision,
+                &other.native_sha256,
+                &identity.dictionary_fingerprint,
+                &identity.cll_fingerprint
+            )
+        );
+        let reusable = validate_native_reuse_source(dir.path(), &spec).unwrap();
+        let mut backend = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        assert!(
+            build_embedding_pack_with_reuse(
+                &mut backend,
+                &dictionary,
+                chunks,
+                dir.path(),
+                &other,
+                true,
+                Some(reusable),
+                Some(other.native_sha256.clone()),
+                &mut |_| {}
+            )
+            .is_err()
+        );
+        assert_eq!(backend.calls, 0);
+        assert!(validate_native_reuse_source(dir.path(), &other).is_err());
+        assert!(
+            reuse_existing_embedding_pack_with_progress(
+                &dictionary,
+                chunks,
+                dir.path(),
+                &other,
+                &mut |_| {}
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_bad_or_unrecorded_chunk_keeps_the_other_finished_chunks() {
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..515];
+        let spec = test_embedding_spec();
+        for change in ["missing", "corrupt", "unrecorded", "checkpoint-write"] {
+            let dir = tempfile::tempdir().unwrap();
+            let full = tempfile::tempdir().unwrap();
+            let work = test_work_root(dir.path(), &spec, &dictionary, chunks).unwrap();
+            let checkpoint_temp = native_partial_checkpoint_path(&work)
+                .with_file_name(format!("{NATIVE_PARTIAL_BUILD_FILE}.tmp"));
+            if change == "checkpoint-write" {
+                let mut failing = CheckpointFailureBackend {
+                    inner: FakeBackend {
+                        dimensions: 4,
+                        calls: 0,
+                    },
+                    checkpoint_temp: checkpoint_temp.clone(),
+                };
+                build_embedding_pack(&mut failing, &dictionary, chunks, dir.path(), &spec, false)
+                    .unwrap_err();
+                assert_eq!(failing.inner.calls, 512);
+                let unrecorded =
+                    native_work_pack_root(&work).join(native_vector_chunk_url(CUKTA_CORPUS_ID, 1));
+                assert!(unrecorded.is_file());
+                fs::remove_dir(&checkpoint_temp).unwrap();
+            } else {
+                let mut failing = FailingBackend {
+                    dimensions: 4,
+                    calls: 0,
+                    fail_after: 513,
+                };
+                build_embedding_pack(&mut failing, &dictionary, chunks, dir.path(), &spec, false)
+                    .unwrap_err();
+            }
+            let checkpoint_path = native_partial_checkpoint_path(&work);
+            let mut checkpoint: NativePartialBuildCheckpoint =
+                read_json_file(&checkpoint_path).unwrap();
+            let corpus = checkpoint
+                .corpora
+                .iter_mut()
+                .find(|corpus| corpus.corpus_id == CUKTA_CORPUS_ID)
+                .unwrap();
+            assert_eq!(
+                corpus.shards.len(),
+                if change == "checkpoint-write" { 1 } else { 2 }
+            );
+            let path = native_work_pack_root(&work).join(&corpus.shards[0].url);
+            match change {
+                "missing" => fs::remove_file(path).unwrap(),
+                "corrupt" => fs::write(path, b"damaged").unwrap(),
+                // A crash after the durable chunk rename but before the checkpoint
+                // leaves the chunk on disk without a checkpoint entry.
+                "unrecorded" => {
+                    corpus.shards.pop();
+                }
+                "checkpoint-write" => {}
+                _ => unreachable!(),
+            }
+            write_native_partial_checkpoint(&checkpoint_path, &checkpoint).unwrap();
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            let report =
+                build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false)
+                    .unwrap();
+            assert_eq!(backend.calls, 259, "{change}");
+            assert_eq!(report.row_counts[1].resumed, 256);
+            build_embedding_pack(
+                &mut FakeBackend {
+                    dimensions: 4,
+                    calls: 0,
+                },
+                &dictionary,
+                chunks,
+                full.path(),
+                &spec,
+                false,
+            )
+            .unwrap();
+            let (root, manifest) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+            let (expected, _) = read_latest_pack_manifest(full.path(), &spec.model_key).unwrap();
+            assert_eq!(
+                fs::read(root.join("manifest.json")).unwrap(),
+                fs::read(expected.join("manifest.json")).unwrap(),
+                "{change}"
+            );
+            for path in native_pack_remote_paths(&manifest).unwrap() {
+                assert_eq!(
+                    fs::read(root.join(&path)).unwrap(),
+                    fs::read(expected.join(&path)).unwrap(),
+                    "{change}: {path}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn search_rejects_changed_or_reordered_corpora_before_query_embedding() {
+        let dir = tempfile::tempdir().unwrap();
+        let entries = &jbotci_dictionary_data::english().entries()[..2];
+        let dictionary = Dictionary::from_static_slices(entries, &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let reversed_entries = vec![entries[1], entries[0]];
+        let changed_entries = vec![
+            jbotci_dictionary::DictionaryEntry {
+                definition: "changed definition",
+                ..entries[0]
+            },
+            entries[1],
+        ];
+        let reversed_chunks = vec![chunks[1].clone(), chunks[0].clone()];
+        let changed_chunks = vec![
+            chunks[0]
+                .clone()
+                .with_data(data! { text: "changed passage".to_owned() }),
+            chunks[1].clone(),
+        ];
+        for (live_entries, live_chunks) in [
+            (reversed_entries.as_slice(), chunks),
+            (changed_entries.as_slice(), chunks),
+            (&entries[..1], chunks),
+            (entries, reversed_chunks.as_slice()),
+            (entries, changed_chunks.as_slice()),
+            (entries, &chunks[..1]),
+        ] {
+            let live_dictionary =
+                Dictionary::from_static_slices(live_entries, &[], &[], &[], &[], &[], &[], 0);
+            let identity = native_corpus_identity(&live_dictionary, live_chunks);
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            assert!(
+                semantic_vlacku_hits_with_identity(
+                    &mut backend,
+                    "query",
+                    1,
+                    dir.path(),
+                    &spec,
+                    &identity,
+                    |_| panic!("no stale row filter")
+                )
+                .is_err()
+            );
+            assert!(
+                semantic_cukta_output_with_identity(
+                    &mut backend,
+                    live_chunks,
+                    "query",
+                    CuktaSearchWindow::first(1),
+                    CuktaTargetFilter::default(),
+                    dir.path(),
+                    &spec,
+                    &identity
+                )
+                .is_err()
+            );
+            assert_eq!(backend.calls, 0);
+        }
+        // The public loader and desktop status use the actual compiled corpus,
+        // which also refuses this small, stale pack.
+        assert!(load_latest_pack(dir.path(), &spec.model_key).is_err());
+        let identity = native_corpus_identity(&dictionary, chunks);
+        for changed_spec in [
+            EmbeddingModelSpec {
+                model_revision: "other".to_owned(),
+                ..spec.clone()
+            },
+            EmbeddingModelSpec {
+                native_sha256: "f".repeat(64),
+                ..spec.clone()
+            },
+            EmbeddingModelSpec {
+                dimensions: 5,
+                ..spec.clone()
+            },
+        ] {
+            assert!(load_pack_for_identity(dir.path(), &changed_spec, &identity).is_err());
+        }
+        let mut wrong_dimensions = FakeBackend {
+            dimensions: 5,
+            calls: 0,
+        };
+        assert!(matches!(
+            semantic_vlacku_hits_with_identity(
+                &mut wrong_dimensions,
+                "query",
+                1,
+                dir.path(),
+                &spec,
+                &identity,
+                |_| true
+            ),
+            Err(EmbeddingError::DimensionMismatch { .. })
+        ));
+        assert!(matches!(
+            semantic_cukta_output_with_identity(
+                &mut wrong_dimensions,
+                chunks,
+                "query",
+                CuktaSearchWindow::first(1),
+                CuktaTargetFilter::default(),
+                dir.path(),
+                &spec,
+                &identity
+            ),
+            Err(EmbeddingError::DimensionMismatch { .. })
+        ));
+        assert_eq!(wrong_dimensions.calls, 0);
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn search_load_checks_same_dimension_model_bytes_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("stub.gguf");
+        let expected = b"stub-gguf-A";
+        let wrong = b"stub-gguf-B";
+        let spec = EmbeddingModelSpec {
+            native_sha256: sha256_hex_bytes(expected),
+            native_size_bytes: expected.len() as u64,
+            ..test_embedding_spec()
+        };
+        fs::write(&path, wrong).unwrap();
+        let error = load_validated_search_backend(
+            &spec,
+            &path,
+            |_, _| -> Result<FakeBackend, EmbeddingError> {
+                panic!("a wrong model cannot reach the backend loader")
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("SHA-256 mismatch"));
+        fs::write(&path, expected).unwrap();
+        let mut loads = 0;
+        let mut backend = load_validated_search_backend(&spec, &path, |spec, _| {
+            loads += 1;
+            Ok(FakeBackend {
+                dimensions: spec.dimensions,
+                calls: 0,
+            })
+        })
+        .unwrap();
+        assert_eq!(loads, 1);
+        fs::remove_file(&path).unwrap();
+        backend.embed("query one").unwrap();
+        backend.embed("query two").unwrap();
+        assert_eq!(backend.calls, 2);
     }
 }

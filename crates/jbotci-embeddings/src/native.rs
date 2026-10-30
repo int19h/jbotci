@@ -22,9 +22,9 @@ use crate::{
     semantic_cukta_output, semantic_vlacku_hits, validate_native_reuse_source_with_adoption,
 };
 
-const N_BATCH: u32 = 2048;
-const N_UBATCH: u32 = 2048;
-const N_CTX: u32 = 2048;
+const N_BATCH: u32 = crate::NATIVE_MAX_WINDOW_TOKENS;
+const N_UBATCH: u32 = crate::NATIVE_MAX_WINDOW_TOKENS;
+const N_CTX: u32 = crate::NATIVE_MAX_WINDOW_TOKENS;
 const N_PARALLEL: usize = 32;
 /// The most inputs one decode call carries in `embed_batch`. The token budget
 /// stays N_UBATCH whatever this is, so it costs no memory; it only lets many
@@ -128,6 +128,11 @@ impl NativeLlamaEmbeddingBackend {
             usize::try_from(owned.context.n_ubatch()).map_err(|_| EmbeddingError::Backend {
                 message: "llama.cpp reported invalid n_ubatch".to_owned(),
             })?;
+        if max_tokens_per_call != crate::NATIVE_MAX_WINDOW_TOKENS as usize {
+            return Err(EmbeddingError::InvalidModel {
+                message: "llama.cpp window size differs from the native vector function".to_owned(),
+            });
+        }
         Ok(Self {
             owned,
             dimensions,
@@ -620,7 +625,7 @@ pub fn load_backend_for_search(
             ),
         });
     }
-    NativeLlamaEmbeddingBackend::load(&spec, &model_path)
+    crate::load_validated_search_backend(&spec, &model_path, NativeLlamaEmbeddingBackend::load)
 }
 
 #[derive(Debug)]
@@ -640,6 +645,7 @@ impl NativeEmbeddingSearchService {
         index_dir: Option<PathBuf>,
     ) -> Result<Self, EmbeddingError> {
         let index_root = index_dir.map(Ok).unwrap_or_else(default_index_root)?;
+        crate::load_latest_pack(&index_root, model_key)?;
         let backend = load_backend_for_search(model_key, model_dir)?;
         Ok(Self {
             model_key: model_key.to_owned(),
@@ -736,6 +742,26 @@ fn global_backend() -> Result<&'static LlamaBackend, EmbeddingError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn search_load_hashes_the_installed_file_before_loading_llama() {
+        let root = tempfile::tempdir().unwrap();
+        let spec = model_spec("f2llm-v2-80m-q4-k-m-320").unwrap();
+        let path = model_file_path(root.path(), &spec);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // A sparse file has the pinned length without any model weights.
+        // Search must reject its hash before it initializes llama.cpp.
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(spec.native_size_bytes)
+            .unwrap();
+        let error =
+            load_backend_for_search(&spec.model_key, Some(root.path().to_owned())).unwrap_err();
+        assert!(matches!(error, EmbeddingError::InvalidModel { .. }));
+        assert!(error.to_string().contains("SHA-256 mismatch"));
+    }
 
     /// Batched embedding must agree with one-at-a-time `embed`, which is what
     /// queries use at search time. The inputs exercise every packing path: a

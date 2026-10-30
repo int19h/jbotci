@@ -2905,7 +2905,8 @@ fn seed_native_reuse_index(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_latest_native_pack(index: &Path, output: &Path, model: &str) -> Result<()> {
-    let (pack, _) = jbotci_embeddings::load_latest_pack(index, model)?;
+    let (pack, _) = jbotci_embeddings::read_latest_pack_manifest(index, model)?;
+    jbotci_embeddings::validate_pack_dir(&pack)?;
     let relative = pack
         .strip_prefix(index.join("v1"))
         .context("pack is outside index")?;
@@ -2995,8 +2996,24 @@ fn build_gguf_embeddings_with_setup(
         if let Some(source) = validated_sources.remove(model) {
             seed_native_reuse_index(&source, &model_index_dir, model)?;
         }
+        let report_path = model_index_dir.join("setup-report.json");
+        match fs::remove_file(&report_path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("removing old setup report `{}`", report_path.display())
+                });
+            }
+        }
         let mut command = ProcessCommand::new("cargo");
-        command.arg("run").arg("--release").arg("-p").arg("jbotci");
+        command
+            .arg("run")
+            .arg("--release")
+            .arg("-j")
+            .arg("8")
+            .arg("-p")
+            .arg("jbotci");
         if let Some(feature) = args.llama_backend.jbotci_feature() {
             command.arg("--features").arg(feature);
         }
@@ -3010,7 +3027,9 @@ fn build_gguf_embeddings_with_setup(
             .arg("--model")
             .arg(model)
             .arg("--index-dir")
-            .arg(&model_index_dir);
+            .arg(&model_index_dir)
+            .arg("--report-json")
+            .arg(&report_path);
         if let Some(model_dir) = &args.model_dir {
             command.arg("--model-dir").arg(absolute_path(model_dir)?);
         }
@@ -3032,8 +3051,9 @@ fn build_gguf_embeddings_with_setup(
             );
         }
         if reuse_root.is_some() {
-            let (_, manifest) = jbotci_embeddings::load_latest_pack(&model_index_dir, model)?;
-            if manifest
+            let report: jbotci_embeddings::SetupReport =
+                jbotci_embeddings::read_json_file(&report_path)?;
+            if report
                 .row_counts
                 .iter()
                 .map(|counts| counts.reused + counts.resumed)
@@ -15384,6 +15404,8 @@ mod tests {
                     Some(spec.native_sha256.clone()),
                     &mut |_| {},
                 )?;
+                let report_position = argv.iter().position(|arg| *arg == "--report-json").unwrap();
+                jbotci_embeddings::write_json_file(Path::new(argv[report_position + 1]), &report)?;
                 assert_eq!(backend.calls, 7);
                 assert_eq!(
                     report.row_counts.iter().map(|c| c.resumed).sum::<usize>(),
@@ -15429,6 +15451,113 @@ mod tests {
             .is_err()
         );
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_xtask_reads_fresh_counts_outside_the_published_pack() {
+        let root = std::env::temp_dir().join(format!("native-xtask-report-{}", std::process::id()));
+        remove_path_if_exists(&root).unwrap();
+        let model = jbotci_embeddings::DEFAULT_MODEL_KEY;
+        let spec = jbotci_embeddings::model_spec(model).unwrap();
+        let dictionary =
+            jbotci_dictionary::Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let source = root.join("source");
+        jbotci_embeddings::build_embedding_pack(
+            &mut SeedTestBackend {
+                dimensions: spec.dimensions,
+                calls: 0,
+                fail_after: None,
+            },
+            &dictionary,
+            chunks,
+            &source.join(model),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let changed = vec![
+            chunks[0].clone(),
+            chunks[1]
+                .clone()
+                .with_data(data! { text: "changed report test input".to_owned() }),
+        ];
+        for mode in ["fresh", "missing", "zero"] {
+            let index = root.join(mode).join("index");
+            let output = root.join(mode).join("output");
+            let report_path = index.join(model).join("setup-report.json");
+            // This old report must disappear before setup starts.
+            jbotci_embeddings::write_json_file(&report_path, &serde_json::json!({"stale": true}))
+                .unwrap();
+            let cli = Cli::try_parse_from([
+                "xtask-full",
+                "build-gguf-embeddings",
+                "--model",
+                model,
+                "--reuse-index-dir",
+                source.to_str().unwrap(),
+                "--index-dir",
+                index.to_str().unwrap(),
+                "--out-dir",
+                output.to_str().unwrap(),
+            ])
+            .unwrap();
+            let Command::BuildGgufEmbeddings(args) = cli.command else {
+                unreachable!()
+            };
+            let result = build_gguf_embeddings_with_setup(args, |command| {
+                let argv = command.get_args().collect::<Vec<_>>();
+                let at = argv.iter().position(|arg| *arg == "--index-dir").unwrap();
+                let destination = Path::new(argv[at + 1]);
+                let at = argv.iter().position(|arg| *arg == "--report-json").unwrap();
+                let report_file = Path::new(argv[at + 1]);
+                assert_eq!(report_file, report_path);
+                assert!(!report_file.exists());
+                let reuse = jbotci_embeddings::validate_native_reuse_source(destination, &spec)?;
+                let mut backend = SeedTestBackend {
+                    dimensions: spec.dimensions,
+                    calls: 0,
+                    fail_after: None,
+                };
+                let mut report = jbotci_embeddings::build_embedding_pack_with_reuse(
+                    &mut backend,
+                    &dictionary,
+                    &changed,
+                    destination,
+                    &spec,
+                    true,
+                    Some(reuse),
+                    Some(spec.native_sha256.clone()),
+                    &mut |_| {},
+                )?;
+                assert_eq!(backend.calls, 1);
+                assert_eq!(report.row_counts[1].reused, 1);
+                if mode == "zero" {
+                    report.row_counts.clear();
+                }
+                if mode != "missing" {
+                    jbotci_embeddings::write_json_file(report_file, &report)?;
+                }
+                Ok(())
+            });
+            if mode == "fresh" {
+                result.unwrap();
+                let catalog: jbotci_embeddings::EmbeddingCatalog =
+                    jbotci_embeddings::read_json_file(&output.join("catalog.json")).unwrap();
+                let manifest: serde_json::Value = jbotci_embeddings::read_json_file(
+                    &output.join(&catalog.models[0].manifest_url),
+                )
+                .unwrap();
+                assert!(manifest.get("row_counts").is_none());
+                assert!(!output.join("setup-report.json").exists());
+            } else {
+                assert!(result.is_err(), "{mode}");
+                assert!(!output.exists());
+            }
+        }
+        remove_path_if_exists(&root).unwrap();
     }
 
     #[cfg(unix)]
@@ -15700,7 +15829,8 @@ elif 'build-vector-pack.py' in args[0]:
         assert_eq!(backend.calls, 2);
         let pack_id = report.pack_id.as_str();
         let manifest_url = format!("models/{model}/packs/{pack_id}/manifest.json");
-        let (pack_dir, mut manifest) = jbotci_embeddings::load_latest_pack(&source, model).unwrap();
+        let (pack_dir, mut manifest) =
+            jbotci_embeddings::read_latest_pack_manifest(&source, model).unwrap();
         manifest.model_sha256 = None;
         manifest.build_provenance = None;
         write_json_file(
@@ -15758,7 +15888,8 @@ elif 'build-vector-pack.py' in args[0]:
         assert_eq!(backend.calls, 1);
         assert_eq!(report.row_counts[1].reused, 1);
         assert_eq!(report.row_counts[1].embedded, 1);
-        let (_, manifest) = jbotci_embeddings::load_latest_pack(&destination, model).unwrap();
+        let (_, manifest) =
+            jbotci_embeddings::read_latest_pack_manifest(&destination, model).unwrap();
         assert!(manifest.legacy_adoption.is_some());
         #[cfg(unix)]
         {
