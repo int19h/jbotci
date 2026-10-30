@@ -9175,7 +9175,7 @@ mod tests {
                 .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("ITagBoParagraphStatementConnective"));
+            assert!(raw.contains("StandardParagraphBoConnective"));
             assert!(raw.contains("FihoTense"));
             assert!(raw.contains("GroupedTanruUnit"));
             assert!(raw.contains("fi'o"));
