@@ -20,9 +20,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use serde_json::Value;
 use tokio::time::{Duration, Instant};
 
-#[cfg(test)]
-use super::assemble::assemble;
-use super::assemble::{AssembleError, AssembledMessage, assemble_with_limit};
+use super::assemble::{AssembleError, AssembleErrorData, AssembledMessage, assemble_with_limit};
 use super::codec::{
     HeaderDecodeError, INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, PageControl,
     RequestHeader, decode_input_block,
@@ -1392,7 +1390,10 @@ impl DiscordService {
         let limit = jbotci_output::budget::ByteLimit::new(self.tools.execution.policy.text_bytes)
             .expect("validated text limit");
         let reason = reason
-            .map(|reason| jbotci_output::budget::bounded_format(format_args!("{reason}"), limit))
+            .map(|reason| {
+                jbotci_output::budget::bounded_format(format_args!("{reason}"), limit)
+                    .map_err(|_| jbotci_output::budget::OutputLimitError { limit })
+            })
             .transpose();
         let note = reason.and_then(|reason| private_note(summary, reason.as_deref(), limit));
         let (content, detail) = match note {

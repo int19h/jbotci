@@ -502,6 +502,7 @@ fn recovery_error_tree_value(item: &RecoveryRenderItem) -> TreeValue {
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(matches!(ret, Value::Object(_)))]
 fn recovery_error_json_value(item: &RecoveryRenderItem) -> Value {

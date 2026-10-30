@@ -1485,7 +1485,6 @@ impl MessagePayload {
         jbotci_output::budget::check_json_text_budget(
             &(JsonRef(self), AttachmentText(&self.attachments)),
             limit,
-            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive counting limit"),
         )
     }
 

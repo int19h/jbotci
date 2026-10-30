@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires, try_new};
+use bityzba::{data, ensures, invariant, new, requires, try_new};
 use serde_json::{Value, json};
 
 use super::components::{FLAG_EPHEMERAL, MessagePayload};
