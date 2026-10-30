@@ -107,6 +107,24 @@ impl RenderedResult {
         }
     }
 
+    #[requires(text_scope.is_exceeded() || status.as_ref().starts_with(tool.name()))]
+    #[ensures(ret.tool() == tool)]
+    pub(crate) fn new_in_scope(
+        tool: DiscordTool,
+        status: impl AsRef<str>,
+        text_scope: &jbotci_output::budget::TextScope,
+    ) -> Self {
+        let status = text_scope.copy(status.as_ref());
+        Self::new(
+            tool,
+            if text_scope.is_exceeded() {
+                tool.name().to_owned()
+            } else {
+                status
+            },
+        )
+    }
+
     /// Record the complete plain text of a result the message shows whole.
     #[requires(true)]
     #[ensures(self.full_text.is_some())]
@@ -160,28 +178,32 @@ pub(crate) fn page_status<T>(results: &PagedResults<T>) -> String {
 /// Present `outcome` for `request`.
 #[requires(true)]
 #[ensures(ret.tool() == request.tool())]
-pub(crate) fn render(outcome: &ToolOutcome, request: &DiscordRequest) -> RenderedResult {
+fn render_in_scope(
+    outcome: &ToolOutcome,
+    request: &DiscordRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     match (outcome, request) {
         (ToolOutcome::Gentufa(outcome), DiscordRequest::Gentufa(request)) => {
-            gentufa::render(outcome, request)
+            gentufa::render_in_scope(outcome, request, text_scope)
         }
         (ToolOutcome::Vlasei(analysis), DiscordRequest::Vlasei(request)) => {
-            vlasei::render(analysis, request)
+            vlasei::render_in_scope(analysis, request, text_scope)
         }
         (ToolOutcome::Vlatai(report), DiscordRequest::Vlatai(request)) => {
-            vlatai::render(report, request)
+            vlatai::render_in_scope(report, request, text_scope)
         }
         (ToolOutcome::Vlacku(outcome), DiscordRequest::Vlacku(request)) => {
-            vlacku::render(outcome, request)
+            vlacku::render_in_scope(outcome, request, text_scope)
         }
         (ToolOutcome::Cukta(outcome), DiscordRequest::Cukta(request)) => {
-            cukta::render(outcome, request)
+            cukta::render_in_scope(outcome, request, text_scope)
         }
         (ToolOutcome::Jvozba(outcome), DiscordRequest::Jvozba(request)) => {
-            jvozba::render(outcome, request)
+            jvozba::render_in_scope(outcome, request, text_scope)
         }
         (ToolOutcome::Gimfihi(outcome), DiscordRequest::Gimfihi(request)) => {
-            gimfihi::render(outcome, request)
+            gimfihi::render_in_scope(outcome, request, text_scope)
         }
         (outcome, request) => {
             // The operation layer produces the outcome for the request's own
@@ -259,5 +281,78 @@ fn outcome_tool(outcome: &ToolOutcome) -> DiscordTool {
         ToolOutcome::Cukta(_) => DiscordTool::Cukta,
         ToolOutcome::Jvozba(_) => DiscordTool::Jvozba,
         ToolOutcome::Gimfihi(_) => DiscordTool::Gimfihi,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.tool() == request.tool())]
+pub(crate) fn render(outcome: &ToolOutcome, request: &DiscordRequest) -> RenderedResult {
+    let unlimited =
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit");
+    render_with_limits(
+        outcome,
+        request,
+        jbotci_output::budget::RenderLimits::new(unlimited, unlimited),
+    )
+    .expect("unrestricted Discord rendering")
+}
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_with_limits(
+    outcome: &ToolOutcome,
+    request: &DiscordRequest,
+    limits: jbotci_output::budget::RenderLimits,
+) -> Result<RenderedResult, crate::work::WorkError> {
+    let text_scope = jbotci_output::budget::TextScope::new(limits.text);
+    let result = render_in_scope(outcome, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .map_err(|_| crate::work::WorkError::OutputLimit)?;
+    let budget = jbotci_output::budget::OutputBudget::new(limits.text);
+    for text in
+        std::iter::once(result.status.text.as_str())
+            .chain(result.body.iter().map(String::as_str))
+            .chain(result.notice.as_deref())
+            .chain(result.full_text.as_deref())
+            .chain(result.diagnostics.iter().flat_map(|diagnostics| {
+                [diagnostics.shown.as_str(), diagnostics.complete.as_str()]
+            }))
+    {
+        budget
+            .charge(text.len())
+            .map_err(|_| crate::work::WorkError::OutputLimit)?;
+    }
+    Ok(result)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_output_in_scope(
+    result: Result<String, jbotci_output::OutputError>,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> String {
+    match result {
+        Ok(text) => text,
+        Err(jbotci_output::OutputError::Limit { .. }) => {
+            text_scope.reject();
+            String::new()
+        }
+        Err(error) => text_scope.format(format_args!("{error}")),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_cll_in_scope(
+    result: Result<String, jbotci_cll::CllError>,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    match result {
+        Ok(text) => text,
+        Err(jbotci_cll::CllError::OutputLimit { .. }) => {
+            scope.reject();
+            String::new()
+        }
+        Err(error) => scope.format(format_args!("{error}")),
     }
 }

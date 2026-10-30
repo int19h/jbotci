@@ -28,8 +28,68 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The compound serializer carries the same budget as its nested values.",
     ),
     (
+        "apps/jbotci-server/src/mcp.rs:StructuredToolError",
+        "The envelope borrows an error detail without another constraint.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolErrorDetail",
+        "Any borrowed code and message can be serialized as an error detail.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:DictionaryCardLimitError",
+        "The error carries an already validated positive entry limit.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:JsonRef",
+        "Each borrowed value retains its own constraints during serialization.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:AttachmentUrl",
+        "The attachment name is already validated.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:AttachmentEntry",
+        "Every index and validated attachment name can form an encoded attachment entry.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:AttachmentEntries",
+        "The borrowed slice can contain any validated attachment requests.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/assemble.rs:DeliveryKeepalive",
+        "Optional admission and interaction owners can be retained independently.",
+    ),
+    (
         "crates/jbotci-budget/src/bytes.rs:CountingWriter",
         "A shared validated budget bounds the byte count without storing output.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:Connection",
+        "The connection owns synchronized delivery state.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:DeliveryState",
+        "The registered deadlines and timer state allow every transition, including an empty registry.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:Registration",
+        "A deadline registration retains its owning connection until the response frames are released.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:DeadlineListener",
+        "The listener wraps an already bound TCP listener.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:DeadlineStream",
+        "The TCP stream carries the delivery registry for its connection.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:DeliveredBytes",
+        "A byte frame retains its registered deadline through transport ownership.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:DeliveryBody",
+        "The response body shares its deadline registration with each yielded frame.",
     ),
     (
         "crates/jbotci-budget/src/text.rs:TextScope",
@@ -40,8 +100,52 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "An optional validated text buffer and a shared failure flag allow every state combination.",
     ),
     (
+        "apps/jbotci/src/tool.rs:ToolExecutionLimits",
+        "Each operation limit is validated by its own type and every combination is valid.",
+    ),
+    (
+        "apps/jbotci-server/src/work.rs:CompletedWork",
+        "The completed value keeps its lease until the value is handed off or discarded.",
+    ),
+    (
         "crates/jbotci-budget/src/bytes.rs:BudgetedWriter",
         "A writer is closed or owns a buffer with validated bounds. A panic closes it.",
+    ),
+    (
+        "crates/jbotci-budget/src/lib.rs:RenderLimits",
+        "Each byte limit is already validated and every pair is valid.",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgBudget",
+        "The validated byte counter and a latched failure flag have no additional data constraint.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CompletedOperation",
+        "The completed outcome retains its acquired context until response delivery ends.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolContent",
+        "A borrowed tool payload is valid in every serializer state.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:EncodedImage",
+        "Any borrowed byte slice can be encoded as base64.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolEnvelope",
+        "The envelope borrows a request identifier and a typed tool result.",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:AdmittedEmbeddingJob",
+        "A native job owns the admitted context that keeps its computation slot alive.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolResult",
+        "A tool result pairs a protocol value with optional admission ownership.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:AdmittedOperationContext",
+        "The operation carries its existing context and an acquired admission lease.",
     ),
     (
         "crates/jbotci-budget/src/bytes.rs:OutputBudget",
@@ -50,10 +154,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-budget/src/bytes.rs:OutputLimitError",
         "The error carries an already validated byte limit.",
-    ),
-    (
-        "crates/jbotci-budget/src/lib.rs:RenderLimits",
-        "Each byte limit is already validated and every pair is valid.",
     ),
     (
         "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
@@ -94,10 +194,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/interaction.rs:ComponentInteraction",
         "what a button interaction carries; the identifiers are validated types and the message is Discord's own payload",
-    ),
-    (
-        "apps/jbotci-server/src/discord/interaction.rs:DiscordService",
-        "the services one interaction needs, each carrying its own constraints",
     ),
     (
         "apps/jbotci-server/src/discord/interaction.rs:FakeDiscord",
@@ -228,15 +324,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit error marker",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:QueueSlot",
+        "apps/jbotci-server/src/work.rs:QueueSlot",
         "RAII handle over a lane's waiting counter; it carries no data of its own",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:WorkGovernor",
-        "governor pairs two lanes whose own invariants bound them",
-    ),
-    (
-        "apps/jbotci-server/src/discord/work.rs:WorkSnapshot",
+        "apps/jbotci-server/src/work.rs:WorkSnapshot",
         "diagnostic counters; any values are a valid snapshot",
     ),
     (
@@ -1206,10 +1298,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-phonetic/src/lib.rs:AlineSimilarityScratch",
         "ALINE scratch rows are resized before scoring and arbitrary cached buffer contents are valid",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaRenderedWord",
-        "IPA word rendering metadata is produced by render_word_ipa and consumed immediately for boundary merging",
     ),
     (
         "crates/jbotci-phonetic/src/lib.rs:IpaTokenizedText",

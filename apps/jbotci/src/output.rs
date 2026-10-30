@@ -119,3 +119,129 @@ pub(super) fn stderr_terminal_width() -> usize {
         .filter(|width| *width > 0)
         .unwrap_or(DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH)
 }
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn dark_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.bright_black()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn yellow_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.yellow()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn yellow_underlined_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.yellow().underline()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn blue_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.bright_blue()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn magenta_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.magenta()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn green_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.green()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn red_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.red()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn cyan_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.cyan()))
+    } else {
+        scope.copy(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub(super) fn light_in_scope(
+    text: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    if color {
+        scope.format(format_args!("{}", text.white()))
+    } else {
+        scope.copy(text)
+    }
+}

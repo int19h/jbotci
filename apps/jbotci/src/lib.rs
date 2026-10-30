@@ -4,6 +4,26 @@
 #![recursion_limit = "2048"]
 
 use jbotci_output::Indentation;
+use jbotci_output::budget::{ByteLimit, OutputBudget, RenderLimits, bounded_format};
+use jbotci_output::{
+    compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limit,
+    compact_recovered_morphology_json_string_with_limit,
+    compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
+    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
+    pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
+    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
+    pretty_recovered_syntax_tree_with_limit, raw_with_limit, render_diagnostics_with_limit,
+};
+
+#[requires(true)]
+#[ensures(true)]
+fn tool_render_limits(limits: Option<&ToolExecutionLimits>) -> RenderLimits {
+    limits.map(|limits| limits.render).unwrap_or_else(|| {
+        let unlimited = ByteLimit::new(usize::MAX).expect("positive unlimited limit");
+        RenderLimits::new(unlimited, unlimited)
+    })
+}
 
 mod benchmark;
 mod cli;
@@ -1427,7 +1447,32 @@ fn render_source_diagnostics(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
 ) -> Result<String> {
-    render_diagnostics(
+    render_source_diagnostics_with_limit(
+        source_label,
+        source,
+        diagnostics,
+        color_enabled,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(!source_label.is_empty())]
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+fn render_source_diagnostics_with_limit(
+    source_label: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    color_enabled: bool,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    limit: ByteLimit,
+) -> Result<String> {
+    render_diagnostics_with_limit(
         source_label,
         source,
         diagnostics,
@@ -1437,6 +1482,7 @@ fn render_source_diagnostics(
             glyphs,
             terminal_width: diagnostic_terminal_width,
         }),
+        limit,
     )
     .map_err(|error| anyhow!(error))
 }

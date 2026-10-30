@@ -15,33 +15,41 @@ use super::*;
 /// Appends `text` as inert content in the dialect.
 #[requires(true)]
 #[ensures(true)]
-fn push_text(output: &mut String, text: &str, dialect: CllMarkdownDialect) {
+fn push_text(output: &mut jbotci_budget::TextBuffer, text: &str, dialect: CllMarkdownDialect) {
+    let scope = output.scope();
     match dialect {
         CllMarkdownDialect::GitHub => output.push_str(text),
-        CllMarkdownDialect::Discord => output.push_str(&escape_discord_markdown(text)),
+        CllMarkdownDialect::Discord => {
+            output.push_str(&escape_discord_markdown_in_scope(text, &scope))
+        }
     }
 }
 
 /// `text` as inert content in the dialect.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn dialect_text(text: &str, dialect: CllMarkdownDialect) -> Cow<'_, str> {
+pub(crate) fn dialect_text_in_scope<'text>(
+    text: &'text str,
+    dialect: CllMarkdownDialect,
+    scope: &jbotci_budget::TextScope,
+) -> Cow<'text, str> {
     match dialect {
         CllMarkdownDialect::GitHub => Cow::Borrowed(text),
-        CllMarkdownDialect::Discord => Cow::Owned(escape_discord_markdown(text)),
+        CllMarkdownDialect::Discord => Cow::Owned(escape_discord_markdown_in_scope(text, &scope)),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn render_block_markdown(
+pub(crate) fn render_block_markdown_to(
     site: &CllSite,
     block: &CllBlock,
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     depth: usize,
     link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
 ) {
+    let scope = output.scope();
     match block {
         CllBlock::Paragraph {
             role,
@@ -50,12 +58,22 @@ pub(crate) fn render_block_markdown(
             ..
         } => {
             let body = if inlines.is_empty() {
-                dialect_text(text, dialect)
+                dialect_text_in_scope(text, dialect, &scope)
             } else {
-                Cow::Owned(render_inlines_markdown(site, inlines, link_mode, dialect))
+                Cow::Owned(render_inlines_markdown(
+                    site, inlines, link_mode, dialect, &scope,
+                ))
             };
             if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
-                push_status_note_markdown(output, &body);
+                output.push_str("> **");
+                output.push_str(CLL_STATUS_NOTE_LABEL);
+                output.push_str(".** ");
+                for (index, line) in body.lines().enumerate() {
+                    if index != 0 {
+                        output.push_str("\n> ");
+                    }
+                    output.push_str(line);
+                }
             } else {
                 output.push_str(&body);
             }
@@ -64,16 +82,16 @@ pub(crate) fn render_block_markdown(
         CllBlock::List { ordered, items } => {
             for (index, item) in items.iter().enumerate() {
                 let marker = if *ordered {
-                    format!("{}.", index + 1)
+                    scope.format(format_args!("{}.", index + 1))
                 } else {
                     "-".to_owned()
                 };
-                output.push_str(&"  ".repeat(depth));
+                output.push_str(&scope.repeat("  ", depth));
                 output.push_str(&marker);
                 output.push(' ');
-                let mut item_text = String::new();
+                let mut item_text = scope.buffer();
                 for block in item {
-                    render_block_markdown(
+                    render_block_markdown_to(
                         site,
                         block,
                         &mut item_text,
@@ -89,7 +107,7 @@ pub(crate) fn render_block_markdown(
         }
         CllBlock::Example { example_id } => {
             if let Some(example) = cll_lookup_example(site, example_id) {
-                render_example_markdown(site, example, output, link_mode, dialect);
+                render_example_markdown_to(site, example, output, link_mode, dialect);
             }
         }
         CllBlock::Table {
@@ -109,13 +127,20 @@ pub(crate) fn render_block_markdown(
             CllMarkdownDialect::Discord => {
                 if let Some(caption) = caption {
                     output.push_str("**");
-                    output.push_str(&render_inlines_markdown(site, caption, link_mode, dialect));
+                    output.push_str(&render_inlines_markdown(
+                        site, caption, link_mode, dialect, &scope,
+                    ));
                     output.push_str("**\n\n");
                 }
                 push_discord_rows(
                     header_rows.iter().chain(body_rows.iter()).map(|row| {
                         row.iter()
-                            .map(|cell| single_line(&blocks_plain_text(site, &cell.blocks)))
+                            .map(|cell| {
+                                single_line(
+                                    &blocks_plain_text_in_scope(site, &cell.blocks, &scope),
+                                    &scope,
+                                )
+                            })
                             .collect::<Vec<_>>()
                     }),
                     output,
@@ -131,7 +156,12 @@ pub(crate) fn render_block_markdown(
                     row.iter()
                         .map(|cell| {
                             cell.as_deref()
-                                .map(|inlines| single_line(&inline_plain_text(inlines)))
+                                .map(|inlines| {
+                                    single_line(
+                                        &inline_plain_text_in_scope(inlines, &scope),
+                                        &scope,
+                                    )
+                                })
                                 .unwrap_or_default()
                         })
                         .collect::<Vec<_>>()
@@ -147,10 +177,11 @@ pub(crate) fn render_block_markdown(
                     &entry.term,
                     link_mode,
                     dialect,
+                    &scope,
                 ));
                 output.push_str("**\n\n");
                 for block in &entry.blocks {
-                    render_block_markdown(site, block, output, depth, link_mode, dialect);
+                    render_block_markdown_to(site, block, output, depth, link_mode, dialect);
                 }
             }
         }
@@ -160,13 +191,15 @@ pub(crate) fn render_block_markdown(
             // Discord does not render Markdown images, so its dialect always
             // carries the description.
             if link_mode == CllLinkRenderMode::Web && dialect == CllMarkdownDialect::GitHub {
-                output.push_str(&format!("![{}]({})\n\n", alt, src));
+                output.push_str(&scope.format(format_args!("![{}]({})\n\n", alt, src)));
             } else {
                 push_text(output, alt, dialect);
                 output.push_str("\n\n");
             }
             if let Some(title) = title {
-                output.push_str(&render_inlines_markdown(site, title, link_mode, dialect));
+                output.push_str(&render_inlines_markdown(
+                    site, title, link_mode, dialect, &scope,
+                ));
                 output.push_str("\n\n");
             }
         }
@@ -175,7 +208,7 @@ pub(crate) fn render_block_markdown(
             push_text(output, term, dialect);
             output.push_str("**\n\n");
             for block in body {
-                render_block_markdown(site, block, output, depth, link_mode, dialect);
+                render_block_markdown_to(site, block, output, depth, link_mode, dialect);
             }
         }
         CllBlock::Code { text, .. } => {
@@ -199,15 +232,17 @@ pub(crate) fn render_block_markdown(
                 // Discord supports three heading levels.
                 CllMarkdownDialect::Discord => usize::from(*level).clamp(1, 3),
             };
-            output.push_str(&"#".repeat(level));
+            output.push_str(&scope.repeat("#", level));
             output.push(' ');
-            output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+            output.push_str(&render_inlines_markdown(
+                site, inlines, link_mode, dialect, &scope,
+            ));
             output.push_str("\n\n");
         }
         CllBlock::BlockQuote { blocks, .. } => {
-            let mut inner = String::new();
+            let mut inner = scope.buffer();
             for block in blocks {
-                render_block_markdown(site, block, &mut inner, depth, link_mode, dialect);
+                render_block_markdown_to(site, block, &mut inner, depth, link_mode, dialect);
             }
             for line in inner.trim().lines() {
                 output.push_str("> ");
@@ -217,7 +252,9 @@ pub(crate) fn render_block_markdown(
             output.push('\n');
         }
         CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-            output.push_str(&render_inlines_markdown(site, body, link_mode, dialect));
+            output.push_str(&render_inlines_markdown(
+                site, body, link_mode, dialect, &scope,
+            ));
             output.push_str("\n\n");
         }
         CllBlock::InterlinearGloss {
@@ -265,12 +302,13 @@ pub(crate) fn render_block_markdown(
                     output.push_str(line.kind.as_str());
                     output.push_str("**: ");
                     output.push_str(&render_inlines_markdown(
-                        site, &line.body, link_mode, dialect,
+                        site, &line.body, link_mode, dialect, &scope,
                     ));
                     if let Some(comment) = &line.comment {
                         output.push_str(" — ");
-                        output
-                            .push_str(&render_inlines_markdown(site, comment, link_mode, dialect));
+                        output.push_str(&render_inlines_markdown(
+                            site, comment, link_mode, dialect, &scope,
+                        ));
                     }
                     output.push('\n');
                 }
@@ -283,7 +321,7 @@ pub(crate) fn render_block_markdown(
                 output.push_str(part.kind.as_str());
                 output.push_str("**: ");
                 output.push_str(&render_inlines_markdown(
-                    site, &part.body, link_mode, dialect,
+                    site, &part.body, link_mode, dialect, &scope,
                 ));
                 output.push('\n');
             }
@@ -299,21 +337,22 @@ pub(crate) fn render_block_markdown(
 /// An example: its label, then its content blocks, or its legacy line list
 /// when the book carries no blocks for it.
 #[requires(true)]
-#[ensures(output.contains(example.label.as_str()) || dialect == CllMarkdownDialect::Discord)]
-pub(crate) fn render_example_markdown(
+#[ensures(output.scope().is_exceeded() || output.contains(example.label.as_str()) || dialect == CllMarkdownDialect::Discord)]
+pub(crate) fn render_example_markdown_to(
     site: &CllSite,
     example: &CllExample,
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
 ) {
+    let scope = output.scope();
     match dialect {
         CllMarkdownDialect::GitHub => {
-            output.push_str(&format!("### {}", example.label));
+            output.push_str(&scope.format(format_args!("### {}", example.label)));
             if link_mode == CllLinkRenderMode::Web
                 && let Some(parse_href) = &example.parse_href
             {
-                output.push_str(&format!(" [Parse]({parse_href})"));
+                output.push_str(&scope.format(format_args!(" [Parse]({parse_href})")));
             }
             output.push_str("\n\n");
         }
@@ -331,7 +370,7 @@ pub(crate) fn render_example_markdown(
         }
     }
     for block in &example.blocks {
-        render_block_markdown(site, block, output, 0, link_mode, dialect);
+        render_block_markdown_to(site, block, output, 0, link_mode, dialect);
     }
     if example.blocks.is_empty() {
         for line in &example.lines {
@@ -340,7 +379,11 @@ pub(crate) fn render_example_markdown(
                     if line.kind == CllExampleLineKind::Text {
                         output.push_str(&line.text);
                     } else {
-                        output.push_str(&format!("{}: {}", line.kind.as_str(), line.text));
+                        output.push_str(&scope.format(format_args!(
+                            "{}: {}",
+                            line.kind.as_str(),
+                            line.text
+                        )));
                     }
                 }
                 CllMarkdownDialect::Discord => {
@@ -366,33 +409,40 @@ pub(crate) fn render_inlines_markdown(
     inlines: &[CllInline],
     link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
-    let mut output = String::new();
+    let mut output = scope.buffer();
     for inline in inlines {
         match inline {
             CllInline::Text(text) => push_text(&mut output, text, dialect),
             CllInline::Emphasis { inlines, .. } => {
                 output.push('*');
-                output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                output.push_str(&render_inlines_markdown(
+                    site, inlines, link_mode, dialect, &scope,
+                ));
                 output.push('*');
             }
             CllInline::Quote { inlines, .. } => {
                 output.push('"');
-                output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                output.push_str(&render_inlines_markdown(
+                    site, inlines, link_mode, dialect, &scope,
+                ));
                 output.push('"');
             }
             CllInline::LanguageSpan { inlines, .. } | CllInline::CiteTitle { inlines } => {
                 match dialect {
                     CllMarkdownDialect::GitHub => {
-                        output
-                            .push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                        output.push_str(&render_inlines_markdown(
+                            site, inlines, link_mode, dialect, &scope,
+                        ));
                     }
                     // The web reader sets Lojban and foreign phrases and cited
                     // titles in italics; Discord can do the same.
                     CllMarkdownDialect::Discord => {
                         output.push('*');
-                        output
-                            .push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                        output.push_str(&render_inlines_markdown(
+                            site, inlines, link_mode, dialect, &scope,
+                        ));
                         output.push('*');
                     }
                 }
@@ -400,21 +450,29 @@ pub(crate) fn render_inlines_markdown(
             CllInline::Subscript { inlines } => match dialect {
                 CllMarkdownDialect::GitHub => {
                     output.push('~');
-                    output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                    output.push_str(&render_inlines_markdown(
+                        site, inlines, link_mode, dialect, &scope,
+                    ));
                     output.push('~');
                 }
                 CllMarkdownDialect::Discord => {
-                    output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                    output.push_str(&render_inlines_markdown(
+                        site, inlines, link_mode, dialect, &scope,
+                    ));
                 }
             },
             CllInline::Superscript { inlines } => match dialect {
                 CllMarkdownDialect::GitHub => {
                     output.push('^');
-                    output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                    output.push_str(&render_inlines_markdown(
+                        site, inlines, link_mode, dialect, &scope,
+                    ));
                     output.push('^');
                 }
                 CllMarkdownDialect::Discord => {
-                    output.push_str(&render_inlines_markdown(site, inlines, link_mode, dialect));
+                    output.push_str(&render_inlines_markdown(
+                        site, inlines, link_mode, dialect, &scope,
+                    ));
                 }
             },
             CllInline::Link {
@@ -422,18 +480,18 @@ pub(crate) fn render_inlines_markdown(
                 inlines,
                 kind,
             } => {
-                let text = render_inlines_markdown(site, inlines, link_mode, dialect);
+                let text = render_inlines_markdown(site, inlines, link_mode, dialect, &scope);
                 let text = if text.is_empty() {
-                    dialect_text(target, dialect)
+                    dialect_text_in_scope(target, dialect, &scope)
                 } else {
                     Cow::Owned(text)
                 };
                 match link_mode {
-                    CllLinkRenderMode::Web => output.push_str(&format!(
+                    CllLinkRenderMode::Web => output.push_str(&scope.format(format_args!(
                         "[{}]({})",
-                        markdown_link_label_text(&text),
+                        markdown_link_label_text(&text, &scope),
                         cll_link_href(site, *kind, target)
-                    )),
+                    ))),
                     CllLinkRenderMode::Plain => match kind.plain_disposition() {
                         CllPlainLinkDisposition::KeepContent => output.push_str(&text),
                         CllPlainLinkDisposition::Drop => {}
@@ -441,11 +499,15 @@ pub(crate) fn render_inlines_markdown(
                 }
             }
             CllInline::Code(text) => match dialect {
-                CllMarkdownDialect::GitHub => output.push_str(&format!("`{text}`")),
-                CllMarkdownDialect::Discord => output.push_str(&discord_inline_code(text)),
+                CllMarkdownDialect::GitHub => {
+                    output.push_str(&scope.format(format_args!("`{text}`")))
+                }
+                CllMarkdownDialect::Discord => {
+                    output.push_str(&discord_inline_code_in_scope(text, &scope))
+                }
             },
             CllInline::Elidable { shown, inlines, .. } => {
-                let text = render_inlines_markdown(site, inlines, link_mode, dialect);
+                let text = render_inlines_markdown(site, inlines, link_mode, dialect, &scope);
                 output.push('[');
                 if text.is_empty() {
                     push_text(&mut output, shown, dialect);
@@ -461,13 +523,16 @@ pub(crate) fn render_inlines_markdown(
                     output.push('$');
                 }
                 CllMarkdownDialect::Discord => {
-                    output.push_str(&discord_inline_code(math_text(text, latex)));
+                    output.push_str(&discord_inline_code_in_scope(
+                        math_text(text, latex),
+                        &scope,
+                    ));
                 }
             },
             CllInline::Anchor { .. } => {}
         }
     }
-    output
+    output.into_piece()
 }
 
 /// The readable form of a formula, or its LaTeX when the book has none.
@@ -480,13 +545,18 @@ fn math_text<'a>(text: &'a str, latex: &'a str) -> &'a str {
 /// A cell's text on one line.
 #[requires(true)]
 #[ensures(!ret.contains('\n'))]
-fn single_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+fn single_line(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    scope.join(text.split_whitespace(), " ")
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn push_code_block(output: &mut String, text: &str, dialect: CllMarkdownDialect) {
+fn push_code_block(
+    output: &mut jbotci_budget::TextBuffer,
+    text: &str,
+    dialect: CllMarkdownDialect,
+) {
+    let scope = output.scope();
     match dialect {
         CllMarkdownDialect::GitHub => {
             output.push_str("```\n");
@@ -494,7 +564,7 @@ fn push_code_block(output: &mut String, text: &str, dialect: CllMarkdownDialect)
             output.push_str("\n```\n\n");
         }
         CllMarkdownDialect::Discord => {
-            output.push_str(&discord_code_block(text));
+            output.push_str(&discord_code_block_in_scope(text, &scope));
             output.push_str("\n\n");
         }
     }
@@ -504,19 +574,21 @@ fn push_code_block(output: &mut String, text: &str, dialect: CllMarkdownDialect)
 /// which keeps them legible without relying on column alignment.
 #[requires(true)]
 #[ensures(true)]
-fn push_discord_rows<I>(rows: I, output: &mut String)
+fn push_discord_rows<I>(rows: I, output: &mut jbotci_budget::TextBuffer)
 where
     I: IntoIterator<Item = Vec<String>>,
 {
-    let lines = rows
-        .into_iter()
-        .map(|row| row.join(" | "))
-        .filter(|line| !line.trim().is_empty())
-        .collect::<Vec<_>>();
+    let scope = output.scope();
+    let lines = scope.join(
+        rows.into_iter()
+            .map(|row| scope.join(row, " | "))
+            .filter(|line| !line.trim().is_empty()),
+        "\n",
+    );
     if lines.is_empty() {
         return;
     }
-    output.push_str(&discord_code_block(&lines.join("\n")));
+    output.push_str(&discord_code_block_in_scope(&lines, &scope));
     output.push_str("\n\n");
 }
 
@@ -527,9 +599,10 @@ fn render_table_markdown(
     caption: Option<&[CllInline]>,
     header_rows: &[Vec<CllTableCell>],
     body_rows: &[Vec<CllTableCell>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     if let Some(caption) = caption {
         output.push_str("**");
         output.push_str(&render_inlines_markdown(
@@ -537,20 +610,24 @@ fn render_table_markdown(
             caption,
             link_mode,
             CllMarkdownDialect::GitHub,
+            &scope,
         ));
         output.push_str("**\n\n");
     }
-    let rows = header_rows
+    let width = header_rows
         .iter()
         .chain(body_rows.iter())
-        .collect::<Vec<_>>();
+        .map(Vec::len)
+        .max()
+        .unwrap_or(0);
     render_markdown_table_rows(
-        rows.iter().map(|row| {
+        header_rows.iter().chain(body_rows.iter()).map(|row| {
             row.iter()
-                .map(|cell| table_cell_markdown_text(site, cell, link_mode))
+                .map(|cell| table_cell_markdown_text(site, cell, link_mode, &scope))
                 .collect::<Vec<_>>()
         }),
         output,
+        width,
     );
 }
 
@@ -559,45 +636,48 @@ fn render_table_markdown(
 fn render_simple_list_table_markdown(
     site: &CllSite,
     rows: &[Vec<Option<Vec<CllInline>>>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
+    let width = rows.iter().map(Vec::len).max().unwrap_or(0);
     render_markdown_table_rows(
         rows.iter().map(|row| {
             row.iter()
                 .map(|cell| {
                     cell.as_deref()
                         .map(|inlines| {
-                            markdown_table_cell_text(&render_inlines_markdown(
-                                site,
-                                inlines,
-                                link_mode,
-                                CllMarkdownDialect::GitHub,
-                            ))
+                            markdown_table_cell_text(
+                                &render_inlines_markdown(
+                                    site,
+                                    inlines,
+                                    link_mode,
+                                    CllMarkdownDialect::GitHub,
+                                    &scope,
+                                ),
+                                &scope,
+                            )
                         })
                         .unwrap_or_default()
                 })
                 .collect::<Vec<_>>()
         }),
         output,
+        width,
     );
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_markdown_table_rows<I>(rows: I, output: &mut String)
+fn render_markdown_table_rows<I>(rows: I, output: &mut jbotci_budget::TextBuffer, width: usize)
 where
     I: IntoIterator<Item = Vec<String>>,
 {
-    let rows = rows.into_iter().collect::<Vec<_>>();
-    if rows.is_empty() {
+    let mut rows = rows.into_iter().peekable();
+    if width == 0 || rows.peek().is_none() {
         return;
     }
-    let width = rows.iter().map(Vec::len).max().unwrap_or(0);
-    if width == 0 {
-        return;
-    }
-    for (row_index, row) in rows.iter().enumerate() {
+    for (row_index, row) in rows.enumerate() {
         output.push('|');
         for cell_index in 0..width {
             output.push(' ');
@@ -618,8 +698,16 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn markdown_table_cell_text(text: &str) -> String {
-    text.replace('|', "\\|").replace('\n', "<br>")
+fn markdown_table_cell_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for character in text.chars() {
+        match character {
+            '|' => output.push_str("\\|"),
+            '\n' => output.push_str("<br>"),
+            character => output.push(character),
+        }
+    }
+    output.into_piece()
 }
 
 #[requires(true)]
@@ -628,23 +716,35 @@ fn table_cell_markdown_text(
     site: &CllSite,
     cell: &CllTableCell,
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
-    let mut text = markdown_table_cell_text(&blocks_plain_text(site, &cell.blocks));
+    let mut text = scope.buffer_with(&markdown_table_cell_text(
+        &blocks_plain_text_in_scope(site, &cell.blocks, &scope),
+        &scope,
+    ));
     if link_mode == CllLinkRenderMode::Web
         && let Some(parse_href) = &cell.parse_href
     {
         if !text.is_empty() {
             text.push(' ');
         }
-        text.push_str(&format!("[Parse]({parse_href})"));
+        text.push_str(&scope.format(format_args!("[Parse]({parse_href})")));
     }
-    text
+    text.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn markdown_link_label_text(text: &str) -> String {
-    text.replace('[', "\\[").replace(']', "\\]")
+fn markdown_link_label_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for character in text.chars() {
+        match character {
+            '[' => output.push_str("\\["),
+            ']' => output.push_str("\\]"),
+            character => output.push(character),
+        }
+    }
+    output.into_piece()
 }
 
 #[requires(true)]
@@ -656,9 +756,10 @@ fn render_interlinear_markdown(
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
     if link_mode == CllLinkRenderMode::Web
         && let Some(parse_href) = parse_href
@@ -669,13 +770,13 @@ fn render_interlinear_markdown(
     }
     if !aligned {
         for row in rows {
-            let body = row
-                .cells
-                .iter()
-                .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect))
-                .filter(|cell| !cell.is_empty())
-                .collect::<Vec<_>>()
-                .join(" ");
+            let body = scope.join(
+                row.cells
+                    .iter()
+                    .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect, &scope))
+                    .filter(|cell| !cell.is_empty()),
+                " ",
+            );
             if !body.is_empty() {
                 output.push_str(row.kind.as_str());
                 output.push_str(": ");
@@ -685,40 +786,47 @@ fn render_interlinear_markdown(
         }
         for line in comments {
             output.push_str("comment: ");
-            output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+            output.push_str(&render_inlines_markdown(
+                site, line, link_mode, dialect, &scope,
+            ));
             output.push('\n');
         }
         for line in natlang {
             output.push_str("natlang: ");
-            output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+            output.push_str(&render_inlines_markdown(
+                site, line, link_mode, dialect, &scope,
+            ));
             output.push('\n');
         }
         output.push('\n');
         return;
     }
 
-    let table_rows = rows
-        .iter()
-        .map(|row| {
-            row.cells
-                .iter()
-                .map(|cell| {
-                    markdown_table_cell_text(&render_inlines_markdown(
-                        site, cell, link_mode, dialect,
-                    ))
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    render_markdown_table_rows(table_rows, output);
+    let width = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+    let table_rows = rows.iter().map(|row| {
+        row.cells
+            .iter()
+            .map(|cell| {
+                markdown_table_cell_text(
+                    &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                    &scope,
+                )
+            })
+            .collect::<Vec<_>>()
+    });
+    render_markdown_table_rows(table_rows, output, width);
     for line in comments {
         output.push_str("_");
-        output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, line, link_mode, dialect, &scope,
+        ));
         output.push_str("_\n\n");
     }
     for line in natlang {
         output.push_str("> ");
-        output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, line, link_mode, dialect, &scope,
+        ));
         output.push_str("\n\n");
     }
 }
@@ -733,18 +841,19 @@ fn render_interlinear_discord(
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     let dialect = CllMarkdownDialect::Discord;
     for row in rows {
-        let body = row
-            .cells
-            .iter()
-            .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect))
-            .filter(|cell| !cell.is_empty())
-            .collect::<Vec<_>>()
-            .join(" ");
+        let body = scope.join(
+            row.cells
+                .iter()
+                .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect, &scope))
+                .filter(|cell| !cell.is_empty()),
+            " ",
+        );
         if !body.is_empty() {
             output.push_str("- **");
             output.push_str(row.kind.as_str());
@@ -755,12 +864,16 @@ fn render_interlinear_discord(
     }
     for line in comments {
         output.push_str("- **comment**: ");
-        output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, line, link_mode, dialect, &scope,
+        ));
         output.push('\n');
     }
     for line in natlang {
         output.push_str("- **natlang**: ");
-        output.push_str(&render_inlines_markdown(site, line, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, line, link_mode, dialect, &scope,
+        ));
         output.push('\n');
     }
     output.push('\n');
@@ -773,13 +886,16 @@ fn render_cmavo_list_markdown(
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
     rows: &[Vec<Vec<CllInline>>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
     for title in titles {
         output.push_str("**");
-        output.push_str(&render_inlines_markdown(site, title, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, title, link_mode, dialect, &scope,
+        ));
         output.push_str("**\n\n");
     }
     if headers.is_empty() {
@@ -787,7 +903,7 @@ fn render_cmavo_list_markdown(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect)
+                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
                 })
@@ -796,7 +912,7 @@ fn render_cmavo_list_markdown(
             if rendered_cells.is_empty() {
                 continue;
             }
-            output.push_str(&rendered_cells.join(" | "));
+            output.push_str(&scope.join(&rendered_cells, " | "));
             output.push_str("\n\n");
         }
         return;
@@ -804,17 +920,29 @@ fn render_cmavo_list_markdown(
     let header = headers
         .iter()
         .map(|cell| {
-            markdown_table_cell_text(&render_inlines_markdown(site, cell, link_mode, dialect))
+            markdown_table_cell_text(
+                &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                &scope,
+            )
         })
         .collect::<Vec<_>>();
     let rendered_rows = rows.iter().map(|row| {
         row.iter()
             .map(|cell| {
-                markdown_table_cell_text(&render_inlines_markdown(site, cell, link_mode, dialect))
+                markdown_table_cell_text(
+                    &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                    &scope,
+                )
             })
             .collect::<Vec<_>>()
     });
-    render_markdown_table_rows(std::iter::once(header).chain(rendered_rows), output);
+    render_markdown_table_rows(
+        std::iter::once(header).chain(rendered_rows),
+        output,
+        headers
+            .len()
+            .max(rows.iter().map(Vec::len).max().unwrap_or(0)),
+    );
 }
 
 #[requires(true)]
@@ -824,13 +952,16 @@ fn render_cmavo_list_discord(
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
     rows: &[Vec<Vec<CllInline>>],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     let dialect = CllMarkdownDialect::Discord;
     for title in titles {
         output.push_str("**");
-        output.push_str(&render_inlines_markdown(site, title, link_mode, dialect));
+        output.push_str(&render_inlines_markdown(
+            site, title, link_mode, dialect, &scope,
+        ));
         output.push_str("**\n\n");
     }
     if headers.is_empty() {
@@ -838,7 +969,7 @@ fn render_cmavo_list_discord(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect)
+                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
                 })
@@ -847,7 +978,7 @@ fn render_cmavo_list_discord(
             if rendered_cells.is_empty() {
                 continue;
             }
-            output.push_str(&rendered_cells.join(" · "));
+            output.push_str(&scope.join(&rendered_cells, " · "));
             output.push('\n');
         }
         output.push('\n');
@@ -855,11 +986,11 @@ fn render_cmavo_list_discord(
     }
     let header = headers
         .iter()
-        .map(|cell| single_line(&inline_plain_text(cell)))
+        .map(|cell| single_line(&inline_plain_text_in_scope(cell, &scope), &scope))
         .collect::<Vec<_>>();
     let body = rows.iter().map(|row| {
         row.iter()
-            .map(|cell| single_line(&inline_plain_text(cell)))
+            .map(|cell| single_line(&inline_plain_text_in_scope(cell, &scope), &scope))
             .collect::<Vec<_>>()
     });
     push_discord_rows(std::iter::once(header).chain(body), output);
@@ -870,27 +1001,30 @@ fn render_cmavo_list_discord(
 fn render_lojbanization_markdown(
     site: &CllSite,
     lines: &[CllLojbanizationLine],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
     let rows = lines.iter().map(|line| {
         vec![
             line.kind.as_str().to_owned(),
-            markdown_table_cell_text(&render_inlines_markdown(
-                site, &line.body, link_mode, dialect,
-            )),
+            markdown_table_cell_text(
+                &render_inlines_markdown(site, &line.body, link_mode, dialect, &scope),
+                &scope,
+            ),
             line.comment
                 .as_deref()
                 .map(|comment| {
-                    markdown_table_cell_text(&render_inlines_markdown(
-                        site, comment, link_mode, dialect,
-                    ))
+                    markdown_table_cell_text(
+                        &render_inlines_markdown(site, comment, link_mode, dialect, &scope),
+                        &scope,
+                    )
                 })
                 .unwrap_or_default(),
         ]
     });
-    render_markdown_table_rows(rows, output);
+    render_markdown_table_rows(rows, output, 3);
 }
 
 #[requires(true)]
@@ -898,13 +1032,14 @@ fn render_lojbanization_markdown(
 fn render_ebnf_markdown(
     site: &CllSite,
     entries: &[CllEbnfEntry],
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
+    let scope = output.scope();
     for entry in entries {
         for source_anchor_id in &entry.source_anchor_ids {
             output.push_str("<a id=\"");
-            output.push_str(&escape_html(source_anchor_id));
+            output.push_str(&escape_html_in_scope(source_anchor_id, &scope));
             output.push_str("\"></a>");
         }
         output.push_str("**");
@@ -912,7 +1047,7 @@ fn render_ebnf_markdown(
         output.push_str("** ⩴\n");
         for line in wrap_ebnf_choice_lines(&entry.rhs) {
             output.push_str("  ");
-            output.push_str(&render_ebnf_tokens_markdown(site, &line, link_mode));
+            output.push_str(&render_ebnf_tokens_markdown(site, &line, link_mode, &scope));
             output.push('\n');
         }
         output.push_str("\n\n");
@@ -923,8 +1058,9 @@ fn render_ebnf_markdown(
 /// code block, which also preserves their indentation.
 #[requires(true)]
 #[ensures(true)]
-fn render_ebnf_discord(entries: &[CllEbnfEntry], output: &mut String) {
-    let mut text = String::new();
+fn render_ebnf_discord(entries: &[CllEbnfEntry], output: &mut jbotci_budget::TextBuffer) {
+    let scope = output.scope();
+    let mut text = scope.buffer();
     for (index, entry) in entries.iter().enumerate() {
         if index > 0 {
             text.push('\n');
@@ -942,7 +1078,7 @@ fn render_ebnf_discord(entries: &[CllEbnfEntry], output: &mut String) {
     if text.is_empty() {
         return;
     }
-    output.push_str(&discord_code_block(text.trim_end()));
+    output.push_str(&discord_code_block_in_scope(text.trim_end(), &scope));
     output.push_str("\n\n");
 }
 
@@ -965,8 +1101,9 @@ fn render_ebnf_tokens_markdown(
     site: &CllSite,
     tokens: &[CllEbnfToken],
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
-    let mut output = String::new();
+    let mut output = scope.buffer();
     for token in tokens {
         match token {
             CllEbnfToken::Text { body }
@@ -978,12 +1115,37 @@ fn render_ebnf_tokens_markdown(
                 if link_mode == CllLinkRenderMode::Web
                     && let Some(href) = href
                 {
-                    output.push_str(&format!("[{body}]({})", render_ebnf_href(site, href)));
+                    output.push_str(
+                        &scope.format(format_args!("[{body}]({})", render_ebnf_href(site, href))),
+                    );
                 } else {
                     output.push_str(body);
                 }
             }
         }
     }
-    output
+    output.into_piece()
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_block_markdown(
+    site: &CllSite,
+    block: &CllBlock,
+    output: &mut String,
+    depth: usize,
+    link_mode: CllLinkRenderMode,
+    dialect: CllMarkdownDialect,
+) {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let mut bounded = scope.buffer();
+    render_block_markdown_to(site, block, &mut bounded, depth, link_mode, dialect);
+    output.push_str(
+        &scope
+            .finish(bounded.into_piece())
+            .expect("unrestricted Markdown rendering"),
+    );
 }

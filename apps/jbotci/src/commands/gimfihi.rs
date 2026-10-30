@@ -5,19 +5,21 @@ use super::super::*;
 pub(crate) fn run_gimfihi<WOut: Write>(
     input: GimfihiInput,
     stdout: &mut WOut,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
     let request = gimfihi_request_from_input(&input)?;
     let output = compose_gismu(jbotci_dictionary_data::english(), &request)
         .map_err(|error| anyhow!(error.to_string()))?;
     match input.format {
-        GimfihiCliFormat::Table => writeln!(stdout, "{}", render_gimfihi_table(&output))?,
+        GimfihiCliFormat::Table => {
+            let scope = jbotci_output::budget::TextScope::new(tool_render_limits(limits).text);
+            let text = scope.finish(render_gimfihi_table_in_scope(&output, &scope))?;
+            stdout.write_all(text.as_bytes())?;
+        }
         GimfihiCliFormat::Json => {
-            writeln!(
-                stdout,
-                "{}",
-                serde_json::to_string_pretty(&output)
-                    .context("failed to serialize gimfihi output")?
-            )?;
+            serde::Serialize::serialize(&output, &mut serde_json::Serializer::pretty(&mut *stdout))
+                .context("failed to serialize gimfihi output")?;
+            writeln!(stdout)?;
         }
     }
     Ok(CliStatus::Success)
@@ -88,41 +90,74 @@ fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn render_gimfihi_table(output: &GimfihiOutput) -> String {
+fn render_gimfihi_table_in_scope(
+    output: &GimfihiOutput,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     if output.candidates.is_empty() {
-        return "No gismu candidates matched the selected filters.".to_owned();
+        return scope.copy("No gismu candidates matched the selected filters.\n");
     }
-    let mut lines = Vec::new();
+    let mut lines = scope.buffer();
     if output.scorer != GimfihiScorer::Classic {
-        lines.push(format!("scorer: {}", output.scorer.as_str()));
+        {
+            lines.push_str(&(scope.format(format_args!("scorer: {}", output.scorer.as_str()))));
+            lines.push('\n');
+        };
     }
     if let Some(parameters) = &output.phonetic_parameters {
-        lines.push(format_nondefault_phonetic_parameters(parameters));
+        {
+            lines.push_str(&(format_nondefault_phonetic_parameters(parameters)));
+            lines.push('\n');
+        };
     }
     for source in &output.resolved_sources {
-        lines.push(match &source.ipa {
-            Some(ipa) => format!("sources: {}:[{ipa}] → {}", source.language, source.word),
-            None => format!(
-                "sources: {}:{} → {}",
-                source.language, source.word, source.word
-            ),
-        });
+        {
+            lines.push_str(
+                &(match &source.ipa {
+                    Some(ipa) => scope.format(format_args!(
+                        "sources: {}:[{ipa}] → {}",
+                        source.language, source.word
+                    )),
+                    None => scope.format(format_args!(
+                        "sources: {}:{} → {}",
+                        source.language, source.word, source.word
+                    )),
+                }),
+            );
+            lines.push('\n');
+        };
     }
-    lines.push(format!(
-        "winner: {}",
-        output.winner.as_deref().unwrap_or("none")
-    ));
-    lines.push(format!(
-        "candidates: {} shown of {} passing ({} valid)",
-        output.candidates.len(),
-        output.filtered_count,
-        output.candidate_count
-    ));
-    lines.push("mark  gismu  score     rafsi".to_owned());
+    {
+        lines.push_str(
+            &(scope.format(format_args!(
+                "winner: {}",
+                output.winner.as_deref().unwrap_or("none")
+            ))),
+        );
+        lines.push('\n');
+    };
+    {
+        lines.push_str(
+            &(scope.format(format_args!(
+                "candidates: {} shown of {} passing ({} valid)",
+                output.candidates.len(),
+                output.filtered_count,
+                output.candidate_count
+            ))),
+        );
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&("mark  gismu  score     rafsi".to_owned()));
+        lines.push('\n');
+    };
     for candidate in &output.candidates {
-        lines.push(render_gimfihi_candidate_row(candidate));
+        {
+            lines.push_str(&(render_gimfihi_candidate_row(candidate)));
+            lines.push('\n');
+        };
     }
-    lines.join("\n")
+    lines.into_piece()
 }
 
 #[requires(parameters != &AlineParameters::default())]
@@ -247,4 +282,17 @@ fn trim_float(value: &str) -> String {
     } else {
         trimmed.to_owned()
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_gimfihi_table(output: &GimfihiOutput) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let mut text = scope
+        .finish(render_gimfihi_table_in_scope(output, &scope))
+        .expect("unrestricted table rendering");
+    text.pop();
+    text
 }

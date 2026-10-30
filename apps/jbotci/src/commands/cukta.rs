@@ -7,7 +7,9 @@ pub(crate) fn run_cukta<WOut: Write, WErr: Write>(
     stdout: &mut WOut,
     stderr: &mut WErr,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
+    let render_limits = tool_render_limits(limits);
     validate_cukta_input(&input)?;
     let request = cukta_request_from_input(&input)?;
     let site = embedded_cll_site().map_err(|error| anyhow!(error.to_string()))?;
@@ -32,20 +34,26 @@ pub(crate) fn run_cukta<WOut: Write, WErr: Write>(
                     return Ok(CliStatus::InvalidInput);
                 }
             };
-            render_search_output(&output, input.format.into(), CllLinkRenderMode::Plain)
+            jbotci_cll::render_search_output_with_limit(
+                &output,
+                input.format.into(),
+                CllLinkRenderMode::Plain,
+                render_limits.text,
+            )?
         }
-        _ => match render_cukta_request(
+        _ => match jbotci_cll::render_cukta_request_with_limit(
             site,
             &request,
             input.format.into(),
             CllLinkRenderMode::Plain,
+            render_limits.text,
         ) {
             Ok(rendered) => rendered,
             Err(CllError::SemanticSearchDisabled) => {
                 writeln!(stderr, "{}", CllError::SemanticSearchDisabled)?;
                 return Ok(CliStatus::InvalidInput);
             }
-            Err(error) => return Err(anyhow!(error.to_string())),
+            Err(error) => return Err(anyhow!(error)),
         },
     };
     write!(stdout, "{rendered}")?;

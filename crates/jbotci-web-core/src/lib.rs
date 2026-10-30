@@ -641,15 +641,36 @@ pub fn analyze_gentufa_syntax_diagnostics_for_words(
 #[requires(true)]
 #[ensures(matches!(ret, GentufaWebResult::Blank) == request.text.trim().is_empty())]
 pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
+    parse_gentufa_for_web_with_limits(request, None).expect("unrestricted web rendering")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_gentufa_for_web_with_limits(
+    request: &GentufaWebRequest,
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> Result<GentufaWebResult, WebComputeError> {
+    let result = parse_gentufa_for_web_in_limits(request, limits)?;
+    if let Some(limits) = limits {
+        jbotci_output::budget::check_json_text_budget(&result, limits.text)
+            .map_err(|_| WebComputeError::output_limit())?;
+    }
+    Ok(result)
+}
+#[requires(true)]
+#[ensures(matches!(&ret, Ok(None)) == request.text.trim().is_empty())]
+fn gentufa_syntax_for_web(
+    request: &GentufaWebRequest,
+) -> Result<Option<GentufaSourceAnalysis>, GentufaError> {
     let source = request.text.as_str();
     if source.trim().is_empty() {
-        return GentufaWebResult::Blank;
+        return Ok(None);
     }
 
     let morphology = match analyze_gentufa_morphology_source(source, &request.options) {
         Ok(morphology) => morphology,
         Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
+            return Err(GentufaError {
                 phase: None,
                 message: error.to_string(),
                 diagnostics: Vec::new(),
@@ -663,14 +684,32 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         .map(ToString::to_string)
     {
         let data!(GentufaMorphologyAnalysis { diagnostics, .. }) = morphology.into_data();
-        return GentufaWebResult::Error(GentufaError {
+        return Err(GentufaError {
             phase: Some(DiagnosticPhase::Morphology),
             message,
             diagnostics,
         });
     }
 
-    let analysis = complete_gentufa_source_analysis(source, &request.options, morphology);
+    Ok(Some(complete_gentufa_source_analysis(
+        source,
+        &request.options,
+        morphology,
+    )))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gentufa_for_web_in_limits(
+    request: &GentufaWebRequest,
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> Result<GentufaWebResult, WebComputeError> {
+    let source = request.text.as_str();
+    let analysis = match gentufa_syntax_for_web(request) {
+        Ok(Some(analysis)) => analysis,
+        Ok(None) => return Ok(GentufaWebResult::Blank),
+        Err(error) => return Ok(GentufaWebResult::Error(error)),
+    };
 
     let data!(GentufaSourceAnalysis {
         morphology_options,
@@ -689,6 +728,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
                 &parse,
                 diagnostics,
                 &request.options,
+                limits,
             );
         }
     };
@@ -699,11 +739,12 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         generated_model,
         diagnostics,
         &request.options,
+        limits,
     )
 }
 
 #[requires(true)]
-#[ensures(!matches!(ret, GentufaWebResult::Blank))]
+#[ensures(ret.as_ref().is_ok_and(|result| !matches!(result, GentufaWebResult::Blank)) || ret.is_err())]
 fn valid_gentufa_result_for_web(
     source: &str,
     words: &[WordLike],
@@ -711,7 +752,8 @@ fn valid_gentufa_result_for_web(
     generated_model: Box<jbotci_syntax::generated_model::TextSyntax>,
     diagnostics: Vec<Diagnostic>,
     options: &GentufaWebOptions,
-) -> GentufaWebResult {
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> Result<GentufaWebResult, WebComputeError> {
     let render_options = gentufa_render_options(options);
     let surface_text = render_lojban_text_for_script_with_options(
         source,
@@ -728,26 +770,32 @@ fn valid_gentufa_result_for_web(
     ) {
         Ok(projection) => projection,
         Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
+            return Ok(GentufaWebResult::Error(GentufaError {
                 phase: Some(DiagnosticPhase::Syntax),
                 message: error.to_string(),
                 diagnostics,
-            });
+            }));
         }
     };
     let bracket_options = bracket_render_options(&render_options);
-    let brackets_text = match pretty_generated_model_brackets_with_options(
+    let brackets_text = match jbotci_output::pretty_generated_model_brackets_with_limit(
         &generated_model,
         source,
         bracket_options,
+        limits.map(|limits| limits.text).unwrap_or_else(|| {
+            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+        }),
     ) {
         Ok(text) => text,
         Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
+            if matches!(error, jbotci_output::OutputError::Limit { .. }) {
+                return Err(WebComputeError::output_limit());
+            }
+            return Ok(GentufaWebResult::Error(GentufaError {
                 phase: Some(DiagnosticPhase::Syntax),
                 message: error.to_string(),
                 diagnostics,
-            });
+            }));
         }
     };
     let bracket_source_fragments = match pretty_bracket_source_fragments_with_options(
@@ -757,11 +805,11 @@ fn valid_gentufa_result_for_web(
     ) {
         Ok(fragments) => fragments,
         Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
+            return Ok(GentufaWebResult::Error(GentufaError {
                 phase: Some(DiagnosticPhase::Syntax),
                 message: error.to_string(),
                 diagnostics,
-            });
+            }));
         }
     };
     let bracket_fragments = gentufa_bracket_fragments_from_source(
@@ -772,9 +820,9 @@ fn valid_gentufa_result_for_web(
     let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
     let features = web_feature_availability_for_annotations(&projection.annotations);
     let blocks_layout = projection.into_blocks_layout();
-    let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
+    let ipa_text = render_ipa_for_web_with_limits(words, source, limits)?;
 
-    GentufaWebResult::Success(GentufaSuccess {
+    Ok(GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
         surface_text,
         brackets_text,
@@ -783,12 +831,12 @@ fn valid_gentufa_result_for_web(
         tree_rows,
         diagnostics,
         features,
-    })
+    }))
 }
 
 #[requires(!parse.errors.is_empty())]
 #[requires(diagnostics.len() >= parse.errors.len())]
-#[ensures(matches!(ret, GentufaWebResult::Success(_)))]
+#[ensures(ret.as_ref().is_ok_and(|result| !matches!(result, GentufaWebResult::Blank)) || ret.is_err())]
 fn recovered_gentufa_success_for_web(
     source: &str,
     words: &[WordLike],
@@ -796,7 +844,8 @@ fn recovered_gentufa_success_for_web(
     parse: &RecoveredSyntaxParse,
     diagnostics: Vec<Diagnostic>,
     options: &GentufaWebOptions,
-) -> GentufaWebResult {
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> Result<GentufaWebResult, WebComputeError> {
     let render_options = gentufa_render_options(options);
     let surface_text = render_lojban_text_for_script_with_options(
         source,
@@ -806,9 +855,26 @@ fn recovered_gentufa_success_for_web(
     )
     .unwrap_or_else(|_| source.to_owned());
     let bracket_options = bracket_render_options(&render_options);
-    let brackets_text =
-        pretty_recovered_syntax_brackets_with_options(parse, source, bracket_options)
-            .unwrap_or_else(|error| error.to_string());
+    let brackets_text = match jbotci_output::pretty_recovered_syntax_brackets_with_limit(
+        parse,
+        source,
+        bracket_options,
+        limits.map(|limits| limits.text).unwrap_or_else(|| {
+            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+        }),
+    ) {
+        Ok(text) => text,
+        Err(error) => {
+            if matches!(error, jbotci_output::OutputError::Limit { .. }) {
+                return Err(WebComputeError::output_limit());
+            }
+            return Ok(GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            }));
+        }
+    };
     let projection = recovered_gentufa_blocks_projection(
         parse,
         source,
@@ -832,9 +898,9 @@ fn recovered_gentufa_success_for_web(
     let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
     let features = web_feature_availability_for_annotations(&projection.annotations);
     let blocks_layout = projection.into_blocks_layout();
-    let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
+    let ipa_text = render_ipa_for_web_with_limits(words, source, limits)?;
 
-    GentufaWebResult::Success(GentufaSuccess {
+    Ok(GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
         surface_text,
         brackets_text,
@@ -843,7 +909,7 @@ fn recovered_gentufa_success_for_web(
         tree_rows,
         diagnostics,
         features,
-    })
+    }))
 }
 
 /// Resolved controls for the dictionary-backed blocks projection that every
@@ -2424,12 +2490,45 @@ pub enum WebComputeResponse {
 }
 
 #[invariant(!message.is_empty())]
+#[invariant(diagram_limit.is_none() || *output_limit)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebComputeError {
+    output_limit: bool,
+    diagram_limit: Option<jbotci_gentufa::GentufaLimit>,
     message: String,
 }
 
 impl WebComputeError {
+    #[requires(true)]
+    #[ensures(ret == self.output_limit)]
+    pub fn is_output_limit(&self) -> bool {
+        self.output_limit
+    }
+    #[requires(true)]
+    #[ensures(ret.output_limit)]
+    fn output_limit() -> Self {
+        new!(WebComputeError {
+            message: "The generated output exceeds the server limit.".to_owned(),
+            output_limit: true,
+            diagram_limit: None,
+        })
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_export(error: jbotci_gentufa::GentufaExportError) -> Self {
+        match error {
+            jbotci_gentufa::GentufaExportError::Limit(limit) => {
+                Self::output_limit().with_data(data! { diagram_limit: Some(limit) })
+            }
+            error => Self::export(error),
+        }
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn diagram_limit(&self) -> Option<jbotci_gentufa::GentufaLimit> {
+        self.diagram_limit
+    }
+
     #[requires(true)]
     #[ensures(!ret.message.is_empty())]
     fn json(error: impl fmt::Display) -> Self {
@@ -2451,7 +2550,11 @@ impl WebComputeError {
     #[requires(!message.is_empty())]
     #[ensures(!ret.message.is_empty())]
     fn from_message(message: String) -> Self {
-        new!(WebComputeError { message })
+        new!(WebComputeError {
+            message,
+            output_limit: false,
+            diagram_limit: None,
+        })
     }
 }
 
@@ -3310,6 +3413,41 @@ pub mod blocking {
     /// gimfi'i winning candidate, and the vlacku top match's definition.
     #[requires(true)]
     #[ensures(true)]
+    pub fn build_computed_page_meta_with_limits(
+        base_path: &str,
+        route: &WebRoute,
+        render: jbotci_output::budget::RenderLimits,
+        diagram: jbotci_gentufa::GentufaRenderLimits,
+    ) -> Result<PageMeta, WebComputeError> {
+        if let WebRoute::Gentufa(state) = route {
+            let state = normalize_gentufa_state(state);
+            let request = GentufaWebRequest {
+                text: state.text.clone(),
+                options: GentufaWebOptions {
+                    dialect: state.dialect.clone(),
+                    view_mode: state.view_mode,
+                    script: GentufaScript::Latin,
+                    show_elided: state.show_elided,
+                    show_glosses: state.show_glosses,
+                    show_compounds: state.show_compounds,
+                    show_definitions: false,
+                    error_context_depth: 1,
+                    phonemes: PhonemeRenderOptions::default(),
+                },
+            };
+            let result = parse_gentufa_for_web_with_limits(&request, Some(render))?;
+            return build_gentufa_page_meta_from_result_with_limits(
+                base_path,
+                &state,
+                &result,
+                Some(diagram),
+            );
+        }
+        Ok(build_computed_page_meta(base_path, route))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn build_computed_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
         match route {
             WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
@@ -3419,55 +3557,158 @@ pub fn render_page_head_metadata_block(
     meta: &PageMeta,
     include_title: bool,
 ) -> String {
+    render_page_head_metadata_block_with_limit(
+        origin,
+        meta,
+        include_title,
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+    .expect("unrestricted metadata rendering")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_page_head_metadata_block_in_scope(
+    origin: Option<&str>,
+    meta: &PageMeta,
+    include_title: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     let head = build_page_head(meta);
-    let canonical_url = absolute_page_head_url(origin, &head.canonical_url);
-    let mut lines = Vec::new();
-    lines.push(META_BLOCK_START.to_owned());
+    let canonical_url = absolute_page_head_url(origin, &head.canonical_url, &scope);
+    let mut lines = scope.buffer_with("\n");
+    {
+        lines.push_str(&(META_BLOCK_START.to_owned()));
+        lines.push('\n');
+    };
     if include_title {
-        lines.push(format!("<title>{}</title>", escape_html_text(&head.title)));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "<title>{}</title>",
+                    escape_html_text_in_scope(&head.title, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
     }
-    lines.push(meta_tag("application-name", "jbotci"));
-    lines.push(meta_tag("apple-mobile-web-app-capable", "yes"));
-    lines.push(meta_tag("apple-mobile-web-app-title", "jbotci"));
-    lines.push(meta_tag("mobile-web-app-capable", "yes"));
-    lines.push(meta_tag_with_extra(
-        "theme-color",
-        &head.light_theme_color,
-        " media=\"(prefers-color-scheme: light)\"",
-    ));
-    lines.push(meta_tag_with_extra(
-        "theme-color",
-        &head.dark_theme_color,
-        " media=\"(prefers-color-scheme: dark)\"",
-    ));
-    lines.push(link_tag("manifest", &head.manifest_href));
-    lines.push(link_tag("icon", &head.icon_href));
-    lines.push(link_tag("shortcut icon", &head.icon_href));
-    lines.push(link_tag("apple-touch-icon", &head.apple_touch_icon_href));
-    lines.push(meta_tag("description", &head.description));
-    lines.push(link_tag("canonical", &canonical_url));
-    lines.push(property_meta_tag("og:title", &head.title));
-    lines.push(property_meta_tag("og:description", &head.description));
-    lines.push(property_meta_tag("og:type", "website"));
-    lines.push(property_meta_tag("og:url", &canonical_url));
-    lines.push(meta_tag("twitter:title", &head.title));
-    lines.push(meta_tag("twitter:description", &head.description));
-    lines.push(meta_tag("twitter:card", &head.twitter_card));
+    {
+        lines.push_str(&(meta_tag("application-name", "jbotci", &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("apple-mobile-web-app-capable", "yes", &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("apple-mobile-web-app-title", "jbotci", &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("mobile-web-app-capable", "yes", &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(
+            &(meta_tag_with_extra(
+                "theme-color",
+                &head.light_theme_color,
+                " media=\"(prefers-color-scheme: light)\"",
+                &scope,
+            )),
+        );
+        lines.push('\n');
+    };
+    {
+        lines.push_str(
+            &(meta_tag_with_extra(
+                "theme-color",
+                &head.dark_theme_color,
+                " media=\"(prefers-color-scheme: dark)\"",
+                &scope,
+            )),
+        );
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(link_tag("manifest", &head.manifest_href, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(link_tag("icon", &head.icon_href, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(link_tag("shortcut icon", &head.icon_href, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(link_tag("apple-touch-icon", &head.apple_touch_icon_href, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("description", &head.description, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(link_tag("canonical", &canonical_url, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(property_meta_tag("og:title", &head.title, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(property_meta_tag("og:description", &head.description, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(property_meta_tag("og:type", "website", &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(property_meta_tag("og:url", &canonical_url, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("twitter:title", &head.title, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("twitter:description", &head.description, &scope)));
+        lines.push('\n');
+    };
+    {
+        lines.push_str(&(meta_tag("twitter:card", &head.twitter_card, &scope)));
+        lines.push('\n');
+    };
     if let Some(image) = &head.image {
-        let image_url = absolute_page_head_url(origin, &image.href);
-        lines.push(property_meta_tag("og:image", &image_url));
-        lines.push(meta_tag("twitter:image", &image_url));
-        lines.push(property_meta_tag(
-            "og:image:width",
-            &image.width.to_string(),
-        ));
-        lines.push(property_meta_tag(
-            "og:image:height",
-            &image.height.to_string(),
-        ));
+        let image_url = absolute_page_head_url(origin, &image.href, &scope);
+        {
+            lines.push_str(&(property_meta_tag("og:image", &image_url, &scope)));
+            lines.push('\n');
+        };
+        {
+            lines.push_str(&(meta_tag("twitter:image", &image_url, &scope)));
+            lines.push('\n');
+        };
+        {
+            lines
+                .push_str(&(property_meta_tag("og:image:width", &image.width.to_string(), &scope)));
+            lines.push('\n');
+        };
+        {
+            lines.push_str(
+                &(property_meta_tag("og:image:height", &image.height.to_string(), &scope)),
+            );
+            lines.push('\n');
+        };
     }
-    lines.push(META_BLOCK_END.to_owned());
-    format!("\n{}\n", lines.join("\n"))
+    {
+        lines.push_str(&(META_BLOCK_END.to_owned()));
+        lines.push('\n');
+    };
+    lines.into_piece()
 }
 
 #[requires(!title.is_empty())]
@@ -3539,14 +3780,29 @@ pub fn render_gentufa_blocks_web_export(
     script: GentufaScript,
     format: GentufaExportFormat,
 ) -> Result<GentufaWebExport, WebComputeError> {
+    render_gentufa_blocks_web_export_with_limits(layout, show_glosses, script, format, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_gentufa_blocks_web_export_with_limits(
+    layout: &GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+    format: GentufaExportFormat,
+    limits: Option<jbotci_gentufa::GentufaRenderLimits>,
+) -> Result<GentufaWebExport, WebComputeError> {
     match format {
         GentufaExportFormat::Svg => {
-            let svg = jbotci_gentufa::render_gentufa_blocks_svg(
-                layout,
-                &gentufa_svg_export_options(show_glosses, script),
-                jbotci_gentufa::EmbeddedGentufaFonts::get(),
-            )
-            .map_err(|error| WebComputeError::export(error))?;
+            let options = gentufa_svg_export_options(show_glosses, script);
+            let fonts = jbotci_gentufa::EmbeddedGentufaFonts::get();
+            let svg = match limits {
+                Some(limits) => jbotci_gentufa::render_gentufa_blocks_svg_with_limits(
+                    layout, &options, fonts, limits,
+                ),
+                None => jbotci_gentufa::render_gentufa_blocks_svg(layout, &options, fonts),
+            }
+            .map_err(WebComputeError::from_export)?;
             let dimensions = svg_dimensions(&svg);
             Ok(GentufaWebExport {
                 content_type: gentufa_export_content_type(format).to_owned(),
@@ -3556,13 +3812,16 @@ pub fn render_gentufa_blocks_web_export(
             })
         }
         GentufaExportFormat::Png => {
-            let bytes = jbotci_gentufa::render_gentufa_blocks_png(
-                layout,
-                &jbotci_gentufa::GentufaPngOptions::default()
-                    .with_data(data! { svg: gentufa_svg_export_options(show_glosses, script) }),
-                jbotci_gentufa::EmbeddedGentufaFonts::get(),
-            )
-            .map_err(|error| WebComputeError::export(error))?;
+            let options = jbotci_gentufa::GentufaPngOptions::default()
+                .with_data(data! { svg: gentufa_svg_export_options(show_glosses, script) });
+            let fonts = jbotci_gentufa::EmbeddedGentufaFonts::get();
+            let bytes = match limits {
+                Some(limits) => jbotci_gentufa::render_gentufa_blocks_png_with_limits(
+                    layout, &options, fonts, limits,
+                ),
+                None => jbotci_gentufa::render_gentufa_blocks_png(layout, &options, fonts),
+            }
+            .map_err(WebComputeError::from_export)?;
             let dimensions = png_dimensions(&bytes);
             Ok(GentufaWebExport {
                 content_type: gentufa_export_content_type(format).to_owned(),
@@ -3580,6 +3839,18 @@ pub fn render_gentufa_state_web_export(
     state: &GentufaWebState,
     script: GentufaScript,
     format: GentufaExportFormat,
+) -> Result<GentufaWebExport, WebComputeError> {
+    render_gentufa_state_web_export_with_limits(state, script, format, None, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_gentufa_state_web_export_with_limits(
+    state: &GentufaWebState,
+    script: GentufaScript,
+    format: GentufaExportFormat,
+    render_limits: Option<jbotci_output::budget::RenderLimits>,
+    diagram_limits: Option<jbotci_gentufa::GentufaRenderLimits>,
 ) -> Result<GentufaWebExport, WebComputeError> {
     let state = normalize_gentufa_state(state);
     if state.text.is_empty() {
@@ -3601,19 +3872,78 @@ pub fn render_gentufa_state_web_export(
             phonemes: PhonemeRenderOptions::default(),
         },
     };
-    match parse_gentufa_for_web(&request) {
-        GentufaWebResult::Success(success) => render_gentufa_blocks_web_export(
-            &success.blocks_layout,
-            state.show_glosses,
-            script,
-            format,
+    let analysis = match gentufa_syntax_for_web(&request) {
+        Ok(Some(analysis)) => analysis,
+        Ok(None) => {
+            return Err(WebComputeError::export(
+                "gentufa export requires input text",
+            ));
+        }
+        Err(error) => {
+            return Err(gentufa_export_parse_error(
+                &error,
+                &state.text,
+                render_limits,
+            ));
+        }
+    };
+    let data!(GentufaSourceAnalysis {
+        morphology,
+        parse,
+        diagnostics,
+        ..
+    }) = analysis.into_data();
+    let options = gentufa_blocks_projection_options(&request.options);
+    let projection = match parse.as_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => generated_model_gentufa_blocks_projection(
+            &parse.parse_tree,
+            &state.text,
+            &morphology.words,
+            &options,
         ),
-        GentufaWebResult::Blank => Err(WebComputeError::export(
-            "gentufa export requires input text".to_owned(),
+        data!(SyntaxRecoveryParse::Recovered { parse }) => Ok(recovered_gentufa_blocks_projection(
+            parse,
+            &state.text,
+            &morphology.words,
+            &options,
         )),
-        GentufaWebResult::Error(error) => Err(WebComputeError::export(
-            gentufa_error_metadata_description(&error, &state.text),
-        )),
+    }
+    .map_err(|error| {
+        gentufa_export_parse_error(
+            &GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            },
+            &state.text,
+            render_limits,
+        )
+    })?;
+    render_gentufa_blocks_web_export_with_limits(
+        &projection.into_blocks_layout(),
+        state.show_glosses,
+        script,
+        format,
+        diagram_limits,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_export_parse_error(
+    error: &GentufaError,
+    source: &str,
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> WebComputeError {
+    let limit = limits.map(|limits| limits.text).unwrap_or_else(|| {
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+    });
+    let scope = jbotci_output::budget::TextScope::new(limit);
+    let description = gentufa_error_metadata_description_in_scope(error, source, &scope);
+    let message = scope.format(format_args!("gentufa export failed: {description}"));
+    match scope.finish(message) {
+        Ok(message) => WebComputeError::from_message(message),
+        Err(_) => WebComputeError::output_limit(),
     }
 }
 
@@ -3798,9 +4128,21 @@ pub fn build_gentufa_page_meta_from_result(
     state: &GentufaWebState,
     result: &GentufaWebResult,
 ) -> PageMeta {
+    build_gentufa_page_meta_from_result_with_limits(base_path, state, result, None)
+        .expect("unrestricted metadata rendering")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_gentufa_page_meta_from_result_with_limits(
+    base_path: &str,
+    state: &GentufaWebState,
+    result: &GentufaWebResult,
+    limits: Option<jbotci_gentufa::GentufaRenderLimits>,
+) -> Result<PageMeta, WebComputeError> {
     let state = normalize_gentufa_state(state);
     if state.text.is_empty() {
-        return build_gentufa_provisional_page_meta(base_path, &state);
+        return Ok(build_gentufa_provisional_page_meta(base_path, &state));
     }
     let title = gentufa_page_meta_title(&state);
     let description = match result {
@@ -3810,37 +4152,44 @@ pub fn build_gentufa_page_meta_from_result(
     };
     let image = match result {
         GentufaWebResult::Success(success) => {
-            gentufa_social_image_from_success(base_path, &state, success)
+            gentufa_social_image_from_success_with_limits(base_path, &state, success, limits)?
         }
         GentufaWebResult::Blank | GentufaWebResult::Error(_) => None,
     };
-    page_meta(
+    Ok(page_meta(
         title,
         description,
         gentufa_web_url(base_path, &state),
         image,
-    )
+    ))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn gentufa_social_image_from_success(
+fn gentufa_social_image_from_success_with_limits(
     base_path: &str,
     state: &GentufaWebState,
     success: &GentufaSuccess,
-) -> Option<SocialImage> {
-    let export = render_gentufa_blocks_web_export(
+    limits: Option<jbotci_gentufa::GentufaRenderLimits>,
+) -> Result<Option<SocialImage>, WebComputeError> {
+    let export = render_gentufa_blocks_web_export_with_limits(
         &success.blocks_layout,
         state.show_glosses,
         GentufaScript::Latin,
         GentufaExportFormat::Svg,
-    )
-    .ok()?;
-    let svg_width = export.width?;
-    let svg_height = export.height?;
+        limits,
+    );
+    let export = match export {
+        Ok(export) => export,
+        Err(error) if limits.is_none() => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let (Some(svg_width), Some(svg_height)) = (export.width, export.height) else {
+        return Ok(None);
+    };
     let width = (svg_width as f32 * DEFAULT_GENTUFA_PNG_SCALE).ceil() as usize;
     let height = (svg_height as f32 * DEFAULT_GENTUFA_PNG_SCALE).ceil() as usize;
-    Some(social_image(
+    Ok(Some(social_image(
         gentufa_export_url(
             base_path,
             state,
@@ -3849,41 +4198,62 @@ fn gentufa_social_image_from_success(
         ),
         width,
         height,
-    ))
+    )))
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn gentufa_error_metadata_description(error: &GentufaError, source: &str) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(gentufa_error_metadata_description_in_scope(
+            error, source, &scope,
+        ))
+        .expect("unrestricted metadata description")
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+fn gentufa_error_metadata_description_in_scope(
+    error: &GentufaError,
+    source: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     let Some(diagnostic) = error_metadata_diagnostic(&error.diagnostics) else {
-        return error.message.clone();
+        return scope.copy(&error.message);
     };
     let (line, column) = diagnostic_line_column(source, diagnostic);
-    let mut lines = vec![
-        format!(
-            "{} {} {line}:{column}:",
-            diagnostic_severity_metadata_text(diagnostic.severity),
-            diagnostic.code
-        ),
-        diagnostic.message.clone(),
-    ];
+    let mut output = scope.buffer_with(&scope.format(format_args!(
+        "{} {} {line}:{column}:\n{}",
+        diagnostic_severity_metadata_text(diagnostic.severity),
+        diagnostic.code,
+        diagnostic.message,
+    )));
     for label in diagnostic.labels.iter().filter(|label| !label.primary) {
-        lines.push(label.message.clone());
+        output.push('\n');
+        output.push_str(&label.message);
     }
     for note in &diagnostic.notes {
         if !diagnostic_plain_note_is_hidden(note) {
-            lines.push(note.clone());
+            output.push('\n');
+            output.push_str(note);
         }
     }
     for note in &diagnostic.styled_notes {
         if !diagnostic_styled_note_is_hidden(note) {
-            let note_text = diagnostic_text_segments_text(&note.segments);
+            let note_text = scope.join(
+                note.segments.iter().map(|segment| segment.text.as_str()),
+                "",
+            );
             if !note_text.trim().is_empty() {
-                lines.push(note_text);
+                output.push('\n');
+                output.push_str(&note_text);
             }
         }
     }
-    lines.join("\n")
+    output.into_piece()
 }
 
 #[requires(true)]
@@ -5313,54 +5683,67 @@ fn base_path_from_canonical(canonical_url: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn absolute_page_head_url(origin: Option<&str>, href: &str) -> String {
+fn absolute_page_head_url(
+    origin: Option<&str>,
+    href: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     if href.starts_with('/') {
         if let Some(origin) = origin.filter(|value| !value.trim().is_empty()) {
-            format!("{}{}", origin.trim_end_matches('/'), href)
+            scope.format(format_args!("{}{}", origin.trim_end_matches('/'), href))
         } else {
-            href.to_owned()
+            scope.copy(href)
         }
     } else {
-        href.to_owned()
+        scope.copy(href)
     }
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn meta_tag(name: &str, content: &str) -> String {
-    meta_tag_with_extra(name, content, "")
+#[ensures(scope.is_exceeded() || ret.contains("meta"))]
+fn meta_tag(name: &str, content: &str, scope: &jbotci_output::budget::TextScope) -> String {
+    meta_tag_with_extra(name, content, "", scope)
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn meta_tag_with_extra(name: &str, content: &str, extra_attributes: &str) -> String {
-    format!(
+#[ensures(scope.is_exceeded() || ret.contains("meta"))]
+fn meta_tag_with_extra(
+    name: &str,
+    content: &str,
+    extra_attributes: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    scope.format(format_args!(
         "<meta name=\"{}\" content=\"{}\"{}>",
-        escape_html_attr(name),
-        escape_html_attr(content),
+        escape_html_attr_in_scope(name, scope),
+        escape_html_attr_in_scope(content, scope),
         extra_attributes
-    )
+    ))
 }
 
 #[requires(!property.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn property_meta_tag(property: &str, content: &str) -> String {
-    format!(
+#[ensures(scope.is_exceeded() || ret.contains("meta"))]
+fn property_meta_tag(
+    property: &str,
+    content: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    scope.format(format_args!(
         "<meta property=\"{}\" content=\"{}\">",
-        escape_html_attr(property),
-        escape_html_attr(content),
-    )
+        escape_html_attr_in_scope(property, scope),
+        escape_html_attr_in_scope(content, scope),
+    ))
 }
 
 #[requires(!rel.is_empty())]
-#[requires(href.starts_with('/') || href.starts_with("http://") || href.starts_with("https://"))]
-#[ensures(ret.contains("link"))]
-fn link_tag(rel: &str, href: &str) -> String {
-    format!(
+#[requires(scope.is_exceeded() || href.starts_with('/') || href.starts_with("http://") || href.starts_with("https://"))]
+#[ensures(scope.is_exceeded() || ret.contains("link"))]
+fn link_tag(rel: &str, href: &str, scope: &jbotci_output::budget::TextScope) -> String {
+    scope.format(format_args!(
         "<link rel=\"{}\" href=\"{}\">",
-        escape_html_attr(rel),
-        escape_html_attr(href),
-    )
+        escape_html_attr_in_scope(rel, scope),
+        escape_html_attr_in_scope(href, scope),
+    ))
 }
 
 #[requires(true)]
@@ -11560,5 +11943,77 @@ mod tests {
                 .eligible
                 .is_subset(&eligibility.without_vote_filter)
         );
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_page_head_metadata_block_with_limit(
+    origin: Option<&str>,
+    meta: &PageMeta,
+    include_title: bool,
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<String, jbotci_output::budget::OutputLimitError> {
+    let budget = jbotci_output::budget::OutputBudget::new(limit);
+    for field in [&meta.title, &meta.description, &meta.canonical_url]
+        .into_iter()
+        .chain(meta.image.iter().map(|image| &image.href))
+    {
+        budget.charge(field.len())?;
+    }
+    let scope = jbotci_output::budget::TextScope::new(limit);
+    scope.finish(render_page_head_metadata_block_in_scope(
+        origin,
+        meta,
+        include_title,
+        &scope,
+    ))
+}
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_text_in_scope(input: &str, scope: &jbotci_output::budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for character in input.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            character => output.push(character),
+        }
+    }
+    output.into_piece()
+}
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_attr_in_scope(input: &str, scope: &jbotci_output::budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for character in input.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&#39;"),
+            character => output.push(character),
+        }
+    }
+    output.into_piece()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ipa_for_web_with_limits(
+    words: &[WordLike],
+    source: &str,
+    limits: Option<jbotci_output::budget::RenderLimits>,
+) -> Result<String, WebComputeError> {
+    let limit = limits.map(|limits| limits.text).unwrap_or_else(|| {
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+    });
+    match jbotci_output::ipa_morphology_text_with_limit(words, source, limit) {
+        Ok(text) => Ok(text),
+        Err(jbotci_output::OutputError::Limit { .. }) => Err(WebComputeError::output_limit()),
+        Err(error) => jbotci_output::budget::bounded_format(format_args!("{error}"), limit)
+            .map_err(|_| WebComputeError::output_limit()),
     }
 }

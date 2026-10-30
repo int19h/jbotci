@@ -477,11 +477,68 @@ pub fn dictionary_cards_for_word_likes(
     dictionary: &Dictionary<'_>,
     words: &[WordLike],
 ) -> Vec<VlackuCard> {
-    let mut cards = Vec::new();
-    for parsed_match in dictionary_matches_for_word_likes(dictionary, words) {
-        extend_unique_cards(&mut cards, parsed_match.into_data().cards);
+    dictionary_cards_for_word_likes_with_limit(dictionary, words, std::num::NonZeroUsize::MAX)
+        .expect("unrestricted dictionary lookup")
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DictionaryCardLimitError {
+    pub limit: std::num::NonZeroUsize,
+}
+impl std::fmt::Display for DictionaryCardLimitError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "The requested operation exceeds the {}-entry server limit.",
+            self.limit
+        )
     }
-    cards
+}
+impl std::error::Error for DictionaryCardLimitError {}
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|cards| cards.len() <= limit.get()) || ret.is_err())]
+pub fn dictionary_cards_for_word_likes_with_limit(
+    dictionary: &Dictionary<'_>,
+    words: &[WordLike],
+    limit: std::num::NonZeroUsize,
+) -> Result<Vec<VlackuCard>, DictionaryCardLimitError> {
+    let mut cards = Vec::new();
+    let mut visited: Vec<ParsedWordLookupTarget> = Vec::new();
+    for word in words {
+        for target in dictionary_lookup_targets(word) {
+            if visited.iter().any(|previous| {
+                previous.lookup_text == target.lookup_text && previous.is_lujvo == target.is_lujvo
+            }) {
+                continue;
+            }
+            let mut skip = 0usize;
+            loop {
+                // A single-card window avoids an oversized temporary result.
+                // Repeated cards still advance the lookup before deduplication.
+                let options =
+                    parsed_word_vlacku_options().with_data(data! { skip: skip, count: 1 });
+                let next =
+                    dictionary_cards_for_lookup_target_with_options(dictionary, &target, &options)
+                        .into_iter()
+                        .next();
+                let Some(card) = next else { break };
+                if !cards.iter().any(|existing| existing == &card) {
+                    if cards.len() == limit.get() {
+                        return Err(DictionaryCardLimitError { limit });
+                    }
+                    cards.push(card);
+                }
+                skip = skip
+                    .checked_add(1)
+                    .ok_or(DictionaryCardLimitError { limit })?;
+            }
+            visited.push(target);
+        }
+    }
+    Ok(cards)
 }
 
 #[requires(true)]
@@ -712,7 +769,19 @@ fn dictionary_cards_for_lookup_target(
     dictionary: &Dictionary<'_>,
     target: &ParsedWordLookupTarget,
 ) -> Vec<VlackuCard> {
-    let options = parsed_word_vlacku_options();
+    dictionary_cards_for_lookup_target_with_options(
+        dictionary,
+        target,
+        &parsed_word_vlacku_options(),
+    )
+}
+#[requires(!target.lookup_text.is_empty())]
+#[ensures(ret.len() <= options.count)]
+fn dictionary_cards_for_lookup_target_with_options(
+    dictionary: &Dictionary<'_>,
+    target: &ParsedWordLookupTarget,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
     let exact_definition_found = dictionary
         .lookup_words(&target.lookup_text)
         .any(|entry| !entry.definition.trim().is_empty());
@@ -738,16 +807,6 @@ fn parsed_word_vlacku_options() -> VlackuSearchOptions {
         min_similarity: None,
         decompose_lujvo: false,
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn extend_unique_cards(target: &mut Vec<VlackuCard>, source: Vec<VlackuCard>) {
-    for card in source {
-        if !target.iter().any(|existing| existing == &card) {
-            target.push(card);
-        }
-    }
 }
 
 #[requires(true)]
@@ -3473,6 +3532,38 @@ mod tests {
                 .cards
                 .iter()
                 .any(|card| !card.known && card.votes.is_none())
+        );
+    }
+}
+
+#[cfg(test)]
+mod bounded_dictionary_tests {
+    use super::*;
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_cards_reject_excess_entries_and_do_not_charge_duplicates() {
+        let dictionary = jbotci_dictionary_data::english();
+        let words = jbotci_morphology::segment_words_with_modifiers("klama bajra").unwrap();
+        let expected = dictionary_cards_for_word_likes(dictionary, &words);
+        assert!(expected.len() >= 2);
+        let exact = std::num::NonZeroUsize::new(expected.len()).unwrap();
+        assert_eq!(
+            dictionary_cards_for_word_likes_with_limit(dictionary, &words, exact).unwrap(),
+            expected
+        );
+        let below = std::num::NonZeroUsize::new(expected.len() - 1).unwrap();
+        assert_eq!(
+            dictionary_cards_for_word_likes_with_limit(dictionary, &words, below)
+                .unwrap_err()
+                .limit,
+            below
+        );
+        let repeated =
+            jbotci_morphology::segment_words_with_modifiers("klama bajra klama bajra").unwrap();
+        assert_eq!(
+            dictionary_cards_for_word_likes_with_limit(dictionary, &repeated, exact).unwrap(),
+            expected
         );
     }
 }

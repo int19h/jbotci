@@ -30,6 +30,7 @@ pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
     stdin_text: Option<&str>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
     let output_file = input.output_file.clone();
     let rendered = render_gentufa(
@@ -40,6 +41,7 @@ pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
         diagnostic_terminal_width,
         trace,
         stdin_text,
+        limits,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     if rendered.status == CliStatus::Success
@@ -163,7 +165,9 @@ fn render_gentufa(
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
     stdin_text: Option<&str>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<GentufaRendered> {
+    let render_limits = tool_render_limits(limits);
     normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
     validate_gentufa_options(&input, glyphs)?;
     let analysis = analyze_gentufa_input(&input, color_policy.stderr, trace, stdin_text)?;
@@ -177,8 +181,9 @@ fn render_gentufa(
     let mut diagnostics = diagnostics;
     let (words, parse) = match syntax {
         GentufaSyntaxStage::MorphologyFailed => {
-            let mut stderr = morphology_trace_stderr;
-            stderr.push_str(&render_source_diagnostics(
+            let stderr_scope = jbotci_output::budget::TextScope::new(render_limits.text);
+            let mut stderr = stderr_scope.buffer_with(&morphology_trace_stderr);
+            stderr.push_str(&render_source_diagnostics_with_limit(
                 &source_label,
                 &text,
                 &diagnostics,
@@ -186,11 +191,12 @@ fn render_gentufa(
                 diagnostic_detail,
                 glyphs,
                 diagnostic_terminal_width,
+                render_limits.text,
             )?);
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
                 stdout: Vec::new(),
-                stderr,
+                stderr: stderr_scope.finish(stderr.into_piece())?,
             }));
         }
         GentufaSyntaxStage::Parsed { words, parse } => (words, parse),
@@ -219,6 +225,7 @@ fn render_gentufa(
                     color_policy.stdout,
                     glyphs,
                     phoneme_options,
+                    limits,
                 )?;
                 let parsed = parse.into_data();
                 diagnostics.extend(
@@ -229,8 +236,9 @@ fn render_gentufa(
                 diagnostics.extend(parsed.warnings.iter().map(|warning| {
                     warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
                 }));
-                let mut stderr = morphology_trace_stderr;
-                stderr.push_str(&render_source_diagnostics(
+                let stderr_scope = jbotci_output::budget::TextScope::new(render_limits.text);
+                let mut stderr = stderr_scope.buffer_with(&morphology_trace_stderr);
+                stderr.push_str(&render_source_diagnostics_with_limit(
                     &source_label,
                     &text,
                     &diagnostics,
@@ -238,16 +246,18 @@ fn render_gentufa(
                     diagnostic_detail,
                     glyphs,
                     diagnostic_terminal_width,
+                    render_limits.text,
                 )?);
                 return Ok(new!(GentufaRendered {
                     status: CliStatus::Failure,
                     stdout,
-                    stderr,
+                    stderr: stderr_scope.finish(stderr.into_piece())?,
                 }));
             }
         };
-    let mut stderr = morphology_trace_stderr;
-    stderr.push_str(&render_source_diagnostics(
+    let stderr_scope = jbotci_output::budget::TextScope::new(render_limits.text);
+    let mut stderr = stderr_scope.buffer_with(&morphology_trace_stderr);
+    stderr.push_str(&render_source_diagnostics_with_limit(
         &source_label,
         &text,
         &diagnostics,
@@ -255,14 +265,19 @@ fn render_gentufa(
         diagnostic_detail,
         glyphs,
         diagnostic_terminal_width,
+        render_limits.text,
     )?);
-    let mut stdout = String::new();
+    let mut stdout = OutputBudget::new(render_limits.text).writer();
     if input.show_defs {
-        stdout.push_str(&render_dictionary_definitions_for_word_likes(
-            words.as_slice(),
-            color_policy.stdout,
-            glyphs,
-        ));
+        stdout.write_all(
+            render_dictionary_definitions_with_limits(
+                words.as_slice(),
+                color_policy.stdout,
+                glyphs,
+                limits,
+            )?
+            .as_bytes(),
+        )?;
     }
     match input.format {
         GentufaFormat::Blocks => {
@@ -279,15 +294,16 @@ fn render_gentufa(
                 input.show_glosses,
                 output_type,
                 GENERATED_BLOCKS_TITLE,
+                limits,
             )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Success,
                 stdout,
-                stderr,
+                stderr: stderr_scope.finish(stderr.into_piece())?,
             }));
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_brackets_with_options(
+            let rendered = pretty_generated_model_brackets_with_limit(
                 &generated_model,
                 &text,
                 BracketRenderOptions {
@@ -299,12 +315,12 @@ fn render_gentufa(
                     insert_hair_space: false,
                     show_elided: input.show_elided,
                 },
+                render_limits.text,
             )?;
-            stdout.push_str(visible_bracket_rendering(&rendered));
-            stdout.push('\n');
+            writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
         }
         GentufaFormat::Raw => {
-            stdout.push_str(&debug_output_string(&generated_model, input.indent));
+            write_debug_output(&mut stdout, &generated_model, input.indent)?;
         }
         GentufaFormat::Tree => {
             let tree_options = TreeRenderOptions {
@@ -317,13 +333,16 @@ fn render_gentufa(
                 decompose_lujvo: input.decompose_lujvo,
                 show_elided: input.show_elided,
             };
-            let rendered =
-                pretty_generated_model_tree_with_options(&generated_model, &text, tree_options)?;
-            stdout.push_str(&rendered);
-            stdout.push('\n');
+            let rendered = pretty_generated_model_tree_with_limit(
+                &generated_model,
+                &text,
+                tree_options,
+                render_limits.text,
+            )?;
+            writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Json => {
-            let rendered = compact_generated_model_json_string_with_options(
+            let rendered = compact_generated_model_json_string_with_limits(
                 &generated_model,
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or_default(),
@@ -331,16 +350,17 @@ fn render_gentufa(
                     show_elided: input.show_elided,
                     color: color_policy.stdout,
                 },
+                render_limits.text,
+                render_limits.projection,
             )?;
-            stdout.push_str(&rendered);
-            stdout.push('\n');
+            writeln!(stdout, "{rendered}")?;
         }
     }
     let stdout = stdout.into_bytes();
     Ok(new!(GentufaRendered {
         status: CliStatus::Success,
         stdout,
-        stderr,
+        stderr: stderr_scope.finish(stderr.into_piece())?,
     }))
 }
 
@@ -354,7 +374,9 @@ fn render_recovered_gentufa_output(
     color: bool,
     glyphs: GlyphStyle,
     phonemes: PhonemeRenderOptions,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<Vec<u8>> {
+    let render_limits = tool_render_limits(limits);
     let rendered = match input.format {
         GentufaFormat::Blocks => {
             let output_type = resolve_gentufa_blocks_output_type(input)?;
@@ -370,10 +392,11 @@ fn render_recovered_gentufa_output(
                 input.show_glosses,
                 output_type,
                 RECOVERED_BLOCKS_TITLE,
+                limits,
             );
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_recovered_syntax_brackets_with_options(
+            let rendered = pretty_recovered_syntax_brackets_with_limit(
                 recovered,
                 source,
                 BracketRenderOptions {
@@ -385,14 +408,18 @@ fn render_recovered_gentufa_output(
                     insert_hair_space: false,
                     show_elided: input.show_elided,
                 },
+                render_limits.text,
             )?;
-            let mut rendered = visible_bracket_rendering(&rendered).to_owned();
-            rendered.push('\n');
-            rendered
+            bounded_format(
+                format_args!("{}\n", visible_bracket_rendering(&rendered)),
+                render_limits.text,
+            )?
         }
-        GentufaFormat::Raw => pretty_recovered_syntax_raw(recovered, input.indent),
+        GentufaFormat::Raw => {
+            pretty_recovered_syntax_raw_with_limit(recovered, input.indent, render_limits.text)?
+        }
         GentufaFormat::Tree => {
-            let mut rendered = pretty_recovered_syntax_tree_with_options(
+            let rendered = pretty_recovered_syntax_tree_with_limit(
                 recovered,
                 source,
                 TreeRenderOptions {
@@ -405,12 +432,12 @@ fn render_recovered_gentufa_output(
                     decompose_lujvo: input.decompose_lujvo,
                     show_elided: input.show_elided,
                 },
+                render_limits.text,
             )?;
-            rendered.push('\n');
-            rendered
+            bounded_format(format_args!("{rendered}\n"), render_limits.text)?
         }
         GentufaFormat::Json => {
-            let mut rendered = compact_recovered_syntax_json_string_with_options(
+            let rendered = compact_recovered_syntax_json_string_with_limits(
                 recovered,
                 source,
                 JsonRenderOptions {
@@ -419,9 +446,10 @@ fn render_recovered_gentufa_output(
                     show_elided: input.show_elided,
                     color,
                 },
+                render_limits.text,
+                render_limits.projection,
             )?;
-            rendered.push('\n');
-            rendered
+            bounded_format(format_args!("{rendered}\n"), render_limits.text)?
         }
     };
     Ok(rendered.into_bytes())
@@ -454,6 +482,7 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
     show_glosses: bool,
     output_type: GentufaImageOutputType,
     title: &str,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<Vec<u8>> {
     let svg_options = GentufaSvgOptions {
         show_glosses,
@@ -461,6 +490,27 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
         title: title.to_owned(),
     };
     let fonts = EmbeddedGentufaFonts::get();
+    if let Some(limits) = limits {
+        return match output_type {
+            GentufaImageOutputType::Svg => {
+                Ok(jbotci_gentufa::render_gentufa_blocks_svg_with_limits(
+                    layout,
+                    &svg_options,
+                    fonts,
+                    limits.diagram,
+                )?
+                .into_bytes())
+            }
+            GentufaImageOutputType::Png => {
+                Ok(jbotci_gentufa::render_gentufa_blocks_png_with_limits(
+                    layout,
+                    &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
+                    fonts,
+                    limits.diagram,
+                )?)
+            }
+        };
+    }
     match output_type {
         GentufaImageOutputType::Svg => {
             Ok(render_gentufa_blocks_svg(&layout, &svg_options, fonts)?.into_bytes())

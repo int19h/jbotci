@@ -8,6 +8,74 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/policy.rs:PolicyError::DeliveryClockRange",
+        "The unit variant identifies an error window outside the server clock range.",
+    ),
+    (
+        "apps/jbotci-server/src/policy.rs:PolicyError::ClockRange",
+        "The unit variant identifies a deadline outside the server clock range.",
+    ),
+    (
+        "apps/jbotci-server/src/work.rs:WorkError::OutputLimit",
+        "The unit variant identifies an exhausted output budget.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::OutputLimit",
+        "The unit variant identifies a refused output allocation.",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::OutputLimit",
+        "The error carries an already validated byte limit.",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaLimit::Bytes",
+        "The reason carries an already validated byte limit.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Plain",
+        "The plan borrows one raw input without another data constraint.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Decomposed",
+        "The plan owns an already validated decomposition.",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Limit",
+        "The error carries an already validated byte limit.",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllError::OutputLimit",
+        "The error carries an already validated byte limit.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ContentItem::Text",
+        "The content contains a validated text representation.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolText::Plain",
+        "Every borrowed UTF-8 string is a valid text payload.",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Limit",
+        "The error names the diagram limit that refused the export.",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Render",
+        "The error carries a renderer failure message.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolPayload::Output",
+        "The result carries the tool output without another cross-field constraint.",
+    ),
+    (
+        "apps/jbotci-server/src/mcp.rs:ToolPayload::Error",
+        "The error carries a message and an optional stable code.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Limit",
+        "The error wraps a closed request limit reason.",
+    ),
+    (
         "apps/jbotci-server/src/discord/assemble.rs:AssembleError::AttachmentName",
         "wraps a validated InvalidAttachmentName; nothing further to constrain",
     ),
@@ -480,19 +548,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "transport error carries the HTTP status and body Discord returned",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:WorkError::Overloaded",
+        "apps/jbotci-server/src/work.rs:WorkError::Overloaded",
         "admission error names the lane it concerns",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:WorkError::Panicked",
+        "apps/jbotci-server/src/work.rs:WorkError::Panicked",
         "admission error names the lane it concerns",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:WorkError::TimedOut",
+        "apps/jbotci-server/src/work.rs:WorkError::TimedOut",
         "admission error names the lane it concerns",
     ),
     (
-        "apps/jbotci-server/src/discord/work.rs:WorkError::WaitTimedOut",
+        "apps/jbotci-server/src/work.rs:WorkError::WaitTimedOut",
         "admission error names the lane it concerns",
     ),
     (

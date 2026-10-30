@@ -11,7 +11,10 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 
-use super::markdown::{code_block, escape, inline_code, join_lines, subtext, truncate_units};
+use super::markdown::{
+    code_block_in_scope, escape_in_scope, inline_code_in_scope, join_lines_in_scope,
+    subtext_in_scope, truncate_units_in_scope,
+};
 use crate::discord::request::utf16_len;
 
 /// Diagnostics shown in full before the rest is summarized.
@@ -47,10 +50,11 @@ pub(crate) struct RenderedDiagnostics {
 
 /// Render `diagnostics` against `source`. Returns `None` when there are none.
 #[requires(true)]
-#[ensures(ret.is_some() == !diagnostics.is_empty())]
-pub(crate) fn render_diagnostics(
+#[ensures(text_scope.is_exceeded() || (ret.is_some() == !diagnostics.is_empty()))]
+pub(crate) fn render_diagnostics_in_scope(
     source: &str,
     diagnostics: &[Diagnostic],
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> Option<RenderedDiagnostics> {
     if diagnostics.is_empty() {
         return None;
@@ -58,7 +62,7 @@ pub(crate) fn render_diagnostics(
     let mut lines = Vec::new();
     let mut is_excerpt = false;
     for diagnostic in diagnostics.iter().take(MAX_DETAILED_DIAGNOSTICS) {
-        let (rendered, cut) = render_one(source, diagnostic);
+        let (rendered, cut) = render_one_in_scope(source, diagnostic, text_scope);
         is_excerpt |= cut;
         lines.push(rendered);
     }
@@ -70,57 +74,79 @@ pub(crate) fn render_diagnostics(
             .skip(MAX_DETAILED_DIAGNOSTICS)
             .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
             .count();
-        lines.push(subtext(&format!(
-            "{remaining} more diagnostic{} not shown ({errors} error{})",
-            if remaining == 1 { "" } else { "s" },
-            if errors == 1 { "" } else { "s" }
-        )));
+        lines.push(subtext_in_scope(
+            &text_scope.format(format_args!(
+                "{remaining} more diagnostic{} not shown ({errors} error{})",
+                if remaining == 1 { "" } else { "s" },
+                if errors == 1 { "" } else { "s" }
+            )),
+            text_scope,
+        ));
+    }
+    let shown = join_lines_in_scope(lines, text_scope);
+    let complete = complete_text_in_scope(source, diagnostics, text_scope);
+    if text_scope.is_exceeded() {
+        return None;
     }
     Some(new!(RenderedDiagnostics {
-        shown: join_lines(lines),
-        complete: complete_text(source, diagnostics),
-        is_excerpt,
+        shown,
+        complete,
+        is_excerpt
     }))
 }
 
 /// Every diagnostic in full: message, every label with its own source line
 /// and caret, and every note, none of them shortened.
 #[requires(!diagnostics.is_empty())]
-#[ensures(!ret.is_empty())]
-fn complete_text(source: &str, diagnostics: &[Diagnostic]) -> String {
-    let mut blocks = Vec::with_capacity(diagnostics.len());
-    for diagnostic in diagnostics {
-        let mut lines = vec![format!(
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn complete_text_in_scope(
+    source: &str,
+    diagnostics: &[Diagnostic],
+    text_scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut blocks = text_scope.buffer();
+    for (index, diagnostic) in diagnostics.iter().enumerate() {
+        if text_scope.is_exceeded() {
+            break;
+        }
+        if index != 0 {
+            blocks.push_str("\n\n");
+        }
+        let mut lines = vec![text_scope.format(format_args!(
             "{} {}: {}",
             severity_label(diagnostic.severity),
             diagnostic.code,
             diagnostic.message
-        )];
+        ))];
         for label in &diagnostic.labels {
-            if let Some((excerpt, _)) = caret_excerpt(
+            if let Some((excerpt, _)) = caret_excerpt_in_scope(
                 source,
                 label.span.byte_start,
                 label.span.byte_end,
                 &label.message,
                 ExcerptLimits::complete(),
+                text_scope,
             ) {
                 lines.push(excerpt);
             } else if !label.message.is_empty() {
-                lines.push(label.message.clone());
+                lines.push(text_scope.copy(&label.message));
             }
         }
         for note in &diagnostic.notes {
-            lines.push(format!("note: {note}"));
+            lines.push(text_scope.format(format_args!("note: {note}")));
         }
-        blocks.push(lines.join("\n"));
+        blocks.push_str(&text_scope.join(&lines, "\n"));
     }
-    blocks.join("\n\n")
+    blocks.into_piece()
 }
 
 /// Counts by severity, for status lines ("2 errors, 1 warning").
 #[requires(true)]
-#[ensures(ret.is_some() == !diagnostics.is_empty())]
-pub(crate) fn summary(diagnostics: &[Diagnostic]) -> Option<String> {
+#[ensures(text_scope.is_exceeded() || (ret.is_some() == !diagnostics.is_empty()))]
+pub(crate) fn summary_in_scope(
+    diagnostics: &[Diagnostic],
+    text_scope: &jbotci_output::budget::TextScope,
+) -> Option<String> {
     if diagnostics.is_empty() {
         return None;
     }
@@ -138,63 +164,70 @@ pub(crate) fn summary(diagnostics: &[Diagnostic]) -> Option<String> {
     ] {
         let total = count(severity);
         if total > 0 {
-            parts.push(format!(
+            parts.push(text_scope.format(format_args!(
                 "{total} {}",
                 if total == 1 { singular } else { plural }
-            ));
+            )));
         }
     }
-    Some(parts.join(", "))
+    Some(text_scope.join(&parts, ", "))
 }
 
 /// One diagnostic as the message shows it, and whether that left anything out.
 #[requires(true)]
-#[ensures(!ret.0.is_empty())]
-fn render_one(source: &str, diagnostic: &Diagnostic) -> (String, bool) {
-    let (message, mut cut) = truncate_units(&diagnostic.message, MAX_MESSAGE_UNITS);
+#[ensures(text_scope.is_exceeded() || (!ret.0.is_empty()))]
+fn render_one_in_scope(
+    source: &str,
+    diagnostic: &Diagnostic,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> (String, bool) {
+    let (message, mut cut) =
+        truncate_units_in_scope(&diagnostic.message, MAX_MESSAGE_UNITS, text_scope);
     cut |= diagnostic.notes.len() > MAX_SHOWN_NOTES;
-    let mut lines = vec![format!(
+    let mut lines = vec![text_scope.format(format_args!(
         "**{}** {}: {}",
         severity_label(diagnostic.severity),
-        inline_code(&diagnostic.code),
-        escape(&message)
-    )];
+        inline_code_in_scope(&diagnostic.code, text_scope),
+        escape_in_scope(&message, text_scope)
+    ))];
     // Every label is shown, the primary one first: a secondary label says
     // where the error came from, and dropping it would make the message an
     // excerpt of something the reader can already read here.
     let mut labels = diagnostic.labels.iter().collect::<Vec<_>>();
     labels.sort_by_key(|label| !label.primary);
     for label in labels {
-        if let Some((excerpt, excerpt_cut)) = caret_excerpt(
+        if let Some((excerpt, excerpt_cut)) = caret_excerpt_in_scope(
             source,
             label.span.byte_start,
             label.span.byte_end,
             &label.message,
             ExcerptLimits::shown(),
+            text_scope,
         ) {
             cut |= excerpt_cut;
-            lines.push(code_block(&excerpt));
+            lines.push(code_block_in_scope(&excerpt, text_scope));
         }
     }
     for note in diagnostic.notes.iter().take(MAX_SHOWN_NOTES) {
-        let (note, note_cut) = truncate_units(note, MAX_MESSAGE_UNITS);
+        let (note, note_cut) = truncate_units_in_scope(note, MAX_MESSAGE_UNITS, text_scope);
         cut |= note_cut;
-        lines.push(subtext(&note.replace('\n', " ")));
+        lines.push(subtext_in_scope(&note.replace('\n', " "), text_scope));
     }
-    (join_lines(lines), cut)
+    (join_lines_in_scope(lines, text_scope), cut)
 }
 
 /// The source line containing `byte_start`, with a caret underline for the
 /// labelled range and the label text. `None` if the offsets do not fall on
 /// character boundaries of `source`.
 #[requires(true)]
-#[ensures(true)]
-fn caret_excerpt(
+#[ensures(text_scope.is_exceeded() || (true))]
+fn caret_excerpt_in_scope(
     source: &str,
     byte_start: usize,
     byte_end: usize,
     label: &str,
     limits: ExcerptLimits,
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> Option<(String, bool)> {
     if byte_start > source.len() || byte_end > source.len() || byte_start > byte_end {
         return None;
@@ -228,24 +261,30 @@ fn caret_excerpt(
             start_byte = index + character.len_utf8();
         }
         let windowed = &line[start_byte..];
-        let (windowed, _) = truncate_units(windowed, limits.line_units);
+        let (windowed, _) = truncate_units_in_scope(windowed, limits.line_units, text_scope);
         let shown_prefix = prefix_units.saturating_sub(units);
-        (format!("…{windowed}"), shown_prefix + 1)
+        (
+            text_scope.format(format_args!("…{windowed}")),
+            shown_prefix + 1,
+        )
     } else {
-        (line.to_owned(), prefix_units)
+        (text_scope.copy(line), prefix_units)
     };
     let caret_units = range_units.min(limits.line_units);
-    let mut caret_line = " ".repeat(shown_prefix);
-    caret_line.push_str(&"^".repeat(caret_units));
+    let mut caret_line = text_scope.buffer_with(&text_scope.repeat(" ", shown_prefix));
+    caret_line.push_str(&text_scope.repeat("^", caret_units));
     if !label.is_empty() {
         caret_line.push(' ');
-        let (label, label_cut) = truncate_units(label, limits.label_units);
+        let (label, label_cut) = truncate_units_in_scope(label, limits.label_units, text_scope);
         cut |= label_cut;
         caret_line.push_str(&label);
     }
     // Tabs would misalign the caret; show them as spaces in the excerpt.
     Some((
-        format!("{}\n{caret_line}", shown_line.replace('\t', " ")),
+        text_scope.format(format_args!(
+            "{}\n{caret_line}",
+            shown_line.replace('\t', " ")
+        )),
         cut,
     ))
 }
@@ -281,6 +320,84 @@ impl ExcerptLimits {
     }
 }
 
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_diagnostics(
+    source: &str,
+    diagnostics: &[Diagnostic],
+) -> Option<RenderedDiagnostics> {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_diagnostics_in_scope(source, diagnostics, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn complete_text(source: &str, diagnostics: &[Diagnostic]) -> String {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = complete_text_in_scope(source, diagnostics, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn summary(diagnostics: &[Diagnostic]) -> Option<String> {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = summary_in_scope(diagnostics, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn render_one(source: &str, diagnostic: &Diagnostic) -> (String, bool) {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_one_in_scope(source, diagnostic, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn caret_excerpt(
+    source: &str,
+    byte_start: usize,
+    byte_end: usize,
+    label: &str,
+    limits: ExcerptLimits,
+) -> Option<(String, bool)> {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = caret_excerpt_in_scope(source, byte_start, byte_end, label, limits, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
 #[cfg(test)]
 mod tests {
     use super::*;

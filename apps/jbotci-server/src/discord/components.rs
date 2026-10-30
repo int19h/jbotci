@@ -1054,6 +1054,35 @@ mod tests {
         )
         .expect("payload");
         let json = payload.to_json();
+        let encoded = payload
+            .encode_with_limit(jbotci_output::budget::ByteLimit::new(16_384).unwrap())
+            .unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&encoded).unwrap(), json);
+        payload
+            .check_encoded_size(jbotci_output::budget::ByteLimit::new(encoded.len()).unwrap())
+            .unwrap();
+        assert_eq!(
+            payload
+                .check_encoded_size(
+                    jbotci_output::budget::ByteLimit::new(encoded.len() - 1).unwrap(),
+                )
+                .unwrap_err()
+                .io_error_kind(),
+            Some(std::io::ErrorKind::FileTooLarge)
+        );
+        assert_eq!(
+            payload
+                .encode_with_limit(jbotci_output::budget::ByteLimit::new(encoded.len()).unwrap())
+                .unwrap(),
+            encoded
+        );
+        let error = payload
+            .encode_with_limit(jbotci_output::budget::ByteLimit::new(encoded.len() - 1).unwrap())
+            .unwrap_err();
+        assert_eq!(
+            error.io_error_kind(),
+            Some(std::io::ErrorKind::FileTooLarge)
+        );
         assert_eq!(json["flags"], FLAG_IS_COMPONENTS_V2);
         assert_eq!(json["content"], Value::Null);
         assert_eq!(json["allowed_mentions"]["parse"], json!([]));
@@ -1257,5 +1286,198 @@ mod tests {
             InteractionResponse::DeferredUpdateMessage.to_json(),
             json!({ "type": 6 })
         );
+    }
+}
+
+/// Borrow a Discord value during serialization without a JSON value tree.
+#[invariant(true)]
+struct JsonRef<'a, T: ?Sized>(&'a T);
+
+impl<T> serde::Serialize for JsonRef<'_, [T]>
+where
+    for<'a> JsonRef<'a, T>: serde::Serialize,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.iter().map(JsonRef))
+    }
+}
+
+impl serde::Serialize for JsonRef<'_, TextDisplay> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", &TYPE_TEXT_DISPLAY)?;
+        map.serialize_entry("content", &self.0.content)?;
+        if let Some(id) = self.0.id {
+            map.serialize_entry("id", &id)?;
+        }
+        map.end()
+    }
+}
+impl serde::Serialize for JsonRef<'_, Button> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", &TYPE_BUTTON)?;
+        map.serialize_entry("style", &self.0.style.code())?;
+        map.serialize_entry("custom_id", self.0.custom_id.as_str())?;
+        if let Some(emoji) = &self.0.emoji {
+            map.serialize_entry("emoji", &JsonRef(emoji.as_str()))?;
+        }
+        if let Some(label) = &self.0.label {
+            map.serialize_entry("label", label)?;
+        }
+        if self.0.disabled {
+            map.serialize_entry("disabled", &true)?;
+        }
+        map.end()
+    }
+}
+impl serde::Serialize for JsonRef<'_, str> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry("name", self.0)?;
+        map.end()
+    }
+}
+impl serde::Serialize for JsonRef<'_, AttachmentName> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&format_args!("attachment://{}", self.0.as_str()))
+    }
+}
+/// The URL object used by Discord media fields.
+#[invariant(true)]
+struct AttachmentUrl<'a>(&'a AttachmentName);
+impl serde::Serialize for AttachmentUrl<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry("url", &JsonRef(self.0))?;
+        map.end()
+    }
+}
+impl serde::Serialize for JsonRef<'_, MediaItem> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("media", &AttachmentUrl(&self.0.attachment))?;
+        if let Some(description) = &self.0.description {
+            map.serialize_entry("description", description)?;
+        }
+        map.end()
+    }
+}
+impl serde::Serialize for JsonRef<'_, MessageComponent> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        if let MessageComponent::TextDisplay(text) = self.0 {
+            return serde::Serialize::serialize(&JsonRef(text), serializer);
+        }
+        let mut map = serializer.serialize_map(None)?;
+        match self.0 {
+            MessageComponent::Section(section) => {
+                map.serialize_entry("type", &TYPE_SECTION)?;
+                map.serialize_entry("components", &JsonRef(&section.texts[..]))?;
+                map.serialize_entry("accessory", &JsonRef(&section.accessory))?;
+            }
+            MessageComponent::ActionRow(row) => {
+                map.serialize_entry("type", &TYPE_ACTION_ROW)?;
+                map.serialize_entry("components", &JsonRef(row.buttons.as_slice()))?;
+            }
+            MessageComponent::MediaGallery(gallery) => {
+                map.serialize_entry("type", &TYPE_MEDIA_GALLERY)?;
+                map.serialize_entry("items", &JsonRef(&gallery.items[..]))?;
+            }
+            MessageComponent::File(file) => {
+                map.serialize_entry("type", &TYPE_FILE)?;
+                map.serialize_entry("file", &AttachmentUrl(&file.attachment))?;
+            }
+            MessageComponent::TextDisplay(_) => unreachable!("handled before map construction"),
+        }
+        map.end()
+    }
+}
+#[invariant(true)]
+struct AttachmentEntry<'a> {
+    index: usize,
+    name: &'a AttachmentName,
+}
+impl serde::Serialize for AttachmentEntry<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("id", &self.index)?;
+        map.serialize_entry("filename", self.name.as_str())?;
+        map.end()
+    }
+}
+#[invariant(true)]
+struct AttachmentEntries<'a>(&'a [AttachmentRequest]);
+impl serde::Serialize for AttachmentEntries<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.iter().enumerate().map(|(index, attachment)| {
+            AttachmentEntry {
+                index,
+                name: attachment.name(),
+            }
+        }))
+    }
+}
+impl serde::Serialize for JsonRef<'_, MessagePayload> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(6))?;
+        map.serialize_entry("flags", &FLAG_IS_COMPONENTS_V2)?;
+        map.serialize_entry("content", &Option::<()>::None)?;
+        map.serialize_entry("embeds", &([] as &[()]))?;
+        map.serialize_entry("allowed_mentions", &json!({"parse": []}))?;
+        map.serialize_entry("components", &JsonRef(&self.0.components[..]))?;
+        map.serialize_entry(
+            "attachments",
+            &AttachmentEntries(self.0.attachments.as_slice()),
+        )?;
+        map.end()
+    }
+}
+impl MessagePayload {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn check_encoded_size(
+        &self,
+        limit: jbotci_output::budget::ByteLimit,
+    ) -> Result<(), serde_json::Error> {
+        jbotci_output::budget::bounded_json_size(&JsonRef(self), limit).map(|_| ())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() <= limit.get()) || ret.is_err())]
+    pub(crate) fn encode_with_limit(
+        &self,
+        limit: jbotci_output::budget::ByteLimit,
+    ) -> Result<Vec<u8>, serde_json::Error> {
+        jbotci_output::budget::bounded_json(&JsonRef(self), limit)
     }
 }

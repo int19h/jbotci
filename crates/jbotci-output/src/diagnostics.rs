@@ -1,4 +1,6 @@
+use crate::budget::{BudgetedWriter, ByteLimit, OutputBudget};
 use std::borrow::Cow;
+use std::io::Write;
 use std::ops::Range;
 
 use annotate_snippets::{
@@ -42,26 +44,49 @@ impl Default for DiagnosticRenderOptions {
 }
 
 #[requires(!source_label.is_empty())]
-#[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
-#[ensures(!diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(|text| !text.is_empty())))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == diagnostics.is_empty()) || ret.is_err())]
 pub fn render_diagnostics(
     source_label: &str,
     source: &str,
     diagnostics: &[Diagnostic],
     options: DiagnosticRenderOptions,
 ) -> Result<String, OutputError> {
+    render_diagnostics_with_limit(
+        source_label,
+        source,
+        diagnostics,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+}
+
+#[requires(!source_label.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_diagnostics_with_limit(
+    source_label: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    options: DiagnosticRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     let renderer = diagnostic_renderer(options);
-    let mut output = String::new();
+    let mut output = OutputBudget::new(limit).writer();
     for diagnostic in diagnostics {
-        let group = diagnostic_group(source_label, source, diagnostic, options);
-        let report = [group];
-        let rendered = renderer.render(&report);
-        output.push_str(&rendered);
-        if !rendered.ends_with('\n') {
-            output.push('\n');
+        let remaining =
+            ByteLimit::new(output.remaining()).ok_or_else(|| OutputError::Limit { limit })?;
+        let group = diagnostic_group(source_label, source, diagnostic, options, remaining)?;
+        renderer
+            .render_into(&[group], &mut output, remaining.get())
+            .map_err(|_| OutputError::Limit { limit })?;
+        if output.last_byte() != Some(b'\n') {
+            output
+                .write_all(b"\n")
+                .map_err(|error| OutputError::from_render_io(error, limit))?;
         }
     }
-    Ok(output)
+    Ok(output
+        .into_string()
+        .expect("diagnostic rendering writes UTF-8"))
 }
 
 #[requires(!source_label.is_empty())]
@@ -71,7 +96,8 @@ fn diagnostic_group<'diagnostic>(
     source: &'diagnostic str,
     diagnostic: &'diagnostic Diagnostic,
     options: DiagnosticRenderOptions,
-) -> Group<'diagnostic> {
+    limit: ByteLimit,
+) -> Result<Group<'diagnostic>, OutputError> {
     let annotations = diagnostic
         .labels
         .iter()
@@ -91,12 +117,18 @@ fn diagnostic_group<'diagnostic>(
     for note in &diagnostic.notes {
         group = group.element(Level::NOTE.message(note));
     }
+    let mut remaining = limit.get();
     for note in &diagnostic.styled_notes {
         if note.mode.visible_in(options.detail) {
-            group = group.element(Level::NOTE.message(render_styled_note(note, options)));
+            let note_limit =
+                ByteLimit::new(remaining).ok_or_else(|| OutputError::Limit { limit })?;
+            let rendered = render_styled_note_with_limit(note, options, note_limit)
+                .map_err(|error| OutputError::from_render_io(error, limit))?;
+            remaining -= rendered.len();
+            group = group.element(Level::NOTE.message(rendered));
         }
     }
-    group
+    Ok(group)
 }
 
 #[requires(true)]
@@ -144,11 +176,27 @@ fn severity_level(severity: DiagnosticSeverity) -> Level<'static> {
     }
 }
 
+#[cfg(test)]
 #[requires(!note.segments.is_empty())]
 #[ensures(!ret.is_empty())]
 fn render_styled_note(note: &DiagnosticStyledNote, options: DiagnosticRenderOptions) -> String {
+    render_styled_note_with_limit(
+        note,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+    .expect("unrestricted diagnostic note")
+}
+
+#[requires(!note.segments.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+fn render_styled_note_with_limit(
+    note: &DiagnosticStyledNote,
+    options: DiagnosticRenderOptions,
+    limit: ByteLimit,
+) -> std::io::Result<String> {
+    let mut rendered = OutputBudget::new(limit).writer();
     let wrap_width = diagnostic_note_wrap_width(options.terminal_width);
-    let mut rendered = String::new();
     let mut line_width = 0;
     let mut line_text = String::new();
     for segment in &note.segments {
@@ -159,110 +207,83 @@ fn render_styled_note(note: &DiagnosticStyledNote, options: DiagnosticRenderOpti
             segment,
             options.color,
             wrap_width,
-        );
+        )?;
     }
-    rendered
+    Ok(rendered.into_string().expect("diagnostic notes are UTF-8"))
 }
 
-#[requires(!segment.text.is_empty())]
-#[requires(wrap_width > 0)]
+#[requires(!segment.text.is_empty() && wrap_width > 0)]
 #[ensures(true)]
 fn render_wrapped_segment(
-    rendered: &mut String,
+    rendered: &mut BudgetedWriter,
     line_width: &mut usize,
     line_text: &mut String,
     segment: &DiagnosticTextSegment,
     color: bool,
     wrap_width: usize,
-) {
-    let mut run = String::new();
-    let mut run_is_whitespace = false;
-    for character in segment.text.chars() {
+) -> std::io::Result<()> {
+    let text = &segment.text;
+    let mut start = 0;
+    let mut whitespace = None;
+    for (index, character) in text.char_indices() {
         if character == '\n' {
-            flush_text_run(
-                rendered,
-                line_width,
-                line_text,
-                segment.role,
-                &mut run,
-                color,
-                wrap_width,
-            );
-            push_hard_break(rendered, line_width, line_text);
-        } else if character.is_whitespace() {
-            if !run.is_empty() && !run_is_whitespace {
-                flush_text_run(
+            if start != index {
+                push_soft_run(
                     rendered,
                     line_width,
                     line_text,
                     segment.role,
-                    &mut run,
+                    &text[start..index],
                     color,
                     wrap_width,
-                );
+                )?;
             }
-            run_is_whitespace = true;
-            run.push(character);
+            push_hard_break(rendered, line_width, line_text)?;
+            start = index + 1;
+            whitespace = None;
         } else {
-            if !run.is_empty() && run_is_whitespace {
-                flush_text_run(
+            let next_whitespace = character.is_whitespace();
+            if whitespace.is_some_and(|old| old != next_whitespace) {
+                push_soft_run(
                     rendered,
                     line_width,
                     line_text,
                     segment.role,
-                    &mut run,
+                    &text[start..index],
                     color,
                     wrap_width,
-                );
+                )?;
+                start = index;
             }
-            run_is_whitespace = false;
-            run.push(character);
+            whitespace = Some(next_whitespace);
         }
     }
-    flush_text_run(
-        rendered,
-        line_width,
-        line_text,
-        segment.role,
-        &mut run,
-        color,
-        wrap_width,
-    );
-}
-
-#[requires(wrap_width > 0)]
-#[ensures(run.is_empty())]
-fn flush_text_run(
-    rendered: &mut String,
-    line_width: &mut usize,
-    line_text: &mut String,
-    role: DiagnosticTextRole,
-    run: &mut String,
-    color: bool,
-    wrap_width: usize,
-) {
-    if run.is_empty() {
-        return;
+    if start != text.len() {
+        push_soft_run(
+            rendered,
+            line_width,
+            line_text,
+            segment.role,
+            &text[start..],
+            color,
+            wrap_width,
+        )?;
     }
-    push_soft_run(
-        rendered, line_width, line_text, role, run, color, wrap_width,
-    );
-    run.clear();
+    Ok(())
 }
 
-#[requires(!text.is_empty())]
-#[requires(wrap_width > 0)]
+#[requires(!text.is_empty() && wrap_width > 0)]
 #[ensures(true)]
 fn push_soft_run(
-    rendered: &mut String,
+    rendered: &mut BudgetedWriter,
     line_width: &mut usize,
     line_text: &mut String,
     role: DiagnosticTextRole,
     text: &str,
     color: bool,
     wrap_width: usize,
-) {
-    let visible_text = visible_segment_text(role, text, color);
+) -> std::io::Result<()> {
+    let visible_text = visible_segment_text(role, text, color, rendered.remaining())?;
     let run_width = UnicodeWidthStr::width(visible_text.as_ref());
     if text.chars().all(char::is_whitespace) {
         if *line_width == 0 || *line_width + run_width <= wrap_width {
@@ -274,18 +295,17 @@ fn push_soft_run(
                 visible_text.as_ref(),
                 color,
                 run_width,
-            );
+            )?;
         } else {
-            push_auto_break(rendered, line_width, line_text);
+            push_auto_break(rendered, line_width, line_text)?;
         }
-        return;
+        return Ok(());
     }
-
     if *line_width > 0
         && *line_width + run_width > wrap_width
         && !can_trail_previous_run(role, text)
     {
-        push_auto_break(rendered, line_width, line_text);
+        push_auto_break(rendered, line_width, line_text)?;
     }
     push_visible_run(
         rendered,
@@ -295,7 +315,7 @@ fn push_soft_run(
         visible_text.as_ref(),
         color,
         run_width,
-    );
+    )
 }
 
 #[requires(!text.is_empty())]
@@ -310,71 +330,104 @@ fn can_trail_previous_run(role: DiagnosticTextRole, text: &str) -> bool {
 #[requires(!visible_text.is_empty())]
 #[ensures(true)]
 fn push_visible_run(
-    rendered: &mut String,
+    rendered: &mut BudgetedWriter,
     line_width: &mut usize,
     line_text: &mut String,
     role: DiagnosticTextRole,
     visible_text: &str,
     color: bool,
     width: usize,
-) {
-    rendered.push_str(&render_styled_visible_segment(role, visible_text, color));
+) -> std::io::Result<()> {
+    if !color {
+        rendered.write_all(visible_text.as_bytes())?;
+    } else {
+        match role {
+            DiagnosticTextRole::Construct => write!(rendered, "{}", visible_text.bright_white())?,
+            DiagnosticTextRole::SpecificWord => {
+                write!(rendered, "{}", visible_text.bright_cyan().italic())?
+            }
+            DiagnosticTextRole::Selmaho => write!(rendered, "{}", visible_text.bright_cyan())?,
+            DiagnosticTextRole::WordCategory => {
+                write!(rendered, "{}", visible_text.bright_green())?
+            }
+            DiagnosticTextRole::Keyword => {
+                write!(rendered, "{}", visible_text.truecolor(170, 170, 170))?
+            }
+            DiagnosticTextRole::Punctuation => write!(rendered, "{}", visible_text.bright_black())?,
+            DiagnosticTextRole::Plain => rendered.write_all(visible_text.as_bytes())?,
+        }
+    }
     *line_width += width;
     line_text.push_str(visible_text);
+    Ok(())
 }
 
 #[requires(true)]
-#[ensures(*line_width == 0)]
-#[ensures(line_text.is_empty())]
-fn push_hard_break(rendered: &mut String, line_width: &mut usize, line_text: &mut String) {
-    rendered.push('\n');
+#[ensures(*line_width == 0 && line_text.is_empty() || ret.is_err())]
+fn push_hard_break(
+    rendered: &mut BudgetedWriter,
+    line_width: &mut usize,
+    line_text: &mut String,
+) -> std::io::Result<()> {
+    rendered.write_all(b"\n")?;
     *line_width = 0;
     line_text.clear();
+    Ok(())
 }
 
-#[requires(true)]
 #[requires(!line_text.is_empty())]
 #[ensures(!line_text.is_empty())]
-fn push_auto_break(rendered: &mut String, line_width: &mut usize, line_text: &mut String) {
+fn push_auto_break(
+    rendered: &mut BudgetedWriter,
+    line_width: &mut usize,
+    line_text: &mut String,
+) -> std::io::Result<()> {
     let indent = continuation_indent(line_text);
-    rendered.push('\n');
-    rendered.push_str(&indent);
+    rendered.write_all(b"\n")?;
+    rendered.write_all(indent.as_bytes())?;
     *line_width = UnicodeWidthStr::width(indent.as_str());
     *line_text = indent;
-}
-
-#[requires(!visible_text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_styled_visible_segment(
-    role: DiagnosticTextRole,
-    visible_text: &str,
-    color: bool,
-) -> String {
-    if !color {
-        return visible_text.to_owned();
-    }
-    match role {
-        DiagnosticTextRole::Construct => visible_text.bright_white().to_string(),
-        DiagnosticTextRole::SpecificWord => visible_text.bright_cyan().italic().to_string(),
-        DiagnosticTextRole::Selmaho => visible_text.bright_cyan().to_string(),
-        DiagnosticTextRole::WordCategory => visible_text.bright_green().to_string(),
-        DiagnosticTextRole::Keyword => visible_text.truecolor(170, 170, 170).to_string(),
-        DiagnosticTextRole::Punctuation => visible_text.bright_black().to_string(),
-        DiagnosticTextRole::Plain => visible_text.to_owned(),
-    }
+    Ok(())
 }
 
 #[requires(!text.is_empty())]
-#[ensures(!ret.as_ref().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.as_ref().is_empty()) || ret.is_err())]
 fn visible_segment_text<'text>(
     role: DiagnosticTextRole,
     text: &'text str,
     color: bool,
-) -> Cow<'text, str> {
+    remaining: usize,
+) -> std::io::Result<Cow<'text, str>> {
     match (color, role) {
-        (false, DiagnosticTextRole::SpecificWord) => Cow::Owned(format!("{{{text}}}")),
-        (true, DiagnosticTextRole::WordCategory) => Cow::Owned(text.to_lowercase()),
-        _ => Cow::Borrowed(text),
+        (false, DiagnosticTextRole::SpecificWord) => {
+            let limit = ByteLimit::new(remaining).ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::FileTooLarge,
+                    "diagnostic byte limit reached",
+                )
+            })?;
+            Ok(Cow::Owned(crate::budget::bounded_format(
+                format_args!("{{{text}}}"),
+                limit,
+            )?))
+        }
+        (true, DiagnosticTextRole::WordCategory) => {
+            let limit = ByteLimit::new(remaining).ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::FileTooLarge,
+                    "diagnostic byte limit reached",
+                )
+            })?;
+            let mut lowercase = OutputBudget::new(limit).writer();
+            for character in text.chars().flat_map(char::to_lowercase) {
+                let mut bytes = [0; 4];
+                lowercase.write_all(character.encode_utf8(&mut bytes).as_bytes())?;
+            }
+            Ok(Cow::Owned(
+                lowercase.into_string().expect("lowercase text is UTF-8"),
+            ))
+        }
+        _ => Ok(Cow::Borrowed(text)),
     }
 }
 
@@ -627,23 +680,36 @@ mod tests {
     #[ensures(true)]
     fn styled_segment_visible_text_matches_color_policy() {
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA SUMTI", false),
+            visible_segment_text(
+                DiagnosticTextRole::WordCategory,
+                "KOhA SUMTI",
+                false,
+                usize::MAX
+            )
+            .unwrap(),
             "KOhA SUMTI"
         );
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA SUMTI", true),
+            visible_segment_text(
+                DiagnosticTextRole::WordCategory,
+                "KOhA SUMTI",
+                true,
+                usize::MAX
+            )
+            .unwrap(),
             "koha sumti"
         );
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", false),
+            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", false, usize::MAX)
+                .unwrap(),
             "{lo}"
         );
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", true),
+            visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", true, usize::MAX).unwrap(),
             "lo"
         );
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::Selmaho, "GAhO", true),
+            visible_segment_text(DiagnosticTextRole::Selmaho, "GAhO", true, usize::MAX).unwrap(),
             "GAhO"
         );
     }
@@ -798,5 +864,21 @@ mod tests {
 
         assert!(rendered.contains("kláma"));
         assert!(rendered.contains("non-ASCII label"));
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exhausted_diagnostic_preparation_keeps_the_typed_quota_error() {
+        for (role, color) in [
+            (DiagnosticTextRole::SpecificWord, false),
+            (DiagnosticTextRole::WordCategory, true),
+        ] {
+            assert_eq!(
+                visible_segment_text(role, "lo", color, 0)
+                    .unwrap_err()
+                    .kind(),
+                std::io::ErrorKind::FileTooLarge
+            );
+        }
     }
 }

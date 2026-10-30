@@ -212,6 +212,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
         progress_policy,
         stdin_text,
         None,
+        None,
     )
 }
 
@@ -229,6 +230,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
     progress_policy: CliProgressPolicy,
     stdin_text: Option<&str>,
     mut tool_context: Option<&mut ToolExecutionContext<'_>>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
     match command {
         Command::Vlasei(input) => run_vlasei(
@@ -238,6 +240,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             color_policy,
             diagnostic_terminal_width,
             stdin_text,
+            limits,
         ),
         Command::Vlatai(input) => {
             run_vlatai(input, stdout, color_policy, diagnostic_terminal_width)
@@ -285,6 +288,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                     limit: trace_limit,
                 },
                 stdin_text,
+                limits,
             )
         }
         Command::Mulgau(input) => {
@@ -309,11 +313,14 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                 glyphs,
                 output_terminal_width,
                 tool_context.as_deref_mut(),
+                limits,
             )
         }
-        Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout),
-        Command::Gimfihi(input) => run_gimfihi(input, stdout),
-        Command::Cukta(input) => run_cukta(input, stdout, stderr, tool_context.as_deref_mut()),
+        Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout, limits),
+        Command::Gimfihi(input) => run_gimfihi(input, stdout, limits),
+        Command::Cukta(input) => {
+            run_cukta(input, stdout, stderr, tool_context.as_deref_mut(), limits)
+        }
         Command::Zbasu(input) => {
             validate_trace_controls_for_unsupported_command(
                 "zbasu",

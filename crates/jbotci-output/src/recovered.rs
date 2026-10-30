@@ -9,6 +9,7 @@ use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+use crate::budget::ByteLimit;
 use crate::json;
 use crate::tree::{self, RecoveryTreeError, TreeValue};
 use crate::{
@@ -216,8 +217,29 @@ pub fn pretty_recovered_morphology_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_recovered_morphology_brackets_with_limit(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_morphology_brackets_with_limit(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::pretty_morphology_brackets_with_options(&recovered.words, source, options);
+        return crate::pretty_morphology_brackets_with_limit(
+            &recovered.words,
+            source,
+            options,
+            limit,
+        );
     }
     let context = brackets::BracketContext { options };
     let children = recovered_morphology_sequence(recovered, source)?
@@ -230,7 +252,7 @@ pub fn pretty_recovered_morphology_brackets_with_options(
         })
         .collect();
     let value = sexpr::flatten(sexpr::node(children));
-    Ok(sexpr::render_bracketed_with_options(&value, options))
+    sexpr::render_bracketed_with_limit(&value, options, limit)
 }
 
 #[requires(true)]
@@ -240,8 +262,24 @@ pub fn pretty_recovered_morphology_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_recovered_morphology_tree_with_limit(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_morphology_tree_with_limit(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+    options: TreeRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::pretty_morphology_tree_with_options(&recovered.words, source, options);
+        return crate::pretty_morphology_tree_with_limit(&recovered.words, source, options, limit);
     }
     let values = recovered_morphology_sequence(recovered, source)?
         .into_iter()
@@ -254,11 +292,12 @@ pub fn pretty_recovered_morphology_tree_with_options(
             }
         })
         .collect();
-    Ok(tree::render_tree_value_with_options(
+    tree::render_tree_value_with_limit(
         &tree::collapse_value(TreeValue::Collection(values)),
         options,
         None,
-    ))
+        limit,
+    )
 }
 
 #[requires(true)]
@@ -268,8 +307,24 @@ pub fn compact_recovered_morphology_json_string_with_options(
     source: &str,
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
+    compact_recovered_morphology_json_string_with_limit(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn compact_recovered_morphology_json_string_with_limit(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+    options: JsonRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::compact_morphology_json_string_with_options(&recovered.words, options);
+        return crate::compact_morphology_json_string_with_limit(&recovered.words, options, limit);
     }
     let items = recovered_morphology_sequence(recovered, source)?
         .into_iter()
@@ -282,11 +337,7 @@ pub fn compact_recovered_morphology_json_string_with_options(
             }
         })
         .collect();
-    Ok(crate::format_compact_json_value(
-        &Value::Array(items),
-        0,
-        options,
-    ))
+    crate::render_compact_json_value_with_limit(&Value::Array(items), options, limit)
 }
 
 #[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
@@ -520,8 +571,24 @@ pub fn pretty_recovered_syntax_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_recovered_syntax_brackets_with_limit(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_brackets_with_limit(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_generated_model_brackets_with_options(&valid, source, options);
+        return crate::pretty_generated_model_brackets_with_limit(&valid, source, options, limit);
     }
     let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
@@ -529,7 +596,7 @@ pub fn pretty_recovered_syntax_brackets_with_options(
         &mut visitor,
     );
     let value = sexpr::flatten(visitor.finish()?);
-    Ok(sexpr::render_bracketed_with_options(&value, options))
+    sexpr::render_bracketed_with_limit(&value, options, limit)
 }
 
 /// Elision marker used wherever the bounded error-region rendering drops
@@ -814,7 +881,23 @@ pub fn pretty_recovered_syntax_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    tree::pretty_recovered_generated_model_tree_with_options(recovered, source, options)
+    pretty_recovered_syntax_tree_with_limit(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_tree_with_limit(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: TreeRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
+    tree::pretty_recovered_generated_model_tree_with_limit(recovered, source, options, limit)
 }
 
 #[requires(true)]
@@ -824,8 +907,31 @@ pub fn compact_recovered_syntax_json_string_with_options(
     source: &str,
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
+    compact_recovered_syntax_json_string_with_limits(
+        recovered,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn compact_recovered_syntax_json_string_with_limits(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: JsonRenderOptions,
+    limit: ByteLimit,
+    projection_limit: ByteLimit,
+) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::compact_generated_model_json_string_with_options(&valid, options);
+        return crate::compact_generated_model_json_string_with_limits(
+            &valid,
+            options,
+            limit,
+            projection_limit,
+        );
     }
     let tree_options = TreeRenderOptions {
         color: false,
@@ -839,7 +945,7 @@ pub fn compact_recovered_syntax_json_string_with_options(
     };
     let tree = tree::recovered_generated_model_tree_value(recovered, source, tree_options)?;
     let value = recovered_tree_json_value(&tree);
-    Ok(crate::format_compact_json_value(&value, 0, options))
+    crate::render_compact_json_value_with_limit(&value, options, limit)
 }
 
 #[requires(true)]
@@ -1805,4 +1911,51 @@ mod tests {
         assert!(current.contains("\x1b[3mtoi\x1b[23m"), "{current:?}");
         assert!(!current.contains("\x1b[9m"), "{current:?}");
     }
+}
+
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_raw_with_limit(
+    recovered: &RecoveredSyntaxParse,
+    indent: Option<Indentation>,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
+    match recovered.parse_tree.as_ref().clone().try_into_valid() {
+        Ok(valid) => raw_with_limit(&valid, indent, limit),
+        Err(_) => raw_with_limit(recovered.parse_tree.as_ref(), indent, limit),
+    }
+}
+
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_morphology_raw_with_limit(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+    indent: Option<Indentation>,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
+    if recovered.errors.is_empty() {
+        raw_with_limit(&recovered.words, indent, limit)
+    } else {
+        raw_with_limit(
+            &recovered_morphology_sequence(recovered, source)?,
+            indent,
+            limit,
+        )
+    }
+}
+
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn raw_with_limit(
+    value: &impl std::fmt::Debug,
+    indent: Option<Indentation>,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
+    let rendered = if indent == Some(Indentation::compact()) {
+        crate::budget::bounded_format(format_args!("{value:?}\n"), limit)
+    } else {
+        crate::budget::bounded_format(format_args!("{value:#?}\n"), limit)
+    };
+    rendered.map_err(|error| OutputError::from_render_io(error, limit))
 }

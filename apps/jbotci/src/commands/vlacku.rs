@@ -10,6 +10,7 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
     glyphs: GlyphStyle,
     output_terminal_width: Option<usize>,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
     let options = vlacku_search_options(&input)?;
@@ -31,7 +32,7 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
         write!(
             stdout,
             "{}",
-            render_vlacku_output_with_options(
+            render_vlacku_output_with_limit(
                 &output,
                 new!(VlackuRenderOptions {
                     color,
@@ -40,7 +41,8 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
                     sumti_places: input.sumti_places,
                     show_etymology: input.show_etymology,
                 }),
-            )
+                tool_render_limits(limits).text,
+            )?
         )?;
     }
     Ok(cli_status_from_vlacku_outcome(output.outcome))
@@ -335,20 +337,24 @@ pub(crate) fn render_vlacku_output_with_width(
 }
 
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
-#[ensures(!ret.is_empty())]
-pub(crate) fn render_vlacku_output_with_options(
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+pub(crate) fn render_vlacku_output_in_scope(
     output: &VlackuSearchOutput,
     options: VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
 ) -> String {
     if output.cards.is_empty() {
-        return "No matches found.\n".to_owned();
+        return scope.copy("No matches found.\n");
     }
-    let mut rendered = String::new();
+    let mut rendered = scope.buffer();
     for (index, card) in output.cards.iter().enumerate() {
-        rendered.push_str(&render_vlacku_card(index + 1, card, &options));
+        if scope.is_exceeded() {
+            break;
+        }
+        rendered.push_str(&render_vlacku_card(index + 1, card, &options, scope));
         rendered.push('\n');
     }
-    rendered
+    rendered.into_piece()
 }
 
 #[requires(true)]
@@ -358,24 +364,27 @@ pub(crate) fn render_dictionary_definitions_for_word_likes(
     color: bool,
     glyphs: GlyphStyle,
 ) -> String {
-    let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words);
-    if cards.is_empty() {
-        return String::new();
-    }
-    render_dictionary_definition_cards(cards, color, glyphs)
+    render_dictionary_definitions_with_limits(words, color, glyphs, None)
+        .expect("unrestricted dictionary rendering")
 }
-
 #[requires(true)]
-#[ensures(old(cards.is_empty()) -> ret.is_empty())]
-fn render_dictionary_definition_cards(
-    cards: Vec<VlackuCard>,
+#[ensures(true)]
+pub(crate) fn render_dictionary_definitions_with_limits(
+    words: &[WordLike],
     color: bool,
     glyphs: GlyphStyle,
-) -> String {
+    limits: Option<&ToolExecutionLimits>,
+) -> Result<String> {
+    let count = limits.map_or(std::num::NonZeroUsize::MAX, |limits| limits.entries);
+    let cards = jbotci_search::vlacku::dictionary_cards_for_word_likes_with_limit(
+        jbotci_dictionary_data::english(),
+        words,
+        count,
+    )?;
     if cards.is_empty() {
-        return String::new();
+        return Ok(String::new());
     }
-    render_vlacku_output_with_options(
+    render_vlacku_output_with_limit(
         &VlackuSearchOutput {
             cards,
             outcome: VlackuOutcome::Found,
@@ -386,84 +395,158 @@ fn render_dictionary_definition_cards(
             glyphs,
             output_terminal_width: None,
             sumti_places: CliSumtiPlaces::Index,
-            show_etymology: false,
+            show_etymology: false
         }),
+        tool_render_limits(limits).text,
     )
 }
 
 #[requires(index > 0)]
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
-#[ensures(!ret.is_empty())]
-fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOptions) -> String {
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn render_vlacku_card(
+    index: usize,
+    card: &VlackuCard,
+    options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     let place_map = DefinitionPlaceMap::from_definition(&card.definition);
-    let mut lines = Vec::new();
-    let mut header = String::new();
-    header.push_str(&dark(&format!("{index}."), options.color));
+    let mut lines = scope.buffer();
+    let mut header = scope.buffer();
+    header.push_str(&dark_in_scope(
+        &scope.format(format_args!("{index}.")),
+        options.color,
+        &scope,
+    ));
     header.push(' ');
-    header.push_str(&yellow_underlined(&card.word, options.color));
+    header.push_str(&yellow_underlined_in_scope(
+        &card.word,
+        options.color,
+        &scope,
+    ));
     if let Some(author) = &card.author {
-        header.push_str(&dark(" | ", options.color));
-        header.push_str(&dark("by: ", options.color));
+        header.push_str(&dark_in_scope(" | ", options.color, &scope));
+        header.push_str(&dark_in_scope("by: ", options.color, &scope));
         header.push_str(&author.username);
     }
-    header.push_str(&dark(" | ", options.color));
-    header.push_str(&blue(&vlacku_header_type(card), options.color));
+    header.push_str(&dark_in_scope(" | ", options.color, &scope));
+    header.push_str(&blue_in_scope(
+        &vlacku_header_type(card, &scope),
+        options.color,
+        &scope,
+    ));
     if let Some(similarity) = card.similarity {
-        header.push_str(&dark(" | ", options.color));
-        header.push_str(&dark("similarity: ", options.color));
-        header.push_str(&magenta(
+        header.push_str(&dark_in_scope(" | ", options.color, &scope));
+        header.push_str(&dark_in_scope("similarity: ", options.color, &scope));
+        header.push_str(&magenta_in_scope(
             &format_similarity_percent(similarity),
             options.color,
+            &scope,
         ));
     }
     if let Some(votes) = card.votes {
-        header.push_str(&dark(" | ", options.color));
-        header.push_str(&dark("votes: ", options.color));
-        header.push_str(&green(
+        header.push_str(&dark_in_scope(" | ", options.color, &scope));
+        header.push_str(&dark_in_scope("votes: ", options.color, &scope));
+        header.push_str(&green_in_scope(
             &format_vlacku_votes(votes, card.is_official, options.glyphs),
             options.color,
+            &scope,
         ));
     }
-    lines.push(header);
+    {
+        lines.push_str(&(header));
+        lines.push('\n');
+    };
 
     if !card.rafsi.is_empty() {
-        lines.push(format!(
-            "  {}{}",
-            dark("rafsi: ", options.color),
-            card.rafsi
-                .iter()
-                .map(|rafsi| red(rafsi, options.color))
-                .collect::<Vec<_>>()
-                .join(" ")
-        ));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}{}",
+                    dark_in_scope("rafsi: ", options.color, &scope),
+                    scope.join(
+                        card.rafsi
+                            .iter()
+                            .map(|rafsi| red_in_scope(rafsi, options.color, scope)),
+                        " "
+                    )
+                ))),
+            );
+            lines.push('\n');
+        };
     }
     if !card.decomposition.is_empty() {
-        lines.push(format!(
-            "  {}{}",
-            dark("decomposition: ", options.color),
-            render_vlacku_decomposition(&card.decomposition, options.color, options.glyphs)
-        ));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}{}",
+                    dark_in_scope("decomposition: ", options.color, &scope),
+                    render_vlacku_decomposition(
+                        &card.decomposition,
+                        options.color,
+                        options.glyphs,
+                        &scope
+                    )
+                ))),
+            );
+            lines.push('\n');
+        };
     }
     if !card.glosses.is_empty() {
-        lines.push(format!("  {}", dark("glosses:", options.color)));
-        let glosses = card.glosses.join("; ");
-        let rendered = vlacku_reference_text_for_sumti_places(&glosses, &place_map, options);
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}",
+                    dark_in_scope("glosses:", options.color, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
+        let glosses = scope.join(&card.glosses, "; ");
+        let rendered =
+            vlacku_reference_text_for_sumti_places(&glosses, &place_map, options, &scope);
         push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
     }
     if !card.definition.trim().is_empty() {
-        lines.push(format!("  {}", dark("definitions:", options.color)));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}",
+                    dark_in_scope("definitions:", options.color, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
         for line in card.definition.lines() {
-            let rendered = vlacku_definition_text_for_sumti_places(line, &place_map, options);
+            let rendered =
+                vlacku_definition_text_for_sumti_places(line, &place_map, options, &scope);
             push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
     } else if !card.known {
-        lines.push(format!("  {}", dark("definitions:", options.color)));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}",
+                    dark_in_scope("definitions:", options.color, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
         push_rendered_vlacku_detail_lines(&mut lines, "not in dictionary", options);
     }
     if !card.notes.trim().is_empty() {
-        lines.push(format!("  {}", dark("notes:", options.color)));
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "  {}",
+                    dark_in_scope("notes:", options.color, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
         for line in card.notes.lines() {
-            let rendered = vlacku_reference_text_for_sumti_places(line, &place_map, options);
+            let rendered =
+                vlacku_reference_text_for_sumti_places(line, &place_map, options, &scope);
             push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
     }
@@ -473,28 +556,43 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
             .as_deref()
             .filter(|etymology| !etymology.trim().is_empty())
         {
-            lines.push(format!("  {}", dark("etymology:", options.color)));
+            {
+                lines.push_str(
+                    &(scope.format(format_args!(
+                        "  {}",
+                        dark_in_scope("etymology:", options.color, &scope)
+                    ))),
+                );
+                lines.push('\n');
+            };
             for line in etymology.lines() {
-                let rendered = vlacku_reference_text_for_sumti_places(line, &place_map, options);
+                let rendered =
+                    vlacku_reference_text_for_sumti_places(line, &place_map, options, &scope);
                 push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
             }
         }
     }
-    lines.join("\n") + "\n"
+    lines.into_piece()
 }
 
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(true)]
 fn push_rendered_vlacku_detail_lines(
-    lines: &mut Vec<String>,
+    lines: &mut jbotci_output::budget::TextBuffer,
     rendered_text: &str,
     options: &VlackuRenderOptions,
 ) {
-    for line in wrap_vlacku_detail_line(rendered_text, options.output_terminal_width) {
-        lines.push(format!(
-            "{VLACKU_DETAIL_INDENT}{}",
-            render_vlacku_rich_text(&line, options)
-        ));
+    let scope = lines.scope();
+    for line in wrap_vlacku_detail_line(rendered_text, options.output_terminal_width, &scope) {
+        {
+            lines.push_str(
+                &(scope.format(format_args!(
+                    "{VLACKU_DETAIL_INDENT}{}",
+                    render_vlacku_rich_text(&line, options, &scope)
+                ))),
+            );
+            lines.push('\n');
+        };
     }
 }
 
@@ -504,11 +602,17 @@ fn vlacku_definition_text_for_sumti_places(
     text: &str,
     place_map: &DefinitionPlaceMap,
     options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
 ) -> String {
     match options.sumti_places {
-        CliSumtiPlaces::Raw => text.to_owned(),
+        CliSumtiPlaces::Raw => scope.copy(text),
         CliSumtiPlaces::Index => {
-            format_definition_line_with_indexed_places(text, place_map, options.glyphs)
+            jbotci_output::format_definition_line_with_indexed_places_in_scope(
+                text,
+                place_map,
+                options.glyphs,
+                scope,
+            )
         }
     }
 }
@@ -519,62 +623,73 @@ fn vlacku_reference_text_for_sumti_places(
     text: &str,
     place_map: &DefinitionPlaceMap,
     options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
 ) -> String {
     match options.sumti_places {
-        CliSumtiPlaces::Raw => text.to_owned(),
-        CliSumtiPlaces::Index => {
-            format_notes_line_with_indexed_places(text, place_map, options.glyphs)
-        }
+        CliSumtiPlaces::Raw => scope.copy(text),
+        CliSumtiPlaces::Index => jbotci_output::format_notes_line_with_indexed_places_in_scope(
+            text,
+            place_map,
+            options.glyphs,
+            scope,
+        ),
     }
 }
 
 #[requires(output_terminal_width.is_none_or(|width| width > 0))]
-#[ensures(!ret.is_empty())]
-fn wrap_vlacku_detail_line(text: &str, output_terminal_width: Option<usize>) -> Vec<String> {
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn wrap_vlacku_detail_line(
+    text: &str,
+    output_terminal_width: Option<usize>,
+    scope: &jbotci_output::budget::TextScope,
+) -> Vec<String> {
     let Some(output_terminal_width) = output_terminal_width else {
-        return vec![text.to_owned()];
+        return vec![scope.copy(text)];
     };
     let wrap_width = output_terminal_width
         .saturating_sub(UnicodeWidthStr::width(VLACKU_DETAIL_INDENT))
         .max(1);
     if UnicodeWidthStr::width(text) <= wrap_width {
-        return vec![text.to_owned()];
+        return vec![scope.copy(text)];
     }
-    let atoms = vlacku_wrap_atoms(text);
+    let atoms = vlacku_wrap_atoms(text, &scope);
     if atoms.is_empty() {
         return vec![String::new()];
     }
 
     let mut lines = Vec::new();
-    let mut current = String::new();
+    let mut current = scope.buffer();
     let mut current_width = 0;
     for atom in atoms {
+        if scope.is_exceeded() {
+            break;
+        }
         let atom_width = UnicodeWidthStr::width(atom.as_str());
         if current.is_empty() {
             current_width = atom_width;
-            current = atom;
+            current = scope.buffer_with(&atom);
         } else if current_width + 1 + atom_width <= wrap_width {
             current.push(' ');
             current.push_str(&atom);
             current_width += 1 + atom_width;
         } else {
-            lines.push(current);
+            lines.push(current.into_piece());
             current_width = atom_width;
-            current = atom;
+            current = scope.buffer_with(&atom);
         }
     }
     if !current.is_empty() {
-        lines.push(current);
+        lines.push(current.into_piece());
     }
     lines
 }
 
 #[requires(true)]
 #[ensures(input.trim().is_empty() -> ret.is_empty())]
-fn vlacku_wrap_atoms(input: &str) -> Vec<String> {
+fn vlacku_wrap_atoms(input: &str, scope: &jbotci_output::budget::TextScope) -> Vec<String> {
     let mut atoms = Vec::new();
     let mut remaining = input.trim();
-    while !remaining.is_empty() {
+    while !remaining.is_empty() && !scope.is_exceeded() {
         if let Some(after_open) = remaining.strip_prefix('$') {
             if let Some(close_index) = after_open.find('$') {
                 let mut atom_end = close_index + 2;
@@ -583,7 +698,7 @@ fn vlacku_wrap_atoms(input: &str) -> Vec<String> {
                     .find(char::is_whitespace)
                     .unwrap_or(trailing_text.len());
                 atom_end += trailing_end;
-                atoms.push(remaining[..atom_end].to_owned());
+                atoms.push(scope.copy(&remaining[..atom_end]));
                 remaining = remaining[atom_end..].trim_start();
                 continue;
             }
@@ -591,24 +706,24 @@ fn vlacku_wrap_atoms(input: &str) -> Vec<String> {
         let atom_end = remaining
             .find(char::is_whitespace)
             .unwrap_or(remaining.len());
-        atoms.push(remaining[..atom_end].to_owned());
+        atoms.push(scope.copy(&remaining[..atom_end]));
         remaining = remaining[atom_end..].trim_start();
     }
     atoms
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn vlacku_header_type(card: &VlackuCard) -> String {
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn vlacku_header_type(card: &VlackuCard, scope: &jbotci_output::budget::TextScope) -> String {
     let normalized = normalize_word_type_filter(&card.word_type);
     if normalized.starts_with("cmavo") {
         if let Some(selmaho) = &card.selmaho {
             if !selmaho.trim().is_empty() {
-                return format!("cmavo: {selmaho}");
+                return scope.format(format_args!("cmavo: {selmaho}"));
             }
         }
     }
-    card.word_type.clone()
+    scope.copy(&card.word_type)
 }
 
 #[requires(true)]
@@ -633,13 +748,15 @@ fn render_vlacku_decomposition(
     pieces: &[VlackuCompositionPiece],
     color: bool,
     glyphs: GlyphStyle,
+    scope: &jbotci_output::budget::TextScope,
 ) -> String {
-    let separator = dark(lujvo_separator(glyphs), color);
-    pieces
-        .iter()
-        .map(|piece| render_vlacku_decomposition_piece(piece, color, glyphs))
-        .collect::<Vec<_>>()
-        .join(&separator)
+    let separator = dark_in_scope(lujvo_separator(glyphs), color, &scope);
+    scope.join(
+        pieces
+            .iter()
+            .map(|piece| render_vlacku_decomposition_piece(piece, color, glyphs, scope)),
+        &separator,
+    )
 }
 
 #[requires(true)]
@@ -648,14 +765,15 @@ fn render_vlacku_decomposition_piece(
     piece: &VlackuCompositionPiece,
     color: bool,
     glyphs: GlyphStyle,
+    scope: &jbotci_output::budget::TextScope,
 ) -> String {
     let phoneme_options = phoneme_render_options(None, None, glyphs);
     let surface = Phonemes::from_canonical(piece.surface.clone())
         .map(|phonemes| phonemes.render(phoneme_options))
         .unwrap_or_else(|_| piece.surface.clone());
     match piece.kind {
-        VlackuCompositionKind::Rafsi => red(&surface, color),
-        VlackuCompositionKind::Hyphen => dark(&surface, color),
+        VlackuCompositionKind::Rafsi => red_in_scope(&surface, color, &scope),
+        VlackuCompositionKind::Hyphen => dark_in_scope(&surface, color, &scope),
     }
 }
 
@@ -670,96 +788,134 @@ fn lujvo_separator(glyphs: GlyphStyle) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_rich_text(input: &str, options: &VlackuRenderOptions) -> String {
-    let mut output = String::new();
+fn render_vlacku_rich_text(
+    input: &str,
+    options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut output = scope.buffer();
     let mut remaining = input;
-    while !remaining.is_empty() {
+    while !remaining.is_empty() && !scope.is_exceeded() {
         let Some(open_index) = remaining.find('$') else {
-            output.push_str(&render_vlacku_word_links(remaining, options));
+            output.push_str(&render_vlacku_word_links(remaining, options, &scope));
             break;
         };
         let before = &remaining[..open_index];
         let after_open = &remaining[open_index + 1..];
         let Some(close_index) = after_open.find('$') else {
-            output.push_str(&render_vlacku_word_links(remaining, options));
+            output.push_str(&render_vlacku_word_links(remaining, options, &scope));
             break;
         };
-        output.push_str(&render_vlacku_word_links(before, options));
+        output.push_str(&render_vlacku_word_links(before, options, &scope));
         let math_body = &after_open[..close_index];
-        output.push_str(&render_vlacku_raw_place_span(math_body, options.color));
+        output.push_str(&render_vlacku_raw_place_span(
+            math_body,
+            options.color,
+            &scope,
+        ));
         remaining = &after_open[close_index + 1..];
     }
-    output
+    output.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_raw_place_span(input: &str, color: bool) -> String {
-    let mut output = String::new();
-    output.push_str(&dark("$", color));
+fn render_vlacku_raw_place_span(
+    input: &str,
+    color: bool,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut output = scope.buffer();
+    output.push_str(&dark_in_scope("$", color, &scope));
     let mut remaining = input;
-    while !remaining.is_empty() {
+    while !remaining.is_empty() && !scope.is_exceeded() {
         let Some(equals_index) = remaining.find('=') else {
-            output.push_str(&cyan(remaining, color));
+            output.push_str(&cyan_in_scope(remaining, color, &scope));
             break;
         };
-        output.push_str(&cyan(&remaining[..equals_index], color));
-        output.push_str(&dark("=", color));
+        output.push_str(&cyan_in_scope(&remaining[..equals_index], color, &scope));
+        output.push_str(&dark_in_scope("=", color, &scope));
         remaining = &remaining[equals_index + 1..];
     }
-    output.push_str(&dark("$", color));
-    output
+    output.push_str(&dark_in_scope("$", color, &scope));
+    output.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_word_links(input: &str, options: &VlackuRenderOptions) -> String {
-    let mut output = String::new();
+fn render_vlacku_word_links(
+    input: &str,
+    options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut output = scope.buffer();
     let mut remaining = input;
-    while !remaining.is_empty() {
+    while !remaining.is_empty() && !scope.is_exceeded() {
         let Some(open_index) = remaining.find('{') else {
-            output.push_str(&render_vlacku_plain_or_indexed_places(remaining, options));
+            output.push_str(&render_vlacku_plain_or_indexed_places(
+                remaining, options, &scope,
+            ));
             break;
         };
         let before = &remaining[..open_index];
         let after_open = &remaining[open_index + 1..];
         let Some(close_index) = after_open.find('}') else {
-            output.push_str(&render_vlacku_plain_or_indexed_places(remaining, options));
+            output.push_str(&render_vlacku_plain_or_indexed_places(
+                remaining, options, &scope,
+            ));
             break;
         };
-        output.push_str(&render_vlacku_plain_or_indexed_places(before, options));
+        output.push_str(&render_vlacku_plain_or_indexed_places(
+            before, options, &scope,
+        ));
         let inside = &after_open[..close_index];
         let link_value = inside.trim();
         if is_vlacku_word_link(link_value) {
-            output.push_str(&dark("{", options.color));
-            output.push_str(&yellow(link_value, options.color));
-            output.push_str(&dark("}", options.color));
+            output.push_str(&dark_in_scope("{", options.color, &scope));
+            output.push_str(&yellow_in_scope(link_value, options.color, &scope));
+            output.push_str(&dark_in_scope("}", options.color, &scope));
         } else {
-            output.push_str(&light(&format!("{{{inside}}}"), options.color));
+            output.push_str(&light_in_scope(
+                &scope.format(format_args!("{{{inside}}}")),
+                options.color,
+                &scope,
+            ));
         }
         remaining = &after_open[close_index + 1..];
     }
-    output
+    output.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_plain_or_indexed_places(input: &str, options: &VlackuRenderOptions) -> String {
+fn render_vlacku_plain_or_indexed_places(
+    input: &str,
+    options: &VlackuRenderOptions,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     if options.sumti_places == CliSumtiPlaces::Raw {
-        return light(input, options.color);
+        return light_in_scope(input, options.color, &scope);
     }
 
-    let mut output = String::new();
+    let mut output = scope.buffer();
     let mut remaining = input;
-    while !remaining.is_empty() {
+    while !remaining.is_empty() && !scope.is_exceeded() {
         let Some(open_index) = remaining.find(options.glyphs.slot_open()) else {
-            output.push_str(&light(remaining, options.color));
+            output.push_str(&light_in_scope(remaining, options.color, &scope));
             break;
         };
-        output.push_str(&light(&remaining[..open_index], options.color));
+        output.push_str(&light_in_scope(
+            &remaining[..open_index],
+            options.color,
+            &scope,
+        ));
         let after_open = &remaining[open_index + options.glyphs.slot_open().len()..];
         let Some(close_index) = after_open.find(options.glyphs.slot_close()) else {
-            output.push_str(&light(&remaining[open_index..], options.color));
+            output.push_str(&light_in_scope(
+                &remaining[open_index..],
+                options.color,
+                &scope,
+            ));
             break;
         };
         let place_index = &after_open[..close_index];
@@ -768,20 +924,56 @@ fn render_vlacku_plain_or_indexed_places(input: &str, options: &VlackuRenderOpti
                 .chars()
                 .all(|character| character.is_ascii_digit())
         {
-            output.push_str(&dark(options.glyphs.slot_open(), options.color));
-            output.push_str(&cyan(place_index, options.color));
-            output.push_str(&dark(options.glyphs.slot_close(), options.color));
+            output.push_str(&dark_in_scope(
+                options.glyphs.slot_open(),
+                options.color,
+                &scope,
+            ));
+            output.push_str(&cyan_in_scope(place_index, options.color, &scope));
+            output.push_str(&dark_in_scope(
+                options.glyphs.slot_close(),
+                options.color,
+                &scope,
+            ));
             remaining = &after_open[close_index + options.glyphs.slot_close().len()..];
         } else {
-            output.push_str(&light(options.glyphs.slot_open(), options.color));
+            output.push_str(&light_in_scope(
+                options.glyphs.slot_open(),
+                options.color,
+                &scope,
+            ));
             remaining = after_open;
         }
     }
-    output
+    output.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn is_vlacku_word_link(value: &str) -> bool {
     !value.is_empty() && !value.chars().any(char::is_whitespace)
+}
+
+#[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(!ret.is_empty())]
+pub(crate) fn render_vlacku_output_with_options(
+    output: &VlackuSearchOutput,
+    options: VlackuRenderOptions,
+) -> String {
+    render_vlacku_output_with_limit(
+        output,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+    .expect("unrestricted dictionary rendering")
+}
+#[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+fn render_vlacku_output_with_limit(
+    output: &VlackuSearchOutput,
+    options: VlackuRenderOptions,
+    limit: ByteLimit,
+) -> Result<String> {
+    let scope = jbotci_output::budget::TextScope::new(limit);
+    Ok(scope.finish(render_vlacku_output_in_scope(output, options, &scope))?)
 }

@@ -54,7 +54,9 @@ use serde::{Deserialize, Serialize};
 
 pub use render::{
     DEFAULT_GENTUFA_PNG_SCALE, EmbeddedGentufaFonts, GentufaExportError, GentufaFontData,
-    GentufaPngOptions, GentufaSvgOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
+    GentufaLimit, GentufaPngOptions, GentufaRasterPlan, GentufaRenderLimits, GentufaSvgOptions,
+    checked_svg_raster_plan, render_gentufa_blocks_png, render_gentufa_blocks_png_with_limits,
+    render_gentufa_blocks_svg, render_gentufa_blocks_svg_with_limits,
 };
 
 #[invariant(byte_start <= byte_end, "byte range must be ordered")]

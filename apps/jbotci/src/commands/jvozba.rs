@@ -6,15 +6,24 @@ pub(crate) fn run_jvozba<WOut: Write>(
     input: JvozbaInput,
     stdout: &mut WOut,
     color: bool,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
     let mode = if input.cmevla {
         JvozbaMode::Cmevla
     } else {
         JvozbaMode::Lujvo
     };
-    let result =
-        build_best_jvozba_detailed(mode, jbotci_dictionary_data::english(), &input.sources)
-            .map_err(|message| anyhow!(message))?;
+    let dictionary = jbotci_dictionary_data::english();
+    let result = match limits {
+        Some(limits) => jbotci_jvozba::build_best_jvozba_detailed_within(
+            mode,
+            dictionary,
+            &input.sources,
+            limits.jvozba,
+        ),
+        None => build_best_jvozba_detailed(mode, dictionary, &input.sources),
+    }
+    .map_err(|error| anyhow!(error))?;
     writeln!(stdout, "{}", render_jvozba_result(&result, color))?;
     Ok(CliStatus::Success)
 }

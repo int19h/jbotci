@@ -125,8 +125,10 @@ so it cannot be used to empty a guild.
 ## What one request may spend
 
 The service has three seconds to acknowledge a request and fifteen minutes to finish its message.
-Analysis, attachment downloads, and meaning search each have a bounded queue and a fixed worker count.
-Analysis admits one job at a time to bound concurrent memory use.
+The server shares its work policy across MCP, REST, Discord, image exports, and computed page metadata.
+Meaning search uses the same analysis admission.
+The default allows one analysis job and eight waiting requests across these adapters.
+Read [Server work limits](server.md) for the startup environment variables.
 
 A request that cannot enter its queue receives a refusal message.
 A worker retains its permit until the work ends, even when the caller stops waiting.
@@ -142,8 +144,8 @@ One deadline covers both queue time and delivery to Discord.
 | App link results | the web app's own default (20) | An "Open in app" link opens the view the app itself would open for that search. It does not carry the reader's place in Discord's paging, which is a separate thing with its own bound. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
 | Candidate ranking | one word, one score and any colliding word, per generated candidate that passes the filters | What reaching a gismu page costs while the service computes it. |
-| Compound construction | 8192 part placements, 24 pieces, 256 letters | The service refuses a construction that exceeds these bounds. |
-| Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. The pixel limit bounds the size of the raster buffer. |
+| Compound construction | 8192 part placements, 24 pieces, 256 letters by default | The service refuses a construction that exceeds these bounds. |
+| Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB by default | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. The pixel limit bounds the size of the raster buffer. |
 | Attachment | the interaction's own limit, at most 10 MiB | Discord states a per-interaction limit; the smaller of the two applies. |
 | Reporting | 5 seconds | Saying what happened is not the work, so it has its own budget: a request that spent all of its own can still report that. |
 

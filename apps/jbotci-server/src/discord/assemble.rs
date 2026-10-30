@@ -15,15 +15,15 @@ use bityzba::{data, ensures, invariant, new, requires};
 use vec1::Vec1;
 
 use super::codec::{
-    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, PageControl, RequestHeader, encode_input_block,
-    input_block_fits_inline,
+    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, PageControl, RequestHeader,
+    encode_input_block_in_scope, input_block_fits_inline,
 };
 use super::components::{
     ActionRow, AttachmentName, AttachmentRequest, BoundsError, Button, CustomId, FileComponent,
     InvalidAttachmentName, MESSAGE_TEXT_BUDGET_UNITS, MediaGallery, MediaItem, MessageComponent,
     MessagePayload, PayloadError, Section, TextDisplay,
 };
-use super::present::markdown::{escape, subtext, truncate_units};
+use super::present::markdown::{escape_in_scope, subtext_in_scope, truncate_units_in_scope};
 use super::present::{Pagination, RenderedResult};
 use super::request::{PublishedRequest, Revision, SourceField, SourceStore, utf16_len};
 
@@ -48,6 +48,7 @@ const ATTACHMENT_CUT_NOTE: &str =
 #[invariant(header.store == *store)]
 #[derive(Debug, Clone)]
 pub(crate) struct AssembledMessage {
+    pub(crate) admission: Option<crate::execution::AdmittedWorkContext>,
     pub(crate) payload: MessagePayload,
     /// Where the source fields live (inline block or attachment).
     pub(crate) store: SourceStore,
@@ -59,12 +60,14 @@ pub(crate) struct AssembledMessage {
 
 /// Why assembly failed. Bounds and payload cases are violations the layout is
 /// built to avoid; the source case is a genuine limit of the interaction.
+#[invariant(::OutputLimit => true)]
 #[invariant(::Bounds(_) => true)]
 #[invariant(::Payload(_) => true)]
 #[invariant(::AttachmentName(_) => true)]
 #[invariant(::SourceExceedsAttachmentLimit { bytes, limit } => bytes > limit)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum AssembleError {
+    OutputLimit,
     Bounds(BoundsError),
     Payload(PayloadError),
     AttachmentName(InvalidAttachmentName),
@@ -81,6 +84,9 @@ impl std::fmt::Display for AssembleError {
     #[ensures(true)]
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.as_data() {
+            data!(AssembleError::OutputLimit) => {
+                write!(formatter, "{}", crate::work::WorkError::OutputLimit)
+            }
             data!(AssembleError::Bounds(error)) => {
                 write!(formatter, "message component out of bounds: {error}")
             }
@@ -142,10 +148,11 @@ enum ResultAttachment {
 #[requires(rendered.tool() == published.request.tool())]
 #[requires(attachment_size_limit > 0)]
 #[ensures(ret.as_ref().is_ok_and(|message| message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS) || ret.is_err())]
-pub(crate) fn assemble(
+fn assemble_in_scope(
     rendered: &RenderedResult,
     published: &PublishedRequest,
     attachment_size_limit: usize,
+    scope: &jbotci_output::budget::TextScope,
 ) -> Result<AssembledMessage, AssembleError> {
     let tool = published.request.tool();
     let source_fields = published.request.source_fields();
@@ -153,7 +160,7 @@ pub(crate) fn assemble(
         .iter()
         .map(|(field, value)| (*field, value.map(|value| value.as_str())))
         .collect::<Vec<_>>();
-    let block = encode_input_block(tool, &fields, &rendered.status.text);
+    let block = encode_input_block_in_scope(tool, &fields, &rendered.status.text, scope);
     let store = if input_block_fits_inline(&block) {
         SourceStore::Inline
     } else {
@@ -167,7 +174,7 @@ pub(crate) fn assemble(
     };
     let section_text = match store {
         SourceStore::Inline => block.clone(),
-        SourceStore::Attachment => attached_source_summary(&fields, &rendered.status.text),
+        SourceStore::Attachment => attached_source_summary(&fields, &rendered.status.text, scope),
     };
     let header = RequestHeader::describe(published, store);
     let gear = Button::gear(CustomId::new(&header.encode())?);
@@ -185,14 +192,15 @@ pub(crate) fn assemble(
     if let Some(candidate) = image
         && candidate.bytes.len() > attachment_size_limit
     {
-        notices.push(subtext(
+        notices.push(subtext_in_scope(
             "The diagram was omitted: it exceeds this server's attachment size limit.",
+            scope,
         ));
         image = None;
     }
 
     let budget = MESSAGE_TEXT_BUDGET_UNITS.saturating_sub(utf16_len(&section_text));
-    let body_full = rendered.body.join("\n\n");
+    let body_full = scope.join(&rendered.body, "\n\n");
     let diagnostics_full = rendered
         .diagnostics
         .as_ref()
@@ -220,21 +228,22 @@ pub(crate) fn assemble(
         if let Some(notice) = &rendered.notice {
             notices.push(notice.clone());
         }
-        (body_full, diagnostics_full.to_owned(), false)
+        (body_full, scope.copy(diagnostics_full), false)
     } else {
         // Overflow: the attachment decides the notice wording, so build it
         // first, then budget notice, presenter notice, diagnostics, body.
-        let attachment = result_attachment(rendered, attachment_size_limit);
-        let overflow_note = overflow_notice(&attachment);
+        let attachment = result_attachment(rendered, attachment_size_limit, scope);
+        let overflow_note = overflow_notice(&attachment, scope);
         let mut remaining = budget.saturating_sub(omitted_units);
         remaining = remaining.saturating_sub(utf16_len(&overflow_note) + 1);
         notices.push(overflow_note);
         if let Some(notice) = &rendered.notice {
-            let shown = cut_markdown(
+            let shown = cut_markdown_in_scope(
                 notice,
                 remaining
                     .saturating_sub(1)
                     .min(OVERFLOW_NOTICE_RESERVE_UNITS),
+                scope,
             );
             remaining = remaining.saturating_sub(utf16_len(&shown) + 1);
             if !shown.is_empty() {
@@ -250,14 +259,16 @@ pub(crate) fn assemble(
         } else {
             diagnostics_units.min(remaining / 2) + 1
         };
-        let body_shown = pack_chunks(
+        let body_shown = pack_chunks_in_scope(
             &rendered.body,
             remaining.saturating_sub(diagnostics_reserve),
+            scope,
         );
         if !body_shown.is_empty() {
             remaining = remaining.saturating_sub(utf16_len(&body_shown) + 1);
         }
-        let diagnostics_shown = cut_markdown(diagnostics_full, remaining.saturating_sub(1));
+        let diagnostics_shown =
+            cut_markdown_in_scope(diagnostics_full, remaining.saturating_sub(1), scope);
         match attachment.into_data() {
             data!(ResultAttachment::Complete(bytes)) | data!(ResultAttachment::Partial(bytes)) => {
                 let name = AttachmentName::new(RESULT_ATTACHMENT_FILENAME)?;
@@ -292,7 +303,7 @@ pub(crate) fn assemble(
     if !notices.is_empty() {
         components.push(MessageComponent::TextDisplay(TextDisplay::new(
             None,
-            notices.join("\n"),
+            scope.join(&notices, "\n"),
         )?));
     }
     if let Some(image) = image {
@@ -300,10 +311,10 @@ pub(crate) fn assemble(
         components.push(MessageComponent::MediaGallery(new!(MediaGallery {
             items: Vec1::new(new!(MediaItem {
                 attachment: name.clone(),
-                description: Some(format!(
+                description: Some(scope.format(format_args!(
                     "Gentufa parse diagram, {}×{} pixels",
                     image.width, image.height
-                )),
+                ))),
             })),
         })));
         attachments.push(new!(AttachmentRequest {
@@ -338,6 +349,7 @@ pub(crate) fn assemble(
         attachments,
     )?;
     Ok(new!(AssembledMessage {
+        admission: None,
         payload,
         store,
         header,
@@ -349,37 +361,48 @@ pub(crate) fn assemble(
 /// preview of the primary field, a pointer to the file, and the status line.
 #[requires(!fields.is_empty())]
 #[requires(!status.is_empty() && !status.contains('\n'))]
-#[ensures(ret.ends_with(status))]
-fn attached_source_summary(fields: &[(SourceField, Option<&str>)], status: &str) -> String {
+#[ensures(scope.is_exceeded() || (ret.ends_with(status)))]
+fn attached_source_summary(
+    fields: &[(SourceField, Option<&str>)],
+    status: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     let primary = fields
         .first()
         .and_then(|(_, value)| *value)
         .unwrap_or_default()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let (preview, _) = truncate_units(&primary, INPUT_PREVIEW_UNITS);
+        .split_whitespace();
+    let primary = scope.join(primary, " ");
+    let (preview, _) = truncate_units_in_scope(&primary, INPUT_PREVIEW_UNITS, scope);
     let mut lines = Vec::new();
     if !preview.is_empty() {
-        lines.push(escape(&preview));
+        lines.push(escape_in_scope(&preview, scope));
     }
-    lines.push(subtext(&format!(
-        "full source attached as {INPUT_ATTACHMENT_FILENAME}"
-    )));
-    lines.push(format!("-# {status}"));
-    lines.join("\n")
+    lines.push(subtext_in_scope(
+        &scope.format(format_args!(
+            "full source attached as {INPUT_ATTACHMENT_FILENAME}"
+        )),
+        scope,
+    ));
+    lines.push(scope.format(format_args!("-# {status}")));
+    scope.join(&lines, "\n")
 }
 
 /// The complete result as attachment text: the presenter's own full text (or
 /// the shown body when it showed everything), followed by every diagnostic in
 /// full, not the shortened form the message carries.
 #[requires(true)]
-#[ensures(true)]
-fn complete_result_text(rendered: &RenderedResult) -> String {
-    let mut text = rendered
-        .full_text
-        .clone()
-        .unwrap_or_else(|| rendered.body.join("\n\n"));
+#[ensures(scope.is_exceeded() || (true))]
+fn complete_result_text_in_scope(
+    rendered: &RenderedResult,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut text = scope.buffer();
+    match &rendered.full_text {
+        Some(full) => text.push_str(full),
+        None => text.push_str(&scope.join(&rendered.body, "\n\n")),
+    }
+
     if let Some(diagnostics) = &rendered.diagnostics {
         if !text.is_empty() {
             text.push_str("\n\n");
@@ -387,13 +410,20 @@ fn complete_result_text(rendered: &RenderedResult) -> String {
         text.push_str("Diagnostics\n\n");
         text.push_str(&diagnostics.complete);
     }
-    text
+    text.into_piece()
 }
 
 #[requires(limit > 0)]
-#[ensures(match ret.as_data() { data!(ResultAttachment::Complete(bytes)) | data!(ResultAttachment::Partial(bytes)) => bytes.len() <= limit, data!(ResultAttachment::Unattachable) => true })]
-fn result_attachment(rendered: &RenderedResult, limit: usize) -> ResultAttachment {
-    let text = complete_result_text(rendered);
+#[ensures(scope.is_exceeded() || (match ret.as_data() { data!(ResultAttachment::Complete(bytes)) | data!(ResultAttachment::Partial(bytes)) => bytes.len() <= limit, data!(ResultAttachment::Unattachable) => true }))]
+fn result_attachment(
+    rendered: &RenderedResult,
+    limit: usize,
+    scope: &jbotci_output::budget::TextScope,
+) -> ResultAttachment {
+    let text = complete_result_text_in_scope(rendered, scope);
+    if scope.is_exceeded() {
+        return new!(ResultAttachment::Unattachable);
+    }
     if text.is_empty() {
         return new!(ResultAttachment::Unattachable);
     }
@@ -415,31 +445,38 @@ fn result_attachment(rendered: &RenderedResult, limit: usize) -> ResultAttachmen
 }
 
 #[requires(true)]
-#[ensures(ret.starts_with("-# "))]
-fn overflow_notice(attachment: &ResultAttachment) -> String {
+#[ensures(scope.is_exceeded() || (ret.starts_with("-# ")))]
+fn overflow_notice(
+    attachment: &ResultAttachment,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     let text = match attachment.as_data() {
-        data!(ResultAttachment::Complete(_)) => format!(
+        data!(ResultAttachment::Complete(_)) => scope.format(format_args!(
             "The message shows an excerpt; the complete result is attached as {RESULT_ATTACHMENT_FILENAME}."
-        ),
-        data!(ResultAttachment::Partial(_)) => format!(
+        )),
+        data!(ResultAttachment::Partial(_)) => scope.format(format_args!(
             "The message shows an excerpt; the attached {RESULT_ATTACHMENT_FILENAME} is itself cut at this server's attachment size limit."
-        ),
+        )),
         data!(ResultAttachment::Unattachable) => "The message shows an excerpt; the complete result exceeds this server's attachment size limit and could not be attached.".to_owned(),
     };
-    subtext(&text)
+    subtext_in_scope(&text, scope)
 }
 
 /// As many leading chunks as fit in `available` units; when not even the
 /// first fits, a fence-safe cut of it.
 #[requires(true)]
-#[ensures(utf16_len(&ret) <= available)]
-fn pack_chunks(chunks: &[String], available: usize) -> String {
-    let mut kept = String::new();
+#[ensures(scope.is_exceeded() || (utf16_len(&ret) <= available))]
+fn pack_chunks_in_scope(
+    chunks: &[String],
+    available: usize,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut kept = scope.buffer();
     for chunk in chunks {
         let separator = if kept.is_empty() { 0 } else { 2 };
         if utf16_len(&kept) + separator + utf16_len(chunk) > available {
             if kept.is_empty() {
-                return cut_markdown(chunk, available);
+                return cut_markdown_in_scope(chunk, available, scope);
             }
             break;
         }
@@ -448,23 +485,27 @@ fn pack_chunks(chunks: &[String], available: usize) -> String {
         }
         kept.push_str(chunk);
     }
-    kept
+    kept.into_piece()
 }
 
 /// Cut Markdown to at most `max_units` UTF-16 units: never inside a backtick
 /// run or an escape, and never leaving a code fence open. When even a closed
 /// fence cannot fit, the result is empty rather than over budget.
 #[requires(true)]
-#[ensures(utf16_len(&ret) <= max_units)]
-#[ensures(ret.matches("```").count() % 2 == 0)]
-fn cut_markdown(markdown: &str, max_units: usize) -> String {
+#[ensures(scope.is_exceeded() || (utf16_len(&ret) <= max_units))]
+#[ensures(scope.is_exceeded() || (ret.matches("```").count() % 2 == 0))]
+fn cut_markdown_in_scope(
+    markdown: &str,
+    max_units: usize,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
     if utf16_len(markdown) <= max_units {
         return if markdown.matches("```").count() % 2 == 0 {
-            markdown.to_owned()
+            scope.copy(markdown)
         } else {
             // Unbalanced input is not produced by the presenters; closing it
             // keeps the postcondition rather than trusting the caller.
-            cut_markdown(markdown, max_units.saturating_sub(1))
+            cut_markdown_in_scope(markdown, max_units.saturating_sub(1), scope)
         };
     }
     let fence_units = utf16_len(FENCE_CLOSE);
@@ -473,27 +514,27 @@ fn cut_markdown(markdown: &str, max_units: usize) -> String {
         if budget == 0 {
             return String::new();
         }
-        let (cut, _) = truncate_units(markdown, budget);
+        let (cut, _) = truncate_units_in_scope(markdown, budget, scope);
         let core = cut
             .strip_suffix('…')
             .unwrap_or(&cut)
             .trim_end_matches('`')
             .trim_end_matches('\\')
             .trim_end();
-        let mut cut = format!("{core}…");
+        let mut cut = scope.buffer_with(&scope.format(format_args!("{core}…")));
         if utf16_len(&cut) > budget {
             // Only possible when nothing but the ellipsis fits.
-            cut = String::new();
+            cut = scope.buffer();
         }
         if cut.matches("```").count() % 2 == 1 {
             if utf16_len(&cut) + fence_units <= max_units {
                 cut.push_str(FENCE_CLOSE);
-                return cut;
+                return cut.into_piece();
             }
             budget = budget.saturating_sub(fence_units);
             continue;
         }
-        return cut;
+        return cut.into_piece();
     }
 }
 
@@ -1094,4 +1135,92 @@ mod tests {
         assert_eq!(pack_chunks(&chunks, 2), "o…");
         assert_eq!(pack_chunks(&chunks, 0), "");
     }
+}
+
+#[invariant(true)]
+struct DeliveryKeepalive {
+    admission: Option<crate::execution::AdmittedWorkContext>,
+    interaction: Option<crate::work::WorkKeepalive>,
+}
+impl AssembledMessage {
+    #[requires(true)]
+    #[ensures(ret <= earlier)]
+    pub(crate) fn delivery_deadline(&self, earlier: tokio::time::Instant) -> tokio::time::Instant {
+        self.admission
+            .as_ref()
+            .map_or(earlier, |context| context.deadline.min(earlier))
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn delivery_keepalive(
+        &self,
+        interaction: Option<crate::work::WorkKeepalive>,
+    ) -> crate::work::WorkKeepalive {
+        std::sync::Arc::new(DeliveryKeepalive {
+            admission: self.admission.clone(),
+            interaction,
+        })
+    }
+}
+
+#[requires(rendered.tool() == published.request.tool())]
+#[requires(attachment_size_limit > 0)]
+#[ensures(ret.as_ref().is_ok_and(|message| message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS) || ret.is_err())]
+pub(crate) fn assemble(
+    rendered: &RenderedResult,
+    published: &PublishedRequest,
+    attachment_size_limit: usize,
+) -> Result<AssembledMessage, AssembleError> {
+    assemble_with_limit(
+        rendered,
+        published,
+        attachment_size_limit,
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+#[requires(rendered.tool() == published.request.tool())]
+#[requires(attachment_size_limit > 0)]
+#[ensures(ret.as_ref().is_ok_and(|message| message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS) || ret.is_err())]
+pub(crate) fn assemble_with_limit(
+    rendered: &RenderedResult,
+    published: &PublishedRequest,
+    attachment_size_limit: usize,
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<AssembledMessage, AssembleError> {
+    let scope = jbotci_output::budget::TextScope::new(limit);
+    let result = assemble_in_scope(rendered, published, attachment_size_limit, &scope);
+    if scope.is_exceeded() {
+        return Err(new!(AssembleError::OutputLimit));
+    }
+    result
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn complete_result_text(rendered: &RenderedResult) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    complete_result_text_in_scope(rendered, &scope)
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn cut_markdown(markdown: &str, max_units: usize) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    cut_markdown_in_scope(markdown, max_units, &scope)
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn pack_chunks(chunks: &[String], available: usize) -> String {
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    pack_chunks_in_scope(chunks, available, &scope)
 }

@@ -9,7 +9,10 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
 
-use super::markdown::{escape, inline_code, join_lines, percent, subtext, truncate_units};
+use super::markdown::{
+    escape_in_scope, inline_code_in_scope, join_lines_in_scope, percent_in_scope, subtext_in_scope,
+    truncate_units_in_scope,
+};
 use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::VlackuOutcome;
 use crate::discord::request::{DiscordTool, VlackuMode, VlackuRequest};
@@ -18,8 +21,12 @@ use crate::discord::request::{DiscordTool, VlackuMode, VlackuRequest};
 const MAX_CARD_FIELD_UNITS: usize = 420;
 
 #[requires(true)]
-#[ensures(ret.tool() == DiscordTool::Vlacku)]
-pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> RenderedResult {
+#[ensures(text_scope.is_exceeded() || (ret.tool() == DiscordTool::Vlacku))]
+pub(crate) fn render_in_scope(
+    outcome: &VlackuOutcome,
+    request: &VlackuRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     let options = request.options;
     let mode_label = match options.mode {
         VlackuMode::Word => "word",
@@ -30,16 +37,18 @@ pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> Render
     };
     match outcome {
         VlackuOutcome::Unavailable { reason } => {
-            let mut rendered = RenderedResult::new(
+            let mut rendered = RenderedResult::new_in_scope(
                 DiscordTool::Vlacku,
-                format!("vlacku · {mode_label} · unavailable"),
+                text_scope.format(format_args!("vlacku · {mode_label} · unavailable")),
+                text_scope,
             );
-            rendered.body.push(format!(
+            rendered.body.push(text_scope.format(format_args!(
                 "**Meaning search is unavailable on this server:** {}",
-                escape(reason)
-            ));
-            rendered.notice = Some(subtext(
+                escape_in_scope(reason, text_scope)
+            )));
+            rendered.notice = Some(subtext_in_scope(
                 "Word, rafsi, lujvo and sound search still work; change the mode with the ⚙️ button.",
+                text_scope,
             ));
             rendered
         }
@@ -48,20 +57,29 @@ pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> Render
             diagnostics,
             valid_missing,
         } => {
-            let mut status = format!("vlacku · {mode_label} · {}", page_status(results));
+            let mut status = text_scope.buffer_with(&text_scope.format(format_args!(
+                "vlacku · {mode_label} · {}",
+                page_status(results)
+            )));
             if !options.word_types.is_empty() {
                 let filters = options
                     .word_types
                     .iter()
                     .map(|word_type| word_type.filter_value())
                     .collect::<Vec<_>>();
-                status.push_str(&format!(" · {}", filters.join("/")));
+                status.push_str(
+                    &text_scope.format(format_args!(" · {}", text_scope.join(&filters, "/"))),
+                );
             }
-            let mut rendered = RenderedResult::new(DiscordTool::Vlacku, status);
+            let mut rendered =
+                RenderedResult::new_in_scope(DiscordTool::Vlacku, status, text_scope);
             rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             for diagnostic in diagnostics {
-                lines.push(format!("**Search problem:** {}", escape(diagnostic)));
+                lines.push(text_scope.format(format_args!(
+                    "**Search problem:** {}",
+                    escape_in_scope(diagnostic, text_scope)
+                )));
             }
             if results.is_empty() && diagnostics.is_empty() {
                 lines.push("**No matches found.**".to_owned());
@@ -72,16 +90,23 @@ pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> Render
             let mut shows_excerpt = false;
             for (offset, card) in results.items.iter().enumerate() {
                 let rank = results.page.first_index() + offset + 1;
-                let card =
-                    card_markdown(rank, card, options.decompose_lujvo, options.show_etymology)
-                        .into_data();
+                let Some(card) = card_markdown(
+                    rank,
+                    card,
+                    options.decompose_lujvo,
+                    options.show_etymology,
+                    text_scope,
+                ) else {
+                    break;
+                };
+                let card = card.into_data();
                 shows_excerpt |= card.is_excerpt;
                 lines.push(card.markdown);
                 full.push(card.plain);
             }
-            rendered.body.push(join_lines(lines));
+            rendered.body.push(join_lines_in_scope(lines, text_scope));
             if !full.is_empty() {
-                let full = full.join("\n\n");
+                let full = text_scope.join(&full, "\n\n");
                 if shows_excerpt {
                     rendered.show_excerpt_of(full);
                 } else {
@@ -105,95 +130,122 @@ struct RenderedCard {
 
 /// One card as Markdown and as plain text.
 #[requires(rank >= 1)]
-#[ensures(!ret.markdown.is_empty())]
+#[ensures(ret.is_none() || !ret.as_ref().unwrap().markdown.is_empty())]
 fn card_markdown(
     rank: usize,
     card: &VlackuCard,
     decompose_lujvo: bool,
     show_etymology: bool,
-) -> RenderedCard {
-    let mut head = format!("{rank}. **{}**", escape(&card.word));
-    let mut plain_head = format!("{rank}. {}", card.word);
+    text_scope: &jbotci_output::budget::TextScope,
+) -> Option<RenderedCard> {
+    let mut head = text_scope.buffer_with(&text_scope.format(format_args!(
+        "{rank}. **{}**",
+        escape_in_scope(&card.word, text_scope)
+    )));
+    let mut plain_head =
+        text_scope.buffer_with(&text_scope.format(format_args!("{rank}. {}", card.word)));
     let class = match &card.selmaho {
-        Some(selmaho) if !selmaho.trim().is_empty() => format!("{} {}", card.word_type, selmaho),
-        _ => card.word_type.clone(),
+        Some(selmaho) if !selmaho.trim().is_empty() => {
+            text_scope.format(format_args!("{} {}", card.word_type, selmaho))
+        }
+        _ => text_scope.copy(&card.word_type),
     };
-    head.push_str(&format!(" · {}", escape(&class)));
-    plain_head.push_str(&format!(" · {class}"));
+    head.push_str(&text_scope.format(format_args!(" · {}", escape_in_scope(&class, text_scope))));
+    plain_head.push_str(&text_scope.format(format_args!(" · {class}")));
     if !card.rafsi.is_empty() {
-        let rafsi = card
-            .rafsi
-            .iter()
-            .map(|rafsi| inline_code(rafsi))
-            .collect::<Vec<_>>()
-            .join(" ");
-        head.push_str(&format!(" · rafsi {rafsi}"));
-        plain_head.push_str(&format!(" · rafsi {}", card.rafsi.join(" ")));
+        let rafsi = text_scope.join(
+            card.rafsi
+                .iter()
+                .map(|rafsi| inline_code_in_scope(rafsi, text_scope)),
+            " ",
+        );
+        head.push_str(&text_scope.format(format_args!(" · rafsi {rafsi}")));
+        plain_head.push_str(&text_scope.format(format_args!(
+            " · rafsi {}",
+            text_scope.join(&card.rafsi, " ")
+        )));
     }
     if let Some(similarity) = card.similarity {
-        head.push_str(&format!(" · {}", percent(similarity)));
-        plain_head.push_str(&format!(" · {}", percent(similarity)));
+        head.push_str(&text_scope.format(format_args!(
+            " · {}",
+            percent_in_scope(similarity, text_scope)
+        )));
+        plain_head.push_str(&text_scope.format(format_args!(
+            " · {}",
+            percent_in_scope(similarity, text_scope)
+        )));
     }
-    let mut lines = vec![head];
-    let mut plain = vec![plain_head];
+    let mut lines = vec![head.into_piece()];
+    let mut plain = vec![plain_head.into_piece()];
     let mut is_excerpt = false;
     if !card.known {
         let line = "not in the dictionary; the class above is the morphology parser's analysis of the word form, not a definition";
-        lines.push(subtext(line));
+        lines.push(subtext_in_scope(line, text_scope));
         plain.push(line.to_owned());
     }
     if !card.glosses.is_empty() {
-        let glosses = card.glosses.join("; ");
-        lines.push(escape(&glosses));
+        let glosses = text_scope.join(&card.glosses, "; ");
+        lines.push(escape_in_scope(&glosses, text_scope));
         plain.push(glosses);
     }
     let place_map = DefinitionPlaceMap::from_definition(&card.definition);
     if !card.definition.trim().is_empty() {
-        let definition = card
-            .definition
-            .lines()
-            .map(|line| {
-                format_definition_line_with_indexed_places(line, &place_map, GlyphStyle::Unicode)
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        let (shown, cut) = truncate_units(&definition, MAX_CARD_FIELD_UNITS);
+        let definition = text_scope.join(
+            card.definition.lines().map(|line| {
+                jbotci_output::format_definition_line_with_indexed_places_in_scope(
+                    line,
+                    &place_map,
+                    GlyphStyle::Unicode,
+                    text_scope,
+                )
+            }),
+            "\n",
+        );
+        let (shown, cut) = truncate_units_in_scope(&definition, MAX_CARD_FIELD_UNITS, text_scope);
         is_excerpt |= cut;
-        lines.push(escape(&shown));
+        lines.push(escape_in_scope(&shown, text_scope));
         plain.push(definition);
     }
     if !card.notes.trim().is_empty() {
-        let notes = card
-            .notes
-            .lines()
-            .map(|line| {
-                indexed_place_spans_for_notes_line(line, &place_map, GlyphStyle::Unicode)
-                    .into_iter()
-                    .map(|span| span.into_data().text)
-                    .collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        let (shown, cut) = truncate_units(&notes, MAX_CARD_FIELD_UNITS);
+        let notes = text_scope.join(
+            card.notes.lines().map(|line| {
+                jbotci_output::format_notes_line_with_indexed_places_in_scope(
+                    line,
+                    &place_map,
+                    GlyphStyle::Unicode,
+                    text_scope,
+                )
+            }),
+            "\n",
+        );
+        let (shown, cut) = truncate_units_in_scope(&notes, MAX_CARD_FIELD_UNITS, text_scope);
         is_excerpt |= cut;
-        lines.push(subtext(&format!("notes: {}", shown.replace('\n', " "))));
-        plain.push(format!("notes: {notes}"));
+        lines.push(subtext_in_scope(
+            &text_scope.format(format_args!("notes: {}", shown.replace('\n', " "))),
+            text_scope,
+        ));
+        plain.push(text_scope.format(format_args!("notes: {notes}")));
     }
     if decompose_lujvo && !card.decomposition.is_empty() {
-        let pieces = card
-            .decomposition
-            .iter()
-            .map(|piece| match (piece.kind, &piece.source) {
-                (VlackuCompositionKind::Hyphen, _) => format!("-{}-", piece.surface),
-                (VlackuCompositionKind::Rafsi, Some(source)) if source != &piece.surface => {
-                    format!("{} ({source})", piece.surface)
-                }
-                (VlackuCompositionKind::Rafsi, _) => piece.surface.clone(),
-            })
-            .collect::<Vec<_>>()
-            .join(" + ");
-        lines.push(subtext(&format!("decomposition: {pieces}")));
-        plain.push(format!("decomposition: {pieces}"));
+        let pieces = text_scope.join(
+            card.decomposition
+                .iter()
+                .map(|piece| match (piece.kind, &piece.source) {
+                    (VlackuCompositionKind::Hyphen, _) => {
+                        text_scope.format(format_args!("-{}-", piece.surface))
+                    }
+                    (VlackuCompositionKind::Rafsi, Some(source)) if source != &piece.surface => {
+                        text_scope.format(format_args!("{} ({source})", piece.surface))
+                    }
+                    (VlackuCompositionKind::Rafsi, _) => text_scope.copy(&piece.surface),
+                }),
+            " + ",
+        );
+        lines.push(subtext_in_scope(
+            &text_scope.format(format_args!("decomposition: {pieces}")),
+            text_scope,
+        ));
+        plain.push(text_scope.format(format_args!("decomposition: {pieces}")));
     }
     if show_etymology
         && let Some(etymology) = card
@@ -201,35 +253,56 @@ fn card_markdown(
             .as_deref()
             .filter(|text| !text.trim().is_empty())
     {
-        let (shown, cut) = truncate_units(etymology, MAX_CARD_FIELD_UNITS);
+        let (shown, cut) = truncate_units_in_scope(etymology, MAX_CARD_FIELD_UNITS, text_scope);
         is_excerpt |= cut;
-        lines.push(subtext(&format!("etymology: {}", shown.replace('\n', " "))));
-        plain.push(format!("etymology: {etymology}"));
+        lines.push(subtext_in_scope(
+            &text_scope.format(format_args!("etymology: {}", shown.replace('\n', " "))),
+            text_scope,
+        ));
+        plain.push(text_scope.format(format_args!("etymology: {etymology}")));
     }
     let mut provenance = Vec::new();
     if let Some(author) = &card.author {
-        provenance.push(format!("by {}", author.username));
+        provenance.push(text_scope.format(format_args!("by {}", author.username)));
     }
     if let Some(votes) = card.votes {
-        provenance.push(format!(
+        provenance.push(text_scope.format(format_args!(
             "votes {}",
             format_vote_display(votes, card.is_official)
-        ));
+        )));
     } else if card.is_official {
         provenance.push("official".to_owned());
     }
     if !provenance.is_empty() {
-        let line = provenance.join(" · ");
-        lines.push(subtext(&line));
+        let line = text_scope.join(&provenance, " · ");
+        lines.push(subtext_in_scope(&line, text_scope));
         plain.push(line);
     }
-    new!(RenderedCard {
-        markdown: join_lines(lines),
-        plain: plain.join("\n"),
-        is_excerpt,
-    })
+    let markdown = join_lines_in_scope(lines, text_scope);
+    let plain = text_scope.join(&plain, "\n");
+    if text_scope.is_exceeded() {
+        return None;
+    }
+    Some(new!(RenderedCard {
+        markdown,
+        plain,
+        is_excerpt
+    }))
 }
 
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> RenderedResult {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_in_scope(outcome, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
+}
 #[cfg(test)]
 mod tests {
     use super::*;

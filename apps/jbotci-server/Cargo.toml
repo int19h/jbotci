@@ -20,6 +20,8 @@ name = "jbotci_server"
 path = "src/lib.rs"
 
 [dependencies]
+http-body.workspace = true
+http-body-util.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 base64.workspace = true
@@ -34,6 +36,7 @@ jbotci-dictionary.workspace = true
 jbotci-dictionary-data.workspace = true
 jbotci-embeddings = { workspace = true, features = ["native-llama"] }
 jbotci-gimfihi.workspace = true
+jbotci-gentufa.workspace = true
 jbotci-jvozba.workspace = true
 jbotci-morphology.workspace = true
 jbotci-output.workspace = true
@@ -53,6 +56,8 @@ vec1.workspace = true
 bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [dev-dependencies]
+futures-channel.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 roxmltree.workspace = true
 
 [lints]

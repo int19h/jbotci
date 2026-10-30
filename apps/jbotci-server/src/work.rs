@@ -1,4 +1,4 @@
-//! Work admission for Discord handlers.
+//! Shared work admission for server adapters.
 //!
 //! Two lanes bound the blocking pool: `compute` (analysis and rendering) and
 //! `fetch` (attachment downloads). Each lane has a fixed number of permits and
@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use tokio::sync::{Semaphore, TryAcquireError};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, TryAcquireError};
 use tokio::time::Instant;
 
 /// Numeric admission limits. `*_workers` is the number of jobs a lane runs at
@@ -22,16 +22,14 @@ use tokio::time::Instant;
 /// caller that finds a worker idle never queues, so zero means "no backlog":
 /// idle workers admit, everything else is refused).
 ///
-/// The defaults are informed by local workload measurements against the
-/// deployed service memory budget rather than guessed: with the embedding
-/// model resident the process holds about 380 MiB, and rendering a diagram
-/// near its cap costs another 50 while it runs. Two analysis workers at the
-/// previous sixteen-megapixel cap peaked at 616 MiB against a 512 MiB budget,
-/// so analysis runs one job at a time and the image itself is capped smaller
-/// (see `DiagramLimits`); that run peaks at 429 MiB. Network work is cheap and
-/// keeps four. `docs/discord-app.md` records the workload and the architecture
-/// the figures come from. Tests construct their own.
-#[invariant(*compute_workers > 0 && *fetch_workers > 0)]
+/// Earlier measurements used a 512 MiB deployment with the embedding model loaded.
+/// The idle process used about 380 MiB. A diagram added about 50 MiB.
+/// Two analysis workers at the earlier 16-megapixel cap peaked at 616 MiB.
+/// One worker at the 8-megapixel cap peaked at 429 MiB.
+/// These measurements support the retained defaults. They do not describe current production usage.
+/// `docs/discord-app.md` records the workload and build details.
+#[invariant(*compute_workers > 0 && *compute_workers <= Semaphore::MAX_PERMITS)]
+#[invariant(*fetch_workers > 0 && *fetch_workers <= Semaphore::MAX_PERMITS)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct WorkLimits {
     pub(crate) compute_workers: usize,
@@ -63,24 +61,14 @@ pub(crate) enum WorkLane {
     Embedding,
 }
 
-impl WorkLane {
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub(crate) const fn name(self) -> &'static str {
-        match self {
-            Self::Compute => "analysis",
-            Self::Fetch => "attachment download",
-            Self::Embedding => "meaning search",
-        }
-    }
-}
-
 #[invariant(::Overloaded { .. } => true)]
 #[invariant(::WaitTimedOut { .. } => true)]
 #[invariant(::TimedOut { .. } => true)]
 #[invariant(::Panicked { .. } => true)]
+#[invariant(::OutputLimit => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WorkError {
+    OutputLimit,
     /// The waiting queue is full; the request was refused without waiting.
     Overloaded {
         lane: WorkLane,
@@ -103,28 +91,15 @@ impl fmt::Display for WorkError {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Overloaded { lane } => write!(
-                formatter,
-                "the server is busy; too many {} requests are queued",
-                lane.name()
-            ),
-            Self::WaitTimedOut { lane } => write!(
-                formatter,
-                "the server is busy; no {} slot became free in time",
-                lane.name()
-            ),
-            Self::TimedOut { lane } => {
-                write!(formatter, "gave up waiting for the {}", lane.name())
-            }
-            Self::Panicked { lane } => write!(formatter, "the {} failed", lane.name()),
-        }
+        formatter.write_str(crate::error::ServerErrorCode::from(self).message())
     }
 }
 
 impl std::error::Error for WorkError {}
 
-#[invariant(*max_waiting <= 1024)]
+#[invariant(*capacity > 0 && *capacity <= Semaphore::MAX_PERMITS)]
+#[invariant(permits.available_permits() <= *capacity)]
+#[invariant(waiting.load(Ordering::Acquire) <= *max_waiting)]
 #[derive(Debug)]
 struct Lane {
     kind: WorkLane,
@@ -135,7 +110,7 @@ struct Lane {
 }
 
 impl Lane {
-    #[requires(capacity > 0 && max_waiting <= 1024)]
+    #[requires(capacity > 0 && capacity <= Semaphore::MAX_PERMITS)]
     #[ensures(ret.capacity == capacity)]
     fn new(kind: WorkLane, capacity: usize, max_waiting: usize) -> Self {
         new!(Lane {
@@ -147,22 +122,9 @@ impl Lane {
         })
     }
 
-    /// Run `job` on the blocking pool under one of this lane's permits.
-    /// `keepalive` is carried into the worker and dropped when the job ends,
-    /// so a caller that gave up waiting does not release anything the running
-    /// work still stands for.
     #[requires(true)]
     #[ensures(true)]
-    async fn run<T, F>(
-        &self,
-        deadline: Instant,
-        keepalive: Option<WorkKeepalive>,
-        job: F,
-    ) -> Result<T, WorkError>
-    where
-        T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
-    {
+    async fn acquire(&self, deadline: Instant) -> Result<WorkLease, WorkError> {
         let lane = self.kind;
         // A deadline that has already passed admits no new work, even when a
         // worker is idle: nobody could use the result.
@@ -180,11 +142,11 @@ impl Lane {
                 // slot is released by RAII: a caller dropped while it waits
                 // (aborted task, client gone) gives the slot back the same
                 // way a timed-out one does.
-                let waiting_before = self.waiting.fetch_add(1, Ordering::AcqRel);
-                if waiting_before >= self.max_waiting {
-                    self.waiting.fetch_sub(1, Ordering::AcqRel);
-                    return Err(WorkError::Overloaded { lane });
-                }
+                self.waiting
+                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |waiting| {
+                        (waiting < self.max_waiting).then(|| waiting + 1)
+                    })
+                    .map_err(|_| WorkError::Overloaded { lane })?;
                 let queue_slot = QueueSlot {
                     counter: &self.waiting,
                 };
@@ -205,6 +167,29 @@ impl Lane {
         if Instant::now() >= deadline {
             return Err(WorkError::WaitTimedOut { lane });
         }
+        Ok(new!(WorkLease {
+            permit: Arc::new(permit)
+        }))
+    }
+
+    /// Run `job` on the blocking pool under one of this lane's permits.
+    /// `keepalive` is carried into the worker and dropped when the job ends,
+    /// so a caller that gave up waiting does not release anything the running
+    /// work still stands for.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn run<T, F>(
+        &self,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+        job: F,
+    ) -> Result<T, WorkError>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        let lane = self.kind;
+        let permit = self.acquire(deadline).await?;
         let handle = tokio::task::spawn_blocking(move || {
             // The permit and whatever the caller tied to this work live
             // exactly as long as the worker.
@@ -221,7 +206,8 @@ impl Lane {
             Some(job())
         });
         match tokio::time::timeout_at(deadline, handle).await {
-            Ok(Ok(Some(value))) => Ok(value),
+            Ok(Ok(Some(value))) if Instant::now() < deadline => Ok(value),
+            Ok(Ok(Some(_value))) => Err(WorkError::TimedOut { lane }),
             Ok(Ok(None)) => Err(WorkError::WaitTimedOut { lane }),
             Ok(Err(_join)) => Err(WorkError::Panicked { lane }),
             Err(_elapsed) => Err(WorkError::TimedOut { lane }),
@@ -265,8 +251,8 @@ pub(crate) struct WorkSnapshot {
     pub(crate) fetch_waiting: usize,
 }
 
-/// Admission governor shared by all Discord handlers.
-#[invariant(true)]
+/// Admission governor shared by all server adapters.
+#[invariant(compute.kind == WorkLane::Compute && fetch.kind == WorkLane::Fetch)]
 #[derive(Debug)]
 pub(crate) struct WorkGovernor {
     compute: Lane,
@@ -277,18 +263,41 @@ impl WorkGovernor {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn new(limits: WorkLimits) -> Self {
-        Self {
+        new!(WorkGovernor {
             compute: Lane::new(
                 WorkLane::Compute,
                 limits.compute_workers,
                 limits.compute_queue,
             ),
             fetch: Lane::new(WorkLane::Fetch, limits.fetch_workers, limits.fetch_queue),
-        }
+        })
     }
 
-    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(ret.compute_workers == self.compute.capacity && ret.fetch_workers == self.fetch.capacity)]
+    pub(crate) fn limits(&self) -> WorkLimits {
+        new!(WorkLimits {
+            compute_workers: self.compute.capacity,
+            compute_queue: self.compute.max_waiting,
+            fetch_workers: self.fetch.capacity,
+            fetch_queue: self.fetch.max_waiting
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn owns_compute(&self, lease: &WorkLease) -> bool {
+        Arc::ptr_eq(&self.compute.permits, lease.permit.semaphore())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|lease| self.owns_compute(lease)) || ret.is_err())]
+    pub(crate) async fn acquire_compute(&self, deadline: Instant) -> Result<WorkLease, WorkError> {
+        self.compute.acquire(deadline).await
+    }
+
     /// Run a CPU-bound analysis/rendering job.
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     pub(crate) async fn run_compute<T, F>(&self, deadline: Instant, job: F) -> Result<T, WorkError>
@@ -300,6 +309,7 @@ impl WorkGovernor {
     }
 
     /// Run a CPU-bound job that keeps `keepalive` for as long as it runs.
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     pub(crate) async fn run_compute_keeping<T, F>(
@@ -315,8 +325,8 @@ impl WorkGovernor {
         self.compute.run(deadline, keepalive, job).await
     }
 
-    #[cfg(test)]
     /// Run a blocking network fetch.
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     pub(crate) async fn run_fetch<T, F>(&self, deadline: Instant, job: F) -> Result<T, WorkError>
@@ -723,5 +733,64 @@ mod tests {
                 .await,
             Ok(7)
         );
+    }
+}
+
+/// Clones retain one admitted slot. They never admit another operation.
+#[invariant(permit.num_permits() == 1)]
+#[derive(Debug, Clone)]
+pub(crate) struct WorkLease {
+    permit: Arc<OwnedSemaphorePermit>,
+}
+
+#[invariant(true)]
+struct CompletedWork<T> {
+    value: T,
+    _lease: WorkLease,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) async fn run_admitted<T, F>(
+    lease: WorkLease,
+    deadline: Instant,
+    job: F,
+) -> Result<T, WorkError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    if Instant::now() >= deadline {
+        return Err(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        });
+    }
+    let handle = tokio::task::spawn_blocking(move || {
+        if Instant::now() >= deadline {
+            None
+        } else {
+            Some(CompletedWork {
+                value: job(),
+                _lease: lease,
+            })
+        }
+    });
+    match tokio::time::timeout_at(deadline, handle).await {
+        Ok(Ok(Some(completed))) if Instant::now() < deadline => Ok(completed.value),
+        Ok(Ok(Some(_completed))) => Err(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
+        Ok(Ok(None)) => Err(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
+        Ok(Err(error)) => {
+            eprintln!("server compute worker failed: {error}");
+            Err(WorkError::Panicked {
+                lane: WorkLane::Compute,
+            })
+        }
+        Err(_) => Err(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
     }
 }

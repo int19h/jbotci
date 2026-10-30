@@ -579,7 +579,22 @@ pub(crate) fn encode_input_block(
     fields: &[(SourceField, Option<&str>)],
     status: &str,
 ) -> String {
-    let mut block = String::new();
+    let scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    encode_input_block_in_scope(tool, fields, status, &scope)
+}
+#[requires(fields.len() == tool.fields().len())]
+#[requires(fields.iter().zip(tool.fields()).all(|((field, _), expected)| field == expected))]
+#[requires(status.starts_with(tool.name()) && !status.contains('\n') && !status.contains('\r'))]
+#[ensures(scope.is_exceeded() || (ret.ends_with(status) && !ret.ends_with('\n')))]
+pub(crate) fn encode_input_block_in_scope(
+    tool: DiscordTool,
+    fields: &[(SourceField, Option<&str>)],
+    status: &str,
+    scope: &jbotci_output::budget::TextScope,
+) -> String {
+    let mut block = scope.buffer();
     for (index, (field, value)) in fields.iter().enumerate() {
         let Some(value) = value.filter(|value| !value.is_empty()) else {
             continue;
@@ -590,13 +605,15 @@ pub(crate) fn encode_input_block(
             block.push('\n');
         }
         for line in value.split('\n') {
-            block.push_str(&escape_value_line(line));
+            block.push_str(&jbotci_cll::escape_discord_markdown_line_in_scope(
+                line, scope,
+            ));
             block.push('\n');
         }
     }
     block.push_str(HEADER_PREFIX);
     block.push_str(status);
-    block
+    block.into_piece()
 }
 
 /// Decode an input block produced by [`encode_input_block`] for `tool`.

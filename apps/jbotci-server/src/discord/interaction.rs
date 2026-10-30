@@ -20,7 +20,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use serde_json::Value;
 use tokio::time::{Duration, Instant};
 
-use super::assemble::{AssembleError, AssembledMessage, assemble};
+use super::assemble::{AssembleError, AssembledMessage, assemble, assemble_with_limit};
 use super::codec::{
     HeaderDecodeError, INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, PageControl,
     RequestHeader, decode_input_block,
@@ -30,24 +30,20 @@ use super::components::{
     TYPE_BUTTON, TextDisplay, bound_content,
 };
 use super::dedupe::{Admission, DeliveryTicket, RecentInteractions};
-use super::diagram::DiagramLimits;
 use super::links::{AppLinkTooLarge, app_link};
 use super::locks::{MessageGuard, MessageLocks};
 use super::modal::{Submission, SubmissionError, build as build_modal, parse_submission};
 use super::operations::{
-    OperationContext, OperationError, RequestValidationError, ToolOutcome, run_request,
+    CompletedOperation, OperationContext, OperationError, RequestValidationError, ToolOutcome,
+    run_request,
 };
-use super::present::{markdown, render, render_failure, render_validation_error};
+use super::present::{markdown, render_failure, render_validation_error, render_with_limits};
 use super::request::{BuildTag, PublishedRequest, Revision, Snowflake};
 use super::schema::{CommandDecodeError, decode_command};
 use super::transport::{DiscordApi, InteractionToken, TransportError};
-use super::work::{WorkGovernor, WorkKeepalive};
 use crate::ToolServices;
+use crate::work::{WorkGovernor, WorkKeepalive};
 
-/// How long one interaction's work may take before the handler gives up. The
-/// message can still be edited for fifteen minutes, but a request nobody is
-/// waiting for should not hold a worker.
-const HANDLER_BUDGET: Duration = Duration::from_secs(20);
 /// How long opening a form may take. Discord drops an interaction that is not
 /// answered within three seconds, and only an immediate answer can be a form.
 const MODAL_BUDGET: Duration = Duration::from_millis(2200);
@@ -83,7 +79,7 @@ pub(crate) struct DiscordConfig {
 }
 
 /// Everything one interaction needs, shared by every handler.
-#[invariant(true)]
+#[invariant(Arc::ptr_eq(governor, &tools.execution.governor))]
 #[derive(Debug)]
 pub(crate) struct DiscordService {
     config: DiscordConfig,
@@ -99,16 +95,20 @@ impl DiscordService {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn new(config: DiscordConfig, tools: ToolServices) -> Self {
-        let api = DiscordApi::new(&config.api_base);
-        Self {
+        let api = DiscordApi::with_limit(
+            &config.api_base,
+            jbotci_output::budget::ByteLimit::new(tools.execution.policy.response_bytes)
+                .expect("validated policy"),
+        );
+        new!(DiscordService {
             config,
+            governor: Arc::clone(&tools.execution.governor),
             tools,
             api,
-            governor: Arc::new(WorkGovernor::new(Default::default())),
             locks: Arc::new(MessageLocks::new(LOCKED_MESSAGES, WAITERS_PER_MESSAGE)),
             recent: Arc::new(RecentInteractions::new(RECENT_INTERACTIONS)),
             build_tag: BuildTag::current(),
-        }
+        })
     }
 
     #[requires(true)]
@@ -188,7 +188,7 @@ impl DiscordService {
         published: PublishedRequest,
         ticket: Arc<DeliveryTicket>,
     ) {
-        let deadline = Instant::now() + HANDLER_BUDGET;
+        let deadline = Instant::now() + self.tools.execution.policy.deadline;
         let keepalive: WorkKeepalive = ticket.clone();
         let target = Target {
             application_id: command.application_id.clone(),
@@ -240,6 +240,7 @@ impl DiscordService {
                     &target,
                     &published,
                     &error,
+                    deadline,
                     command.attachment_limit,
                     Some(keepalive),
                 )
@@ -247,8 +248,13 @@ impl DiscordService {
                 return;
             }
         };
-        self.publish_first(&target, &message.payload, deadline, Some(keepalive))
-            .await;
+        self.publish_first(
+            &target,
+            &message.payload,
+            message.delivery_deadline(deadline),
+            Some(message.delivery_keepalive(Some(keepalive))),
+        )
+        .await;
     }
 
     /// Write a first message, once and only once. Every path that publishes
@@ -299,10 +305,17 @@ impl DiscordService {
         target: &Target,
         published: &PublishedRequest,
         error: &ResultError,
+        operation_deadline: Instant,
         attachment_limit: Option<u64>,
         keepalive: Option<WorkKeepalive>,
     ) {
-        let deadline = Instant::now() + SETTLE_BUDGET;
+        let deadline = if result_refusal_code(error).is_some() {
+            operation_deadline
+                .checked_add(self.tools.execution.policy.error_delivery)
+                .unwrap_or(operation_deadline)
+        } else {
+            operation_deadline
+        };
         let reason = error.to_string();
         // A result is editable only where its ⚙️ form could reopen it. A
         // request whose "Open in app" link does not fit was refused admission
@@ -545,7 +558,7 @@ impl DiscordService {
         opened_from: Revision,
         ticket: Arc<DeliveryTicket>,
     ) {
-        let deadline = Instant::now() + HANDLER_BUDGET;
+        let deadline = Instant::now() + self.tools.execution.policy.deadline;
         let keepalive: WorkKeepalive = ticket.clone();
         let target = Target {
             application_id: component.application_id.clone(),
@@ -649,18 +662,24 @@ impl DiscordService {
         {
             Ok(message) => message,
             Err(error) => {
-                self.report_privately(
+                self.report_result_error(
                     &target,
                     "The page was not turned.",
-                    Some(&error.to_string()),
+                    &error,
+                    deadline,
                     Some(keepalive.clone()),
                 )
                 .await;
                 return;
             }
         };
-        self.write_and_confirm(&target, &message.payload, deadline, Some(keepalive))
-            .await;
+        self.write_and_confirm(
+            &target,
+            &message.payload,
+            message.delivery_deadline(deadline),
+            Some(message.delivery_keepalive(Some(keepalive))),
+        )
+        .await;
     }
 
     /// A submitted form applies to the message it was opened from.
@@ -781,7 +800,7 @@ impl DiscordService {
         rebuilt_by_another_build: bool,
         ticket: Arc<DeliveryTicket>,
     ) {
-        let deadline = Instant::now() + HANDLER_BUDGET;
+        let deadline = Instant::now() + self.tools.execution.policy.deadline;
         // Until the lock is held, the delivery ticket alone stands for this
         // work; reporting that the lock could not be taken needs nothing more.
         let keepalive: WorkKeepalive = ticket.clone();
@@ -873,18 +892,24 @@ impl DiscordService {
         {
             Ok(message) => message,
             Err(error) => {
-                self.report_privately(
+                self.report_result_error(
                     &target,
                     "Nothing was changed.",
-                    Some(&error.to_string()),
+                    &error,
+                    deadline,
                     Some(keepalive.clone()),
                 )
                 .await;
                 return;
             }
         };
-        self.write_and_confirm(&target, &message.payload, deadline, Some(keepalive))
-            .await;
+        self.write_and_confirm(
+            &target,
+            &message.payload,
+            message.delivery_deadline(deadline),
+            Some(message.delivery_keepalive(Some(keepalive))),
+        )
+        .await;
     }
 
     /// Run a request for publication: what cannot run yet is still a result,
@@ -902,20 +927,22 @@ impl DiscordService {
         // anything is published, so every published result of a tool with a
         // page has an exact one to reopen it with.
         app_link(&published.request, &self.config.public_base_url).map_err(ResultError::Link)?;
-        let rendered = match self
+        match self
             .run_tool(published, deadline, keepalive, attachment_limit)
             .await
         {
-            Ok(outcome) => render(&outcome, &published.request),
-            Err(RunError::Invalid(error)) => render_validation_error(&error, &published.request),
-            Err(RunError::Failed(error)) => return Err(ResultError::Operation(error)),
-        };
-        assemble(
-            &rendered,
-            published,
-            self.attachment_limit(attachment_limit),
-        )
-        .map_err(ResultError::Assemble)
+            Ok(completed) => {
+                self.prepare_result(completed, published, attachment_limit, false)
+                    .await
+            }
+            Err(RunError::Invalid(error)) => assemble(
+                &render_validation_error(&error, &published.request),
+                published,
+                self.attachment_limit(attachment_limit),
+            )
+            .map_err(ResultError::Assemble),
+            Err(RunError::Failed(error)) => Err(ResultError::Operation(error)),
+        }
     }
 
     /// Run a request for an edit. A request that cannot run replaces nothing:
@@ -939,24 +966,47 @@ impl DiscordService {
                 RunError::Invalid(error) => ResultError::Invalid(error),
                 RunError::Failed(error) => ResultError::Operation(error),
             })?;
-        let mut rendered = render(&outcome, &published.request);
-        if rebuilt_by_another_build {
-            // Only when the versions actually differ: a note on every ordinary
-            // edit would be noise, and this one carries information.
-            let note = markdown::subtext(
-                "Recomputed by a different version of jbotci than the one that produced the previous result.",
-            );
-            rendered.notice = Some(match rendered.notice.take() {
-                Some(existing) => format!("{existing}\n{note}"),
-                None => note,
-            });
-        }
-        assemble(
-            &rendered,
+        self.prepare_result(
+            outcome,
             published,
-            self.attachment_limit(attachment_limit),
+            attachment_limit,
+            rebuilt_by_another_build,
         )
-        .map_err(ResultError::Assemble)
+        .await
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn prepare_result(
+        &self,
+        completed: CompletedOperation,
+        published: &PublishedRequest,
+        attachment_limit: Option<u64>,
+        rebuilt: bool,
+    ) -> Result<AssembledMessage, ResultError> {
+        let context = completed.context;
+        let admission = context.clone();
+        let published = published.clone();
+        let attachment_limit = self.attachment_limit(attachment_limit);
+        context.run(move || {
+            let limits = admission.execution.policy.tool_limits();
+            let mut rendered = render_with_limits(&completed.outcome, &published.request, limits.render)
+                .map_err(|error| ResultError::Operation(OperationError::Work(error)))?;
+            if rebuilt {
+                let scope = jbotci_output::budget::TextScope::new(limits.render.text);
+                let note = markdown::subtext_in_scope("Recomputed by a different version of jbotci than the one that produced the previous result.", &scope);
+                let notice = match rendered.notice.take() {
+                    Some(existing) => scope.format(format_args!("{existing}\n{note}")),
+                    None => note,
+                };
+                rendered.notice = Some(scope.finish(notice).map_err(|_| ResultError::Operation(OperationError::Work(crate::work::WorkError::OutputLimit)))?);
+            }
+            let message = assemble_with_limit(&rendered, &published, attachment_limit, limits.render.text).map_err(ResultError::Assemble)?;
+            // Encode before transferring the prepared result to the delivery task.
+            message.payload.check_encoded_size(jbotci_output::budget::ByteLimit::new(admission.execution.policy.response_bytes).expect("validated policy"))
+                .map_err(|_| ResultError::Operation(OperationError::Work(crate::work::WorkError::OutputLimit)))?;
+            Ok(message.with_data(data! { admission: Some(admission) }))
+        }).await.map_err(|error| ResultError::Operation(OperationError::Work(error)))?
     }
 
     #[requires(true)]
@@ -967,16 +1017,14 @@ impl DiscordService {
         deadline: Instant,
         keepalive: Option<WorkKeepalive>,
         attachment_limit: Option<u64>,
-    ) -> Result<ToolOutcome, RunError> {
+    ) -> Result<CompletedOperation, RunError> {
         // `run_request` admits the request itself, so nothing is validated
         // twice and no part of it runs on this thread.
         let context = OperationContext {
             tools: &self.tools,
-            governor: &self.governor,
             deadline,
             keepalive,
             attachment_size_limit: Some(self.attachment_limit(attachment_limit) as u64),
-            diagram_limits: DiagramLimits::default(),
         };
         match run_request(published.request.clone(), context).await {
             Ok(outcome) => Ok(outcome),
@@ -1166,6 +1214,41 @@ impl DiscordService {
         }
     }
 
+    #[requires(!summary.trim().is_empty())]
+    #[ensures(true)]
+    async fn report_result_error(
+        &self,
+        target: &Target,
+        summary: &str,
+        error: &ResultError,
+        operation_deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+    ) {
+        let Some(code) = result_refusal_code(error) else {
+            self.report_privately(target, summary, Some(&error.to_string()), keepalive)
+                .await;
+            return;
+        };
+        let deadline = operation_deadline
+            .checked_add(self.tools.execution.policy.error_delivery)
+            .unwrap_or(operation_deadline);
+        let api = self.api.clone();
+        let application_id = target.application_id.clone();
+        let token = target.token.clone();
+        let _ = self
+            .governor
+            .run_fetch_keeping(deadline, keepalive, move || {
+                api.create_ephemeral_followup(
+                    &application_id,
+                    &token,
+                    code.message(),
+                    None,
+                    remaining_at(deadline),
+                )
+            })
+            .await;
+    }
+
     /// Tell the acting reader something only they need to know: a sentence
     /// jbotci wrote, and where there is one, the reason, which came from their
     /// own request. This is what is said after the work is over, so it runs on
@@ -1184,7 +1267,16 @@ impl DiscordService {
         let api = self.api.clone();
         let application_id = target.application_id.clone();
         let token = target.token.clone();
-        let (content, detail) = private_note(summary, reason);
+        let limit = jbotci_output::budget::ByteLimit::new(self.tools.execution.policy.text_bytes)
+            .expect("validated text limit");
+        let (content, detail) = private_note(summary, reason, limit).unwrap_or_else(|_| {
+            (
+                crate::error::ServerErrorCode::OutputLimit
+                    .message()
+                    .to_owned(),
+                None,
+            )
+        });
         let _ = self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
@@ -1223,27 +1315,32 @@ const PRIVATE_DETAIL_FILENAME: &str = "jbotci-detail.txt";
 /// the whole of it travels as a file. Fifty complaints are only useful all
 /// together, and an ellipsis is not an answer.
 #[requires(!summary.trim().is_empty())]
-#[ensures(super::request::utf16_len(&ret.0) <= MAX_CONTENT_UNITS)]
-fn private_note(summary: &str, reason: Option<&str>) -> (String, Option<Vec<u8>>) {
+#[ensures(ret.as_ref().is_ok_and(|note| super::request::utf16_len(&note.0) <= MAX_CONTENT_UNITS) || ret.is_err())]
+fn private_note(
+    summary: &str,
+    reason: Option<&str>,
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<(String, Option<Vec<u8>>), jbotci_output::budget::OutputLimitError> {
+    let scope = jbotci_output::budget::TextScope::new(limit);
     let Some(reason) = reason else {
-        return (bound_content(summary), None);
+        let summary = scope.finish(scope.copy(summary))?;
+        return Ok((bound_content(&summary), None));
     };
-    let escaped = markdown::escape(reason);
-    let whole = format!("{summary}\n{escaped}");
+    let escaped = markdown::escape_in_scope(reason, &scope);
+    let whole = scope.format(format_args!("{summary}\n{escaped}"));
     if super::request::utf16_len(&whole) <= MAX_CONTENT_UNITS {
-        return (whole, None);
+        return Ok((scope.finish(whole)?, None));
     }
-    let attached = markdown::subtext("The whole of it is attached.");
+    let attached = markdown::subtext_in_scope("The whole of it is attached.", &scope);
     let room = MAX_CONTENT_UNITS
         .saturating_sub(super::request::utf16_len(summary))
         .saturating_sub(super::request::utf16_len(&attached))
         .saturating_sub(2)
         .max(1);
-    let (shown, _) = markdown::truncate_units(&escaped, room);
-    (
-        bound_content(&format!("{summary}\n{shown}\n{attached}")),
-        Some(reason.as_bytes().to_vec()),
-    )
+    let (shown, _) = markdown::truncate_units_in_scope(&escaped, room, &scope);
+    let content = scope.format(format_args!("{summary}\n{shown}\n{attached}"));
+    let detail = scope.copy(reason).into_bytes();
+    Ok((scope.finish(content)?, Some(detail)))
 }
 
 /// What is left of one absolute deadline. Called from inside the admitted
@@ -1393,6 +1490,20 @@ enum ResultError {
     Assemble(AssembleError),
 }
 
+#[requires(true)]
+#[ensures(ret.is_none_or(|code| matches!(code, crate::error::ServerErrorCode::Busy | crate::error::ServerErrorCode::Deadline)))]
+fn result_refusal_code(error: &ResultError) -> Option<crate::error::ServerErrorCode> {
+    let ResultError::Operation(OperationError::Work(error)) = error else {
+        return None;
+    };
+    let code = crate::error::ServerErrorCode::from(error);
+    matches!(
+        code,
+        crate::error::ServerErrorCode::Busy | crate::error::ServerErrorCode::Deadline
+    )
+    .then_some(code)
+}
+
 impl std::fmt::Display for ResultError {
     #[requires(true)]
     #[ensures(true)]
@@ -1424,7 +1535,7 @@ enum RestError {
     /// Discord has not created the message its acknowledgement promised.
     NotCreatedYet,
     Transport(TransportError),
-    Lane(super::work::WorkError),
+    Lane(crate::work::WorkError),
 }
 
 impl std::fmt::Display for RestError {
@@ -1721,7 +1832,7 @@ mod tests {
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
     use crate::discord::request::PageNumber;
-    use crate::discord::work::{WorkError, WorkGovernor, WorkLane};
+    use crate::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
     const OTHER_ACTOR: &str = "222222222222222222";
@@ -2876,6 +2987,7 @@ mod tests {
                 &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
                     lane: WorkLane::Compute,
                 })),
+                Instant::now() + Duration::from_secs(1),
                 None,
                 None,
             )
@@ -2945,6 +3057,7 @@ mod tests {
                 &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
                     lane: WorkLane::Compute,
                 })),
+                Instant::now() + Duration::from_secs(1),
                 None,
                 None,
             )

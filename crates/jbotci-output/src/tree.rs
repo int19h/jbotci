@@ -1,5 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
+use crate::budget::{BudgetedWriter, ByteLimit, OutputBudget};
+use std::io::Write;
 use std::sync::Arc;
 
 #[allow(unused_imports)]
@@ -178,6 +180,22 @@ pub fn pretty_generated_model_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_generated_model_tree_with_limit(
+        tree,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_limit(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     let reference_analysis = if options.show_refs {
         Some(
             GeneratedReferenceAnalysis::analyze(tree)
@@ -194,11 +212,7 @@ pub fn pretty_generated_model_tree_with_options(
     let references = reference_analysis
         .as_ref()
         .map(|analysis| ReferenceDisplayModel::new_generated(analysis, &value, source, options));
-    Ok(render_tree_value_with_options(
-        &value,
-        options,
-        references.as_ref(),
-    ))
+    render_tree_value_with_limit(&value, options, references.as_ref(), limit)
 }
 #[doc(hidden)]
 #[requires(true)]
@@ -333,17 +347,18 @@ pub(crate) fn pretty_generated_model_raw_tree_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(crate) fn pretty_recovered_generated_model_tree_with_options(
+#[ensures(true)]
+pub(crate) fn pretty_recovered_generated_model_tree_with_limit(
     recovered: &RecoveredSyntaxParse,
     source: &str,
     options: TreeRenderOptions,
+    limit: crate::budget::ByteLimit,
 ) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return pretty_generated_model_tree_with_options(&valid, source, options);
+        return pretty_generated_model_tree_with_limit(&valid, source, options, limit);
     }
     let value = recovered_generated_model_tree_value(recovered, source, options)?;
-    Ok(render_tree_value_with_options(&value, options, None))
+    render_tree_value_with_limit(&value, options, None, limit)
 }
 
 #[requires(!recovered.errors.is_empty())]
@@ -369,13 +384,29 @@ pub(crate) fn pretty_morphology_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_morphology_tree_with_limit(
+        words,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_morphology_tree_with_limit(
+    words: &[WordLike],
+    source: &str,
+    options: TreeRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     let value = collapse_value(TreeValue::Collection(
         words
             .iter()
             .map(|word_like| morphology_tree_value(word_like, source, options))
             .collect(),
     ));
-    Ok(render_tree_value_with_options(&value, options, None))
+    render_tree_value_with_limit(&value, options, None, limit)
 }
 
 #[requires(true)]
@@ -385,16 +416,35 @@ pub(crate) fn render_tree_value_with_options(
     options: TreeRenderOptions,
     references: Option<&ReferenceDisplayModel>,
 ) -> String {
+    render_tree_value_with_limit(
+        value,
+        options,
+        references,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+    .expect("unrestricted tree rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub(crate) fn render_tree_value_with_limit(
+    value: &TreeValue,
+    options: TreeRenderOptions,
+    references: Option<&ReferenceDisplayModel>,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     let mut renderer = TreeRenderer {
         color: options.color,
         glyphs: options.glyphs,
         indent_step: options.indent,
         show_spans: options.show_spans,
         references,
-        output: String::new(),
+        output: OutputBudget::new(limit).writer(),
     };
-    renderer.render_value(&value, 0);
-    renderer.output
+    renderer
+        .render_value(value, 0)
+        .map_err(|error| OutputError::from_render_io(error, limit))?;
+    Ok(renderer.output.into_string().expect("tree output is UTF-8"))
 }
 
 #[requires(true)]
@@ -3032,13 +3082,13 @@ struct TreeRenderer<'references> {
     indent_step: Indentation,
     show_spans: bool,
     references: Option<&'references ReferenceDisplayModel>,
-    output: String,
+    output: BudgetedWriter,
 }
 
 impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
-    fn render_value(&mut self, value: &TreeValue, indent: usize) {
+    fn render_value(&mut self, value: &TreeValue, indent: usize) -> std::io::Result<()> {
         match value {
             TreeValue::Node(node) => self.render_node(node, indent),
             TreeValue::Collection(items) => self.render_collection(items, indent),
@@ -3053,15 +3103,14 @@ impl TreeRenderer<'_> {
             } => self.render_word(constructor, phonemes, *span, *elided),
             TreeValue::Verbatim { text, span } => self.render_verbatim(text, *span),
             TreeValue::Error { error } => self.render_error(&error.text, error.span),
-            TreeValue::Text(text) => self.output.push_str(&self.string_literal(text)),
+            TreeValue::Text(text) => self.render_string_literal(text, false, false),
             TreeValue::Span {
-                byte_start: _,
-                byte_end: _,
                 char_start,
                 char_end,
+                ..
             } => self
                 .output
-                .push_str(&self.span_literal(*char_start, *char_end)),
+                .write_all(self.span_literal(*char_start, *char_end).as_bytes()),
         }
     }
 
@@ -3072,29 +3121,34 @@ impl TreeRenderer<'_> {
         syntax_ids: &[RawSyntaxNodeId],
         value: &TreeValue,
         indent: usize,
-    ) {
+    ) -> std::io::Result<()> {
         let annotations = self
             .references
             .map(|references| references.annotations_for_syntax_ids(syntax_ids));
         if let Some(annotations) = annotations.as_ref() {
             for name in &annotations.incoming {
+                self.output.write_all(
+                    self.reference_name(name, ReferenceRenderRole::Referent)
+                        .as_bytes(),
+                )?;
                 self.output
-                    .push_str(&self.reference_name(name, ReferenceRenderRole::Referent));
-                self.output
-                    .push_str(&self.punctuation_token(self.glyphs.arrow()));
-                self.output.push(' ');
+                    .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
+                self.output.write_all(b" ")?;
             }
         }
-        self.render_value(value, indent);
+        self.render_value(value, indent)?;
         if let Some(annotations) = annotations.as_ref() {
             for name in &annotations.outgoing {
-                self.output.push(' ');
+                self.output.write_all(b" ")?;
                 self.output
-                    .push_str(&self.punctuation_token(self.glyphs.arrow()));
-                self.output
-                    .push_str(&self.reference_name(name, ReferenceRenderRole::Reference));
+                    .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
+                self.output.write_all(
+                    self.reference_name(name, ReferenceRenderRole::Reference)
+                        .as_bytes(),
+                )?;
             }
         }
+        Ok(())
     }
 
     #[requires(!constructor.is_empty())]
@@ -3105,155 +3159,162 @@ impl TreeRenderer<'_> {
         phonemes: &str,
         span: Option<(usize, usize)>,
         elided: bool,
-    ) {
-        self.output.push_str(&self.constructor_token(constructor));
-        self.render_optional_node_span(span);
-        self.output.push(' ');
-        if elided {
-            self.output.push_str(&self.elided_string_literal(phonemes));
-        } else {
-            self.output.push_str(&self.string_literal(phonemes));
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_verbatim(&mut self, text: &str, span: Option<(usize, usize)>) {
-        self.output.push_str(&self.constructor_token("Verbatim"));
-        self.render_optional_node_span(span);
-        self.output.push(' ');
-        self.output.push_str(&self.string_literal(text));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_error(&mut self, text: &str, span: Option<(usize, usize)>) {
-        self.output.push_str(&self.error_constructor_token());
-        self.render_optional_node_span(span);
-        self.output.push(' ');
-        self.output.push_str(&self.error_string_literal(text));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_node(&mut self, node: &TreeNode, indent: usize) {
+    ) -> std::io::Result<()> {
         self.output
-            .push_str(&self.constructor_token(node.constructor));
-        self.render_optional_node_span(tree_node_span(node));
+            .write_all(self.constructor_token(constructor).as_bytes())?;
+        self.render_optional_node_span(span)?;
+        self.output.write_all(b" ")?;
+        self.render_string_literal(phonemes, elided, false)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_verbatim(&mut self, text: &str, span: Option<(usize, usize)>) -> std::io::Result<()> {
+        self.output
+            .write_all(self.constructor_token("Verbatim").as_bytes())?;
+        self.render_optional_node_span(span)?;
+        self.output.write_all(b" ")?;
+        self.render_string_literal(text, false, false)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_error(&mut self, text: &str, span: Option<(usize, usize)>) -> std::io::Result<()> {
+        self.output
+            .write_all(self.error_constructor_token().as_bytes())?;
+        self.render_optional_node_span(span)?;
+        self.output.write_all(b" ")?;
+        self.render_string_literal(text, false, true)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_node(&mut self, node: &TreeNode, indent: usize) -> std::io::Result<()> {
+        self.output
+            .write_all(self.constructor_token(node.constructor).as_bytes())?;
+        self.render_optional_node_span(tree_node_span(node))?;
         if self.indent_step.spaces() != 0 {
-            self.output.push(' ');
+            self.output.write_all(b" ")?;
         }
-        self.output.push_str(&self.punctuation_token("{"));
-        if node.entries.is_empty() {
-            self.output.push_str(&self.punctuation_token("}"));
-            return;
+        self.output
+            .write_all(self.punctuation_token("{").as_bytes())?;
+        if !node.entries.is_empty() {
+            if self.indent_step.spaces() == 0 {
+                self.render_inline_entries(&node.entries)?;
+            } else {
+                self.render_entries(&node.entries, indent)?;
+                self.output.write_all(b"\n")?;
+                self.push_indent(indent)?;
+            }
         }
-        if self.indent_step.spaces() == 0 {
-            self.render_inline_entries(&node.entries);
-        } else {
-            self.render_entries(&node.entries, indent);
-            self.output.push('\n');
-            self.push_indent(indent);
-        }
-        self.output.push_str(&self.punctuation_token("}"));
+        self.output
+            .write_all(self.punctuation_token("}").as_bytes())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) {
-        let child_indent = indent + self.indent_step.spaces();
+    fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) -> std::io::Result<()> {
+        let child_indent = indent
+            .checked_add(self.indent_step.spaces())
+            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
         for entry in entries {
-            self.output.push('\n');
-            self.push_indent(child_indent);
-            match entry.label {
-                Some(label) => {
-                    self.output.push_str(&self.field_token(label));
-                    self.output.push_str(&self.punctuation_token(":"));
-                    self.output.push(' ');
-                    self.render_value(&entry.value, child_indent);
-                }
-                None => self.render_value(&entry.value, child_indent),
+            self.output.write_all(b"\n")?;
+            self.push_indent(child_indent)?;
+            if let Some(label) = entry.label {
+                self.output.write_all(self.field_token(label).as_bytes())?;
+                self.output
+                    .write_all(self.punctuation_token(":").as_bytes())?;
+                self.output.write_all(b" ")?;
             }
-            self.output.push_str(&self.punctuation_token(","));
+            self.render_value(&entry.value, child_indent)?;
+            self.output
+                .write_all(self.punctuation_token(",").as_bytes())?;
         }
+        Ok(())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_inline_entries(&mut self, entries: &[TreeEntry]) {
+    fn render_inline_entries(&mut self, entries: &[TreeEntry]) -> std::io::Result<()> {
         for (index, entry) in entries.iter().enumerate() {
-            if index > 0 {
-                self.output.push_str(&self.punctuation_token(","));
+            if index != 0 {
+                self.output
+                    .write_all(self.punctuation_token(",").as_bytes())?;
             }
-            match entry.label {
-                Some(label) => {
-                    self.output.push_str(&self.field_token(label));
-                    self.output.push_str(&self.punctuation_token(":"));
-                    self.render_value(&entry.value, 0);
-                }
-                None => self.render_value(&entry.value, 0),
+            if let Some(label) = entry.label {
+                self.output.write_all(self.field_token(label).as_bytes())?;
+                self.output
+                    .write_all(self.punctuation_token(":").as_bytes())?;
             }
+            self.render_value(&entry.value, 0)?;
         }
+        Ok(())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_collection(&mut self, items: &[TreeValue], indent: usize) {
-        self.output.push_str(&self.punctuation_token("["));
-        if items.is_empty() {
-            self.output.push_str(&self.punctuation_token("]"));
-            return;
-        }
-        if self.indent_step.spaces() == 0 {
-            for (index, item) in items.iter().enumerate() {
-                if index > 0 {
-                    self.output.push_str(&self.punctuation_token(","));
+    fn render_collection(&mut self, items: &[TreeValue], indent: usize) -> std::io::Result<()> {
+        self.output
+            .write_all(self.punctuation_token("[").as_bytes())?;
+        let step = self.indent_step.spaces();
+        let child_indent = indent
+            .checked_add(step)
+            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
+        for (index, value) in items.iter().enumerate() {
+            if step == 0 {
+                if index != 0 {
+                    self.output
+                        .write_all(self.punctuation_token(",").as_bytes())?;
                 }
-                self.render_value(item, 0);
+                self.render_value(value, 0)?;
+            } else {
+                self.output.write_all(b"\n")?;
+                self.push_indent(child_indent)?;
+                self.render_value(value, child_indent)?;
+                self.output
+                    .write_all(self.punctuation_token(",").as_bytes())?;
             }
-            self.output.push_str(&self.punctuation_token("]"));
-            return;
         }
-        let child_indent = indent + self.indent_step.spaces();
-        for item in items {
-            self.output.push('\n');
-            self.push_indent(child_indent);
-            self.render_value(item, child_indent);
-            self.output.push_str(&self.punctuation_token(","));
+        if !items.is_empty() && step != 0 {
+            self.output.write_all(b"\n")?;
+            self.push_indent(indent)?;
         }
-        self.output.push('\n');
-        self.push_indent(indent);
-        self.output.push_str(&self.punctuation_token("]"));
+        self.output
+            .write_all(self.punctuation_token("]").as_bytes())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_indent(&mut self, indent: usize) {
-        self.output.extend(std::iter::repeat_n(' ', indent));
+    fn push_indent(&mut self, indent: usize) -> std::io::Result<()> {
+        self.output.repeat(b' ', indent)
     }
 
     #[requires(true)]
-    #[ensures(!self.color -> ret.starts_with('"'))]
-    fn string_literal(&self, text: &str) -> String {
-        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
-        self.color_token(&literal, ColorRole::String)
-    }
-
-    #[requires(true)]
-    #[ensures(!self.color -> ret.starts_with('"'))]
-    fn elided_string_literal(&self, text: &str) -> String {
-        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
-        self.elided_color_token(&literal, ColorRole::String)
-    }
-
-    #[requires(true)]
-    #[ensures(!self.color -> ret.starts_with('"'))]
-    fn error_string_literal(&self, text: &str) -> String {
-        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
-        if !self.color {
-            return literal;
+    #[ensures(true)]
+    fn render_string_literal(
+        &mut self,
+        text: &str,
+        elided: bool,
+        error: bool,
+    ) -> std::io::Result<()> {
+        if self.color {
+            self.output.write_all(if error {
+                b"\x1b[91m"
+            } else {
+                ColorRole::String.open().as_bytes()
+            })?;
+            if error || elided {
+                self.output.write_all(b"\x1b[9m")?;
+            }
         }
-        format!("\x1b[91m\x1b[9m{literal}\x1b[29m\x1b[39m")
+        serde_json::to_writer(&mut self.output, text).map_err(std::io::Error::other)?;
+        if self.color {
+            if error || elided {
+                self.output.write_all(b"\x1b[29m")?;
+            }
+            self.output.write_all(b"\x1b[39m")?;
+        }
+        Ok(())
     }
 
     #[requires(char_start <= char_end)]
@@ -3270,15 +3331,15 @@ impl TreeRenderer<'_> {
 
     #[requires(span.is_none_or(|(start, end)| start <= end))]
     #[ensures(true)]
-    fn render_optional_node_span(&mut self, span: Option<(usize, usize)>) {
-        if !self.show_spans {
-            return;
-        }
-        if let Some((char_start, char_end)) = span {
-            self.output.push(' ');
+    fn render_optional_node_span(&mut self, span: Option<(usize, usize)>) -> std::io::Result<()> {
+        if self.show_spans
+            && let Some((char_start, char_end)) = span
+        {
+            self.output.write_all(b" ")?;
             self.output
-                .push_str(&self.span_marker(char_start, char_end));
+                .write_all(self.span_marker(char_start, char_end).as_bytes())?;
         }
+        Ok(())
     }
 
     #[requires(char_start <= char_end)]
@@ -3363,15 +3424,6 @@ impl TreeRenderer<'_> {
             return text.to_owned();
         }
         format!("{}{}{}", role.open(), text, "\x1b[39m")
-    }
-
-    #[requires(true)]
-    #[ensures(!self.color -> ret == text)]
-    fn elided_color_token(&self, text: &str, role: ColorRole) -> String {
-        if !self.color {
-            return text.to_owned();
-        }
-        format!("{}\x1b[9m{}\x1b[29m{}", role.open(), text, "\x1b[39m")
     }
 }
 
