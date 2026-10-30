@@ -3280,9 +3280,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     self.walk_node(continuation);
                 }
             }
-            generated::StatementSyntax::CompletedEkBoStatementConnection(connection) => {
-                self.walk_node(connection);
-            }
             generated::StatementSyntax::BoStatementConnection(connection) => {
                 self.walk_node(connection);
             }
@@ -3292,26 +3289,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_statement_join(&mut self, node: &'tree generated::StatementJoinSyntax) {
-        match node {
-            generated::StatementJoinSyntax::CompletedEkStatementJoin(join) => {
-                self.walk_node(&join.trailing_statement);
-            }
-            generated::StatementJoinSyntax::OrdinaryStatementJoin(join) => {
-                if let Some(statement) = join.trailing_statement.as_deref() {
-                    self.walk_node(statement);
-                }
-            }
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_completed_ek_bo_statement_connection(
-        &mut self,
-        node: &'tree generated::CompletedEkBoStatementConnectionSyntax,
-    ) {
-        self.walk_node(&node.leading_statement);
-        self.walk_node(&node.trailing_statement);
     }
 
     #[requires(true)]
@@ -4839,9 +4819,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 for continuation in &connection.continuations {
                     self.walk_node(continuation);
                 }
-            }
-            generated::StatementSyntax::CompletedEkBoStatementConnection(connection) => {
-                self.walk_node(connection);
             }
             generated::StatementSyntax::BoStatementConnection(connection) => {
                 self.walk_node(connection);
@@ -6775,26 +6752,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_statement_join(&mut self, node: &'tree generated::StatementJoinSyntax) {
-        match node {
-            generated::StatementJoinSyntax::CompletedEkStatementJoin(join) => {
-                self.walk_node(&join.trailing_statement);
-            }
-            generated::StatementJoinSyntax::OrdinaryStatementJoin(join) => {
-                if let Some(statement) = join.trailing_statement.as_deref() {
-                    self.walk_node(statement);
-                }
-            }
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_completed_ek_bo_statement_connection(
-        &mut self,
-        node: &'tree generated::CompletedEkBoStatementConnectionSyntax,
-    ) {
-        self.walk_node(&node.leading_statement);
-        self.walk_node(&node.trailing_statement);
     }
 
     #[requires(true)]
