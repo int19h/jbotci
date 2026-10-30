@@ -55,6 +55,21 @@ impl OutputBudget {
     }
     #[requires(true)]
     #[ensures(true)]
+    pub fn limit(&self) -> ByteLimit {
+        self.state.limit
+    }
+    #[requires(true)]
+    #[ensures(ret <= self.state.limit.get())]
+    pub fn used(&self) -> usize {
+        self.state.used.load(Ordering::Acquire)
+    }
+    #[requires(bytes <= self.used())]
+    #[ensures(true)]
+    pub(crate) fn release(&self, bytes: usize) {
+        self.state.used.fetch_sub(bytes, Ordering::AcqRel);
+    }
+    #[requires(true)]
+    #[ensures(true)]
     pub fn charge(&self, bytes: usize) -> Result<(), OutputLimitError> {
         self.state
             .used
@@ -294,11 +309,19 @@ mod tests {
             assert!(writer.repeat(b' ', usize::MAX / 2).is_err());
             assert_eq!(writer.state.as_ref().unwrap().bytes.capacity(), 0);
             assert!(writer.into_bytes().is_empty());
+            let scope = crate::TextScope::new(ByteLimit::new(8).unwrap());
+            assert!(scope.repeat(" ", usize::MAX).is_empty());
+            assert!(scope.finish(String::new()).is_err());
+            let empty = crate::TextScope::new(ByteLimit::new(8).unwrap());
+            assert!(empty.repeat("", usize::MAX).is_empty());
+            assert!(empty.finish(String::new()).is_ok());
             return;
         }
-        let status = std::process::Command::new("bash")
+        let status = std::process::Command::new("timeout")
+            .arg("10s")
+            .arg("bash")
             .arg("-c")
-            .arg("ulimit -v 524288; exec \"$1\" --exact bytes::tests::giant_repetition_is_refused_in_a_constrained_child --nocapture")
+            .arg("ulimit -v 524288; ulimit -t 5; exec \"$1\" --exact bytes::tests::giant_repetition_is_refused_in_a_constrained_child --nocapture")
             .arg("budget-test")
             .arg(std::env::current_exe().unwrap())
             .env("JBOTCI_BUDGET_CHILD", "1")

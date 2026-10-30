@@ -1,9 +1,8 @@
 //! Bounded text preparation for renderers with infallible formatting callbacks.
-use crate::{BudgetedWriter, ByteLimit, OutputBudget, OutputLimitError};
-use bityzba::{invariant, requires};
+use crate::{ByteLimit, OutputBudget, OutputLimitError};
+use bityzba::{invariant, new, requires};
 use std::{
     fmt,
-    io::Write,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -32,11 +31,24 @@ impl TextScope {
         self.failed.load(Ordering::Acquire)
     }
     #[requires(true)]
+    #[ensures(ret == self.limit)]
+    pub fn limit(&self) -> ByteLimit {
+        self.limit
+    }
+    #[requires(true)]
+    #[ensures(self.is_exceeded())]
+    pub fn reject(&self) {
+        self.failed.store(true, Ordering::Release);
+    }
+    #[requires(true)]
     #[ensures(true)]
     pub fn buffer(&self) -> TextBuffer {
         TextBuffer {
-            output: OutputBudget::new(self.limit).writer(),
-            scope: self.clone(),
+            state: Some(new!(TextState {
+                text: String::new(),
+                budget: OutputBudget::new(self.limit)
+            })),
+            failed: Arc::clone(&self.failed),
         }
     }
     #[requires(true)]
@@ -53,7 +65,7 @@ impl TextScope {
             return String::new();
         }
         let mut output = self.buffer();
-        if output.output.write_fmt(arguments).is_err() {
+        if fmt::write(&mut output, arguments).is_err() {
             self.failed.store(true, Ordering::Release);
         }
         output.into_piece()
@@ -68,7 +80,7 @@ impl TextScope {
     #[requires(true)]
     #[ensures(ret.len() <= self.limit.get())]
     pub fn repeat(&self, text: &str, count: usize) -> String {
-        if text.is_empty() || count == 0 {
+        if self.is_exceeded() || text.is_empty() || count == 0 {
             return String::new();
         }
         let mut output = self.buffer();
@@ -93,10 +105,16 @@ impl TextScope {
         separator: &str,
     ) -> String {
         let mut output = self.buffer();
-        for (index, piece) in pieces.into_iter().enumerate() {
-            if index != 0 {
+        let mut pieces = pieces.into_iter();
+        let mut first = true;
+        while !self.is_exceeded() {
+            let Some(piece) = pieces.next() else {
+                break;
+            };
+            if !first {
                 output.push_str(separator);
             }
+            first = false;
             output.push_str(piece.as_ref());
         }
         output.into_piece()
@@ -112,22 +130,57 @@ impl TextScope {
     }
 }
 
-/// A failed buffer stops accepting text. The scope reports the failure at its boundary.
+#[invariant(text.len() <= budget.used())]
+#[invariant(text.capacity() <= budget.limit().get())]
+#[derive(Debug)]
+struct TextState {
+    text: String,
+    budget: OutputBudget,
+}
+
+/// The optional state closes a buffer after a panic without copying its text.
 #[invariant(true)]
 #[derive(Debug)]
 pub struct TextBuffer {
-    output: BudgetedWriter,
-    scope: TextScope,
+    state: Option<TextState>,
+    failed: Arc<AtomicBool>,
 }
 impl TextBuffer {
     #[requires(true)]
     #[ensures(true)]
     pub fn push_str(&mut self, text: &str) {
-        if !self.scope.failed.load(Ordering::Acquire)
-            && self.output.write_all(text.as_bytes()).is_err()
-        {
-            self.scope.failed.store(true, Ordering::Release);
+        if self.failed.load(Ordering::Acquire) {
+            return;
         }
+        let Some(state) = self.state.take() else {
+            self.failed.store(true, Ordering::Release);
+            return;
+        };
+        let mut state = state.into_data();
+        let result = (|| {
+            state.budget.charge(text.len())?;
+            let needed = state.text.len() + text.len();
+            if needed > state.text.capacity() {
+                let capacity = needed
+                    .max(state.text.capacity().saturating_mul(2))
+                    .min(state.budget.limit().get());
+                if state
+                    .text
+                    .try_reserve_exact(capacity - state.text.len())
+                    .is_err()
+                {
+                    return Err(OutputLimitError {
+                        limit: state.budget.limit(),
+                    });
+                }
+            }
+            state.text.push_str(text);
+            Ok(())
+        })();
+        if result.is_err() {
+            self.failed.store(true, Ordering::Release);
+        }
+        self.state = Some(TextState::from_data(state));
     }
     #[requires(true)]
     #[ensures(true)]
@@ -136,16 +189,41 @@ impl TextBuffer {
         self.push_str(character.encode_utf8(&mut bytes));
     }
     #[requires(true)]
-    #[ensures(ret.len() <= self.scope.limit.get())]
+    #[ensures(ret.len() <= old(self.state.as_ref().map_or(0, |state| state.budget.limit().get())))]
     pub fn into_piece(self) -> String {
-        self.output
-            .into_string()
-            .expect("text preparation writes UTF-8")
+        self.state
+            .map_or_else(String::new, |state| state.into_data().text)
+    }
+    #[requires(self.state.is_some())]
+    #[ensures(true)]
+    pub fn scope(&self) -> TextScope {
+        TextScope {
+            limit: self
+                .state
+                .as_ref()
+                .expect("open text buffer")
+                .budget
+                .limit(),
+            failed: Arc::clone(&self.failed),
+        }
+    }
+    #[requires(self.state.is_some())]
+    #[ensures(true)]
+    pub fn take_piece(&mut self) -> String {
+        let replacement = self.scope().buffer();
+        std::mem::replace(self, replacement).into_piece()
     }
     #[requires(true)]
     #[ensures(true)]
-    pub fn scope(&self) -> TextScope {
-        self.scope.clone()
+    pub fn pop(&mut self) -> Option<char> {
+        let state = self.state.take()?;
+        let mut state = state.into_data();
+        let character = state.text.pop();
+        if let Some(character) = character {
+            state.budget.release(character.len_utf8());
+        }
+        self.state = Some(TextState::from_data(state));
+        character
     }
 }
 impl std::ops::Deref for TextBuffer {
@@ -153,7 +231,7 @@ impl std::ops::Deref for TextBuffer {
     #[requires(true)]
     #[ensures(true)]
     fn deref(&self) -> &str {
-        std::str::from_utf8(self.output.as_bytes()).expect("text preparation writes UTF-8")
+        self.state.as_ref().map_or("", |state| state.text.as_str())
     }
 }
 impl fmt::Write for TextBuffer {
@@ -161,7 +239,25 @@ impl fmt::Write for TextBuffer {
     #[ensures(true)]
     fn write_str(&mut self, text: &str) -> fmt::Result {
         self.push_str(text);
-        Ok(())
+        if self.failed.load(Ordering::Acquire) {
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
+    }
+}
+impl fmt::Display for TextBuffer {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self)
+    }
+}
+impl AsRef<str> for TextBuffer {
+    #[requires(true)]
+    #[ensures(true)]
+    fn as_ref(&self) -> &str {
+        self
     }
 }
 
@@ -202,12 +298,29 @@ mod tests {
         let scope = TextScope::new(ByteLimit::new(5).unwrap());
         assert!(scope.finish(scope.join(["a", "b"], "😀")).is_err());
     }
-}
-
-impl fmt::Display for TextBuffer {
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self)
+    fn removing_a_character_preserves_the_exact_utf8_boundary() {
+        let scope = TextScope::new(ByteLimit::new(5).unwrap());
+        let mut text = scope.buffer();
+        text.push_str("ab\\");
+        assert_eq!(text.pop(), Some('\\'));
+        text.push('…');
+        assert_eq!(scope.finish(text.into_piece()).unwrap(), "ab…");
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn joining_stops_requesting_pieces_after_the_first_overflow() {
+        let scope = TextScope::new(ByteLimit::new(4).unwrap());
+        let pieces = (0..).map(|index| {
+            assert!(
+                index < 3,
+                "the renderer requested a piece after its budget failed"
+            );
+            "ab"
+        });
+        assert!(scope.finish(scope.join(pieces, "")).is_err());
     }
 }

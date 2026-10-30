@@ -17,7 +17,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-budget/src/text.rs:TextBuffer",
-        "The writer enforces its byte bound. The scope records failures from nested preparation.",
+        "An optional validated text buffer and a shared failure flag allow every state combination.",
     ),
     (
         "crates/jbotci-budget/src/bytes.rs:BudgetedWriter",
