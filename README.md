@@ -145,11 +145,27 @@ Catalog URLs also work. The builder selects each model and vector space separate
 The single-model builder accepts both catalog flags too.
 `publish-f2llm-webgpu-r2` accepts the catalog flags when it builds.
 
-Web reuse requires matching model weights, tokenizer, backend versions, vector space, input format, windowing, pooling, dimensions, and element type.
-The builder checks each source file against its manifest SHA-256 hash before reuse.
+Web reuse requires identical model bytes, tokenizer, vector space, windowing, pooling, dimensions, element type, normalization, and distance.
+The model identity hashes the raw ONNX graph and every external data file that it references.
+The builder records backend versions and execution providers as provenance, which describes how the build ran.
+Changes to this provenance do not block reuse.
+Exact row hashes identify the input text, so the input format version does not block reuse.
+The builder compares stored vector bytes and checks source files against their SHA-256 hashes.
 It refuses incompatible, damaged, or incomplete sources without a fallback to full embedding.
-Older web packs lack tokenizer provenance and cannot supply reusable vectors.
-Build each web model once with this builder before requesting incremental builds.
+
+Older packs lack parts of this identity.
+To adopt them once, add `--adopt-legacy-pack` to the web or native reuse command.
+Every recorded identity field must match, and file hashes and row hashes must pass.
+The new manifest records the source and states that compatibility of unrecorded parts is an owner attestation.
+Without this flag, the builder refuses legacy sources and names the flag in its error.
+The flag does not relax comparisons for packs with a complete identity.
+
+If a model has no entry in a reuse catalog, name it with `--new-model MODEL_KEY`.
+Repeat the flag for each new model.
+The web builder refuses a named model that already has an entry.
+It also refuses an unnamed model that lacks an entry.
+The xtask resolves `--reuse-published` from `--remote-catalog-url`, whose default is the published web catalog.
+
 Full builds retain their existing corpus hashes and pack IDs.
 
 For native packs, pass `--reuse-index-dir /path/to/previous-index` to
@@ -158,9 +174,16 @@ The source must contain `<model-key>/v1/catalog.json` for every selected model.
 This matches the layout that `--index-dir` produces.
 Use separate source, scratch index, and output directories.
 
-The builder checks the model revision, runtime, input format, vector format, and file hashes before it copies the source.
-Compatible older native packs already record input hashes and support reuse.
+Native reuse requires matching GGUF bytes, model identity, dimensions, and normalized f32le dot-product vectors.
+The native manifest records the GGUF SHA-256 and the build provenance.
+Changes to the llama backend or llama.cpp version do not block reuse for packs that record the GGUF hash.
+Legacy adoption also requires the recorded runtime identity to match.
 The native xtask accepts local indexes. It does not fetch published packs for reuse.
+Setup reports reused, embedded, and resumed row counts for each corpus.
+If an explicit source is unusable, setup fails.
+If setup reuses no rows, the xtask fails.
+`--reuse-index-dir` conflicts with `--skip-validation`, so the model must pass its pinned hash comparison.
+Reuse flags conflict with `--skip-build` on both publish commands.
 
 Without a reuse flag, the xtask clears its scratch index and builds every vector.
 Reuse flags do not grant permission to replace an output. The existing `--overwrite` rule still applies.
@@ -172,16 +195,16 @@ cargo run -r -p xtask-full -- build-f2llm-webgpu-assets \
   --f2llm-artifact-root /path/to/model-artifacts \
   --model-out-root /build/jbotci/new-web-models \
   --vector-out-dir /build/jbotci/new-web-vectors \
-  --reuse-published
+  --reuse-published --adopt-legacy-pack
 cargo run -r -p xtask-full -- build-gguf-embeddings \
   --model-dir /path/to/local-gguf-models \
-  --reuse-index-dir /path/to/previous-index \
+  --reuse-index-dir /path/to/previous-index --adopt-legacy-pack \
   --index-dir /build/jbotci/new-native-index \
   --out-dir /build/jbotci/new-native-vectors
 ```
 
-The first incremental web command refuses published packs that lack reuse metadata.
-For that initial build, omit `--reuse-published`. Use its catalog for later builds.
+After the first adopted build, use the new catalog for later refreshes.
+Those packs record the complete identity, so later refreshes do not need legacy adoption.
 
 The pack builders support parallel work and host-specific backends.
 The web builder uses ONNX Runtime on the CPU.
