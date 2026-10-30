@@ -68,6 +68,9 @@ impl TextScope {
     #[requires(true)]
     #[ensures(ret.len() <= self.limit.get())]
     pub fn repeat(&self, text: &str, count: usize) -> String {
+        if text.is_empty() || count == 0 {
+            return String::new();
+        }
         let mut output = self.buffer();
         if text
             .len()
@@ -84,13 +87,17 @@ impl TextScope {
     }
     #[requires(true)]
     #[ensures(ret.len() <= self.limit.get())]
-    pub fn join<'a>(&self, pieces: impl IntoIterator<Item = &'a str>, separator: &str) -> String {
+    pub fn join<T: AsRef<str>>(
+        &self,
+        pieces: impl IntoIterator<Item = T>,
+        separator: &str,
+    ) -> String {
         let mut output = self.buffer();
         for (index, piece) in pieces.into_iter().enumerate() {
             if index != 0 {
                 output.push_str(separator);
             }
-            output.push_str(piece);
+            output.push_str(piece.as_ref());
         }
         output.into_piece()
     }
@@ -194,5 +201,13 @@ mod tests {
         assert_eq!(scope.finish(scope.join(["a", "b"], "😀")).unwrap(), "a😀b");
         let scope = TextScope::new(ByteLimit::new(5).unwrap());
         assert!(scope.finish(scope.join(["a", "b"], "😀")).is_err());
+    }
+}
+
+impl fmt::Display for TextBuffer {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self)
     }
 }

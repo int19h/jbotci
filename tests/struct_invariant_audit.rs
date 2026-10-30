@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-budget/src/bytes.rs:CountingWriter",
+        "A shared validated budget bounds the byte count without storing output.",
+    ),
+    (
         "crates/jbotci-budget/src/text.rs:TextScope",
         "A validated byte limit and a shared failure flag have no further constraint.",
     ),

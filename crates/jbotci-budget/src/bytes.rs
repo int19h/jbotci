@@ -86,7 +86,8 @@ pub struct OutputLimitError {
     pub limit: ByteLimit,
 }
 
-#[invariant(bytes.len() <= budget.state.limit.get())]
+#[invariant(bytes.len() <= budget.state.used.load(Ordering::Acquire))]
+#[invariant(bytes.capacity() <= budget.state.limit.get())]
 #[derive(Debug)]
 struct WriterState {
     bytes: Vec<u8>,
@@ -124,10 +125,7 @@ impl BudgetedWriter {
                 .budget
                 .charge(count)
                 .map_err(|error| io::Error::new(io::ErrorKind::FileTooLarge, error))?;
-            state
-                .bytes
-                .try_reserve_exact(count)
-                .map_err(io::Error::other)?;
+            reserve_output(&mut state.bytes, state.budget.state.limit, count)?;
             state.bytes.resize(state.bytes.len() + count, byte);
             Ok(())
         })();
@@ -156,10 +154,7 @@ impl Write for BudgetedWriter {
                 .budget
                 .charge(bytes.len())
                 .map_err(|error| io::Error::new(io::ErrorKind::FileTooLarge, error))?;
-            state
-                .bytes
-                .try_reserve_exact(bytes.len())
-                .map_err(io::Error::other)?;
+            reserve_output(&mut state.bytes, state.budget.state.limit, bytes.len())?;
             state.bytes.extend_from_slice(bytes);
             Ok(bytes.len())
         })();
@@ -312,5 +307,86 @@ mod tests {
             status.success(),
             "bounded repetition failed under the child memory limit"
         );
+    }
+}
+
+/// Count serialized bytes without collecting them.
+#[invariant(true)]
+struct CountingWriter {
+    budget: OutputBudget,
+}
+impl Write for CountingWriter {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|count| *count == bytes.len()) || ret.is_err())]
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.budget
+            .charge(bytes.len())
+            .map_err(|error| io::Error::new(io::ErrorKind::FileTooLarge, error))?;
+        Ok(bytes.len())
+    }
+    #[requires(true)]
+    #[ensures(ret.is_ok())]
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bytes| *bytes <= limit.get()) || ret.is_err())]
+pub fn bounded_json_size<T: serde::Serialize>(
+    value: &T,
+    limit: ByteLimit,
+) -> Result<usize, serde_json::Error> {
+    let budget = OutputBudget::new(limit);
+    let mut writer = CountingWriter {
+        budget: budget.clone(),
+    };
+    let mut serializer = serde_json::Serializer::new(&mut writer);
+    value.serialize(serde_stacker::Serializer::new(&mut serializer))?;
+    Ok(limit.get() - budget.remaining())
+}
+
+/// Grow geometrically without reserving beyond the byte limit.
+#[requires(bytes.capacity() <= limit.get() && additional <= limit.get() - bytes.len())]
+#[ensures(ret.is_ok() -> bytes.capacity() <= limit.get())]
+fn reserve_output(bytes: &mut Vec<u8>, limit: ByteLimit, additional: usize) -> io::Result<()> {
+    let needed = bytes.len() + additional;
+    if needed > bytes.capacity() {
+        let capacity = needed
+            .max(bytes.capacity().saturating_mul(2))
+            .min(limit.get());
+        bytes
+            .try_reserve_exact(capacity - bytes.len())
+            .map_err(io::Error::other)?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn counting_and_collecting_use_the_same_encoded_boundary() {
+        let value = serde_json::json!({"text": "😀\n\""});
+        let bytes = bounded_json(&value, ByteLimit::new(128).unwrap()).unwrap();
+        let exact = ByteLimit::new(bytes.len()).unwrap();
+        assert_eq!(bounded_json_size(&value, exact).unwrap(), bytes.len());
+        let error =
+            bounded_json_size(&value, ByteLimit::new(bytes.len() - 1).unwrap()).unwrap_err();
+        assert_eq!(error.io_error_kind(), Some(io::ErrorKind::FileTooLarge));
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn geometric_capacity_never_exceeds_the_limit() {
+        for bytes in 1..65 {
+            let mut writer = OutputBudget::new(ByteLimit::new(bytes).unwrap()).writer();
+            for _ in 0..bytes {
+                writer.write_all(b"a").unwrap();
+                assert!(writer.state.as_ref().unwrap().bytes.capacity() <= bytes);
+            }
+            assert!(writer.write_all(b"a").is_err());
+        }
     }
 }
