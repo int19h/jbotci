@@ -131,9 +131,11 @@ On 2026-10-30, we audited the 34,316-row Lensisku export dated
 rafsi now include `nu'u`, which agrees with the extracted claim.
 We removed `tonzo` because the new experimental gismu `tombo` claims `to'o`.
 The structured claim takes priority under the refresh protocol.
+
 We also removed `xe'e` from `xekce` because the existing experimental cmavo
 `xe'e` now lists that form. We retained `xec` for `xekce`.
 The remaining 30 extracted words retain 32 forms.
+
 We compared every definition row, including rows that best-definition selection drops.
 We also examined all 11 new experimental gismu and 24 new experimental cmavo.
 Only `kekna`, `mevmi`, and `tombo` list structured rafsi among those new words.
