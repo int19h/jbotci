@@ -3,8 +3,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_output::{
-    DefinitionPlaceMap, GlyphStyle, };
+use jbotci_output::{DefinitionPlaceMap, GlyphStyle};
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
 
 use super::markdown::{

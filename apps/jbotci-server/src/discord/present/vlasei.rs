@@ -5,7 +5,8 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{LujvoPart, PhonemeRenderOptions, WordKind, WordLike, WordLikeData};
 use jbotci_output::{
-    BracketRenderOptions, GlyphStyle, LojbanScript, TreeRenderOptions, pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
+    BracketRenderOptions, GlyphStyle, LojbanScript, TreeRenderOptions,
+    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
     pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_tree_with_limit,
 };
 use jbotci_web_core::VlaseiAnalysis;
