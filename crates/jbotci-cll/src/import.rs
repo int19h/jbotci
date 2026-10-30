@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::num::NonZeroUsize;
 use std::sync::OnceLock;
@@ -71,7 +71,7 @@ pub(crate) struct PendingIndexEntry {
 #[invariant(true)]
 pub(crate) struct BlockParseState {
     pub(crate) chapter_example_counter: usize,
-    pub(crate) section_ids: BTreeMap<roxmltree::NodeId, String>,
+    pub(crate) section_ids: HashMap<roxmltree::NodeId, String>,
 }
 
 /// The edition of the reference book this build answers from.
@@ -247,7 +247,7 @@ fn parse_chapter(
     let mut index_entries = Vec::new();
     let mut root_section_ids = Vec::new();
     let mut section_index = 0usize;
-    let mut section_ids = BTreeMap::new();
+    let mut section_ids = HashMap::new();
     collect_section_ids(root, &chapter_id, &mut section_ids);
     let mut parse_state = BlockParseState {
         chapter_example_counter: 0,
@@ -698,7 +698,7 @@ fn section_id_for(
 fn collect_section_ids(
     container: Node<'_, '_>,
     container_id: &str,
-    section_ids: &mut BTreeMap<roxmltree::NodeId, String>,
+    section_ids: &mut HashMap<roxmltree::NodeId, String>,
 ) {
     let mut pending = vec![container];
     while let Some(parent) = pending.pop() {
@@ -3868,7 +3868,7 @@ mod tests {
             AnchorMode::TopLevel,
             &mut BlockParseState {
                 chapter_example_counter: 0,
-                section_ids: BTreeMap::new(),
+                section_ids: HashMap::new(),
             },
             &mut examples,
             &mut Vec::new(),

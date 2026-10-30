@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[allow(unused_imports)]
 use bityzba::{data, expensive_ensures, invariant, new, requires};
@@ -76,7 +76,7 @@ pub(super) fn ebnf_section_ancestor<'a, 'input>(
 pub(super) fn parse_ebnf_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
-    section_ids: &BTreeMap<roxmltree::NodeId, String>,
+    section_ids: &HashMap<roxmltree::NodeId, String>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     let entry_nodes = node
