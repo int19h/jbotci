@@ -75,7 +75,7 @@ def main() -> None:
     )
     q4_onnx_sha256 = file_sha256(q4_onnx)
     identity = reuse_identity(args, corpus, q4_onnx_sha256, tokenizer)
-    previous = load_previous_pack(args, identity)
+    reusable_rows = load_previous_pack(args, identity)
     # Read and validate the source before clearing scratch or replacing output.
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
@@ -105,7 +105,7 @@ def main() -> None:
             dimensions=args.dimensions,
             max_sequence_length=args.max_sequence_length,
             progress_label=f"{args.model_key} {corpus_id}",
-            reusable_rows=previous.get(corpus_id, {}),
+            reusable_rows=reusable_rows,
         ))
 
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
@@ -188,6 +188,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--include-wasm-runtime", action="store_true")
     args = parser.parse_args()
+    if args.reuse_from == "" or args.reuse_catalog == "":
+        raise ValueError("reuse source must not be empty")
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
     if args.threads is not None and args.threads <= 0:
@@ -277,7 +279,7 @@ def source_child(source: str, child: str) -> str:
     return str(Path(source).parent / child)
 
 
-def load_previous_pack(args, identity: dict[str, object]) -> dict[str, dict[str, np.ndarray]]:
+def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarray]:
     catalog_source = (
         "https://assets.jbotci.app/embeddings/web/v1/catalog.json"
         if args.reuse_published else args.reuse_catalog
@@ -307,11 +309,15 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, dict[str,
     ):
         if manifest.get(field) != identity[field]:
             raise ValueError(f"incompatible reuse pack: {field} differs")
+    # Corpus membership is output metadata. Equal exact inputs use the same
+    # vector even when a document moves between corpora.
     result = {}
+    seen_corpora = set()
     for corpus in manifest["corpora"]:
         corpus_id = corpus["corpus_id"]
-        if corpus_id in result:
+        if corpus_id in seen_corpora:
             raise ValueError(f"duplicate reuse corpus: {corpus_id}")
+        seen_corpora.add(corpus_id)
         files = {}
         for kind in ("items", "vector"):
             data = read_source(source_child(source, corpus[f"{kind}_url"]))
@@ -330,16 +336,14 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, dict[str,
         vectors = np.frombuffer(files["vector"], dtype="<f2").reshape(count, dimensions)
         if not np.isfinite(vectors).all():
             raise ValueError(f"{corpus_id}: non-finite reuse vectors")
-        rows = {}
         for row, item in enumerate(items):
             digest = item["input_hash"]
             if item["row"] != row or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                 raise ValueError(f"{corpus_id}: invalid reuse row or input hash")
-            if digest in rows and not np.array_equal(rows[digest], vectors[row]):
+            if digest in result and not np.array_equal(result[digest], vectors[row]):
                 raise ValueError(f"{corpus_id}: conflicting vectors for the same input hash")
-            rows[digest] = vectors[row]
-        result[corpus_id] = rows
-    if set(result) != {corpus_id for corpus_id, _, _ in CORPORA}:
+            result[digest] = vectors[row]
+    if seen_corpora != {corpus_id for corpus_id, _, _ in CORPORA}:
         raise ValueError("reuse pack must contain both corpora")
     return result
 

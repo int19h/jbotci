@@ -119,6 +119,16 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'legacy pack'):
             self.build('legacy', self.new, '--reuse-from', str(path))
 
+    def test_equal_input_can_move_between_corpora(self):
+        _, previous, _, _ = self.build('previous', self.old)
+        rows = {'dictionary': [document(0, self.old['cll'][0]['input'])], 'cll': []}
+        full, _, _, _ = self.build('full', rows)
+        incremental, _, embed, _ = self.build('incremental', rows, '--reuse-from', str(previous))
+        self.assertEqual([call.args[0] for call in embed.call_args_list], [[], []])
+        for path in full.rglob('*'):
+            if path.is_file():
+                self.assertEqual(path.read_bytes(), (incremental / path.relative_to(full)).read_bytes())
+
     def test_top_level_manifest_disagreement_is_refused(self):
         _, path, _, _ = self.build('previous', self.old)
         manifest = pack.read_json(path)
@@ -155,6 +165,11 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         rows['dictionary'][0]['inputHash'] = '0' * 64
         with self.assertRaisesRegex(ValueError, 'exact input text'):
             self.build('bad-input', rows)
+
+    def test_explicit_empty_source_does_not_fall_back_to_full_embedding(self):
+        for flag in ['--reuse-from', '--reuse-catalog']:
+            with self.subTest(flag=flag), self.assertRaisesRegex(ValueError, 'reuse source must not be empty'):
+                self.build('empty-source', self.new, flag, '')
 
 
 if __name__ == '__main__':
