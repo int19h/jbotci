@@ -14,6 +14,11 @@ from unittest import mock
 
 import numpy as np
 
+try:
+    import onnx as real_onnx
+except ImportError:
+    real_onnx = None
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'embedding-pack/f2llm/build-vector-pack.py'
 SPEC = importlib.util.spec_from_file_location('vector_pack', SCRIPT)
@@ -63,7 +68,7 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         self.modules = mock.patch.dict(sys.modules, {
             'onnxruntime': types.SimpleNamespace(SessionOptions=types.SimpleNamespace, InferenceSession=Session),
             'transformers': types.SimpleNamespace(AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **k: Tokenizer())),
-            'onnx': types.SimpleNamespace(load=lambda path, **k: types.SimpleNamespace(SerializeToString=lambda **kwargs: Path(path).read_bytes())),
+            'onnx': types.SimpleNamespace(load=lambda path, **k: types.SimpleNamespace(DESCRIPTOR=types.SimpleNamespace(full_name='onnx.ModelProto'), ListFields=lambda: [])),
         })
         self.modules.start()
         self.addCleanup(self.modules.stop)
@@ -107,7 +112,7 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         original = pack.read_json(path)
         for field, value in [('model_key', 'other'), ('q4_onnx_sha256', 'other'), ('max_window_tokens', 99),
                              ('dimensions', 4), ('element_type', 'f32le'), ('pooling', 'other'),
-                             ('vector_space_key', 'other'), ('tokenizer_sha256', 'other'), ('loaded_onnx_sha256', 'other')]:
+                             ('vector_space_key', 'other'), ('tokenizer_sha256', 'other'), ('external_data_sha256', {'weights': 'other'})]:
             with self.subTest(field=field):
                 manifest = copy.deepcopy(original)
                 manifest['reuse_identity'][field] = value
@@ -149,7 +154,8 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
                     self.build(f'bad-{kind}', self.new, '--reuse-from', str(path))
                 # Exercise the URL reader without an external server or any model download.
                 def download(url, **kwargs):
-                    relative = url.removeprefix('https://example.test/pack/')
+                    self.assertEqual(url.get_header('User-agent'), 'jbotci-embedding-pack-builder/1')
+                    relative = url.full_url.removeprefix('https://example.test/pack/')
                     return io.BytesIO((path.parent / relative).read_bytes())
                 with mock.patch.object(pack, 'urlopen', side_effect=download), self.assertRaisesRegex(ValueError, 'SHA-256 mismatch'):
                     self.build(f'bad-url-{kind}', self.new, '--reuse-from', 'https://example.test/pack/manifest.json')
@@ -170,6 +176,150 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         for flag in ['--reuse-from', '--reuse-catalog']:
             with self.subTest(flag=flag), self.assertRaisesRegex(ValueError, 'reuse source must not be empty'):
                 self.build('empty-source', self.new, flag, '')
+
+    def test_backend_changes_do_not_block_reuse_but_model_and_tokenizer_do(self):
+        _, path, _, _ = self.build('previous', self.old)
+        with mock.patch.object(pack, 'version', return_value='new-backend'):
+            _, _, embed, _ = self.build('new-backend', self.old, '--reuse-from', str(path))
+        self.assertEqual([call.args[0] for call in embed.call_args_list], [[], []])
+        self.model.write_bytes(b'changed-model-bytes')
+        with self.assertRaisesRegex(ValueError, 'q4_onnx_sha256'):
+            self.build('changed-model', self.old, '--reuse-from', str(path), '--adopt-legacy-pack')
+        self.model.write_bytes(b'test-model')
+        with mock.patch.object(Tokenizer.backend_tokenizer, 'to_str', return_value='changed-tokenizer'):
+            with self.assertRaisesRegex(ValueError, 'tokenizer_sha256'):
+                self.build('changed-tokenizer', self.old, '--reuse-from', str(path), '--adopt-legacy-pack')
+
+    def test_legacy_adoption_requires_all_recorded_fields_to_match(self):
+        _, path, _, _ = self.build('previous', self.old)
+        original = pack.read_json(path)
+        original.pop('reuse_identity')
+        original.pop('build_provenance')
+        pack.write_json(path, original)
+        _, new_path, embed, _ = self.build('adopted', self.old, '--reuse-from', str(path), '--adopt-legacy-pack')
+        self.assertEqual([call.args[0] for call in embed.call_args_list], [[], []])
+        self.assertEqual(pack.read_json(new_path)['legacy_adoption']['compatibility'], 'owner-attested-unrecorded-identity')
+        _, descendant, _, _ = self.build('descendant', self.old, '--reuse-from', str(new_path))
+        self.assertEqual(pack.read_json(descendant)['legacy_adoption'], pack.read_json(new_path)['legacy_adoption'])
+        for field in ('model_key', 'web_model', 'model_revision', 'q4_onnx_sha256', 'vector_space_key',
+                      'max_sequence_length', 'max_window_tokens', 'pooling', 'dimensions', 'element_type', 'normalized', 'distance'):
+            with self.subTest(field=field):
+                bad = copy.deepcopy(original)
+                bad[field] = 'mismatch'
+                pack.write_json(path, bad)
+                with self.assertRaisesRegex(ValueError, 'incompatible reuse pack'):
+                    self.build('bad-legacy', self.old, '--reuse-from', str(path), '--adopt-legacy-pack')
+        # Adoption does not weaken the per-row input hash requirement.
+        pack.write_json(path, original)
+        child = path.parent / original['corpora'][0]['items_url']
+        items = pack.read_json(child)
+        items[0]['input_hash'] = 'invalid'
+        pack.write_json(child, items)
+        original['corpora'][0]['items_sha256'] = pack.file_sha256(child)
+        pack.write_json(path, original)
+        with self.assertRaisesRegex(ValueError, 'input hash'):
+            self.build('bad-row-hash', self.old, '--reuse-from', str(path), '--adopt-legacy-pack')
+
+    def test_missing_and_duplicate_corpora_are_refused(self):
+        _, path, _, _ = self.build('previous', self.old)
+        original = pack.read_json(path)
+        for corpora in (original['corpora'][:1], [original['corpora'][0]] * 2):
+            manifest = dict(original, corpora=corpora)
+            pack.write_json(path, manifest)
+            with self.assertRaisesRegex(ValueError, 'both corpora|duplicate reuse corpus'):
+                self.build('bad-corpora', self.old, '--reuse-from', str(path))
+
+    def test_conflicting_stored_bytes_include_signed_zero(self):
+        rows = {'dictionary': [document(0, 'same')], 'cll': [document(0, 'same')]}
+        _, path, _, _ = self.build('previous', rows)
+        original = pack.read_json(path)
+        for index, corpus in enumerate(original['corpora']):
+            child = path.parent / corpus['vector_url']
+            child.write_bytes(np.array([1, -0.0 if index else 0.0, 0], dtype='<f2').tobytes())
+            corpus['vector_sha256'] = pack.file_sha256(child)
+        pack.write_json(path, original)
+        with self.assertRaisesRegex(ValueError, 'conflicting vectors'):
+            self.build('conflict', rows, '--reuse-from', str(path))
+
+    def test_url_catalog_and_reuse_published_send_user_agent(self):
+        previous, path, _, _ = self.build('previous', self.old)
+        requests = []
+        def download(request, **kwargs):
+            self.assertEqual(request.get_header('User-agent'), 'jbotci-embedding-pack-builder/1')
+            requests.append(request.full_url)
+            relative = request.full_url.removeprefix('https://assets.jbotci.app/embeddings/web/v1/')
+            return io.BytesIO((previous / relative).read_bytes())
+        for name, flags in [('url', ['--reuse-catalog', 'https://assets.jbotci.app/embeddings/web/v1/catalog.json']),
+                            ('published', ['--reuse-published'])]:
+            with mock.patch.object(pack, 'urlopen', side_effect=download):
+                _, _, embed, _ = self.build(name, self.old, *flags)
+            self.assertEqual([call.args[0] for call in embed.call_args_list], [[], []])
+        self.assertEqual(len(requests), 12)
+
+    def test_explicit_new_model_refuses_existing_entry(self):
+        previous, _, _, _ = self.build('previous', self.old)
+        catalog = previous / 'catalog.json'
+        with self.assertRaisesRegex(ValueError, 'already has'):
+            self.build('existing-model', self.old, '--reuse-catalog', str(catalog), '--new-model', pack.MODEL_KEY)
+        pack.write_json(catalog, {'schema_version': 1, 'models': []})
+        with self.assertRaisesRegex(ValueError, 'exactly one'):
+            self.build('missing-model', self.old, '--reuse-catalog', str(catalog))
+        _, _, embed, _ = self.build('new-model', self.old, '--reuse-catalog', str(catalog), '--new-model', pack.MODEL_KEY)
+        self.assertEqual(sum(len(call.args[0]) for call in embed.call_args_list), 5)
+
+    def test_external_model_files_hash_raw_bytes_without_loading_weights(self):
+        external = self.root / 'weights.bin'
+        external.write_bytes(b'raw external weights')
+        tensor = types.SimpleNamespace(
+            DESCRIPTOR=types.SimpleNamespace(full_name='onnx.TensorProto'), ListFields=lambda: [],
+            external_data=[types.SimpleNamespace(key='location', value='weights.bin')])
+        field = types.SimpleNamespace(type=11, TYPE_MESSAGE=11, is_repeated=True)
+        graph = types.SimpleNamespace(DESCRIPTOR=types.SimpleNamespace(full_name='onnx.ModelProto'), ListFields=lambda: [(field, [tensor])])
+        loader = mock.Mock(return_value=graph)
+        onnx = types.SimpleNamespace(load=loader, external_data_helper=types.SimpleNamespace(uses_external_data=lambda value: True))
+        with mock.patch.dict(sys.modules, {'onnx': onnx}):
+            before = pack.external_data_hashes(self.model)
+            external.write_bytes(b'changed raw weights')
+            after = pack.external_data_hashes(self.model)
+        self.assertNotEqual(before, after)
+        self.assertEqual(after, {'weights.bin': pack.sha256(b'changed raw weights')})
+        loader.assert_called_with(self.model, load_external_data=False)
+
+    def test_validator_accepts_new_metadata_and_refuses_duplicate_corpora(self):
+        spec = importlib.util.spec_from_file_location('validate_vectors', SCRIPT.with_name('validate-vector-pack.py'))
+        validator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(validator)
+        # SCRIPT is tools/embedding-pack/f2llm/build-vector-pack.py.
+        fixture = SCRIPT.parents[3] / 'crates/jbotci-f2llm-runtime/testdata/manifests/v1/incremental-80m.json'
+        manifest = pack.read_json(fixture)
+        args = types.SimpleNamespace(model_key=manifest['model_key'], max_sequence_length=manifest['max_sequence_length'],
+                                     dimensions=manifest['dimensions'], include_wasm_runtime=False)
+        corpus = {'inputFormatVersion': manifest['input_format_version'], 'inputHash': manifest['input_hash']}
+        validator.validate_manifest(manifest, corpus, args)
+        manifest['corpora'].append(manifest['corpora'][0])
+        with self.assertRaisesRegex(AssertionError, 'corpora mismatch'):
+            validator.validate_manifest(manifest, corpus, args)
+
+    @unittest.skipIf(real_onnx is None, 'requires onnx from the builder requirements')
+    def test_real_onnx_external_data_hashes_graph_and_raw_files(self):
+        external = self.root / 'real.weights'
+        external.write_bytes(np.array([1.0], dtype='<f4').tobytes())
+        tensor = real_onnx.TensorProto(name='weight', data_type=real_onnx.TensorProto.FLOAT, dims=[1],
+                                      data_location=real_onnx.TensorProto.EXTERNAL)
+        tensor.external_data.add(key='location', value=external.name)
+        model = real_onnx.helper.make_model(real_onnx.helper.make_graph([], 'tiny-hash-test', [], [], [tensor]))
+        graph = self.root / 'real.onnx'
+        raw_graph = model.SerializeToString()
+        graph.write_bytes(raw_graph)
+        with mock.patch.dict(sys.modules, {'onnx': real_onnx}), mock.patch.object(real_onnx, 'load', wraps=real_onnx.load) as load:
+            before = pack.external_data_hashes(graph)
+            external.write_bytes(np.array([2.0], dtype='<f4').tobytes())
+            after = pack.external_data_hashes(graph)
+        self.assertNotEqual(before, after)
+        self.assertEqual(pack.file_sha256(graph), pack.sha256(raw_graph))
+        self.assertEqual(after, {external.name: pack.file_sha256(external)})
+        for call in load.call_args_list:
+            self.assertFalse(call.kwargs['load_external_data'])
 
 
 if __name__ == '__main__':

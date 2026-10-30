@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin, urlparse
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 from importlib.metadata import version
 
 import numpy as np
@@ -113,6 +113,8 @@ def main() -> None:
         "schema_version": SCHEMA_VERSION,
         "artifact_version": ARTIFACT_VERSION,
         "reuse_identity": identity,
+        "build_provenance": build_provenance(),
+        **({"legacy_adoption": args.legacy_adoption} if getattr(args, "legacy_adoption", None) else {}),
         "model_key": args.model_key,
         "model_revision": args.revision or "",
         "web_model": args.model_id,
@@ -171,6 +173,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="replace --out if it already exists (refused by default)",
     )
+    parser.add_argument("--adopt-legacy-pack", action="store_true")
+    parser.add_argument("--new-model", action="append", default=[], help="model with no previous catalog entry")
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX)
     parser.add_argument("--tokenizer-dir", default=None)
     parser.add_argument("--model-key", default=MODEL_KEY)
@@ -225,9 +229,10 @@ def compatible_runtimes(include_wasm_runtime: bool, max_sequence_length: int) ->
 
 
 def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object]:
-    import onnx
-
-    # The graph alone does not identify the tokenizer or numerical backend.
+    # Reuse identifies the vector function, not the build environment.
+    # Full builds also differ in their last bits with batch composition and
+    # padding, and browser queries use another backend. Per-row hashes cover
+    # the exact input text, so input_format_version is not part of this identity.
     # Hash the effective tokenizer after loading, including the special-token IDs.
     tokenizer_state = {
         "backend": tokenizer.backend_tokenizer.to_str(),
@@ -243,9 +248,8 @@ def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object
         "model_revision": args.revision or "",
         "q4_onnx_sha256": model_hash,
         # External ONNX weights are not covered by the graph file's hash.
-        "loaded_onnx_sha256": sha256(onnx.load(args.q4_onnx, load_external_data=True).SerializeToString(deterministic=True)),
+        "external_data_sha256": external_data_hashes(Path(args.q4_onnx)),
         "vector_space_key": args.vector_space_key,
-        "input_format_version": corpus["inputFormatVersion"],
         "max_sequence_length": args.max_sequence_length,
         "max_window_tokens": args.max_sequence_length,
         "pooling": POOLING,
@@ -255,15 +259,48 @@ def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object
         "distance": "dot",
         "tokenizer_sha256": sha256(json_bytes(tokenizer_state)),
         "windowing": "append-eos-contiguous-nonoverlapping-last-token-l2-mean-l2-v1",
+
+    }
+
+
+def build_provenance() -> dict[str, object]:
+    return {
         "backend": {name: version(name) for name in ("onnx", "onnxruntime", "transformers", "tokenizers", "numpy")},
         "provider": "CPUExecutionProvider",
         "built_by": BUILT_BY,
     }
 
 
+def external_data_hashes(path: Path) -> dict[str, str]:
+    import onnx
+
+    # Parse graph metadata only. Hash each referenced file's raw bytes in chunks.
+    graph = onnx.load(path, load_external_data=False)
+    locations = set()
+
+    def tensors(message):
+        if message.DESCRIPTOR.full_name == "onnx.TensorProto":
+            if onnx.external_data_helper.uses_external_data(message):
+                entries = {entry.key: entry.value for entry in message.external_data}
+                locations.add(entries["location"])
+        for field, value in message.ListFields():
+            if field.type == field.TYPE_MESSAGE:
+                for child in value if field.is_repeated else [value]:
+                    tensors(child)
+
+    tensors(graph)
+    result = {}
+    for location in sorted(locations):
+        external = Path(source_child(str(path), location))
+        if not external.resolve().is_relative_to(path.parent.resolve()):
+            raise ValueError("external ONNX data escapes the model directory")
+        result[location] = file_sha256(external)
+    return result
+
+
 def read_source(source: str) -> bytes:
     if urlparse(source).scheme in ("http", "https"):
-        with urlopen(source, timeout=120) as response:
+        with urlopen(Request(source, headers={"User-Agent": "jbotci-embedding-pack-builder/1"}), timeout=120) as response:
             return response.read()
     return Path(source).read_bytes()
 
@@ -292,6 +329,11 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarra
             for model in catalog["models"] if model["model_key"] == args.model_key
             for space in model["vector_spaces"] if space["vector_space_key"] == args.vector_space_key
         ]
+        is_new = args.model_key in args.new_model
+        if is_new and any(model["model_key"] == args.model_key for model in catalog["models"]):
+            raise ValueError("model named by --new-model already has a reuse catalog entry")
+        if is_new and not entries:
+            return {}
         if len(entries) != 1:
             raise ValueError("reuse catalog must contain exactly one matching model and vector space")
         source = source_child(catalog_source, entries[0]["manifest_url"])
@@ -300,15 +342,31 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarra
     if Path(source).is_dir():
         source = str(Path(source) / "manifest.json")
     manifest = json.loads(read_source(source))
-    if manifest.get("reuse_identity") != identity:
-        raise ValueError("incompatible reuse pack: reuse_identity differs or is missing (legacy pack)")
+    recorded = manifest.get("reuse_identity")
+    legacy = recorded is None or not identity.keys() <= recorded.keys()
+    if legacy and not args.adopt_legacy_pack:
+        raise ValueError("incompatible reuse pack: legacy pack requires --adopt-legacy-pack")
+    if recorded is not None:
+        for field, value in recorded.items():
+            if field in ("backend", "provider", "built_by", "input_format_version"):
+                continue
+            if field not in identity or value != identity[field]:
+                raise ValueError(f"incompatible reuse pack: reuse_identity {field} differs")
     for field in (
         "schema_version", "artifact_version", "model_key", "web_model", "model_revision",
-        "q4_onnx_sha256", "vector_space_key", "input_format_version", "max_sequence_length",
-        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance", "built_by",
+        "q4_onnx_sha256", "vector_space_key", "max_sequence_length",
+        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance",
     ):
         if manifest.get(field) != identity[field]:
             raise ValueError(f"incompatible reuse pack: {field} differs")
+    for field, value in identity.items():
+        if field in manifest and manifest[field] != value:
+            raise ValueError(f"incompatible reuse pack: {field} differs")
+    if legacy:
+        args.legacy_adoption = {"source": source, "compatibility": "owner-attested-unrecorded-identity"}
+    elif manifest.get("legacy_adoption"):
+        # Preserve the attestation when vectors descend from an adopted pack.
+        args.legacy_adoption = manifest["legacy_adoption"]
     # Corpus membership is output metadata. Equal exact inputs use the same
     # vector even when a document moves between corpora.
     result = {}
@@ -325,8 +383,7 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarra
                 raise ValueError(f"{corpus_id}: {kind} SHA-256 mismatch")
             files[kind] = data
         count, dimensions = corpus["row_count"], identity["dimensions"]
-        if (corpus["input_format_version"] != identity["input_format_version"]
-                or corpus["dimensions"] != dimensions or count < 0
+        if (corpus["dimensions"] != dimensions or count < 0
                 or len(files["vector"]) != count * dimensions * 2
                 or corpus["vector_byte_len"] != len(files["vector"])):
             raise ValueError(f"{corpus_id}: invalid reuse vector shape")
@@ -340,7 +397,7 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarra
             digest = item["input_hash"]
             if item["row"] != row or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                 raise ValueError(f"{corpus_id}: invalid reuse row or input hash")
-            if digest in result and not np.array_equal(result[digest], vectors[row]):
+            if digest in result and result[digest].tobytes() != vectors[row].tobytes():
                 raise ValueError(f"{corpus_id}: conflicting vectors for the same input hash")
             result[digest] = vectors[row]
     if seen_corpora != {corpus_id for corpus_id, _, _ in CORPORA}:

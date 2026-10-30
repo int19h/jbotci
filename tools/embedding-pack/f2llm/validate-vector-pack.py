@@ -172,7 +172,7 @@ def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], ar
     if args.include_wasm_runtime and expected_wasm_runtime not in compatible:
         raise AssertionError(f"manifest lacks compatible runtime {expected_wasm_runtime!r}")
     corpus_ids = {item.get("corpus_id") for item in manifest.get("corpora", [])}
-    if corpus_ids != set(CORPORA):
+    if corpus_ids != set(CORPORA) or len(manifest.get("corpora", [])) != len(CORPORA):
         raise AssertionError(f"manifest corpora mismatch: {corpus_ids!r}")
 
 
