@@ -311,6 +311,7 @@ fn require_fingerprint(
 #[requires(true)]
 #[ensures(ret.starts_with(RETRIEVAL_QUERY_PREFIX))]
 pub fn build_retrieval_query_input(content: &str) -> String {
+    let content = content.trim();
     format!("{RETRIEVAL_QUERY_PREFIX}{content}")
 }
 
@@ -618,6 +619,31 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{data, ensures, new, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn retrieval_queries_use_shared_unicode_trimming() {
+        for query in ["klama", "  klama  ", "\t\nklama\u{0085}\u{00a0}"] {
+            assert_eq!(
+                build_retrieval_query_input(query),
+                format!("{RETRIEVAL_QUERY_PREFIX}klama")
+            );
+        }
+        assert_eq!(
+            build_retrieval_query_input("  mi  klama\n"),
+            format!("{RETRIEVAL_QUERY_PREFIX}mi  klama")
+        );
+        assert_eq!(
+            build_retrieval_query_input("\t \u{0085}"),
+            RETRIEVAL_QUERY_PREFIX
+        );
+        // Rust preserves BOM characters, which JavaScript trim removes.
+        assert_eq!(
+            build_retrieval_query_input("\u{feff}klama\u{feff}"),
+            format!("{RETRIEVAL_QUERY_PREFIX}\u{feff}klama\u{feff}")
+        );
+    }
 
     #[test]
     #[requires(true)]

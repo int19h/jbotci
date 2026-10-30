@@ -630,8 +630,9 @@ async function removeSelectedModel() {
 
 async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJson, forceWasm, entryEligibilityJson = "null") {
   const eligibility = parseEntryEligibility(entryEligibilityJson);
-  const trimmedQuery = String(query || "").trim();
-  if (!trimmedQuery) {
+  const appModule = await f2llmRuntimeModule();
+  const queryInput = appModule.jbotciF2LlmQueryInput(String(query ?? ""));
+  if (queryInput == null) {
     return { hits: [], message: null };
   }
   const kindFilters = parseStringArray(kindFiltersJson)
@@ -677,7 +678,7 @@ async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJso
       message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
-  const queryEmbedding = await embedTexts([activeModelSpec().queryPrefix + trimmedQuery]);
+  const queryEmbedding = await embedTexts([queryInput]);
   if (isCustomWebGpuRuntime(runtime)) {
     const loadedRuntime = await ensureModel(forceWasm);
     const scores = await loadedRuntime.scoreF16Vectors(corpus, queryEmbedding[0], getBinary);
@@ -798,6 +799,9 @@ async function f2llmRuntimeModule() {
       }
       if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
         throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
+      }
+      if (typeof appModule.jbotciF2LlmQueryInput !== "function") {
+        throw new Error("Dioxus app module does not export jbotciF2LlmQueryInput");
       }
       const { waitForAppModuleReady } = await appModuleReadyModule();
       await waitForAppModuleReady(appModule);
