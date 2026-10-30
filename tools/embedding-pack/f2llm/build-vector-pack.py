@@ -36,6 +36,12 @@ CORPORA = [
     ("cukta-cll", "cll", "chunk_index"),
 ]
 PROGRESS_WINDOW_INTERVAL = 512
+BUILT_BY = {
+    "runtime": "onnxruntime",
+    "provider": "CPUExecutionProvider",
+    "dtype": "q4",
+    "source": "com.microsoft MatMulNBits/GatherBlockQuantized",
+}
 
 
 def main() -> None:
@@ -118,12 +124,7 @@ def main() -> None:
         "max_sequence_length": args.max_sequence_length,
         "pooling": POOLING,
         "max_window_tokens": args.max_sequence_length,
-        "built_by": {
-            "runtime": "onnxruntime",
-            "provider": "CPUExecutionProvider",
-            "dtype": "q4",
-            "source": "com.microsoft MatMulNBits/GatherBlockQuantized",
-        },
+        "built_by": BUILT_BY,
         "dimensions": args.dimensions,
         "element_type": "f16le",
         "normalized": True,
@@ -254,6 +255,7 @@ def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object
         "windowing": "append-eos-contiguous-nonoverlapping-last-token-l2-mean-l2-v1",
         "backend": {name: version(name) for name in ("onnx", "onnxruntime", "transformers", "tokenizers", "numpy")},
         "provider": "CPUExecutionProvider",
+        "built_by": BUILT_BY,
     }
 
 
@@ -301,7 +303,7 @@ def load_previous_pack(args, identity: dict[str, object]) -> dict[str, dict[str,
     for field in (
         "schema_version", "artifact_version", "model_key", "web_model", "model_revision",
         "q4_onnx_sha256", "vector_space_key", "input_format_version", "max_sequence_length",
-        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance",
+        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance", "built_by",
     ):
         if manifest.get(field) != identity[field]:
             raise ValueError(f"incompatible reuse pack: {field} differs")
