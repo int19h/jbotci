@@ -358,16 +358,6 @@ pub(crate) fn render_vlacku_output_in_scope(
 }
 
 #[requires(true)]
-#[ensures(words.is_empty() -> ret.is_empty())]
-pub(crate) fn render_dictionary_definitions_for_word_likes(
-    words: &[WordLike],
-    color: bool,
-    glyphs: GlyphStyle,
-) -> String {
-    render_dictionary_definitions_with_limits(words, color, glyphs, None)
-        .expect("unrestricted dictionary rendering")
-}
-#[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_dictionary_definitions_with_limits(
     words: &[WordLike],

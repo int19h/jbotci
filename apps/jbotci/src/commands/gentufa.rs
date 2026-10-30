@@ -193,10 +193,11 @@ fn render_gentufa(
                 diagnostic_terminal_width,
                 render_limits.text,
             )?);
+            let stderr = stderr_scope.finish(stderr.into_piece())?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
                 stdout: Vec::new(),
-                stderr: stderr_scope.finish(stderr.into_piece())?,
+                stderr,
             }));
         }
         GentufaSyntaxStage::Parsed { words, parse } => (words, parse),
@@ -248,10 +249,11 @@ fn render_gentufa(
                     diagnostic_terminal_width,
                     render_limits.text,
                 )?);
+                let stderr = stderr_scope.finish(stderr.into_piece())?;
                 return Ok(new!(GentufaRendered {
                     status: CliStatus::Failure,
                     stdout,
-                    stderr: stderr_scope.finish(stderr.into_piece())?,
+                    stderr,
                 }));
             }
         };
@@ -296,10 +298,11 @@ fn render_gentufa(
                 GENERATED_BLOCKS_TITLE,
                 limits,
             )?;
+            let stderr = stderr_scope.finish(stderr.into_piece())?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Success,
                 stdout,
-                stderr: stderr_scope.finish(stderr.into_piece())?,
+                stderr,
             }));
         }
         GentufaFormat::Brackets => {
@@ -357,10 +360,11 @@ fn render_gentufa(
         }
     }
     let stdout = stdout.into_bytes();
+    let stderr = stderr_scope.finish(stderr.into_piece())?;
     Ok(new!(GentufaRendered {
         status: CliStatus::Success,
         stdout,
-        stderr: stderr_scope.finish(stderr.into_piece())?,
+        stderr,
     }))
 }
 

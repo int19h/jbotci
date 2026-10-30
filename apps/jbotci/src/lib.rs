@@ -13,7 +13,7 @@ use jbotci_output::{
     pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
     pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
     pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
-    pretty_recovered_syntax_tree_with_limit, raw_with_limit, render_diagnostics_with_limit,
+    pretty_recovered_syntax_tree_with_limit, render_diagnostics_with_limit,
 };
 
 #[requires(true)]
@@ -184,8 +184,7 @@ use clap::{
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
     CllError, CllLinkRenderMode, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaSearchWindow,
-    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request,
-    render_search_output,
+    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site,
 };
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
@@ -223,24 +222,16 @@ use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DefinitionPlaceMap,
     DiagnosticDetailMode, DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions,
     LojbanScript, PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
-    compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
-    compact_morphology_json_value, compact_recovered_morphology_json_string_with_options,
-    compact_recovered_syntax_json_string_with_options, format_definition_line_with_indexed_places,
-    format_notes_line_with_indexed_places, ipa_morphology_text,
-    pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
-    pretty_recovered_morphology_tree_with_options, pretty_recovered_syntax_brackets_with_options,
-    pretty_recovered_syntax_raw, pretty_recovered_syntax_tree_with_options, render_diagnostics,
+    compact_morphology_json_value, pretty_morphology_brackets_with_options,
     render_json_value_with_options, render_trace_report,
 };
 use jbotci_phonetic::{AlineFeature, AlineNormalizer, AlineParameters, AlineSaliences};
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
-    WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
-    format_vote_display, normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
+    WordTypeFilter, dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
+    dictionary_entry_passes_vlacku_filters, format_vote_display, normalize_word_type_filter,
+    parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
