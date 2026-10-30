@@ -756,6 +756,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit test source has no state; it exists only to prove the two async source traits remain separately object safe",
     ),
     (
+        "crates/jbotci-f2llm-runtime/src/core.rs:AddedTokenMatch",
+        "a validated literal token and a byte offset; the function postcondition relates the offset to the source text",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/core.rs:AddedTokenSpec",
+        "raw tokenizer metadata accepts all field values so the loader can reject unsupported rules and invalid token contents",
+    ),
+    (
         "crates/jbotci-f2llm-runtime/src/core.rs:SpecialTokens",
         "F2LLM special token ids are external tokenizer metadata interpreted by the tokenizer",
     ),

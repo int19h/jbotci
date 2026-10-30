@@ -4,14 +4,15 @@ use jbotci_f2llm_runtime::QwenByteBpeTokenizer;
 use serde::Deserialize;
 use serde_json::Value;
 
-#[invariant(true)]
+#[invariant(token_ids.last() == Some(&151645))]
 #[derive(Deserialize)]
 struct GoldenCase {
     text: String,
     token_ids: Vec<u32>,
 }
 
-#[invariant(true)]
+#[invariant(source_revision == "f4a16a11c9f5c8c7e22694653de6ce75430f4538")]
+#[invariant(tokenizer.is_object() && !cases.is_empty())]
 #[derive(Deserialize)]
 struct TokenizerGoldens {
     source_revision: String,
@@ -37,7 +38,7 @@ fn full_token_ids_match_the_pinned_reference() {
         golden.tokenizer["added_tokens"].as_array().unwrap().len(),
         26
     );
-    for case in golden.cases {
+    for case in &golden.cases {
         assert_eq!(
             tokenizer.encode_untruncated(&case.text).unwrap(),
             case.token_ids,
