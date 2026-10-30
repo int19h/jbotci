@@ -724,6 +724,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native partial shard metadata is validated against shard files and expected row ranges before reuse",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:NativeVectorSpaceKey",
+        "a serialized identity can name any release. native load boundaries require the current key before they accept vectors",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:QueryEmbedding",
         "query embeddings are produced by backend implementations and normalized before search",
     ),

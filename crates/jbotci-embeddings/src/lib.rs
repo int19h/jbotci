@@ -39,6 +39,7 @@ pub const EMBEDDING_INDEX_DIR_ENV: &str = "JBOTCI_EMBEDDING_INDEX_DIR";
 pub const EMBEDDING_MODEL_DIR_ENV: &str = "JBOTCI_EMBEDDING_MODEL_DIR";
 pub const HF_ENDPOINT_ENV: &str = "HF_ENDPOINT";
 pub const HF_TOKEN_ENV: &str = "HF_TOKEN";
+pub const F2LLM_NATIVE_VECTOR_SPACE_KEY: &str = "jbotci-native-f2llm-q4-k-m-windowed-2048-v2";
 pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
@@ -75,7 +76,7 @@ const NATIVE_F2LLM_MODELS: &[NativeF2LlmModel] = &[
     NativeF2LlmModel {
         model_key: "f2llm-v2-80m-q4-k-m-320",
         model_revision: "f4a16a11c9f5c8c7e22694653de6ce75430f4538",
-        input_format_version: "f2llm-v2-80m-q4-k-m-v1",
+        input_format_version: "f2llm-v2-80m-q4-k-m-v0",
         native_hf_repo: "mradermacher/F2LLM-v2-80M-GGUF",
         native_hf_revision: "f39be191bbbd6d6f13894d53d63c8291d7b31182",
         native_hf_file: "F2LLM-v2-80M.Q4_K_M.gguf",
@@ -87,7 +88,7 @@ const NATIVE_F2LLM_MODELS: &[NativeF2LlmModel] = &[
     NativeF2LlmModel {
         model_key: "f2llm-v2-160m-q4-k-m-640",
         model_revision: "60229594f9498ae44c553f1f8cebf32559bc8577",
-        input_format_version: "f2llm-v2-160m-q4-k-m-v1",
+        input_format_version: "f2llm-v2-160m-q4-k-m-v0",
         native_hf_repo: "mradermacher/F2LLM-v2-160M-GGUF",
         native_hf_revision: "a1f45469b2b9b3a2d0df7150fad56f65a37b8937",
         native_hf_file: "F2LLM-v2-160M.Q4_K_M.gguf",
@@ -111,7 +112,7 @@ const NATIVE_F2LLM_MODELS: &[NativeF2LlmModel] = &[
     NativeF2LlmModel {
         model_key: "f2llm-v2-0.6b-q4-k-m-1024",
         model_revision: "2b4159091278275a3b00d2c39095754d59d7d7de",
-        input_format_version: "f2llm-v2-0.6b-q4-k-m-v1",
+        input_format_version: "f2llm-v2-0.6b-q4-k-m-v0",
         native_hf_repo: "mradermacher/F2LLM-v2-0.6B-GGUF",
         native_hf_revision: "641cb8859b59035469cb7d93fbd96f61cd5be4a7",
         native_hf_file: "F2LLM-v2-0.6B.Q4_K_M.gguf",
@@ -273,6 +274,32 @@ pub struct CorpusManifest {
     pub shards: Vec<VectorShardManifest>,
 }
 
+/// This identity names the native processing rules independently of corpus text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+#[invariant(true)]
+pub struct NativeVectorSpaceKey(String);
+
+#[requires(true)]
+#[ensures(ret.0 == F2LLM_NATIVE_VECTOR_SPACE_KEY)]
+fn native_vector_space_key() -> NativeVectorSpaceKey {
+    NativeVectorSpaceKey(F2LLM_NATIVE_VECTOR_SPACE_KEY.to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() == (key.0 == F2LLM_NATIVE_VECTOR_SPACE_KEY))]
+fn validate_native_vector_space(key: &NativeVectorSpaceKey) -> Result<(), EmbeddingError> {
+    if key.0 != F2LLM_NATIVE_VECTOR_SPACE_KEY {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "native vector space `{}` differs from `{F2LLM_NATIVE_VECTOR_SPACE_KEY}`. Rebuild with --force",
+                key.0
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// GGUF bytes also contain the effective tokenizer. These parameters complete
 /// the vector function together with the manifest's model and vector format.
 /// Backend versions and execution providers remain provenance only.
@@ -325,6 +352,7 @@ pub struct CorpusRowCounts {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct EmbeddingPackManifest {
+    pub vector_space: NativeVectorSpaceKey,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -376,6 +404,7 @@ struct EmbeddingBuildRow<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 struct NativePartialBuildCheckpoint {
+    vector_space: NativeVectorSpaceKey,
     schema_version: u32,
     source: String,
     pack_id: String,
@@ -1558,7 +1587,7 @@ pub fn deterministic_pack_id(
     let parameters = native_vector_parameters();
     let identity = sha256_hex_bytes(
         format!(
-            "{model_sha256}:{}:{}:{}",
+            "{F2LLM_NATIVE_VECTOR_SPACE_KEY}:{model_sha256}:{}:{}:{}",
             parameters.window_size, parameters.window_scheme, parameters.pooling
         )
         .as_bytes(),
@@ -1641,6 +1670,7 @@ fn initial_native_partial_checkpoint(
     cll_rows: usize,
 ) -> NativePartialBuildCheckpoint {
     NativePartialBuildCheckpoint {
+        vector_space: native_vector_space_key(),
         schema_version: NATIVE_PARTIAL_BUILD_SCHEMA_VERSION,
         source: NATIVE_PARTIAL_BUILD_SOURCE.to_owned(),
         pack_id: pack_id.to_owned(),
@@ -1732,7 +1762,8 @@ fn native_partial_header_matches(
     cll_fingerprint: &str,
     cll_rows: usize,
 ) -> bool {
-    checkpoint.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION
+    validate_native_vector_space(&checkpoint.vector_space).is_ok()
+        && checkpoint.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION
         && checkpoint.source == NATIVE_PARTIAL_BUILD_SOURCE
         && checkpoint.pack_id == pack_id
         && checkpoint.model_key == spec.model_key
@@ -2411,6 +2442,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
     ));
     let row_counts = vec![dictionary_counts, cll_counts];
     let manifest = EmbeddingPackManifest {
+        vector_space: native_vector_space_key(),
         model_sha256,
         build_provenance: Some(NativeBuildProvenance {
             llama_backend: if cfg!(feature = "metal") {
@@ -3060,6 +3092,7 @@ fn validate_native_pack_manifest(
     cll_rows: usize,
     purpose: NativePackValidation,
 ) -> Result<(), EmbeddingError> {
+    validate_native_vector_space(&manifest.vector_space)?;
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
@@ -3309,6 +3342,7 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     let manifest_path = path.join("manifest.json");
     require_index_file(&manifest_path, "embedding pack manifest")?;
     let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
+    validate_native_vector_space(&manifest.vector_space)?;
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
@@ -4423,13 +4457,11 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn pre_nfc_packs_and_checkpoints_cannot_supply_rows() {
+    fn stale_native_vector_spaces_cannot_supply_rows() {
         let dir = tempfile::tempdir().unwrap();
         let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
         let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
         let spec = test_embedding_spec();
-        let mut old = spec.clone();
-        old.input_format_version = "f2llm-v2-330m-q4-k-m-v0".to_owned();
         build_embedding_pack(
             &mut FakeBackend {
                 dimensions: 4,
@@ -4438,31 +4470,59 @@ mod tests {
             &dictionary,
             chunks,
             dir.path(),
-            &old,
+            &spec,
             false,
         )
         .unwrap();
-        let (root, mut manifest) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
-        let old_parameters = native_vector_parameters().with_data(data! { window_scheme: "gguf-special-tokens-then-nonoverlapping-windows-v1".to_owned() });
-        for parameters in [None, Some(old_parameters)] {
-            manifest.vector_parameters = parameters;
-            manifest.model_sha256 = None;
+        let (root, original) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+        let identity = native_corpus_identity(&dictionary, chunks);
+        load_pack_for_identity(dir.path(), &spec, &identity).unwrap();
+        validate_native_reuse_source(dir.path(), &spec).unwrap();
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+            let mut manifest = serde_json::to_value(&original).unwrap();
+            if let Some(key) = key {
+                manifest["vector_space"] = serde_json::json!(key);
+            } else {
+                manifest.as_object_mut().unwrap().remove("vector_space");
+            }
             write_json_file(&root.join("manifest.json"), &manifest).unwrap();
+            assert!(load_pack_for_identity(dir.path(), &spec, &identity).is_err());
+            assert!(validate_pack_dir(&root).is_err());
             for adopt in [false, true] {
                 assert!(
                     validate_native_reuse_source_with_adoption(dir.path(), &spec, adopt).is_err()
                 );
             }
             assert!(
-                load_pack_for_identity(
+                reuse_existing_embedding_pack_with_progress(
+                    &dictionary,
+                    chunks,
                     dir.path(),
                     &spec,
-                    &native_corpus_identity(&dictionary, chunks)
+                    &mut |_| {},
                 )
                 .is_err()
             );
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            assert!(
+                build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false,)
+                    .is_err()
+            );
+            assert_eq!(backend.calls, 0);
         }
-        let mut checkpoint = initial_native_partial_checkpoint(
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stale_native_vector_spaces_cannot_resume_checkpoints() {
+        let dir = tempfile::tempdir().unwrap();
+        let pack_root = native_work_pack_root(dir.path());
+        let spec = test_embedding_spec();
+        let checkpoint = initial_native_partial_checkpoint(
             &spec,
             Some(&spec.native_sha256),
             "pack",
@@ -4472,18 +4532,47 @@ mod tests {
             "cll",
             2,
         );
-        checkpoint.input_format_version = old.input_format_version;
-        assert!(!native_partial_header_matches(
-            &checkpoint,
-            &spec,
-            Some(&spec.native_sha256),
-            "pack",
-            4,
-            "dictionary",
-            0,
-            "cll",
-            2
-        ));
+        let path = native_partial_checkpoint_path(dir.path());
+        write_native_partial_checkpoint(&path, &checkpoint).unwrap();
+        assert!(
+            load_compatible_native_partial_checkpoint(
+                dir.path(),
+                &pack_root,
+                &spec,
+                Some(&spec.native_sha256),
+                "pack",
+                4,
+                "dictionary",
+                0,
+                "cll",
+                2,
+            )
+            .is_some()
+        );
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+            let mut value = serde_json::to_value(&checkpoint).unwrap();
+            if let Some(key) = key {
+                value["vector_space"] = serde_json::json!(key);
+            } else {
+                value.as_object_mut().unwrap().remove("vector_space");
+            }
+            write_json_file(&path, &value).unwrap();
+            assert!(
+                load_compatible_native_partial_checkpoint(
+                    dir.path(),
+                    &pack_root,
+                    &spec,
+                    Some(&spec.native_sha256),
+                    "pack",
+                    4,
+                    "dictionary",
+                    0,
+                    "cll",
+                    2,
+                )
+                .is_none()
+            );
+        }
     }
 
     #[test]
@@ -4985,6 +5074,7 @@ mod tests {
     #[ensures(ret.dimensions == 4)]
     fn sample_pack_manifest() -> EmbeddingPackManifest {
         EmbeddingPackManifest {
+            vector_space: native_vector_space_key(),
             model_sha256: None,
             build_provenance: None,
             legacy_adoption: None,
