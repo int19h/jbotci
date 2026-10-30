@@ -66,12 +66,17 @@ pub(super) fn ebnf_section_ancestor<'a, 'input>(
 }
 
 #[requires(node.is_element())]
+#[requires(ebnf_section_ancestor(node).is_some())]
+#[bityzba::expensive_requires(ebnf_section_ancestor(node).unwrap().descendants()
+    .filter(|section| section.has_tag_name("section"))
+    .all(|section| section_ids.contains_key(&section.id())))]
 #[ensures(ret.as_ref().is_none_or(|block| {
     matches!(block, CllBlock::Ebnf { entries, .. } if !entries.is_empty())
 }))]
 pub(super) fn parse_ebnf_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
+    section_ids: &BTreeMap<roxmltree::NodeId, String>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     let entry_nodes = node
@@ -79,7 +84,7 @@ pub(super) fn parse_ebnf_block(
         .filter(|child| child.is_element() && child.has_tag_name("varlistentry"));
     // Rules can span several lists and subsection pages. Resolve their targets
     // across the enclosing grammar, while keeping local links on this page.
-    let grammar = ebnf_section_ancestor(node).unwrap_or(node);
+    let grammar = ebnf_section_ancestor(node).expect("grammar lists have a grammar ancestor");
     let defined_rules = grammar
         .descendants()
         .filter(|entry| entry.has_tag_name("varlistentry"))
@@ -92,8 +97,8 @@ pub(super) fn parse_ebnf_block(
             let section_id = entry
                 .ancestors()
                 .find(|ancestor| ancestor.has_tag_name("section"))
-                .and_then(|section| attr_value(section, "id"))
-                .unwrap_or(&context.section_id);
+                .map(|section| section_ids[&section.id()].as_str())
+                .expect("grammar rules belong to a resolved section");
             let page = if section_id == context.section_id {
                 String::new()
             } else {

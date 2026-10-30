@@ -1877,6 +1877,7 @@ mod tests {
         let context = test_section_context();
         let mut parse_state = BlockParseState {
             chapter_example_counter: 0,
+            section_ids: std::collections::BTreeMap::new(),
         };
         let mut examples = Vec::new();
         let mut anchors = Vec::new();
@@ -1907,6 +1908,7 @@ mod tests {
         let context = test_section_context();
         let mut parse_state = BlockParseState {
             chapter_example_counter: 0,
+            section_ids: std::collections::BTreeMap::new(),
         };
         let mut examples = Vec::new();
         let mut anchors = Vec::new();

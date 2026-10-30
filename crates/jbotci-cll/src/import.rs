@@ -71,6 +71,7 @@ pub(crate) struct PendingIndexEntry {
 #[invariant(true)]
 pub(crate) struct BlockParseState {
     pub(crate) chapter_example_counter: usize,
+    pub(crate) section_ids: BTreeMap<roxmltree::NodeId, String>,
 }
 
 /// The edition of the reference book this build answers from.
@@ -246,8 +247,11 @@ fn parse_chapter(
     let mut index_entries = Vec::new();
     let mut root_section_ids = Vec::new();
     let mut section_index = 0usize;
+    let mut section_ids = BTreeMap::new();
+    collect_section_ids(root, &chapter_id, &mut section_ids);
     let mut parse_state = BlockParseState {
         chapter_example_counter: 0,
+        section_ids,
     };
     let has_sections = root
         .children()
@@ -274,7 +278,11 @@ fn parse_chapter(
         let prelude_context = SectionParseContext {
             chapter_id: chapter_id.clone(),
             division,
-            section_id: first_section_id(root, &chapter_id),
+            section_id: root
+                .children()
+                .find(|child| child.has_tag_name("section"))
+                .map(|section| parse_state.section_ids[&section.id()].clone())
+                .expect("the chapter has sections"),
             section_number: division.section_number(
                 NonZeroUsize::new(1).expect("the first section is counted from one"),
             ),
@@ -326,7 +334,6 @@ fn parse_chapter(
                     chapter_id: &chapter_id,
                     division: division,
                     number: division.section_number(index),
-                    fallback_id: section_id_for(child, &chapter_id, index),
                     parent_section_id: None,
                 }),
                 source_path,
@@ -457,10 +464,8 @@ fn parse_sectionless_chapter(
 }
 
 /// Where a `<section>` sits in the book: its chapter, the number the book
-/// prints for it, the id to use when it has no `xml:id`, and its parent when it
-/// is a subsection.
+/// prints for it, and its parent when it is a subsection.
 #[invariant(!chapter_id.is_empty())]
-#[invariant(!fallback_id.is_empty())]
 #[invariant(parent_section_id.is_none_or(|parent| !parent.is_empty()))]
 #[invariant(
     number.is_none_or(|number| Some(number.chapter()) == division.chapter_number()),
@@ -471,7 +476,6 @@ struct SectionPlacement<'a> {
     chapter_id: &'a str,
     division: CllDivision,
     number: Option<CllSectionNumber>,
-    fallback_id: String,
     parent_section_id: Option<&'a str>,
 }
 
@@ -497,6 +501,7 @@ struct ParsedSection {
 /// subsection that itself contains sections is rejected instead of numbered
 /// by guesswork.
 #[requires(section_node.is_element())]
+#[requires(parse_state.section_ids.get(&section_node.id()).is_some_and(|id| !id.is_empty()))]
 #[ensures(ret.as_ref().is_ok_and(|parsed| parsed.sections.iter().all(|section| {
     section.division == old(placement.division)
 })) || ret.is_err())]
@@ -517,10 +522,9 @@ fn parse_section(
         chapter_id,
         division,
         number: section_number,
-        fallback_id,
         parent_section_id,
     }) = placement.into_data();
-    let section_id = xml_id(section_node).unwrap_or(fallback_id);
+    let section_id = parse_state.section_ids[&section_node.id()].clone();
     let title_node = child_element(section_node, "title");
     let section_title = title_node
         .map(visible_text)
@@ -604,7 +608,6 @@ fn parse_section(
                 chapter_id: chapter_id,
                 division: division,
                 number: section_number.and_then(|number| number.subsection(index)),
-                fallback_id: positional_section_id(&section_id, index),
                 parent_section_id: Some(section_id.as_str()),
             }),
             source_path,
@@ -669,32 +672,52 @@ fn positional_section_id(container_id: &str, index: NonZeroUsize) -> String {
     format!("{container_id}-s{index}")
 }
 
-/// The id `parse_section` will give the section at `section_index`, computed
-/// without parsing it. Chapter-level content has to name the section it is
-/// displayed with before that section has been reached, so both callers derive
-/// the id here rather than each spelling out the fallback.
+/// Resolve a section's explicit ID or its position within its container.
+/// The chapter-wide map applies this rule to both pages and link targets.
 #[requires(section_node.is_element())]
-#[requires(!chapter_id.is_empty())]
+#[requires(!container_id.is_empty())]
 #[ensures(!ret.is_empty())]
 fn section_id_for(
     section_node: Node<'_, '_>,
-    chapter_id: &str,
+    container_id: &str,
     section_index: NonZeroUsize,
 ) -> String {
-    xml_id(section_node).unwrap_or_else(|| positional_section_id(chapter_id, section_index))
+    xml_id(section_node).unwrap_or_else(|| positional_section_id(container_id, section_index))
 }
 
-/// The id of the chapter's first section, or the chapter's own id when the
-/// chapter has none - the same fallback `parse_sectionless_chapter` uses, so a
-/// chapter's front matter always names an addressable section.
-#[requires(root.is_element())]
-#[requires(!chapter_id.is_empty())]
-#[ensures(!ret.is_empty())]
-fn first_section_id(root: Node<'_, '_>, chapter_id: &str) -> String {
-    root.children()
-        .find(|child| child.is_element() && child.has_tag_name("section"))
-        .map(|section| section_id_for(section, chapter_id, NonZeroUsize::MIN))
-        .unwrap_or_else(|| chapter_id.to_owned())
+/// Resolve identities before parsing content because grammar links can target
+/// a sibling page that the importer has not reached yet. This chapter-local
+/// map uses node IDs from one immutable XML document for both page ownership
+/// and link destinations, including generated IDs for unnamed sections.
+#[requires(container.is_element())]
+#[requires(!container_id.is_empty())]
+#[ensures(section_ids.len() >= old(section_ids.len()))]
+#[bityzba::expensive_ensures(container.children()
+    .filter(|node| node.has_tag_name("section"))
+    .all(|node| section_ids.get(&node.id()).is_some_and(|id| !id.is_empty())))]
+fn collect_section_ids(
+    container: Node<'_, '_>,
+    container_id: &str,
+    section_ids: &mut BTreeMap<roxmltree::NodeId, String>,
+) {
+    let mut pending = vec![container];
+    while let Some(parent) = pending.pop() {
+        for (position, section) in parent
+            .children()
+            .filter(|node| node.has_tag_name("section"))
+            .enumerate()
+        {
+            let index = NonZeroUsize::new(position + 1).expect("sections are counted from one");
+            let parent_id = if parent == container {
+                container_id
+            } else {
+                &section_ids[&parent.id()]
+            };
+            let section_id = section_id_for(section, parent_id, index);
+            section_ids.insert(section.id(), section_id);
+            pending.push(section);
+        }
+    }
 }
 
 #[requires(true)]
@@ -1650,7 +1673,7 @@ fn parse_variable_list_block(
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     if super::ebnf::ebnf_section_ancestor(node).is_some() {
-        return parse_ebnf_block(node, context, anchors);
+        return parse_ebnf_block(node, context, &parse_state.section_ids, anchors);
     }
     let entries = node
         .children()
@@ -3845,6 +3868,7 @@ mod tests {
             AnchorMode::TopLevel,
             &mut BlockParseState {
                 chapter_example_counter: 0,
+                section_ids: BTreeMap::new(),
             },
             &mut examples,
             &mut Vec::new(),
@@ -4359,6 +4383,81 @@ mod tests {
             !format!("{:?}", chapter.prelude_blocks).contains("direct child"),
             "an index term is not rendered as prose"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_links_share_generated_sibling_page_ids_and_keep_local_fragments() {
+        let document = Document::parse(
+            r#"
+            <chapter xml:id="probe"><title>Probe</title>
+              <section xml:id="section-EBNF"><title>Grammar</title>
+                <section xml:id="page-a"><title>A</title>
+                  <variablelist><varlistentry><term>alpha =</term>
+                    <listitem><para>alpha beta</para></listitem>
+                  </varlistentry></variablelist>
+                </section>
+                <section><title>B</title>
+                  <variablelist><varlistentry><term>beta =</term>
+                    <listitem><para>alpha beta</para></listitem>
+                  </varlistentry></variablelist>
+                </section>
+              </section>
+            </chapter>"#,
+        )
+        .expect("probe XML parses");
+        let (_, sections, _, _, _) = parse_chapter(
+            document.root_element(),
+            CllDivision::Chapter {
+                number: std::num::NonZeroU16::new(21).unwrap(),
+            },
+            "21.xml",
+        )
+        .expect("grammar probe imports");
+        assert_eq!(sections[0].child_section_ids, ["page-a", "section-EBNF-s2"]);
+        for (page, rule, expected_alpha, expected_beta) in [
+            (
+                "page-a",
+                "alpha",
+                "#ebnf-rule-alpha",
+                "section/section-EBNF-s2#ebnf-rule-beta",
+            ),
+            (
+                "section-EBNF-s2",
+                "beta",
+                "section/page-a#ebnf-rule-alpha",
+                "#ebnf-rule-beta",
+            ),
+        ] {
+            let section = sections
+                .iter()
+                .find(|section| section.section_id == page)
+                .unwrap();
+            let [CllBlock::Ebnf { entries, .. }] = section.blocks.as_slice() else {
+                panic!("expected one grammar block on {page}");
+            };
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].rule_name, rule);
+            let links = entries[0]
+                .rhs
+                .iter()
+                .filter_map(|token| match token {
+                    CllEbnfToken::Nonterminal { body, href } => {
+                        Some((body.as_str(), href.as_deref()))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                links,
+                [
+                    ("alpha", Some(expected_alpha)),
+                    ("beta", Some(expected_beta))
+                ]
+            );
+            assert_eq!(entries[0].anchor_id, format!("ebnf-rule-{rule}"));
+        }
     }
 
     /// This probe covers subsection ownership independently of the book.
