@@ -1200,6 +1200,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding error variant carries the unsupported model key for rendering",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:NativePackValidation::CurrentCorpus",
+        "this mode has no data and selects full model and corpus comparisons",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativePackValidation::LegacyRows",
+        "this mode has no data and selects row reuse after explicit legacy adoption",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativePackValidation::ReusableRows",
+        "this mode has no data and selects row reuse with a complete vector identity",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::BuiltLocal",
         "embedding setup index source is a closed status selector reported to users",
     ),
