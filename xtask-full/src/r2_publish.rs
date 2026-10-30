@@ -31,6 +31,7 @@ impl Publisher {
     #[requires(true)]
     #[ensures(ret.as_ref().map_or(true, |publisher| !publisher.account.is_empty()))]
     pub(super) fn from_env() -> Result<Self> {
+        require_unix_host(cfg!(unix))?;
         let account = std::env::var("CLOUDFLARE_ACCOUNT_ID")
             .context("Set CLOUDFLARE_ACCOUNT_ID before publishing")?;
         if account.len() != 32 || !account.bytes().all(|byte| byte.is_ascii_hexdigit()) {
@@ -85,11 +86,6 @@ impl Publisher {
     ) -> Result<()> {
         let target = format!("{}/{}", bucket.trim(), object.object_key);
         let expected = fingerprint(&object.local_path)?;
-        let original = object
-            .uncompressed_path
-            .as_deref()
-            .map(fingerprint)
-            .transpose()?;
         let temporary = Readback::new(&self.scratch)?;
         let downloaded = temporary.path.join("object");
         let metadata_path = temporary.path.join("metadata.json");
@@ -121,7 +117,7 @@ impl Publisher {
                 readback(&downloaded, &metadata_path)?;
                 let metadata: ReadbackMetadata =
                     serde_json::from_slice(&fs::read(&metadata_path)?)?;
-                verify_readback(object, &expected, original.as_ref(), &downloaded, &metadata)
+                verify_readback(object, &expected, &downloaded, &metadata)
             },
             std::thread::sleep,
         )
@@ -140,12 +136,45 @@ impl Publisher {
     #[ensures(true)]
     fn node_command(&self) -> Command {
         let mut command = Command::new("node");
+        configure_child_environment(&mut command, &self.account);
+        command.stdin(Stdio::null());
         command
-            .env("CLOUDFLARE_ACCOUNT_ID", &self.account)
-            .env("WRANGLER_SEND_METRICS", "false")
-            .env("CI", "true")
-            .stdin(Stdio::null());
-        command
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() == is_unix)]
+fn require_unix_host(is_unix: bool) -> Result<()> {
+    if !is_unix {
+        bail!("R2 publication requires a Unix host. Use Linux or macOS.");
+    }
+    Ok(())
+}
+
+#[requires(!account.is_empty())]
+#[ensures(true)]
+fn configure_child_environment(command: &mut Command, account: &str) {
+    command
+        .env("CLOUDFLARE_ACCOUNT_ID", account)
+        .env("WRANGLER_WRITE_LOGS", "false")
+        .env("WRANGLER_LOG", "log")
+        .env("WRANGLER_LOG_SANITIZE", "true")
+        .env("WRANGLER_SEND_METRICS", "false")
+        .env("CI", "true");
+    for name in [
+        "WRANGLER_LOG_PATH",
+        "WRANGLER_OUTPUT_FILE_PATH",
+        "WRANGLER_OUTPUT_FILE_DIRECTORY",
+        "DEBUG",
+        "NODE_DEBUG",
+        "NODE_DEBUG_NATIVE",
+        "NODE_OPTIONS",
+        "NODE_V8_COVERAGE",
+        "SSLKEYLOGFILE",
+        "LOG_STREAM",
+        "LOG_TOKENS",
+    ] {
+        command.env_remove(name);
     }
 }
 
@@ -162,7 +191,6 @@ struct ReadbackMetadata {
 fn verify_readback(
     object: &R2UploadObject,
     expected: &Fingerprint,
-    original: Option<&Fingerprint>,
     downloaded: &Path,
     metadata: &ReadbackMetadata,
 ) -> Result<()> {
@@ -174,10 +202,8 @@ fn verify_readback(
     let actual = fingerprint(downloaded)?;
     match (object.content_encoding, metadata.body_encoding.as_deref()) {
         (None, None) | (Some("br"), Some("br")) => compare_fingerprint(expected, &actual),
-        (Some("br"), None) => {
-            let original = original
-                .context("A decoded Brotli read-back needs the validated original fingerprint")?;
-            compare_fingerprint(original, &actual)
+        (Some("br"), None | Some("identity")) => {
+            bail!("R2 returned a decoded Brotli body. Exact stored bytes cannot be verified")
         }
         _ => bail!("R2 returned an unexpected Content-Encoding"),
     }
@@ -250,6 +276,7 @@ fn retry(
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
+    require_unix_host(cfg!(unix))?;
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
@@ -395,6 +422,7 @@ mod tests {
         assert!(compare_fingerprint(&expected, &expected).is_ok());
     }
 
+    #[cfg(unix)]
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -424,7 +452,6 @@ fs.copyFileSync(file, remote);
         fs::write(&source, b"exact upload bytes").unwrap();
         let object = R2UploadObject::from_data(data!(R2UploadObject {
             local_path: source,
-            uncompressed_path: None,
             object_key: "packs/test.f16".to_owned(),
             content_type: "application/octet-stream",
             content_encoding: None,
@@ -451,6 +478,7 @@ fs.copyFileSync(file, remote);
         );
     }
 
+    #[cfg(unix)]
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -476,7 +504,6 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         fs::write(&source, b"right bytes").unwrap();
         let object = R2UploadObject::from_data(data!(R2UploadObject {
             local_path: source,
-            uncompressed_path: None,
             object_key: "test.f16".to_owned(),
             content_type: "application/octet-stream",
             content_encoding: None,
@@ -508,84 +535,73 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn brotli_readback_checks_both_representations_and_stored_metadata() {
+    fn brotli_success_requires_the_exact_encoded_stream() {
+        const STREAM_A: &[u8] = b"\x83\x0b\x80validated original bytes\x03";
+        const STREAM_B: &[u8] = b"\x85\x0b\x80validated original bytes\x03";
+        assert_eq!(STREAM_A.len(), STREAM_B.len());
+        assert_ne!(STREAM_A, STREAM_B);
         let root = std::env::var_os("CARGO_TARGET_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("target"));
         fs::create_dir_all(&root).unwrap();
         let temporary = Readback::new(&root).unwrap();
         let original = temporary.path.join("vectors.f16");
-        fs::write(&original, b"right bytes").unwrap();
-        jbotci_embeddings::write_brotli_sibling(&original).unwrap();
+        fs::write(&original, b"validated original bytes").unwrap();
+        let sibling = crate::brotli_sidecar_path(&original).unwrap();
+        for stream in [STREAM_A, STREAM_B] {
+            fs::write(&sibling, stream).unwrap();
+            jbotci_embeddings::validate_brotli_sibling(&original).unwrap();
+        }
+        fs::write(&sibling, STREAM_A).unwrap();
         let object =
             crate::r2_upload_object_for_key(&temporary.path, "stub-prefix", "vectors.f16").unwrap();
-        assert_eq!(
-            object.uncompressed_path.as_deref(),
-            Some(original.as_path())
-        );
         let expected = fingerprint(&object.local_path).unwrap();
-        let original_fingerprint = fingerprint(&original).unwrap();
         let downloaded = temporary.path.join("download");
-        for body_encoding in [Some("br".to_owned()), None] {
-            let source = if body_encoding.is_some() {
-                &object.local_path
-            } else {
-                &original
-            };
-            fs::copy(source, &downloaded).unwrap();
-            let mut metadata = ReadbackMetadata {
-                stored_size: expected.size,
-                stored_encoding: Some("br".to_owned()),
-                body_encoding,
-            };
-            verify_readback(
-                &object,
-                &expected,
-                Some(&original_fingerprint),
-                &downloaded,
-                &metadata,
-            )
-            .unwrap();
-            let mut bytes = fs::read(&downloaded).unwrap();
-            bytes[0] ^= 1;
-            fs::write(&downloaded, bytes).unwrap();
-            assert!(
-                verify_readback(
-                    &object,
-                    &expected,
-                    Some(&original_fingerprint),
-                    &downloaded,
-                    &metadata
-                )
-                .is_err()
-            );
-            fs::copy(source, &downloaded).unwrap();
-            metadata.stored_encoding = None;
-            assert!(
-                verify_readback(
-                    &object,
-                    &expected,
-                    Some(&original_fingerprint),
-                    &downloaded,
-                    &metadata
-                )
-                .is_err()
-            );
-            metadata.stored_encoding = Some("br".to_owned());
-            metadata.stored_size += 1;
-            assert!(
-                verify_readback(
-                    &object,
-                    &expected,
-                    Some(&original_fingerprint),
-                    &downloaded,
-                    &metadata
-                )
-                .is_err()
-            );
-        }
+        let mut metadata = ReadbackMetadata {
+            stored_size: expected.size,
+            stored_encoding: Some("br".to_owned()),
+            body_encoding: Some("br".to_owned()),
+        };
+        fs::write(&downloaded, STREAM_A).unwrap();
+        verify_readback(&object, &expected, &downloaded, &metadata).unwrap();
+        fs::write(&downloaded, STREAM_B).unwrap();
+        assert!(
+            verify_readback(&object, &expected, &downloaded, &metadata)
+                .unwrap_err()
+                .to_string()
+                .contains("SHA-256")
+        );
+        fs::copy(&original, &downloaded).unwrap();
+        metadata.body_encoding = None;
+        assert!(
+            verify_readback(&object, &expected, &downloaded, &metadata)
+                .unwrap_err()
+                .to_string()
+                .contains("decoded Brotli")
+        );
+        fs::write(&downloaded, STREAM_A).unwrap();
+        metadata.body_encoding = Some("br".to_owned());
+        metadata.stored_encoding = None;
+        assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
+        metadata.stored_encoding = Some("br".to_owned());
+        metadata.stored_size += 1;
+        assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_unix_publication_is_refused() {
+        assert!(require_unix_host(true).is_ok());
+        assert!(
+            require_unix_host(false)
+                .unwrap_err()
+                .to_string()
+                .contains("requires a Unix host")
+        );
+    }
+
+    #[cfg(unix)]
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -597,6 +613,162 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             Duration::from_secs(30),
         )
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_child_environment_blocks_fake_token_logs() {
+        let root = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target"));
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let mut command = Command::new("node");
+        command
+            .arg(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/wrangler-4.149.0-logging.cjs"),
+            )
+            .arg("--stub-upload")
+            .env("TEST_OUTPUT_DIR", &temporary.path)
+            .env("WRANGLER_WRITE_LOGS", "true")
+            .env("WRANGLER_LOG", "debug")
+            .env("WRANGLER_LOG_SANITIZE", "false")
+            .env("WRANGLER_SEND_METRICS", "true")
+            .env("CI", "false");
+        let removed = [
+            "WRANGLER_LOG_PATH",
+            "WRANGLER_OUTPUT_FILE_PATH",
+            "WRANGLER_OUTPUT_FILE_DIRECTORY",
+            "DEBUG",
+            "NODE_DEBUG",
+            "NODE_DEBUG_NATIVE",
+            "NODE_OPTIONS",
+            "NODE_V8_COVERAGE",
+            "SSLKEYLOGFILE",
+            "LOG_STREAM",
+            "LOG_TOKENS",
+        ];
+        for name in removed {
+            command.env(name, "hostile logging setting");
+        }
+        configure_child_environment(&mut command, "0123456789abcdef0123456789abcdef");
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{:?}", output);
+        assert_eq!(output.stdout, b"upload stub completed\n");
+        assert!(output.stderr.is_empty());
+        let token = b"FAKE_PUBLICATION_TOKEN_1068_REGRESSION_ONLY";
+        assert!(
+            !output
+                .stdout
+                .windows(token.len())
+                .any(|bytes| bytes == token)
+        );
+        assert!(
+            !output
+                .stderr
+                .windows(token.len())
+                .any(|bytes| bytes == token)
+        );
+        for entry in walkdir::WalkDir::new(&temporary.path) {
+            let entry = entry.unwrap();
+            if entry.file_type().is_file() {
+                let bytes = fs::read(entry.path()).unwrap();
+                assert!(
+                    !bytes.windows(token.len()).any(|bytes| bytes == token),
+                    "{}",
+                    entry.path().display()
+                );
+            }
+        }
+        let observed: serde_json::Value =
+            serde_json::from_slice(&fs::read(temporary.path.join("environment.json")).unwrap())
+                .unwrap();
+        for (name, value) in [
+            ("WRANGLER_WRITE_LOGS", "false"),
+            ("WRANGLER_LOG", "log"),
+            ("WRANGLER_LOG_SANITIZE", "true"),
+            ("WRANGLER_SEND_METRICS", "false"),
+            ("CI", "true"),
+        ] {
+            assert_eq!(observed[name], value);
+        }
+        for name in removed {
+            assert!(observed[name].is_null(), "{name}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[requires(pid > 0)]
+    #[ensures(true)]
+    fn process_has_exited(pid: u32) -> bool {
+        let output = Command::new("ps")
+            .args(["-o", "stat=", "-p", &pid.to_string()])
+            .output()
+            .unwrap();
+        if output.stdout.is_empty() {
+            assert!(output.stderr.is_empty(), "{:?}", output);
+            return true;
+        }
+        assert!(output.status.success(), "{:?}", output);
+        // A zombie already exited, but its new parent has not reaped it yet.
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .trim_start()
+            .starts_with('Z')
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn timeout_stops_the_child_and_its_grandchild() {
+        let root = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target"));
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let pids_file = temporary.path.join("pids");
+        let error = run_bounded(
+            Command::new("sh")
+                .args([
+                    "-c",
+                    "sleep 5 & grandchild=$!; printf '%s %s' \"$$\" \"$grandchild\" > \"$1\"; wait",
+                    "r2-tree-stub",
+                ])
+                .arg(&pids_file),
+            Duration::from_secs(1),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("timed out"));
+        let text = fs::read_to_string(&pids_file).unwrap();
+        let pids: Vec<u32> = text
+            .split_whitespace()
+            .map(|pid| pid.parse().unwrap())
+            .collect();
+        let [child, grandchild] = pids.as_slice() else {
+            panic!("The stub did not record both process IDs")
+        };
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !(process_has_exited(*child) && process_has_exited(*grandchild))
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let child_exited = process_has_exited(*child);
+        let grandchild_exited = process_has_exited(*grandchild);
+        if !grandchild_exited {
+            // Clean up only the process group that this test starts.
+            unsafe {
+                if libc::getpgid(*grandchild as i32) == *child as i32 {
+                    libc::kill(-(*child as i32), libc::SIGKILL);
+                }
+            }
+        }
+        assert!(child_exited, "The child survived the timeout");
+        assert!(grandchild_exited, "The grandchild survived the timeout");
     }
 
     #[cfg(unix)]

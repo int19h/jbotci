@@ -6,10 +6,19 @@ const { pipeline } = require('node:stream/promises');
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 
+function childEnvironment(parent = process.env) {
+    const env = { ...parent, WRANGLER_WRITE_LOGS: 'false', WRANGLER_LOG: 'log',
+        WRANGLER_LOG_SANITIZE: 'true', WRANGLER_SEND_METRICS: 'false', CI: 'true' };
+    for (const name of ['WRANGLER_LOG_PATH', 'WRANGLER_OUTPUT_FILE_PATH', 'WRANGLER_OUTPUT_FILE_DIRECTORY',
+        'DEBUG', 'NODE_DEBUG', 'NODE_DEBUG_NATIVE', 'NODE_OPTIONS', 'NODE_V8_COVERAGE',
+        'SSLKEYLOGFILE', 'LOG_STREAM', 'LOG_TOKENS']) delete env[name];
+    return env;
+}
+
 function credentials(script) {
     const result = spawnSync(process.execPath, [script, 'auth', 'token', '--json'], {
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'inherit'],
+        env: childEnvironment(),
+        stdio: ['ignore', 'pipe', 'pipe'],
         maxBuffer: 1024 * 1024,
     });
     if (result.error || result.status !== 0) throw new Error('Wrangler could not read the publication credentials');
@@ -73,8 +82,11 @@ async function readback({ account, bucket, key, encoding, downloaded, metadata, 
     const stored = await objectMetadata(base, key, headers);
     const objectUrl = new URL(`${base}/${key.split('/').map(encodeURIComponent).join('/')}`);
     const response = await request(objectUrl, { ...headers, Accept: 'application/octet-stream', 'Accept-Encoding': encoding });
-    // A decoded representation can use a weak ETag for the same stored object.
-    if (response.headers.etag?.replace(/^W\//, '') !== JSON.stringify(stored.etag)) {
+    if (encoding === 'br' && (response.headers['content-encoding'] === undefined || response.headers['content-encoding'] === 'identity')) {
+        response.destroy();
+        throw new Error('R2 returned a decoded Brotli body. Exact stored bytes cannot be verified');
+    }
+    if (response.headers.etag !== JSON.stringify(stored.etag)) {
         response.destroy();
         throw new Error('R2 object changed between metadata and body reads');
     }
