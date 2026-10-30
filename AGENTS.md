@@ -14,20 +14,18 @@ The web application uses Dioxus.
 The project is hosted at GitHub (https://github.com/int19h/jbotci). Issues and PRs should be created on GitHub.
 
 
-## Herdr Collab
+## Working with other agent sessions
 
-The Herdr Collab project ID for this repository is exactly `jbotci`.
-Coordinate through the `herdr-collab` skill and MCP tools; do not infer the project from the checkout path.
+To work with other agent sessions, follow the global instructions on this machine.
 
 ## Coordination conventions
 
-Herdr Collab supplies durable identity and messaging, not a mandatory PM
-hierarchy. Lead, implementation, research, and review are task-tailored duties;
+There is no mandatory PM hierarchy. Lead, implementation, research, and review are task-tailored duties;
 session handles and groups are conventions chosen for the task, not permissions
 or fixed model assignments. Record the intended participants, duties, review
 order, write boundaries, issue/PR, and completion conditions in the task brief
 or linked GitHub issue. A self-contained task may proceed directly from its
-prompt or durable mail. Use a GitHub issue or PR when the task needs a durable
+prompt or brief. Use a GitHub issue or PR when the task needs a durable
 public record or belongs in the project backlog; do not create process-only
 issues merely because multiple sessions participate. The task also decides
 whether the primary session implements directly or delegates.
@@ -37,7 +35,7 @@ implementation session, and one independent reviewer; a cross-cutting change
 may define research, implementation, and specialist review groups. When work is
 delegated or multiple writers/reviewers participate, their prompts must define
 duties, write boundaries, branches/worktrees where relevant, and handoff order;
-Herdr Collab records those conventions but does not enforce them. Avoid
+nothing enforces those conventions. Avoid
 concurrent edits to overlapping files or worktrees unless the task explicitly
 coordinates them.
 
@@ -58,9 +56,9 @@ check set (formatting plus fast tests). Do not add evidence-trail scaffolding
 unless explicitly requested; due diligence belongs in the design, code, review,
 and durable task record.
 
-Before a long pause, durably send a status or handoff that names the task and
+Before a long pause, write a status or handoff that names the task and
 issue if any, branch/worktree, exact HEAD, completed and outstanding checks,
-decisions, blockers, and relevant message IDs.
+decisions, blockers, and relevant report files.
 
 Merge only the accepted exact commit from a clean worktree. Deployment to a
 test environment, when relevant, must be verified rather than inferred from a
