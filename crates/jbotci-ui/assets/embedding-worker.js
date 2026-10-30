@@ -1252,7 +1252,7 @@ async function buildLocalPack(corpus) {
   const runtime = activeQueryRuntime();
   const elementType = localVectorElementType(spec);
   const vectorSpaceKey = spec.localVectorSpaceKey || `jbotci-browser-f2llm-${runtime.dtype}-${elementType}`;
-  const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
+  const packId = localVectorPackId(vectorSpaceKey, corpus.inputHash, modelRuntime.modelIdentity);
   const buildContext = {
     modelIdentity: modelRuntime.modelIdentity,
     packId,
@@ -1482,6 +1482,12 @@ function localVectorElementType(spec) {
 
 function localVectorChunkRows(spec) {
   return spec.localVectorChunkRows || LOCAL_VECTOR_CHUNK_ROWS;
+}
+
+// Keep old model shards immutable while another worker builds a new pack.
+function localVectorPackId(vectorSpaceKey, inputHash, identity) {
+  const artifactDigest = requireSha256(identity?.artifactManifestSha256, "artifact identity");
+  return `${vectorSpaceKey}-${artifactDigest}-${shortHash(inputHash)}`;
 }
 
 function localVectorChunkKey(modelKey, packId, corpusId, chunkIndex, elementType) {
@@ -3064,6 +3070,7 @@ async function removeOpfsDirectory(root, path) {
 }
 
 export {
+  localVectorPackId,
   cachedFetchArrayBuffer,
   loadOnnxModelBytes,
   readModelArtifactIdentity,

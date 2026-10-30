@@ -6,7 +6,7 @@ globalThis.self = globalThis;
 globalThis.location = { href: "https://example.invalid/app/" };
 Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
 const {
-  loadOnnxModelBytes, cachedFetchArrayBuffer, readModelArtifactIdentity,
+  loadOnnxModelBytes, cachedFetchArrayBuffer, readModelArtifactIdentity, localVectorPackId,
   modelArtifactSource, modelIdentityCompatibilityIssue, manifestCompatibilityIssue,
 } = await import("../assets/embedding-worker.js");
 const bytes = (text) => new TextEncoder().encode(text).buffer;
@@ -133,4 +133,15 @@ test("remote manifests with another model revision or digest cannot authorize a 
     const missing = { ...manifest }; delete missing[field];
     assert.notEqual(issue(missing), null);
   }
+});
+
+test("a new model artifact cannot overwrite the previous local pack's shards", async () => {
+  const first = (await readModelArtifactIdentity(bytes(JSON.stringify(artifactManifest)), spec)).modelIdentity;
+  const changed = { ...artifactManifest, source_revision: "next-revision", q4_onnx_sha256: digest(oldModel) };
+  const second = (await readModelArtifactIdentity(bytes(JSON.stringify(changed)), spec)).modelIdentity;
+  const firstId = localVectorPackId("space", "same-corpus", first);
+  const secondId = localVectorPackId("space", "same-corpus", second);
+  assert.notEqual(firstId, secondId);
+  assert.equal(firstId, localVectorPackId("space", "same-corpus", first));
+  assert.throws(() => localVectorPackId("space", "same-corpus", {}), /artifact identity/);
 });
