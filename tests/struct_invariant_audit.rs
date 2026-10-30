@@ -188,6 +188,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The error carries an already validated byte limit.",
     ),
     (
+        "crates/jbotci-syntax/tests/i_boundary.rs:Boundaries",
+        "Test collections borrow valid nodes from one immutable tree. Empty and partial collections are valid traversal states.",
+    ),
+    (
         "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
         "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
     ),
@@ -1280,16 +1284,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "public pairing of a reference analysis with the display model derived from it; that correspondence is not expressible as a cheap field predicate and the rendered arrows are audited by the jbotci-output tree reference-rendering tests",
     ),
     (
-        "crates/jbotci-output/src/tree.rs:GeneratedStatementConnectionPart",
-        "temporary generated-model tree projection aggregate whose fields are independently rendered values",
-    ),
-    (
         "crates/jbotci-output/src/tree.rs:GeneratedSyntaxRenderModel",
         "stateless render-model marker type; all instances are equivalent",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:GeneratedSyntaxTokenTreeValueCollector",
-        "visitor accumulates rendered generated token values for a borrowed source and every accumulated prefix is valid",
     ),
     (
         "crates/jbotci-output/src/tree.rs:MorphologyTreeBuilder",
