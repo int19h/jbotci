@@ -323,21 +323,140 @@ pub fn compact_recovered_morphology_json_string_with_limit(
     options: JsonRenderOptions,
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
+    compact_recovered_morphology_json_string_with_limits(recovered, source, options, limit, limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= text_limit.get()) || ret.is_err())]
+pub fn compact_recovered_morphology_json_string_with_limits(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+    options: JsonRenderOptions,
+    text_limit: ByteLimit,
+    projection_limit: ByteLimit,
+) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::compact_morphology_json_string_with_limit(&recovered.words, options, limit);
+        return crate::compact_morphology_json_string_with_limits(
+            &recovered.words,
+            options,
+            text_limit,
+            projection_limit,
+        );
     }
-    let items = recovered_morphology_sequence(recovered, source)?
-        .into_iter()
-        .map(|item| match item.into_data() {
-            data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                json::morphology_word_like_value(word, options.phonemes)
+    let projection = new!(RecoveredMorphologyProjection { recovered, source });
+    let mut value = crate::compact_json_value_with_limit(&projection, projection_limit)?;
+    json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    crate::render_compact_json_value_with_limit(&value, options, text_limit)
+}
+
+#[invariant(recovered.errors.len() == recovered.error_regions.len())]
+struct RecoveredMorphologyProjection<'a> {
+    recovered: &'a RecoveredMorphologySegmentation,
+    source: &'a str,
+}
+impl Serialize for RecoveredMorphologyProjection<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error, SerializeSeq};
+        let mut sequence = serializer.serialize_seq(None)?;
+        let mut words = self.recovered.words.iter().peekable();
+        let mut errors = self.recovered.error_regions.iter().enumerate().peekable();
+        while words.peek().is_some() || errors.peek().is_some() {
+            let word_start = words
+                .peek()
+                .and_then(|word| word.byte_range())
+                .map(|range| range.start);
+            let error_start = errors.peek().map(|(_, span)| span.byte_start);
+            #[cfg(test)]
+            json::record_projection_visit();
+            if error_start.is_some() && (word_start.is_none() || error_start < word_start) {
+                let (index, span) = errors.next().expect("peeked recovery region");
+                let error = &self.recovered.errors[index];
+                let code = match error {
+                    MorphologyError::Invalid { kind, .. } => kind.code(),
+                    MorphologyError::UnterminatedZoiQuote { .. } => {
+                        "morphology.unterminated-zoi-quote"
+                    }
+                    MorphologyError::SourceSpan(_) => "morphology.source-span",
+                };
+                let text = self
+                    .source
+                    .get(span.byte_start..span.byte_end)
+                    .ok_or_else(|| S::Error::custom("recovery span is outside the source"))?;
+                let fields = new!(MorphologyRecoveryErrorProjection {
+                    span: [span.char_start, span.char_end],
+                    text,
+                    expected: ExpectedMorphologyError(error),
+                    error_index: index,
+                    diagnostic_code: code,
+                });
+                sequence.serialize_element(&MorphologyErrorConstructor { error: fields })?;
+            } else {
+                sequence.serialize_element(words.next().expect("peeked word"))?;
             }
-            data!(RecoveredMorphologySequenceItem::Error { item }) => {
-                recovery_error_json_value(&item)
+        }
+        sequence.end()
+    }
+}
+
+#[invariant(span[0] <= span[1] && !diagnostic_code.is_empty())]
+#[derive(Serialize)]
+struct MorphologyRecoveryErrorProjection<'a> {
+    span: [usize; 2],
+    text: &'a str,
+    expected: ExpectedMorphologyError<'a>,
+    error_index: usize,
+    diagnostic_code: &'static str,
+}
+#[invariant(true)]
+#[derive(Serialize)]
+struct MorphologyErrorConstructor<'a> {
+    #[serde(rename = "Error")]
+    error: MorphologyRecoveryErrorProjection<'a>,
+}
+#[invariant(true)]
+struct ExpectedMorphologyError<'a>(&'a MorphologyError);
+impl Serialize for ExpectedMorphologyError<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // collect_str writes the diagnostic directly into serde_json's bounded sink.
+        struct_display_expected(self.0, serializer)
+    }
+}
+#[requires(true)]
+#[ensures(true)]
+fn struct_display_expected<S: serde::Serializer>(
+    error: &MorphologyError,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut sequence = serializer.serialize_seq(Some(1))?;
+    sequence.serialize_element(&MorphologyExpectation(error))?;
+    sequence.end()
+}
+#[invariant(true)]
+struct MorphologyExpectation<'a>(&'a MorphologyError);
+impl Serialize for MorphologyExpectation<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+impl std::fmt::Display for MorphologyExpectation<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            MorphologyError::Invalid { kind, .. } => formatter.write_str(kind.message()),
+            MorphologyError::UnterminatedZoiQuote { delimiter, .. } => {
+                write!(formatter, "closing delimiter `{delimiter}`")
             }
-        })
-        .collect();
-    crate::render_compact_json_value_with_limit(&Value::Array(items), options, limit)
+            MorphologyError::SourceSpan(_) => formatter.write_str("valid source span"),
+        }
+    }
 }
 
 #[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
@@ -1958,4 +2077,27 @@ pub fn raw_with_limit(
         crate::budget::bounded_format(format_args!("{value:#?}\n"), limit)
     };
     rendered.map_err(|error| OutputError::from_render_io(error, limit))
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_morphology_sequence_for_json_test(
+    recovered: &RecoveredMorphologySegmentation,
+    source: &str,
+) -> Value {
+    Value::Array(
+        recovered_morphology_sequence(recovered, source)
+            .unwrap()
+            .into_iter()
+            .map(|item| match item.into_data() {
+                data!(RecoveredMorphologySequenceItem::Valid { word }) => {
+                    json::morphology_word_like_value(word, crate::PhonemeRenderOptions::default())
+                }
+                data!(RecoveredMorphologySequenceItem::Error { item }) => {
+                    recovery_error_json_value(&item)
+                }
+            })
+            .collect(),
+    )
 }

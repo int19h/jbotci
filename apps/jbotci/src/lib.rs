@@ -6,8 +6,8 @@
 use jbotci_output::Indentation;
 use jbotci_output::budget::{ByteLimit, OutputBudget, RenderLimits, bounded_format};
 use jbotci_output::{
-    compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limit,
-    compact_recovered_morphology_json_string_with_limit,
+    compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limits,
+    compact_recovered_morphology_json_string_with_limits,
     compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
     pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
     pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,

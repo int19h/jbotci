@@ -1163,6 +1163,7 @@ impl AssembledMessage {
     }
 }
 
+#[cfg(test)]
 #[requires(rendered.tool() == published.request.tool())]
 #[requires(attachment_size_limit > 0)]
 #[ensures(ret.as_ref().is_ok_and(|message| message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS) || ret.is_err())]
@@ -1191,6 +1192,12 @@ pub(crate) fn assemble_with_limit(
     let result = assemble_in_scope(rendered, published, attachment_size_limit, &scope);
     if scope.is_exceeded() {
         return Err(new!(AssembleError::OutputLimit));
+    }
+    if let Ok(message) = &result {
+        message
+            .payload
+            .check_text_size(limit)
+            .map_err(|_| new!(AssembleError::OutputLimit))?;
     }
     result
 }

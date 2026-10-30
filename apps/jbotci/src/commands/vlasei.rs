@@ -125,7 +125,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     )?;
     match input.format {
         VlaseiFormat::Json => {
-            let rendered = compact_morphology_json_string_with_limit(
+            let rendered = compact_morphology_json_string_with_limits(
                 &words,
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or_default(),
@@ -134,6 +134,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     color: color_policy.stdout,
                 },
                 render_limits.text,
+                render_limits.projection,
             )?;
             writeln!(stdout, "{rendered}")?;
         }
@@ -196,7 +197,7 @@ fn render_recovered_vlasei_output(
 ) -> Result<Option<String>> {
     let rendered = match input.format {
         VlaseiFormat::Ipa => return Ok(None),
-        VlaseiFormat::Json => compact_recovered_morphology_json_string_with_limit(
+        VlaseiFormat::Json => compact_recovered_morphology_json_string_with_limits(
             recovered,
             source,
             JsonRenderOptions {
@@ -206,6 +207,7 @@ fn render_recovered_vlasei_output(
                 color,
             },
             render_limits.text,
+            render_limits.projection,
         )?,
         VlaseiFormat::Brackets => pretty_recovered_morphology_brackets_with_limit(
             recovered,

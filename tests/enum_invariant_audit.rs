@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/interaction.rs:WriteError::Lane",
+        "The variant preserves an already typed work failure.",
+    ),
+    (
         "apps/jbotci-server/src/policy.rs:PolicyError::DeliveryClockRange",
         "The unit variant identifies an error window outside the server clock range.",
     ),

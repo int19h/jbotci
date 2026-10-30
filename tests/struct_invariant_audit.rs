@@ -8,6 +8,26 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/components.rs:AttachmentText",
+        "The serializer borrows any list of already validated attachments.",
+    ),
+    (
+        "crates/jbotci-output/src/json.rs:MorphologyProjection",
+        "Any slice of validated morphology words can be serialized.",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:MorphologyErrorConstructor",
+        "The wrapper gives its validated error projection a fixed constructor key.",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:ExpectedMorphologyError",
+        "Any morphology error has an expected-text projection.",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:MorphologyExpectation",
+        "Any morphology error has a fixed or borrowed diagnostic description.",
+    ),
+    (
         "apps/jbotci-server/src/delivery.rs:BlockedWrite",
         "Any duplex stream and notification signal define a valid blocked test transport.",
     ),

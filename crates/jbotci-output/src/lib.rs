@@ -49,6 +49,7 @@ pub use places::{
 };
 pub use recovered::{
     compact_recovered_morphology_json_string_with_limit,
+    compact_recovered_morphology_json_string_with_limits,
     compact_recovered_morphology_json_string_with_options,
     compact_recovered_syntax_json_string_with_limits,
     compact_recovered_syntax_json_string_with_options,
@@ -482,11 +483,20 @@ pub fn compact_morphology_json_string_with_limit(
     options: JsonRenderOptions,
     limit: budget::ByteLimit,
 ) -> Result<String, OutputError> {
-    render_compact_json_value_with_limit(
-        &json::morphology_json_value(words, options.phonemes),
-        options,
-        limit,
-    )
+    compact_morphology_json_string_with_limits(words, options, limit, limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= text_limit.get()) || ret.is_err())]
+pub fn compact_morphology_json_string_with_limits(
+    words: &[WordLike],
+    options: JsonRenderOptions,
+    text_limit: budget::ByteLimit,
+    projection_limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    let mut value = json::morphology_projection_with_limit(words, projection_limit)?;
+    json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    render_compact_json_value_with_limit(&value, options, text_limit)
 }
 
 #[requires(true)]
@@ -1712,6 +1722,78 @@ mod bounded_output_tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_projection_refuses_before_visiting_the_complete_result() {
+        let source = "mi ".repeat(1333);
+        let words = jbotci_morphology::segment_words_with_modifiers(&source).unwrap();
+        let small = ByteLimit::new(64).unwrap();
+        let projection = ByteLimit::new(4096).unwrap();
+        crate::json::reset_projection_visits();
+        let result = compact_morphology_json_string_with_limits(
+            &words,
+            JsonRenderOptions::default(),
+            small,
+            projection,
+        );
+        assert!(matches!(result, Err(OutputError::Limit { .. })));
+        let visits = crate::json::projection_visits();
+        assert!(
+            visits > 0 && visits < words.len(),
+            "visited {visits} of {}",
+            words.len()
+        );
+        let source = format!("{source}@");
+        let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(&source);
+        assert!(!recovered.errors.is_empty());
+        crate::json::reset_projection_visits();
+        let result = compact_recovered_morphology_json_string_with_limits(
+            &recovered,
+            &source,
+            JsonRenderOptions::default(),
+            small,
+            projection,
+        );
+        assert!(matches!(result, Err(OutputError::Limit { .. })));
+        let visits = crate::json::projection_visits();
+        assert!(
+            visits > 0 && visits < recovered.words.len(),
+            "visited {visits} of {}",
+            recovered.words.len()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bounded_morphology_projection_preserves_strict_and_recovered_output() {
+        let unlimited = ByteLimit::new(usize::MAX).unwrap();
+        for source in [
+            "mi klama",
+            "zo broda cu melbi",
+            "zoi gy hello gy",
+            "mi broda zei brode",
+            "mi @ do",
+        ] {
+            let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(source);
+            let options = JsonRenderOptions::default();
+            let expected = if recovered.errors.is_empty() {
+                compact_morphology_json_string_with_options(&recovered.words, options).unwrap()
+            } else {
+                let items = crate::recovered::recovered_morphology_sequence_for_json_test(
+                    &recovered, source,
+                );
+                render_compact_json_value_with_limit(&items, options, unlimited).unwrap()
+            };
+            let actual = compact_recovered_morphology_json_string_with_limits(
+                &recovered, source, options, unlimited, unlimited,
+            )
+            .unwrap();
+            assert_eq!(actual, expected, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_formats_refuse_one_byte_below_the_exact_output() {
         let source = "mi klama lo zarci";
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("morphology");
@@ -1730,7 +1812,13 @@ mod bounded_output_tests {
             let raw_indent = (indent == Indentation::compact()).then_some(indent);
             let unlimited = ByteLimit::new(usize::MAX).unwrap();
             let outputs = [
-                compact_morphology_json_string_with_limit(&words, json_options, unlimited).unwrap(),
+                compact_morphology_json_string_with_limits(
+                    &words,
+                    json_options,
+                    unlimited,
+                    unlimited,
+                )
+                .unwrap(),
                 pretty_morphology_tree_with_limit(&words, source, tree_options, unlimited).unwrap(),
                 pretty_morphology_brackets_with_limit(
                     &words,
@@ -1746,7 +1834,12 @@ mod bounded_output_tests {
                 for bytes in [expected.len() - 1, expected.len()] {
                     let limit = ByteLimit::new(bytes).unwrap();
                     let result = match format {
-                        0 => compact_morphology_json_string_with_limit(&words, json_options, limit),
+                        0 => compact_morphology_json_string_with_limits(
+                            &words,
+                            json_options,
+                            limit,
+                            unlimited,
+                        ),
                         1 => pretty_morphology_tree_with_limit(&words, source, tree_options, limit),
                         2 => pretty_morphology_brackets_with_limit(
                             &words,

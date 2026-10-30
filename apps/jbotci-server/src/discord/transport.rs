@@ -446,6 +446,61 @@ impl DiscordApi {
         read_json_response(response, CallKind::Mutating)
     }
 
+    /// Reserve only the bytes of the two fixed error envelopes.
+    #[requires(true)]
+    #[ensures(true)]
+    fn for_refusal(&self, code: crate::error::ServerErrorCode) -> Self {
+        let unlimited = ByteLimit::new(usize::MAX).expect("positive counting limit");
+        let original = MessagePayload::refusal(code)
+            .encode_with_limit(unlimited)
+            .expect("fixed refusal JSON")
+            .len();
+        let followup = jbotci_output::budget::bounded_json_size(
+            &json!({
+                "content": code.message(), "flags": FLAG_EPHEMERAL,
+                "allowed_mentions": { "parse": [] }, "attachments": [],
+            }),
+            unlimited,
+        )
+        .expect("fixed follow-up JSON");
+        self.clone().with_data(data! { response_limit: ByteLimit::new(self.response_limit.get().max(original).max(followup)).expect("positive reserved limit") })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn edit_original_refusal(
+        &self,
+        application_id: &Snowflake,
+        token: &InteractionToken,
+        code: crate::error::ServerErrorCode,
+        timeout: Duration,
+    ) -> Result<Value, TransportError> {
+        self.for_refusal(code).edit_original(
+            application_id,
+            token,
+            &MessagePayload::refusal(code),
+            timeout,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn create_refusal_followup(
+        &self,
+        application_id: &Snowflake,
+        token: &InteractionToken,
+        code: crate::error::ServerErrorCode,
+        timeout: Duration,
+    ) -> Result<(), TransportError> {
+        self.for_refusal(code).create_ephemeral_followup(
+            application_id,
+            token,
+            code.message(),
+            None,
+            timeout,
+        )
+    }
+
     /// `POST /webhooks/{app}/{token}`: a private follow-up to the acting user.
     #[requires(!content.trim().is_empty())]
     #[ensures(true)]

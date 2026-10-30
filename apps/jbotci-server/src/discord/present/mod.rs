@@ -226,44 +226,54 @@ fn render_in_scope(
 /// Present a request that failed validation, for the slash path where there
 /// is no previous result to keep: the problem plus the gear to fix it.
 #[requires(true)]
-#[ensures(ret.tool() == request.tool())]
+#[ensures(ret.as_ref().is_ok_and(|result| result.tool() == request.tool()) || ret.is_err())]
 pub(crate) fn render_validation_error(
     error: &RequestValidationError,
     request: &DiscordRequest,
-) -> RenderedResult {
-    render_failure(&error.to_string(), request)
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<RenderedResult, crate::work::WorkError> {
+    render_failure(format_args!("{error}"), request, limit)
 }
 
-/// Present a first result that could not be produced at all: what happened,
-/// plus the gear that reopens the request. A failure is still a result, so it
-/// is a message like any other rather than a private note beside a message
-/// that never says anything.
+/// Present a failure within the same text budget as a normal result.
 #[requires(true)]
-#[ensures(ret.tool() == request.tool())]
-pub(crate) fn render_failure(reason: &str, request: &DiscordRequest) -> RenderedResult {
+#[ensures(ret.as_ref().is_ok_and(|result| result.tool() == request.tool()) || ret.is_err())]
+pub(crate) fn render_failure(
+    reason: std::fmt::Arguments<'_>,
+    request: &DiscordRequest,
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<RenderedResult, crate::work::WorkError> {
+    let scope = jbotci_output::budget::TextScope::new(limit);
+    let reason = scope
+        .finish(scope.format(reason))
+        .map_err(|_| crate::work::WorkError::OutputLimit)?;
     let tool = request.tool();
-    let mut rendered = RenderedResult::new(tool, format!("{tool} · not run"));
-    // A reason can be long: fifty malformed records produce fifty complaints,
-    // and the reader needs every one of them to fix the request. The message
-    // shows what fits and the assembler attaches the rest, exactly as it does
-    // for a result too long to show; nothing is cut away silently.
-    let shown = reason
-        .chars()
-        .take(FAILURE_REASON_CHARS)
-        .collect::<String>();
-    let complete = format!("Not run: {reason}");
-    rendered
-        .body
-        .push(format!("**Not run:** {}", markdown::escape(&shown)));
+    let mut rendered =
+        RenderedResult::new_in_scope(tool, scope.format(format_args!("{tool} · not run")), &scope);
+    let mut shown = scope.buffer();
+    for character in reason.chars().take(FAILURE_REASON_CHARS) {
+        shown.push(character);
+    }
+    let shown = shown.into_piece();
+    let complete = scope.format(format_args!("Not run: {reason}"));
+    rendered.body.push(scope.format(format_args!(
+        "**Not run:** {}",
+        markdown::escape_in_scope(&shown, &scope)
+    )));
     if shown.chars().count() < reason.chars().count() {
         rendered.show_excerpt_of(complete);
     } else {
         rendered.set_full_text(complete);
     }
-    rendered.notice = Some(markdown::subtext(
+    rendered.notice = Some(markdown::subtext_in_scope(
         "Use the ⚙️ button to correct the request.",
+        &scope,
     ));
-    rendered
+    scope
+        .finish(String::new())
+        .map_err(|_| crate::work::WorkError::OutputLimit)?;
+    check_rendered_text(&rendered, limit)?;
+    Ok(rendered)
 }
 
 /// How much of a failure reason the message itself shows. The whole of it
@@ -296,7 +306,17 @@ pub(crate) fn render_with_limits(
     text_scope
         .finish(String::new())
         .map_err(|_| crate::work::WorkError::OutputLimit)?;
-    let budget = jbotci_output::budget::OutputBudget::new(limits.text);
+    check_rendered_text(&result, limits.text)?;
+    Ok(result)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn check_rendered_text(
+    result: &RenderedResult,
+    limit: jbotci_output::budget::ByteLimit,
+) -> Result<(), crate::work::WorkError> {
+    let budget = jbotci_output::budget::OutputBudget::new(limit);
     for text in
         std::iter::once(result.status.text.as_str())
             .chain(result.body.iter().map(String::as_str))
@@ -310,7 +330,7 @@ pub(crate) fn render_with_limits(
             .charge(text.len())
             .map_err(|_| crate::work::WorkError::OutputLimit)?;
     }
-    Ok(result)
+    Ok(())
 }
 
 #[requires(true)]

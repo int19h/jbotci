@@ -1463,6 +1463,32 @@ impl serde::Serialize for JsonRef<'_, MessagePayload> {
     }
 }
 impl MessagePayload {
+    /// This literal-only payload uses the reserved refusal allowance.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn refusal(code: crate::error::ServerErrorCode) -> Self {
+        let text =
+            TextDisplay::new(None, code.message().to_owned()).expect("fixed refusal fits Discord");
+        Self::new(
+            vec1::Vec1::new(MessageComponent::TextDisplay(text)),
+            Vec::new(),
+        )
+        .expect("fixed refusal payload")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn check_text_size(
+        &self,
+        limit: jbotci_output::budget::ByteLimit,
+    ) -> Result<(), serde_json::Error> {
+        jbotci_output::budget::check_json_text_budget(
+            &(JsonRef(self), AttachmentText(&self.attachments)),
+            limit,
+            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive counting limit"),
+        )
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn check_encoded_size(
@@ -1479,5 +1505,23 @@ impl MessagePayload {
         limit: jbotci_output::budget::ByteLimit,
     ) -> Result<Vec<u8>, serde_json::Error> {
         jbotci_output::budget::bounded_json(&JsonRef(self), limit)
+    }
+}
+
+#[invariant(true)]
+struct AttachmentText<'a>(&'a [AttachmentRequest]);
+impl serde::Serialize for AttachmentText<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error, SerializeSeq};
+        let mut sequence = serializer.serialize_seq(None)?;
+        for attachment in self.0 {
+            if attachment.content_type.starts_with("text/") {
+                let text = std::str::from_utf8(&attachment.bytes).map_err(S::Error::custom)?;
+                sequence.serialize_element(text)?;
+            }
+        }
+        sequence.end()
     }
 }
