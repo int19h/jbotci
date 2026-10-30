@@ -873,7 +873,7 @@ pub fn validate_vector(values: &[f32], dimensions: usize) -> Result<f64, Embeddi
 #[ensures(ret.is_err() || values.len() == dimensions)]
 pub fn normalize_vector(values: &mut [f32], dimensions: usize) -> Result<(), EmbeddingError> {
     let norm = validate_vector(values, dimensions)?;
-    for value in values {
+    for value in values.iter_mut() {
         *value = (f64::from(*value) / norm) as f32;
     }
     Ok(())
