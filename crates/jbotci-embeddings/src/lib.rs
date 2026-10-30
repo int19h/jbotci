@@ -41,7 +41,7 @@ pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
 pub const DEFAULT_GGUF_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/gguf/v1";
 
-const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 1;
+const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 2;
 const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
 const NATIVE_PARTIAL_BUILD_FILE: &str = "native-local-build.json";
 const NATIVE_VECTOR_CHUNK_ROWS: usize = 256;
@@ -354,6 +354,8 @@ struct NativePartialBuildCheckpoint {
     pack_id: String,
     model_key: String,
     model_revision: String,
+    native_sha256: String,
+    model_sha256: Option<String>,
     input_format_version: String,
     built_by: EmbeddingRuntime,
     dimensions: usize,
@@ -1405,6 +1407,7 @@ fn native_vector_chunk_url(corpus_id: &str, chunk_index: usize) -> String {
 #[ensures(ret.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION)]
 fn initial_native_partial_checkpoint(
     spec: &EmbeddingModelSpec,
+    model_sha256: Option<&str>,
     pack_id: &str,
     dimensions: usize,
     dictionary_fingerprint: &str,
@@ -1418,6 +1421,8 @@ fn initial_native_partial_checkpoint(
         pack_id: pack_id.to_owned(),
         model_key: spec.model_key.clone(),
         model_revision: spec.model_revision.clone(),
+        native_sha256: spec.native_sha256.clone(),
+        model_sha256: model_sha256.map(str::to_owned),
         input_format_version: spec.input_format_version.clone(),
         built_by: native_embedding_runtime(),
         dimensions,
@@ -1440,6 +1445,7 @@ fn load_compatible_native_partial_checkpoint(
     work_root: &Path,
     pack_root: &Path,
     spec: &EmbeddingModelSpec,
+    model_sha256: Option<&str>,
     pack_id: &str,
     dimensions: usize,
     dictionary_fingerprint: &str,
@@ -1455,6 +1461,7 @@ fn load_compatible_native_partial_checkpoint(
     if !native_partial_header_matches(
         &checkpoint,
         spec,
+        model_sha256,
         pack_id,
         dimensions,
         dictionary_fingerprint,
@@ -1481,6 +1488,7 @@ fn load_compatible_native_partial_checkpoint(
 fn native_partial_header_matches(
     checkpoint: &NativePartialBuildCheckpoint,
     spec: &EmbeddingModelSpec,
+    model_sha256: Option<&str>,
     pack_id: &str,
     dimensions: usize,
     dictionary_fingerprint: &str,
@@ -1493,6 +1501,8 @@ fn native_partial_header_matches(
         && checkpoint.pack_id == pack_id
         && checkpoint.model_key == spec.model_key
         && checkpoint.model_revision == spec.model_revision
+        && checkpoint.native_sha256 == spec.native_sha256
+        && checkpoint.model_sha256.as_deref() == model_sha256
         && checkpoint.input_format_version == spec.input_format_version
         && checkpoint.built_by == native_embedding_runtime()
         && checkpoint.dimensions == dimensions
@@ -2011,6 +2021,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
         &work_root,
         &work_pack_root,
         spec,
+        model_sha256.as_deref(),
         &pack_id,
         dimensions,
         &dictionary_fingerprint,
@@ -2022,6 +2033,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
         remove_dir_all_if_exists(&work_root)?;
         checkpoint = Some(initial_native_partial_checkpoint(
             spec,
+            model_sha256.as_deref(),
             &pack_id,
             dimensions,
             &dictionary_fingerprint,
@@ -4991,6 +5003,227 @@ mod tests {
         build_embedding_pack(&mut retry, dictionary, cll_chunks, dir.path(), &spec, false)
             .expect("rebuilt after incompatible checkpoint");
         assert_eq!(retry.calls, total_rows);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_resume_checks_model_hash_and_matches_uninterrupted_artifacts() {
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let site = jbotci_cll::embedded_cll_site().unwrap();
+        let chunks = &site.search_chunks[..NATIVE_VECTOR_CHUNK_ROWS + 7];
+        let spec = test_embedding_spec();
+        for change in [
+            "none",
+            "model_sha256",
+            "native_sha256",
+            "layout",
+            "corpus",
+            "missing",
+            "corrupt",
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let full = tempfile::tempdir().unwrap();
+            let mut failing = FailingBackend {
+                dimensions: 4,
+                calls: 0,
+                fail_after: NATIVE_VECTOR_CHUNK_ROWS + 1,
+            };
+            build_embedding_pack_with_reuse(
+                &mut failing,
+                &dictionary,
+                chunks,
+                dir.path(),
+                &spec,
+                true,
+                None,
+                Some("actual-model-hash".to_owned()),
+                &mut |_| {},
+            )
+            .expect_err("interruption");
+            let work = test_work_root(dir.path(), &spec, &dictionary, chunks).unwrap();
+            let path = native_partial_checkpoint_path(&work);
+            let mut checkpoint: NativePartialBuildCheckpoint = read_json_file(&path).unwrap();
+            match change {
+                "model_sha256" => checkpoint.model_sha256 = Some("other-model".to_owned()),
+                "native_sha256" => checkpoint.native_sha256 = "other-pinned-model".to_owned(),
+                "layout" => checkpoint.chunk_rows += 1,
+                "corpus" => checkpoint.cll_fingerprint.push_str("different"),
+                "missing" | "corrupt" => {
+                    let shard = checkpoint
+                        .corpora
+                        .iter()
+                        .find(|c| c.corpus_id == CUKTA_CORPUS_ID)
+                        .unwrap()
+                        .shards
+                        .first()
+                        .unwrap();
+                    let path = native_work_pack_root(&work).join(&shard.url);
+                    if change == "missing" {
+                        fs::remove_file(path).unwrap();
+                    } else {
+                        fs::write(path, b"corrupt").unwrap();
+                    }
+                }
+                _ => {}
+            }
+            write_native_partial_checkpoint(&path, &checkpoint).unwrap();
+            let mut retry = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            let report = build_embedding_pack_with_reuse(
+                &mut retry,
+                &dictionary,
+                chunks,
+                dir.path(),
+                &spec,
+                true,
+                None,
+                Some("actual-model-hash".to_owned()),
+                &mut |_| {},
+            )
+            .unwrap();
+            assert_eq!(
+                retry.calls,
+                if change == "none" { 7 } else { chunks.len() },
+                "{change}"
+            );
+            assert!(!work.exists());
+            build_embedding_pack_with_reuse(
+                &mut FakeBackend {
+                    dimensions: 4,
+                    calls: 0,
+                },
+                &dictionary,
+                chunks,
+                full.path(),
+                &spec,
+                true,
+                None,
+                Some("actual-model-hash".to_owned()),
+                &mut |_| {},
+            )
+            .unwrap();
+            let (actual_root, actual) = load_latest_pack(dir.path(), &spec.model_key).unwrap();
+            let (full_root, expected) = load_latest_pack(full.path(), &spec.model_key).unwrap();
+            assert_eq!(actual.corpora, expected.corpora, "{change}");
+            assert_eq!(
+                report.row_counts.iter().map(|c| c.resumed).sum::<usize>(),
+                if change == "none" {
+                    NATIVE_VECTOR_CHUNK_ROWS
+                } else {
+                    0
+                }
+            );
+            for corpus in actual.corpora {
+                assert_eq!(
+                    fs::read(actual_root.join(&corpus.items_url)).unwrap(),
+                    fs::read(full_root.join(&corpus.items_url)).unwrap()
+                );
+                for shard in corpus.shards {
+                    assert_eq!(
+                        fs::read(actual_root.join(&shard.url)).unwrap(),
+                        fs::read(full_root.join(&shard.url)).unwrap()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_resume_combines_checkpoint_with_source_reuse() {
+        let source = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        let full = tempfile::tempdir().unwrap();
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let site = jbotci_cll::embedded_cll_site().unwrap();
+        let chunks = &site.search_chunks[..NATIVE_VECTOR_CHUNK_ROWS + 7];
+        let spec = test_embedding_spec();
+        build_embedding_pack_with_reuse(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            &chunks[..NATIVE_VECTOR_CHUNK_ROWS + 1],
+            source.path(),
+            &spec,
+            true,
+            None,
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .unwrap();
+        let reuse = validate_native_reuse_source(source.path(), &spec).unwrap();
+        let mut backend = FailingBackend {
+            dimensions: 4,
+            calls: 0,
+            fail_after: 1,
+        };
+        build_embedding_pack_with_reuse(
+            &mut backend,
+            &dictionary,
+            chunks,
+            target.path(),
+            &spec,
+            true,
+            Some(reuse),
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .expect_err("interrupt second shard");
+        let reuse = validate_native_reuse_source(source.path(), &spec).unwrap();
+        let mut retry = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        let report = build_embedding_pack_with_reuse(
+            &mut retry,
+            &dictionary,
+            chunks,
+            target.path(),
+            &spec,
+            true,
+            Some(reuse),
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(retry.calls, 6);
+        assert_eq!(
+            report.row_counts.iter().map(|c| c.resumed).sum::<usize>(),
+            NATIVE_VECTOR_CHUNK_ROWS
+        );
+        assert_eq!(report.row_counts.iter().map(|c| c.reused).sum::<usize>(), 1);
+        build_embedding_pack_with_reuse(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            chunks,
+            full.path(),
+            &spec,
+            true,
+            None,
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .unwrap();
+        let (root, actual) = load_latest_pack(target.path(), &spec.model_key).unwrap();
+        let (expected_root, expected) = load_latest_pack(full.path(), &spec.model_key).unwrap();
+        assert_eq!(actual.corpora, expected.corpora);
+        for corpus in actual.corpora {
+            for shard in corpus.shards {
+                assert_eq!(
+                    fs::read(root.join(&shard.url)).unwrap(),
+                    fs::read(expected_root.join(&shard.url)).unwrap()
+                );
+            }
+        }
     }
 
     #[test]
