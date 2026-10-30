@@ -4977,10 +4977,14 @@ fn indentation_eight_renders_json_and_tree_through_the_cli() {
             run_cli(cli, &mut output, &mut error, false).expect("render output");
             assert!(error.is_empty(), "{command} {format}: {error:?}");
             let output = String::from_utf8(output).unwrap();
-            assert!(
-                output.contains("\n        "),
-                "{command} {format}: {output}"
-            );
+            let first_level = output
+                .lines()
+                .filter_map(|line| {
+                    let spaces = line.len() - line.trim_start_matches(' ').len();
+                    (spaces > 0).then_some(spaces)
+                })
+                .min();
+            assert_eq!(first_level, Some(8), "{command} {format}: {output}");
             if format == "json" {
                 serde_json::from_str::<serde_json::Value>(&output).expect("valid JSON");
             }
