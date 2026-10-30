@@ -6,6 +6,8 @@ tags = ["issue-791", "recovery", "syntax", "term-hierarchy-epoch"]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]
 
+# Recovery chooses a sumti tail and omits the BO warning.
+# Issue #1050 records this recovery ranking witness.
 [expectations.syntax.recovered]
 status = "failure"
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-term-bo-connection", byte-span = [20, 22], source-text = "bo", message = "experimental syntax: BO-bound term or linked-argument connection", word-index = 5 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]

@@ -65,6 +65,46 @@ An LEhU outside a quote creates an unopened-quote fault.
 An incomplete LOhU quote remains a sequence for syntax diagnostics.
 Jbotci does not execute erasers inside that returned sequence.
 
+## LOhAI and LEhAI
+
+A replacement quote forms one unit of raw words.
+It contains up to two runs, each opened by `lo'ai` or `sa'ai`, followed by `le'ai`.
+Both opening words have class LOhAI.
+A bare `le'ai` also forms a complete unit, with class LEhAI.
+
+No magic word executes inside a completed replacement quote.
+Indicators stay raw words inside the body.
+Hesitation remains noise, and the raw reader joins Y with a following BU into BY.
+For example, `mi lo'ai zo fa'o si le'ai klama` keeps the complete quote and the surrounding words.
+The internal ZO, FAhO, and SI execute no operation.
+
+SI removes the complete quote.
+SA matches its opening class and never examines its body.
+For example, `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`.
+SU cannot find an internal LU, NIhO, TUhE, or TO boundary.
+Thus `mi lo'ai lu le'ai su klama` leaves `klama`.
+BU and a following ZEI take the complete quote as their base.
+
+A free modifier adds information outside predicate arguments.
+Syntax reads the quote as a free modifier.
+In `lo'ai do sa'ai mi le'ai`, the first run quotes old text and the second quotes new text.
+A leading `sa'ai` supplies new text without old text.
+A bare `le'ai` supplies the close-only form.
+Jbotci warns that this syntax is experimental.
+
+After an opening `lo'ai`, a second `lo'ai` remains part of the quoted old text.
+With a leading `sa'ai`, both runs form the quoted new text.
+Emphasis marks the opening word, and indicators after the quote attach to its closing word.
+Free modifiers after LEhAI attach to that closing word too.
+The [gencmu replacement quote rules](https://github.com/int19h/gencmu/blob/main/grammars/lojban/common/lohai.md) define the word boundary.
+
+If no complete quote starts at an active opening marker, that marker becomes a fault.
+A later eraser can remove it.
+For example, `mi lo'ai si klama` leaves `mi klama`.
+If BU or ZEI takes that unfinished marker as its base, the marker remains a raw word instead.
+Thus `lo'ai bu` forms a letter word, and `lo'ai zei broda` forms a compound.
+ZO and the right operand reader of ZEI also take raw markers without opening a quote.
+
 ## ZEI
 
 ZEI combines the preceding unit with the next word as read.
@@ -174,7 +214,7 @@ For example, `zo fa'o` remains a quote.
 
 ## Fault units
 
-BU without a base, ZEI with a missing operand, and unopened LEhU create the same kind of fault unit.
+BU without a base, ZEI with a missing operand, unopened LEhU, and unfinished LOhAI create the same kind of fault unit.
 A fault keeps its source span, matching class, and original error.
 It stays in the stream until an eraser removes it or morphology ends.
 
@@ -185,7 +225,7 @@ For example, `bu zei mi si` erases one complete fault unit.
 
 A surviving fault causes a morphology error at the end of the pass.
 Active FAhO also ends that pass, so an eraser after FAhO cannot remove the fault.
-A quote with a missing target or delimiter remains a reader error.
+ZO with a missing target and ZOI with a missing delimiter remain reader errors.
 Such a quote does not expose its contents for later erasure.
 
 ## Words that mark other words

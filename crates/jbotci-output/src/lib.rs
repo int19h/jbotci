@@ -1529,6 +1529,15 @@ mod tests {
                 plain.extend(quoted_words.iter());
                 plain.push(lehu);
             }
+            data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                for run in runs {
+                    plain.push(&run.marker);
+                    for word in &run.words {
+                        append_plain_words(&word.word, plain);
+                    }
+                }
+                plain.push(lehai);
+            }
             data!(WordLike::DelimitedWordQuote { marker, .. }) => plain.push(marker),
             data!(WordLike::LerfuWord { base, bu }) => {
                 append_plain_words(base, plain);

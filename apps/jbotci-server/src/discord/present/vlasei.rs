@@ -252,6 +252,7 @@ fn describe_word(word: &WordLike, decompose_lujvo: bool) -> String {
         data!(WordLike::SelmahoQuotedWord { .. }) => "ma'oi quote of one word".to_owned(),
         data!(WordLike::DelimitedNonLojbanQuote { .. }) => "zoi quote (non-Lojban text)".to_owned(),
         data!(WordLike::QuotedWords { .. }) => "lo'u … le'u quote (Lojban words)".to_owned(),
+        data!(WordLike::ReplacementQuote { .. }) => "replacement quote (raw words)".to_owned(),
         data!(WordLike::DelimitedWordQuote { .. }) => "single-word quote".to_owned(),
         data!(WordLike::LerfuWord { .. }) => "lerfu word (bu)".to_owned(),
         data!(WordLike::ZeiCompound { .. }) => "zei compound".to_owned(),

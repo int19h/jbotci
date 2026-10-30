@@ -2544,6 +2544,23 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_category<'tokens>(category: SyntaxWordCategory) -> BoxedParser<'tokens, Token> {
+    if category == SyntaxWordCategory::ReplacementQuote {
+        return token_matching(
+            "replacement quote",
+            "LOhAI/LEhAI quote",
+            vec![
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lohai)),
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Sahai)),
+                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lehai)),
+            ],
+            move |token, _state| token_matches_word_category(token, category),
+        )
+        .map_with(|token, extra: &mut MapExtra<'tokens, '_>| {
+            super::replacement::warn_markers(&token, extra.state());
+            token
+        })
+        .boxed();
+    }
     token_matching_with_experimental_context(
         category.display_name(),
         category.display_name(),
@@ -2572,22 +2589,6 @@ pub(crate) fn quote_marker<'tokens>(marker: Cmavo) -> BoxedParser<'tokens, Token
         vec![new!(SyntaxExpectedToken::Cmavo(marker))],
         move |token, _state| token.quote_marker_cmavo() == Some(marker),
     )
-}
-
-#[requires(!terminators.is_empty())]
-#[ensures(true)]
-pub(crate) fn word_not_cmavo<'tokens>(
-    terminators: &'static [Cmavo],
-) -> BoxedParser<'tokens, Token> {
-    token_matching(
-        "word other than terminator cmavo",
-        "WORD",
-        vec![new!(SyntaxExpectedToken::Named(
-            "non-terminator word".to_owned()
-        ))],
-        move |token, _state| !token.is_one_of_cmavo(terminators),
-    )
-    .boxed()
 }
 
 #[requires(true)]
@@ -2671,6 +2672,10 @@ fn token_matches_word_category(token: &Token, category: SyntaxWordCategory) -> b
         SyntaxWordCategory::ProSumti => is_koha_argument(token),
         SyntaxWordCategory::LetterWord => is_letter_word(token),
         SyntaxWordCategory::Quote => token_is_compound_quote(token),
+        SyntaxWordCategory::ReplacementQuote => matches!(
+            token.core_word().as_data(),
+            bityzba::data!(jbotci_morphology::WordLike::ReplacementQuote { .. })
+        ),
     }
 }
 

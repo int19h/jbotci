@@ -72,6 +72,27 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_lehu, right_lehu)
         }
         (
+            data!(WordLike::ReplacementQuote {
+                runs: left,
+                lehai: lc
+            }),
+            data!(WordLike::ReplacementQuote {
+                runs: right,
+                lehai: rc
+            }),
+        ) => {
+            left.len() == right.len()
+                && word_syntax_eq(lc, rc)
+                && left.iter().zip(right).all(|(l, r)| {
+                    word_syntax_eq(&l.marker, &r.marker)
+                        && l.words.len() == r.words.len()
+                        && l.words
+                            .iter()
+                            .zip(&r.words)
+                            .all(|(l, r)| word_like_syntax_eq(&l.word, &r.word))
+                })
+        }
+        (
             data!(WordLike::DelimitedWordQuote {
                 marker: left_marker,
                 quoted_text: left_quoted,

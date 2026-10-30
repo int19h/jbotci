@@ -695,6 +695,11 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
             marker,
             quoted_text,
         }) => Some(marker.span().byte_start..quoted_text.span.byte_end),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => Some(
+            runs.first()
+                .map_or(lehai.span().byte_start, |run| run.marker.span().byte_start)
+                ..lehai.span().byte_end,
+        ),
         data!(WordLike::LerfuWord { base, bu }) => {
             word_like_byte_range(base).map(|range| range.start..bu.span().byte_end.max(range.end))
         }
@@ -876,6 +881,7 @@ fn syntax_error_kind_for_word_like(word_like: &WordLike) -> SyntaxErrorKind {
         data!(WordLike::QuotedWord { .. })
         | data!(WordLike::SelmahoQuotedWord { .. })
         | data!(WordLike::DelimitedNonLojbanQuote { .. })
+        | data!(WordLike::ReplacementQuote { .. })
         | data!(WordLike::QuotedWords { .. })
         | data!(WordLike::DelimitedWordQuote { .. }) => SyntaxErrorKind::UnexpectedQuote,
         data!(WordLike::LerfuWord { .. }) => SyntaxErrorKind::UnexpectedLerfu,

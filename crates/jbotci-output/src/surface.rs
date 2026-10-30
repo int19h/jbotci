@@ -233,6 +233,15 @@ fn collect_word_like_display_spans(word_like: &WordLike, spans: &mut Vec<Display
                 byte_end: quoted_text.span.byte_end,
             });
         }
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            for run in runs {
+                push_word_display_span(spans, &run.marker);
+                for word in &run.words {
+                    collect_word_like_display_spans(&word.word, spans);
+                }
+            }
+            push_word_display_span(spans, lehai);
+        }
         data!(WordLike::LerfuWord { base, bu }) => {
             collect_word_like_display_spans(base, spans);
             push_word_display_span(spans, bu);

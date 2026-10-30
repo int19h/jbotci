@@ -350,6 +350,19 @@ fn word_like_brackets_in_context(
             word_leaf(marker, source),
             quoted_text_leaf(quoted_text),
         ]),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            let mut children = Vec::new();
+            for run in runs {
+                children.push(word_leaf(&run.marker, source));
+                children.extend(
+                    run.words
+                        .iter()
+                        .map(|word| word_like_brackets(&word.word, source)),
+                );
+            }
+            children.push(word_leaf(lehai, source));
+            sexpr::node(children)
+        }
         data!(WordLike::LerfuWord { base, bu }) => sexpr::node(vec![
             word_like_brackets_in_context(base, source, LeadingPauseContext::BuLetterBase),
             word_leaf(bu, source),

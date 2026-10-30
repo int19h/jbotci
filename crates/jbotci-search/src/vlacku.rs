@@ -797,6 +797,15 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
         data!(WordLike::DelimitedWordQuote { marker, .. }) => {
             push_word_lookup_target(marker, targets);
         }
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            for run in runs {
+                push_word_lookup_target(&run.marker, targets);
+                for word in &run.words {
+                    push_dictionary_lookup_targets(&word.word, targets);
+                }
+            }
+            push_word_lookup_target(lehai, targets);
+        }
         data!(WordLike::LerfuWord { .. }) | data!(WordLike::ZeiCompound { .. }) => {
             if let Some(target) = word_like_lookup_target(word_like) {
                 targets.push(target);
@@ -861,6 +870,7 @@ pub fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
         data!(WordLike::QuotedWord { .. })
         | data!(WordLike::SelmahoQuotedWord { .. })
         | data!(WordLike::DelimitedNonLojbanQuote { .. })
+        | data!(WordLike::ReplacementQuote { .. })
         | data!(WordLike::QuotedWords { .. })
         | data!(WordLike::DelimitedWordQuote { .. }) => None,
     }
@@ -1780,6 +1790,15 @@ fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
         }) => {
             append_word_phonemes(marker, output);
             append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
+        }
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            for run in runs {
+                append_word_phonemes(&run.marker, output);
+                for word in &run.words {
+                    append_word_like_phonemes(&word.word, output);
+                }
+            }
+            append_word_phonemes(lehai, output);
         }
         data!(WordLike::LerfuWord { base, bu }) => {
             append_word_like_phonemes(base, output);

@@ -270,6 +270,13 @@ fn render_vlatai_classification_text_with_prefix(
                 classification.quoted_words().len()
             ));
         }
+        ValsiClassificationKind::ReplacementQuote => {
+            out.push_str(&format!("{prefix}category: replacement-quote\n"));
+            out.push_str(&format!(
+                "{prefix}raw word count: {}\n",
+                classification.replacement_words().len()
+            ));
+        }
         ValsiClassificationKind::DelimitedWordQuote => {
             out.push_str(&format!("{prefix}category: delimited-word-quote\n"));
             out.push_str(&format!(

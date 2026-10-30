@@ -144,6 +144,21 @@ fn push_word_like_tokens(tokens: &mut Vec<SemanticToken>, word_like: &WordLike, 
             push_token(tokens, SemanticTokenKind::QuotationMarker, marker.span());
             push_token(tokens, SemanticTokenKind::String, &quoted_text.span);
         }
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            for run in runs {
+                push_token(
+                    tokens,
+                    SemanticTokenKind::QuotationMarker,
+                    run.marker.span(),
+                );
+                for word in &run.words {
+                    for span in word.word.source_spans() {
+                        push_token(tokens, SemanticTokenKind::String, span);
+                    }
+                }
+            }
+            push_token(tokens, SemanticTokenKind::QuotationMarker, lehai.span());
+        }
         // BU compounds are one morphology word and should not expose their base
         // word's unrelated class (for example, the A in `.abu`).
         data!(WordLike::LerfuWord { .. }) => {
@@ -211,7 +226,9 @@ fn cmavo_token_kind(selmaho: Option<Selmaho>) -> SemanticTokenKind {
             | Selmaho::Veho,
         ) => SemanticTokenKind::Terminator,
         Some(
-            Selmaho::Lehu
+            Selmaho::Lehai
+            | Selmaho::Lohai
+            | Selmaho::Lehu
             | Selmaho::Lihu
             | Selmaho::Lohu
             | Selmaho::Lu

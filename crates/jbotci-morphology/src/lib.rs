@@ -89,8 +89,9 @@ pub use surface::{
 };
 pub use syntax_eq::{word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
-    AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
-    WordLikeData,
+    AtomRef, LujvoPart, NodeRef, ReplacementQuoteRun, ReplacementQuoteRunData,
+    ReplacementQuoteWord, ReplacementQuoteWordData, TreeNode, Verbatim, VerbatimData, Word,
+    WordData, WordLike, WordLikeData,
 };
 
 /// Stable string metadata for finite fieldless domain enums.
@@ -440,6 +441,7 @@ define_string_enum_metadata! {
     marker.category == WordKind::Cmavo && !delimiter.is_empty())]
 #[invariant(::QuotedWords { marker, .. } => marker.category == WordKind::Cmavo)]
 #[invariant(::DelimitedWordQuote { marker_text } => !marker_text.is_empty())]
+#[invariant(::ReplacementQuote { words } => !words.is_empty())]
 #[invariant(::LerfuWord { suffix, .. } => suffix.category == WordKind::Cmavo)]
 #[invariant(::ZeiCompound { link, right, .. } =>
     link.category == WordKind::Cmavo && !right.phonemes.is_empty())]
@@ -463,6 +465,9 @@ pub enum ValsiClassification {
     DelimitedWordQuote {
         marker_text: String,
     },
+    ReplacementQuote {
+        words: Vec<ValsiClassification>,
+    },
     LerfuWord {
         base: Box<ValsiClassification>,
         suffix: PlainWordClassification,
@@ -485,6 +490,9 @@ impl ValsiClassification {
                 ValsiClassificationKind::DelimitedNonLojbanQuote
             }
             data!(ValsiClassification::QuotedWords { .. }) => ValsiClassificationKind::QuotedWords,
+            data!(ValsiClassification::ReplacementQuote { .. }) => {
+                ValsiClassificationKind::ReplacementQuote
+            }
             data!(ValsiClassification::DelimitedWordQuote { .. }) => {
                 ValsiClassificationKind::DelimitedWordQuote
             }
@@ -527,6 +535,16 @@ impl ValsiClassification {
     pub fn quoted_words(&self) -> &[PlainWordClassification] {
         match self.as_data() {
             data!(ValsiClassification::QuotedWords { quoted_words, .. }) => quoted_words,
+            _ => &[],
+        }
+    }
+
+    /// Return the raw words and markers of a replacement quote.
+    #[requires(true)]
+    #[ensures(matches!(self.as_data(), data!(ValsiClassification::ReplacementQuote { words }) if ret.len() == words.len()) || (!matches!(self.as_data(), data!(ValsiClassification::ReplacementQuote { .. })) && ret.is_empty()))]
+    pub fn replacement_words(&self) -> &[ValsiClassification] {
+        match self.as_data() {
+            data!(ValsiClassification::ReplacementQuote { words }) => words,
             _ => &[],
         }
     }
@@ -604,6 +622,12 @@ impl Serialize for ValsiClassification {
     where
         S: Serializer,
     {
+        if let data!(ValsiClassification::ReplacementQuote { words }) = self.as_data() {
+            let mut state = serializer.serialize_struct("ValsiClassification", 2)?;
+            state.serialize_field("kind", &self.kind())?;
+            state.serialize_field("words", words)?;
+            return state.end();
+        }
         let mut state = serializer.serialize_struct("ValsiClassification", 12)?;
         let kind = self.kind();
         let word = self.word();
@@ -642,6 +666,7 @@ define_string_enum_metadata! {
         QuotedWord => ("QUOTED_WORD", "quoted-word"),
         DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
         QuotedWords => ("QUOTED_WORDS", "quoted-words"),
+        ReplacementQuote => ("REPLACEMENT_QUOTE", "replacement-quote"),
         DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
         LerfuWord => ("LERFU_WORD", "lerfu-word"),
         ZeiCompound => ("ZEI_COMPOUND", "zei-compound"),
@@ -1030,6 +1055,17 @@ impl Word {
         }
     }
 
+    /// Recognize a raw hesitation run without copying its phonemes.
+    #[requires(true)]
+    #[ensures(!ret || self.kind() == WordKind::Cmavo)]
+    #[bityzba::expensive_ensures(ret == (self.kind() == WordKind::Cmavo && self.phonemes_ref().is_some_and(|phonemes| canonical_text_is_all(phonemes.as_str(), 'y'))))]
+    pub(crate) fn is_hesitation(&self) -> bool {
+        self.kind() == WordKind::Cmavo
+            && self
+                .phonemes_ref()
+                .is_some_and(|phonemes| canonical_text_is_all(phonemes.as_str(), 'y'))
+    }
+
     #[requires(true)]
     #[ensures(ret == (self.cmavo() == Some(cmavo)))]
     pub fn is_cmavo(&self, cmavo: Cmavo) -> bool {
@@ -1192,6 +1228,20 @@ impl WordLike {
         })
     }
 
+    #[requires(runs.len() <= 2 && lehai.is_cmavo(Cmavo::Lehai))]
+    #[requires(runs.first().is_none_or(|run| {
+        run.marker.span().byte_end <= lehai.span().byte_start
+            && run.marker.span().char_end <= lehai.span().char_start
+    }))]
+    #[bityzba::expensive_requires(replacement_quote_spans_in_source_order(&runs, &lehai))]
+    #[ensures(ret.quote_marker_cmavo().is_some_and(|marker| marker.is_selmaho(Selmaho::Lohai) || marker == Cmavo::Lehai))]
+    pub fn replacement_quote(runs: Vec<ReplacementQuoteRun>, lehai: Word) -> Self {
+        new!(WordLike::ReplacementQuote {
+            runs,
+            lehai: Box::new(lehai)
+        })
+    }
+
     #[requires(is_single_word_quote_marker(&marker))]
     #[ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: Verbatim) -> Self {
@@ -1230,13 +1280,16 @@ impl WordLike {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::QuotedWord { .. }) | data!(WordLike::SelmahoQuotedWord { .. }) | data!(WordLike::DelimitedNonLojbanQuote { .. }) | data!(WordLike::QuotedWords { .. }) | data!(WordLike::DelimitedWordQuote { .. })))]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::QuotedWord { .. }) | data!(WordLike::SelmahoQuotedWord { .. }) | data!(WordLike::DelimitedNonLojbanQuote { .. }) | data!(WordLike::QuotedWords { .. }) | data!(WordLike::DelimitedWordQuote { .. }) | data!(WordLike::ReplacementQuote { .. })))]
     pub fn quote_marker_cmavo(&self) -> Option<Cmavo> {
         match self.as_data() {
             data!(WordLike::QuotedWord { zo, .. }) => zo.cmavo(),
             data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => mahoi.cmavo(),
             data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.cmavo(),
             data!(WordLike::QuotedWords { lohu, .. }) => lohu.cmavo(),
+            data!(WordLike::ReplacementQuote { runs, lehai }) => runs
+                .first()
+                .map_or_else(|| lehai.cmavo(), |run| run.marker.cmavo()),
             data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.cmavo(),
             _ => None,
         }
@@ -1347,6 +1400,15 @@ impl WordLike {
                 out.push(marker.span());
                 out.push(quoted_text.span.as_ref());
             }
+            data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                for run in runs {
+                    out.push(run.marker.span());
+                    for word in &run.words {
+                        word.word.source_spans_into(out);
+                    }
+                }
+                out.push(lehai.span());
+            }
             data!(WordLike::LerfuWord { base, bu }) => {
                 base.source_spans_into(out);
                 out.push(bu.span());
@@ -1410,12 +1472,56 @@ impl fmt::Display for WordLike {
                 marker,
                 quoted_text,
             }) => write!(f, "{marker}-{text:?}", text = quoted_text.text),
+            data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                for run in runs {
+                    write!(f, "{}-<<", run.marker)?;
+                    for (index, word) in run.words.iter().enumerate() {
+                        if index > 0 {
+                            f.write_str(" ")?;
+                        }
+                        write!(f, "{}", word.word)?;
+                    }
+                    f.write_str(">>-")?;
+                }
+                write!(f, "{lehai}")
+            }
             data!(WordLike::LerfuWord { base, bu }) => write!(f, "{base}-{bu}"),
             data!(WordLike::ZeiCompound { left, zei, right }) => {
                 write!(f, "{left}-{zei}-{right}")
             }
         }
     }
+}
+
+/// Construction and the type invariant use the same source order.
+#[requires(true)]
+#[ensures(!ret || runs.first().is_none_or(|run| {
+    run.marker.span().byte_end <= lehai.span().byte_start
+        && run.marker.span().char_end <= lehai.span().char_start
+}))]
+pub(crate) fn replacement_quote_spans_in_source_order(
+    runs: &[ReplacementQuoteRun],
+    lehai: &Word,
+) -> bool {
+    let mut byte_end = 0;
+    let mut char_end = 0;
+    for run in runs {
+        if byte_end > run.marker.span().byte_start || char_end > run.marker.span().char_start {
+            return false;
+        }
+        byte_end = run.marker.span().byte_end;
+        char_end = run.marker.span().char_end;
+        for word in &run.words {
+            for span in word.word.source_spans() {
+                if byte_end > span.byte_start || char_end > span.char_start {
+                    return false;
+                }
+                byte_end = span.byte_end;
+                char_end = span.char_end;
+            }
+        }
+    }
+    byte_end <= lehai.span().byte_start && char_end <= lehai.span().char_start
 }
 
 #[requires(true)]
@@ -1464,6 +1570,31 @@ where
             map_word_spans(*marker, map_span)?,
             map_verbatim_span(*quoted_text, map_span)?,
         ),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            let runs = runs
+                .into_iter()
+                .map(|run| {
+                    let run = run.into_data();
+                    let marker = map_word_spans(run.marker, map_span)?;
+                    let words = run
+                        .words
+                        .into_iter()
+                        .map(|word| {
+                            let word = map_word_like_spans(word.into_data().word, map_span)?;
+                            Ok(new!(ReplacementQuoteWord { word }))
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    Ok(new!(ReplacementQuoteRun { marker, words }))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            let lehai = map_word_spans(*lehai, map_span)?;
+            // A mapper can reorder separate spans. The combined quote must still have ordered spans.
+            try_new!(WordLike::ReplacementQuote {
+                runs,
+                lehai: Box::new(lehai)
+            })
+            .map_err(|_| "Source spans in the replacement quote are out of order.".to_owned())?
+        }
         data!(WordLike::LerfuWord { base, bu }) => WordLike::letter(
             map_word_like_spans(*base, map_span)?,
             map_word_spans(*bu, map_span)?,
@@ -1787,6 +1918,7 @@ define_string_enum_metadata! {
         DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
         QuotedWords => ("QUOTED_WORDS", "quoted-words"),
         DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
+        ReplacementQuote => ("REPLACEMENT_QUOTE", "replacement-quote"),
         Bu => ("BU", "bu"),
         Zei => ("ZEI", "zei"),
     }
@@ -1806,6 +1938,7 @@ impl MorphologyContextKind {
             Self::DelimitedNonLojbanQuote => "while parsing ZOI quote",
             Self::QuotedWords => "while parsing LOhU quote",
             Self::DelimitedWordQuote => "while parsing single-word quote",
+            Self::ReplacementQuote => "while parsing replacement quote",
             Self::Bu => "while applying BU",
             Self::Zei => "while applying ZEI",
         }
@@ -1863,6 +1996,7 @@ define_string_enum_metadata! {
     pub enum ExpectedWordDetailKind {
         PlainWord => ("PLAIN_WORD", "plain-word"),
         QuoteTarget => ("QUOTE_TARGET", "quote-target"),
+        ReplacementClose => ("REPLACEMENT_CLOSE", "replacement-close"),
         BuOperand => ("BU_OPERAND", "bu-operand"),
         ZeiOperand => ("ZEI_OPERAND", "zei-operand"),
         ZoiDelimiter => ("ZOI_DELIMITER", "zoi-delimiter"),
@@ -1876,6 +2010,7 @@ impl ExpectedWordDetailKind {
         match self {
             Self::PlainWord => "the parser reached a point where a Lojban word is required",
             Self::QuoteTarget => "ZO requires one following non-y word to quote",
+            Self::ReplacementClose => "LOhAI requires a closing LEhAI",
             Self::BuOperand => "BU must attach to a preceding word",
             Self::ZeiOperand => "ZEI must have a word on both sides",
             Self::ZoiDelimiter => "ZOI requires an opening delimiter word after the quote marker",
@@ -1947,6 +2082,7 @@ impl PhonotacticDetailKind {
 #[invariant(::InvalidLujvo => parsed_prefix.as_ref().is_none_or(|prefix| !prefix.is_empty()))]
 #[invariant(::ExpectedWord => matches!(expected,
     ExpectedWordDetailKind::PlainWord
+        | ExpectedWordDetailKind::ReplacementClose
         | ExpectedWordDetailKind::QuoteTarget
         | ExpectedWordDetailKind::BuOperand
         | ExpectedWordDetailKind::ZeiOperand
@@ -2373,6 +2509,23 @@ fn valsi_classification(word_like: &WordLike) -> ValsiClassification {
             marker: plain_word_classification(lohu),
             quoted_words: quoted_words.iter().map(plain_word_classification).collect(),
         }),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            let mut words = Vec::new();
+            for run in runs {
+                words.push(new!(ValsiClassification::PlainWord {
+                    word: plain_word_classification(&run.marker)
+                }));
+                words.extend(
+                    run.words
+                        .iter()
+                        .map(|word| valsi_classification(&word.word)),
+                );
+            }
+            words.push(new!(ValsiClassification::PlainWord {
+                word: plain_word_classification(lehai)
+            }));
+            new!(ValsiClassification::ReplacementQuote { words })
+        }
         data!(WordLike::DelimitedWordQuote { marker, .. }) => {
             new!(ValsiClassification::DelimitedWordQuote {
                 marker_text: marker.phonemes().into_string(),
@@ -2697,6 +2850,16 @@ fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
             words_field(&mut payload, "quoted_words")?,
             word_field(&mut payload, "lehu")?,
         )),
+        "ReplacementQuote" => {
+            let runs = serde_json::from_value(payload.remove("runs").ok_or("missing runs")?)
+                .map_err(|error| format!("invalid replacement runs: {error}"))?;
+            let lehai = word_field(&mut payload, "lehai")?;
+            try_new!(WordLike::ReplacementQuote {
+                runs,
+                lehai: Box::new(lehai)
+            })
+            .map_err(|error| format!("invalid replacement quote: {error}"))
+        }
         "DelimitedWordQuote" => Ok(WordLike::single_word_quote(
             word_field(&mut payload, "marker")?,
             verbatim_field(&mut payload, "quoted_text")?,
@@ -3039,6 +3202,11 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<std::ops::Range<usize>> 
             marker,
             quoted_text
         }) => Some(marker.span().byte_start..quoted_text.span.byte_end),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => Some(
+            runs.first()
+                .map_or(lehai.span().byte_start, |run| run.marker.span().byte_start)
+                ..lehai.span().byte_end,
+        ),
         data!(WordLike::LerfuWord { base, bu }) => {
             word_like_byte_range(base).map(|range| range.start..bu.span().byte_end.max(range.end))
         }
@@ -5074,6 +5242,9 @@ mod tests {
             .filter(|cmavo| cmavo.is_quote_opener())
             .collect::<std::collections::BTreeSet<_>>();
         let expected = std::collections::BTreeSet::from([
+            Cmavo::Lohai,
+            Cmavo::Sahai,
+            Cmavo::Lehai,
             Cmavo::Lohu,
             Cmavo::Zoi,
             Cmavo::Laho,

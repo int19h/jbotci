@@ -108,6 +108,7 @@ impl WarningCatalog {
         for rule in rules {
             match rule {
                 Rule::Alias(rule) => uses.visit_parser(&rule.parser),
+                Rule::Terminal(rule) => uses.visit_parser(&rule.parser.parser),
                 Rule::Struct(rule) => {
                     for field in &rule.fields {
                         uses.visit_parser(&field.parser);

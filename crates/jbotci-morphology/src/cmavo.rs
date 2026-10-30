@@ -448,7 +448,7 @@ macro_rules! cmavo_table {
         Lau => { text: "lau", selmaho: [Lau] },
         Le => { text: "le", selmaho: [Le] },
         Leha => { text: "le'a", selmaho: [Bai] },
-        Lehai => { text: "le'ai", selmaho: [] },
+        Lehai => { text: "le'ai", selmaho: [Lehai] },
         Lehe => { text: "le'e", selmaho: [Le] },
         Lehei => { text: "le'ei", selmaho: [Le] },
         Lehi => { text: "le'i", selmaho: [Le] },
@@ -471,7 +471,7 @@ macro_rules! cmavo_table {
         Lihu => { text: "li'u", selmaho: [Lihu] },
         Lo => { text: "lo", selmaho: [Le] },
         Loha => { text: "lo'a", selmaho: [By] },
-        Lohai => { text: "lo'ai", selmaho: [] },
+        Lohai => { text: "lo'ai", selmaho: [Lohai] },
         Lohe => { text: "lo'e", selmaho: [Le] },
         Lohei => { text: "lo'ei", selmaho: [Le] },
         Lohi => { text: "lo'i", selmaho: [Le] },
@@ -706,7 +706,7 @@ macro_rules! cmavo_table {
         Ry => { text: "ry", selmaho: [By] },
         Sa => { text: "sa", selmaho: [Sa] },
         Saha => { text: "sa'a", selmaho: [Ui] },
-        Sahai => { text: "sa'ai", selmaho: [] },
+        Sahai => { text: "sa'ai", selmaho: [Lohai] },
         Sahe => { text: "sa'e", selmaho: [Ui] },
         Sahei => { text: "sa'ei", selmaho: [Coi] },
         Sahi => { text: "sa'i", selmaho: [Vuhu] },
@@ -1034,6 +1034,7 @@ const CMAVO_CANONICAL_TEXTS: &[&str] = cmavo_table!(cmavo_canonical_texts);
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum QuoteOpenerKind {
+    Replacement,
     QuotedWords,
     DelimitedNonLojban,
     ParsedWord,
@@ -1087,6 +1088,7 @@ impl Cmavo {
     #[ensures(true)]
     pub(crate) const fn quote_opener_kind(self) -> Option<QuoteOpenerKind> {
         match self {
+            Self::Lohai | Self::Sahai | Self::Lehai => Some(QuoteOpenerKind::Replacement),
             Self::Lohu => Some(QuoteOpenerKind::QuotedWords),
             Self::Zoi | Self::Laho => Some(QuoteOpenerKind::DelimitedNonLojban),
             Self::Zo | Self::Mahoi => Some(QuoteOpenerKind::ParsedWord),
@@ -1419,11 +1421,13 @@ define_selmaho! {
     Lahe => "LAhE",
     Lau => "LAU",
     Le => "LE",
+    Lehai => "LEhAI",
     Lehu => "LEhU",
     Li => "LI",
     Lihu => "LIhU",
     Loho => "LOhO",
     Lohoi => "LOhOI",
+    Lohai => "LOhAI",
     Lohu => "LOhU",
     Lu => "LU",
     Mai => "MAI",

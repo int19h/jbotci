@@ -192,6 +192,27 @@ fn hover_word_in_word_like<'word>(
             offset,
             inherited_semantics(semantics, HoverSemantics::Dictionary),
         ),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => runs
+            .iter()
+            .find_map(|run| {
+                hover_word_at(
+                    &run.marker,
+                    offset,
+                    inherited_semantics(semantics, HoverSemantics::Dictionary),
+                )
+                .or_else(|| {
+                    run.words.iter().find_map(|word| {
+                        hover_word_in_word_like(&word.word, offset, HoverSemantics::MorphologyOnly)
+                    })
+                })
+            })
+            .or_else(|| {
+                hover_word_at(
+                    lehai,
+                    offset,
+                    inherited_semantics(semantics, HoverSemantics::Dictionary),
+                )
+            }),
         data!(WordLike::LerfuWord { base, bu }) => {
             hover_word_in_word_like(base, offset, HoverSemantics::MorphologyOnly)
                 .or_else(|| hover_word_at(bu, offset, HoverSemantics::MorphologyOnly))
@@ -298,6 +319,15 @@ fn word_like_headword(word_like: &WordLike) -> String {
             marker,
             quoted_text,
         }) => format!("{} {}", marker.canonical_phonemes(), quoted_text.text),
+        data!(WordLike::ReplacementQuote { runs, lehai }) => {
+            let mut words = Vec::new();
+            for run in runs {
+                words.push(run.marker.canonical_phonemes());
+                words.extend(run.words.iter().map(|word| word_like_headword(&word.word)));
+            }
+            words.push(lehai.canonical_phonemes());
+            words.join(" ")
+        }
         data!(WordLike::LerfuWord { base, bu }) => {
             format!("{} {}", word_like_headword(base), bu.canonical_phonemes())
         }

@@ -42,6 +42,7 @@ mod link_payload;
 mod parse_error;
 mod parser_core;
 mod peho_forethought;
+mod replacement;
 mod sumti_operand_tier;
 pub(crate) mod tokens;
 use parse_error::{

@@ -14,9 +14,9 @@ use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
     MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
-    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, Verbatim, Word,
-    WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
-    canonical_text_is_all, canonicalize_text, morphology_error_recovery_start,
+    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, ReplacementQuoteRun,
+    ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
+    ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
 };
 
 #[requires(true)]
@@ -187,6 +187,8 @@ struct Segmenter<'a> {
     /// Source character positions actually consumed through the new tier.
     /// A dense flag vector keeps speculative revisits idempotent.
     ignored_character_flags: Vec<bool>,
+    /// New ignored positions in a speculative replacement quote read.
+    ignored_probe: Option<Vec<usize>>,
     /// Disabled only while probing for a ZOI closing delimiter, whose payload
     /// boundaries must stay independent of the permissive tier.
     permissive_boundaries_enabled: bool,
@@ -308,6 +310,7 @@ impl<'a> Segmenter<'a> {
             pending: None,
             warnings: Vec::new(),
             ignored_character_flags,
+            ignored_probe: None,
             permissive_boundaries_enabled: options.permissive_lexer,
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
         }
@@ -748,6 +751,19 @@ impl<'a> Segmenter<'a> {
     ) -> Result<Vec<WordLike>, MorphologyError> {
         let word_cmavo = word.cmavo();
         let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
+        if quote_opener_kind == Some(QuoteOpenerKind::Replacement) {
+            let word = self.replacement_quote_or_marker(word);
+            if matches!(word.as_data(), data!(WordLike::ReplacementQuote { .. })) {
+                self.trace_step(
+                    TraceLevel::Detailed,
+                    "replacement quote",
+                    start,
+                    self.index,
+                    || None,
+                );
+            }
+            return Ok(vec![word]);
+        }
         if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
             self.trace_step(
                 TraceLevel::Detailed,
@@ -826,6 +842,24 @@ impl<'a> Segmenter<'a> {
         token: WordLike,
     ) -> Result<(), MorphologyError> {
         let token_cmavo = token.cmavo();
+        if token.is_selmaho(Selmaho::Lohai) && !self.next_word_is_constructor() {
+            let (start, end) = word_like_char_range(&token).expect("LOhAI has a source span");
+            let error = self.invalid_span_with_detail(
+                MorphologyErrorKind::ExpectedWord,
+                end,
+                end,
+                self.context(MorphologyContextKind::ReplacementQuote, start, end),
+                Some(new!(MorphologyErrorDetail::ExpectedWord {
+                    expected: ExpectedWordDetailKind::ReplacementClose
+                })),
+            );
+            acc.push(StreamUnit::Fault(new!(MagicWordFault {
+                class: SAMatchTag::Cmavo(token_cmavo.expect("a bare LOhAI marker")),
+                span: self.recovery_source_span(start, end),
+                error,
+            })));
+            return Ok(());
+        }
         if token_cmavo == Some(Cmavo::Lehu) {
             let (start, end) = word_like_char_range(&token).expect("LEhU has a source span");
             let error = self.invalid_span(MorphologyErrorKind::UnopenedQuote, start, end, None);
@@ -1256,7 +1290,7 @@ impl<'a> Segmenter<'a> {
                 })),
             )
         })?;
-        if is_y_word_text(opening_delimiter.phonemes().as_str()) {
+        if opening_delimiter.is_hesitation() {
             return Err(self.invalid_span_with_detail(
                 MorphologyErrorKind::InvalidZoiDelimiter,
                 opening_delimiter.span().char_start,
@@ -1336,6 +1370,109 @@ impl<'a> Segmenter<'a> {
             marker,
             self.verbatim(start, end)?,
         )])
+    }
+
+    #[requires(word.is_selmaho(Selmaho::Lohai) || word.is_cmavo(Cmavo::Lehai))]
+    #[requires(self.ignored_probe.is_none())]
+    #[ensures(self.ignored_probe.is_none())]
+    #[ensures(ret.quote_marker_cmavo().or(ret.cmavo()) == old(word.cmavo()))]
+    #[ensures(ret.quote_marker_cmavo().is_some() || ret.is_selmaho(Selmaho::Lohai))]
+    fn replacement_quote_or_marker(&mut self, word: WordLike) -> WordLike {
+        let marker = into_bare_word(word).expect("a replacement marker is a raw word");
+        if marker.is_cmavo(Cmavo::Lehai) {
+            return WordLike::replacement_quote(Vec::new(), marker);
+        }
+        let saved_index = self.index;
+        let saved_warnings = self.warnings.len();
+        self.ignored_probe = Some(Vec::new());
+        let quote = self.read_replacement_quote(&marker);
+        let ignored = self.ignored_probe.take().expect("replacement read journal");
+        if let Some(quote) = quote {
+            return quote;
+        }
+        self.index = saved_index;
+        self.warnings.truncate(saved_warnings);
+        for index in ignored {
+            self.ignored_character_flags[index] = false;
+        }
+        WordLike::bare(marker)
+    }
+
+    #[requires(marker.is_selmaho(Selmaho::Lohai))]
+    #[requires(self.ignored_probe.is_some())]
+    #[ensures(ret.as_ref().is_none_or(|word| matches!(word.as_data(), data!(WordLike::ReplacementQuote { .. }))))]
+    fn read_replacement_quote(&mut self, marker: &Word) -> Option<WordLike> {
+        let mut runs = Vec::new();
+        let mut marker = marker.clone();
+        let mut words = Vec::new();
+        loop {
+            self.skip_magic_noise(true).ok()?;
+            if self.index == self.chars.len() {
+                return None;
+            }
+            if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
+                let end = self.candidate_end(self.index);
+                if self.is_digit_sequence_candidate(self.index, end) {
+                    words.extend(
+                        self.digit_sequence()
+                            .ok()?
+                            .into_iter()
+                            .map(|word| new!(ReplacementQuoteWord { word })),
+                    );
+                    continue;
+                }
+            }
+            let word = into_bare_word(self.next_plain_word().ok()?)?;
+            if word.is_cmavo(Cmavo::Lehai) {
+                runs.push(new!(ReplacementQuoteRun { marker, words }));
+                return Some(WordLike::replacement_quote(runs, word));
+            }
+            if word.is_selmaho(Selmaho::Lohai) {
+                if !runs.is_empty() {
+                    return None;
+                }
+                runs.push(new!(ReplacementQuoteRun { marker, words }));
+                marker = word;
+                words = Vec::new();
+            } else if word.is_hesitation() {
+                // The shared raw-word exception joins Y and BU before operations.
+                self.skip_separators();
+                let bu = into_bare_word(self.next_plain_word().ok()?)?;
+                if !bu.is_cmavo(Cmavo::Bu) {
+                    return None;
+                }
+                words.push(new!(ReplacementQuoteWord {
+                    word: WordLike::letter(WordLike::bare(word), bu)
+                }));
+            } else {
+                words.push(new!(ReplacementQuoteWord {
+                    word: WordLike::bare(word)
+                }));
+            }
+        }
+    }
+
+    #[requires(self.ignored_probe.is_none())]
+    #[ensures(self.ignored_probe.is_none())]
+    #[ensures(self.index == old(self.index))]
+    #[ensures(self.warnings.len() == old(self.warnings.len()))]
+    #[bityzba::expensive_ensures(self.warnings == old(self.warnings.clone()))]
+    #[bityzba::expensive_ensures(self.ignored_character_flags == old(self.ignored_character_flags.clone()))]
+    fn next_word_is_constructor(&mut self) -> bool {
+        let index = self.index;
+        let warnings = self.warnings.len();
+        self.ignored_probe = Some(Vec::new());
+        let result = self.skip_magic_noise(true).is_ok()
+            && self
+                .next_plain_word()
+                .ok()
+                .is_some_and(|word| word.is_one_of_cmavo(&[Cmavo::Bu, Cmavo::Zei]));
+        self.index = index;
+        self.warnings.truncate(warnings);
+        for position in self.ignored_probe.take().expect("constructor read journal") {
+            self.ignored_character_flags[position] = false;
+        }
+        result
     }
 
     #[requires(true)]
@@ -1700,7 +1837,12 @@ impl<'a> Segmenter<'a> {
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
             if self.is_new_permissive_ignorable_at(self.index) {
-                self.ignored_character_flags[self.index] = true;
+                if !self.ignored_character_flags[self.index] {
+                    if let Some(positions) = &mut self.ignored_probe {
+                        positions.push(self.index);
+                    }
+                    self.ignored_character_flags[self.index] = true;
+                }
             }
             self.index += 1;
         }
@@ -2574,17 +2716,9 @@ fn into_bare_word(word: WordLike) -> Option<Word> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret || word.bare_word().is_some_and(|word| word.kind() == WordKind::Cmavo))]
 fn is_y_word(word: &WordLike) -> bool {
-    word.bare_word().is_some_and(|word| {
-        word.kind() == WordKind::Cmavo && is_y_word_text(word.phonemes().as_str())
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_y_word_text(text: &str) -> bool {
-    canonical_text_is_all(text, 'y')
+    word.bare_word().is_some_and(Word::is_hesitation)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2663,6 +2797,11 @@ fn sa_match_tag(word: &WordLike) -> Option<SAMatchTag> {
             zoi.cmavo().and_then(cmavo_sa_match_tag)
         }
         data!(WordLike::QuotedWords { .. }) => cmavo_sa_match_tag(Cmavo::Lohu),
+        data!(WordLike::ReplacementQuote { runs, .. }) => cmavo_sa_match_tag(
+            runs.first()
+                .and_then(|run| run.marker.cmavo())
+                .unwrap_or(Cmavo::Lehai),
+        ),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => {
             marker.cmavo().and_then(cmavo_sa_match_tag)
         }
@@ -2818,6 +2957,120 @@ mod tests {
     use super::*;
     use crate::PhonotacticDetailKind;
     use bityzba::requires;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn replacement_quote_span_mapper_reports_reordered_markers() {
+        let words = crate::segment_words_with_modifiers("lo'ai mi le'ai").expect("quote");
+        for reorder_bytes in [true, false] {
+            let result = crate::map_word_like_spans(words[0].clone(), &|span| {
+                if span.char_start == 9 {
+                    let byte_start = if reorder_bytes { 0 } else { span.byte_start };
+                    let byte_end = if reorder_bytes { 5 } else { span.byte_end };
+                    let char_start = if reorder_bytes { span.char_start } else { 0 };
+                    let char_end = if reorder_bytes { span.char_end } else { 5 };
+                    SourceSpan::new(
+                        span.source_id.clone(),
+                        byte_start,
+                        byte_end,
+                        char_start,
+                        char_end,
+                    )
+                    .map_err(|error| error.to_string())
+                } else {
+                    Ok(span)
+                }
+            });
+            assert!(
+                result.is_err(),
+                "the mapper must reject reordered {} spans",
+                if reorder_bytes { "byte" } else { "character" },
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn replacement_quote_json_rejects_wrong_markers_and_nested_quotes() {
+        let words = crate::segment_words_with_modifiers("lo'ai mi le'ai").expect("quote");
+        let original = serde_json::to_value(&words[0]).expect("serialize");
+        let mut wrong_close = original.clone();
+        wrong_close["ReplacementQuote"]["lehai"] =
+            original["ReplacementQuote"]["runs"][0]["marker"].clone();
+        assert!(serde_json::from_value::<WordLike>(wrong_close).is_err());
+        let mut nested_quote = original.clone();
+        nested_quote["ReplacementQuote"]["runs"][0]["words"][0]["word"] = original;
+        assert!(serde_json::from_value::<WordLike>(nested_quote).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unfinished_replacement_fault_keeps_its_anchor_and_detail() {
+        for marker in ["lo'ai", "sa'ai"] {
+            let source = format!("mi {marker}");
+            let error =
+                segment_words_with_modifiers_attempt(&source, &MorphologyOptions::default(), None)
+                    .into_data()
+                    .result
+                    .expect_err("a surviving unfinished quote is a fault");
+            assert_invalid_error(
+                &error,
+                MorphologyErrorKind::ExpectedWord,
+                8,
+                8,
+                Some(MorphologyContextKind::ReplacementQuote),
+            );
+            assert_eq!(
+                invalid_error_detail(&error),
+                Some(&new!(MorphologyErrorDetail::ExpectedWord {
+                    expected: ExpectedWordDetailKind::ReplacementClose
+                }))
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failed_replacement_probe_discards_unconsumed_advice() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(+permissive-lexer)").expect("dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+        let attempt = segment_words_with_modifiers_attempt("lo'ai si fa'o @namzi", &options, None)
+            .into_data();
+        assert!(attempt.result.expect("SI erases the fault").is_empty());
+        assert!(
+            attempt.warnings.is_empty(),
+            "the quote probe must not retain warnings after active FAhO"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn replacement_quote_roundtrips_and_maps_each_raw_span() {
+        let words = crate::segment_words_with_modifiers("lo'ai mi sa'ai do le'ai")
+            .expect("replacement quote");
+        assert_eq!(words.len(), 1);
+        let word = words.into_iter().next().expect("one quote");
+        let json = serde_json::to_string(&word).expect("serialize");
+        let roundtrip: WordLike = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(word, roundtrip);
+        let mapped = crate::map_word_like_spans(word.clone(), &|span| {
+            Ok(span.with_data(data! { source_id: Some(SourceId("mapped".to_owned())) }))
+        })
+        .expect("map spans");
+        assert!(
+            mapped
+                .source_spans()
+                .iter()
+                .all(|span| span.source_id.as_ref().is_some_and(|id| id.0 == "mapped"))
+        );
+        assert!(crate::word_like_syntax_eq(&word, &mapped));
+    }
 
     #[test]
     #[requires(true)]
