@@ -1048,10 +1048,12 @@ enum ContainerEngine {
     Podman,
 }
 
+#[invariant(content_encoding.is_none() == uncompressed_path.is_none())]
+#[invariant(content_encoding.is_none() || *content_encoding == Some("br"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct R2UploadObject {
     local_path: PathBuf,
+    uncompressed_path: Option<PathBuf>,
     object_key: String,
     content_type: &'static str,
     content_encoding: Option<&'static str>,
@@ -5153,19 +5155,20 @@ fn r2_upload_object_for_key(
         );
     }
     let brotli_path = brotli_sidecar_path(&local_uncompressed)?;
-    let (local_path, content_encoding) = if brotli_path.is_file() {
+    let (local_path, uncompressed_path, content_encoding) = if brotli_path.is_file() {
         jbotci_embeddings::validate_brotli_sibling(&local_uncompressed)?;
-        (brotli_path, Some("br"))
+        (brotli_path, Some(local_uncompressed), Some("br"))
     } else {
-        (local_uncompressed, None)
+        (local_uncompressed, None, None)
     };
-    Ok(R2UploadObject {
-        local_path,
+    Ok(R2UploadObject::from_data(data!(R2UploadObject {
+        local_path: local_path,
+        uncompressed_path: uncompressed_path,
         content_type: r2_content_type(&relative_key),
-        content_encoding,
+        content_encoding: content_encoding,
         cache_control: r2_cache_control(&relative_key),
         object_key: format!("{prefix}/{relative_key}"),
-    })
+    })))
 }
 
 #[requires(!prefix.trim().is_empty())]

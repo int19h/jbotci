@@ -14,7 +14,7 @@ export CLOUDFLARE_ACCOUNT_ID=fe55e0fbc7fbba2097b5f1e31957470f
 ```
 
 Keep this installation unchanged while publishers run.
-Set `CLOUDFLARE_API_TOKEN` with access to the selected R2 bucket, or use existing Wrangler credentials.
+Set `CLOUDFLARE_API_TOKEN` with object read and write access, or use existing Wrangler credentials.
 `JBOTCI_R2_WRANGLER_DIR` names the installation directory, which contains `node_modules/wrangler`.
 `CLOUDFLARE_ACCOUNT_ID` must contain 32 hexadecimal digits.
 The publisher passes this account to every upload and download command.
@@ -22,7 +22,23 @@ It disables Wrangler metrics and interactive input.
 
 Each upload command has a 180-second limit.
 Each read-back command has the same limit.
-The publisher downloads the object through Wrangler and compares its size and SHA-256 digest with the source.
+The read-back uses Node's raw HTTP client and the Cloudflare API.
+It obtains credentials from the pinned Wrangler `auth token --json` command without printing or saving them.
+The same 180-second limit covers credentials, metadata, and body download.
+The request advertises `br` for a Brotli upload and `identity` for an uncompressed upload.
+Node keeps the response bytes encoded when the server returns `Content-Encoding: br`.
+
+The publisher lists the exact object to read its stored size and Content-Encoding.
+It compares the metadata ETag with the body ETag to refuse an object that changes between reads.
+It compares an encoded response with the uploaded file through size and SHA-256.
+If the server returns a decoded Brotli response, it compares that response with the original uncompressed file.
+The upload planner validates that original against the Brotli sibling before publication.
+Stored size and encoding must match the upload in both cases.
+An unexpected encoding or a different body stops the attempt.
+
+Wrangler's fetch client decodes compressed responses, so `r2 object get` does not preserve stored Brotli bytes.
+The [Cloudflare compression guide](https://developers.cloudflare.com/speed/optimization/content/compression/) describes response transformations and content negotiation.
+The [R2 object API](https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/objects/) describes metadata and body reads.
 A failed command, timeout, or different digest retries the upload and read-back together.
 The publisher makes at most three attempts, with waits of two and four seconds.
 A final failure names the object and stops publication.

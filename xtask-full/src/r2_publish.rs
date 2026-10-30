@@ -6,7 +6,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
+#[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::R2UploadObject;
@@ -56,10 +58,39 @@ impl Publisher {
     #[requires(!bucket.trim().is_empty())]
     #[ensures(true)]
     pub(super) fn put(&self, bucket: &str, object: &R2UploadObject) -> Result<()> {
+        self.put_with_readback(bucket, object, |downloaded, metadata| {
+            let mut get = self.node_command();
+            get.arg("-e")
+                .arg(concat!(include_str!("r2_readback.cjs"), "\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });"))
+                .arg(&self.script)
+                .arg(&self.account)
+                .arg(bucket.trim())
+                .arg(&object.object_key)
+                .arg(object.content_encoding.unwrap_or("identity"))
+                .arg(downloaded)
+                .arg(metadata);
+            run_bounded(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")
+        })
+    }
+
+    #[requires(!bucket.trim().is_empty())]
+    #[ensures(true)]
+    fn put_with_readback(
+        &self,
+        bucket: &str,
+        object: &R2UploadObject,
+        mut readback: impl FnMut(&Path, &Path) -> Result<()>,
+    ) -> Result<()> {
         let target = format!("{}/{}", bucket.trim(), object.object_key);
         let expected = fingerprint(&object.local_path)?;
+        let original = object
+            .uncompressed_path
+            .as_deref()
+            .map(fingerprint)
+            .transpose()?;
         let temporary = Readback::new(&self.scratch)?;
         let downloaded = temporary.path.join("object");
+        let metadata_path = temporary.path.join("metadata.json");
         retry(
             ATTEMPTS,
             Duration::from_secs(2),
@@ -82,11 +113,13 @@ impl Publisher {
                 if downloaded.exists() {
                     fs::remove_file(&downloaded)?;
                 }
-                let mut get = self.command();
-                get.args(["r2", "object", "get", &target, "--remote", "--file"])
-                    .arg(&downloaded);
-                run_bounded(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")?;
-                compare_fingerprint(&expected, &fingerprint(&downloaded)?)
+                if metadata_path.exists() {
+                    fs::remove_file(&metadata_path)?;
+                }
+                readback(&downloaded, &metadata_path)?;
+                let metadata: ReadbackMetadata =
+                    serde_json::from_slice(&fs::read(&metadata_path)?)?;
+                verify_readback(object, &expected, original.as_ref(), &downloaded, &metadata)
             },
             std::thread::sleep,
         )
@@ -96,14 +129,55 @@ impl Publisher {
     #[requires(true)]
     #[ensures(true)]
     fn command(&self) -> Command {
+        let mut command = self.node_command();
+        command.arg(&self.script);
+        command
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn node_command(&self) -> Command {
         let mut command = Command::new("node");
         command
-            .arg(&self.script)
             .env("CLOUDFLARE_ACCOUNT_ID", &self.account)
             .env("WRANGLER_SEND_METRICS", "false")
             .env("CI", "true")
             .stdin(Stdio::null());
         command
+    }
+}
+
+#[invariant(true)]
+#[derive(Deserialize)]
+struct ReadbackMetadata {
+    stored_size: u64,
+    stored_encoding: Option<String>,
+    body_encoding: Option<String>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn verify_readback(
+    object: &R2UploadObject,
+    expected: &Fingerprint,
+    original: Option<&Fingerprint>,
+    downloaded: &Path,
+    metadata: &ReadbackMetadata,
+) -> Result<()> {
+    if metadata.stored_size != expected.size
+        || metadata.stored_encoding.as_deref() != object.content_encoding
+    {
+        bail!("R2 stored size or Content-Encoding differs from the upload");
+    }
+    let actual = fingerprint(downloaded)?;
+    match (object.content_encoding, metadata.body_encoding.as_deref()) {
+        (None, None) | (Some("br"), Some("br")) => compare_fingerprint(expected, &actual),
+        (Some("br"), None) => {
+            let original = original
+                .context("A decoded Brotli read-back needs the validated original fingerprint")?;
+            compare_fingerprint(original, &actual)
+        }
+        _ => bail!("R2 returned an unexpected Content-Encoding"),
     }
 }
 
@@ -339,26 +413,36 @@ if (process.env.CLOUDFLARE_ACCOUNT_ID !== '0123456789abcdef0123456789abcdef') pr
 if (!args.includes('--remote')) process.exit(10);
 const file = args[args.indexOf('--file') + 1];
 const remote = path.join(__dirname, 'remote');
-if (args[2] === 'put') fs.copyFileSync(file, remote);
-else fs.copyFileSync(remote, file);
+if (args[2] !== 'put') process.exit(11);
+fs.copyFileSync(file, remote);
 "#,
         )
         .unwrap();
         let source = temporary.path.join("source");
         fs::write(&source, b"exact upload bytes").unwrap();
-        let object = R2UploadObject {
+        let object = R2UploadObject::from_data(data!(R2UploadObject {
             local_path: source,
+            uncompressed_path: None,
             object_key: "packs/test.f16".to_owned(),
             content_type: "application/octet-stream",
             content_encoding: None,
             cache_control: "immutable",
-        };
+        }));
         let publisher = Publisher::from_data(data!(Publisher {
             script: script,
             account: "0123456789abcdef0123456789abcdef".to_owned(),
             scratch: temporary.path.clone(),
         }));
-        publisher.put("stub-bucket", &object).unwrap();
+        publisher
+            .put_with_readback("stub-bucket", &object, |downloaded, metadata| {
+                fs::copy(temporary.path.join("remote"), downloaded)?;
+                fs::write(
+                    metadata,
+                    r#"{"stored_size":18,"stored_encoding":null,"body_encoding":null}"#,
+                )?;
+                Ok(())
+            })
+            .unwrap();
         assert_eq!(
             fs::read(temporary.path.join("remote")).unwrap(),
             b"exact upload bytes"
@@ -381,32 +465,136 @@ else fs.copyFileSync(remote, file);
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
-if (args[2] === 'put') fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
-else fs.writeFileSync(args[args.indexOf('--file') + 1], 'wrong bytes');
+if (args[2] !== 'put') process.exit(11);
+fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
 "#,
         )
         .unwrap();
         let source = temporary.path.join("source");
         fs::write(&source, b"right bytes").unwrap();
-        let object = R2UploadObject {
+        let object = R2UploadObject::from_data(data!(R2UploadObject {
             local_path: source,
+            uncompressed_path: None,
             object_key: "test.f16".to_owned(),
             content_type: "application/octet-stream",
             content_encoding: None,
             cache_control: "immutable",
-        };
+        }));
         let publisher = Publisher::from_data(data!(Publisher {
             script: script,
             account: "0123456789abcdef0123456789abcdef".to_owned(),
             scratch: temporary.path.clone(),
         }));
-        let error = publisher.put("stub-bucket", &object).unwrap_err();
+        let error = publisher
+            .put_with_readback("stub-bucket", &object, |downloaded, metadata| {
+                fs::write(downloaded, b"wrong bytes")?;
+                fs::write(
+                    metadata,
+                    r#"{"stored_size":11,"stored_encoding":null,"body_encoding":null}"#,
+                )?;
+                Ok(())
+            })
+            .unwrap_err();
         assert!(format!("{error:#}").contains("SHA-256 digest differs"));
         assert_eq!(
             fs::read_to_string(temporary.path.join("calls")).unwrap(),
             "put\nput\nput\n"
         );
         assert_eq!(fs::read_dir(&temporary.path).unwrap().count(), 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn brotli_readback_checks_both_representations_and_stored_metadata() {
+        let root = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target"));
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let original = temporary.path.join("vectors.f16");
+        fs::write(&original, b"right bytes").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&original).unwrap();
+        let object =
+            crate::r2_upload_object_for_key(&temporary.path, "stub-prefix", "vectors.f16").unwrap();
+        assert_eq!(
+            object.uncompressed_path.as_deref(),
+            Some(original.as_path())
+        );
+        let expected = fingerprint(&object.local_path).unwrap();
+        let original_fingerprint = fingerprint(&original).unwrap();
+        let downloaded = temporary.path.join("download");
+        for body_encoding in [Some("br".to_owned()), None] {
+            let source = if body_encoding.is_some() {
+                &object.local_path
+            } else {
+                &original
+            };
+            fs::copy(source, &downloaded).unwrap();
+            let mut metadata = ReadbackMetadata {
+                stored_size: expected.size,
+                stored_encoding: Some("br".to_owned()),
+                body_encoding,
+            };
+            verify_readback(
+                &object,
+                &expected,
+                Some(&original_fingerprint),
+                &downloaded,
+                &metadata,
+            )
+            .unwrap();
+            let mut bytes = fs::read(&downloaded).unwrap();
+            bytes[0] ^= 1;
+            fs::write(&downloaded, bytes).unwrap();
+            assert!(
+                verify_readback(
+                    &object,
+                    &expected,
+                    Some(&original_fingerprint),
+                    &downloaded,
+                    &metadata
+                )
+                .is_err()
+            );
+            fs::copy(source, &downloaded).unwrap();
+            metadata.stored_encoding = None;
+            assert!(
+                verify_readback(
+                    &object,
+                    &expected,
+                    Some(&original_fingerprint),
+                    &downloaded,
+                    &metadata
+                )
+                .is_err()
+            );
+            metadata.stored_encoding = Some("br".to_owned());
+            metadata.stored_size += 1;
+            assert!(
+                verify_readback(
+                    &object,
+                    &expected,
+                    Some(&original_fingerprint),
+                    &downloaded,
+                    &metadata
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_http_readback_uses_local_server_stubs() {
+        run_bounded(
+            Command::new("node")
+                .arg("--test")
+                .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/r2-readback.test.cjs")),
+            Duration::from_secs(30),
+        )
+        .unwrap();
     }
 
     #[cfg(unix)]
