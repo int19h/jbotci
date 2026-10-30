@@ -123,3 +123,17 @@ Short-rafsi availability uses the standing of each listed claim.
 An official claim takes priority over experimental claims on the same form.
 If only experimental claims exist, the result reports all those claimants.
 Derived forms do not count as listed claims.
+
+### Re-audits on record
+
+On 2026-10-30, we audited the 34,316-row Lensisku export dated
+2026-10-30T17:00:44Z. We removed `nunmu` because its structured experimental
+rafsi now include `nu'u`, which agrees with the extracted claim.
+We removed `tonzo` because the new experimental gismu `tombo` claims `to'o`.
+The structured claim takes priority under the refresh protocol.
+The other 30 extracted words retain 33 forms.
+We compared every definition row, including rows that best-definition selection drops.
+We also examined all 11 new experimental gismu and 24 new experimental cmavo.
+Only `kekna`, `mevmi`, and `tombo` list structured rafsi among those new words.
+Their short forms are `fe'e`, `mev`, and `to'o`, respectively.
+Of those forms, only `to'o` conflicts with the extracted table.

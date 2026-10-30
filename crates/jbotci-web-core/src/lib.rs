@@ -10639,9 +10639,9 @@ mod tests {
             .dictionary_info
             .as_ref()
             .expect("blank vlacku result should include dictionary metadata");
-        assert_eq!(info.lensisku_created_date, "2026-10-04");
-        assert_eq!(info.lensisku_created_at, "2026-10-04T03:07:08Z");
-        assert_eq!(info.total_count, 31_248);
+        assert_eq!(info.lensisku_created_date, "2026-10-30");
+        assert_eq!(info.lensisku_created_at, "2026-10-30T17:00:44Z");
+        assert_eq!(info.total_count, 31_504);
         assert!(!info.count_tree.is_empty());
 
         let dictionary = jbotci_dictionary_data::english();
