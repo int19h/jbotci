@@ -551,6 +551,7 @@ struct TextMeasurer<'options> {
 }
 
 impl<'options> TextMeasurer<'options> {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     fn new(options: &'options usvg::Options<'static>) -> Self {
@@ -1588,6 +1589,7 @@ struct SvgDocument {
 }
 
 impl SvgDocument {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.starts_with("<svg"))]
     fn to_xml(&self) -> String {
@@ -1624,6 +1626,7 @@ struct SvgElement {
 }
 
 impl SvgElement {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.tag == tag)]
     fn new(tag: SvgTag) -> Self {

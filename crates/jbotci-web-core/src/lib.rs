@@ -70,9 +70,9 @@ use jbotci_output::{
     format_definition_line_with_indexed_places, generated_reference_display,
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
     indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
-    pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
+    pretty_bracket_source_fragments_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
-    pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
+    render_lojban_text_for_script_with_options,
 };
 use jbotci_phonetic::lojban_text_to_ipa;
 use jbotci_search::compounds::{
@@ -4181,7 +4181,7 @@ fn gentufa_social_image_from_success_with_limits(
     );
     let export = match export {
         Ok(export) => export,
-        Err(error) if limits.is_none() => return Ok(None),
+        Err(_) if limits.is_none() => return Ok(None),
         Err(error) => return Err(error),
     };
     let (Some(svg_width), Some(svg_height)) = (export.width, export.height) else {
@@ -5755,23 +5755,6 @@ pub fn escape_html_text(input: &str) -> String {
             '&' => output.push_str("&amp;"),
             '<' => output.push_str("&lt;"),
             '>' => output.push_str("&gt;"),
-            _ => output.push(ch),
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn escape_html_attr(input: &str) -> String {
-    let mut output = String::new();
-    for ch in input.chars() {
-        match ch {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '>' => output.push_str("&gt;"),
-            '"' => output.push_str("&quot;"),
-            '\'' => output.push_str("&#39;"),
             _ => output.push(ch),
         }
     }
