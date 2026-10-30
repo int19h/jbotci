@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 use directories::ProjectDirs;
 use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaSearchWindow,
@@ -1944,7 +1944,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     })?;
     let mut checkpoint = checkpoint.expect("checkpoint was initialized");
     write_native_partial_checkpoint(&checkpoint_path, &checkpoint)?;
-    let reusable_rows = load_reusable_native_rows(index_root, &spec.model_key, dimensions);
+    let reusable_rows = load_reusable_native_rows(index_root, spec);
     let mut completed_rows = 0u64;
     emit_indexing_progress("Indexing dictionary", completed_rows, total_rows, progress);
 
@@ -2872,7 +2872,7 @@ pub fn load_latest_pack(
         })?;
     let pack_dir = index_root
         .join(INDEX_BASE_VERSION)
-        .join(&model.manifest_url);
+        .join(safe_pack_relative_path(&model.manifest_url)?);
     let pack_dir = pack_dir
         .parent()
         .ok_or_else(|| EmbeddingError::InvalidIndex {
@@ -2893,45 +2893,84 @@ pub fn load_latest_pack(
     Ok((pack_dir.to_owned(), manifest))
 }
 
-#[requires(dimensions > 0)]
+/// A source whose metadata and stored rows passed the native reuse checks.
+#[invariant(!pack_dir.as_os_str().is_empty() && manifest.dimensions > 0)]
+#[expensive_invariant(rows.dictionary.rows_by_input_hash.values().chain(rows.cll.rows_by_input_hash.values()).all(|vector| vector.len() == manifest.dimensions && vector.iter().all(|value| value.is_finite())))]
+#[derive(Debug)]
+pub struct NativeReuseSource {
+    pub pack_dir: PathBuf,
+    pub manifest: EmbeddingPackManifest,
+    rows: ReusablePackRows,
+}
+
+/// Validate an explicit reuse source without requiring its corpus to match today's corpus.
+/// Model revision and runtime identify native tokenization and pooling together.
+#[requires(spec.dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.manifest.model_key == spec.model_key && source.manifest.dimensions == spec.dimensions) || ret.is_err())]
+pub fn validate_native_reuse_source(
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+) -> Result<NativeReuseSource, EmbeddingError> {
+    let (pack_dir, manifest) = load_latest_pack(index_root, &spec.model_key)?;
+    if safe_pack_relative_path(&manifest.pack_id)?
+        .components()
+        .count()
+        != 1
+        || manifest.corpora.len() != 2
+        || manifest.corpora[0].corpus_id == manifest.corpora[1].corpus_id
+    {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "reuse pack must have a single pack id and two distinct corpora".to_owned(),
+        });
+    }
+    let dictionary = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
+    let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
+    validate_native_pack_manifest(
+        &manifest,
+        spec,
+        &manifest.pack_id,
+        &dictionary.fingerprint,
+        dictionary.row_count,
+        &cll.fingerprint,
+        cll.row_count,
+    )?;
+    if manifest.built_by != native_embedding_runtime() {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "reuse pack was built by a different native runtime".to_owned(),
+        });
+    }
+    // Both item hashes and shard hashes must pass before any row is trusted.
+    native_pack_remote_paths(&manifest)?;
+    let dictionary = load_reusable_corpus_rows::<DictionaryEmbeddingItem, _>(
+        &pack_dir,
+        dictionary,
+        spec.dimensions,
+        |item| item.input_hash.as_str(),
+    )?;
+    let cll = load_reusable_corpus_rows::<CllEmbeddingItem, _>(
+        &pack_dir,
+        cll,
+        spec.dimensions,
+        |item| item.input_hash.as_str(),
+    )?;
+    Ok(new!(NativeReuseSource {
+        pack_dir,
+        manifest,
+        rows: ReusablePackRows { dictionary, cll }
+    }))
+}
+
+#[requires(spec.dimensions > 0)]
 #[ensures(true)]
 fn load_reusable_native_rows(
     index_root: &Path,
-    model_key: &str,
-    dimensions: usize,
+    spec: &EmbeddingModelSpec,
 ) -> Option<ReusablePackRows> {
     if !catalog_path(index_root).ok()?.is_file() {
         return None;
     }
-    let (pack_dir, manifest) = load_latest_pack(index_root, model_key).ok()?;
-    if manifest.dimensions != dimensions {
-        return None;
-    }
-    let dictionary = manifest_corpus(&manifest, VLACKU_CORPUS_ID)
-        .ok()
-        .and_then(|corpus| {
-            load_reusable_corpus_rows::<DictionaryEmbeddingItem, _>(
-                &pack_dir,
-                corpus,
-                dimensions,
-                |item| item.input_hash.as_str(),
-            )
-            .ok()
-        })
-        .unwrap_or_default();
-    let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID)
-        .ok()
-        .and_then(|corpus| {
-            load_reusable_corpus_rows::<CllEmbeddingItem, _>(
-                &pack_dir,
-                corpus,
-                dimensions,
-                |item| item.input_hash.as_str(),
-            )
-            .ok()
-        })
-        .unwrap_or_default();
-    Some(ReusablePackRows { dictionary, cll })
+    let source = validate_native_reuse_source(index_root, spec).ok()?;
+    Some(source.into_data().rows)
 }
 
 #[requires(dimensions > 0)]
@@ -2946,16 +2985,46 @@ where
     T: DeserializeOwned,
     F: Fn(&T) -> &str,
 {
-    let items: Vec<T> = read_json_file(&pack_dir.join(&corpus.items_url))?;
+    let items_path = pack_dir.join(&corpus.items_url);
+    if sha256_hex_file(&items_path)? != corpus.items_sha256 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "reuse items file `{}` SHA-256 mismatch",
+                items_path.display()
+            ),
+        });
+    }
+    let items: Vec<T> = read_json_file(&items_path)?;
+    if items.len() != corpus.row_count {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "reuse item count does not match corpus row count".to_owned(),
+        });
+    }
     let values = read_vector_shards(pack_dir, corpus, dimensions)?;
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "reuse vectors must be finite".to_owned(),
+        });
+    }
     let mut rows_by_input_hash = HashMap::new();
     for (row_index, item) in items.iter().enumerate() {
+        let hash = input_hash(item);
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(EmbeddingError::InvalidIndex {
+                message: "reuse row must have a SHA-256 input hash".to_owned(),
+            });
+        }
         let start = row_index * dimensions;
         let end = start + dimensions;
-        if end <= values.len() {
-            rows_by_input_hash
-                .entry(input_hash(item).to_owned())
-                .or_insert_with(|| values[start..end].to_vec());
+        if let Some(previous) = rows_by_input_hash.get(hash) {
+            if previous != &values[start..end] {
+                return Err(EmbeddingError::InvalidIndex {
+                    message: "reuse pack contains conflicting vectors for one input hash"
+                        .to_owned(),
+                });
+            }
+        } else {
+            rows_by_input_hash.insert(hash.to_owned(), values[start..end].to_vec());
         }
     }
     Ok(ReusableVectorRows { rows_by_input_hash })
@@ -3328,6 +3397,35 @@ mod tests {
     struct FakeBackend {
         dimensions: usize,
         calls: usize,
+    }
+
+    #[derive(Debug)]
+    #[invariant(true)]
+    struct ContentHashBackend {
+        calls: usize,
+    }
+
+    #[contract_trait]
+    impl EmbeddingBackend for ContentHashBackend {
+        #[requires(true)]
+        #[ensures(ret.as_ref().is_ok_and(|dimensions| *dimensions == 4))]
+        fn dimensions(&self) -> Result<usize, EmbeddingError> {
+            Ok(4)
+        }
+
+        #[requires(!input.is_empty())]
+        #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == 4))]
+        fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
+            self.calls += 1;
+            // All inputs share a prefix. Hash the full text so a wrong row
+            // mapping cannot hide behind identical vectors in this test.
+            let digest = Sha256::digest(input.as_bytes());
+            let values = digest[..4]
+                .iter()
+                .map(|value| f32::from(*value) + 1.0)
+                .collect();
+            Ok(QueryEmbedding { values })
+        }
     }
 
     #[derive(Debug)]
@@ -4195,6 +4293,157 @@ mod tests {
                 && progress.loaded == Some(total_rows as u64)
                 && progress.total == Some(total_rows as u64)
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn incremental_native_pack_matches_full_after_rows_change_move_and_disappear() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let incremental = dir.path().join("incremental");
+        let full = dir.path().join("full");
+        // Empty dictionary keeps this integration test small. Both corpora use
+        // the same chunk writer, and the web test covers dictionary edits too.
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        dictionary.validate().expect("empty dictionary is valid");
+        let chunks = &jbotci_cll::embedded_cll_site().expect("CLL").search_chunks;
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_f2llm()
+        };
+        let mut backend = ContentHashBackend { calls: 0 };
+        build_embedding_pack_with_progress(
+            &mut backend,
+            &dictionary,
+            &chunks[..3],
+            &incremental,
+            &spec,
+            false,
+            &mut |_| {},
+        )
+        .expect("previous pack");
+        assert_eq!(backend.calls, 3);
+        let new_chunks = vec![
+            chunks[1]
+                .clone()
+                .with_data(data! { text: "changed embedding input".to_owned() }),
+            chunks[0].clone(),
+            chunks[3].clone(),
+        ];
+        backend.calls = 0;
+        build_embedding_pack_with_progress(
+            &mut backend,
+            &dictionary,
+            &new_chunks,
+            &incremental,
+            &spec,
+            false,
+            &mut |_| {},
+        )
+        .expect("incremental pack");
+        assert_eq!(
+            backend.calls, 2,
+            "only changed and added inputs reach the backend"
+        );
+        backend.calls = 0;
+        build_embedding_pack_with_progress(
+            &mut backend,
+            &dictionary,
+            &new_chunks,
+            &full,
+            &spec,
+            false,
+            &mut |_| {},
+        )
+        .expect("full pack");
+        assert_eq!(backend.calls, 3);
+        let (incremental_pack, incremental_manifest) =
+            load_latest_pack(&incremental, &spec.model_key).expect("incremental manifest");
+        let (full_pack, full_manifest) =
+            load_latest_pack(&full, &spec.model_key).expect("full manifest");
+        assert_eq!(incremental_manifest, full_manifest);
+        for relative in native_pack_remote_paths(&full_manifest)
+            .expect("files")
+            .into_iter()
+            .chain(["manifest.json".to_owned()])
+        {
+            assert_eq!(
+                fs::read(incremental_pack.join(&relative)).expect("incremental file"),
+                fs::read(full_pack.join(&relative)).expect("full file"),
+                "{relative}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_reuse_refuses_incompatible_metadata_and_corrupt_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().expect("CLL").search_chunks[..3];
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_f2llm()
+        };
+        let mut backend = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        build_embedding_pack_with_progress(
+            &mut backend,
+            &dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            false,
+            &mut |_| {},
+        )
+        .expect("pack");
+        let reuse = validate_native_reuse_source(dir.path(), &spec).expect("valid source");
+        let root = &reuse.pack_dir;
+        let manifest = &reuse.manifest;
+        let path = root.join("manifest.json");
+        for field in [
+            "model_key",
+            "model_revision",
+            "input_format_version",
+            "dimensions",
+            "element_type",
+            "built_by",
+            "compatible_query_runtimes",
+        ] {
+            let mut value = serde_json::to_value(&manifest).expect("manifest value");
+            value[field] = match field {
+                "dimensions" => serde_json::json!(5),
+                "built_by" => serde_json::json!({"runtime": "other", "version": "1"}),
+                "compatible_query_runtimes" => serde_json::json!([]),
+                _ => serde_json::json!("other"),
+            };
+            write_json_file(&path, &value).expect("write incompatible manifest");
+            assert!(
+                validate_native_reuse_source(dir.path(), &spec).is_err(),
+                "{field}"
+            );
+            assert!(
+                load_reusable_native_rows(dir.path(), &spec).is_none(),
+                "{field}"
+            );
+        }
+        write_json_file(&path, &manifest).expect("restore manifest");
+        let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID).expect("CLL corpus");
+        for relative in [&cll.items_url, &cll.shards[0].url] {
+            let path = root.join(relative);
+            let original = fs::read(&path).expect("original file");
+            let mut corrupt = original.clone();
+            corrupt[0] ^= 1;
+            fs::write(&path, &corrupt).expect("corrupt file");
+            let error =
+                validate_native_reuse_source(dir.path(), &spec).expect_err("corrupt source");
+            assert!(error.to_string().contains("SHA-256 mismatch"), "{error}");
+            assert!(load_reusable_native_rows(dir.path(), &spec).is_none());
+            fs::write(&path, &original).expect("restore file");
+        }
     }
 
     #[test]
