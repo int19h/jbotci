@@ -8360,10 +8360,11 @@ mod tests {
     #[ensures(true)]
     fn numbered_place_boundary_probes_finish_within_the_deadline() {
         const CHILD_FLAG: &str = "JBOTCI_TEST_PLACE_BOUNDARY_CHILD";
+        const PROBE_PASSED: i32 = 42;
         if std::env::var(CHILD_FLAG).as_deref() == Ok("1") {
             probe_place_cursor_boundary();
             probe_public_place_analysis_boundary();
-            return;
+            std::process::exit(PROBE_PASSED);
         }
 
         // A broken progression loop must not hang the workspace test process.
@@ -8380,7 +8381,12 @@ mod tests {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
             if let Some(status) = child.try_wait().expect("read the probe status") {
-                assert!(status.success(), "place-boundary probe failed: {status}");
+                // An empty test filter exits zero. Require proof that both probes ran.
+                assert_eq!(
+                    status.code(),
+                    Some(PROBE_PASSED),
+                    "place-boundary probe failed: {status}"
+                );
                 break;
             }
             if std::time::Instant::now() >= deadline {
