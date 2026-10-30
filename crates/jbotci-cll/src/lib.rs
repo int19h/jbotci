@@ -30,8 +30,8 @@ use import::{
     normalize_valsis_query, parse_block, parse_paragraph_blocks, sanitize_xml_entities,
 };
 pub(crate) use import::{
-    PendingIndexEntry, SectionParseContext, attr_string, block_anchor_id_for, child_element,
-    raw_text, visible_text, visible_text_raw, xml_id,
+    PendingIndexEntry, SectionParseContext, attr_string, attr_value, block_anchor_id_for,
+    child_element, raw_text, visible_text, visible_text_raw, xml_id,
 };
 use import::{
     chrestomathy_area_groups, chrestomathy_area_label, chrestomathy_group_id,
@@ -45,6 +45,9 @@ mod ebnf;
 use ebnf::ebnf_symbol_href;
 use ebnf::parse_ebnf_block;
 pub use ebnf::{CllEbnfEntry, CllEbnfToken, ebnf_rule_anchor_id, wrap_ebnf_choice_lines};
+
+mod status;
+pub use status::{CllRuleStatus, CllStatusBody, CllStatusCondition, CllStatusDate};
 
 mod model;
 pub use model::*;
@@ -1574,7 +1577,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cases = [
             ("9.6", "mi", "| mi | viska | do | sepi'o |"),
-            ("section-EBNF", "BRIVLA", "**text** ⩴"),
+            ("ebnf-tanru", "BRIVLA", "**tanru-unit** ⩴"),
             (
                 "2.1",
                 "bridi",
@@ -1913,6 +1916,18 @@ mod tests {
         assert!(blocks.iter().any(block_contains_section_erasure_link));
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn ebnf_sections(site: &CllSite) -> impl Iterator<Item = &CllSection> {
+        let parent = &site.sections_by_id[&cll_import_metadata().ebnf_section_id];
+        std::iter::once(parent).chain(
+            parent
+                .child_section_ids
+                .iter()
+                .map(|id| &site.sections_by_id[id]),
+        )
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1937,8 +1952,8 @@ mod tests {
             Some("21.3")
         );
         assert_eq!(
-            ebnf.blocks
-                .iter()
+            ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .filter_map(|block| match block {
                     CllBlock::Ebnf { entries, .. } => Some(entries.len()),
                     _ => None,
@@ -2075,14 +2090,13 @@ mod tests {
         let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
             .expect("the EBNF section should exist");
         assert!(
-            ebnf.blocks
-                .iter()
+            ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .any(|block| matches!(block, CllBlock::Ebnf { .. }))
         );
         assert!(
-            !ebnf
-                .blocks
-                .iter()
+            !ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .any(|block| matches!(block, CllBlock::VariableList { .. }))
         );
 
@@ -2504,9 +2518,8 @@ mod tests {
         let ebnf = cll_lookup_section(site, "section-EBNF").expect("EBNF section should exist");
         let mut source_anchor_count = 0;
         let mut source_anchor_ids = BTreeSet::new();
-        for anchor_id in ebnf
-            .blocks
-            .iter()
+        for anchor_id in ebnf_sections(site)
+            .flat_map(|section| &section.blocks)
             .filter_map(|block| match block {
                 CllBlock::Ebnf { entries, .. } => Some(entries),
                 _ => None,
@@ -2545,7 +2558,8 @@ mod tests {
             .anchors_by_id
             .iter()
             .filter(|(anchor_id, anchor)| {
-                anchor_id.starts_with("cll_bnf-") && anchor.section_id == "section-EBNF"
+                anchor_id.starts_with("cll_bnf-")
+                    && ebnf.child_section_ids.contains(&anchor.section_id)
             })
             .map(|(anchor_id, _)| anchor_id.as_str())
             .collect::<BTreeSet<_>>();
@@ -2557,11 +2571,15 @@ mod tests {
             CllRenderFormat::Html,
             CllLinkRenderMode::Web,
         );
-        let rendered_ebnf =
-            render_section(site, ebnf, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let rendered_ebnf = ebnf_sections(site)
+            .map(|section| {
+                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+            })
+            .collect::<String>();
         for anchor_id in referenced_anchor_ids {
             let href = cll_link_href(site, CllLinkKind::Section, anchor_id);
-            assert_eq!(href, format!("section/section-EBNF#{anchor_id}"));
+            let target = &site.anchors_by_id[anchor_id].section_id;
+            assert_eq!(href, format!("{}#{anchor_id}", section_href(target)));
             assert!(
                 rendered_cross_reference.contains(&format!("href=\"{href}\"")),
                 "cross-reference output should link to {anchor_id}"
@@ -2604,11 +2622,11 @@ mod tests {
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
         assert_eq!(site.chapters.len(), 24);
-        // Every division of colojban 1.3.5 has sections of its own, so the site
-        // holds exactly the 351 `section` elements the sources contain,
+        // Every division of colojban 1.3.6 has sections of its own, so the site
+        // holds exactly the 366 `section` elements the sources contain,
         // subsections included, and synthesizes none.
-        assert_eq!(site.sections_by_id.len(), 351);
-        assert_eq!(site.section_order.len(), 351);
+        assert_eq!(site.sections_by_id.len(), 366);
+        assert_eq!(site.section_order.len(), 366);
         assert_eq!(site.examples_by_id.len(), 1857);
     }
 

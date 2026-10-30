@@ -128,6 +128,15 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
         let document = Document::parse(&xml)
             .map_err(|error| CllError::Parse(format!("{source_path}: {error}")))?;
         let root = document.root_element();
+        for node in root.descendants().filter(|node| node.has_tag_name("para")) {
+            if attr_value(node, "role").is_some_and(|role| role.eq_ignore_ascii_case("status-note"))
+            {
+                if let Some(condition) = attr_value(node, "condition") {
+                    CllStatusCondition::parse(condition)
+                        .map_err(|error| CllError::Parse(format!("{source_path}: {error}")))?;
+                }
+            }
+        }
         let (chapter, sections, examples, anchors, index_entries) =
             parse_chapter(root, *division, source_path)?;
         for section in sections {
@@ -1639,7 +1648,7 @@ fn parse_variable_list_block(
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    if context.section_id == cll_import_metadata().ebnf_section_id {
+    if super::ebnf::ebnf_section_ancestor(node).is_some() {
         return parse_ebnf_block(node, context, anchors);
     }
     let entries = node
@@ -2544,7 +2553,16 @@ pub(crate) fn attr_value<'a>(node: Node<'a, '_>, name: &str) -> Option<&'a str> 
 #[requires(node.is_element())]
 #[ensures(true)]
 fn paragraph_role(node: Node<'_, '_>) -> Option<CllParagraphRole> {
-    attr_value(node, "role").and_then(CllParagraphRole::parse)
+    let role = attr_value(node, "role").and_then(CllParagraphRole::parse)?;
+    if role.is_status_note() {
+        if let Some(condition) = attr_value(node, "condition") {
+            return Some(new!(CllParagraphRole::StatusNoteWithCondition {
+                condition: CllStatusCondition::parse(condition)
+                    .expect("status conditions are validated before chapter import"),
+            }));
+        }
+    }
+    Some(role)
 }
 
 #[requires(node.is_element())]
@@ -2886,7 +2904,7 @@ mod tests {
         (
             "anchor",
             &[ElementDisposition::Inline {
-                contexts: &["bridgehead", "para", "term", "title"],
+                contexts: &["bridgehead", "term", "title"],
                 probe: r#"<para><anchor xml:id="probe"/>PROBE</para>"#,
                 inline: "Anchor",
             }],

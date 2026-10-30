@@ -618,12 +618,8 @@ fn cll_site_example_references_are_consistent(
 /// unchanged, which is also what keeps a newer vendored edition from needing
 /// code changes when it introduces a presentational role we have never seen.
 ///
-/// The upstream design (`vendor/cll/docs/status-markup.md`) also reserves a
-/// machine-readable `condition="status:..."` attribute that would name the
-/// authority level of each note — ratified, committee-approved, checkpointed,
-/// de facto, editorial. No release has emitted one yet: `v1.3.2` through
-/// `v1.3.5` carry only the transitional bare form, so the level exists solely
-/// in each note's prose and this type deliberately does not guess at it.
+/// CLL v1.3.6 adds structured conditions to some notes. Bare notes keep their
+/// generic designation. Conditioned notes preserve the stated authority and date.
 #[invariant(true)]
 #[invariant(
     ::Presentation { name } => name.trim() == name.as_str()
@@ -635,7 +631,12 @@ fn cll_site_example_references_are_consistent(
 #[serde(rename_all = "kebab-case")]
 pub enum CllParagraphRole {
     StatusNote,
-    Presentation { name: String },
+    StatusNoteWithCondition {
+        condition: super::CllStatusCondition,
+    },
+    Presentation {
+        name: String,
+    },
 }
 
 impl CllParagraphRole {
@@ -660,7 +661,11 @@ impl CllParagraphRole {
     #[requires(true)]
     #[ensures(true)]
     pub fn is_status_note(&self) -> bool {
-        matches!(self.as_data(), data!(CllParagraphRole::StatusNote))
+        matches!(
+            self.as_data(),
+            data!(CllParagraphRole::StatusNote)
+                | data!(CllParagraphRole::StatusNoteWithCondition { .. })
+        )
     }
 
     /// The presentational CSS suffix for a role that only carries styling.
@@ -669,7 +674,8 @@ impl CllParagraphRole {
     pub fn presentation_name(&self) -> Option<&str> {
         match self.as_data() {
             data!(CllParagraphRole::Presentation { name }) => Some(name),
-            data!(CllParagraphRole::StatusNote) => None,
+            data!(CllParagraphRole::StatusNote)
+            | data!(CllParagraphRole::StatusNoteWithCondition { .. }) => None,
         }
     }
 }

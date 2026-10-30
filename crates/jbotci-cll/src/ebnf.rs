@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
 use bityzba::{data, expensive_ensures, invariant, new, requires};
@@ -6,9 +6,9 @@ use roxmltree::Node;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AnchorMode, CllAnchor, CllBlock, SectionParseContext, attr_string, block_anchor_id_for,
-    child_element, cll_import_metadata, normalized_plain_text, section_href, visible_text,
-    visible_text_raw, xml_id,
+    AnchorMode, CllAnchor, CllBlock, SectionParseContext, attr_string, attr_value,
+    block_anchor_id_for, child_element, cll_import_metadata, normalized_plain_text, section_href,
+    visible_text, visible_text_raw, xml_id,
 };
 
 #[invariant(!id.is_empty())]
@@ -52,6 +52,17 @@ pub enum CllEbnfToken {
 }
 
 #[requires(node.is_element())]
+#[ensures(ret.is_none_or(|section| section.has_tag_name("section")))]
+pub(super) fn ebnf_section_ancestor<'a, 'input>(
+    node: Node<'a, 'input>,
+) -> Option<Node<'a, 'input>> {
+    node.ancestors().find(|ancestor| {
+        ancestor.has_tag_name("section")
+            && attr_value(*ancestor, "id") == Some(cll_import_metadata().ebnf_section_id.as_str())
+    })
+}
+
+#[requires(node.is_element())]
 #[ensures(true)]
 pub(super) fn parse_ebnf_block(
     node: Node<'_, '_>,
@@ -62,12 +73,32 @@ pub(super) fn parse_ebnf_block(
         .children()
         .filter(|child| child.is_element() && child.has_tag_name("varlistentry"))
         .collect::<Vec<_>>();
-    let defined_rules = entry_nodes
-        .iter()
-        .filter_map(|entry| child_element(*entry, "term"))
-        .map(|term| extract_ebnf_rule_name(&visible_text(term)))
-        .filter(|rule| !rule.is_empty())
-        .collect::<BTreeSet<_>>();
+    // Rules can span several lists and subsection pages. Resolve their targets
+    // across the enclosing grammar, while keeping local links on this page.
+    let grammar = ebnf_section_ancestor(node).unwrap_or(node);
+    let defined_rules = grammar
+        .descendants()
+        .filter(|entry| entry.has_tag_name("varlistentry"))
+        .filter_map(|entry| {
+            let term = child_element(entry, "term")?;
+            let rule = extract_ebnf_rule_name(&visible_text(term));
+            if rule.is_empty() {
+                return None;
+            }
+            let section_id = entry
+                .ancestors()
+                .find(|ancestor| ancestor.has_tag_name("section"))
+                .and_then(|section| attr_value(section, "id"))
+                .unwrap_or(&context.section_id);
+            let page = if section_id == context.section_id {
+                String::new()
+            } else {
+                section_href(section_id)
+            };
+            let href = format!("{page}#{}", ebnf_rule_anchor_id(&rule));
+            Some((rule, href))
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut entries = Vec::with_capacity(entry_nodes.len());
     let mut pending_source_anchors = Vec::new();
     for entry in entry_nodes {
@@ -116,7 +147,7 @@ pub(super) fn parse_ebnf_block(
 )]
 fn parse_ebnf_entry(
     entry: Node<'_, '_>,
-    defined_rules: &BTreeSet<String>,
+    defined_rules: &BTreeMap<String, String>,
     source_anchor_ids: Vec<String>,
 ) -> Option<CllEbnfEntry> {
     let term = child_element(entry, "term")?;
@@ -184,7 +215,7 @@ pub fn ebnf_rule_anchor_id(rule_name: &str) -> String {
 #[ensures(true)]
 fn tokenize_ebnf_rule_rhs(
     rule_name: &str,
-    defined_rules: &BTreeSet<String>,
+    defined_rules: &BTreeMap<String, String>,
     rhs_text: &str,
 ) -> Vec<CllEbnfToken> {
     if rule_name == "any-word" || rule_name == "anything" {
@@ -197,7 +228,10 @@ fn tokenize_ebnf_rule_rhs(
 
 #[requires(true)]
 #[ensures(true)]
-fn tokenize_ebnf_tokens(defined_rules: &BTreeSet<String>, rhs_text: &str) -> Vec<CllEbnfToken> {
+fn tokenize_ebnf_tokens(
+    defined_rules: &BTreeMap<String, String>,
+    rhs_text: &str,
+) -> Vec<CllEbnfToken> {
     let chars = rhs_text.chars().collect::<Vec<_>>();
     let mut index = 0usize;
     let mut tokens = Vec::new();
@@ -291,17 +325,17 @@ fn parse_ebnf_elidable(chars: &[char], index: usize) -> Option<(String, String, 
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_ebnf_identifier(body: &str, defined_rules: &BTreeSet<String>) -> CllEbnfToken {
+fn classify_ebnf_identifier(body: &str, defined_rules: &BTreeMap<String, String>) -> CllEbnfToken {
     if let Some(href) = ebnf_symbol_href(body) {
         return CllEbnfToken::Terminal {
             body: body.to_owned(),
             href: Some(href),
         };
     }
-    if defined_rules.contains(body) {
+    if let Some(href) = defined_rules.get(body) {
         return CllEbnfToken::Nonterminal {
             body: body.to_owned(),
-            href: Some(format!("#{}", ebnf_rule_anchor_id(body))),
+            href: Some(href.clone()),
         };
     }
     let letters = body
