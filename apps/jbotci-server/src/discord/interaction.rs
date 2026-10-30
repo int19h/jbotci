@@ -320,38 +320,67 @@ impl DiscordService {
         }
         let limit = self.text_limit();
         let rendered = render_failure(format_args!("{error}"), &published.request, limit);
-        let message = match rendered {
-            Ok(rendered) if !matches!(error, ResultError::Link(_)) => assemble_with_limit(
+        let rendered = match rendered {
+            Ok(rendered) => rendered,
+            Err(_) => {
+                self.publish_refusal(target, ServerErrorCode::OutputLimit, deadline, keepalive)
+                    .await;
+                return;
+            }
+        };
+        if !matches!(error, ResultError::Link(_)) {
+            match assemble_with_limit(
                 &rendered,
                 published,
                 self.attachment_limit(attachment_limit),
                 limit,
-            )
-            .map(|message| message.into_data().payload),
-            Ok(_) => {
-                let scope = jbotci_output::budget::TextScope::new(limit);
-                let reason = scope.format(format_args!("{error}"));
-                let text = scope.format(format_args!("**Not run:** {}\n{}",
-                    markdown::escape_in_scope(&reason, &scope),
-                    markdown::subtext_in_scope("jbotci publishes only a result its ⚙️ form can reopen, so nothing was published here. Run the command again with a smaller request.", &scope)));
-                scope
-                    .finish(text)
-                    .map_err(|_| new!(AssembleError::OutputLimit))
-                    .and_then(|text| {
-                        text_only_payload(&text)
-                            .map_err(|error| new!(AssembleError::Payload(error)))
-                    })
+            ) {
+                Ok(message) => {
+                    self.publish_first(target, &message.payload, deadline, keepalive)
+                        .await;
+                    return;
+                }
+                Err(error) if matches!(error.as_data(), data!(AssembleError::OutputLimit)) => {
+                    self.publish_refusal(target, ServerErrorCode::OutputLimit, deadline, keepalive)
+                        .await;
+                    return;
+                }
+                // A source that cannot travel still gets a bounded explanation,
+                // without controls that cannot reopen the request.
+                Err(_) => {}
             }
-            Err(_) => Err(new!(AssembleError::OutputLimit)),
+        }
+        let scope = jbotci_output::budget::TextScope::new(limit);
+        let reason = scope.format(format_args!("{error}"));
+        let text = scope.format(format_args!("**Not run:** {}\n{}",
+            markdown::escape_in_scope(&reason, &scope),
+            markdown::subtext_in_scope("jbotci publishes only a result its ⚙️ form can reopen, so nothing was published here. Run the command again with a smaller request.", &scope)));
+        let text = match scope.finish(text) {
+            Ok(text) => text,
+            Err(_) => {
+                self.publish_refusal(target, ServerErrorCode::OutputLimit, deadline, keepalive)
+                    .await;
+                return;
+            }
         };
-        match message {
+        match text_only_payload(&text) {
             Ok(payload) if payload.check_text_size(limit).is_ok() => {
                 self.publish_first(target, &payload, deadline, keepalive)
-                    .await
+                    .await;
             }
-            _ => {
+            Ok(_) => {
                 self.publish_refusal(target, ServerErrorCode::OutputLimit, deadline, keepalive)
-                    .await
+                    .await;
+            }
+            Err(_) => {
+                self.report_privately(
+                    target,
+                    "Nothing was published.",
+                    Some(error),
+                    deadline,
+                    keepalive,
+                )
+                .await;
             }
         }
     }
@@ -2414,11 +2443,7 @@ mod tests {
         let service = service_with_policy(&discord, policy);
         discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
         service
-            .handle(&command(
-                "100002",
-                "vlasei",
-                vec![option("text", "mi"), option("dialect", "(+not-a-feature)")],
-            ))
+            .handle(&command("100002", "cukta", vec![option("mode", "word")]))
             .await;
         settle(&discord, 1).await;
         let message = discord.original().unwrap();
@@ -2427,7 +2452,7 @@ mod tests {
             text.contains(crate::error::ServerErrorCode::OutputLimit.message()),
             "{text}"
         );
-        assert!(!text.contains("not-a-feature"));
+        assert!(!text.contains("custom_id"));
         assert!(message["attachments"].as_array().unwrap().is_empty());
     }
 
