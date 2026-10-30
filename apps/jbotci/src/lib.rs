@@ -1016,6 +1016,10 @@ pub struct VlackuInput {
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
 pub struct SetupInput {
+    #[arg(long, conflicts_with = "skip_validation")]
+    pub reuse_index_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub adopt_legacy_pack: bool,
     #[arg(long = "embedding")]
     pub embedding: bool,
     #[arg(long = "force")]

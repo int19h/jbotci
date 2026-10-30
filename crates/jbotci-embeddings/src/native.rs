@@ -16,10 +16,10 @@ use llama_cpp_4::model::{AddBos, LlamaModel};
 use crate::{
     EmbeddingBackend, EmbeddingError, EmbeddingModelSpec, QueryEmbedding, SetupOptions,
     SetupProgress, SetupProgressCallback, SetupProgressPhase, SetupReport, UsePrecomputed,
-    build_embedding_pack_with_progress, default_index_root, default_model_root,
+    build_embedding_pack_with_reuse, default_index_root, default_model_root,
     download_precomputed_embedding_pack_with_progress, ensure_model_file_with_progress,
     model_file_path, model_spec, normalize_vector, reuse_existing_embedding_pack_with_progress,
-    semantic_cukta_output, semantic_vlacku_hits,
+    semantic_cukta_output, semantic_vlacku_hits, validate_native_reuse_source_with_adoption,
 };
 
 const N_BATCH: u32 = 2048;
@@ -489,6 +489,18 @@ fn setup_embeddings_with_progress_inner(
         .clone()
         .map(Ok)
         .unwrap_or_else(default_index_root)?;
+    if options.reuse_index_dir.is_some() && options.skip_validation {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "--reuse-index-dir conflicts with --skip-validation".to_owned(),
+        });
+    }
+    let source = options
+        .reuse_index_dir
+        .as_ref()
+        .map(|root| {
+            validate_native_reuse_source_with_adoption(root, &spec, options.adopt_legacy_pack)
+        })
+        .transpose()?;
     let model_path = model_file_path(&model_root, &spec);
     let dictionary = jbotci_dictionary_data::english();
     let cll_site =
@@ -497,7 +509,8 @@ fn setup_embeddings_with_progress_inner(
         })?;
     let cll_chunks = jbotci_cll::cll_search_all_chunks(cll_site);
 
-    if !options.force
+    if source.is_none()
+        && !options.force
         && let Some(mut report) = reuse_existing_embedding_pack_with_progress(
             dictionary,
             cll_chunks,
@@ -520,11 +533,15 @@ fn setup_embeddings_with_progress_inner(
     ensure_model_file_with_progress(
         &spec,
         &model_path,
-        options.force,
+        options.force && options.reuse_index_dir.is_none(),
         options.skip_validation,
         progress,
     )?;
-    match options.use_precomputed {
+    match if source.is_some() {
+        UsePrecomputed::Never
+    } else {
+        options.use_precomputed
+    } {
         UsePrecomputed::Always => {
             let mut report = download_precomputed_embedding_pack_with_progress(
                 dictionary,
@@ -569,13 +586,15 @@ fn setup_embeddings_with_progress_inner(
         "Loading embedding model with llama.cpp.",
     ));
     let mut backend = NativeLlamaEmbeddingBackend::load(&spec, &model_path)?;
-    let mut report = build_embedding_pack_with_progress(
+    let mut report = build_embedding_pack_with_reuse(
         &mut backend,
         dictionary,
         cll_chunks,
         &index_root,
         &spec,
-        options.force,
+        options.force || source.is_some(),
+        source,
+        (!options.skip_validation).then(|| spec.native_sha256.clone()),
         progress,
     )?;
     report.model_path = Some(model_path);

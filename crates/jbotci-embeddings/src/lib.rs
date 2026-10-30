@@ -49,6 +49,8 @@ const DOWNLOAD_CHUNK_BYTES: usize = 1024 * 1024;
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
 const DEFAULT_WEB_DTYPE: &str = "q4";
 const LLAMA_CPP_4_RUNTIME_VERSION: &str = "0.3.0";
+// Upstream version of the vendored source, recorded in llama-cpp-sys-4/README.md.
+const LLAMA_CPP_SOURCE_VERSION: &str = "b8533";
 
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
@@ -267,9 +269,43 @@ pub struct CorpusManifest {
     pub shards: Vec<VectorShardManifest>,
 }
 
+/// Build environment facts do not determine vector reuse compatibility.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeBuildProvenance {
+    pub llama_backend: String,
+    pub llama_cpp_version: String,
+    pub bindings_version: String,
+}
+
+#[invariant(!source.is_empty())]
+#[invariant(compatibility == "owner-attested-unrecorded-identity")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LegacyPackAdoption {
+    pub source: String,
+    pub compatibility: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CorpusRowCounts {
+    pub corpus_id: String,
+    pub reused: usize,
+    pub embedded: usize,
+    pub resumed: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct EmbeddingPackManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_provenance: Option<NativeBuildProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_adoption: Option<LegacyPackAdoption>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub row_counts: Vec<CorpusRowCounts>,
     pub schema_version: u32,
     pub model_key: String,
     pub model_revision: String,
@@ -427,6 +463,8 @@ pub trait EmbeddingBackend {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub struct SetupOptions {
+    pub reuse_index_dir: Option<PathBuf>,
+    pub adopt_legacy_pack: bool,
     pub model_key: String,
     pub force: bool,
     pub use_precomputed: UsePrecomputed,
@@ -441,6 +479,8 @@ impl Default for SetupOptions {
     #[ensures(ret.model_key == DEFAULT_MODEL_KEY)]
     fn default() -> Self {
         Self {
+            reuse_index_dir: None,
+            adopt_legacy_pack: false,
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             force: false,
             use_precomputed: UsePrecomputed::Auto,
@@ -487,12 +527,30 @@ impl SetupIndexSource {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub struct SetupReport {
+    pub row_counts: Vec<CorpusRowCounts>,
     pub index_root: PathBuf,
     pub model_path: Option<PathBuf>,
     pub pack_id: String,
     pub dictionary_rows: usize,
     pub cll_rows: usize,
     pub index_source: SetupIndexSource,
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 2 && ret[0].reused == dictionary_rows && ret[1].reused == cll_rows)]
+fn reused_corpus_counts(dictionary_rows: usize, cll_rows: usize) -> Vec<CorpusRowCounts> {
+    vec![
+        CorpusRowCounts {
+            corpus_id: VLACKU_CORPUS_ID.to_owned(),
+            reused: dictionary_rows,
+            ..Default::default()
+        },
+        CorpusRowCounts {
+            corpus_id: CUKTA_CORPUS_ID.to_owned(),
+            reused: cll_rows,
+            ..Default::default()
+        },
+    ]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1866,6 +1924,39 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     force: bool,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<SetupReport, EmbeddingError> {
+    let source = load_reusable_native_source(index_root, spec)?;
+    build_embedding_pack_with_reuse(
+        backend,
+        dictionary,
+        cll_chunks,
+        index_root,
+        spec,
+        force,
+        source,
+        Some(spec.native_sha256.clone()),
+        progress,
+    )
+}
+
+/// Build with a source that already passed all reuse checks.
+/// Model bytes and vector format define identity. Backend versions and hardware
+/// are provenance: full builds also vary with batching, padding and query hosts.
+#[requires(spec.dimensions > 0)]
+#[requires(reusable_source.is_none() || model_sha256.as_deref() == Some(spec.native_sha256.as_str()))]
+#[requires(reusable_source.as_ref().is_none_or(|source| source.manifest.model_key == spec.model_key && source.manifest.model_revision == spec.model_revision && source.manifest.dimensions == spec.dimensions))]
+#[ensures(true)]
+#[allow(clippy::too_many_arguments)]
+pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
+    backend: &mut B,
+    dictionary: &Dictionary<'_>,
+    cll_chunks: &[CllSearchChunk],
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    force: bool,
+    reusable_source: Option<NativeReuseSource>,
+    model_sha256: Option<String>,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
     let dimensions = backend.dimensions()?;
     if dimensions != spec.dimensions {
         return Err(EmbeddingError::DimensionMismatch {
@@ -1904,6 +1995,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
             total_rows,
         ));
         return Ok(SetupReport {
+            row_counts: reused_corpus_counts(dictionary_rows, cll_rows),
             index_root: index_root.to_owned(),
             model_path: None,
             pack_id,
@@ -1944,7 +2036,28 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     })?;
     let mut checkpoint = checkpoint.expect("checkpoint was initialized");
     write_native_partial_checkpoint(&checkpoint_path, &checkpoint)?;
-    let reusable_rows = load_reusable_native_rows(index_root, spec);
+    let legacy_adoption = reusable_source.as_ref().and_then(|source| {
+        if let Some(adoption) = &source.manifest.legacy_adoption {
+            // Reused vectors retain their original owner attestation.
+            Some(adoption.clone())
+        } else if source.manifest.model_sha256.is_none() {
+            Some(new!(LegacyPackAdoption {
+                source: source.pack_dir.display().to_string(),
+                compatibility: "owner-attested-unrecorded-identity".to_owned(),
+            }))
+        } else {
+            None
+        }
+    });
+    let reusable_rows = reusable_source.map(|source| source.into_data().rows);
+    let mut dictionary_counts = CorpusRowCounts {
+        corpus_id: VLACKU_CORPUS_ID.to_owned(),
+        ..Default::default()
+    };
+    let mut cll_counts = CorpusRowCounts {
+        corpus_id: CUKTA_CORPUS_ID.to_owned(),
+        ..Default::default()
+    };
     let mut completed_rows = 0u64;
     emit_indexing_progress("Indexing dictionary", completed_rows, total_rows, progress);
 
@@ -1958,6 +2071,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         dimensions,
         &dictionary_fingerprint,
         reusable_rows.as_ref().map(|rows| &rows.dictionary),
+        &mut dictionary_counts,
         &mut completed_rows,
         total_rows,
         progress,
@@ -1973,6 +2087,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         dimensions,
         &cll_fingerprint,
         reusable_rows.as_ref().map(|rows| &rows.cll),
+        &mut cll_counts,
         &mut completed_rows,
         total_rows,
         progress,
@@ -1983,7 +2098,23 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         "Writing embedding index",
         "Writing embedding vector pack metadata.",
     ));
+    let row_counts = vec![dictionary_counts, cll_counts];
     let manifest = EmbeddingPackManifest {
+        model_sha256,
+        build_provenance: Some(NativeBuildProvenance {
+            llama_backend: if cfg!(feature = "metal") {
+                "metal"
+            } else if cfg!(feature = "native-cpu") {
+                "native-cpu"
+            } else {
+                "cpu"
+            }
+            .to_owned(),
+            llama_cpp_version: LLAMA_CPP_SOURCE_VERSION.to_owned(),
+            bindings_version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
+        }),
+        legacy_adoption,
+        row_counts: row_counts.clone(),
         schema_version: INDEX_SCHEMA_VERSION,
         model_key: spec.model_key.clone(),
         model_revision: spec.model_revision.clone(),
@@ -2025,6 +2156,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         total_rows,
     ));
     Ok(SetupReport {
+        row_counts,
         index_root: index_root.to_owned(),
         model_path: None,
         pack_id,
@@ -2074,6 +2206,7 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     dimensions: usize,
     fingerprint: &str,
     reusable_rows: Option<&ReusableVectorRows>,
+    counts: &mut CorpusRowCounts,
     completed_rows: &mut u64,
     total_rows: u64,
     progress: &mut SetupProgressCallback<'_>,
@@ -2111,6 +2244,7 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
         pack_id,
         fingerprint,
         reusable_rows,
+        counts,
         completed_rows,
         total_rows,
         progress,
@@ -2129,6 +2263,7 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     dimensions: usize,
     fingerprint: &str,
     reusable_rows: Option<&ReusableVectorRows>,
+    counts: &mut CorpusRowCounts,
     completed_rows: &mut u64,
     total_rows: u64,
     progress: &mut SetupProgressCallback<'_>,
@@ -2162,6 +2297,7 @@ fn write_cll_corpus<B: EmbeddingBackend>(
         pack_id,
         fingerprint,
         reusable_rows,
+        counts,
         completed_rows,
         total_rows,
         progress,
@@ -2183,6 +2319,7 @@ fn write_chunked_corpus<B, T>(
     _pack_id: &str,
     fingerprint: &str,
     reusable_rows: Option<&ReusableVectorRows>,
+    counts: &mut CorpusRowCounts,
     completed_rows: &mut u64,
     total_rows: u64,
     progress: &mut SetupProgressCallback<'_>,
@@ -2221,6 +2358,7 @@ where
         {
             let _ = read_native_partial_vector_shard(pack_dir, partial_shard, dimensions)?;
             shards.push(vector_shard_from_native_partial(partial_shard));
+            counts.resumed += row_count;
             *completed_rows = completed_rows.saturating_add(row_count as u64);
             emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
             continue;
@@ -2241,6 +2379,8 @@ where
             .filter(|(_, reused)| reused.is_none())
             .map(|(row, _)| row.input.as_str())
             .collect::<Vec<_>>();
+        counts.embedded += fresh_inputs.len();
+        counts.reused += row_count - fresh_inputs.len();
         let mut fresh = backend.embed_batch(&fresh_inputs)?.into_iter();
         let mut values = Vec::with_capacity(row_count * dimensions);
         for reused in reused {
@@ -2337,6 +2477,7 @@ pub fn reuse_existing_embedding_pack_with_progress(
         dictionary.entries().len(),
         &cll_fingerprint,
         cll_chunks.len(),
+        NativePackValidation::CurrentCorpus,
     )?;
     write_catalog(index_root, spec, &pack_id)?;
     let total_rows = (dictionary.entries().len() + cll_chunks.len()) as u64;
@@ -2357,6 +2498,7 @@ pub fn reuse_existing_embedding_pack_with_progress(
         total_rows,
     ));
     Ok(Some(SetupReport {
+        row_counts: reused_corpus_counts(dictionary.entries().len(), cll_chunks.len()),
         index_root: index_root.to_owned(),
         model_path: None,
         pack_id,
@@ -2423,6 +2565,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
         dictionary.entries().len(),
         &cll_fingerprint,
         cll_chunks.len(),
+        NativePackValidation::CurrentCorpus,
     )?;
     if model.latest_pack_id != manifest.pack_id {
         return Err(EmbeddingError::InvalidIndex {
@@ -2486,6 +2629,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
         total_rows,
     ));
     Ok(SetupReport {
+        row_counts: reused_corpus_counts(dictionary.entries().len(), cll_chunks.len()),
         index_root: index_root.to_owned(),
         model_path: None,
         pack_id: manifest.pack_id,
@@ -2598,6 +2742,16 @@ fn native_pack_remote_paths(
     Ok(paths.into_iter().collect())
 }
 
+#[invariant(::CurrentCorpus => true)]
+#[invariant(::ReusableRows => true)]
+#[invariant(::LegacyRows => true)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativePackValidation {
+    CurrentCorpus,
+    ReusableRows,
+    LegacyRows,
+}
+
 #[allow(clippy::too_many_arguments)]
 #[requires(!expected_pack_id.is_empty())]
 #[requires(spec.dimensions > 0)]
@@ -2610,6 +2764,7 @@ fn validate_native_pack_manifest(
     dictionary_rows: usize,
     cll_fingerprint: &str,
     cll_rows: usize,
+    purpose: NativePackValidation,
 ) -> Result<(), EmbeddingError> {
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
@@ -2635,7 +2790,9 @@ fn validate_native_pack_manifest(
             ),
         });
     }
-    if manifest.input_format_version != spec.input_format_version {
+    if purpose == NativePackValidation::CurrentCorpus
+        && manifest.input_format_version != spec.input_format_version
+    {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
                 "embedding pack input format `{}` is unsupported for `{}`",
@@ -2654,22 +2811,35 @@ fn validate_native_pack_manifest(
             message: "embedding pack must contain normalized f32le dot-product vectors".to_owned(),
         });
     }
-    if !manifest
-        .compatible_query_runtimes
-        .iter()
-        .any(|runtime| runtime == &native_embedding_runtime())
+    if purpose != NativePackValidation::ReusableRows
+        && !manifest
+            .compatible_query_runtimes
+            .iter()
+            .any(|runtime| runtime == &native_embedding_runtime())
     {
         return Err(EmbeddingError::MissingCompatiblePack {
             model_key: spec.model_key.clone(),
         });
     }
+    if purpose == NativePackValidation::LegacyRows
+        && manifest.built_by != native_embedding_runtime()
+    {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "legacy reuse runtime differs".to_owned(),
+        });
+    }
+    let input_format = if purpose == NativePackValidation::CurrentCorpus {
+        &spec.input_format_version
+    } else {
+        &manifest.input_format_version
+    };
     let dictionary = manifest_corpus(manifest, VLACKU_CORPUS_ID)?;
     validate_native_corpus_manifest(
         dictionary,
         dictionary_fingerprint,
         dictionary_rows,
         spec.dimensions,
-        &spec.input_format_version,
+        input_format,
     )?;
     let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
     validate_native_corpus_manifest(
@@ -2677,7 +2847,7 @@ fn validate_native_pack_manifest(
         cll_fingerprint,
         cll_rows,
         spec.dimensions,
-        &spec.input_format_version,
+        input_format,
     )?;
     Ok(())
 }
@@ -2790,7 +2960,7 @@ fn download_url_to_file_with_progress(
 
 #[requires(true)]
 #[ensures(true)]
-fn write_catalog(
+pub fn write_catalog(
     index_root: &Path,
     spec: &EmbeddingModelSpec,
     pack_id: &str,
@@ -2856,6 +3026,26 @@ pub fn load_latest_pack(
     index_root: &Path,
     model_key: &str,
 ) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
+    let (pack_dir, manifest) = load_latest_pack_metadata(index_root, model_key)?;
+    if !manifest
+        .compatible_query_runtimes
+        .iter()
+        .any(|runtime| runtime.runtime == "llama-cpp-4")
+    {
+        return Err(EmbeddingError::MissingCompatiblePack {
+            model_key: model_key.to_owned(),
+        });
+    }
+    Ok((pack_dir, manifest))
+}
+
+// Row reuse validates the vector function independently of query host versions.
+#[requires(!model_key.is_empty())]
+#[ensures(true)]
+fn load_latest_pack_metadata(
+    index_root: &Path,
+    model_key: &str,
+) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
     let catalog_path = catalog_path(index_root)?;
     if !catalog_path.is_file() {
         return Err(EmbeddingError::MissingCompatiblePack {
@@ -2881,15 +3071,6 @@ pub fn load_latest_pack(
     let manifest_path = pack_dir.join("manifest.json");
     require_index_file(&manifest_path, "embedding pack manifest")?;
     let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
-    if !manifest
-        .compatible_query_runtimes
-        .iter()
-        .any(|runtime| runtime.runtime == "llama-cpp-4")
-    {
-        return Err(EmbeddingError::MissingCompatiblePack {
-            model_key: model_key.to_owned(),
-        });
-    }
     Ok((pack_dir.to_owned(), manifest))
 }
 
@@ -2904,14 +3085,24 @@ pub struct NativeReuseSource {
 }
 
 /// Validate an explicit reuse source without requiring its corpus to match today's corpus.
-/// Model revision and runtime identify native tokenization and pooling together.
+/// Model bytes identify the vector function. Legacy packs require runtime attestation.
 #[requires(spec.dimensions > 0)]
 #[ensures(ret.as_ref().is_ok_and(|source| source.manifest.model_key == spec.model_key && source.manifest.dimensions == spec.dimensions) || ret.is_err())]
 pub fn validate_native_reuse_source(
     index_root: &Path,
     spec: &EmbeddingModelSpec,
 ) -> Result<NativeReuseSource, EmbeddingError> {
-    let (pack_dir, manifest) = load_latest_pack(index_root, &spec.model_key)?;
+    validate_native_reuse_source_with_adoption(index_root, spec, false)
+}
+
+#[requires(spec.dimensions > 0)]
+#[ensures(true)]
+pub fn validate_native_reuse_source_with_adoption(
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    adopt_legacy_pack: bool,
+) -> Result<NativeReuseSource, EmbeddingError> {
+    let (pack_dir, manifest) = load_latest_pack_metadata(index_root, &spec.model_key)?;
     if safe_pack_relative_path(&manifest.pack_id)?
         .components()
         .count()
@@ -2925,6 +3116,26 @@ pub fn validate_native_reuse_source(
     }
     let dictionary = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
     let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
+    match manifest.model_sha256.as_deref() {
+        Some(hash) if hash != spec.native_sha256 => {
+            return Err(EmbeddingError::InvalidIndex {
+                message: "reuse GGUF SHA-256 mismatch".to_owned(),
+            });
+        }
+        None if !adopt_legacy_pack => {
+            return Err(EmbeddingError::InvalidIndex {
+                message: "legacy pack requires --adopt-legacy-pack".to_owned(),
+            });
+        }
+        _ => {}
+    }
+    // Legacy runtime identity is the only recorded evidence of its vector function.
+    // Exact per-row hashes identify inputs independently of export format versions.
+    let purpose = if manifest.model_sha256.is_some() {
+        NativePackValidation::ReusableRows
+    } else {
+        NativePackValidation::LegacyRows
+    };
     validate_native_pack_manifest(
         &manifest,
         spec,
@@ -2933,13 +3144,9 @@ pub fn validate_native_reuse_source(
         dictionary.row_count,
         &cll.fingerprint,
         cll.row_count,
+        purpose,
     )?;
-    if manifest.built_by != native_embedding_runtime() {
-        return Err(EmbeddingError::InvalidIndex {
-            message: "reuse pack was built by a different native runtime".to_owned(),
-        });
-    }
-    // Both item hashes and shard hashes must pass before any row is trusted.
+    // This helper checks path safety. The row loaders below check file hashes.
     native_pack_remote_paths(&manifest)?;
     let dictionary = load_reusable_corpus_rows::<DictionaryEmbeddingItem, _>(
         &pack_dir,
@@ -2953,6 +3160,18 @@ pub fn validate_native_reuse_source(
         spec.dimensions,
         |item| item.input_hash.as_str(),
     )?;
+    for (hash, vector) in &dictionary.rows_by_input_hash {
+        if let Some(other) = cll.rows_by_input_hash.get(hash)
+            && vector
+                .iter()
+                .map(|value| value.to_bits())
+                .ne(other.iter().map(|value| value.to_bits()))
+        {
+            return Err(EmbeddingError::InvalidIndex {
+                message: "reuse pack contains conflicting vectors across corpora".to_owned(),
+            });
+        }
+    }
     Ok(new!(NativeReuseSource {
         pack_dir,
         manifest,
@@ -2962,15 +3181,14 @@ pub fn validate_native_reuse_source(
 
 #[requires(spec.dimensions > 0)]
 #[ensures(true)]
-fn load_reusable_native_rows(
+fn load_reusable_native_source(
     index_root: &Path,
     spec: &EmbeddingModelSpec,
-) -> Option<ReusablePackRows> {
-    if !catalog_path(index_root).ok()?.is_file() {
-        return None;
+) -> Result<Option<NativeReuseSource>, EmbeddingError> {
+    if !catalog_path(index_root)?.is_file() {
+        return Ok(None);
     }
-    let source = validate_native_reuse_source(index_root, spec).ok()?;
-    Some(source.into_data().rows)
+    validate_native_reuse_source(index_root, spec).map(Some)
 }
 
 #[requires(dimensions > 0)]
@@ -3006,7 +3224,7 @@ where
             message: "reuse vectors must be finite".to_owned(),
         });
     }
-    let mut rows_by_input_hash = HashMap::new();
+    let mut rows_by_input_hash: HashMap<String, Vec<f32>> = HashMap::new();
     for (row_index, item) in items.iter().enumerate() {
         let hash = input_hash(item);
         if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
@@ -3017,7 +3235,11 @@ where
         let start = row_index * dimensions;
         let end = start + dimensions;
         if let Some(previous) = rows_by_input_hash.get(hash) {
-            if previous != &values[start..end] {
+            if previous
+                .iter()
+                .map(|value| value.to_bits())
+                .ne(values[start..end].iter().map(|value| value.to_bits()))
+            {
                 return Err(EmbeddingError::InvalidIndex {
                     message: "reuse pack contains conflicting vectors for one input hash"
                         .to_owned(),
@@ -3375,13 +3597,27 @@ pub fn setup_embeddings_with_backend_and_progress<B: EmbeddingBackend>(
         jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
             message: error.to_string(),
         })?;
-    build_embedding_pack_with_progress(
+    if options.reuse_index_dir.is_some() && options.skip_validation {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "--reuse-index-dir conflicts with --skip-validation".to_owned(),
+        });
+    }
+    let source = options
+        .reuse_index_dir
+        .as_ref()
+        .map(|root| {
+            validate_native_reuse_source_with_adoption(root, &spec, options.adopt_legacy_pack)
+        })
+        .transpose()?;
+    build_embedding_pack_with_reuse(
         backend,
         dictionary,
         cll_search_all_chunks(cll_site),
         &index_root,
         &spec,
-        options.force,
+        options.force || source.is_some(),
+        source,
+        (!options.skip_validation).then(|| spec.native_sha256.clone()),
         progress,
     )
 }
@@ -3542,8 +3778,171 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn native_identity_adoption_and_environment_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_f2llm()
+        };
+        let mut backend = ContentHashBackend { calls: 0 };
+        build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false).unwrap();
+        let (root, original) = load_latest_pack(dir.path(), &spec.model_key).unwrap();
+        let path = root.join("manifest.json");
+        let mut changed = original.clone();
+        changed.built_by.version = "different-backend-version".to_owned();
+        changed.compatible_query_runtimes.clear();
+        changed.build_provenance.as_mut().unwrap().llama_backend = "metal".to_owned();
+        write_json_file(&path, &changed).unwrap();
+        validate_native_reuse_source(dir.path(), &spec).expect("environment does not block reuse");
+        changed.model_sha256 = Some("f".repeat(64));
+        write_json_file(&path, &changed).unwrap();
+        for adopt in [false, true] {
+            assert!(
+                validate_native_reuse_source_with_adoption(dir.path(), &spec, adopt)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("GGUF SHA-256 mismatch")
+            );
+        }
+        let mut legacy = original.clone();
+        legacy.model_sha256 = None;
+        legacy.build_provenance = None;
+        write_json_file(&path, &legacy).unwrap();
+        assert!(
+            validate_native_reuse_source(dir.path(), &spec)
+                .unwrap_err()
+                .to_string()
+                .contains("--adopt-legacy-pack")
+        );
+        let source = validate_native_reuse_source_with_adoption(dir.path(), &spec, true).unwrap();
+        let output = dir.path().join("adopted");
+        backend.calls = 0;
+        let report = build_embedding_pack_with_reuse(
+            &mut backend,
+            &dictionary,
+            chunks,
+            &output,
+            &spec,
+            true,
+            Some(source),
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(backend.calls, 0);
+        assert_eq!(report.row_counts[1].reused, 2);
+        let (_, adopted) = load_latest_pack(&output, &spec.model_key).unwrap();
+        assert_eq!(
+            adopted.legacy_adoption.unwrap().compatibility,
+            "owner-attested-unrecorded-identity"
+        );
+        for field in [
+            "model_key",
+            "model_revision",
+            "built_by",
+            "dimensions",
+            "element_type",
+            "normalized",
+            "distance",
+            "compatible_query_runtimes",
+        ] {
+            let mut value = serde_json::to_value(&legacy).unwrap();
+            value[field] = match field {
+                "dimensions" => serde_json::json!(5),
+                "normalized" => serde_json::json!(false),
+                "built_by" => serde_json::json!({"runtime": "other", "version": "other"}),
+                "compatible_query_runtimes" => serde_json::json!([]),
+                _ => serde_json::json!("other"),
+            };
+            write_json_file(&path, &value).unwrap();
+            assert!(
+                validate_native_reuse_source_with_adoption(dir.path(), &spec, true).is_err(),
+                "{field}"
+            );
+        }
+        for corpora in [
+            vec![legacy.corpora[0].clone()],
+            vec![legacy.corpora[0].clone(); 2],
+        ] {
+            let mut changed = legacy.clone();
+            changed.corpora = corpora;
+            write_json_file(&path, &changed).unwrap();
+            assert!(validate_native_reuse_source_with_adoption(dir.path(), &spec, true).is_err());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_conflicting_vector_bytes_refuse_signed_zero() {
+        let dir = tempfile::tempdir().unwrap();
+        let hash = "a".repeat(64);
+        let items = vec![
+            CllEmbeddingItem {
+                chunk_index: 0,
+                input_hash: hash.clone(),
+            },
+            CllEmbeddingItem {
+                chunk_index: 1,
+                input_hash: hash,
+            },
+        ];
+        let items_path = dir.path().join("items.json");
+        write_json_file(&items_path, &items).unwrap();
+        let shards = write_vector_shards(
+            &dir.path().join("vectors"),
+            "vectors",
+            &[1.0, 0.0, 1.0, -0.0],
+            2,
+            NonZeroUsize::new(1024).unwrap(),
+        )
+        .unwrap();
+        let corpus = CorpusManifest {
+            corpus_id: CUKTA_CORPUS_ID.to_owned(),
+            input_format_version: "test".to_owned(),
+            fingerprint: "test".to_owned(),
+            row_count: 2,
+            dimensions: 2,
+            items_url: "items.json".to_owned(),
+            items_sha256: sha256_hex_file(&items_path).unwrap(),
+            shards,
+        };
+        let error =
+            load_reusable_corpus_rows::<CllEmbeddingItem, _>(dir.path(), &corpus, 2, |item| {
+                &item.input_hash
+            })
+            .unwrap_err();
+        assert!(error.to_string().contains("conflicting vectors"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_gguf_file_hash_mismatch_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("model.gguf");
+        fs::write(&path, b"small test model").unwrap();
+        let mut spec = EmbeddingModelSpec::default_f2llm();
+        spec.native_size_bytes = 16;
+        spec.native_sha256 = sha256_hex_bytes(b"small test model");
+        validate_model_file(&spec, &path).unwrap();
+        fs::write(&path, b"other test model").unwrap();
+        assert!(
+            validate_model_file(&spec, &path)
+                .unwrap_err()
+                .to_string()
+                .contains("SHA-256")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn setup_report_model_path_can_be_absent_without_sentinel() {
         let report = SetupReport {
+            row_counts: Vec::new(),
             index_root: PathBuf::from("/tmp/jbotci-index"),
             model_path: None,
             pack_id: "test-pack".to_owned(),
@@ -3874,6 +4273,10 @@ mod tests {
     #[ensures(ret.dimensions == 4)]
     fn sample_pack_manifest() -> EmbeddingPackManifest {
         EmbeddingPackManifest {
+            model_sha256: None,
+            build_provenance: None,
+            legacy_adoption: None,
+            row_counts: Vec::new(),
             schema_version: INDEX_SCHEMA_VERSION,
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             model_revision: DEFAULT_MODEL_REVISION.to_owned(),
@@ -4361,11 +4764,12 @@ mod tests {
             load_latest_pack(&incremental, &spec.model_key).expect("incremental manifest");
         let (full_pack, full_manifest) =
             load_latest_pack(&full, &spec.model_key).expect("full manifest");
-        assert_eq!(incremental_manifest, full_manifest);
+        assert_eq!(incremental_manifest.corpora, full_manifest.corpora);
+        assert_eq!(incremental_manifest.row_counts[1].reused, 1);
+        assert_eq!(incremental_manifest.row_counts[1].embedded, 2);
         for relative in native_pack_remote_paths(&full_manifest)
             .expect("files")
             .into_iter()
-            .chain(["manifest.json".to_owned()])
         {
             assert_eq!(
                 fs::read(incremental_pack.join(&relative)).expect("incremental file"),
@@ -4404,20 +4808,10 @@ mod tests {
         let root = &reuse.pack_dir;
         let manifest = &reuse.manifest;
         let path = root.join("manifest.json");
-        for field in [
-            "model_key",
-            "model_revision",
-            "input_format_version",
-            "dimensions",
-            "element_type",
-            "built_by",
-            "compatible_query_runtimes",
-        ] {
+        for field in ["model_key", "model_revision", "dimensions", "element_type"] {
             let mut value = serde_json::to_value(&manifest).expect("manifest value");
             value[field] = match field {
                 "dimensions" => serde_json::json!(5),
-                "built_by" => serde_json::json!({"runtime": "other", "version": "1"}),
-                "compatible_query_runtimes" => serde_json::json!([]),
                 _ => serde_json::json!("other"),
             };
             write_json_file(&path, &value).expect("write incompatible manifest");
@@ -4426,7 +4820,7 @@ mod tests {
                 "{field}"
             );
             assert!(
-                load_reusable_native_rows(dir.path(), &spec).is_none(),
+                load_reusable_native_source(dir.path(), &spec).is_err(),
                 "{field}"
             );
         }
@@ -4441,7 +4835,7 @@ mod tests {
             let error =
                 validate_native_reuse_source(dir.path(), &spec).expect_err("corrupt source");
             assert!(error.to_string().contains("SHA-256 mismatch"), "{error}");
-            assert!(load_reusable_native_rows(dir.path(), &spec).is_none());
+            assert!(load_reusable_native_source(dir.path(), &spec).is_err());
             fs::write(&path, &original).expect("restore file");
         }
     }

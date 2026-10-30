@@ -16,6 +16,8 @@ pub(crate) fn run_setup<WOut: Write>(
     };
     let report = match setup_embeddings_with_progress(
         &SetupOptions {
+            reuse_index_dir: input.reuse_index_dir,
+            adopt_legacy_pack: input.adopt_legacy_pack,
             model_key: input.model,
             force: input.force,
             use_precomputed: input.use_precomputed.into(),
@@ -49,6 +51,13 @@ pub(crate) fn run_setup<WOut: Write>(
         report.dictionary_rows,
         report.cll_rows
     )?;
+    for counts in &report.row_counts {
+        writeln!(
+            stdout,
+            "{}: reused {} rows, embedded {} rows, resumed {} rows",
+            counts.corpus_id, counts.reused, counts.embedded, counts.resumed
+        )?;
+    }
     Ok(CliStatus::Success)
 }
 

@@ -660,7 +660,13 @@ struct BuildF2LlmWebgpuModelArgs {
 /// Reuse is opt-in and independent of the output replacement policy.
 #[derive(Debug, Default, Args)]
 #[invariant(true)]
-struct WebVectorReuseArgs {
+struct WebVectorReuseCli {
+    #[arg(long)]
+    adopt_legacy_pack: bool,
+    #[arg(long = "new-model")]
+    new_models: Vec<String>,
+    #[arg(long, default_value = F2LLM_REMOTE_CATALOG_URL)]
+    remote_catalog_url: String,
     /// Previous pack directory or manifest URL (single model only).
     #[arg(long, conflicts_with_all = ["reuse_catalog", "reuse_published"])]
     reuse_from: Option<String>,
@@ -672,18 +678,73 @@ struct WebVectorReuseArgs {
     reuse_published: bool,
 }
 
+/// Only the CLI boundary holds optional flags. Builder logic uses one source.
+#[invariant(::None => true)]
+#[invariant(::Pack => true)]
+#[invariant(::Catalog => true)]
+#[derive(Debug, Default)]
+enum WebVectorReuseSource {
+    #[default]
+    None,
+    Pack {
+        source: String,
+    },
+    Catalog {
+        source: String,
+    },
+}
+
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct WebVectorReuseArgs {
+    source: WebVectorReuseSource,
+    adopt_legacy_pack: bool,
+    new_models: Vec<String>,
+}
+
+impl WebVectorReuseCli {
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolve(&self) -> WebVectorReuseArgs {
+        let source = match (&self.reuse_from, &self.reuse_catalog, self.reuse_published) {
+            (Some(source), None, false) => WebVectorReuseSource::Pack {
+                source: source.clone(),
+            },
+            (None, Some(source), false) => WebVectorReuseSource::Catalog {
+                source: source.clone(),
+            },
+            (None, None, true) => WebVectorReuseSource::Catalog {
+                source: self.remote_catalog_url.clone(),
+            },
+            (None, None, false) => WebVectorReuseSource::None,
+            _ => unreachable!("clap refuses conflicting reuse flags"),
+        };
+        WebVectorReuseArgs {
+            source,
+            adopt_legacy_pack: self.adopt_legacy_pack,
+            new_models: self.new_models.clone(),
+        }
+    }
+}
+
 impl WebVectorReuseArgs {
     #[requires(true)]
     #[ensures(true)]
     fn append_to(&self, command: &mut ProcessCommand) {
-        if let Some(source) = &self.reuse_from {
-            command.arg("--reuse-from").arg(source);
+        match &self.source {
+            WebVectorReuseSource::None => {}
+            WebVectorReuseSource::Pack { source } => {
+                command.arg("--reuse-from").arg(source);
+            }
+            WebVectorReuseSource::Catalog { source } => {
+                command.arg("--reuse-catalog").arg(source);
+            }
         }
-        if let Some(source) = &self.reuse_catalog {
-            command.arg("--reuse-catalog").arg(source);
+        if self.adopt_legacy_pack {
+            command.arg("--adopt-legacy-pack");
         }
-        if self.reuse_published {
-            command.arg("--reuse-published");
+        for model in &self.new_models {
+            command.arg("--new-model").arg(model);
         }
     }
 }
@@ -692,7 +753,7 @@ impl WebVectorReuseArgs {
 #[invariant(true)]
 struct BuildF2LlmWebgpuVectorsArgs {
     #[command(flatten)]
-    reuse: WebVectorReuseArgs,
+    reuse: WebVectorReuseCli,
     #[arg(long)]
     q4_onnx: Option<PathBuf>,
     #[arg(long)]
@@ -729,7 +790,7 @@ struct BuildF2LlmWebgpuVectorsArgs {
 #[invariant(true)]
 struct BuildF2LlmWebgpuAssetsArgs {
     #[command(flatten)]
-    reuse: WebVectorReuseArgs,
+    reuse: WebVectorReuseCli,
     #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_ROOT_DIR)]
     model_out_root: PathBuf,
     #[arg(long, default_value = F2LLM_VECTOR_PACK_OUT_DIR)]
@@ -761,8 +822,10 @@ struct BuildF2LlmWebgpuAssetsArgs {
 #[invariant(true)]
 struct BuildGgufEmbeddingsArgs {
     /// Previous index root with MODEL/v1/catalog.json for each selected model.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "skip_validation")]
     reuse_index_dir: Option<PathBuf>,
+    #[arg(long)]
+    adopt_legacy_pack: bool,
     #[arg(long, default_value = GGUF_VECTOR_PACK_OUT_DIR)]
     out_dir: PathBuf,
     #[arg(long, default_value = GGUF_INDEX_STAGE_DIR)]
@@ -851,7 +914,7 @@ struct PublishWebEmbeddingsR2Args {
 #[invariant(true)]
 struct PublishF2LlmWebgpuR2Args {
     #[command(flatten)]
-    reuse: WebVectorReuseArgs,
+    reuse: WebVectorReuseCli,
     #[arg(long, default_value = "jbotci-web-assets")]
     bucket: String,
     #[arg(long, default_value = F2LLM_EMBEDDINGS_R2_PREFIX)]
@@ -870,9 +933,7 @@ struct PublishF2LlmWebgpuR2Args {
     batch_size: usize,
     #[arg(long, default_value = "python3")]
     python: String,
-    #[arg(long, default_value = F2LLM_REMOTE_CATALOG_URL)]
-    remote_catalog_url: String,
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["reuse_from", "reuse_catalog", "reuse_published", "adopt_legacy_pack", "new_models"])]
     skip_build: bool,
     /// Replace the staged model and vector directories if they already exist
     /// (refused by default; irrelevant with `--skip-build`).
@@ -891,8 +952,10 @@ struct PublishF2LlmWebgpuR2Args {
 #[invariant(true)]
 struct PublishGgufEmbeddingsR2Args {
     /// Previous index root with MODEL/v1/catalog.json for each selected model.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "skip_validation")]
     reuse_index_dir: Option<PathBuf>,
+    #[arg(long)]
+    adopt_legacy_pack: bool,
     #[arg(long, default_value = "jbotci-web-assets")]
     bucket: String,
     #[arg(long, default_value = GGUF_EMBEDDINGS_R2_PREFIX)]
@@ -907,7 +970,7 @@ struct PublishGgufEmbeddingsR2Args {
     models: Vec<String>,
     #[arg(long, default_value = GGUF_REMOTE_CATALOG_URL)]
     remote_catalog_url: String,
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["reuse_index_dir", "adopt_legacy_pack"])]
     skip_build: bool,
     #[arg(long)]
     skip_validation: bool,
@@ -2649,7 +2712,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.include_wasm_runtime,
         existing_output,
         args.threads,
-        &args.reuse,
+        &args.reuse.resolve(),
     )?;
     run_f2llm_vector_validator(
         &args.python,
@@ -2693,7 +2756,7 @@ fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
             jobs: args.jobs,
             threads_per_job: args.threads_per_job,
         },
-        &args.reuse,
+        &args.reuse.resolve(),
     )?;
     build_f2llm_onnx_fallback_asset(
         &model_out_root,
@@ -2706,7 +2769,7 @@ fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
 #[requires(!args.embedding_prefix.trim().is_empty())]
 #[requires(!args.python.trim().is_empty())]
 #[requires(args.batch_size > 0)]
-#[requires(!args.remote_catalog_url.trim().is_empty())]
+#[requires(!args.reuse.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let model_out_root = absolute_path(&args.model_out_root)?;
@@ -2735,7 +2798,7 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
                 jobs: args.jobs,
                 threads_per_job: args.threads_per_job,
             },
-            &args.reuse,
+            &args.reuse.resolve(),
         )?;
         build_f2llm_onnx_fallback_asset(
             &model_out_root,
@@ -2770,11 +2833,19 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     fs::create_dir_all(&merged_catalog_dir)
         .with_context(|| format!("creating `{}`", merged_catalog_dir.display()))?;
     let remote_catalog = serde_json::from_str::<serde_json::Value>(
-        &fetch_text(&args.remote_catalog_url).with_context(|| {
-            format!("fetching remote catalog from `{}`", args.remote_catalog_url)
+        &fetch_text(&args.reuse.remote_catalog_url).with_context(|| {
+            format!(
+                "fetching remote catalog from `{}`",
+                args.reuse.remote_catalog_url
+            )
         })?,
     )
-    .with_context(|| format!("parsing remote catalog from `{}`", args.remote_catalog_url))?;
+    .with_context(|| {
+        format!(
+            "parsing remote catalog from `{}`",
+            args.reuse.remote_catalog_url
+        )
+    })?;
     let local_catalog = read_json_file(&vector_out_dir.join("catalog.json"))?;
     let f2llm_model_keys = F2LLM_MODEL_SPECS
         .iter()
@@ -2790,7 +2861,7 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     put_r2_object(&args.bucket, &catalog_object)
 }
 
-#[requires(true)]
+#[requires(path.is_absolute())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn resolved_build_path(path: &Path) -> Result<PathBuf> {
     if path.exists() {
@@ -2816,26 +2887,17 @@ fn refuse_overlapping_reuse_path(source: &Path, destinations: &[PathBuf]) -> Res
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn seed_native_reuse_index(source: &Path, destination: &Path, model: &str) -> Result<()> {
+fn seed_native_reuse_index(
+    reuse: &jbotci_embeddings::NativeReuseSource,
+    destination: &Path,
+    model: &str,
+) -> Result<()> {
     let spec = jbotci_embeddings::model_spec(model).context("unknown native model")?;
-    let reuse = jbotci_embeddings::validate_native_reuse_source(source, &spec)?;
     let manifest = &reuse.manifest;
-    let manifest_url = format!("models/{model}/packs/{}/manifest.json", manifest.pack_id);
-    let target = destination.join("v1").join(&manifest_url);
-    copy_dir_recursive(
-        &reuse.pack_dir,
-        target.parent().context("pack has no parent")?,
-        "native reuse source",
-    )?;
-    write_json_file(
-        &destination.join("v1/catalog.json"),
-        &serde_json::json!({
-            "schema_version": 1,
-            "models": [{"model_key": model, "latest_pack_id": manifest.pack_id, "manifest_url": manifest_url}],
-        }),
-    )?;
-    // Validate the copied bytes too, so setup cannot silently ignore a damaged seed.
-    jbotci_embeddings::validate_native_reuse_source(destination, &spec)?;
+    let target = jbotci_embeddings::pack_root(destination, model, &manifest.pack_id);
+    copy_dir_recursive(&reuse.pack_dir, &target, "native reuse source")?;
+    jbotci_embeddings::write_catalog(destination, &spec, &manifest.pack_id)?;
+    // Setup validates the copied bytes before exposing any reusable rows.
     Ok(())
 }
 
@@ -2863,6 +2925,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         .map(fs::canonicalize)
         .transpose()
         .context("resolving previous native index root")?;
+    let mut validated_sources = std::collections::HashMap::new();
     if let Some(source) = &reuse_root {
         let destinations = [
             resolved_build_path(&out_dir)?,
@@ -2872,8 +2935,11 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         // Refuse every incompatible source before clearing any output.
         for model in &models {
             let spec = jbotci_embeddings::model_spec(model).context("unknown native model")?;
-            let previous =
-                jbotci_embeddings::validate_native_reuse_source(&source.join(model), &spec)?;
+            let previous = jbotci_embeddings::validate_native_reuse_source_with_adoption(
+                &source.join(model),
+                &spec,
+                args.adopt_legacy_pack,
+            )?;
             // A source root can contain symlinks into a destination. Check the
             // actual referenced files before any directory can be cleared.
             refuse_overlapping_reuse_path(
@@ -2893,6 +2959,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
                     )?;
                 }
             }
+            validated_sources.insert(model.clone(), previous);
         }
     }
     ExistingOutput::from_overwrite_flag(args.overwrite).check(&out_dir)?;
@@ -2907,8 +2974,8 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         remove_path_if_exists(&model_index_dir)?;
         fs::create_dir_all(&model_index_dir)
             .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
-        if let Some(source) = &reuse_root {
-            seed_native_reuse_index(&source.join(model), &model_index_dir, model)?;
+        if let Some(source) = validated_sources.remove(model) {
+            seed_native_reuse_index(&source, &model_index_dir, model)?;
         }
         let mut command = ProcessCommand::new("cargo");
         command.arg("run").arg("--release").arg("-p").arg("jbotci");
@@ -2932,6 +2999,12 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         if args.skip_validation {
             command.arg("--skip-validation");
         }
+        if reuse_root.is_some() {
+            command.arg("--reuse-index-dir").arg(&model_index_dir);
+        }
+        if args.adopt_legacy_pack {
+            command.arg("--adopt-legacy-pack");
+        }
         let status = command
             .status()
             .context("failed to run `cargo run --release -p jbotci -- setup --embedding`")?;
@@ -2945,6 +3018,18 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
                 "native embedding setup did not create `{}`",
                 index_version_dir.display()
             );
+        }
+        if reuse_root.is_some() {
+            let (_, manifest) = jbotci_embeddings::load_latest_pack(&model_index_dir, model)?;
+            if manifest
+                .row_counts
+                .iter()
+                .map(|counts| counts.reused)
+                .sum::<usize>()
+                == 0
+            {
+                bail!("reuse requested for {model}, but setup reused no rows");
+            }
         }
         copy_latest_native_pack(&model_index_dir, &out_dir, model)?;
         let catalog = read_json_file(&index_version_dir.join("catalog.json"))?;
@@ -2987,6 +3072,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
             out_dir: args.out_dir.clone(),
             index_dir: args.index_dir,
             reuse_index_dir: args.reuse_index_dir,
+            adopt_legacy_pack: args.adopt_legacy_pack,
             model_dir: args.model_dir,
             models: selected_models.to_vec(),
             skip_validation: args.skip_validation,
@@ -4070,10 +4156,15 @@ fn build_all_f2llm_webgpu_assets(
     parallelism: VectorBuildParallelism,
     reuse: &WebVectorReuseArgs,
 ) -> Result<()> {
-    if reuse.reuse_from.is_some() {
+    if matches!(reuse.source, WebVectorReuseSource::Pack { .. }) {
         bail!(
             "--reuse-from names one pack. Use --reuse-catalog or --reuse-published for all models"
         );
+    }
+    for model in &reuse.new_models {
+        if !F2LLM_MODEL_SPECS.iter().any(|spec| spec.model_key == model) {
+            bail!("unknown model named by --new-model: {model}");
+        }
     }
     // Check every output up front, before hours of model export and
     // embedding work, rather than failing on the last model.
@@ -15164,6 +15255,107 @@ mod tests {
 
     use super::*;
 
+    #[invariant(true)]
+    struct SeedTestBackend {
+        dimensions: usize,
+        calls: usize,
+    }
+
+    #[bityzba::contract_trait]
+    impl jbotci_embeddings::EmbeddingBackend for SeedTestBackend {
+        #[requires(true)]
+        #[ensures(true)]
+        fn dimensions(&self) -> Result<usize, jbotci_embeddings::EmbeddingError> {
+            Ok(self.dimensions)
+        }
+
+        #[requires(!input.is_empty())]
+        #[ensures(true)]
+        fn embed(
+            &mut self,
+            input: &str,
+        ) -> Result<jbotci_embeddings::QueryEmbedding, jbotci_embeddings::EmbeddingError> {
+            self.calls += 1;
+            let mut values = vec![0.0; self.dimensions];
+            values[usize::from(sha256_hex(input.as_bytes()).as_bytes()[0]) % self.dimensions] = 1.0;
+            Ok(jbotci_embeddings::QueryEmbedding { values })
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reuse_flags_conflict_with_skip_build_and_skip_validation() {
+        for flags in [
+            vec!["--reuse-from", "previous"],
+            vec!["--reuse-catalog", "previous"],
+            vec!["--reuse-published"],
+            vec!["--adopt-legacy-pack"],
+            vec!["--new-model", "new"],
+        ] {
+            let mut args = vec!["xtask-full", "publish-f2llm-webgpu-r2", "--skip-build"];
+            args.extend(flags);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+        assert!(
+            Cli::try_parse_from([
+                "xtask-full",
+                "publish-gguf-embeddings-r2",
+                "--skip-build",
+                "--reuse-index-dir",
+                "previous"
+            ])
+            .is_err()
+        );
+        for command in ["build-gguf-embeddings", "publish-gguf-embeddings-r2"] {
+            assert!(
+                Cli::try_parse_from([
+                    "xtask-full",
+                    command,
+                    "--skip-validation",
+                    "--reuse-index-dir",
+                    "previous"
+                ])
+                .is_err()
+            );
+        }
+        for command in [
+            "build-f2llm-webgpu-vectors",
+            "build-f2llm-webgpu-assets",
+            "publish-f2llm-webgpu-r2",
+        ] {
+            let parsed = Cli::try_parse_from([
+                "xtask-full",
+                command,
+                "--reuse-published",
+                "--remote-catalog-url",
+                "https://example.test/custom/catalog.json",
+                "--adopt-legacy-pack",
+                "--new-model",
+                "new",
+            ])
+            .unwrap();
+            let reuse = match parsed.command {
+                Command::BuildF2LlmWebgpuVectors(args) => args.reuse,
+                Command::BuildF2LlmWebgpuAssets(args) => args.reuse,
+                Command::PublishF2LlmWebgpuR2(args) => args.reuse,
+                _ => unreachable!(),
+            };
+            let mut process = ProcessCommand::new("python");
+            reuse.resolve().append_to(&mut process);
+            assert_eq!(
+                process.get_args().collect::<Vec<_>>(),
+                [
+                    "--reuse-catalog",
+                    "https://example.test/custom/catalog.json",
+                    "--adopt-legacy-pack",
+                    "--new-model",
+                    "new"
+                ]
+            );
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -15186,9 +15378,19 @@ mod tests {
                     _ => panic!("unexpected command"),
                 };
                 let mut process = ProcessCommand::new("python3");
-                reuse.append_to(&mut process);
+                reuse.resolve().append_to(&mut process);
                 let args = process.get_args().collect::<Vec<_>>();
-                assert_eq!(args[0], flag);
+                assert_eq!(
+                    args[0],
+                    if flag == "--reuse-published" {
+                        "--reuse-catalog"
+                    } else {
+                        flag
+                    }
+                );
+                if flag == "--reuse-published" {
+                    assert_eq!(args[1], F2LLM_REMOTE_CATALOG_URL);
+                }
                 if flag != "--reuse-published" {
                     assert_eq!(args[1], "previous-source");
                 }
@@ -15233,38 +15435,44 @@ mod tests {
         let destination = root.join("destination");
         let model = jbotci_embeddings::DEFAULT_MODEL_KEY;
         let spec = jbotci_embeddings::model_spec(model).unwrap();
-        let pack_id = "previous-pack";
+        let dictionary =
+            jbotci_dictionary::Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let mut backend = SeedTestBackend {
+            dimensions: spec.dimensions,
+            calls: 0,
+        };
+        let report = jbotci_embeddings::build_embedding_pack(
+            &mut backend,
+            &dictionary,
+            chunks,
+            &source,
+            &spec,
+            false,
+        )
+        .unwrap();
+        assert_eq!(backend.calls, 2);
+        let pack_id = report.pack_id.as_str();
         let manifest_url = format!("models/{model}/packs/{pack_id}/manifest.json");
-        let pack_dir = source
-            .join("v1/models")
-            .join(model)
-            .join("packs")
-            .join(pack_id);
-        fs::create_dir_all(&pack_dir).unwrap();
-        let mut corpora = Vec::new();
-        for corpus_id in ["vlacku-en", "cukta-cll"] {
-            let items_url = format!("{corpus_id}.json");
-            fs::write(pack_dir.join(&items_url), b"[]").unwrap();
-            corpora.push(serde_json::json!({
-                "corpus_id": corpus_id, "input_format_version": spec.input_format_version,
-                "fingerprint": "old-corpus", "row_count": 0, "dimensions": spec.dimensions,
-                "items_url": items_url, "items_sha256": sha256_hex(b"[]"), "shards": [],
-            }));
-        }
-        write_json_file(&pack_dir.join("manifest.json"), &serde_json::json!({
-            "schema_version": 1, "model_key": model, "model_revision": spec.model_revision,
-            "pack_id": pack_id, "input_format_version": spec.input_format_version,
-            "built_by": {"runtime": "llama-cpp-4", "version": "0.3.0"},
-            "dimensions": spec.dimensions, "element_type": "f32le", "normalized": true, "distance": "dot",
-            "compatible_query_runtimes": [{"runtime": "llama-cpp-4", "version": "0.3.0"}], "corpora": corpora,
-        })).unwrap();
-        write_json_file(&source.join("v1/catalog.json"), &serde_json::json!({
-            "schema_version": 1, "models": [{"model_key": model, "latest_pack_id": pack_id, "manifest_url": manifest_url}],
-        })).unwrap();
-        seed_native_reuse_index(&source, &destination, model).expect("seed");
+        let (pack_dir, mut manifest) = jbotci_embeddings::load_latest_pack(&source, model).unwrap();
+        manifest.model_sha256 = None;
+        manifest.build_provenance = None;
+        write_json_file(
+            &pack_dir.join("manifest.json"),
+            &serde_json::to_value(manifest).unwrap(),
+        )
+        .unwrap();
+        let validated =
+            jbotci_embeddings::validate_native_reuse_source_with_adoption(&source, &spec, true)
+                .unwrap();
+        seed_native_reuse_index(&validated, &destination, model).expect("seed");
         fs::remove_dir_all(&source).unwrap();
-        let reuse = jbotci_embeddings::validate_native_reuse_source(&destination, &spec)
-            .expect("seed survives source removal");
+        let reuse = jbotci_embeddings::validate_native_reuse_source_with_adoption(
+            &destination,
+            &spec,
+            true,
+        )
+        .expect("seed survives source removal");
         assert_eq!(reuse.manifest.pack_id, pack_id);
         let obsolete = destination
             .join("v1/models")
@@ -15282,6 +15490,30 @@ mod tests {
                 .join("packs/obsolete")
                 .exists()
         );
+        let new_chunks = vec![
+            chunks[0].clone(),
+            chunks[1]
+                .clone()
+                .with_data(data! { text: "changed test input".to_owned() }),
+        ];
+        backend.calls = 0;
+        let report = jbotci_embeddings::build_embedding_pack_with_reuse(
+            &mut backend,
+            &dictionary,
+            &new_chunks,
+            &destination,
+            &spec,
+            true,
+            Some(reuse),
+            Some(spec.native_sha256.clone()),
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(backend.calls, 1);
+        assert_eq!(report.row_counts[1].reused, 1);
+        assert_eq!(report.row_counts[1].embedded, 1);
+        let (_, manifest) = jbotci_embeddings::load_latest_pack(&destination, model).unwrap();
+        assert!(manifest.legacy_adoption.is_some());
         #[cfg(unix)]
         {
             let alias = root.join("source-alias");
