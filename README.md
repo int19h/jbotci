@@ -132,8 +132,37 @@ result with `publish-f2llm-webgpu-r2 --skip-build`.
 Incremental builds copy stored vectors for unchanged embedding inputs.
 They embed changed and added rows, omit removed rows, and preserve the new corpus order.
 Each web document stores one pooled vector, including documents with several token windows.
-The web builder prints reused and embedded row counts for each corpus.
-It also reuses identical inputs that move between the two web corpora.
+
+Pack builds save finished work between runs. A checkpoint records which chunks are complete.
+To resume an aborted build, repeat the command with the same inputs and paths.
+The builder compares the saved identity, corpus, layout, and file hashes before it uses saved rows.
+A changed web identity, corpus, or layout discards the whole checkpoint with a message.
+A missing or damaged web chunk causes only that chunk to be embedded again.
+
+The Python web builder saves 256-row chunks in `<out>.partial` by default.
+Use `--work-dir PATH` to choose another persistent directory.
+Keep this directory separate from `--out` and `--stage`.
+Use `--discard-checkpoint` to start fresh, or `--chunk-rows N` to change the chunk size.
+The builder removes saved work after it promotes the finished pack.
+It prints resumed chunks and rows, reused rows, and newly embedded rows for each corpus.
+
+The web xtask commands use these same checkpoints.
+The all-model commands keep each model under `<vector-out-dir>.parts` until the combined output is ready.
+They retain completed model chunks while other models finish, then remove the parts after promotion.
+To start these commands fresh, remove the matching `.partial` directories under the parts directory.
+For the single-model command, remove `<out-dir>.partial`.
+A finished output still requires `--overwrite`. Leftover work alone does not require this flag.
+
+The native xtask commands retain setup checkpoints under `--index-dir`.
+Setup saves each finished 256-row shard under `<pack-id>.tmp` beside the selected pack.
+Resume with the same `--index-dir`, model, and corpus.
+Setup compares the GGUF SHA-256, model identity, runtime, corpus fingerprints, layout, and saved shard hashes.
+An incompatible native checkpoint causes a full rebuild.
+To start fresh, remove the matching `<pack-id>.tmp` directory under `<index-dir>/<model-key>/v1/models/<model-key>/packs`.
+Setup removes that work after it promotes the pack.
+The xtask stages its export and promotes the local output directory only after every selected model succeeds.
+
+The web builder also reuses identical inputs that move between the two web corpora.
 
 For one web model, pass `--reuse-from /path/to/previous/pack` to
 `build-f2llm-webgpu-vectors` or `build-vector-pack.py`.

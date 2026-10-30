@@ -2711,6 +2711,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.dimensions,
         args.include_wasm_runtime,
         existing_output,
+        VectorWorkRetention::UntilPackPromotion,
         args.threads,
         &args.reuse.resolve(),
     )?;
@@ -2916,8 +2917,23 @@ fn copy_latest_native_pack(index: &Path, output: &Path, model: &str) -> Result<(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
+    build_gguf_embeddings_with_setup(args, |command| {
+        let status = command
+            .status()
+            .context("failed to run native embedding setup")?;
+        check_status(status, "native embedding setup")
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_gguf_embeddings_with_setup(
+    args: BuildGgufEmbeddingsArgs,
+    mut setup: impl FnMut(&mut ProcessCommand) -> Result<()>,
+) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
     let index_dir = absolute_path(&args.index_dir)?;
+    let output_stage = PathBuf::from(format!("{}.staging", out_dir.display()));
     let models = selected_gguf_model_keys(&args.models)?;
     let reuse_root = args
         .reuse_index_dir
@@ -2930,6 +2946,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         let destinations = [
             resolved_build_path(&out_dir)?,
             resolved_build_path(&index_dir)?,
+            resolved_build_path(&output_stage)?,
         ];
         refuse_overlapping_reuse_path(source, &destinations)?;
         // Refuse every incompatible source before clearing any output.
@@ -2963,15 +2980,16 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         }
     }
     ExistingOutput::from_overwrite_flag(args.overwrite).check(&out_dir)?;
+    let final_out_dir = out_dir;
+    let out_dir = output_stage;
     remove_path_if_exists(&out_dir)?;
     fs::create_dir_all(out_dir.join("models"))
         .with_context(|| format!("creating `{}`", out_dir.join("models").display()))?;
     let mut catalog_models = Vec::new();
     for model in &models {
         let model_index_dir = index_dir.join(model);
-        // The index directory is scratch: the pack is copied out of it into
-        // `out_dir`, which is the guarded output.
-        remove_path_if_exists(&model_index_dir)?;
+        // Setup checks checkpoint identity and shard hashes before resuming.
+        // Its forced rebuild replaces the selected final pack only on success.
         fs::create_dir_all(&model_index_dir)
             .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
         if let Some(source) = validated_sources.remove(model) {
@@ -3005,13 +3023,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
         if args.adopt_legacy_pack {
             command.arg("--adopt-legacy-pack");
         }
-        let status = command
-            .status()
-            .context("failed to run `cargo run --release -p jbotci -- setup --embedding`")?;
-        check_status(
-            status,
-            "cargo run --release -p jbotci -- setup --embedding --use-precomputed never",
-        )?;
+        setup(&mut command)?;
         let index_version_dir = model_index_dir.join("v1");
         if !index_version_dir.is_dir() {
             bail!(
@@ -3024,7 +3036,7 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
             if manifest
                 .row_counts
                 .iter()
-                .map(|counts| counts.reused)
+                .map(|counts| counts.reused + counts.resumed)
                 .sum::<usize>()
                 == 0
             {
@@ -3057,7 +3069,12 @@ fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
             "models": catalog_models,
         }),
     )?;
-    validate_native_gguf_r2_tree(&out_dir)
+    validate_native_gguf_r2_tree(&out_dir)?;
+    promote_directory(
+        &out_dir,
+        &final_out_dir,
+        ExistingOutput::from_overwrite_flag(args.overwrite),
+    )
 }
 
 #[requires(!args.bucket.trim().is_empty())]
@@ -4179,12 +4196,14 @@ fn build_all_f2llm_webgpu_assets(
             .and_then(|name| name.to_str())
             .unwrap_or("r2-web-embeddings-f2llm")
     ));
-    // The parts directory is intermediate: the merge below copies every part
-    // into the real output, so a stale one is always discarded.
-    fs::remove_dir_all(&vector_parts_root).ok();
+    // Keep partial chunks across failed runs. Each builder validates its own
+    // checkpoint against the current model, corpus and chunk layout.
     fs::create_dir_all(&vector_parts_root)
         .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
 
+    // Export into scratch so failed vector builds do not leave model outputs
+    // that trigger the final-output refusal on retry.
+    let model_stage = vector_parts_root.join("model-artifacts");
     // Model export is quick, so it runs first and in order; the vector builds
     // are the long part and run up to `parallelism.jobs` at a time.
     let mut jobs = Vec::new();
@@ -4196,11 +4215,11 @@ fn build_all_f2llm_webgpu_assets(
             model_key: spec.model_key.to_owned(),
             model_id: spec.model_id.to_owned(),
             model_root: None,
-            out_dir: f2llm_model_artifact_out_dir(model_out_root, spec),
+            out_dir: f2llm_model_artifact_out_dir(&model_stage, spec),
             stage: None,
             shard_size: 4 * 1024 * 1024,
             python: python.to_owned(),
-            overwrite: models == ExistingOutput::Replace,
+            overwrite: true,
         })?;
         jobs.push((spec, q4_onnx, vector_parts_root.join(spec.id)));
     }
@@ -4232,9 +4251,10 @@ fn build_all_f2llm_webgpu_assets(
             spec.model_id,
             spec.dimensions,
             spec.include_wasm_runtime,
-            // The parts root was just emptied, so a part dir that exists here
-            // would be a bug, never an output worth replacing.
-            ExistingOutput::Refuse,
+            // Completed intermediate parts can coexist with unfinished models.
+            // Rebuild them through the same identity checks as unfinished parts.
+            ExistingOutput::Replace,
+            VectorWorkRetention::UntilAggregatePromotion,
             threads_per_job,
             reuse,
         )
@@ -4304,8 +4324,17 @@ fn build_all_f2llm_webgpu_assets(
         .map(|(_, _, part_dir)| part_dir)
         .collect::<Vec<_>>();
     merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir, vectors)?;
+    for spec in F2LLM_MODEL_SPECS {
+        let target = f2llm_model_artifact_out_dir(model_out_root, spec);
+        fs::create_dir_all(target.parent().context("model output has no parent")?)?;
+        promote_directory(
+            &f2llm_model_artifact_out_dir(&model_stage, spec),
+            &target,
+            models,
+        )?;
+    }
     // The merged output now holds a copy of every part. A failed run keeps
-    // its parts for inspection; the next run discards them anyway.
+    // its parts and checkpoints for the next invocation.
     fs::remove_dir_all(&vector_parts_root)
         .with_context(|| format!("removing `{}`", vector_parts_root.display()))
 }
@@ -4497,6 +4526,14 @@ fn build_f2llm_onnx_fallback_asset(
     promote_directory(&stage, &output, existing_output)
 }
 
+/// Intermediate model packs retain chunks until the combined output is promoted.
+#[invariant(true)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VectorWorkRetention {
+    UntilPackPromotion,
+    UntilAggregatePromotion,
+}
+
 #[requires(!python.trim().is_empty())]
 #[requires(true)]
 #[requires(batch_size > 0)]
@@ -4515,6 +4552,7 @@ fn run_f2llm_vector_builder(
     dimensions: usize,
     include_wasm_runtime: bool,
     existing_output: ExistingOutput,
+    work_retention: VectorWorkRetention,
     threads: Option<NonZeroUsize>,
     reuse: &WebVectorReuseArgs,
 ) -> Result<()> {
@@ -4545,6 +4583,9 @@ fn run_f2llm_vector_builder(
         .arg(F2LLM_MAX_SEQUENCE_LENGTH.to_string())
         .arg("--batch-size")
         .arg(batch_size.to_string());
+    if work_retention == VectorWorkRetention::UntilAggregatePromotion {
+        command.arg("--keep-work");
+    }
     reuse.append_to(&mut command);
     if include_wasm_runtime {
         command.arg("--include-wasm-runtime");
@@ -15259,6 +15300,7 @@ mod tests {
     struct SeedTestBackend {
         dimensions: usize,
         calls: usize,
+        fail_after: Option<usize>,
     }
 
     #[bityzba::contract_trait]
@@ -15275,11 +15317,214 @@ mod tests {
             &mut self,
             input: &str,
         ) -> Result<jbotci_embeddings::QueryEmbedding, jbotci_embeddings::EmbeddingError> {
+            if self.fail_after == Some(self.calls) {
+                return Err(jbotci_embeddings::EmbeddingError::Backend {
+                    message: "injected failure".to_owned(),
+                });
+            }
             self.calls += 1;
             let mut values = vec![0.0; self.dimensions];
             values[usize::from(sha256_hex(input.as_bytes()).as_bytes()[0]) % self.dimensions] = 1.0;
             Ok(jbotci_embeddings::QueryEmbedding { values })
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_xtask_keeps_setup_checkpoint_and_promotes_only_success() {
+        let root = std::env::temp_dir().join(format!("native-xtask-resume-{}", std::process::id()));
+        remove_path_if_exists(&root).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        let output = root.join("output");
+        let index = root.join("index");
+        let model = jbotci_embeddings::DEFAULT_MODEL_KEY;
+        let spec = jbotci_embeddings::model_spec(model).unwrap();
+        let dictionary =
+            jbotci_dictionary::Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let site = jbotci_cll::embedded_cll_site().unwrap();
+        let chunks = &site.search_chunks[..263];
+        let mut saved_checkpoint = None;
+        for attempt in 0..2 {
+            let cli = Cli::try_parse_from([
+                "xtask-full",
+                "build-gguf-embeddings",
+                "--model",
+                model,
+                "--index-dir",
+                index.to_str().unwrap(),
+                "--out-dir",
+                output.to_str().unwrap(),
+            ])
+            .unwrap();
+            let Command::BuildGgufEmbeddings(args) = cli.command else {
+                unreachable!()
+            };
+            let result = build_gguf_embeddings_with_setup(args, |command| {
+                let argv = command.get_args().collect::<Vec<_>>();
+                let position = argv.iter().position(|arg| *arg == "--index-dir").unwrap();
+                let model_index = Path::new(argv[position + 1]);
+                assert_eq!(model_index, index.join(model));
+                if let Some(path) = &saved_checkpoint {
+                    assert!(Path::new(path).is_file());
+                }
+                let mut backend = SeedTestBackend {
+                    dimensions: spec.dimensions,
+                    calls: 0,
+                    fail_after: if attempt == 0 { Some(257) } else { None },
+                };
+                let report = jbotci_embeddings::build_embedding_pack_with_reuse(
+                    &mut backend,
+                    &dictionary,
+                    chunks,
+                    model_index,
+                    &spec,
+                    true,
+                    None,
+                    Some(spec.native_sha256.clone()),
+                    &mut |_| {},
+                )?;
+                assert_eq!(backend.calls, 7);
+                assert_eq!(
+                    report.row_counts.iter().map(|c| c.resumed).sum::<usize>(),
+                    256
+                );
+                Ok(())
+            });
+            if attempt == 0 {
+                assert!(result.is_err());
+                assert!(!output.exists());
+                let checkpoint = walkdir::WalkDir::new(&index)
+                    .into_iter()
+                    .filter_map(Result::ok)
+                    .find(|entry| entry.file_name() == "native-local-build.json")
+                    .unwrap()
+                    .into_path();
+                saved_checkpoint = Some(checkpoint);
+            } else {
+                result.unwrap();
+                assert!(output.join("catalog.json").is_file());
+                assert!(!saved_checkpoint.as_ref().unwrap().exists());
+                assert!(!PathBuf::from(format!("{}.staging", output.display())).exists());
+            }
+        }
+        let cli = Cli::try_parse_from([
+            "xtask-full",
+            "build-gguf-embeddings",
+            "--model",
+            model,
+            "--index-dir",
+            index.to_str().unwrap(),
+            "--out-dir",
+            output.to_str().unwrap(),
+        ])
+        .unwrap();
+        let Command::BuildGgufEmbeddings(args) = cli.command else {
+            unreachable!()
+        };
+        assert!(
+            build_gguf_embeddings_with_setup(args, |_| panic!(
+                "existing output must refuse before setup"
+            ))
+            .is_err()
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_xtask_retains_each_models_work_until_aggregate_promotion() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::env::temp_dir().join(format!("web-xtask-resume-{}", std::process::id()));
+        remove_path_if_exists(&root).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        let python = root.join("stub-python");
+        fs::write(&python, r#"#!/usr/bin/env python3
+import json, sys
+from pathlib import Path
+root = Path(__file__).parent
+args = sys.argv[1:]
+def value(flag): return args[args.index(flag) + 1]
+if 'export-webgpu-from-onnx-q4.py' in args[0]:
+    Path(value('--out')).mkdir(parents=True, exist_ok=True)
+elif 'build-vector-pack.py' in args[0]:
+    assert '--keep-work' in args
+    out = Path(value('--out'))
+    work = Path(str(out) + '.partial')
+    marker = work / 'finished-chunk'
+    record = root / ('seen-' + value('--model-key'))
+    if record.exists():
+        assert marker.read_text() == 'finished'
+    else:
+        work.mkdir(parents=True, exist_ok=True)
+        marker.write_text('finished')
+        record.write_text('seen')
+    count = root / 'count'
+    n = int(count.read_text()) + 1 if count.exists() else 1
+    count.write_text(str(n))
+    if n == 2:
+        sys.exit(1)
+    out.mkdir(parents=True, exist_ok=True)
+    key = value('--model-key')
+    (out / 'models' / key).mkdir(parents=True, exist_ok=True)
+    (out / 'catalog.json').write_text(json.dumps({'models': [{'model_key': key, 'vector_spaces': []}]}))
+"#).unwrap();
+        fs::set_permissions(&python, fs::Permissions::from_mode(0o755)).unwrap();
+        let artifacts = root.join("artifacts");
+        for spec in F2LLM_MODEL_SPECS {
+            let model = artifacts.join(spec.q4_onnx_relative);
+            fs::create_dir_all(model.parent().unwrap()).unwrap();
+            fs::write(model, b"stub-model").unwrap();
+        }
+        let corpus = root.join("corpus.json");
+        fs::write(&corpus, "{}").unwrap();
+        let models = root.join("models");
+        let vectors = root.join("vectors");
+        for attempt in 0..2 {
+            let result = build_all_f2llm_webgpu_assets(
+                python.to_str().unwrap(),
+                &models,
+                &vectors,
+                &corpus,
+                None,
+                Some(&artifacts),
+                8,
+                ExistingOutput::Refuse,
+                ExistingOutput::Refuse,
+                VectorBuildParallelism::SEQUENTIAL,
+                &WebVectorReuseArgs::default(),
+            );
+            if attempt == 0 {
+                assert!(result.is_err());
+                assert!(!models.exists());
+                assert!(!vectors.exists());
+                assert!(root.join("vectors.parts").is_dir());
+            } else {
+                result.unwrap();
+                assert!(vectors.join("catalog.json").is_file());
+                assert!(models.is_dir());
+                assert!(!root.join("vectors.parts").exists());
+            }
+        }
+        assert!(
+            build_all_f2llm_webgpu_assets(
+                python.to_str().unwrap(),
+                &models,
+                &vectors,
+                &corpus,
+                None,
+                Some(&artifacts),
+                8,
+                ExistingOutput::Refuse,
+                ExistingOutput::Refuse,
+                VectorBuildParallelism::SEQUENTIAL,
+                &WebVectorReuseArgs::default(),
+            )
+            .is_err()
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -15441,6 +15686,7 @@ mod tests {
         let mut backend = SeedTestBackend {
             dimensions: spec.dimensions,
             calls: 0,
+            fail_after: None,
         };
         let report = jbotci_embeddings::build_embedding_pack(
             &mut backend,
