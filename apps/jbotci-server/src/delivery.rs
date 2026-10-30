@@ -11,14 +11,12 @@ use http_body_util::{BodyExt, LengthLimitError, Limited};
 use std::{
     future::Future,
     io,
-    net::SocketAddr,
     pin::Pin,
     sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::{TcpListener, TcpStream},
     time::{Instant, Sleep},
 };
 
@@ -113,15 +111,15 @@ impl Drop for Registration {
 }
 
 #[invariant(true)]
-pub(crate) struct DeadlineListener(pub(crate) TcpListener);
+pub(crate) struct DeadlineListener<L>(pub(crate) L);
 #[invariant(true)]
-pub(crate) struct DeadlineStream {
-    stream: TcpStream,
+pub(crate) struct DeadlineStream<S> {
+    stream: S,
     connection: Connection,
 }
-impl Listener for DeadlineListener {
-    type Io = DeadlineStream;
-    type Addr = SocketAddr;
+impl<L: Listener> Listener for DeadlineListener<L> {
+    type Io = DeadlineStream<L::Io>;
+    type Addr = L::Addr;
     #[requires(true)]
     #[ensures(true)]
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
@@ -140,14 +138,16 @@ impl Listener for DeadlineListener {
         self.0.local_addr()
     }
 }
-impl axum::extract::connect_info::Connected<IncomingStream<'_, DeadlineListener>> for Connection {
+impl<L: Listener> axum::extract::connect_info::Connected<IncomingStream<'_, DeadlineListener<L>>>
+    for Connection
+{
     #[requires(true)]
     #[ensures(true)]
-    fn connect_info(stream: IncomingStream<'_, DeadlineListener>) -> Self {
+    fn connect_info(stream: IncomingStream<'_, DeadlineListener<L>>) -> Self {
         stream.io().connection.clone()
     }
 }
-impl AsyncRead for DeadlineStream {
+impl<S: AsyncRead + Unpin> AsyncRead for DeadlineStream<S> {
     #[requires(true)]
     #[ensures(true)]
     fn poll_read(
@@ -159,7 +159,7 @@ impl AsyncRead for DeadlineStream {
         Pin::new(&mut self.stream).poll_read(cx, buffer)
     }
 }
-impl AsyncWrite for DeadlineStream {
+impl<S: AsyncWrite + Unpin> AsyncWrite for DeadlineStream<S> {
     #[requires(true)]
     #[ensures(true)]
     fn poll_write(
@@ -169,6 +169,23 @@ impl AsyncWrite for DeadlineStream {
     ) -> Poll<io::Result<usize>> {
         self.connection.poll_deadline(cx)?;
         Pin::new(&mut self.stream).poll_write(cx, bytes)
+    }
+    // Hyper keeps body owners in its queue when the transport supports vectored writes.
+    // Its flattened path copies those bytes and releases their owners before delivery.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buffers: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        self.connection.poll_deadline(cx)?;
+        Pin::new(&mut self.stream).poll_write_vectored(cx, buffers)
     }
     #[requires(true)]
     #[ensures(true)]
@@ -365,6 +382,150 @@ async fn limit_api_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::SocketAddr;
+    use tokio::net::{TcpListener, TcpStream};
+    #[invariant(true)]
+    struct BlockedWrite {
+        stream: tokio::io::DuplexStream,
+        buffered: Arc<tokio::sync::Notify>,
+    }
+    const OWNED_BODY_PROBE: &[u8] = b"retained-response-owner";
+    impl AsyncRead for BlockedWrite {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.stream).poll_read(cx, buffer)
+        }
+    }
+    impl AsyncWrite for BlockedWrite {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            if bytes
+                .windows(OWNED_BODY_PROBE.len())
+                .any(|window| window == OWNED_BODY_PROBE)
+            {
+                self.buffered.notify_one();
+            }
+            Poll::Pending
+        }
+        #[requires(true)]
+        #[ensures(true)]
+        fn is_write_vectored(&self) -> bool {
+            self.stream.is_write_vectored()
+        }
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_write_vectored(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buffers: &[io::IoSlice<'_>],
+        ) -> Poll<io::Result<usize>> {
+            if buffers.iter().any(|bytes| {
+                bytes
+                    .windows(OWNED_BODY_PROBE.len())
+                    .any(|window| window == OWNED_BODY_PROBE)
+            }) {
+                self.buffered.notify_one();
+            }
+            Poll::Pending
+        }
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Pending
+        }
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+    #[invariant(true)]
+    struct OneConnection(Option<BlockedWrite>);
+    impl Listener for OneConnection {
+        type Io = BlockedWrite;
+        type Addr = SocketAddr;
+        #[requires(true)]
+        #[ensures(true)]
+        async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+            match self.0.take() {
+                Some(stream) => (stream, "127.0.0.1:0".parse().unwrap()),
+                None => std::future::pending().await,
+            }
+        }
+        #[requires(true)]
+        #[ensures(true)]
+        fn local_addr(&self) -> io::Result<Self::Addr> {
+            Ok("127.0.0.1:0".parse().unwrap())
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn hyper_retains_admission_while_socket_output_is_blocked() {
+        use tokio::io::AsyncWriteExt;
+        let execution = crate::execution::ServerExecution::new(crate::ServerPolicy::default());
+        let context = execution.admit(None).await.unwrap();
+        let response = Arc::new(Mutex::new(Some(context)));
+        let app = axum::Router::new().route(
+            "/",
+            axum::routing::get(move |ConnectInfo(connection): ConnectInfo<Connection>| {
+                let context = response.lock().unwrap().take().unwrap();
+                async move {
+                    let deadline = context.deadline;
+                    Response::new(Body::new(DeliveryBody {
+                        inner: crate::execution::owned_body(
+                            OWNED_BODY_PROBE.to_vec(),
+                            Some(context),
+                        ),
+                        registration: connection.register(deadline),
+                    }))
+                }
+            }),
+        );
+        let buffered = Arc::new(tokio::sync::Notify::new());
+        let (mut client, stream) = tokio::io::duplex(128);
+        let stream = BlockedWrite {
+            stream,
+            buffered: Arc::clone(&buffered),
+        };
+        // Use the same deadline stream as the production listener, with deterministic backpressure.
+        let listener = OneConnection(Some(stream));
+        let server = tokio::spawn(async move {
+            axum::serve(
+                DeadlineListener(listener),
+                app.into_make_service_with_connect_info::<Connection>(),
+            )
+            .await
+            .unwrap();
+        });
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        buffered.notified().await;
+        assert_eq!(execution.governor.snapshot().compute_active, 1);
+        tokio::time::advance(execution.policy.deadline).await;
+        for _ in 0..100 {
+            if execution.governor.snapshot().compute_active == 0 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(execution.governor.snapshot().compute_active, 0);
+        server.abort();
+    }
+
     #[requires(true)]
     #[ensures(true)]
     async fn local_client_response(late_normal: bool) -> String {

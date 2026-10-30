@@ -8,6 +8,14 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/delivery.rs:BlockedWrite",
+        "Any duplex stream and notification signal define a valid blocked test transport.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:OneConnection",
+        "The test listener accepts its one stream or remains pending after acceptance.",
+    ),
+    (
         "apps/jbotci-server/src/delivery.rs:OperationDeadline",
         "Any absolute time is a valid deadline, including one that already expired.",
     ),
