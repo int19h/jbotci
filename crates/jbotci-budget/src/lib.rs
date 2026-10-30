@@ -1,7 +1,9 @@
 //! Byte budgets shared by renderers and server adapters.
 mod bytes;
+mod json_text;
 mod text;
 pub use bytes::*;
+pub use json_text::{bounded_json_with_text_budget, check_json_text_budget};
 pub use text::{TextBuffer, TextScope};
 
 use bityzba::{invariant, requires};

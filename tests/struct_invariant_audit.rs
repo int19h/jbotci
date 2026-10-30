@@ -8,6 +8,26 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-budget/src/json_text.rs:OnceText",
+        "The test tracks how often a text value is serialized.",
+    ),
+    (
+        "crates/jbotci-budget/src/json_text.rs:TextBudget",
+        "The budget and failure flag describe any serialization attempt.",
+    ),
+    (
+        "crates/jbotci-budget/src/json_text.rs:TextValue",
+        "The borrowed value and its budget have no further data constraint.",
+    ),
+    (
+        "crates/jbotci-budget/src/json_text.rs:TextSerializer",
+        "The serializer carries the budget through each nested value.",
+    ),
+    (
+        "crates/jbotci-budget/src/json_text.rs:TextCompound",
+        "The compound serializer carries the same budget as its nested values.",
+    ),
+    (
         "crates/jbotci-budget/src/bytes.rs:CountingWriter",
         "A shared validated budget bounds the byte count without storing output.",
     ),
