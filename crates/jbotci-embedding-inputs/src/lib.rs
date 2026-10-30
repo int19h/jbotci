@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 pub const DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 pub const DEFAULT_MODEL_REVISION: &str = "e76f54804b54782f5bed93c09f63201e38a1a99b";
 pub const DEFAULT_MODEL_DIMENSIONS: usize = 896;
-pub const DEFAULT_INPUT_FORMAT_VERSION: &str = "f2llm-v2-330m-q4-k-m-v0";
+pub const DEFAULT_INPUT_FORMAT_VERSION: &str = "f2llm-v2-330m-q4-k-m-v1";
 pub const VLACKU_CORPUS_ID: &str = "vlacku-en";
 pub const CUKTA_CORPUS_ID: &str = "cukta-cll";
 pub const RETRIEVAL_QUERY_PREFIX: &str =

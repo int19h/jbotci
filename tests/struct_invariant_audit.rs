@@ -748,10 +748,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding setup reports are returned only after pack construction or validated reuse",
     ),
     (
-        "crates/jbotci-embeddings/src/lib.rs:VectorHit",
-        "vector hits are produced by bounded vector ranking over validated row-major matrices",
-    ),
-    (
         "crates/jbotci-embeddings/src/lib.rs:VectorShardManifest",
         "vector shard manifests are generated from written shard files and SHA-256 checks",
     ),

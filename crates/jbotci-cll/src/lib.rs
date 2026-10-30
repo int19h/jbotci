@@ -1369,6 +1369,7 @@ mod tests {
             query: "test".to_owned(),
             count: 1,
             matches: vec![CllSearchMatch {
+                chunk_index: 0,
                 rank: 1,
                 similarity: Some(0.5),
                 chunk: (*status_note_chunks[0]).clone(),
@@ -1410,6 +1411,7 @@ mod tests {
             query: "test".to_owned(),
             count: 1,
             matches: vec![CllSearchMatch {
+                chunk_index: 0,
                 rank: 1,
                 similarity: None,
                 chunk: plain_chunk.clone(),

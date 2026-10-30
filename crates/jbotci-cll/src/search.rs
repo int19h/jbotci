@@ -55,6 +55,7 @@ impl CllSearchChunk {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CllSearchMatch {
+    pub chunk_index: usize,
     pub rank: usize,
     pub similarity: Option<f32>,
     pub chunk: CllSearchChunk,
@@ -311,12 +312,14 @@ pub fn cukta_word_search_matches(
     // its place on the page.
     site.search_chunks
         .iter()
-        .filter(|chunk| chunk_kind_allowed(chunk.kind, targets))
-        .filter(|chunk| terms.iter().all(|term| chunk.tagged_words.contains(term)))
+        .enumerate()
+        .filter(|(_, chunk)| chunk_kind_allowed(chunk.kind, targets))
+        .filter(|(_, chunk)| terms.iter().all(|term| chunk.tagged_words.contains(term)))
         .enumerate()
         .skip(window.skip)
         .take(window.count)
-        .map(|(index, chunk)| CllSearchMatch {
+        .map(|(index, (chunk_index, chunk))| CllSearchMatch {
+            chunk_index,
             rank: index + 1,
             similarity: None,
             chunk: chunk.clone(),
