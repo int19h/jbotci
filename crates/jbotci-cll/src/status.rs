@@ -22,7 +22,7 @@ pub enum CllRuleStatus {
 
 impl CllRuleStatus {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
     fn parse(text: &str) -> Result<Self, String> {
         match text {
             "llg-ratified" => Ok(Self::LlgRatified),
@@ -50,7 +50,15 @@ pub enum CllStatusBody {
 #[invariant((1..=9999).contains(year))]
 #[invariant(month.is_none_or(|month| (1..=12).contains(&month)))]
 #[invariant(day.is_none() || month.is_some())]
-#[invariant(day.is_none_or(|day| (1..=days_in_month(*year, month.unwrap_or(1))).contains(&day)))]
+#[invariant(day.is_none_or(|day| {
+    let last_day = match month.unwrap_or(1) {
+        2 if *year % 4 == 0 && (*year % 100 != 0 || *year % 400 == 0) => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    (1..=last_day).contains(&day)
+}))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllStatusDate {
     pub year: u16,
@@ -58,40 +66,33 @@ pub struct CllStatusDate {
     pub day: Option<u8>,
 }
 
-#[requires(true)]
-#[ensures((28..=31).contains(&ret))]
-fn days_in_month(year: u16, month: u8) -> u8 {
-    match month {
-        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    }
-}
-
 impl CllStatusDate {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
     fn parse(text: &str) -> Result<Self, String> {
-        let parts = text.split('-').collect::<Vec<_>>();
-        if !(1..=3).contains(&parts.len())
-            || parts[0].len() != 4
-            || parts.iter().skip(1).any(|part| part.len() != 2)
-            || parts
-                .iter()
-                .any(|part| !part.bytes().all(|byte| byte.is_ascii_digit()))
+        let mut parts = text.split('-');
+        let year_part = parts.next().unwrap_or_default();
+        let month_part = parts.next();
+        let day_part = parts.next();
+        if parts.next().is_some()
+            || year_part.len() != 4
+            || !year_part.bytes().all(|byte| byte.is_ascii_digit())
+            || [month_part, day_part]
+                .into_iter()
+                .flatten()
+                .any(|part| part.len() != 2 || !part.bytes().all(|byte| byte.is_ascii_digit()))
         {
             return Err(format!("invalid status date `{text}`"));
         }
-        let year = parts[0].parse::<u16>().map_err(|error| error.to_string())?;
-        let month = parts
-            .get(1)
-            .map(|part| part.parse::<u8>())
+        let year = year_part
+            .parse::<u16>()
+            .map_err(|error| error.to_string())?;
+        let month = month_part
+            .map(str::parse::<u8>)
             .transpose()
             .map_err(|error| error.to_string())?;
-        let day = parts
-            .get(2)
-            .map(|part| part.parse::<u8>())
+        let day = day_part
+            .map(str::parse::<u8>)
             .transpose()
             .map_err(|error| error.to_string())?;
         bityzba::try_new!(CllStatusDate { year, month, day })
@@ -115,7 +116,7 @@ pub struct CllStatusCondition {
 impl CllStatusCondition {
     /// Reads the microsyntax in `vendor/cll/docs/status-markup.md`.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
     pub fn parse(text: &str) -> Result<Self, String> {
         let mut status = None;
         let mut also = Vec::new();
@@ -165,7 +166,7 @@ impl CllStatusCondition {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.body.is_none() || ret == self.body)]
     pub fn governing_body(&self) -> Option<CllStatusBody> {
         self.body.or(match self.status {
             CllRuleStatus::LlgRatified => Some(CllStatusBody::Llg),

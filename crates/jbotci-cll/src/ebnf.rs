@@ -52,7 +52,10 @@ pub enum CllEbnfToken {
 }
 
 #[requires(node.is_element())]
-#[ensures(ret.is_none_or(|section| section.has_tag_name("section")))]
+#[ensures(ret.is_none_or(|section| {
+    section.has_tag_name("section")
+        && attr_value(section, "id") == Some(cll_import_metadata().ebnf_section_id.as_str())
+}))]
 pub(super) fn ebnf_section_ancestor<'a, 'input>(
     node: Node<'a, 'input>,
 ) -> Option<Node<'a, 'input>> {
@@ -63,7 +66,9 @@ pub(super) fn ebnf_section_ancestor<'a, 'input>(
 }
 
 #[requires(node.is_element())]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_none_or(|block| {
+    matches!(block, CllBlock::Ebnf { entries, .. } if !entries.is_empty())
+}))]
 pub(super) fn parse_ebnf_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
@@ -71,8 +76,7 @@ pub(super) fn parse_ebnf_block(
 ) -> Option<CllBlock> {
     let entry_nodes = node
         .children()
-        .filter(|child| child.is_element() && child.has_tag_name("varlistentry"))
-        .collect::<Vec<_>>();
+        .filter(|child| child.is_element() && child.has_tag_name("varlistentry"));
     // Rules can span several lists and subsection pages. Resolve their targets
     // across the enclosing grammar, while keeping local links on this page.
     let grammar = ebnf_section_ancestor(node).unwrap_or(node);
