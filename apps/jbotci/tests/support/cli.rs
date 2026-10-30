@@ -3866,10 +3866,20 @@ fn vlacku_surfaces_extracted_rafsi_in_both_directions() {
     assert!(rafsi_run.stdout.contains("1. celdi | by: blamaa"));
 
     // A word with two extracted rafsi lists both.
-    let multi_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "xekce"], false);
+    let multi_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "loglo"], false);
 
     assert_eq!(multi_run.status, CliStatus::Success);
-    assert!(multi_run.stdout.contains("  rafsi: xe'e xec"));
+    assert!(multi_run.stdout.contains("  rafsi: glo log"));
+
+    // The refresh audit removes the competing xe'e claim from xekce.
+    let retained_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "xekce"], false);
+    assert_eq!(retained_run.status, CliStatus::Success);
+    assert!(
+        retained_run
+            .stdout
+            .lines()
+            .any(|line| line == "  rafsi: xec")
+    );
 }
 
 #[test]
