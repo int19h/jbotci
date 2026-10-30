@@ -126,7 +126,7 @@ fn bracket_options(phonemes: PhonemeRenderOptions, decompose_lujvo: bool) -> Bra
 fn tree_options(phonemes: PhonemeRenderOptions, decompose_lujvo: bool) -> TreeRenderOptions {
     TreeRenderOptions {
         color: false,
-        indent: 2,
+        indent: jbotci_output::Indentation::default(),
         phonemes,
         glyphs: GlyphStyle::Unicode,
         show_spans: false,

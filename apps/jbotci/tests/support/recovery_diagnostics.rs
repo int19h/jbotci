@@ -307,7 +307,8 @@ fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_format
             show_glosses: false,
             show_compounds: true,
             decompose_lujvo: false,
-            indent: (format == ToolGentufaFormat::Raw).then_some(0),
+            indent: (format == ToolGentufaFormat::Raw)
+                .then_some(jbotci_output::Indentation::compact()),
         })
         .expect("gentufa tool call should run");
 

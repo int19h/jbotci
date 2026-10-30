@@ -1,4 +1,5 @@
 use super::super::*;
+use jbotci_output::Indentation;
 
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -47,7 +48,7 @@ pub(crate) fn run_vlatai<WOut: Write>(
             let rendered = render_vlatai_json(
                 &analyses,
                 phoneme_options,
-                input.indent.unwrap_or(2),
+                input.indent.unwrap_or_default(),
                 color_policy.stdout,
             )?;
             writeln!(stdout, "{rendered}")?;
@@ -126,7 +127,7 @@ pub(crate) fn render_vlatai_text(
 pub(crate) fn render_vlatai_json(
     analyses: &[ValsiAnalysis],
     phoneme_options: PhonemeRenderOptions,
-    indent: usize,
+    indent: Indentation,
     color: bool,
 ) -> Result<String> {
     let reports = analyses

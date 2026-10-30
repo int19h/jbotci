@@ -29,7 +29,7 @@ use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 
 use crate::references::ReferenceDisplayModel;
-use crate::{GlyphStyle, OutputError, TreeRenderOptions};
+use crate::{GlyphStyle, Indentation, OutputError, TreeRenderOptions};
 
 #[derive(Debug)]
 #[invariant(true)]
@@ -3029,7 +3029,7 @@ pub(crate) fn collapse_value(value: TreeValue) -> TreeValue {
 struct TreeRenderer<'references> {
     color: bool,
     glyphs: GlyphStyle,
-    indent_step: usize,
+    indent_step: Indentation,
     show_spans: bool,
     references: Option<&'references ReferenceDisplayModel>,
     output: String,
@@ -3140,7 +3140,7 @@ impl TreeRenderer<'_> {
         self.output
             .push_str(&self.constructor_token(node.constructor));
         self.render_optional_node_span(tree_node_span(node));
-        if self.indent_step != 0 {
+        if self.indent_step.spaces() != 0 {
             self.output.push(' ');
         }
         self.output.push_str(&self.punctuation_token("{"));
@@ -3148,7 +3148,7 @@ impl TreeRenderer<'_> {
             self.output.push_str(&self.punctuation_token("}"));
             return;
         }
-        if self.indent_step == 0 {
+        if self.indent_step.spaces() == 0 {
             self.render_inline_entries(&node.entries);
         } else {
             self.render_entries(&node.entries, indent);
@@ -3161,7 +3161,7 @@ impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) {
-        let child_indent = indent + self.indent_step;
+        let child_indent = indent + self.indent_step.spaces();
         for entry in entries {
             self.output.push('\n');
             self.push_indent(child_indent);
@@ -3204,7 +3204,7 @@ impl TreeRenderer<'_> {
             self.output.push_str(&self.punctuation_token("]"));
             return;
         }
-        if self.indent_step == 0 {
+        if self.indent_step.spaces() == 0 {
             for (index, item) in items.iter().enumerate() {
                 if index > 0 {
                     self.output.push_str(&self.punctuation_token(","));
@@ -3214,7 +3214,7 @@ impl TreeRenderer<'_> {
             self.output.push_str(&self.punctuation_token("]"));
             return;
         }
-        let child_indent = indent + self.indent_step;
+        let child_indent = indent + self.indent_step.spaces();
         for item in items {
             self.output.push('\n');
             self.push_indent(child_indent);
@@ -3982,7 +3982,7 @@ mod tests {
                 "mi klama",
                 TreeRenderOptions {
                     color: false,
-                    indent: 0,
+                    indent: crate::Indentation::compact(),
                     ..TreeRenderOptions::default()
                 },
             )
@@ -4143,7 +4143,7 @@ mod tests {
                 &text,
                 TreeRenderOptions {
                     color,
-                    indent: 2,
+                    indent: crate::Indentation::default(),
                     ..TreeRenderOptions::default()
                 },
             )
@@ -4158,7 +4158,7 @@ mod tests {
             text,
             TreeRenderOptions {
                 color: false,
-                indent: 2,
+                indent: crate::Indentation::default(),
                 show_spans,
                 show_refs: true,
                 ..TreeRenderOptions::default()
@@ -4190,7 +4190,7 @@ mod tests {
                 &text,
                 TreeRenderOptions {
                     color: false,
-                    indent: 2,
+                    indent: crate::Indentation::default(),
                     show_refs: true,
                     ..TreeRenderOptions::default()
                 },

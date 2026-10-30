@@ -119,7 +119,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
             let rendered = compact_morphology_json_string_with_options(
                 &words,
                 JsonRenderOptions {
-                    indent: input.indent.unwrap_or(2),
+                    indent: input.indent.unwrap_or_default(),
                     phonemes: phoneme_options,
                     show_elided: false,
                     color: color_policy.stdout,
@@ -149,7 +149,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                 &text,
                 TreeRenderOptions {
                     color: color_policy.stdout,
-                    indent: input.indent.unwrap_or(2),
+                    indent: input.indent.unwrap_or_default(),
                     phonemes: phoneme_options,
                     glyphs,
                     show_spans: input.show_spans,
@@ -186,7 +186,7 @@ fn render_recovered_vlasei_output(
             recovered,
             source,
             JsonRenderOptions {
-                indent: input.indent.unwrap_or(2),
+                indent: input.indent.unwrap_or_default(),
                 phonemes,
                 show_elided: false,
                 color,
@@ -210,7 +210,7 @@ fn render_recovered_vlasei_output(
             source,
             TreeRenderOptions {
                 color,
-                indent: input.indent.unwrap_or(2),
+                indent: input.indent.unwrap_or_default(),
                 phonemes,
                 glyphs,
                 show_spans: input.show_spans,

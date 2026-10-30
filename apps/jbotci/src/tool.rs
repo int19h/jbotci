@@ -1,4 +1,5 @@
 use super::*;
+use jbotci_output::Indentation;
 use schemars::transform::{Transform, transform_subschemas};
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
@@ -288,9 +289,10 @@ pub struct ToolGentufaRequest {
     /// Off by default.
     #[serde(default)]
     pub decompose_lujvo: bool,
-    /// Spaces per indent level for `tree`/`json`. Omit for the standard width.
+    /// Spaces per indent level for `tree`/`json`, from 0 through 8. Omit for the standard width.
     #[serde(default)]
-    pub indent: Option<usize>,
+    #[schemars(schema_with = "tool_indent_schema")]
+    pub indent: Option<Indentation>,
 }
 
 #[invariant(output_type.is_some() == matches!(format, GentufaFormat::Blocks))]
@@ -458,9 +460,10 @@ pub struct ToolVlaseiRequest {
     /// Break compound words (lujvo) into their component rafsi. Off by default.
     #[serde(default)]
     pub decompose_lujvo: bool,
-    /// Spaces per indent level for `tree`/`json`. Omit for the standard width.
+    /// Spaces per indent level for `tree`/`json`, from 0 through 8. Omit for the standard width.
     #[serde(default)]
-    pub indent: Option<usize>,
+    #[schemars(schema_with = "tool_indent_schema")]
+    pub indent: Option<Indentation>,
 }
 
 impl ToolVlaseiFormat {
@@ -1535,6 +1538,16 @@ fn tool_show_compounds_default() -> bool {
 
 #[requires(true)]
 #[ensures(ret.as_object().is_some())]
+fn tool_indent_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": ["integer", "null"],
+        "minimum": 0,
+        "maximum": Indentation::MAX_SPACES
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_object().is_some())]
 fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
     schemars::json_schema!({
         "type": "boolean",
@@ -1709,6 +1722,46 @@ const APPLICATION_JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn indentation_tool_schemas_and_requests_share_the_bound() {
+        for schema in [
+            tool_request_schema::<ToolGentufaRequest>(),
+            tool_request_schema::<ToolVlaseiRequest>(),
+        ] {
+            assert_eq!(schema["properties"]["indent"]["minimum"], 0);
+            assert_eq!(
+                schema["properties"]["indent"]["maximum"],
+                Indentation::MAX_SPACES
+            );
+        }
+        for spaces in 0..=Indentation::MAX_SPACES {
+            let value = serde_json::json!({"text": "mi klama", "indent": spaces});
+            let syntax = serde_json::from_value::<ToolGentufaRequest>(value.clone()).unwrap();
+            let words = serde_json::from_value::<ToolVlaseiRequest>(value).unwrap();
+            assert_eq!(syntax.indent.unwrap().spaces(), spaces);
+            assert_eq!(words.indent.unwrap().spaces(), spaces);
+        }
+        for indent in [
+            serde_json::json!(-1),
+            serde_json::json!(9),
+            serde_json::json!(1.5),
+        ] {
+            let value = serde_json::json!({"text": "mi klama", "indent": indent});
+            assert!(serde_json::from_value::<ToolGentufaRequest>(value.clone()).is_err());
+            assert!(serde_json::from_value::<ToolVlaseiRequest>(value).is_err());
+        }
+        assert!(
+            serde_json::from_value::<ToolGentufaRequest>(
+                serde_json::json!({"text":"mi", "indent":null})
+            )
+            .unwrap()
+            .indent
+            .is_none()
+        );
+    }
 
     #[requires(true)]
     #[ensures(ret.format == format && ret.show_defs == show_defs)]

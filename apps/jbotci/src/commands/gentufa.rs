@@ -309,7 +309,7 @@ fn render_gentufa(
         GentufaFormat::Tree => {
             let tree_options = TreeRenderOptions {
                 color: color_policy.stdout,
-                indent: input.indent.unwrap_or(2),
+                indent: input.indent.unwrap_or_default(),
                 phonemes: phoneme_options,
                 glyphs,
                 show_spans: input.show_spans,
@@ -326,7 +326,7 @@ fn render_gentufa(
             let rendered = compact_generated_model_json_string_with_options(
                 &generated_model,
                 JsonRenderOptions {
-                    indent: input.indent.unwrap_or(2),
+                    indent: input.indent.unwrap_or_default(),
                     phonemes: phoneme_options,
                     show_elided: input.show_elided,
                     color: color_policy.stdout,
@@ -397,7 +397,7 @@ fn render_recovered_gentufa_output(
                 source,
                 TreeRenderOptions {
                     color,
-                    indent: input.indent.unwrap_or(2),
+                    indent: input.indent.unwrap_or_default(),
                     phonemes,
                     glyphs,
                     show_spans: input.show_spans,
@@ -414,7 +414,7 @@ fn render_recovered_gentufa_output(
                 recovered,
                 source,
                 JsonRenderOptions {
-                    indent: input.indent.unwrap_or(2),
+                    indent: input.indent.unwrap_or_default(),
                     phonemes,
                     show_elided: input.show_elided,
                     color,

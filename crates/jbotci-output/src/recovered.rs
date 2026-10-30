@@ -12,8 +12,8 @@ use serde_json::{Map, Value};
 use crate::json;
 use crate::tree::{self, RecoveryTreeError, TreeValue};
 use crate::{
-    BracketRenderOptions, BracketSourceConstruct, BracketSourceRange, JsonRenderOptions,
-    OutputError, TreeRenderOptions, brackets, sexpr,
+    BracketRenderOptions, BracketSourceConstruct, BracketSourceRange, Indentation,
+    JsonRenderOptions, OutputError, TreeRenderOptions, brackets, sexpr,
 };
 
 #[invariant(error_index < diagnostic_count, "recovery error indices must resolve to a diagnostic")]
@@ -289,12 +289,12 @@ pub fn compact_recovered_morphology_json_string_with_options(
     ))
 }
 
-#[requires(indent.is_none_or(|indent| indent == 0))]
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
 #[ensures(ret.as_ref().is_ok_and(|text| text.ends_with('\n')) || ret.is_err())]
 pub fn pretty_recovered_morphology_raw(
     recovered: &RecoveredMorphologySegmentation,
     source: &str,
-    indent: Option<usize>,
+    indent: Option<Indentation>,
 ) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
         return Ok(debug_output(&recovered.words, indent));
@@ -353,10 +353,10 @@ fn recovery_error_json_value(item: &RecoveryRenderItem) -> Value {
     json::constructor_value("Error", Value::Object(fields))
 }
 
-#[requires(indent.is_none_or(|indent| indent == 0))]
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
 #[ensures(ret.ends_with('\n'))]
-fn debug_output(value: &impl std::fmt::Debug, indent: Option<usize>) -> String {
-    if indent == Some(0) {
+fn debug_output(value: &impl std::fmt::Debug, indent: Option<Indentation>) -> String {
+    if indent == Some(Indentation::compact()) {
         format!("{value:?}\n")
     } else {
         format!("{value:#?}\n")
@@ -955,11 +955,11 @@ fn insert_primary_json_field(fields: &mut Map<String, Value>, primary: &mut Vec<
     fields.insert("value".to_owned(), value);
 }
 
-#[requires(indent.is_none_or(|indent| indent == 0))]
+#[requires(indent.is_none_or(|indent| indent.spaces() == 0))]
 #[ensures(ret.ends_with('\n'))]
 pub fn pretty_recovered_syntax_raw(
     recovered: &RecoveredSyntaxParse,
-    indent: Option<usize>,
+    indent: Option<Indentation>,
 ) -> String {
     match recovered.parse_tree.as_ref().clone().try_into_valid() {
         Ok(valid) => debug_output(&valid, indent),
@@ -1210,7 +1210,7 @@ mod tests {
             "do"
         );
 
-        let raw = pretty_recovered_syntax_raw(&recovered, Some(0));
+        let raw = pretty_recovered_syntax_raw(&recovered, Some(Indentation::compact()));
         assert!(raw.starts_with("TextSyntax {"), "{raw}");
         assert!(raw.contains("Prefix(RecoveredPrefix { errors: [SkippedTokens { error_index: 0"));
         assert!(raw.contains("byte_start: 3, byte_end: 5"));
@@ -1665,7 +1665,8 @@ mod tests {
         assert_eq!(items[1]["Error"]["error_index"], 0);
         assert_eq!(items[2]["PlainWord"]["Cmavo"]["phonemes"], "do");
 
-        let raw = pretty_recovered_morphology_raw(&recovered, source, Some(0)).expect("raw");
+        let raw = pretty_recovered_morphology_raw(&recovered, source, Some(Indentation::compact()))
+            .expect("raw");
         let mi = raw.find("text: \"mi\"").expect("raw mi");
         let error = raw.find("text: \"@@@ \"").expect("raw error");
         let do_word = raw.find("text: \"do\"").expect("raw do");
@@ -1727,9 +1728,13 @@ mod tests {
                 "morphology JSON: {source}",
             );
             assert_eq!(
-                pretty_recovered_morphology_raw(&recovered_morphology, source, Some(0))
-                    .expect("recovered morphology raw"),
-                debug_output(&words, Some(0)),
+                pretty_recovered_morphology_raw(
+                    &recovered_morphology,
+                    source,
+                    Some(Indentation::compact())
+                )
+                .expect("recovered morphology raw"),
+                debug_output(&words, Some(Indentation::compact())),
                 "morphology raw: {source}",
             );
 
@@ -1774,8 +1779,8 @@ mod tests {
                 "syntax JSON: {source}",
             );
             assert_eq!(
-                pretty_recovered_syntax_raw(&recovered, Some(0)),
-                debug_output(strict.as_ref(), Some(0)),
+                pretty_recovered_syntax_raw(&recovered, Some(Indentation::compact())),
+                debug_output(strict.as_ref(), Some(Indentation::compact())),
                 "syntax raw: {source}",
             );
         }

@@ -4926,3 +4926,68 @@ fn vlacku_vote_exemption_uses_original_word_boundaries() {
         );
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn indentation_is_bounded_at_every_cli_input() {
+    for command in ["gentufa", "vlasei", "vlatai", "mulgau", "zbasu"] {
+        for invalid in ["-1", "9", "1073741824", "18446744073709551615", "1.5"] {
+            let error = Cli::try_parse_from(["jbotci", command, "--indent", invalid, "mi"])
+                .expect_err("out-of-range indentation must fail before execution");
+            assert!(
+                error.to_string().contains("between 0 and 8"),
+                "{command}: {error}"
+            );
+        }
+        for spaces in 0..=8 {
+            let written = spaces.to_string();
+            let cli = Cli::try_parse_from(["jbotci", command, "--indent", &written, "mi"])
+                .expect("accepted indentation");
+            let indent = match cli.command {
+                Command::Gentufa(input) => input.indent,
+                Command::Vlasei(input) => input.indent,
+                Command::Vlatai(input) => input.indent,
+                Command::Mulgau(input) | Command::Zbasu(input) => input.indent,
+                _ => unreachable!("tested commands accept indentation"),
+            };
+            assert_eq!(indent.unwrap().spaces(), spaces);
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn indentation_eight_renders_json_and_tree_through_the_cli() {
+    run_on_normal_stack(|| {
+        for (command, format) in [
+            ("gentufa", "json"),
+            ("gentufa", "tree"),
+            ("vlasei", "json"),
+            ("vlasei", "tree"),
+            ("vlatai", "json"),
+        ] {
+            let cli = Cli::try_parse_from([
+                "jbotci", command, "--format", format, "--indent", "8", "mi", "klama",
+            ])
+            .expect("accepted indentation");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("render output");
+            assert!(error.is_empty(), "{command} {format}: {error:?}");
+            let output = String::from_utf8(output).unwrap();
+            let first_level = output
+                .lines()
+                .filter_map(|line| {
+                    let spaces = line.len() - line.trim_start_matches(' ').len();
+                    (spaces > 0).then_some(spaces)
+                })
+                .min();
+            assert_eq!(first_level, Some(8), "{command} {format}: {output}");
+            if format == "json" {
+                serde_json::from_str::<serde_json::Value>(&output).expect("valid JSON");
+            }
+        }
+    });
+}
