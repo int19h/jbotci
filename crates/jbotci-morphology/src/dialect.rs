@@ -160,12 +160,18 @@ impl CompiledDialectDefinition {
         for entry in &self.entries {
             if let Some(words) = &plan {
                 let mut count = 0;
+                let mut changed = false;
                 for word in words {
-                    let length = entry.replacement_for(&word.key).map_or(1, <[_]>::len);
+                    let replacement = entry.replacement_for(&word.key);
+                    changed |= replacement.is_some();
+                    let length = replacement.map_or(1, <[_]>::len);
                     if length > limit.words {
                         return Err(length);
                     }
                     count += length;
+                }
+                if !changed {
+                    continue;
                 }
                 // Entries never delete words, so later entries cannot reduce this count.
                 if count > limit.words {

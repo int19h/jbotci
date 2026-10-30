@@ -441,16 +441,15 @@ impl<'a> Segmenter<'a> {
             crate::DialectApplication::new(&self.options.compiled_dialect, self.input);
         for unit in words {
             match unit {
-                StreamUnit::Word(word) => match application.apply_word(word) {
-                    Ok(expanded) => surviving_words.extend(expanded),
-                    Err(failure) => {
+                StreamUnit::Word(word) => {
+                    if let Err(failure) = application.append_word(word, &mut surviving_words) {
                         let region = failure.span.clone();
                         failures.push(new!(RecoveryFailure {
                             error: MorphologyError::DialectExpansion(failure),
                             region,
                         }));
                     }
-                },
+                }
                 StreamUnit::Fault(fault) => {
                     let fault = fault.into_data();
                     failures.push(new!(RecoveryFailure {

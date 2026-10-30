@@ -2768,7 +2768,7 @@ fn apply_compiled_dialect_entries(
     let application = DialectApplication::new(dialect, source);
     let mut expanded = Vec::with_capacity(words.len());
     for word in words {
-        expanded.extend(application.apply_word(word)?);
+        application.append_word(word, &mut expanded)?;
     }
     Ok(expanded)
 }
@@ -2792,14 +2792,24 @@ impl<'a> DialectApplication<'a> {
         })
     }
 
-    #[requires(match word_like.as_data() {
+    #[requires(self.dialect.entries.is_empty() || match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word.span().char_start < word.span().char_end && self.source.get(word.span().byte_start..word.span().byte_end).is_some_and(|text| !text.is_empty()),
         _ => true,
     })]
-    #[ensures(ret.as_ref().is_ok_and(|words| !words.is_empty() && words.len() <= DialectExpansionLimit::default().words) || ret.is_err())]
-    fn apply_word(&self, word_like: WordLike) -> Result<Vec<WordLike>, DialectExpansionFailure> {
+    #[ensures(ret.is_err() || (output.len() > old(output.len()) && output.len() - old(output.len()) <= DialectExpansionLimit::default().words))]
+    #[ensures(ret.is_ok() || output.len() == old(output.len()))]
+    fn append_word(
+        &self,
+        word_like: WordLike,
+        output: &mut Vec<WordLike>,
+    ) -> Result<(), DialectExpansionFailure> {
+        if self.dialect.entries.is_empty() {
+            output.push(word_like);
+            return Ok(());
+        }
         let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
-            return Ok(vec![word_like]);
+            output.push(word_like);
+            return Ok(());
         };
         let plan = self
             .dialect
@@ -2819,12 +2829,14 @@ impl<'a> DialectApplication<'a> {
                 })
             })?;
         match plan {
-            None => Ok(vec![word_like]),
-            Some(words) => Ok(words
-                .into_iter()
-                .map(|replacement| replacement.to_word_like_with_span(word.span()))
-                .collect()),
+            None => output.push(word_like),
+            Some(words) => output.extend(
+                words
+                    .into_iter()
+                    .map(|replacement| replacement.to_word_like_with_span(word.span())),
+            ),
         }
+        Ok(())
     }
 }
 
