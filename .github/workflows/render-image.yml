@@ -84,10 +84,10 @@ jobs:
           path: |
             .github-cache/cargo-target/deploy
             .github-cache/home/.dx
-          key: jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-render-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+            jbotci-render-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-render-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
 
       - name: Normalize render target cache mtimes
         uses: ./.github/actions/cargo-cache-mtimes
@@ -168,6 +168,7 @@ jobs:
           retention-days: 7
 
       - name: Stamp render target cache
+        id: target-cache-stamp
         if: ${{ success() }}
         uses: ./.github/actions/cargo-cache-mtimes
         with:
@@ -188,8 +189,9 @@ jobs:
           path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
 
+      # A failed run can leave new binaries with an older source stamp.
       - name: Save render target cache
-        if: ${{ !cancelled() }}
+        if: ${{ success() && steps.target-cache-stamp.outcome == 'success' }}
         uses: actions/cache/save@v5
         with:
           path: |
