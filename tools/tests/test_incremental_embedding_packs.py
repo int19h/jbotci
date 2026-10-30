@@ -469,13 +469,53 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         # SCRIPT is tools/embedding-pack/f2llm/build-vector-pack.py.
         fixture = SCRIPT.parents[3] / 'crates/jbotci-f2llm-runtime/testdata/manifests/v1/incremental-80m.json'
         manifest = pack.read_json(fixture)
+        manifest['artifact_version'] = validator.ARTIFACT_VERSION
+        manifest['vector_space_key'] = validator.VECTOR_SPACE_KEY
+        for runtime in manifest['compatible_query_runtimes']:
+            runtime['version'] = validator.RUNTIME_VERSION
         args = types.SimpleNamespace(model_key=manifest['model_key'], max_sequence_length=manifest['max_sequence_length'],
-                                     dimensions=manifest['dimensions'], include_wasm_runtime=False)
+                                     dimensions=manifest['dimensions'], include_wasm_runtime=False, vector_space_key=validator.VECTOR_SPACE_KEY)
         corpus = {'inputFormatVersion': manifest['input_format_version'], 'inputHash': manifest['input_hash']}
         validator.validate_manifest(manifest, corpus, args)
         manifest['corpora'].append(manifest['corpora'][0])
         with self.assertRaisesRegex(AssertionError, 'corpora mismatch'):
             validator.validate_manifest(manifest, corpus, args)
+
+    def test_validator_rejects_invalid_unsampled_rows_before_inference(self):
+        spec = importlib.util.spec_from_file_location('validate_invalid_vectors', SCRIPT.with_name('validate-vector-pack.py'))
+        validator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(validator)
+        for invalid in [[0, 0, 0], [float('nan'), 1, 0], [float('inf'), 1, 0]]:
+            with self.subTest(invalid=invalid):
+                output, manifest_path, _, _ = self.build('invalid', self.old, '--overwrite')
+                manifest = pack.read_json(manifest_path)
+                corpus = manifest['corpora'][0]
+                path = manifest_path.parent / corpus['vector_url']
+                rows = np.frombuffer(path.read_bytes(), dtype='<f2').copy().reshape(-1, 3)
+                rows[2] = invalid
+                # Row two is outside a one-row numerical sample.
+                self.assertNotIn(2, validator.sample_rows(len(rows), 1))
+                path.write_bytes(rows.tobytes())
+                corpus['vector_sha256'] = pack.sha256(path.read_bytes())
+                pack.write_json(manifest_path, manifest)
+                corpus_path = self.root / 'invalid-input.json'
+                args = ['validate-vector-pack.py', '--pack', str(output), '--corpus', str(corpus_path),
+                        '--q4-onnx', str(self.model), '--dimensions', '3', '--max-sequence-length', '8', '--sample-rows', '1']
+                with mock.patch.object(sys, 'argv', args), \
+                        mock.patch.object(validator.AutoTokenizer, 'from_pretrained', side_effect=AssertionError('inference must not start')):
+                    with self.assertRaisesRegex(AssertionError, 'invalid embedding row 2'):
+                        validator.main()
+        with self.assertRaisesRegex(AssertionError, 'invalid embedding row'):
+            validator.mean_pool_normalized([np.array([1., 0.]), np.array([-1., 0.])], 2)
+
+    def test_old_vector_space_cannot_supply_rows_or_resume(self):
+        previous, _, _, _ = self.build('old-space', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v1')
+        with self.assertRaisesRegex(ValueError, 'vector_space_key'):
+            self.build('new-space', self.old, '--reuse-from', str(next(previous.rglob('manifest.json'))))
+        self.interrupt('old-checkpoint', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v1')
+        _, _, embed, output = self.build('old-checkpoint', self.old, '--chunk-rows', '1')
+        self.assertEqual(sum(len(call.args[0]) for call in embed.call_args_list), 5)
+        self.assertIn('Discarding checkpoint', output)
 
     @unittest.skipIf(real_onnx is None, 'requires onnx from the builder requirements')
     def test_real_onnx_external_data_hashes_graph_and_raw_files(self):

@@ -48,7 +48,7 @@ pub const WEB_VECTOR_PACK_SCHEMA_VERSION: u32 = 2;
 pub const F2LLM_WEBGPU_RUNTIME: &str = "jbotci-webgpu-f2llm";
 
 /// Artifact/runtime version implemented by the extracted browser runtime.
-pub const F2LLM_RUNTIME_VERSION: &str = "0.2.0";
+pub const F2LLM_RUNTIME_VERSION: &str = "0.3.0";
 
 /// Explicit WebGPU alias retained for model-catalog call sites.
 pub const F2LLM_WEBGPU_RUNTIME_VERSION: &str = F2LLM_RUNTIME_VERSION;
