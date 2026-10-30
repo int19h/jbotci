@@ -1225,8 +1225,14 @@ impl DiscordService {
         keepalive: Option<WorkKeepalive>,
     ) {
         let Some(code) = result_refusal_code(error) else {
-            self.report_privately(target, summary, Some(&error.to_string()), keepalive)
-                .await;
+            self.report_privately_until(
+                target,
+                summary,
+                Some(&error.to_string()),
+                operation_deadline,
+                keepalive,
+            )
+            .await;
             return;
         };
         let deadline = operation_deadline
@@ -1263,7 +1269,26 @@ impl DiscordService {
         reason: Option<&str>,
         keepalive: Option<WorkKeepalive>,
     ) {
-        let deadline = Instant::now() + SETTLE_BUDGET;
+        self.report_privately_until(
+            target,
+            summary,
+            reason,
+            Instant::now() + SETTLE_BUDGET,
+            keepalive,
+        )
+        .await;
+    }
+
+    #[requires(!summary.trim().is_empty())]
+    #[ensures(true)]
+    async fn report_privately_until(
+        &self,
+        target: &Target,
+        summary: &str,
+        reason: Option<&str>,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+    ) {
         let api = self.api.clone();
         let application_id = target.application_id.clone();
         let token = target.token.clone();
