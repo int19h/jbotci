@@ -4,9 +4,7 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_output::{
-    DefinitionPlaceMap, GlyphStyle, format_definition_line_with_indexed_places,
-    indexed_place_spans_for_notes_line,
-};
+    DefinitionPlaceMap, GlyphStyle, };
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
 
 use super::markdown::{

@@ -1452,7 +1452,7 @@ impl serde::Serialize for JsonRef<'_, MessagePayload> {
         let mut map = serializer.serialize_map(Some(6))?;
         map.serialize_entry("flags", &FLAG_IS_COMPONENTS_V2)?;
         map.serialize_entry("content", &Option::<()>::None)?;
-        map.serialize_entry("embeds", &([] as &[()]))?;
+        map.serialize_entry("embeds", &(&[] as &[()]))?;
         map.serialize_entry("allowed_mentions", &json!({"parse": []}))?;
         map.serialize_entry("components", &JsonRef(&self.0.components[..]))?;
         map.serialize_entry(

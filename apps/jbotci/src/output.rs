@@ -15,36 +15,6 @@ pub(super) fn dark(text: &str, color: bool) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn yellow(text: &str, color: bool) -> String {
-    if color {
-        text.yellow().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn yellow_underlined(text: &str, color: bool) -> String {
-    if color {
-        text.yellow().underline().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn blue(text: &str, color: bool) -> String {
-    if color {
-        text.bright_blue().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn magenta(text: &str, color: bool) -> String {
     if color {
         text.magenta().to_string()
@@ -58,36 +28,6 @@ pub(super) fn magenta(text: &str, color: bool) -> String {
 pub(super) fn green(text: &str, color: bool) -> String {
     if color {
         text.green().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn red(text: &str, color: bool) -> String {
-    if color {
-        text.red().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn cyan(text: &str, color: bool) -> String {
-    if color {
-        text.cyan().to_string()
-    } else {
-        text.to_owned()
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn light(text: &str, color: bool) -> String {
-    if color {
-        text.white().to_string()
     } else {
         text.to_owned()
     }

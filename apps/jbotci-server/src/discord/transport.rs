@@ -8,7 +8,7 @@
 //! [`TransportError::Ambiguous`] means the request may have been applied and
 //! the caller must re-read the message before deciding anything.
 
-use jbotci_output::budget::{BudgetedWriter, ByteLimit, OutputBudget};
+use jbotci_output::budget::{ByteLimit, OutputBudget};
 use std::fmt;
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};

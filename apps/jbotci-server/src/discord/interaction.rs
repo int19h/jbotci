@@ -34,8 +34,7 @@ use super::links::{AppLinkTooLarge, app_link};
 use super::locks::{MessageGuard, MessageLocks};
 use super::modal::{Submission, SubmissionError, build as build_modal, parse_submission};
 use super::operations::{
-    CompletedOperation, OperationContext, OperationError, RequestValidationError, ToolOutcome,
-    run_request,
+    CompletedOperation, OperationContext, OperationError, RequestValidationError, run_request,
 };
 use super::present::{markdown, render_failure, render_validation_error, render_with_limits};
 use super::request::{BuildTag, PublishedRequest, Revision, Snowflake};

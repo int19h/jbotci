@@ -13,8 +13,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
     CllLinkRenderMode, CllParagraphRole, CllRenderFormat, CllSearchChunkKind,
     cll_section_chapter_title, render_example_with_limit, render_section_with_limit,
-    search_chunk_kind_label, status_note_markdown,
-};
+    search_chunk_kind_label, };
 
 use super::markdown::{
     escape_in_scope, inline_code_in_scope, join_lines_in_scope, percent_in_scope,

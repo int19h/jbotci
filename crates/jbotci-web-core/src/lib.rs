@@ -8247,7 +8247,9 @@ mod tests {
                 strict_tree,
                 diagnostics,
                 &options,
-            );
+                None,
+            )
+            .expect("unrestricted strict-entry result");
             let strict_first_result = parse_gentufa_for_web(&GentufaWebRequest {
                 text: source.to_owned(),
                 options: options.clone(),

@@ -92,143 +92,160 @@ impl ServerPolicy {
             read_limit(lookup(name), name, default, min, max)
         };
         let workers_max = tokio::sync::Semaphore::MAX_PERMITS;
+        let compute_workers = read(
+            &mut lookup,
+            "JBOTCI_COMPUTE_ACTIVE",
+            d.work.compute_workers,
+            1,
+            workers_max,
+        )?;
+        let compute_queue = read(
+            &mut lookup,
+            "JBOTCI_COMPUTE_QUEUED",
+            d.work.compute_queue,
+            0,
+            usize::MAX,
+        )?;
+        let fetch_workers = read(
+            &mut lookup,
+            "JBOTCI_FETCH_ACTIVE",
+            d.work.fetch_workers,
+            1,
+            workers_max,
+        )?;
+        let fetch_queue = read(
+            &mut lookup,
+            "JBOTCI_FETCH_QUEUED",
+            d.work.fetch_queue,
+            0,
+            usize::MAX,
+        )?;
         let work = new!(WorkLimits {
-            compute_workers: read(
-                &mut lookup,
-                "JBOTCI_COMPUTE_ACTIVE",
-                d.work.compute_workers,
-                1,
-                workers_max
-            )?,
-            compute_queue: read(
-                &mut lookup,
-                "JBOTCI_COMPUTE_QUEUED",
-                d.work.compute_queue,
-                0,
-                usize::MAX
-            )?,
-            fetch_workers: read(
-                &mut lookup,
-                "JBOTCI_FETCH_ACTIVE",
-                d.work.fetch_workers,
-                1,
-                workers_max
-            )?,
-            fetch_queue: read(
-                &mut lookup,
-                "JBOTCI_FETCH_QUEUED",
-                d.work.fetch_queue,
-                0,
-                usize::MAX
-            )?,
+            compute_workers,
+            compute_queue,
+            fetch_workers,
+            fetch_queue,
         });
+        let max_pieces = read(
+            &mut lookup,
+            "JBOTCI_JVOZBA_PIECES",
+            d.jvozba.max_pieces,
+            2,
+            usize::MAX,
+        )?;
+        let max_placements = read_u64_limit(
+            lookup("JBOTCI_JVOZBA_PLACEMENTS"),
+            "JBOTCI_JVOZBA_PLACEMENTS",
+            d.jvozba.max_placements,
+            1,
+            u64::MAX,
+        )?;
+        let max_spelling_letters = read(
+            &mut lookup,
+            "JBOTCI_JVOZBA_LETTERS",
+            d.jvozba.max_spelling_letters,
+            1,
+            usize::MAX,
+        )?;
         let jvozba = new!(JvozbaBuildLimits {
-            max_pieces: read(
-                &mut lookup,
-                "JBOTCI_JVOZBA_PIECES",
-                d.jvozba.max_pieces,
-                2,
-                usize::MAX
-            )?,
-            max_placements: read_u64_limit(
-                lookup("JBOTCI_JVOZBA_PLACEMENTS"),
-                "JBOTCI_JVOZBA_PLACEMENTS",
-                d.jvozba.max_placements,
-                1,
-                u64::MAX
-            )?,
-            max_spelling_letters: read(
-                &mut lookup,
-                "JBOTCI_JVOZBA_LETTERS",
-                d.jvozba.max_spelling_letters,
-                1,
-                usize::MAX
-            )?,
+            max_pieces,
+            max_placements,
+            max_spelling_letters,
         });
+        let max_blocks = read(
+            &mut lookup,
+            "JBOTCI_DIAGRAM_BLOCKS",
+            d.diagram.max_blocks,
+            1,
+            usize::MAX,
+        )?;
+        let max_columns = read(
+            &mut lookup,
+            "JBOTCI_DIAGRAM_COLUMNS",
+            d.diagram.max_columns,
+            1,
+            usize::MAX,
+        )?;
+        let max_pixels = read_u64_limit(
+            lookup("JBOTCI_DIAGRAM_PIXELS"),
+            "JBOTCI_DIAGRAM_PIXELS",
+            d.diagram.max_pixels,
+            1,
+            u64::MAX,
+        )?;
+        let max_bytes = read(
+            &mut lookup,
+            "JBOTCI_DIAGRAM_BYTES",
+            d.diagram.max_bytes,
+            1,
+            usize::MAX,
+        )?;
         let diagram = new!(DiagramLimits {
-            max_blocks: read(
-                &mut lookup,
-                "JBOTCI_DIAGRAM_BLOCKS",
-                d.diagram.max_blocks,
-                1,
-                usize::MAX
-            )?,
-            max_columns: read(
-                &mut lookup,
-                "JBOTCI_DIAGRAM_COLUMNS",
-                d.diagram.max_columns,
-                1,
-                usize::MAX
-            )?,
-            max_pixels: read_u64_limit(
-                lookup("JBOTCI_DIAGRAM_PIXELS"),
-                "JBOTCI_DIAGRAM_PIXELS",
-                d.diagram.max_pixels,
-                1,
-                u64::MAX
-            )?,
-            max_bytes: read(
-                &mut lookup,
-                "JBOTCI_DIAGRAM_BYTES",
-                d.diagram.max_bytes,
-                1,
-                usize::MAX
-            )?,
+            max_blocks,
+            max_columns,
+            max_pixels,
+            max_bytes,
         });
+        let source_field_units = read(
+            &mut lookup,
+            "JBOTCI_SOURCE_FIELD_UNITS",
+            d.source_field_units,
+            1,
+            usize::MAX,
+        )?;
+        let source_total_units = read(
+            &mut lookup,
+            "JBOTCI_SOURCE_TOTAL_UNITS",
+            d.source_total_units,
+            1,
+            usize::MAX,
+        )?;
+        let result_entries = read(
+            &mut lookup,
+            "JBOTCI_RESULT_ENTRIES",
+            d.result_entries,
+            1,
+            usize::MAX,
+        )?;
+        let text_bytes = read(
+            &mut lookup,
+            "JBOTCI_TEXT_BYTES",
+            d.text_bytes,
+            1,
+            usize::MAX,
+        )?;
+        let response_bytes = read(
+            &mut lookup,
+            "JBOTCI_RESPONSE_BYTES",
+            d.response_bytes,
+            1,
+            usize::MAX,
+        )?;
+        let deadline = Duration::from_millis(read_u64_limit(
+            lookup("JBOTCI_DEADLINE_MS"),
+            "JBOTCI_DEADLINE_MS",
+            d.deadline.as_millis() as u64,
+            1,
+            u64::MAX,
+        )?);
+        let error_delivery = Duration::from_millis(read_u64_limit(
+            lookup("JBOTCI_ERROR_DELIVERY_MS"),
+            "JBOTCI_ERROR_DELIVERY_MS",
+            d.error_delivery.as_millis() as u64,
+            1,
+            u64::MAX,
+        )?);
         let policy = new!(ServerPolicy {
             work,
-            source_field_units: read(
-                &mut lookup,
-                "JBOTCI_SOURCE_FIELD_UNITS",
-                d.source_field_units,
-                1,
-                usize::MAX
-            )?,
-            source_total_units: read(
-                &mut lookup,
-                "JBOTCI_SOURCE_TOTAL_UNITS",
-                d.source_total_units,
-                1,
-                usize::MAX
-            )?,
-            result_entries: read(
-                &mut lookup,
-                "JBOTCI_RESULT_ENTRIES",
-                d.result_entries,
-                1,
-                usize::MAX
-            )?,
-            text_bytes: read(
-                &mut lookup,
-                "JBOTCI_TEXT_BYTES",
-                d.text_bytes,
-                1,
-                usize::MAX
-            )?,
-            response_bytes: read(
-                &mut lookup,
-                "JBOTCI_RESPONSE_BYTES",
-                d.response_bytes,
-                1,
-                usize::MAX
-            )?,
-            deadline: Duration::from_millis(read_u64_limit(
-                lookup("JBOTCI_DEADLINE_MS"),
-                "JBOTCI_DEADLINE_MS",
-                "JBOTCI_ERROR_DELIVERY_MS",
-                d.deadline.as_millis() as u64,
-                1,
-                u64::MAX
-            )?),
-            error_delivery: Duration::from_millis(read_u64_limit(
-                lookup("JBOTCI_ERROR_DELIVERY_MS"),
-                "JBOTCI_ERROR_DELIVERY_MS",
-                d.error_delivery.as_millis() as u64,
-                1,
-                u64::MAX
-            )?),
             jvozba,
             diagram,
+            source_field_units,
+            source_total_units,
+            result_entries,
+            text_bytes,
+            response_bytes,
+            deadline,
+            error_delivery,
         });
         if std::time::Instant::now()
             .checked_add(policy.deadline)
@@ -565,6 +582,7 @@ mod tests {
         "JBOTCI_TEXT_BYTES",
         "JBOTCI_RESPONSE_BYTES",
         "JBOTCI_DEADLINE_MS",
+        "JBOTCI_ERROR_DELIVERY_MS",
         "JBOTCI_JVOZBA_PIECES",
         "JBOTCI_JVOZBA_PLACEMENTS",
         "JBOTCI_JVOZBA_LETTERS",

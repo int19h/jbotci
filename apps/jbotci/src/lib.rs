@@ -1398,33 +1398,6 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-#[requires(!source_label.is_empty())]
-#[requires(diagnostic_terminal_width > 0)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn write_source_diagnostics<W: Write>(
-    stderr: &mut W,
-    source_label: &str,
-    source: &str,
-    diagnostics: &[Diagnostic],
-    color_enabled: bool,
-    diagnostic_detail: DiagnosticDetailMode,
-    glyphs: GlyphStyle,
-    diagnostic_terminal_width: usize,
-) -> Result<()> {
-    let rendered = render_source_diagnostics(
-        source_label,
-        source,
-        diagnostics,
-        color_enabled,
-        diagnostic_detail,
-        glyphs,
-        diagnostic_terminal_width,
-    )?;
-    stderr.write_all(rendered.as_bytes())?;
-    Ok(())
-}
-
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
@@ -2059,16 +2032,6 @@ fn write_debug_output<W: Write, T: std::fmt::Debug>(
         writeln!(stdout, "{value:#?}")?;
     }
     Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.ends_with('\n'))]
-fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<Indentation>) -> String {
-    if indent == Some(Indentation::compact()) {
-        format!("{value:?}\n")
-    } else {
-        format!("{value:#?}\n")
-    }
 }
 
 #[requires(true)]

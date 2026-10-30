@@ -1,3 +1,5 @@
+#[cfg(test)]
+use jbotci_web_core::GentufaWebResult;
 //! HTTP server for the jbotci web app and API integrations.
 
 mod delivery;
@@ -47,8 +49,7 @@ use jbotci_cll::{
 use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
 use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_entry_filters};
 use jbotci_web_core::{
-    FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
-    MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
+    FAVICON_ASSET_PATH, GentufaExportFormat, GentufaWebRequest, MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
     WebRoute, parse_gentufa_web_export_request, parse_web_route, web_route_url,
 };
 use serde::Serialize;
