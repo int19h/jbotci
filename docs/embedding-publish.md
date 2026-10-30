@@ -31,7 +31,8 @@ Capturing stdout alone does not stop that file write.
 
 The publisher forces `WRANGLER_LOG=log` and `WRANGLER_LOG_SANITIZE=true`.
 It removes inherited Wrangler log paths and structured output paths.
-It also removes Node debug, startup instrumentation, coverage, TLS key logging, and YAML token trace controls.
+It removes Node debug, startup instrumentation, TLS key logging, and YAML token trace controls.
+It forces `NODE_V8_COVERAGE` to an empty value because Node forwards that variable when a child environment omits it.
 These controls cannot turn child logging back on.
 
 Each upload command has a 180-second limit.

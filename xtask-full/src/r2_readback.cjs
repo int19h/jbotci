@@ -8,9 +8,9 @@ const API_BASE = 'https://api.cloudflare.com/client/v4';
 
 function childEnvironment(parent = process.env) {
     const env = { ...parent, WRANGLER_WRITE_LOGS: 'false', WRANGLER_LOG: 'log',
-        WRANGLER_LOG_SANITIZE: 'true', WRANGLER_SEND_METRICS: 'false', CI: 'true' };
+        WRANGLER_LOG_SANITIZE: 'true', WRANGLER_SEND_METRICS: 'false', CI: 'true', NODE_V8_COVERAGE: '' };
     for (const name of ['WRANGLER_LOG_PATH', 'WRANGLER_OUTPUT_FILE_PATH', 'WRANGLER_OUTPUT_FILE_DIRECTORY',
-        'DEBUG', 'NODE_DEBUG', 'NODE_DEBUG_NATIVE', 'NODE_OPTIONS', 'NODE_V8_COVERAGE',
+        'DEBUG', 'NODE_DEBUG', 'NODE_DEBUG_NATIVE', 'NODE_OPTIONS',
         'SSLKEYLOGFILE', 'LOG_STREAM', 'LOG_TOKENS']) delete env[name];
     return env;
 }

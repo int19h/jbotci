@@ -38,8 +38,8 @@ test.before(async () => {
             assert.equal(decodeURIComponent(url.pathname.split('/objects/')[1]), key);
             assert.equal(request.headers['accept-encoding'], 'br');
             response.setHeader('ETag', mode === 'changed' ? '"other-etag"' : mode === 'decoded' ? 'W/"stub-etag"' : '"stub-etag"');
-            if (mode === 'encoded' || mode === 'bad-encoded' || mode === 'alternate-encoded') response.setHeader('Content-Encoding', 'br');
-            const bytes = mode === 'alternate-encoded' ? Buffer.from(alternate) : mode === 'encoded' || mode === 'bad-encoded' ? Buffer.from(encoded) : zlib.brotliDecompressSync(alternate);
+            if (mode === 'encoded' || mode === 'bad-encoded' || mode === 'alternate-encoded' || mode === 'changed') response.setHeader('Content-Encoding', 'br');
+            const bytes = mode === 'alternate-encoded' ? Buffer.from(alternate) : mode === 'encoded' || mode === 'bad-encoded' || mode === 'changed' ? Buffer.from(encoded) : zlib.brotliDecompressSync(alternate);
             if (mode === 'bad-encoded' || mode === 'bad-decoded') bytes[0] ^= 1;
             response.end(bytes);
         }
@@ -131,7 +131,7 @@ test('pinned logging policy exposes the fake token without the environment guard
     const fixture = path.join(__dirname, 'fixtures/wrangler-4.149.0-logging.cjs');
     for (const setting of [undefined, 'true']) {
         const directory = fs.mkdtempSync(path.join(root, 'unsafe-policy-'));
-        const env = { ...process.env, TEST_OUTPUT_DIR: directory, WRANGLER_LOG: 'log' };
+        const env = { ...process.env, TEST_OUTPUT_DIR: directory, WRANGLER_LOG: 'log', NODE_V8_COVERAGE: '' };
         delete env.WRANGLER_WRITE_LOGS;
         for (const name of REMOVED) delete env[name];
         if (setting !== undefined) env.WRANGLER_WRITE_LOGS = setting;
@@ -158,11 +158,12 @@ process.env.WRANGLER_LOG = 'debug';
 process.env.WRANGLER_LOG_SANITIZE = 'false';
 process.env.WRANGLER_SEND_METRICS = 'true';
 process.env.CI = 'false';
+process.env.NODE_V8_COVERAGE = ${JSON.stringify(path.join(directory, 'hostile-coverage'))};
 ${setting === undefined ? 'delete process.env.WRANGLER_WRITE_LOGS;' : "process.env.WRANGLER_WRITE_LOGS = 'true';"}
 assert.deepEqual(credentials(${JSON.stringify(fixture)}), { Authorization: 'Bearer ' + FAKE_TOKEN });
 console.log('credential stub completed');
 `);
-        const env = { ...process.env, TEST_OUTPUT_DIR: directory };
+        const env = { ...process.env, TEST_OUTPUT_DIR: directory, NODE_V8_COVERAGE: '' };
         for (const name of REMOVED) delete env[name];
         const result = spawnSync(process.execPath, [harness], { env, encoding: 'utf8' });
         assert.equal(result.status, 0, result.stderr);
@@ -172,6 +173,7 @@ console.log('credential stub completed');
         const observed = JSON.parse(fs.readFileSync(path.join(directory, 'environment.json')));
         for (const [name, value] of Object.entries(FORCED)) assert.equal(observed[name], value);
         for (const name of REMOVED) assert.equal(observed[name], null);
+        assert.deepEqual(filesUnder(directory).map(file => path.relative(directory, file)), ['environment.json']);
         for (const file of filesUnder(directory)) assert.equal(fs.readFileSync(file).includes(FAKE_TOKEN), false, file);
     }
 });

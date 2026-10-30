@@ -160,7 +160,8 @@ fn configure_child_environment(command: &mut Command, account: &str) {
         .env("WRANGLER_LOG", "log")
         .env("WRANGLER_LOG_SANITIZE", "true")
         .env("WRANGLER_SEND_METRICS", "false")
-        .env("CI", "true");
+        .env("CI", "true")
+        .env("NODE_V8_COVERAGE", "");
     for name in [
         "WRANGLER_LOG_PATH",
         "WRANGLER_OUTPUT_FILE_PATH",
@@ -169,7 +170,6 @@ fn configure_child_environment(command: &mut Command, account: &str) {
         "NODE_DEBUG",
         "NODE_DEBUG_NATIVE",
         "NODE_OPTIONS",
-        "NODE_V8_COVERAGE",
         "SSLKEYLOGFILE",
         "LOG_STREAM",
         "LOG_TOKENS",
@@ -637,7 +637,8 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             .env("WRANGLER_LOG", "debug")
             .env("WRANGLER_LOG_SANITIZE", "false")
             .env("WRANGLER_SEND_METRICS", "true")
-            .env("CI", "false");
+            .env("CI", "false")
+            .env("NODE_V8_COVERAGE", "hostile logging setting");
         let removed = [
             "WRANGLER_LOG_PATH",
             "WRANGLER_OUTPUT_FILE_PATH",
@@ -646,7 +647,6 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             "NODE_DEBUG",
             "NODE_DEBUG_NATIVE",
             "NODE_OPTIONS",
-            "NODE_V8_COVERAGE",
             "SSLKEYLOGFILE",
             "LOG_STREAM",
             "LOG_TOKENS",
@@ -692,6 +692,7 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             ("WRANGLER_LOG_SANITIZE", "true"),
             ("WRANGLER_SEND_METRICS", "false"),
             ("CI", "true"),
+            ("NODE_V8_COVERAGE", ""),
         ] {
             assert_eq!(observed[name], value);
         }
