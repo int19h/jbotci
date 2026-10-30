@@ -7275,7 +7275,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn shared_gentufa_morphology_reports_dialect_expansion_limits() {
-        let chain = format!("({})", "(mi -> mi mi) ".repeat(30).trim_end());
+        // Without the guard, twelve entries produce only 4,096 words.
+        let chain = format!("({})", "(mi -> mi mi) ".repeat(12).trim_end());
         let options = GentufaWebOptions {
             dialect: Some(chain.clone()),
             ..GentufaWebOptions::default()

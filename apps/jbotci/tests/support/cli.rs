@@ -5009,7 +5009,8 @@ fn indentation_eight_renders_json_and_tree_through_the_cli() {
 #[requires(true)]
 #[ensures(true)]
 fn dialect_expansion_limits_reach_each_cli_morphology_command() {
-    let chain = format!("({})", "(mi -> mi mi) ".repeat(30).trim_end());
+    // Without the guard, twelve entries produce only 4,096 words.
+    let chain = format!("({})", "(mi -> mi mi) ".repeat(12).trim_end());
     let oversized = format!("((mi -> {}))", vec!["mi"; 11].join(" "));
     for command in ["vlatai", "vlasei", "gentufa"] {
         let cli = Cli::try_parse_from(["jbotci", command, "--dialect", &oversized, "mi"]).unwrap();
