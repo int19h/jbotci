@@ -205,9 +205,9 @@ mod tests {
         assert_eq!(english_metadata().entry_count(), english().entries().len());
         assert_eq!(
             english_metadata().lensisku_created_at(),
-            "2026-10-04T03:07:08Z"
+            "2026-10-30T17:00:44Z"
         );
-        assert_eq!(english_metadata().definition_count(), 33526);
+        assert_eq!(english_metadata().definition_count(), 34316);
         assert!(english_metadata().definition_count() > english_metadata().entry_count());
         assert!(!english_metadata().positive_scores_only());
     }
@@ -295,16 +295,16 @@ mod tests {
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
         // Sound preprocessing rejects unopened LEhU and unfinished replacement markers.
-        assert_eq!(english().sound_index().len(), 31_095);
-        assert_eq!(english().lujvo_index().len(), 12_983);
+        assert_eq!(english().sound_index().len(), 31_351);
+        assert_eq!(english().lujvo_index().len(), 13_129);
 
         // The decomposition index is audited by word type and not only in
         // total, because a shift between the two that left the total alone
         // would otherwise pass unnoticed. The lujvo are every lujvo entry
         // except `islenskygu'e` and `refgau`, which do not decompose. #914
-        // restored 102 cmevla; the 2026-10-02 refresh added `kairdid`, and the
-        // new experimental rafsi `gos` and `vet` made `dangos` and `xelvet`
-        // decompose. Nothing else decomposes.
+        // restored 102 cmevla. The 2026-10-30 rename of `zbadjurek` to
+        // `zbadjugreku` moves one entry from cmevla to lujvo. The new snapshot
+        // labels `xinsovyctisince` as fu'ivla, but its listed rafsi decompose.
         let entries = english().entries();
         let word_types = english()
             .lujvo_index()
@@ -317,19 +317,29 @@ mod tests {
                 .iter()
                 .filter(|word_type| **word_type == WordType::Lujvo)
                 .count(),
-            12_878
+            13_024
         );
         assert_eq!(
             word_types
                 .iter()
                 .filter(|word_type| **word_type == WordType::Cmevla)
                 .count(),
-            105
+            104
+        );
+        assert_eq!(
+            english()
+                .lujvo_index()
+                .iter()
+                .filter(|row| entries[row.entry_index.get()].word_type == WordType::Fuivla)
+                .map(|row| (entries[row.entry_index.get()].word, row.source_words))
+                .collect::<Vec<_>>(),
+            [("xinsovyctisince", &["xindo", "sovda", "citka", "since"][..])]
         );
         assert!(
-            word_types
-                .iter()
-                .all(|word_type| matches!(word_type, WordType::Lujvo | WordType::Cmevla)),
+            word_types.iter().all(|word_type| matches!(
+                word_type,
+                WordType::Lujvo | WordType::Cmevla | WordType::Fuivla
+            )),
             "an unaudited word type entered the decomposition index"
         );
     }
@@ -843,7 +853,7 @@ mod compound_tests {
     #[ensures(true)]
     fn embedded_cmavo_sequence_index_has_audited_coverage() {
         let dictionary = english();
-        assert_eq!(dictionary.cmavo_sequence_index().len(), 730);
+        assert_eq!(dictionary.cmavo_sequence_index().len(), 736);
         assert_eq!(dictionary.max_cmavo_sequence_len(), 8);
         assert!(!dictionary.lookup_cmavo_sequence(&["na", "a"]).is_empty());
         for headword in ["ma;u", "madagasikara", "fa'onai", "o'ebu", "la dontu'u"] {

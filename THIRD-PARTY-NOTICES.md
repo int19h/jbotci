@@ -136,11 +136,11 @@ DEALINGS IN THE FONT SOFTWARE.
 ### The Contemporary Lojban Language (CLL)
 
 jbotci embeds text, examples, and the formal grammar from
-[colojban 1.3.5](https://github.com/int19h/cll/tree/v1.3.5), a modified fork of
+[colojban 1.3.6](https://github.com/int19h/cll/tree/v1.3.6), a modified fork of
 *The Complete Lojban Language* by John Woldemar Cowan. This material powers the
 grammar reference (the `cukta` tool) and drives parser and reference-analysis
 development. Its lineage is the official CLL 1.1, followed by the UnCLL
-`geklojban-1.2.16` revision, followed by the colojban 1.3.5 fork vendored here.
+`geklojban-1.2.16` revision, followed by the colojban 1.3.6 fork vendored here.
 The book carries the following notice, which its license requires us to
 preserve on all copies:
 
@@ -167,7 +167,7 @@ Fairfax VA 22031-1303 USA. Web Address: http://www.lojban.org
 
 The formal grammar (the machine-parseable EBNF) and certain other contents of
 the book are placed in the public domain by that same notice. The exception is
-the PEG word-form grammar (section 21.2 of colojban 1.3.5), which reproduces
+the PEG word-form grammar (section 21.2 of colojban 1.3.6), which reproduces
 rules from the grammar file of the camxes parser (`camxes.peg` in the
 ilmentufa project). That file is under the MIT License, and the book prints its
 copyright and permission notices, which also cover those rules:

@@ -261,6 +261,6 @@ On an Apple-silicon Mac, `build-gguf-embeddings --llama-backend metal` selects t
 Use these backends for local pack builds. Do not distribute binaries compiled with them.
 
 `vendor/cll` tracks the
-[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.5` release.
+[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.6` release.
 It is kept as a submodule because CLL examples and references are part of the
 core parser and reference-analysis development loop.

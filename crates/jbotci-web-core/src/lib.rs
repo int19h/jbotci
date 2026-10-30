@@ -4293,28 +4293,28 @@ fn social_image_for_cll_media(base_path: &str, src: &str) -> Option<SocialImage>
 #[ensures(true)]
 fn cll_media_dimensions(file_name: &str) -> Option<(usize, usize)> {
     match file_name {
-        "chapter-2-diagram.svg.png" => Some((400, 267)),
-        "chapter-about.svg.png" => Some((400, 320)),
-        "chapter-abstractions.svg.png" => Some((400, 381)),
-        "chapter-anaphoric-cmavo.svg.png" => Some((400, 290)),
-        "chapter-attitudinals.gif" => Some((398, 404)),
-        "chapter-catalogue.svg.png" => Some((400, 348)),
-        "chapter-connectives.svg.png" => Some((400, 287)),
-        "chapter-grammars.svg.png" => Some((400, 720)),
-        "chapter-letterals.svg.png" => Some((400, 406)),
-        "chapter-lujvo.svg.png" => Some((400, 357)),
-        "chapter-mekso.gif" => Some((398, 404)),
-        "chapter-morphology.gif" => Some((398, 404)),
-        "chapter-negation.gif" => Some((398, 404)),
-        "chapter-phonology.gif" => Some((398, 404)),
-        "chapter-quantifiers.gif" => Some((398, 404)),
-        "chapter-relative-clauses.svg.png" => Some((400, 277)),
-        "chapter-selbri.svg.png" => Some((400, 394)),
-        "chapter-structure.svg.png" => Some((400, 406)),
-        "chapter-sumti.gif" => Some((398, 404)),
-        "chapter-sumti-tcita.gif" => Some((398, 404)),
-        "chapter-tenses.gif" => Some((398, 404)),
-        "chapter-tour.svg.png" => Some((400, 409)),
+        "chapter-2-diagram.svg.png" => Some((1200, 800)),
+        "chapter-about.png" => Some((1388, 1202)),
+        "chapter-abstractions.png" => Some((966, 947)),
+        "chapter-anaphoric-cmavo.png" => Some((1450, 1155)),
+        "chapter-attitudinals.png" => Some((791, 1152)),
+        "chapter-catalogue.png" => Some((791, 728)),
+        "chapter-connectives.png" => Some((1001, 769)),
+        "chapter-grammars.png" => Some((704, 1169)),
+        "chapter-letterals.png" => Some((1407, 596)),
+        "chapter-lujvo.png" => Some((1472, 1380)),
+        "chapter-mekso.png" => Some((1266, 1180)),
+        "chapter-morphology.png" => Some((1402, 1514)),
+        "chapter-negation.png" => Some((1428, 1305)),
+        "chapter-phonology.png" => Some((755, 1326)),
+        "chapter-quantifiers.png" => Some((1150, 1144)),
+        "chapter-relative-clauses.png" => Some((1150, 997)),
+        "chapter-selbri.png" => Some((1086, 1176)),
+        "chapter-structure.png" => Some((707, 1234)),
+        "chapter-sumti.png" => Some((1256, 1163)),
+        "chapter-sumti-tcita.png" => Some((1036, 1092)),
+        "chapter-tenses.png" => Some((1327, 1173)),
+        "chapter-tour.png" => Some((1314, 1390)),
         "logo.png" => Some((200, 133)),
         _ => None,
     }
@@ -10639,9 +10639,9 @@ mod tests {
             .dictionary_info
             .as_ref()
             .expect("blank vlacku result should include dictionary metadata");
-        assert_eq!(info.lensisku_created_date, "2026-10-04");
-        assert_eq!(info.lensisku_created_at, "2026-10-04T03:07:08Z");
-        assert_eq!(info.total_count, 31_248);
+        assert_eq!(info.lensisku_created_date, "2026-10-30");
+        assert_eq!(info.lensisku_created_at, "2026-10-30T17:00:44Z");
+        assert_eq!(info.total_count, 31_504);
         assert!(!info.count_tree.is_empty());
 
         let dictionary = jbotci_dictionary_data::english();
@@ -10742,7 +10742,7 @@ mod tests {
         );
 
         let cmavo = dictionary_count_node(&info.count_tree, "cmavo");
-        assert_eq!(cmavo.count, 1_681);
+        assert_eq!(cmavo.count, 1_705);
         assert_eq!(
             dictionary_count_node_labels(&cmavo.children),
             vec!["regular", "experimental", "obsolete"]
@@ -10755,44 +10755,40 @@ mod tests {
         );
         assert_eq!(
             dictionary_count_node(&cmavo.children, "experimental").count,
-            1_080
+            1_104
         );
         assert_eq!(dictionary_count_node(&cmavo.children, "obsolete").count, 3);
         assert_eq!(
             dictionary_count_node(&info.count_tree, "cmavo compounds").count,
-            734
+            740
         );
 
         let brivla = dictionary_count_node(&info.count_tree, "brivla");
-        assert_eq!(brivla.count, 28_150);
+        assert_eq!(brivla.count, 28_371);
         assert_eq!(
             dictionary_count_node_labels(&brivla.children),
             vec!["gismu", "lujvo", "fu'ivla"]
         );
         let gismu = dictionary_count_node(&brivla.children, "gismu");
-        assert_eq!(gismu.count, 2_098);
+        assert_eq!(gismu.count, 2_109);
         assert_eq!(
             dictionary_count_node(&gismu.children, "experimental").count,
-            760
+            771
         );
-        // Both rafsi counts are unique-form counts, so each is the snapshot's
-        // own forms plus exactly the 35 the extracted table (issue #768,
-        // re-audited in #881 and the 2026-10 refresh) adds to 32 experimental
-        // gismu: 1_504 + 35 and 73 + 35. The gismu total is 1_432 official
-        // forms plus the 73 experimental ones, less `kej`, which `ckeji` and
-        // `kenjo` share.
-        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_539);
+        // Counts include selected structured claims and the 32 retained
+        // extracted forms. The refresh adds three unique gismu rafsi forms.
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_542);
         assert_eq!(
             dictionary_count_node(
                 &dictionary_count_node(&gismu.children, "experimental").children,
                 "rafsi",
             )
             .count,
-            108
+            111
         );
 
         let lujvo = dictionary_count_node(&brivla.children, "lujvo");
-        assert_eq!(lujvo.count, 13_048);
+        assert_eq!(lujvo.count, 13_194);
         assert_eq!(
             dictionary_count_node_labels(&lujvo.children),
             vec!["zei-lujvo", "obsolete zei-lujvo"]
@@ -10807,14 +10803,14 @@ mod tests {
         );
 
         let fuivla = dictionary_count_node(&brivla.children, "fu'ivla");
-        assert_eq!(fuivla.count, 13_004);
+        assert_eq!(fuivla.count, 13_068);
         assert_eq!(
             dictionary_count_node(&fuivla.children, "obsolete").count,
             373
         );
 
         let cmevla = dictionary_count_node(&info.count_tree, "cmevla");
-        assert_eq!(cmevla.count, 594);
+        assert_eq!(cmevla.count, 593);
         assert_eq!(
             dictionary_count_node(&cmevla.children, "obsolete").count,
             33
@@ -10823,7 +10819,7 @@ mod tests {
             dictionary_count_node(&info.count_tree, "letterals").count,
             59
         );
-        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 29);
+        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 35);
         assert_eq!(dictionary_count_node(&info.count_tree, "untyped").count, 1);
     }
 

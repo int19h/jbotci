@@ -30,8 +30,8 @@ use import::{
     normalize_valsis_query, parse_block, parse_paragraph_blocks, sanitize_xml_entities,
 };
 pub(crate) use import::{
-    PendingIndexEntry, SectionParseContext, attr_string, block_anchor_id_for, child_element,
-    raw_text, visible_text, visible_text_raw, xml_id,
+    PendingIndexEntry, SectionParseContext, attr_string, attr_value, block_anchor_id_for,
+    child_element, raw_text, visible_text, visible_text_raw, xml_id,
 };
 use import::{
     chrestomathy_area_groups, chrestomathy_area_label, chrestomathy_group_id,
@@ -45,6 +45,9 @@ mod ebnf;
 use ebnf::ebnf_symbol_href;
 use ebnf::parse_ebnf_block;
 pub use ebnf::{CllEbnfEntry, CllEbnfToken, ebnf_rule_anchor_id, wrap_ebnf_choice_lines};
+
+mod status;
+pub use status::{CllRuleStatus, CllStatusBody, CllStatusCondition, CllStatusDate};
 
 mod model;
 pub use model::*;
@@ -1574,7 +1577,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cases = [
             ("9.6", "mi", "| mi | viska | do | sepi'o |"),
-            ("section-EBNF", "BRIVLA", "**text** ⩴"),
+            ("ebnf-selbri", "BRIVLA", "**tanru-unit** ⩴"),
             (
                 "2.1",
                 "bridi",
@@ -1717,10 +1720,9 @@ mod tests {
     #[ensures(true)]
     fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
-        // text changed in both (the camxes MIT notice; the EBNF section became
-        // 21.3). The renderer itself did not change: with the book at 1.3.4,
-        // this code still reproduces the previous hashes exactly.
+        // The v1.3.6 source moves the EBNF rules onto subsection pages.
+        // Section 2.1 changes only its chapter image filename. Section 9.6
+        // restores prose. The copyright section retains its previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1728,15 +1730,19 @@ mod tests {
             ),
             (
                 "2.1",
-                "d2c62de569f7761ee9119d7d23541c853d2ea004517db9020c85e87e8b3d2655",
+                "023795f7d45976303dd5d8d29eedfdeab602372060e16f1e63eeed45cae63e56",
             ),
             (
                 "9.6",
-                "93e8a2ea9d7b806413d17cccf07996d569bffccf09b1911f5d682d670c2c92e7",
+                "9897dede5407f6365f2ddfc409c72ca388897ae3b4e060385de6d969d2a655a7",
             ),
             (
                 "section-EBNF",
-                "418269c42bcbe8d247ae081f6a33eda90566018e620d528505085308c2d77a8c",
+                "8be62e2e13a915ecb445091193aebc71c41b48370b74a6739655080889994d51",
+            ),
+            (
+                "ebnf-text",
+                "f197c0d57ebac2e2c51daffd4ad7292b58cd0dd97c5e8d31bca08234b388d687",
             ),
         ];
 
@@ -1761,10 +1767,9 @@ mod tests {
     #[ensures(true)]
     fn web_html_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // `1.8` and `section-EBNF` were re-baselined for colojban 1.3.5, whose
-        // text changed in both (the camxes MIT notice; the EBNF section became
-        // 21.3). The renderer itself did not change: with the book at 1.3.4,
-        // this code still reproduces the previous hashes exactly.
+        // The v1.3.6 source moves the EBNF rules onto subsection pages.
+        // Section 2.1 changes only its chapter image filename. Section 9.6
+        // restores prose. The copyright section retains its previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1772,15 +1777,19 @@ mod tests {
             ),
             (
                 "2.1",
-                "99e79b0d0171b7f134309d5dd94fdcd2b129c36dea1587bbc4c38f2bcaa68351",
+                "30680685cbf3b8114750fb1cbebee2975eeb3ff69d0adc6a79530b2b98c736c9",
             ),
             (
                 "9.6",
-                "d8f3a4ecca12a8da76ce60964006413dc6c1cc00b35addd214c476c29964aeb2",
+                "ebd6dcb0e2b0b460d38537c517a0d21b165c0db2e3565aa1d1b9de149a13198e",
             ),
             (
                 "section-EBNF",
-                "c0e026bd7b77ea09e442f49a358b5cfdc666b4793bb05e123580ab143bd9ec16",
+                "caca05fd31563de630e773315c010e50b73d7d2ce2cb1d27f0c6ca2be198c5bc",
+            ),
+            (
+                "ebnf-text",
+                "700ce701130a2454c2ce85fada4cf2317fa41437c1678e00a7b5d22a7e47d451",
             ),
         ];
 
@@ -1868,6 +1877,7 @@ mod tests {
         let context = test_section_context();
         let mut parse_state = BlockParseState {
             chapter_example_counter: 0,
+            section_ids: std::collections::HashMap::new(),
         };
         let mut examples = Vec::new();
         let mut anchors = Vec::new();
@@ -1898,6 +1908,7 @@ mod tests {
         let context = test_section_context();
         let mut parse_state = BlockParseState {
             chapter_example_counter: 0,
+            section_ids: std::collections::HashMap::new(),
         };
         let mut examples = Vec::new();
         let mut anchors = Vec::new();
@@ -1911,6 +1922,122 @@ mod tests {
         );
 
         assert!(blocks.iter().any(block_contains_section_erasure_link));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn ebnf_sections(site: &CllSite) -> impl Iterator<Item = &CllSection> {
+        let parent = &site.sections_by_id[&cll_import_metadata().ebnf_section_id];
+        std::iter::once(parent).chain(
+            parent
+                .child_section_ids
+                .iter()
+                .map(|id| &site.sections_by_id[id]),
+        )
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ebnf_subsection_links_resolve_to_the_pages_that_define_the_rules() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let text = &site.sections_by_id["ebnf-text"];
+        let html = render_section(site, text, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        assert!(
+            html.contains("section/ebnf-statements#ebnf-rule-statement"),
+            "{html}"
+        );
+        assert!(html.contains("#ebnf-rule-text-1"), "{html}");
+        let all_html = ebnf_sections(site)
+            .map(|section| {
+                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+            })
+            .collect::<String>();
+        for section in ebnf_sections(site) {
+            for block in &section.blocks {
+                if let CllBlock::Ebnf { entries, .. } = block {
+                    for entry in entries {
+                        for token in &entry.rhs {
+                            if let CllEbnfToken::Nonterminal { body, href } = token {
+                                // The non-formal null rule names an undefined utterance.
+                                if body == "utterance" {
+                                    assert!(href.is_none());
+                                    continue;
+                                }
+                                let href = href
+                                    .as_ref()
+                                    .unwrap_or_else(|| panic!("missing rule target: {body}"));
+                                let (page, anchor) = href.split_once('#').expect("rule fragment");
+                                let target = if page.is_empty() {
+                                    section
+                                } else {
+                                    &site.sections_by_id
+                                        [page.strip_prefix("section/").expect("section route")]
+                                };
+                                let rendered = render_section(
+                                    site,
+                                    target,
+                                    CllRenderFormat::Html,
+                                    CllLinkRenderMode::Web,
+                                );
+                                assert!(
+                                    rendered.contains(&format!("id=\"{anchor}\"")),
+                                    "{body}: {href}"
+                                );
+                                assert!(all_html.contains(&format!("id=\"{anchor}\"")));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn corrected_sumti_connection_example_imports_as_a_complete_text() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let example = cll_lookup_example(site, "c14e6d3").expect("Example 14.27");
+        assert_eq!(
+            example.lojban,
+            "la .djan. cu co'e .ije\nla .alis. klama le zarci"
+        );
+        let words = segment_words_with_modifiers(&example.lojban).expect("example word forms");
+        parse_syntax_tree_with_options(&words, &ParseOptions::default())
+            .expect("complete example text");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn structured_rule_authority_survives_import_and_search_projection() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let chunks = cll_search_all_chunks(site);
+        let notes = chunks
+            .iter()
+            .filter_map(|chunk| match chunk.role.as_ref()?.as_data() {
+                data!(CllParagraphRole::StatusNoteWithCondition { condition }) => Some(condition),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.status == CllRuleStatus::Editorial)
+        );
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.status == CllRuleStatus::Historical)
+        );
+        let adopted = notes
+            .iter()
+            .find(|note| note.status == CllRuleStatus::BpfkApproved)
+            .expect("committee decision");
+        assert_eq!(adopted.governing_body(), Some(CllStatusBody::Bpfk));
+        let date = adopted.date.as_ref().expect("decision date");
+        assert_eq!((date.year, date.month, date.day), (2016, Some(3), Some(15)));
     }
 
     #[test]
@@ -1937,8 +2064,8 @@ mod tests {
             Some("21.3")
         );
         assert_eq!(
-            ebnf.blocks
-                .iter()
+            ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .filter_map(|block| match block {
                     CllBlock::Ebnf { entries, .. } => Some(entries.len()),
                     _ => None,
@@ -2069,20 +2196,16 @@ mod tests {
             ["chapter-morphology", "chapter-phonology"]
         );
 
-        // Chapter 21's EBNF section is the one variable list that gets the
-        // bespoke EBNF treatment; every other variable list in the book, the
-        // PEG subsections' included, renders as a definition list.
-        let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
-            .expect("the EBNF section should exist");
+        // EBNF lists retain grammar tokens across subsection pages. Other
+        // variable lists, including the PEG rules, remain definition lists.
         assert!(
-            ebnf.blocks
-                .iter()
+            ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .any(|block| matches!(block, CllBlock::Ebnf { .. }))
         );
         assert!(
-            !ebnf
-                .blocks
-                .iter()
+            !ebnf_sections(site)
+                .flat_map(|section| &section.blocks)
                 .any(|block| matches!(block, CllBlock::VariableList { .. }))
         );
 
@@ -2504,9 +2627,8 @@ mod tests {
         let ebnf = cll_lookup_section(site, "section-EBNF").expect("EBNF section should exist");
         let mut source_anchor_count = 0;
         let mut source_anchor_ids = BTreeSet::new();
-        for anchor_id in ebnf
-            .blocks
-            .iter()
+        for anchor_id in ebnf_sections(site)
+            .flat_map(|section| &section.blocks)
             .filter_map(|block| match block {
                 CllBlock::Ebnf { entries, .. } => Some(entries),
                 _ => None,
@@ -2545,7 +2667,8 @@ mod tests {
             .anchors_by_id
             .iter()
             .filter(|(anchor_id, anchor)| {
-                anchor_id.starts_with("cll_bnf-") && anchor.section_id == "section-EBNF"
+                anchor_id.starts_with("cll_bnf-")
+                    && ebnf.child_section_ids.contains(&anchor.section_id)
             })
             .map(|(anchor_id, _)| anchor_id.as_str())
             .collect::<BTreeSet<_>>();
@@ -2557,11 +2680,15 @@ mod tests {
             CllRenderFormat::Html,
             CllLinkRenderMode::Web,
         );
-        let rendered_ebnf =
-            render_section(site, ebnf, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let rendered_ebnf = ebnf_sections(site)
+            .map(|section| {
+                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+            })
+            .collect::<String>();
         for anchor_id in referenced_anchor_ids {
             let href = cll_link_href(site, CllLinkKind::Section, anchor_id);
-            assert_eq!(href, format!("section/section-EBNF#{anchor_id}"));
+            let target = &site.anchors_by_id[anchor_id].section_id;
+            assert_eq!(href, format!("{}#{anchor_id}", section_href(target)));
             assert!(
                 rendered_cross_reference.contains(&format!("href=\"{href}\"")),
                 "cross-reference output should link to {anchor_id}"
@@ -2604,11 +2731,11 @@ mod tests {
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
         assert_eq!(site.chapters.len(), 24);
-        // Every division of colojban 1.3.5 has sections of its own, so the site
-        // holds exactly the 351 `section` elements the sources contain,
+        // Every division of colojban 1.3.6 has sections of its own, so the site
+        // holds exactly the 366 `section` elements the sources contain,
         // subsections included, and synthesizes none.
-        assert_eq!(site.sections_by_id.len(), 351);
-        assert_eq!(site.section_order.len(), 351);
+        assert_eq!(site.sections_by_id.len(), 366);
+        assert_eq!(site.section_order.len(), 366);
         assert_eq!(site.examples_by_id.len(), 1857);
     }
 
