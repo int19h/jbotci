@@ -5029,6 +5029,16 @@ fn dialect_expansion_limits_reach_each_cli_morphology_command() {
             false,
         );
         assert_eq!(run.status, CliStatus::Failure, "{command}");
+        if command == "gentufa" {
+            assert!(run.stdout.is_empty());
+            assert!(
+                run.stderr.contains("morphology.dialect-expansion-limit"),
+                "{}",
+                run.stderr
+            );
+            assert!(run.stderr.contains("mi -> mi mi"), "{}", run.stderr);
+            continue;
+        }
         assert!(
             run.stdout.contains("morphology.dialect-expansion-limit"),
             "{}",
