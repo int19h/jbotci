@@ -1721,8 +1721,8 @@ mod tests {
     fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. The copyright
-        // and modal-relative sections retain their previous hashes.
+        // Section 2.1 changes only its chapter image filename. Section 9.6
+        // restores prose. The copyright section retains its previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1734,7 +1734,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "93e8a2ea9d7b806413d17cccf07996d569bffccf09b1911f5d682d670c2c92e7",
+                "9897dede5407f6365f2ddfc409c72ca388897ae3b4e060385de6d969d2a655a7",
             ),
             (
                 "section-EBNF",
@@ -1768,8 +1768,8 @@ mod tests {
     fn web_html_matches_issue_655_pre_change_baseline_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. The copyright
-        // and modal-relative sections retain their previous hashes.
+        // Section 2.1 changes only its chapter image filename. Section 9.6
+        // restores prose. The copyright section retains its previous hashes.
         let cases = [
             (
                 "1.8",
@@ -1781,7 +1781,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "d8f3a4ecca12a8da76ce60964006413dc6c1cc00b35addd214c476c29964aeb2",
+                "ebd6dcb0e2b0b460d38537c517a0d21b165c0db2e3565aa1d1b9de149a13198e",
             ),
             (
                 "section-EBNF",
@@ -2181,8 +2181,6 @@ mod tests {
 
         // EBNF lists retain grammar tokens across subsection pages. Other
         // variable lists, including the PEG rules, remain definition lists.
-        let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
-            .expect("the EBNF section should exist");
         assert!(
             ebnf_sections(site)
                 .flat_map(|section| &section.blocks)
