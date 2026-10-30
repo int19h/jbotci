@@ -202,10 +202,10 @@ impl DiscordService {
                 // first result written over an edited one would lose the
                 // reader's work. Publishing on a guess is the worse outcome,
                 // so this says what happened and writes nothing.
-                self.report_privately(
+                self.report_rest_error(
                     &target,
                     "jbotci could not read its own message back, so nothing was published.",
-                    Some(&error),
+                    &error,
                     deadline,
                     Some(keepalive.clone()),
                 )
@@ -273,10 +273,10 @@ impl DiscordService {
             Ok(current) if RequestHeader::of_message(&current).is_some() => return,
             Ok(_) => {}
             Err(error) => {
-                self.report_privately(
+                self.report_rest_error(
                     target,
                     "jbotci could not check the message before publishing, so nothing was written.",
-                    Some(&error),
+                    &error,
                     deadline,
                     keepalive,
                 )
@@ -327,7 +327,7 @@ impl DiscordService {
                 self.attachment_limit(attachment_limit),
                 limit,
             )
-            .map(|message| message.payload),
+            .map(|message| message.into_data().payload),
             Ok(_) => {
                 let scope = jbotci_output::budget::TextScope::new(limit);
                 let reason = scope.format(format_args!("{error}"));
@@ -643,10 +643,10 @@ impl DiscordService {
                 }
             },
             Err(error) => {
-                self.report_privately(
+                self.report_rest_error(
                     &target,
                     "jbotci could not read the result before turning the page.",
-                    Some(&error),
+                    &error,
                     deadline,
                     Some(keepalive.clone()),
                 )
@@ -875,10 +875,10 @@ impl DiscordService {
                 }
             },
             Err(error) => {
-                self.report_privately(
+                self.report_rest_error(
                     &target,
                     "jbotci could not read the result before changing it, so nothing was applied.",
-                    Some(&error),
+                    &error,
                     deadline,
                     Some(keepalive.clone()),
                 )
@@ -1246,6 +1246,33 @@ impl DiscordService {
             // The lane gave up before the request was made, or while it was in
             // flight; either way the outcome is not known here.
             Err(error) => Err(WriteError::Lane(error)),
+        }
+    }
+
+    #[requires(!summary.trim().is_empty())]
+    #[ensures(true)]
+    async fn report_rest_error(
+        &self,
+        target: &Target,
+        summary: &str,
+        error: &RestError,
+        original: Instant,
+        keepalive: Option<WorkKeepalive>,
+    ) {
+        match error {
+            RestError::Lane(error) => {
+                self.report_code(
+                    target,
+                    crate::error::ServerErrorCode::from(error),
+                    original,
+                    keepalive,
+                )
+                .await;
+            }
+            _ => {
+                self.report_privately(target, summary, Some(error), original, keepalive)
+                    .await
+            }
         }
     }
 
@@ -2447,6 +2474,57 @@ mod tests {
             );
             assert!(message["attachments"].as_array().unwrap().is_empty());
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn read_failures_extend_delivery_only_for_typed_work_errors() {
+        let discord = FakeDiscord::start().await;
+        let policy = crate::ServerPolicy::default().with_data(data! {
+            error_delivery: Duration::from_millis(500),
+        });
+        let service = service_with_policy(&discord, policy);
+        let original = Instant::now() - Duration::from_millis(10);
+        service
+            .report_rest_error(
+                &failure_target(),
+                "ordinary read failure",
+                &RestError::Transport(TransportError::NotSent {
+                    reason: "offline".to_owned(),
+                }),
+                original,
+                None,
+            )
+            .await;
+        assert!(discord.private_messages().is_empty());
+        service
+            .report_rest_error(
+                &failure_target(),
+                "typed read failure",
+                &RestError::Lane(WorkError::TimedOut {
+                    lane: WorkLane::Fetch,
+                }),
+                original,
+                None,
+            )
+            .await;
+        assert_eq!(
+            discord.private_messages(),
+            [crate::error::ServerErrorCode::Deadline.message()]
+        );
+        service
+            .report_rest_error(
+                &failure_target(),
+                "expired typed failure",
+                &RestError::Lane(WorkError::Overloaded {
+                    lane: WorkLane::Fetch,
+                }),
+                original - Duration::from_secs(1),
+                None,
+            )
+            .await;
+        assert_eq!(discord.private_messages().len(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
