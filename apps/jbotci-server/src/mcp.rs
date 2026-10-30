@@ -85,13 +85,12 @@ pub(crate) async fn mcp_post(
     let message = match serde_json::from_slice::<JsonRpcMessage>(&body) {
         Ok(message) => message,
         Err(error) => {
-            return json_response(
+            return formatted_protocol_error(
                 StatusCode::BAD_REQUEST,
-                json_rpc_error(
-                    Value::Null,
-                    -32700,
-                    &format!("Invalid JSON payload: {error}"),
-                ),
+                Value::Null,
+                -32700,
+                format_args!("Invalid JSON payload: {error}"),
+                &state.tool_services.execution.policy,
             );
         }
     };
@@ -127,9 +126,12 @@ pub(crate) async fn mcp_post(
             match uri {
                 Some(LOJBAN_GRAMMAR_URI) => grammar_resource_contents(),
                 Some(other) => {
-                    return json_response(
+                    return formatted_protocol_error(
                         StatusCode::OK,
-                        json_rpc_error(id, -32602, &format!("Unknown resource URI: {other}")),
+                        id,
+                        -32602,
+                        format_args!("Unknown resource URI: {other}"),
+                        &state.tool_services.execution.policy,
                     );
                 }
                 None => {
@@ -166,17 +168,23 @@ pub(crate) async fn mcp_post(
                     .await;
                 }
                 Err(error) => {
-                    return json_response(
+                    return formatted_protocol_error(
                         StatusCode::OK,
-                        json_rpc_error(id, -32602, &format!("Invalid tool call params: {error}")),
+                        id,
+                        -32602,
+                        format_args!("Invalid tool call params: {error}"),
+                        &state.tool_services.execution.policy,
                     );
                 }
             }
         }
         other => {
-            return json_response(
+            return formatted_protocol_error(
                 StatusCode::OK,
-                json_rpc_error(id, -32601, &format!("Unsupported MCP method: {other}")),
+                id,
+                -32601,
+                format_args!("Unsupported MCP method: {other}"),
+                &state.tool_services.execution.policy,
             );
         }
     };
@@ -817,6 +825,28 @@ fn content_type_is_raster_image(content_type: Option<&str>) -> bool {
         // SVG is XML text, not a raster image, so it is excluded here and served
         // as text instead (the harnesses we target cannot render SVG images).
         .is_some_and(|value| value.starts_with("image/") && value != "image/svg+xml")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn formatted_protocol_error(
+    status: StatusCode,
+    id: Value,
+    code: i64,
+    message: std::fmt::Arguments<'_>,
+    policy: &crate::ServerPolicy,
+) -> Response<Body> {
+    let limit = jbotci_output::budget::ByteLimit::new(policy.text_bytes.min(policy.response_bytes))
+        .expect("validated output limits");
+    match jbotci_output::budget::bounded_format(message, limit) {
+        Ok(message) => crate::execution::json_response(
+            status,
+            &json_rpc_error(id, code, &message),
+            policy,
+            None,
+        ),
+        Err(_) => crate::execution::work_error_response(crate::work::WorkError::OutputLimit),
+    }
 }
 
 #[requires(true)]
