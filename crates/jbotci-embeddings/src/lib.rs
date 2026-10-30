@@ -273,7 +273,8 @@ pub struct CorpusManifest {
 /// GGUF bytes also contain the effective tokenizer. These parameters complete
 /// the vector function together with the manifest's model and vector format.
 /// Backend versions and execution providers remain provenance only.
-#[invariant(true)]
+#[invariant(*window_size > 0)]
+#[invariant(!window_scheme.is_empty() && !pooling.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeVectorParameters {
     pub window_size: u32,
@@ -284,11 +285,11 @@ pub struct NativeVectorParameters {
 #[requires(true)]
 #[ensures(ret.window_size == NATIVE_MAX_WINDOW_TOKENS)]
 fn native_vector_parameters() -> NativeVectorParameters {
-    NativeVectorParameters {
+    new!(NativeVectorParameters {
         window_size: NATIVE_MAX_WINDOW_TOKENS,
         window_scheme: "gguf-special-tokens-then-nonoverlapping-windows-v1".to_owned(),
         pooling: "token-weighted-mean-of-normalized-last-token-windows".to_owned(),
-    }
+    })
 }
 
 /// Build environment facts do not determine vector reuse compatibility.
@@ -3273,7 +3274,8 @@ pub fn load_latest_pack(
     load_pack_for_identity(index_root, &spec, current_native_corpus_identity()?)
 }
 
-#[invariant(true)]
+#[invariant(dictionary_fingerprint.len() == 64 && dictionary_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
+#[invariant(cll_fingerprint.len() == 64 && cll_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
 #[derive(Debug)]
 struct NativeCorpusIdentity {
     dictionary_fingerprint: String,
@@ -3288,12 +3290,12 @@ fn native_corpus_identity(
     dictionary: &Dictionary<'_>,
     chunks: &[CllSearchChunk],
 ) -> NativeCorpusIdentity {
-    NativeCorpusIdentity {
+    new!(NativeCorpusIdentity {
         dictionary_fingerprint: dictionary_fingerprint(dictionary),
         dictionary_rows: dictionary.entries().len(),
         cll_fingerprint: cll_fingerprint(chunks),
         cll_rows: chunks.len(),
-    }
+    })
 }
 
 // The embedded corpora cannot change while this process runs. Hash them once.
@@ -3840,12 +3842,12 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
     let identity = if std::ptr::eq(chunks, cll_search_all_chunks(site)) {
         current
     } else {
-        supplied = NativeCorpusIdentity {
+        supplied = new!(NativeCorpusIdentity {
             dictionary_fingerprint: current.dictionary_fingerprint.clone(),
             dictionary_rows: current.dictionary_rows,
             cll_fingerprint: cll_fingerprint(chunks),
             cll_rows: chunks.len(),
-        };
+        });
         &supplied
     };
     semantic_cukta_output_with_identity(
@@ -5475,8 +5477,17 @@ mod tests {
                 "model_sha256" => checkpoint.model_sha256 = Some("other-model".to_owned()),
                 "native_sha256" => checkpoint.native_sha256 = "other-pinned-model".to_owned(),
                 "layout" => checkpoint.chunk_rows += 1,
-                "window" => checkpoint.vector_parameters.window_size /= 2,
-                "pooling" => checkpoint.vector_parameters.pooling = "other".to_owned(),
+                "window" => {
+                    let window_size = checkpoint.vector_parameters.window_size / 2;
+                    checkpoint.vector_parameters = checkpoint
+                        .vector_parameters
+                        .with_data(data! { window_size: window_size });
+                }
+                "pooling" => {
+                    checkpoint.vector_parameters = checkpoint
+                        .vector_parameters
+                        .with_data(data! { pooling: "other".to_owned() })
+                }
                 "backend-version" => checkpoint.built_by.version = "other".to_owned(),
                 "corpus" => checkpoint.cll_fingerprint.push_str("different"),
                 "missing" | "corrupt" => {
@@ -6095,12 +6106,21 @@ mod tests {
             match change {
                 "hash" => manifest.model_sha256 = Some("f".repeat(64)),
                 "missing-hash" => manifest.model_sha256 = None,
-                "window" => manifest.vector_parameters.as_mut().unwrap().window_size /= 2,
+                "window" => {
+                    let parameters = manifest.vector_parameters.take().unwrap();
+                    let window_size = parameters.window_size / 2;
+                    manifest.vector_parameters =
+                        Some(parameters.with_data(data! { window_size: window_size }));
+                }
                 "scheme" => {
-                    manifest.vector_parameters.as_mut().unwrap().window_scheme = "other".to_owned()
+                    let parameters = manifest.vector_parameters.take().unwrap();
+                    manifest.vector_parameters =
+                        Some(parameters.with_data(data! { window_scheme: "other".to_owned() }));
                 }
                 "pooling" => {
-                    manifest.vector_parameters.as_mut().unwrap().pooling = "other".to_owned()
+                    let parameters = manifest.vector_parameters.take().unwrap();
+                    manifest.vector_parameters =
+                        Some(parameters.with_data(data! { pooling: "other".to_owned() }));
                 }
                 "missing-parameters" => manifest.vector_parameters = None,
                 _ => unreachable!(),
@@ -6477,5 +6497,31 @@ mod tests {
         backend.embed("query one").unwrap();
         backend.embed("query two").unwrap();
         assert_eq!(backend.calls, 2);
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_parameters_keep_the_wire_shape_and_reject_invalid_records() {
+        let expected = serde_json::json!({
+            "window_size": 2048,
+            "window_scheme": "gguf-special-tokens-then-nonoverlapping-windows-v1",
+            "pooling": "token-weighted-mean-of-normalized-last-token-windows",
+        });
+        assert_eq!(
+            serde_json::to_value(native_vector_parameters()).unwrap(),
+            expected
+        );
+        for field in ["window_size", "window_scheme", "pooling"] {
+            let mut invalid = expected.clone();
+            invalid[field] = if field == "window_size" {
+                serde_json::json!(0)
+            } else {
+                serde_json::json!("")
+            };
+            assert!(
+                serde_json::from_value::<NativeVectorParameters>(invalid).is_err(),
+                "{field}"
+            );
+        }
     }
 }
