@@ -316,51 +316,6 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
 }
 
 #[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn words_view(
-    source: &str,
-    analysis: &VlaseiAnalysis,
-    decompose_lujvo: bool,
-) -> (String, String, bool) {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = words_view_in_scope(source, analysis, decompose_lujvo, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn word_fallback_text(word: &WordLike) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = word_fallback_text_in_scope(word, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn describe_word(word: &WordLike, decompose_lujvo: bool) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = describe_word_in_scope(word, decompose_lujvo, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::request::{SourceText, VlaseiOptions};

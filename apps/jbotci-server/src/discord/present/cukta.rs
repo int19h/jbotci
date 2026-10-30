@@ -284,19 +284,6 @@ pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> Rendered
 }
 
 #[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn search_card(card: &CuktaSearchCard) -> (String, String, bool) {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = search_card_in_scope(card, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::operations::{CuktaChapterEntry, PagedResults, cukta_card_for_tests};

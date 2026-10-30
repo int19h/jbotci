@@ -382,59 +382,6 @@ pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> Rendered
 }
 
 #[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn classification_lines(
-    classification: &ValsiClassification,
-    possible_rafsi: &[String],
-    phonemes: PhonemeRenderOptions,
-    show_details: bool,
-    prefix: &str,
-) -> Vec<String> {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = classification_lines_in_scope(
-        classification,
-        possible_rafsi,
-        phonemes,
-        show_details,
-        prefix,
-        &text_scope,
-    );
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn plain_word_lines(
-    word: &PlainWordClassification,
-    possible_rafsi: &[String],
-    phonemes: PhonemeRenderOptions,
-    show_details: bool,
-    prefix: &str,
-) -> Vec<String> {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = plain_word_lines_in_scope(
-        word,
-        possible_rafsi,
-        phonemes,
-        show_details,
-        prefix,
-        &text_scope,
-    );
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::request::SourceText;

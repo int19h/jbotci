@@ -1198,16 +1198,6 @@ pub(crate) fn assemble_with_limit(
 #[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-fn complete_result_text(rendered: &RenderedResult) -> String {
-    let scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    complete_result_text_in_scope(rendered, &scope)
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
 fn cut_markdown(markdown: &str, max_units: usize) -> String {
     let scope = jbotci_output::budget::TextScope::new(
         jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),

@@ -944,15 +944,6 @@ pub fn router_with_policy(config: ServerConfig, policy: ServerPolicy) -> Router 
 
 #[requires(true)]
 #[ensures(true)]
-fn router_with_page_meta_builder(
-    config: ServerConfig,
-    page_meta_builder: PageMetaBuilder,
-) -> Router {
-    router_with_builder_and_policy(config, page_meta_builder, ServerPolicy::default())
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn router_with_builder_and_policy(
     config: ServerConfig,
     page_meta_builder: PageMetaBuilder,
@@ -1598,19 +1589,6 @@ fn vary_mentions_accept_encoding(value: &str) -> bool {
         .any(|name| name.trim().eq_ignore_ascii_case("accept-encoding"))
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn apply_spa_head_metadata(html: &str, origin: Option<&str>, meta: &PageMeta) -> String {
-    let unlimited =
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit");
-    apply_spa_head_metadata_with_limits(
-        html,
-        origin,
-        meta,
-        jbotci_output::budget::RenderLimits::new(unlimited, unlimited),
-    )
-    .expect("unrestricted metadata rendering")
-}
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limits.projection.get()) || ret.is_err())]
 fn apply_spa_head_metadata_with_limits(

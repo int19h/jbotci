@@ -340,20 +340,6 @@ pub(crate) fn render_diagnostics(
 #[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-fn complete_text(source: &str, diagnostics: &[Diagnostic]) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = complete_text_in_scope(source, diagnostics, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn summary(diagnostics: &[Diagnostic]) -> Option<String> {
     let text_scope = jbotci_output::budget::TextScope::new(
         jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
@@ -365,39 +351,6 @@ pub(crate) fn summary(diagnostics: &[Diagnostic]) -> Option<String> {
     result
 }
 
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn render_one(source: &str, diagnostic: &Diagnostic) -> (String, bool) {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = render_one_in_scope(source, diagnostic, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn caret_excerpt(
-    source: &str,
-    byte_start: usize,
-    byte_end: usize,
-    label: &str,
-    limits: ExcerptLimits,
-) -> Option<(String, bool)> {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = caret_excerpt_in_scope(source, byte_start, byte_end, label, limits, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
 #[cfg(test)]
 mod tests {
     use super::*;

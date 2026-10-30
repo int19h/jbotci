@@ -178,19 +178,6 @@ pub(crate) fn escape(text: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strike(text: &str) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = strike_in_scope(text, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn subtext(line: &str) -> String {
     let text_scope = jbotci_output::budget::TextScope::new(
         jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
@@ -202,83 +189,6 @@ pub(crate) fn subtext(line: &str) -> String {
     result
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn subtext_markdown(markdown: &str) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = subtext_markdown_in_scope(markdown, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn inline_code(text: &str) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = inline_code_in_scope(text, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn code_block(text: &str) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = code_block_in_scope(text, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn split_paragraphs(markdown: &str) -> Vec<String> {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = split_paragraphs_in_scope(markdown, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn truncate_units(text: &str, max_units: usize) -> (String, bool) {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = truncate_units_in_scope(text, max_units, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn percent(similarity: f32) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = percent_in_scope(similarity, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,18 +226,4 @@ mod tests {
         assert_eq!(truncate_units("ab\\*c", 4), ("ab…".to_owned(), true));
         assert_eq!(percent(0.4567), "46%");
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn join_lines<I>(lines: I) -> String
-where
-    I: IntoIterator<Item = String>,
-{
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    text_scope
-        .finish(join_lines_in_scope(lines, &text_scope))
-        .expect("unrestricted Discord Markdown")
 }

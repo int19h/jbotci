@@ -285,18 +285,6 @@ fn outcome_tool(outcome: &ToolOutcome) -> DiscordTool {
 }
 
 #[requires(true)]
-#[ensures(ret.tool() == request.tool())]
-pub(crate) fn render(outcome: &ToolOutcome, request: &DiscordRequest) -> RenderedResult {
-    let unlimited =
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit");
-    render_with_limits(
-        outcome,
-        request,
-        jbotci_output::budget::RenderLimits::new(unlimited, unlimited),
-    )
-    .expect("unrestricted Discord rendering")
-}
-#[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_with_limits(
     outcome: &ToolOutcome,

@@ -273,37 +273,6 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
 }
 
 #[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn candidate_line(
-    candidate: &GimfihiCandidate,
-    winner: Option<&str>,
-    scope: CollisionScope,
-) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = candidate_line_in_scope(candidate, winner, scope, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-fn format_score(score: f64) -> String {
-    let text_scope = jbotci_output::budget::TextScope::new(
-        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    );
-    let result = format_score_in_scope(score, &text_scope);
-    text_scope
-        .finish(String::new())
-        .expect("unrestricted Discord rendering");
-    result
-}
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::operations::PagedResults;
