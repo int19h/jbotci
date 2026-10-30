@@ -10,7 +10,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{
+    contract_trait, data, ensures, expensive_invariant, expensive_requires, invariant, new,
+    requires,
+};
 use directories::ProjectDirs;
 use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaSearchWindow,
@@ -438,6 +441,7 @@ struct LoadedCorpusCacheKey {
 #[invariant(row_count
     .checked_mul(*dimensions)
     .is_some_and(|expected| values.len() == expected))]
+#[expensive_invariant(values.chunks_exact(*dimensions).all(|row| validate_vector(row, *dimensions).is_ok()))]
 #[derive(Debug, Clone)]
 struct LoadedCorpus<T> {
     items: Vec<T>,
@@ -914,11 +918,15 @@ pub fn top_vector_hits(
     row_count: usize,
     limit: usize,
 ) -> Result<Vec<VectorHit>, EmbeddingError> {
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
+    }
     top_vector_hits_by_row(values, dimensions, query, row_count, limit, |_| true)
 }
 
 #[requires(dimensions > 0)]
 #[requires(values.len() % dimensions == 0)]
+#[expensive_requires(values.chunks_exact(dimensions).all(|row| validate_vector(row, dimensions).is_ok()))]
 #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= row_count) || ret.is_err())]
 fn top_vector_hits_by_row<F>(
     values: &[f32],
@@ -939,7 +947,6 @@ where
         .take(effective_row_count)
         .enumerate()
     {
-        validate_vector(vector, dimensions)?;
         if !row_allowed(row_index) || limit == 0 {
             continue;
         }
@@ -2191,7 +2198,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
 
 /// Build with a source that already passed all reuse checks.
 /// Model bytes and vector format define identity. Backend versions and hardware
-/// are provenance: full builds also vary with batching, padding and query hosts.
+/// remain provenance. The identity records model bytes and processing rules.
 #[requires(spec.dimensions > 0)]
 #[requires(reusable_source.is_none() || model_sha256.as_deref() == Some(spec.native_sha256.as_str()))]
 #[requires(reusable_source.as_ref().is_none_or(|source| source.manifest.model_key == spec.model_key && source.manifest.model_revision == spec.model_revision && source.manifest.dimensions == spec.dimensions))]
