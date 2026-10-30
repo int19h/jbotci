@@ -385,16 +385,32 @@ mod tests {
         let app = axum::Router::new()
             .route(
                 "/api/probe",
-                axum::routing::get(move || async move {
-                    tokio::time::sleep(std::time::Duration::from_millis(40)).await;
-                    if late_normal {
-                        Response::new(Body::from("LATE NORMAL RESULT"))
-                    } else {
-                        crate::execution::work_error_response(crate::work::WorkError::TimedOut {
-                            lane: crate::work::WorkLane::Compute,
-                        })
-                    }
-                }),
+                axum::routing::get(
+                    move |Extension(state): Extension<Arc<crate::AppState>>,
+                          Extension(deadline): Extension<OperationDeadline>| async move {
+                        if late_normal {
+                            tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+                            Response::new(Body::from("LATE NORMAL RESULT"))
+                        } else {
+                            let context = state
+                                .tool_services
+                                .execution
+                                .admit(Some(deadline.0))
+                                .await
+                                .unwrap();
+                            match context
+                                .run(|| {
+                                    std::thread::sleep(std::time::Duration::from_millis(60));
+                                    "LATE NORMAL RESULT"
+                                })
+                                .await
+                            {
+                                Ok(text) => Response::new(Body::from(text)),
+                                Err(error) => crate::execution::work_error_response(error),
+                            }
+                        }
+                    },
+                ),
             )
             .layer(axum::middleware::from_fn(enforce))
             .layer(Extension(state));
