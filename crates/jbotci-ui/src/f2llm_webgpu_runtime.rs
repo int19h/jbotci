@@ -13,6 +13,15 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|input| input.starts_with(jbotci_embedding_inputs::RETRIEVAL_QUERY_PREFIX)
+    && input.len() > jbotci_embedding_inputs::RETRIEVAL_QUERY_PREFIX.len()))]
+#[wasm_bindgen(js_name = jbotciF2LlmQueryInput)]
+pub fn jbotci_f2llm_query_input(query: &str) -> Option<String> {
+    let input = jbotci_embedding_inputs::build_retrieval_query_input(query);
+    (input.len() > jbotci_embedding_inputs::RETRIEVAL_QUERY_PREFIX.len()).then_some(input)
+}
+
 #[wasm_bindgen]
 #[invariant(true)]
 #[derive(Debug)]

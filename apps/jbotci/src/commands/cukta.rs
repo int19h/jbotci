@@ -165,7 +165,7 @@ fn cukta_request_from_input(input: &CuktaInput) -> Result<CuktaRequest> {
     if !input.query.is_empty() {
         return Ok(CuktaRequest::Search {
             mode: CuktaSearchMode::Meaning,
-            query: joined_query_text(&input.query).trim().to_owned(),
+            query: joined_query_text(&input.query),
             count: input.count.unwrap_or(DEFAULT_CUKTA_CLI_RESULT_COUNT),
             targets: cukta_target_filter_from_input(input)?,
         });

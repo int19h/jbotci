@@ -53,8 +53,8 @@ fn run_semantic_vlacku(
     options: &VlackuSearchOptions,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<VlackuSearchOutput> {
-    let query = query.trim().to_owned();
-    if query.is_empty() {
+    let query = query.to_owned();
+    if query.trim().is_empty() {
         bail!("vlacku query text must be non-empty.");
     }
     let dictionary = jbotci_dictionary_data::english();
