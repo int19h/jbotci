@@ -1994,6 +1994,21 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn corrected_sumti_connection_example_imports_as_a_complete_text() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let example = cll_lookup_example(site, "c14e6d3").expect("Example 14.27");
+        assert_eq!(
+            example.lojban,
+            "la .djan. cu co'e .ije\nla .alis. klama le zarci"
+        );
+        let words = segment_words_with_modifiers(&example.lojban).expect("example word forms");
+        parse_syntax_tree_with_options(&words, &ParseOptions::default())
+            .expect("complete example text");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn structured_rule_authority_survives_import_and_search_projection() {
         let site = embedded_cll_site().expect("embedded CLL");
         let chunks = cll_search_all_chunks(site);
