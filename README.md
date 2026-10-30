@@ -156,8 +156,11 @@ A finished output still requires `--overwrite`. Leftover work alone does not req
 The native xtask commands retain setup checkpoints under `--index-dir`.
 Setup saves each finished 256-row shard under `<pack-id>.tmp` beside the selected pack.
 Resume with the same `--index-dir`, model, and corpus.
-Setup compares the GGUF SHA-256, model identity, runtime, corpus fingerprints, layout, and saved shard hashes.
+Setup compares the GGUF SHA-256, model identity, window size and scheme, pooling, corpus fingerprints, layout, and saved shard hashes.
 An incompatible native checkpoint causes a full rebuild.
+A build with `--skip-validation` cannot resume unverified native chunks.
+A missing or damaged native shard causes only that shard to be embedded again.
+Native chunks and checkpoints sync their file bytes before rename and sync their parent directories afterward.
 To start fresh, remove the matching `<pack-id>.tmp` directory under `<index-dir>/<model-key>/v1/models/<model-key>/packs`.
 Setup removes that work after it promotes the pack.
 The xtask stages its export and promotes the local output directory only after every selected model succeeds.
@@ -195,7 +198,8 @@ The web builder refuses a named model that already has an entry.
 It also refuses an unnamed model that lacks an entry.
 The xtask resolves `--reuse-published` from `--remote-catalog-url`, whose default is the published web catalog.
 
-Full builds retain their existing corpus hashes and pack IDs.
+Web full builds retain their existing corpus hashes and pack IDs.
+Native pack IDs also bind the GGUF SHA-256 and window and pooling parameters.
 
 For native packs, pass `--reuse-index-dir /path/to/previous-index` to
 `build-gguf-embeddings` or `publish-gguf-embeddings-r2` when it builds.
@@ -203,12 +207,20 @@ The source must contain `<model-key>/v1/catalog.json` for every selected model.
 This matches the layout that `--index-dir` produces.
 Use separate source, scratch index, and output directories.
 
-Native reuse requires matching GGUF bytes, model identity, dimensions, and normalized f32le dot-product vectors.
-The native manifest records the GGUF SHA-256 and the build provenance.
+Native reuse requires matching GGUF bytes, model identity, window size and scheme, pooling, dimensions, and normalized f32le dot-product vectors.
+The native manifest records the GGUF SHA-256, window and pooling parameters, and build provenance.
 Changes to the llama backend or llama.cpp version do not block reuse for packs that record the GGUF hash.
-Legacy adoption also requires the recorded runtime identity to match.
+Legacy adoption also requires the recorded runtime name to match.
+Runtime version changes do not block reuse or resume.
 The native xtask accepts local indexes. It does not fetch published packs for reuse.
 Setup reports reused, embedded, and resumed row counts for each corpus.
+Use `jbotci setup --embedding --report-json PATH` to save this report as JSON.
+The xtask reads this separate report. Published manifests omit build counts.
+A resumed pack therefore has the same files as a full build when the vectors match.
+Native search refuses stale model or corpus identities before it resolves stored row indices.
+Search compares dictionary and CLL fingerprints and row counts with the current corpora.
+It also compares vector dimensions and the full vector function, including the pinned GGUF SHA-256.
+The search backend compares the GGUF file with its pinned hash once when it loads the model.
 If an explicit source is unusable, setup fails.
 If setup reuses no rows, the xtask fails.
 `--reuse-index-dir` conflicts with `--skip-validation`, so the model must pass its pinned hash comparison.
