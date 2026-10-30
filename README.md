@@ -226,7 +226,8 @@ If setup reuses no rows, the xtask fails.
 `--reuse-index-dir` conflicts with `--skip-validation`, so the model must pass its pinned hash comparison.
 Reuse flags conflict with `--skip-build` on both publish commands.
 
-Without a reuse flag, the xtask clears its scratch index and builds every vector.
+Without a reuse flag, no completed source pack supplies rows, but compatible partial work still resumes.
+To start fresh, remove the matching `<pack-id>.tmp` directory under `--index-dir`.
 Reuse flags do not grant permission to replace an output. The existing `--overwrite` rule still applies.
 
 With local model artifacts and previous native indexes available, build all packs without publishing:
