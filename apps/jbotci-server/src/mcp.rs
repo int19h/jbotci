@@ -77,6 +77,7 @@ pub(crate) async fn mcp_get() -> Response<Body> {
 #[ensures(true)]
 pub(crate) async fn mcp_post(
     Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<crate::delivery::OperationDeadline>,
     body: Bytes,
 ) -> Response<Body> {
     let json_response = |status, value: Value| {
@@ -159,7 +160,9 @@ pub(crate) async fn mcp_post(
                             crate::work::WorkError::OutputLimit,
                         );
                     }
-                    let result = call_tool(params, state.tool_services()).await;
+                    let result =
+                        call_tool_with_deadline(params, state.tool_services(), Some(deadline.0))
+                            .await;
                     return admitted_tool_json_response(
                         id,
                         result,
@@ -672,9 +675,20 @@ fn tool_error_envelope_fits(id: &Value, policy: &crate::ServerPolicy) -> bool {
     })
 }
 
+#[cfg(test)]
 #[requires(!params.name.trim().is_empty())]
 #[ensures(true)]
 async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> ToolResult {
+    call_tool_with_deadline(params, tool_services, None).await
+}
+
+#[requires(!params.name.trim().is_empty())]
+#[ensures(true)]
+async fn call_tool_with_deadline(
+    params: ToolCallParams,
+    tool_services: ToolServices,
+    deadline: Option<tokio::time::Instant>,
+) -> ToolResult {
     let execution = Arc::clone(&tool_services.execution);
     let limits = execution.policy.tool_limits();
     let params = params.into_data();
@@ -682,37 +696,47 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> ToolR
     let arguments = params.arguments;
     match name.as_str() {
         "cukta" => {
-            call_async_typed_tool(arguments, execution, move |request, context| async move {
-                tool_services.run_cukta_admitted(request, &context).await
-            })
+            call_async_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, context| async move {
+                    tool_services.run_cukta_admitted(request, &context).await
+                },
+            )
             .await
         }
         "vlacku" => {
-            call_async_typed_tool(arguments, execution, move |request, context| async move {
-                tool_services.run_vlacku_admitted(request, &context).await
-            })
+            call_async_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, context| async move {
+                    tool_services.run_vlacku_admitted(request, &context).await
+                },
+            )
             .await
         }
         "jvozba" => {
-            call_typed_tool(arguments, execution, move |request| {
+            call_typed_tool(arguments, execution, deadline, move |request| {
                 jbotci_cli::run_tool_jvozba_with_limits(request, &limits)
             })
             .await
         }
         "vlasei" => {
-            call_typed_tool(arguments, execution, move |request| {
+            call_typed_tool(arguments, execution, deadline, move |request| {
                 run_tool_vlasei_with_limits(request, &limits)
             })
             .await
         }
         "gentufa" => {
-            call_typed_tool(arguments, execution, move |request| {
+            call_typed_tool(arguments, execution, deadline, move |request| {
                 run_tool_gentufa_with_limits(request, &limits)
             })
             .await
         }
         "gimfihi" => {
-            call_typed_tool(arguments, execution, move |request| {
+            call_typed_tool(arguments, execution, deadline, move |request| {
                 run_tool_gimfihi_with_limits(request, GimfihiSourceWordKind::Ipa, &limits)
             })
             .await
@@ -726,6 +750,7 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> ToolR
 async fn call_async_typed_tool<T, F, Fut>(
     arguments: Value,
     execution: Arc<ServerExecution>,
+    deadline: Option<tokio::time::Instant>,
     runner: F,
 ) -> ToolResult
 where
@@ -745,7 +770,7 @@ where
     if let Err(error) = request.validate(&execution.policy) {
         return ToolResult::failed(anyhow::Error::new(error), &execution.policy);
     }
-    let context = match execution.admit(None).await {
+    let context = match execution.admit(deadline).await {
         Ok(context) => context,
         Err(error) => return ToolResult::work_error(error),
     };
@@ -768,6 +793,7 @@ where
 async fn call_typed_tool<T, F>(
     arguments: Value,
     execution: Arc<ServerExecution>,
+    deadline: Option<tokio::time::Instant>,
     runner: F,
 ) -> ToolResult
 where
@@ -786,7 +812,7 @@ where
     if let Err(error) = request.validate(&execution.policy) {
         return ToolResult::failed(anyhow::Error::new(error), &execution.policy);
     }
-    let context = match execution.admit(None).await {
+    let context = match execution.admit(deadline).await {
         Ok(context) => context,
         Err(error) => return ToolResult::work_error(error),
     };
@@ -1132,6 +1158,36 @@ mod budget_integration_tests {
             name: name.to_owned(),
             arguments
         })
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_admission_keeps_the_deadline_from_the_http_boundary() {
+        let tools = services(crate::ServerPolicy::default());
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        let result = call_tool_with_deadline(
+            params("vlasei", json!({ "text": "klama", "format": "ipa" })),
+            tools.clone(),
+            Some(deadline),
+        )
+        .await;
+        assert!(matches!(result.payload, ToolPayload::Output(_)));
+        assert_eq!(result.context.unwrap().deadline, deadline);
+        let expired = call_tool_with_deadline(
+            params("vlasei", json!({ "text": "klama", "format": "ipa" })),
+            tools,
+            Some(tokio::time::Instant::now()),
+        )
+        .await;
+        assert!(matches!(
+            expired.payload,
+            ToolPayload::Error {
+                code: Some(ServerErrorCode::Busy),
+                ..
+            }
+        ));
+        assert!(expired.context.is_none());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

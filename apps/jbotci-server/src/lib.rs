@@ -1038,6 +1038,7 @@ async fn health() -> Json<HealthResponse> {
 #[ensures(true)]
 async fn gentufa(
     Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
     Json(request): Json<GentufaWebRequest>,
 ) -> Response<Body> {
     let execution = &state.tool_services.execution;
@@ -1046,7 +1047,7 @@ async fn gentufa(
     ) {
         return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
     }
-    let context = match execution.admit(None).await {
+    let context = match execution.admit(Some(deadline.0)).await {
         Ok(context) => context,
         Err(error) => return execution::work_error_response(error),
     };
@@ -1070,6 +1071,7 @@ async fn gentufa(
 #[ensures(true)]
 async fn gimfihi(
     Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
     Json(request): Json<ToolGimfihiRequest>,
 ) -> Response<Body> {
     use crate::policy::ServerRequest;
@@ -1077,7 +1079,7 @@ async fn gimfihi(
     if let Err(error) = request.validate(&execution.policy) {
         return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
     }
-    let context = match execution.admit(None).await {
+    let context = match execution.admit(Some(deadline.0)).await {
         Ok(context) => context,
         Err(error) => return execution::work_error_response(error),
     };
@@ -1182,6 +1184,7 @@ fn build_rest_tool_output(
 #[ensures(true)]
 async fn static_or_spa(
     Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
     headers: HeaderMap,
     uri: Uri,
 ) -> Response<Body> {
@@ -1213,6 +1216,7 @@ async fn static_or_spa(
             format,
             uri.query().unwrap_or_default().to_owned(),
             Arc::clone(&state.tool_services.execution),
+            deadline.0,
         )
         .await;
     }
@@ -1220,7 +1224,7 @@ async fn static_or_spa(
         return plain_response(StatusCode::NOT_FOUND, "not found");
     };
     if asset_path == "/index.html" {
-        return match spa_index_response(&state, &headers, &uri).await {
+        return match spa_index_response(&state, &headers, &uri, deadline.0).await {
             Ok(Some(response)) => response,
             Ok(None) => plain_response(StatusCode::NOT_FOUND, "not found"),
             Err(error) => page_meta_task_failure_response(request_path, &error),
@@ -1244,6 +1248,7 @@ async fn spa_index_response(
     state: &AppState,
     headers: &HeaderMap,
     uri: &Uri,
+    deadline: Instant,
 ) -> std::result::Result<Option<Response<Body>>, WorkError> {
     let Some(bytes) = load_index_html_bytes(state).await else {
         return Ok(None);
@@ -1264,7 +1269,7 @@ async fn spa_index_response(
             &error.to_string(),
         )));
     }
-    let context = state.tool_services.execution.admit(None).await?;
+    let context = state.tool_services.execution.admit(Some(deadline)).await?;
     let meta = (state.page_meta_builder)(state.base_path.clone(), route, context.clone()).await?;
     let render = context.execution.policy.tool_limits().render;
     let limits = jbotci_output::budget::RenderLimits::new(
@@ -1291,6 +1296,7 @@ async fn gentufa_export_response(
     format: GentufaExportFormat,
     query: String,
     execution: Arc<ServerExecution>,
+    deadline: Instant,
 ) -> Response<Body> {
     let request = parse_gentufa_web_export_request(&query);
     if let Err(error) = execution.policy.validate_sources(
@@ -1298,7 +1304,7 @@ async fn gentufa_export_response(
     ) {
         return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
     }
-    let context = match execution.admit(None).await {
+    let context = match execution.admit(Some(deadline)).await {
         Ok(context) => context,
         Err(error) => return execution::work_error_response(error),
     };

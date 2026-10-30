@@ -22,6 +22,11 @@ use tokio::{
     time::{Instant, Sleep},
 };
 
+/// The absolute operation deadline created at the HTTP boundary.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OperationDeadline(pub(crate) Instant);
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(crate) struct Connection(Arc<Mutex<DeliveryState>>);
@@ -236,7 +241,7 @@ impl HttpBody for DeliveryBody {
 #[ensures(true)]
 pub(crate) async fn enforce(
     Extension(state): Extension<Arc<crate::AppState>>,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
     let connection = request
@@ -253,6 +258,7 @@ pub(crate) async fn enforce(
             lane: crate::work::WorkLane::Compute,
         });
     };
+    request.extensions_mut().insert(OperationDeadline(deadline));
     let response = next.run(request).await;
     let response = if bounded_api {
         limit_api_response(

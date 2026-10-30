@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/delivery.rs:OperationDeadline",
+        "Any absolute time is a valid deadline, including one that already expired.",
+    ),
+    (
         "crates/jbotci-budget/src/json_text.rs:OnceText",
         "The test tracks how often a text value is serialized.",
     ),
