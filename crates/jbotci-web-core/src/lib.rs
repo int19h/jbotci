@@ -7271,9 +7271,6 @@ mod tests {
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
 
-    /// A search card must not be able to claim a rule-status designation for a
-    /// projection that cannot have one — including when it arrives over the
-    /// wire rather than from the builders.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -7301,6 +7298,8 @@ mod tests {
         assert!(error.to_string().contains("limit is 10"));
     }
 
+    /// A search card can claim a rule-status designation only for a paragraph.
+    /// Deserialized cards must follow the same rule as cards from the builders.
     #[test]
     #[requires(true)]
     #[ensures(true)]
