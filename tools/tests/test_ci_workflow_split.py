@@ -67,6 +67,42 @@ class CiWorkflowSplitTests(unittest.TestCase):
             publish,
         )
 
+    def test_target_cache_saves_require_a_successful_job_and_stamp(self) -> None:
+        self.assertIn(
+            "      - name: Stamp test target cache\n"
+            "        id: target-cache-stamp\n"
+            "        if: ${{ success() && github.event_name != 'pull_request' }}\n",
+            self.test_workflow,
+        )
+        self.assertIn(
+            "      - name: Save test target cache\n"
+            "        if: ${{ success() && github.event_name != 'pull_request' "
+            "&& steps.target-cache-stamp.outcome == 'success' }}\n"
+            "        uses: actions/cache/save@v5\n",
+            self.test_workflow,
+        )
+        self.assertIn(
+            "      - name: Stamp render target cache\n"
+            "        id: target-cache-stamp\n"
+            "        if: ${{ success() }}\n",
+            self.render_workflow,
+        )
+
+        self.assertIn(
+            "      - name: Save render target cache\n"
+            "        if: ${{ success() && steps.target-cache-stamp.outcome == 'success' }}\n"
+            "        uses: actions/cache/save@v5\n",
+            self.render_workflow,
+        )
+
+    def test_target_cache_keys_exclude_caches_saved_before_the_fix(self) -> None:
+        for workflow, name in (
+            (self.test_workflow, "test"),
+            (self.render_workflow, "render"),
+        ):
+            self.assertEqual(workflow.count(f"jbotci-{name}-target-v2-"), 3)
+            self.assertNotIn(f"jbotci-{name}-target-${{{{", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
