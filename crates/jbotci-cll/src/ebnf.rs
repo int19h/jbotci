@@ -103,7 +103,7 @@ pub(super) fn parse_ebnf_block(
             Some((rule, href))
         })
         .collect::<BTreeMap<_, _>>();
-    let mut entries = Vec::with_capacity(entry_nodes.len());
+    let mut entries = Vec::new();
     let mut pending_source_anchors = Vec::new();
     for entry in entry_nodes {
         let Some(term) = child_element(entry, "term") else {
