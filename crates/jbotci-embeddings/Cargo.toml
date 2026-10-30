@@ -39,6 +39,9 @@ ureq.workspace = true
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
+
 [dev-dependencies]
 jbotci-search.workspace = true
 tempfile.workspace = true

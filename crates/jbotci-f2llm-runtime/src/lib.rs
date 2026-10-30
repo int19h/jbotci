@@ -28,8 +28,9 @@ pub use native::{
 };
 pub use pack::{
     BuildExecution, CompatibleQueryRuntime, CorpusVectorManifest, DistanceMetric, LegacyOnnxBuild,
-    Pooling, SourceProvenance, VectorElementType, WebVectorPackManifestV1, WebVectorPackManifestV2,
-    artifact_identity, derive_v2_pack_id, short_hash,
+    LegacyPackAdoption, OnnxBuildProvenance, Pooling, SourceProvenance, VectorElementType,
+    WebVectorPackManifestV1, WebVectorPackManifestV2, WebVectorReuseIdentity, artifact_identity,
+    derive_v2_pack_id, short_hash,
 };
 pub use progress::{
     ProgressCounter, ProgressError, ProgressEvent, ProgressKind, ProgressPhase, ProgressSink,

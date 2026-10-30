@@ -723,6 +723,8 @@ fn parses_embedding_setup_precomputed_policy_and_validation_skip() {
         "--use-precomputed",
         "always",
         "--skip-validation",
+        "--report-json",
+        "setup-report.json",
     ])
     .expect("setup command")
     .command
@@ -732,6 +734,7 @@ fn parses_embedding_setup_precomputed_policy_and_validation_skip() {
 
     assert_eq!(input.use_precomputed, CliUsePrecomputed::Always);
     assert!(input.skip_validation);
+    assert_eq!(input.report_json, Some(PathBuf::from("setup-report.json")));
 }
 
 #[test]

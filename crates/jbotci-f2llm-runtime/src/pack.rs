@@ -123,6 +123,49 @@ pub struct CorpusVectorManifest {
     pub vector_sha256: Sha256Digest,
 }
 
+/// Vector function identity excludes build environment and input export versions.
+#[invariant(*schema_version == 1 && *dimensions > 0 && *max_sequence_length > 1)]
+#[invariant(*max_window_tokens == *max_sequence_length && *normalized)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WebVectorReuseIdentity {
+    pub schema_version: u32,
+    pub artifact_version: String,
+    pub model_key: String,
+    pub web_model: String,
+    pub model_revision: String,
+    pub q4_onnx_sha256: Sha256Digest,
+    pub external_data_sha256: std::collections::BTreeMap<String, Sha256Digest>,
+    pub tokenizer_sha256: Sha256Digest,
+    pub vector_space_key: String,
+    pub max_sequence_length: usize,
+    pub max_window_tokens: usize,
+    pub pooling: Pooling,
+    pub dimensions: usize,
+    pub element_type: VectorElementType,
+    pub normalized: bool,
+    pub distance: DistanceMetric,
+    pub windowing: String,
+}
+
+#[invariant(!provider.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OnnxBuildProvenance {
+    pub backend: std::collections::BTreeMap<String, String>,
+    pub provider: String,
+    pub built_by: LegacyOnnxBuild,
+}
+
+#[invariant(!source.is_empty())]
+#[invariant(compatibility == "owner-attested-unrecorded-identity")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyPackAdoption {
+    pub source: String,
+    pub compatibility: String,
+}
+
 /// The published ONNX-derived F2LLM pack schema. This type intentionally retains the original
 /// mandatory `q4_onnx_sha256` field and does not pretend that v1 represented native WebGPU builds.
 #[invariant(*schema_version == 1)]
@@ -152,6 +195,12 @@ pub struct CorpusVectorManifest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebVectorPackManifestV1 {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reuse_identity: Option<WebVectorReuseIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_provenance: Option<OnnxBuildProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_adoption: Option<LegacyPackAdoption>,
     pub schema_version: u32,
     pub artifact_version: String,
     pub model_key: String,
@@ -348,9 +397,27 @@ mod tests {
       }]
     }"#;
 
+    #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn v1_accepts_typed_incremental_builder_metadata() {
+        let bytes = include_bytes!("../testdata/manifests/v1/incremental-80m.json");
+        let manifest: WebVectorPackManifestV1 = serde_json::from_slice(bytes).unwrap();
+        assert!(manifest.reuse_identity.is_some());
+        assert_eq!(manifest.build_provenance.as_ref().unwrap().backend.len(), 5);
+        assert_eq!(
+            manifest.legacy_adoption.as_ref().unwrap().compatibility,
+            "owner-attested-unrecorded-identity"
+        );
+        assert_eq!(
+            serde_json::to_value(&manifest).unwrap(),
+            serde_json::from_slice::<serde_json::Value>(bytes).unwrap()
+        );
+    }
+
     #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn python_short_hash_regression_vectors_are_exact() {
         let manifest_digest = ArtifactManifestDigest::parse(
             "f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2",

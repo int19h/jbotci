@@ -1016,6 +1016,13 @@ pub struct VlackuInput {
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
 pub struct SetupInput {
+    /// Write the setup report separately from the published pack.
+    #[arg(long)]
+    pub report_json: Option<PathBuf>,
+    #[arg(long, conflicts_with = "skip_validation")]
+    pub reuse_index_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub adopt_legacy_pack: bool,
     #[arg(long = "embedding")]
     pub embedding: bool,
     #[arg(long = "force")]

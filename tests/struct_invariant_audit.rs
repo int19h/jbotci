@@ -640,12 +640,24 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw document deserialization accepts all field combinations so conversion can recompute and validate every fingerprint",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:CheckpointFailureBackend",
+        "test controls select a checkpoint write failure and have no constraints between fields",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:CllEmbeddingItem",
         "CLL embedding item rows are generated from embedded CLL search chunk order",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:ContentHashBackend",
+        "the test counter accepts any nonnegative number of completed embedding calls",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:CorpusManifest",
         "corpus manifests are generated from validated item files and vector shards",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusRowCounts",
+        "report counters are independent nonnegative values. the report supplies the corpus total",
     ),
     (
         "crates/jbotci-embeddings/src/lib.rs:DictionaryEmbeddingItem",
@@ -690,6 +702,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-embeddings/src/lib.rs:LoadedCorpusCacheKey",
         "loaded corpus cache keys are assembled from validated manifest and shard metadata before lookup",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativeBuildProvenance",
+        "builder labels and versions are free text. no combination changes vector compatibility",
     ),
     (
         "crates/jbotci-embeddings/src/lib.rs:NativeF2LlmModel",

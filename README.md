@@ -129,6 +129,125 @@ into one merged pack without publishing, run
 `cargo run -r -p xtask-full -- build-f2llm-webgpu-assets`, then publish the
 result with `publish-f2llm-webgpu-r2 --skip-build`.
 
+Incremental builds copy stored vectors for unchanged embedding inputs.
+They embed changed and added rows, omit removed rows, and preserve the new corpus order.
+Each web document stores one pooled vector, including documents with several token windows.
+
+Pack builds save finished work between runs. A checkpoint records which chunks are complete.
+To resume an aborted build, repeat the command with the same inputs and paths.
+The builder compares the saved identity, corpus, layout, and file hashes before it uses saved rows.
+A changed web identity, corpus, or layout discards the whole checkpoint with a message.
+A missing or damaged web chunk causes only that chunk to be embedded again.
+
+The Python web builder saves 256-row chunks in `<out>.partial` by default.
+Use `--work-dir PATH` to choose another persistent directory.
+Keep this directory separate from `--out` and `--stage`.
+Use `--discard-checkpoint` to start fresh, or `--chunk-rows N` to change the chunk size.
+The builder removes saved work after it promotes the finished pack.
+It prints resumed chunks and rows, reused rows, and newly embedded rows for each corpus.
+
+The web xtask commands use these same checkpoints.
+The all-model commands keep each model under `<vector-out-dir>.parts` until the combined output is ready.
+They retain completed model chunks while other models finish, then remove the parts after promotion.
+To start these commands fresh, remove the matching `.partial` directories under the parts directory.
+For the single-model command, remove `<out-dir>.partial`.
+A finished output still requires `--overwrite`. Leftover work alone does not require this flag.
+
+The native xtask commands retain setup checkpoints under `--index-dir`.
+Setup saves each finished 256-row shard under `<pack-id>.tmp` beside the selected pack.
+Resume with the same `--index-dir`, model, and corpus.
+Setup compares the GGUF SHA-256, model identity, window size and scheme, pooling, corpus fingerprints, layout, and saved shard hashes.
+An incompatible native checkpoint causes a full rebuild.
+A build with `--skip-validation` cannot resume unverified native chunks.
+A missing or damaged native shard causes only that shard to be embedded again.
+Native chunks and checkpoints sync their file bytes before rename and sync their parent directories afterward.
+To start fresh, remove the matching `<pack-id>.tmp` directory under `<index-dir>/<model-key>/v1/models/<model-key>/packs`.
+Setup removes that work after it promotes the pack.
+The xtask stages its export and promotes the local output directory only after every selected model succeeds.
+
+The web builder also reuses identical inputs that move between the two web corpora.
+
+For one web model, pass `--reuse-from /path/to/previous/pack` to
+`build-f2llm-webgpu-vectors` or `build-vector-pack.py`.
+The directory must contain `manifest.json`. A manifest URL also works.
+
+For all web models, pass `--reuse-catalog /path/to/previous/catalog.json`
+or `--reuse-published` to `build-f2llm-webgpu-assets`.
+Catalog URLs also work. The builder selects each model and vector space separately.
+The single-model builder accepts both catalog flags too.
+`publish-f2llm-webgpu-r2` accepts the catalog flags when it builds.
+
+Web reuse requires identical model bytes, tokenizer, vector space, windowing, pooling, dimensions, element type, normalization, and distance.
+The model identity hashes the raw ONNX graph and every external data file that it references.
+The builder records backend versions and execution providers as provenance, which describes how the build ran.
+Changes to this provenance do not block reuse.
+Exact row hashes identify the input text, so the input format version does not block reuse.
+The builder compares stored vector bytes and checks source files against their SHA-256 hashes.
+It refuses incompatible, damaged, or incomplete sources without a fallback to full embedding.
+
+Older packs lack parts of this identity.
+To adopt them once, add `--adopt-legacy-pack` to the web or native reuse command.
+Every recorded identity field must match, and file hashes and row hashes must pass.
+The new manifest records the source and states that compatibility of unrecorded parts is an owner attestation.
+Without this flag, the builder refuses legacy sources and names the flag in its error.
+The flag does not relax comparisons for packs with a complete identity.
+
+If a model has no entry in a reuse catalog, name it with `--new-model MODEL_KEY`.
+Repeat the flag for each new model.
+The web builder refuses a named model that already has an entry.
+It also refuses an unnamed model that lacks an entry.
+The xtask resolves `--reuse-published` from `--remote-catalog-url`, whose default is the published web catalog.
+
+Web full builds retain their existing corpus hashes and pack IDs.
+Native pack IDs also bind the GGUF SHA-256 and window and pooling parameters.
+
+For native packs, pass `--reuse-index-dir /path/to/previous-index` to
+`build-gguf-embeddings` or `publish-gguf-embeddings-r2` when it builds.
+The source must contain `<model-key>/v1/catalog.json` for every selected model.
+This matches the layout that `--index-dir` produces.
+Use separate source, scratch index, and output directories.
+
+Native reuse requires matching GGUF bytes, model identity, window size and scheme, pooling, dimensions, and normalized f32le dot-product vectors.
+The native manifest records the GGUF SHA-256, window and pooling parameters, and build provenance.
+Changes to the llama backend or llama.cpp version do not block reuse for packs that record the GGUF hash.
+Legacy adoption also requires the recorded runtime name to match.
+Runtime version changes do not block reuse or resume.
+The native xtask accepts local indexes. It does not fetch published packs for reuse.
+Setup reports reused, embedded, and resumed row counts for each corpus.
+Use `jbotci setup --embedding --report-json PATH` to save this report as JSON.
+The xtask reads this separate report. Published manifests omit build counts.
+A resumed pack therefore has the same files as a full build when the vectors match.
+Native search refuses stale model or corpus identities before it resolves stored row indices.
+Search compares dictionary and CLL fingerprints and row counts with the current corpora.
+It also compares vector dimensions and the full vector function, including the pinned GGUF SHA-256.
+The search backend compares the GGUF file with its pinned hash once when it loads the model.
+If an explicit source is unusable, setup fails.
+If setup reuses no rows, the xtask fails.
+`--reuse-index-dir` conflicts with `--skip-validation`, so the model must pass its pinned hash comparison.
+Reuse flags conflict with `--skip-build` on both publish commands.
+
+Without a reuse flag, no completed source pack supplies rows, but compatible partial work still resumes.
+To start fresh, remove the matching `<pack-id>.tmp` directory under `--index-dir`.
+Reuse flags do not grant permission to replace an output. The existing `--overwrite` rule still applies.
+
+With local model artifacts and previous native indexes available, build all packs without publishing:
+
+```sh
+cargo run -r -p xtask-full -- build-f2llm-webgpu-assets \
+  --f2llm-artifact-root /path/to/model-artifacts \
+  --model-out-root /build/jbotci/new-web-models \
+  --vector-out-dir /build/jbotci/new-web-vectors \
+  --reuse-published --adopt-legacy-pack
+cargo run -r -p xtask-full -- build-gguf-embeddings \
+  --model-dir /path/to/local-gguf-models \
+  --reuse-index-dir /path/to/previous-index --adopt-legacy-pack \
+  --index-dir /build/jbotci/new-native-index \
+  --out-dir /build/jbotci/new-native-vectors
+```
+
+After the first adopted build, use the new catalog for later refreshes.
+Those packs record the complete identity, so later refreshes do not need legacy adoption.
+
 The pack builders support parallel work and host-specific backends.
 The web builder uses ONNX Runtime on the CPU.
 The native GGUF builder uses llama.cpp.

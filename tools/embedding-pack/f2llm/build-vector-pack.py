@@ -2,17 +2,24 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+from ctypes import wintypes
 import hashlib
 import json
 import os
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urljoin, urlparse
+from urllib.request import Request, urlopen
+from importlib.metadata import version
 
 import numpy as np
-import onnxruntime as ort
-from transformers import AutoTokenizer
 
+
+MOVEFILE_REPLACE_EXISTING = 0x1
+MOVEFILE_WRITE_THROUGH = 0x8
 
 SCHEMA_VERSION = 1
 ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v1"
@@ -35,10 +42,19 @@ CORPORA = [
     ("cukta-cll", "cll", "chunk_index"),
 ]
 PROGRESS_WINDOW_INTERVAL = 512
+BUILT_BY = {
+    "runtime": "onnxruntime",
+    "provider": "CPUExecutionProvider",
+    "dtype": "q4",
+    "source": "com.microsoft MatMulNBits/GatherBlockQuantized",
+}
 
 
 def main() -> None:
     args = parse_args()
+    # Keep pack inspection and deterministic tool tests independent of model runtimes.
+    import onnxruntime as ort
+    from transformers import AutoTokenizer
     q4_onnx = Path(args.q4_onnx)
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else q4_onnx.parent.parent
     output = Path(args.out)
@@ -52,12 +68,11 @@ def main() -> None:
         )
     corpus = read_json(Path(args.input))
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
-    if stage == output:
-        raise ValueError("--stage must differ from --out")
-    # --stage is scratch for this run, never an output: it is always cleared.
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True)
-
+    work = Path(args.work_dir) if args.work_dir else Path(f"{output}.partial")
+    paths = [path.resolve() for path in (output, stage, work)]
+    if any(a == b or a in b.parents or b in a.parents
+           for i, a in enumerate(paths) for b in paths[i + 1:]):
+        raise ValueError("--out, --stage and --work-dir must be separate, non-overlapping paths")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
     session_options = ort.SessionOptions()
     if args.threads is not None:
@@ -68,6 +83,11 @@ def main() -> None:
         str(q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
     )
     q4_onnx_sha256 = file_sha256(q4_onnx)
+    identity = reuse_identity(args, corpus, q4_onnx_sha256, tokenizer)
+    reusable_rows = load_previous_pack(args, identity)
+    # Read and validate the source before clearing scratch or replacing output.
+    shutil.rmtree(stage, ignore_errors=True)
+    stage.mkdir(parents=True)
     compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime, args.max_sequence_length)
 
     pack_id = "-".join([
@@ -80,6 +100,7 @@ def main() -> None:
     pack_root = stage / "models" / args.model_key / "spaces" / args.vector_space_key / "packs" / pack_id
     pack_root.mkdir(parents=True)
 
+    checkpoint = open_checkpoint(work, args, identity, pack_id, corpus)
     corpora = []
     for corpus_id, source_key, id_field in CORPORA:
         corpora.append(write_corpus(
@@ -94,12 +115,19 @@ def main() -> None:
             dimensions=args.dimensions,
             max_sequence_length=args.max_sequence_length,
             progress_label=f"{args.model_key} {corpus_id}",
+            reusable_rows=reusable_rows,
+            work=work,
+            checkpoint=checkpoint,
+            chunk_rows=args.chunk_rows,
         ))
 
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "artifact_version": ARTIFACT_VERSION,
+        "reuse_identity": identity,
+        "build_provenance": build_provenance(),
+        **({"legacy_adoption": args.legacy_adoption} if getattr(args, "legacy_adoption", None) else {}),
         "model_key": args.model_key,
         "model_revision": args.revision or "",
         "web_model": args.model_id,
@@ -111,12 +139,7 @@ def main() -> None:
         "max_sequence_length": args.max_sequence_length,
         "pooling": POOLING,
         "max_window_tokens": args.max_sequence_length,
-        "built_by": {
-            "runtime": "onnxruntime",
-            "provider": "CPUExecutionProvider",
-            "dtype": "q4",
-            "source": "com.microsoft MatMulNBits/GatherBlockQuantized",
-        },
+        "built_by": BUILT_BY,
         "dimensions": args.dimensions,
         "element_type": "f16le",
         "normalized": True,
@@ -145,6 +168,8 @@ def main() -> None:
     }
     write_json(stage / "catalog.json", catalog)
     promote(stage, output, args.overwrite)
+    if not args.keep_work:
+        shutil.rmtree(work)
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,11 +179,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    parser.add_argument("--keep-work", action="store_true", help="retain chunks until an aggregate build promotes its output")
+    parser.add_argument("--work-dir", help="persistent chunks (default: <out>.partial)")
+    parser.add_argument("--discard-checkpoint", action="store_true", help="discard saved chunks before building")
+    parser.add_argument("--chunk-rows", type=int, default=256)
+    reuse = parser.add_mutually_exclusive_group()
+    reuse.add_argument("--reuse-from", help="previous pack directory or manifest URL")
+    reuse.add_argument("--reuse-catalog", help="previous catalog path or URL, selected by model and space")
+    reuse.add_argument("--reuse-published", action="store_true", help="reuse the current public web catalog entry")
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="replace --out if it already exists (refused by default)",
     )
+    parser.add_argument("--adopt-legacy-pack", action="store_true")
+    parser.add_argument("--new-model", action="append", default=[], help="model with no previous catalog entry")
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX)
     parser.add_argument("--tokenizer-dir", default=None)
     parser.add_argument("--model-key", default=MODEL_KEY)
@@ -176,6 +211,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--include-wasm-runtime", action="store_true")
     args = parser.parse_args()
+    if args.reuse_from == "" or args.reuse_catalog == "":
+        raise ValueError("reuse source must not be empty")
+    if args.chunk_rows <= 0:
+        raise ValueError("--chunk-rows must be positive")
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
     if args.threads is not None and args.threads <= 0:
@@ -210,6 +249,366 @@ def compatible_runtimes(include_wasm_runtime: bool, max_sequence_length: int) ->
     return runtimes
 
 
+def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object]:
+    # Reuse identifies the vector function, not the build environment.
+    # Full builds also differ in their last bits with batch composition and
+    # padding, and browser queries use another backend. Per-row hashes cover
+    # the exact input text, so input_format_version is not part of this identity.
+    # Hash the effective tokenizer after loading, including the special-token IDs.
+    tokenizer_state = {
+        "backend": tokenizer.backend_tokenizer.to_str(),
+        "special_tokens": tokenizer.special_tokens_map,
+        "eos": tokenizer.eos_token_id,
+        "pad": tokenizer.pad_token_id,
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "artifact_version": ARTIFACT_VERSION,
+        "model_key": args.model_key,
+        "web_model": args.model_id,
+        "model_revision": args.revision or "",
+        "q4_onnx_sha256": model_hash,
+        # External ONNX weights are not covered by the graph file's hash.
+        "external_data_sha256": external_data_hashes(Path(args.q4_onnx)),
+        "vector_space_key": args.vector_space_key,
+        "max_sequence_length": args.max_sequence_length,
+        "max_window_tokens": args.max_sequence_length,
+        "pooling": POOLING,
+        "dimensions": args.dimensions,
+        "element_type": "f16le",
+        "normalized": True,
+        "distance": "dot",
+        "tokenizer_sha256": sha256(json_bytes(tokenizer_state)),
+        "windowing": "append-eos-contiguous-nonoverlapping-last-token-l2-mean-l2-v1",
+
+    }
+
+
+def build_provenance() -> dict[str, object]:
+    return {
+        "backend": {name: version(name) for name in ("onnx", "onnxruntime", "transformers", "tokenizers", "numpy")},
+        "provider": "CPUExecutionProvider",
+        "built_by": BUILT_BY,
+    }
+
+
+def protobuf_varint(stream, end: int) -> int:
+    value = 0
+    for shift in range(0, 70, 7):
+        if stream.tell() >= end:
+            raise ValueError("truncated ONNX protobuf varint")
+        data = stream.read(1)
+        if not data:
+            raise ValueError("truncated ONNX protobuf varint")
+        byte = data[0]
+        if shift == 63 and byte > 1:
+            raise ValueError("overflowing ONNX protobuf varint")
+        value |= (byte & 127) << shift
+        if not byte & 128:
+            return value
+    raise ValueError("invalid ONNX protobuf varint")
+
+
+def protobuf_tag(stream, end: int) -> tuple[int, int]:
+    tag = protobuf_varint(stream, end)
+    number, wire = tag >> 3, tag & 7
+    if not 0 < number < (1 << 29) or wire > 5:
+        raise ValueError("invalid ONNX protobuf tag")
+    return number, wire
+
+
+def skip_protobuf_field(stream, number: int, wire: int, end: int) -> None:
+    if wire == 0:
+        protobuf_varint(stream, end)
+        return
+    if wire == 3:
+        # Unknown protobuf groups are legal. Skip their contents without
+        # interpreting them as ONNX tensors, and require the matching end tag.
+        while stream.tell() < end:
+            child, child_wire = protobuf_tag(stream, end)
+            if child_wire == 4:
+                if child != number:
+                    raise ValueError("mismatched ONNX protobuf group")
+                return
+            skip_protobuf_field(stream, child, child_wire, end)
+        raise ValueError("unterminated ONNX protobuf group")
+    if wire == 2:
+        length = protobuf_varint(stream, end)
+    elif wire in (1, 5):
+        length = 8 if wire == 1 else 4
+    else:
+        raise ValueError("unexpected ONNX protobuf end group")
+    target = stream.tell() + length
+    if target > end:
+        raise ValueError("truncated ONNX protobuf field")
+    stream.seek(target)
+
+
+@dataclass
+class OnnxMetadataState:
+    singular_messages: dict[int, OnnxMetadataState] = field(default_factory=dict)
+    data_location: int | None = None
+    external_data: dict[str, str] = field(default_factory=dict)
+
+
+def scan_external_data(stream, descriptor, end: int, locations: set[str]) -> None:
+    state = OnnxMetadataState()
+    scan_onnx_message(stream, descriptor, end, locations, state)
+    collect_external_locations(descriptor, state, locations)
+
+
+def collect_external_locations(descriptor, state: OnnxMetadataState, locations: set[str]) -> None:
+    import onnx
+
+    if descriptor.full_name == "onnx.TensorProto" and state.data_location == onnx.TensorProto.EXTERNAL:
+        if "location" not in state.external_data:
+            raise ValueError("ONNX external tensor lacks its location")
+        locations.add(state.external_data["location"])
+    for number, child in state.singular_messages.items():
+        collect_external_locations(descriptor.fields_by_number[number].message_type, child, locations)
+
+
+def scan_onnx_message(stream, descriptor, end: int, locations: set[str], state: OnnxMetadataState) -> None:
+    import onnx
+
+    # Follow the generated schema through graphs, attributes and functions.
+    # Seek past bytes fields (including inline tensor data), strings and packed
+    # scalars. Only external-data key/value entries need protobuf decoding.
+    # Protobuf merges repeated occurrences of a singular message. Retain that
+    # metadata until its parent closes, so split tensor messages cannot hide a
+    # later external-data location. Repeated message entries are independent.
+    tensor = descriptor.full_name == "onnx.TensorProto"
+    while stream.tell() < end:
+        number, wire = protobuf_tag(stream, end)
+        field = descriptor.fields_by_number.get(number)
+        if tensor and field is not None and field.name == "data_location" and wire == 0:
+            state.data_location = protobuf_varint(stream, end)
+        elif wire == 2 and field is not None and field.message_type is not None:
+            length = protobuf_varint(stream, end)
+            child_end = stream.tell() + length
+            if child_end > end:
+                raise ValueError("truncated ONNX protobuf message")
+            if tensor and field.name == "external_data":
+                entry = onnx.StringStringEntryProto.FromString(stream.read(length))
+                state.external_data[entry.key] = entry.value
+            else:
+                # New protobuf versions replace `label` with `is_repeated`.
+                repeated = (field.is_repeated if hasattr(field, "is_repeated")
+                            else field.label == field.LABEL_REPEATED)
+                if repeated:
+                    child = OnnxMetadataState()
+                else:
+                    child = state.singular_messages.get(number)
+                    if child is None:
+                        child = OnnxMetadataState()
+                        state.singular_messages[number] = child
+                scan_onnx_message(stream, field.message_type, child_end, locations, child)
+                if repeated:
+                    collect_external_locations(field.message_type, child, locations)
+        else:
+            skip_protobuf_field(stream, number, wire, end)
+
+
+def external_data_hashes(path: Path) -> dict[str, str]:
+    import onnx
+
+    # Do not load the model to discover its references: inline tensor payloads
+    # can be large too. The schema-directed scan only reads message metadata.
+    locations = set()
+    with path.open("rb") as stream:
+        scan_external_data(stream, onnx.ModelProto.DESCRIPTOR, path.stat().st_size, locations)
+    result = {}
+    for location in sorted(locations):
+        external = Path(source_child(str(path), location))
+        if not external.resolve().is_relative_to(path.parent.resolve()):
+            raise ValueError("external ONNX data escapes the model directory")
+        result[location] = file_sha256(external)
+    return result
+
+
+def read_source(source: str) -> bytes:
+    if urlparse(source).scheme in ("http", "https"):
+        with urlopen(Request(source, headers={"User-Agent": "jbotci-embedding-pack-builder/1"}), timeout=120) as response:
+            return response.read()
+    return Path(source).read_bytes()
+
+
+def source_child(source: str, child: str) -> str:
+    # A manifest names files below its own directory, never arbitrary local files.
+    if not child or urlparse(child).scheme or "\\" in child or any(
+        part in ("", ".", "..") for part in child.split("/")
+    ):
+        raise ValueError(f"invalid relative pack path: {child!r}")
+    if urlparse(source).scheme in ("http", "https"):
+        return urljoin(source, child)
+    return str(Path(source).parent / child)
+
+
+def load_previous_pack(args, identity: dict[str, object]) -> dict[str, np.ndarray]:
+    catalog_source = (
+        "https://assets.jbotci.app/embeddings/web/v1/catalog.json"
+        if args.reuse_published else args.reuse_catalog
+    )
+    source = args.reuse_from
+    if catalog_source:
+        catalog = json.loads(read_source(catalog_source))
+        entries = [
+            space
+            for model in catalog["models"] if model["model_key"] == args.model_key
+            for space in model["vector_spaces"] if space["vector_space_key"] == args.vector_space_key
+        ]
+        is_new = args.model_key in args.new_model
+        if is_new and any(model["model_key"] == args.model_key for model in catalog["models"]):
+            raise ValueError("model named by --new-model already has a reuse catalog entry")
+        if is_new and not entries:
+            return {}
+        if len(entries) != 1:
+            raise ValueError("reuse catalog must contain exactly one matching model and vector space")
+        source = source_child(catalog_source, entries[0]["manifest_url"])
+    if not source:
+        return {}
+    if Path(source).is_dir():
+        source = str(Path(source) / "manifest.json")
+    manifest = json.loads(read_source(source))
+    recorded = manifest.get("reuse_identity")
+    legacy = recorded is None or not identity.keys() <= recorded.keys()
+    if legacy and not args.adopt_legacy_pack:
+        raise ValueError("incompatible reuse pack: legacy pack requires --adopt-legacy-pack")
+    if recorded is not None:
+        for field, value in recorded.items():
+            if field in ("backend", "provider", "built_by", "input_format_version"):
+                continue
+            if field not in identity or value != identity[field]:
+                raise ValueError(f"incompatible reuse pack: reuse_identity {field} differs")
+    for field in (
+        "schema_version", "artifact_version", "model_key", "web_model", "model_revision",
+        "q4_onnx_sha256", "vector_space_key", "max_sequence_length",
+        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance",
+    ):
+        if manifest.get(field) != identity[field]:
+            raise ValueError(f"incompatible reuse pack: {field} differs")
+    for field, value in identity.items():
+        if field in manifest and manifest[field] != value:
+            raise ValueError(f"incompatible reuse pack: {field} differs")
+    if legacy:
+        args.legacy_adoption = {"source": source, "compatibility": "owner-attested-unrecorded-identity"}
+    elif manifest.get("legacy_adoption"):
+        # Preserve the attestation when vectors descend from an adopted pack.
+        args.legacy_adoption = manifest["legacy_adoption"]
+    # Corpus membership is output metadata. Equal exact inputs use the same
+    # vector even when a document moves between corpora.
+    result = {}
+    seen_corpora = set()
+    for corpus in manifest["corpora"]:
+        corpus_id = corpus["corpus_id"]
+        if corpus_id in seen_corpora:
+            raise ValueError(f"duplicate reuse corpus: {corpus_id}")
+        seen_corpora.add(corpus_id)
+        files = {}
+        for kind in ("items", "vector"):
+            data = read_source(source_child(source, corpus[f"{kind}_url"]))
+            if sha256(data) != corpus[f"{kind}_sha256"]:
+                raise ValueError(f"{corpus_id}: {kind} SHA-256 mismatch")
+            files[kind] = data
+        count, dimensions = corpus["row_count"], identity["dimensions"]
+        if (corpus["dimensions"] != dimensions or count < 0
+                or len(files["vector"]) != count * dimensions * 2
+                or corpus["vector_byte_len"] != len(files["vector"])):
+            raise ValueError(f"{corpus_id}: invalid reuse vector shape")
+        items = json.loads(files["items"])
+        if len(items) != count:
+            raise ValueError(f"{corpus_id}: invalid reuse item count")
+        vectors = np.frombuffer(files["vector"], dtype="<f2").reshape(count, dimensions)
+        if not np.isfinite(vectors).all():
+            raise ValueError(f"{corpus_id}: non-finite reuse vectors")
+        for row, item in enumerate(items):
+            digest = item["input_hash"]
+            if item["row"] != row or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError(f"{corpus_id}: invalid reuse row or input hash")
+            if digest in result and result[digest].tobytes() != vectors[row].tobytes():
+                raise ValueError(f"{corpus_id}: conflicting vectors for the same input hash")
+            result[digest] = vectors[row]
+    if seen_corpora != {corpus_id for corpus_id, _, _ in CORPORA}:
+        raise ValueError("reuse pack must contain both corpora")
+    return result
+
+
+def atomic_write(path: Path, content: bytes) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    with temporary.open("wb") as target:
+        target.write(content)
+        target.flush()
+        os.fsync(target.fileno())
+    durable_replace(temporary, path)
+
+
+def durable_replace(source: Path, destination: Path, *, platform: str | None = None) -> None:
+    # Persist the rename before a checkpoint can refer to the file.
+    if (os.name if platform is None else platform) == "nt":
+        move = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        move.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+        move.restype = wintypes.BOOL
+        # Resolve the parent without following a leaf symlink.
+        parent = destination.parent.resolve()
+        if not move(str(parent / source.name), str(parent / destination.name),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH):
+            raise ctypes.WinError(ctypes.get_last_error())
+    else:
+        source.replace(destination)
+        descriptor = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+
+def open_checkpoint(work, args, identity, pack_id, corpus):
+    row_hashes = {}
+    layout = {}
+    for corpus_id, source_key, _ in CORPORA:
+        docs = corpus.get(source_key, [])
+        if not isinstance(docs, list):
+            raise ValueError(f"corpus field {source_key} must be an array")
+        for doc in docs:
+            if sha256(doc["input"].encode("utf-8")) != doc["inputHash"]:
+                raise ValueError(f"{corpus_id}: inputHash does not match exact input text")
+        row_hashes[corpus_id] = [doc["inputHash"] for doc in docs]
+        layout[corpus_id] = [[start, min(args.chunk_rows, len(docs) - start)]
+                             for start in range(0, len(docs), args.chunk_rows)]
+    header = {"schema_version": 1, "identity": identity, "pack_id": pack_id,
+              "row_hashes": row_hashes, "layout": layout, "chunk_rows": args.chunk_rows,
+              "corpus_sha256": sha256(json_bytes(corpus)),
+              "legacy_adoption": getattr(args, "legacy_adoption", None)}
+    checkpoint = None
+    if work.exists():
+        try:
+            checkpoint = read_json(work / "checkpoint.json")
+            if not isinstance(checkpoint, dict) or checkpoint.get("header") != header:
+                checkpoint = None
+            elif not isinstance(checkpoint.get("chunks"), dict):
+                checkpoint = None
+        except (OSError, ValueError):
+            pass
+        if args.discard_checkpoint or checkpoint is None:
+            print(f"Discarding checkpoint {work}: fresh start requested or identity, corpus, or layout differs", flush=True)
+            shutil.rmtree(work)
+            checkpoint = None
+    work.mkdir(parents=True, exist_ok=True)
+    if checkpoint is None:
+        checkpoint = {"header": header, "chunks": {}}
+    # Only generated names from the expected layout can select files.
+    expected = {f"{corpus_id}-{start}.f16": count * args.dimensions * 2
+                for corpus_id, chunks in layout.items() for start, count in chunks}
+    for name in list(checkpoint["chunks"]):
+        path = work / name if name in expected else None
+        if (path is None or not path.is_file() or path.stat().st_size != expected[name]
+                or file_sha256(path) != checkpoint["chunks"][name]):
+            print(f"Discarding checkpoint chunk {name}: missing or SHA-256 mismatch", flush=True)
+            del checkpoint["chunks"][name]
+    atomic_write(work / "checkpoint.json", json_bytes(checkpoint))
+    return checkpoint
+
+
 def write_corpus(
     pack_root: Path,
     corpus: dict[str, object],
@@ -222,19 +621,42 @@ def write_corpus(
     dimensions: int,
     max_sequence_length: int,
     progress_label: str,
+    reusable_rows: dict[str, np.ndarray],
+    work: Path,
+    checkpoint: dict,
+    chunk_rows: int,
 ) -> dict[str, object]:
+    # open_checkpoint validated every input before exposing any saved chunk.
     docs = corpus.get(source_key, [])
-    if not isinstance(docs, list):
-        raise ValueError(f"corpus field {source_key} must be an array")
-    vectors = embed_texts(
-        [str(doc["input"]) for doc in docs],
-        tokenizer,
-        session,
-        batch_size,
-        dimensions,
-        max_sequence_length,
-        progress_label,
-    )
+    resumed_chunks = resumed_rows = reused_rows = embedded_rows = 0
+    chunk_paths = []
+    for start in range(0, len(docs), chunk_rows):
+        chunk = docs[start:start + chunk_rows]
+        name = f"{corpus_id}-{start}.f16"
+        path = work / name
+        if name in checkpoint["chunks"]:
+            resumed_chunks += 1
+            resumed_rows += len(chunk)
+        else:
+            missing = [doc for doc in chunk if doc["inputHash"] not in reusable_rows]
+            fresh = iter(embed_texts(
+                [doc["input"] for doc in missing], tokenizer, session, batch_size,
+                dimensions, max_sequence_length, progress_label))
+            vectors = np.empty((len(chunk), dimensions), dtype="<f2")
+            for row, doc in enumerate(chunk):
+                reused = reusable_rows.get(doc["inputHash"])
+                vectors[row] = reused if reused is not None else next(fresh)
+            content = vectors.tobytes()
+            atomic_write(path, content)
+            checkpoint["chunks"][name] = sha256(content)
+            atomic_write(work / "checkpoint.json", json_bytes(checkpoint))
+            reused_rows += len(chunk) - len(missing)
+            embedded_rows += len(missing)
+        chunk_paths.append(path)
+    if not docs:
+        embed_texts([], tokenizer, session, batch_size, dimensions, max_sequence_length, progress_label)
+    print(f"{progress_label}: reused {reused_rows} rows, embedded {embedded_rows} rows, "
+          f"resumed {resumed_chunks} chunks ({resumed_rows} rows)", flush=True)
     corpus_dir = pack_root / "corpora" / corpus_id
     corpus_dir.mkdir(parents=True)
     items = [
@@ -250,10 +672,15 @@ def write_corpus(
     items_sha256 = sha256(items_bytes)
     items_name = f"items.{items_sha256}.json"
     (corpus_dir / items_name).write_bytes(items_bytes)
-    vector_bytes = vectors.astype("<f2", copy=False).tobytes()
-    vector_sha256 = sha256(vector_bytes)
+    assembled = corpus_dir / "vectors.tmp"
+    with assembled.open("wb") as target:
+        for path in chunk_paths:
+            with path.open("rb") as source:
+                shutil.copyfileobj(source, target)
+    vector_sha256 = file_sha256(assembled)
     vector_name = f"vectors.{vector_sha256}.f16"
-    (corpus_dir / vector_name).write_bytes(vector_bytes)
+    vector_byte_len = assembled.stat().st_size
+    assembled.rename(corpus_dir / vector_name)
     return {
         "corpus_id": corpus_id,
         "input_format_version": corpus["inputFormatVersion"],
@@ -263,7 +690,7 @@ def write_corpus(
         "items_url": f"corpora/{corpus_id}/{items_name}",
         "items_sha256": items_sha256,
         "vector_url": f"corpora/{corpus_id}/{vector_name}",
-        "vector_byte_len": len(vector_bytes),
+        "vector_byte_len": vector_byte_len,
         "vector_sha256": vector_sha256,
     }
 
