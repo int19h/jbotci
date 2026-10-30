@@ -8,10 +8,11 @@ import os
 import shutil
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urljoin, urlparse
+from urllib.request import urlopen
+from importlib.metadata import version
 
 import numpy as np
-import onnxruntime as ort
-from transformers import AutoTokenizer
 
 
 SCHEMA_VERSION = 1
@@ -39,6 +40,9 @@ PROGRESS_WINDOW_INTERVAL = 512
 
 def main() -> None:
     args = parse_args()
+    # Keep pack inspection and deterministic tool tests independent of model runtimes.
+    import onnxruntime as ort
+    from transformers import AutoTokenizer
     q4_onnx = Path(args.q4_onnx)
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else q4_onnx.parent.parent
     output = Path(args.out)
@@ -54,10 +58,6 @@ def main() -> None:
     stage = Path(args.stage) if args.stage else Path(f"{output}.staging")
     if stage == output:
         raise ValueError("--stage must differ from --out")
-    # --stage is scratch for this run, never an output: it is always cleared.
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True)
-
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
     session_options = ort.SessionOptions()
     if args.threads is not None:
@@ -68,6 +68,11 @@ def main() -> None:
         str(q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
     )
     q4_onnx_sha256 = file_sha256(q4_onnx)
+    identity = reuse_identity(args, corpus, q4_onnx_sha256, tokenizer)
+    previous = load_previous_pack(args, identity)
+    # Read and validate the source before clearing scratch or replacing output.
+    shutil.rmtree(stage, ignore_errors=True)
+    stage.mkdir(parents=True)
     compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime, args.max_sequence_length)
 
     pack_id = "-".join([
@@ -94,12 +99,14 @@ def main() -> None:
             dimensions=args.dimensions,
             max_sequence_length=args.max_sequence_length,
             progress_label=f"{args.model_key} {corpus_id}",
+            reusable_rows=previous.get(corpus_id, {}),
         ))
 
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "artifact_version": ARTIFACT_VERSION,
+        "reuse_identity": identity,
         "model_key": args.model_key,
         "model_revision": args.revision or "",
         "web_model": args.model_id,
@@ -154,6 +161,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
+    reuse = parser.add_mutually_exclusive_group()
+    reuse.add_argument("--reuse-from", help="previous pack directory or manifest URL")
+    reuse.add_argument("--reuse-catalog", help="previous catalog path or URL, selected by model and space")
+    reuse.add_argument("--reuse-published", action="store_true", help="reuse the current public web catalog entry")
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -210,6 +221,127 @@ def compatible_runtimes(include_wasm_runtime: bool, max_sequence_length: int) ->
     return runtimes
 
 
+def reuse_identity(args, corpus, model_hash: str, tokenizer) -> dict[str, object]:
+    import onnx
+
+    # The graph alone does not identify the tokenizer or numerical backend.
+    # Hash the effective tokenizer after loading, including the special-token IDs.
+    tokenizer_state = {
+        "backend": tokenizer.backend_tokenizer.to_str(),
+        "special_tokens": tokenizer.special_tokens_map,
+        "eos": tokenizer.eos_token_id,
+        "pad": tokenizer.pad_token_id,
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "artifact_version": ARTIFACT_VERSION,
+        "model_key": args.model_key,
+        "web_model": args.model_id,
+        "model_revision": args.revision or "",
+        "q4_onnx_sha256": model_hash,
+        # External ONNX weights are not covered by the graph file's hash.
+        "loaded_onnx_sha256": sha256(onnx.load(args.q4_onnx, load_external_data=True).SerializeToString(deterministic=True)),
+        "vector_space_key": args.vector_space_key,
+        "input_format_version": corpus["inputFormatVersion"],
+        "max_sequence_length": args.max_sequence_length,
+        "max_window_tokens": args.max_sequence_length,
+        "pooling": POOLING,
+        "dimensions": args.dimensions,
+        "element_type": "f16le",
+        "normalized": True,
+        "distance": "dot",
+        "tokenizer_sha256": sha256(json_bytes(tokenizer_state)),
+        "windowing": "append-eos-contiguous-nonoverlapping-last-token-l2-mean-l2-v1",
+        "backend": {name: version(name) for name in ("onnx", "onnxruntime", "transformers", "tokenizers", "numpy")},
+        "provider": "CPUExecutionProvider",
+    }
+
+
+def read_source(source: str) -> bytes:
+    if urlparse(source).scheme in ("http", "https"):
+        with urlopen(source, timeout=120) as response:
+            return response.read()
+    return Path(source).read_bytes()
+
+
+def source_child(source: str, child: str) -> str:
+    # A manifest names files below its own directory, never arbitrary local files.
+    if not child or urlparse(child).scheme or "\\" in child or any(
+        part in ("", ".", "..") for part in child.split("/")
+    ):
+        raise ValueError(f"invalid relative pack path: {child!r}")
+    if urlparse(source).scheme in ("http", "https"):
+        return urljoin(source, child)
+    return str(Path(source).parent / child)
+
+
+def load_previous_pack(args, identity: dict[str, object]) -> dict[str, dict[str, np.ndarray]]:
+    catalog_source = (
+        "https://assets.jbotci.app/embeddings/web/v1/catalog.json"
+        if args.reuse_published else args.reuse_catalog
+    )
+    source = args.reuse_from
+    if catalog_source:
+        catalog = json.loads(read_source(catalog_source))
+        entries = [
+            space
+            for model in catalog["models"] if model["model_key"] == args.model_key
+            for space in model["vector_spaces"] if space["vector_space_key"] == args.vector_space_key
+        ]
+        if len(entries) != 1:
+            raise ValueError("reuse catalog must contain exactly one matching model and vector space")
+        source = source_child(catalog_source, entries[0]["manifest_url"])
+    if not source:
+        return {}
+    if Path(source).is_dir():
+        source = str(Path(source) / "manifest.json")
+    manifest = json.loads(read_source(source))
+    if manifest.get("reuse_identity") != identity:
+        raise ValueError("incompatible reuse pack: reuse_identity differs or is missing (legacy pack)")
+    for field in (
+        "schema_version", "artifact_version", "model_key", "web_model", "model_revision",
+        "q4_onnx_sha256", "vector_space_key", "input_format_version", "max_sequence_length",
+        "max_window_tokens", "pooling", "dimensions", "element_type", "normalized", "distance",
+    ):
+        if manifest.get(field) != identity[field]:
+            raise ValueError(f"incompatible reuse pack: {field} differs")
+    result = {}
+    for corpus in manifest["corpora"]:
+        corpus_id = corpus["corpus_id"]
+        if corpus_id in result:
+            raise ValueError(f"duplicate reuse corpus: {corpus_id}")
+        files = {}
+        for kind in ("items", "vector"):
+            data = read_source(source_child(source, corpus[f"{kind}_url"]))
+            if sha256(data) != corpus[f"{kind}_sha256"]:
+                raise ValueError(f"{corpus_id}: {kind} SHA-256 mismatch")
+            files[kind] = data
+        count, dimensions = corpus["row_count"], identity["dimensions"]
+        if (corpus["input_format_version"] != identity["input_format_version"]
+                or corpus["dimensions"] != dimensions or count < 0
+                or len(files["vector"]) != count * dimensions * 2
+                or corpus["vector_byte_len"] != len(files["vector"])):
+            raise ValueError(f"{corpus_id}: invalid reuse vector shape")
+        items = json.loads(files["items"])
+        if len(items) != count:
+            raise ValueError(f"{corpus_id}: invalid reuse item count")
+        vectors = np.frombuffer(files["vector"], dtype="<f2").reshape(count, dimensions)
+        if not np.isfinite(vectors).all():
+            raise ValueError(f"{corpus_id}: non-finite reuse vectors")
+        rows = {}
+        for row, item in enumerate(items):
+            digest = item["input_hash"]
+            if item["row"] != row or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError(f"{corpus_id}: invalid reuse row or input hash")
+            if digest in rows and not np.array_equal(rows[digest], vectors[row]):
+                raise ValueError(f"{corpus_id}: conflicting vectors for the same input hash")
+            rows[digest] = vectors[row]
+        result[corpus_id] = rows
+    if set(result) != {corpus_id for corpus_id, _, _ in CORPORA}:
+        raise ValueError("reuse pack must contain both corpora")
+    return result
+
+
 def write_corpus(
     pack_root: Path,
     corpus: dict[str, object],
@@ -222,12 +354,19 @@ def write_corpus(
     dimensions: int,
     max_sequence_length: int,
     progress_label: str,
+    reusable_rows: dict[str, np.ndarray] | None = None,
 ) -> dict[str, object]:
     docs = corpus.get(source_key, [])
     if not isinstance(docs, list):
         raise ValueError(f"corpus field {source_key} must be an array")
-    vectors = embed_texts(
-        [str(doc["input"]) for doc in docs],
+    reusable_rows = reusable_rows or {}
+    # Verify the exact text rather than trusting an unchecked export's inputHash.
+    for doc in docs:
+        if sha256(doc["input"].encode("utf-8")) != doc["inputHash"]:
+            raise ValueError(f"{corpus_id}: inputHash does not match exact input text")
+    missing = [row for row, doc in enumerate(docs) if doc["inputHash"] not in reusable_rows]
+    fresh = embed_texts(
+        [docs[row]["input"] for row in missing],
         tokenizer,
         session,
         batch_size,
@@ -235,6 +374,12 @@ def write_corpus(
         max_sequence_length,
         progress_label,
     )
+    vectors = np.empty((len(docs), dimensions), dtype="<f2")
+    fresh_rows = iter(fresh)
+    for row, doc in enumerate(docs):
+        reused = reusable_rows.get(doc["inputHash"])
+        vectors[row] = reused if reused is not None else next(fresh_rows)
+    print(f"{progress_label}: reused {len(docs) - len(missing)} rows, embedded {len(missing)} rows", flush=True)
     corpus_dir = pack_root / "corpora" / corpus_id
     corpus_dir.mkdir(parents=True)
     items = [
