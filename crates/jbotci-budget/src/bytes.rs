@@ -120,7 +120,10 @@ impl BudgetedWriter {
         };
         let mut state = state.into_data();
         let result = (|| {
-            state.budget.charge(count).map_err(io::Error::other)?;
+            state
+                .budget
+                .charge(count)
+                .map_err(|error| io::Error::new(io::ErrorKind::FileTooLarge, error))?;
             state
                 .bytes
                 .try_reserve_exact(count)
@@ -149,7 +152,10 @@ impl Write for BudgetedWriter {
         };
         let mut state = state.into_data();
         let result = (|| {
-            state.budget.charge(bytes.len()).map_err(io::Error::other)?;
+            state
+                .budget
+                .charge(bytes.len())
+                .map_err(|error| io::Error::new(io::ErrorKind::FileTooLarge, error))?;
             state
                 .bytes
                 .try_reserve_exact(bytes.len())

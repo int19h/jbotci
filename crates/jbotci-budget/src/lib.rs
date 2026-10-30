@@ -1,6 +1,8 @@
 //! Byte budgets shared by renderers and server adapters.
 mod bytes;
+mod text;
 pub use bytes::*;
+pub use text::{TextBuffer, TextScope};
 
 use bityzba::{invariant, requires};
 

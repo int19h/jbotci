@@ -8,6 +8,14 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-budget/src/text.rs:TextScope",
+        "A validated byte limit and a shared failure flag have no further constraint.",
+    ),
+    (
+        "crates/jbotci-budget/src/text.rs:TextBuffer",
+        "The writer enforces its byte bound. The scope records failures from nested preparation.",
+    ),
+    (
         "crates/jbotci-budget/src/bytes.rs:BudgetedWriter",
         "A writer is closed or owns a buffer with validated bounds. A panic closes it.",
     ),
