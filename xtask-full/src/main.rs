@@ -1,5 +1,7 @@
 #![recursion_limit = "1024"]
 
+mod r2_publish;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::ffi::OsStr;
@@ -2788,6 +2790,7 @@ fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
 #[requires(!args.reuse.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
+    let publisher = r2_publish::Publisher::from_env()?;
     let model_out_root = absolute_path(&args.model_out_root)?;
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
@@ -2834,16 +2837,16 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     for spec in F2LLM_MODEL_SPECS {
         let model_dir = f2llm_model_artifact_out_dir(&model_out_root, spec);
         let model_objects = r2_upload_tree_objects(&model_dir, spec.webgpu_r2_prefix)?;
-        put_r2_objects(&args.bucket, &model_objects)?;
+        put_r2_objects(&publisher, &args.bucket, &model_objects)?;
     }
 
     let onnx_fallback_dir = f2llm_onnx_fallback_out_dir(&model_out_root);
     let onnx_objects = r2_upload_tree_objects(&onnx_fallback_dir, F2LLM_ONNX_FALLBACK_R2_PREFIX)?;
-    put_r2_objects(&args.bucket, &onnx_objects)?;
+    put_r2_objects(&publisher, &args.bucket, &onnx_objects)?;
 
     let vector_objects =
         r2_upload_objects_without_catalog(&vector_out_dir, &args.embedding_prefix)?;
-    put_r2_objects(&args.bucket, &vector_objects)?;
+    put_r2_objects(&publisher, &args.bucket, &vector_objects)?;
 
     let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-f2llm-merged-catalog"))?;
     fs::create_dir_all(&merged_catalog_dir)
@@ -2874,7 +2877,7 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let embedding_prefix = normalize_r2_prefix(&args.embedding_prefix)?;
     let catalog_object =
         r2_upload_object_for_key(&merged_catalog_dir, &embedding_prefix, "catalog.json")?;
-    put_r2_object(&args.bucket, &catalog_object)
+    publisher.put(&args.bucket, &catalog_object)
 }
 
 #[requires(path.is_absolute())]
@@ -3117,6 +3120,7 @@ fn build_gguf_embeddings_with_setup(
 #[requires(!args.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
+    let publisher = r2_publish::Publisher::from_env()?;
     let out_dir = absolute_path(&args.out_dir)?;
     let selected_models = selected_gguf_model_keys(&args.models)?;
     if !args.skip_build {
@@ -3135,7 +3139,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
         validate_native_gguf_r2_tree(&out_dir)?;
     }
     let pack_objects = r2_upload_native_objects_without_catalog(&out_dir, &args.prefix)?;
-    put_r2_objects(&args.bucket, &pack_objects)?;
+    put_r2_objects(&publisher, &args.bucket, &pack_objects)?;
 
     let remote_catalog =
         fetch_optional_json_catalog(&args.remote_catalog_url).with_context(|| {
@@ -3160,7 +3164,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
     write_json_file(&catalog_path, &merged_catalog)?;
     let prefix = normalize_r2_prefix(&args.prefix)?;
     let catalog_object = r2_upload_object_for_key(&merged_catalog_dir, &prefix, "catalog.json")?;
-    put_r2_object(&args.bucket, &catalog_object)
+    publisher.put(&args.bucket, &catalog_object)
 }
 
 #[requires(!args.bucket.trim().is_empty())]
@@ -3169,6 +3173,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
 #[requires(!args.backend.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
+    let publisher = r2_publish::Publisher::from_env()?;
     let output = absolute_path(&args.out_dir)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
     let outputs = new!(WebEmbeddingOutputs {
@@ -3195,7 +3200,7 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
         outputs,
     )?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
-    put_r2_objects(&args.bucket, &objects)?;
+    put_r2_objects(&publisher, &args.bucket, &objects)?;
     Ok(())
 }
 
@@ -5250,7 +5255,11 @@ fn path_has_extension(path: &Path, extension: &str) -> bool {
 #[requires(!bucket.trim().is_empty())]
 #[requires(!objects.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn put_r2_objects(bucket: &str, objects: &[R2UploadObject]) -> Result<()> {
+fn put_r2_objects(
+    publisher: &r2_publish::Publisher,
+    bucket: &str,
+    objects: &[R2UploadObject],
+) -> Result<()> {
     let (boundary_objects, data_objects): (Vec<_>, Vec<_>) = objects
         .iter()
         .partition(|object| r2_upload_boundary_object(&object.object_key));
@@ -5261,10 +5270,10 @@ fn put_r2_objects(bucket: &str, objects: &[R2UploadObject]) -> Result<()> {
     pool.install(|| {
         data_objects
             .par_iter()
-            .try_for_each(|object| put_r2_object(bucket, object))
+            .try_for_each(|object| publisher.put(bucket, object))
     })?;
     for object in boundary_objects {
-        put_r2_object(bucket, object)?;
+        publisher.put(bucket, object)?;
     }
     Ok(())
 }
@@ -5276,40 +5285,6 @@ fn r2_upload_boundary_object(object_key: &str) -> bool {
         || object_key.ends_with("/catalog.json")
         || object_key == "manifest.json"
         || object_key.ends_with("/manifest.json")
-}
-
-#[requires(!bucket.trim().is_empty())]
-#[requires(!object.object_key.trim().is_empty())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn put_r2_object(bucket: &str, object: &R2UploadObject) -> Result<()> {
-    let target = format!("{}/{}", bucket.trim(), object.object_key);
-    let mut command = ProcessCommand::new("npx");
-    command
-        .arg("--yes")
-        .arg("wrangler")
-        .arg("r2")
-        .arg("object")
-        .arg("put")
-        .arg(target)
-        .arg("--file")
-        .arg(&object.local_path)
-        .arg("--content-type")
-        .arg(object.content_type)
-        .arg("--cache-control")
-        .arg(object.cache_control)
-        .arg("--remote")
-        .arg("--force");
-    if let Some(content_encoding) = object.content_encoding {
-        command.arg("--content-encoding").arg(content_encoding);
-    }
-    let status = command.status().with_context(|| {
-        format!(
-            "uploading `{}` to R2 object `{}`",
-            object.local_path.display(),
-            object.object_key
-        )
-    })?;
-    check_status(status, "npx --yes wrangler r2 object put")
 }
 
 #[requires(true)]
