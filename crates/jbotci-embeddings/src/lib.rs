@@ -1136,27 +1136,82 @@ pub fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, Em
 #[requires(path.is_file())]
 #[ensures(true)]
 pub fn write_brotli_sibling(path: &Path) -> Result<(), EmbeddingError> {
-    let bytes = fs::read(path).map_err(|source| EmbeddingError::Io {
-        context: format!("failed to read `{}`", path.display()),
+    let br_path = sibling_path_with_suffix(path, "br")?;
+    let temp_path = sibling_path_with_suffix(&br_path, "tmp")?;
+    let mut input = BufReader::new(File::open(path).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to open `{}`", path.display()),
         source,
-    })?;
-    let br_path = PathBuf::from(format!("{}.br", path.display()));
-    let file = File::create(&br_path).map_err(|source| EmbeddingError::Io {
-        context: format!("failed to create `{}`", br_path.display()),
-        source,
-    })?;
-    let mut compressor = brotli::CompressorWriter::new(BufWriter::new(file), 4096, 5, 22);
-    compressor
-        .write_all(&bytes)
-        .map_err(|source| EmbeddingError::Io {
+    })?);
+    let mut output =
+        BufWriter::new(
+            File::create(&temp_path).map_err(|source| EmbeddingError::Io {
+                context: format!("failed to create `{}`", temp_path.display()),
+                source,
+            })?,
+        );
+    let parameters = brotli::enc::BrotliEncoderParams {
+        quality: 5,
+        lgwin: 22,
+        ..Default::default()
+    };
+    // Finish compression through a fallible call before the file sync.
+    brotli::BrotliCompress(&mut input, &mut output, &parameters).map_err(|source| {
+        EmbeddingError::Io {
             context: format!("failed to compress `{}`", path.display()),
             source,
-        })?;
-    compressor.flush().map_err(|source| EmbeddingError::Io {
-        context: format!("failed to flush `{}`", br_path.display()),
+        }
+    })?;
+    output.flush().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to flush `{}`", temp_path.display()),
         source,
     })?;
-    Ok(())
+    sync_file(output.get_ref(), &temp_path)?;
+    drop(output);
+    rename_file_durably(&temp_path, &br_path)
+}
+
+/// Compare a compressed sibling with its original before selecting it for export.
+#[requires(path.is_file())]
+#[ensures(true)]
+pub fn validate_brotli_sibling(path: &Path) -> Result<(), EmbeddingError> {
+    let br_path = sibling_path_with_suffix(path, "br")?;
+    if !br_path.is_file() {
+        return Ok(());
+    }
+    let compare = || -> std::io::Result<bool> {
+        let mut original = BufReader::new(File::open(path)?);
+        let mut decoded = brotli::Decompressor::new(BufReader::new(File::open(&br_path)?), 4096);
+        let mut expected = [0_u8; 8192];
+        let mut actual = [0_u8; 8192];
+        loop {
+            let count = original.read(&mut expected)?;
+            if count == 0 {
+                return Ok(decoded.read(&mut actual[..1])? == 0);
+            }
+            decoded.read_exact(&mut actual[..count])?;
+            if actual[..count] != expected[..count] {
+                return Ok(false);
+            }
+        }
+    };
+    match compare() {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "compressed sibling `{}` differs from `{}`",
+                br_path.display(),
+                path.display()
+            ),
+        }),
+        Err(source) => Err(EmbeddingError::Io {
+            context: format!(
+                "failed to compare compressed sibling `{}` with `{}`",
+                br_path.display(),
+                path.display()
+            ),
+            source,
+        }),
+    }
 }
 
 #[requires(dimensions > 0)]
@@ -2575,6 +2630,8 @@ where
             && partial_shard.row_count == row_count
         {
             let _ = read_native_partial_vector_shard(pack_dir, partial_shard, dimensions)?;
+            // Compressed copies are derived. A crash can leave an older copy.
+            write_brotli_sibling(&pack_dir.join(&partial_shard.url))?;
             shards.push(vector_shard_from_native_partial(partial_shard));
             counts.resumed += row_count;
             *completed_rows = completed_rows.saturating_add(row_count as u64);
@@ -3247,7 +3304,7 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
             ),
         });
     }
-    native_pack_remote_paths(&manifest)?;
+    let remote_paths = native_pack_remote_paths(&manifest)?;
     for corpus in &manifest.corpora {
         let items_path = path.join(&corpus.items_url);
         require_index_file(&items_path, "embedding corpus items file")?;
@@ -3258,6 +3315,10 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
             });
         }
         let _ = read_vector_shards(path, corpus, manifest.dimensions)?;
+    }
+    validate_brotli_sibling(&manifest_path)?;
+    for relative in remote_paths {
+        validate_brotli_sibling(&path.join(relative))?;
     }
     Ok(())
 }
@@ -4030,6 +4091,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{contract_trait, ensures, requires};
+    use std::collections::BTreeMap;
 
     #[derive(Debug)]
     #[invariant(true)]
@@ -5204,16 +5266,48 @@ mod tests {
         );
         assert_eq!(incremental_report.row_counts[1].reused, 1);
         assert_eq!(incremental_report.row_counts[1].embedded, 2);
-        for relative in native_pack_remote_paths(&full_manifest)
-            .expect("files")
-            .into_iter()
-        {
-            assert_eq!(
-                fs::read(incremental_pack.join(&relative)).expect("incremental file"),
-                fs::read(full_pack.join(&relative)).expect("full file"),
-                "{relative}"
-            );
+        assert_eq!(
+            pack_file_tree(&incremental_pack),
+            pack_file_tree(&full_pack)
+        );
+        let shard = full_manifest
+            .corpora
+            .iter()
+            .flat_map(|corpus| &corpus.shards)
+            .next()
+            .unwrap();
+        let original = full_pack.join(&shard.url);
+        let compressed = sibling_path_with_suffix(&original, "br").unwrap();
+        fs::write(&compressed, b"truncated").unwrap();
+        assert!(validate_pack_dir(&full_pack).is_err());
+        write_brotli_sibling(&original).unwrap();
+        validate_pack_dir(&full_pack).unwrap();
+        let bytes = fs::read(&original).unwrap();
+        fs::write(&original, b"other content").unwrap();
+        write_brotli_sibling(&original).unwrap();
+        fs::write(&original, bytes).unwrap();
+        assert!(validate_pack_dir(&full_pack).is_err());
+    }
+
+    #[requires(root.is_dir())]
+    #[ensures(true)]
+    fn pack_file_tree(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+        let mut files = BTreeMap::new();
+        let mut directories = vec![root.to_path_buf()];
+        while let Some(directory) = directories.pop() {
+            for entry in fs::read_dir(directory).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    directories.push(path);
+                } else {
+                    files.insert(
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        fs::read(path).unwrap(),
+                    );
+                }
+            }
         }
+        files
     }
 
     #[test]
@@ -5568,18 +5662,11 @@ mod tests {
                     0
                 }
             );
-            for corpus in actual.corpora {
-                assert_eq!(
-                    fs::read(actual_root.join(&corpus.items_url)).unwrap(),
-                    fs::read(full_root.join(&corpus.items_url)).unwrap()
-                );
-                for shard in corpus.shards {
-                    assert_eq!(
-                        fs::read(actual_root.join(&shard.url)).unwrap(),
-                        fs::read(full_root.join(&shard.url)).unwrap()
-                    );
-                }
-            }
+            assert_eq!(
+                pack_file_tree(&actual_root),
+                pack_file_tree(&full_root),
+                "{change}"
+            );
         }
     }
 
@@ -6237,7 +6324,13 @@ mod tests {
         let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
         let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..515];
         let spec = test_embedding_spec();
-        for change in ["missing", "corrupt", "unrecorded", "checkpoint-write"] {
+        for change in [
+            "missing",
+            "corrupt",
+            "unrecorded",
+            "checkpoint-write",
+            "brotli",
+        ] {
             let dir = tempfile::tempdir().unwrap();
             let full = tempfile::tempdir().unwrap();
             let work = test_work_root(dir.path(), &spec, &dictionary, chunks).unwrap();
@@ -6289,6 +6382,13 @@ mod tests {
                     corpus.shards.pop();
                 }
                 "checkpoint-write" => {}
+                "brotli" => {
+                    let compressed = sibling_path_with_suffix(&path, "br").unwrap();
+                    let mut bytes = fs::read(&compressed).unwrap();
+                    bytes.truncate(bytes.len() / 2);
+                    fs::write(compressed, bytes).unwrap();
+                    assert!(validate_brotli_sibling(&path).is_err());
+                }
                 _ => unreachable!(),
             }
             write_native_partial_checkpoint(&checkpoint_path, &checkpoint).unwrap();
@@ -6299,8 +6399,9 @@ mod tests {
             let report =
                 build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false)
                     .unwrap();
-            assert_eq!(backend.calls, 259, "{change}");
-            assert_eq!(report.row_counts[1].resumed, 256);
+            let resumed = if change == "brotli" { 512 } else { 256 };
+            assert_eq!(backend.calls, 515 - resumed, "{change}");
+            assert_eq!(report.row_counts[1].resumed, resumed);
             build_embedding_pack(
                 &mut FakeBackend {
                     dimensions: 4,
@@ -6313,20 +6414,14 @@ mod tests {
                 false,
             )
             .unwrap();
-            let (root, manifest) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+            let (root, _) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
             let (expected, _) = read_latest_pack_manifest(full.path(), &spec.model_key).unwrap();
             assert_eq!(
                 fs::read(root.join("manifest.json")).unwrap(),
                 fs::read(expected.join("manifest.json")).unwrap(),
                 "{change}"
             );
-            for path in native_pack_remote_paths(&manifest).unwrap() {
-                assert_eq!(
-                    fs::read(root.join(&path)).unwrap(),
-                    fs::read(expected.join(&path)).unwrap(),
-                    "{change}: {path}"
-                );
-            }
+            assert_eq!(pack_file_tree(&root), pack_file_tree(&expected), "{change}");
         }
     }
 

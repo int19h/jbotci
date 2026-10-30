@@ -5108,6 +5108,7 @@ fn r2_upload_object_for_key(
     }
     let brotli_path = brotli_sidecar_path(&local_uncompressed)?;
     let (local_path, content_encoding) = if brotli_path.is_file() {
+        jbotci_embeddings::validate_brotli_sibling(&local_uncompressed)?;
         (brotli_path, Some("br"))
     } else {
         (local_uncompressed, None)
@@ -15838,6 +15839,8 @@ elif 'build-vector-pack.py' in args[0]:
             &serde_json::to_value(manifest).unwrap(),
         )
         .unwrap();
+        assert!(jbotci_embeddings::validate_pack_dir(&pack_dir).is_err());
+        jbotci_embeddings::write_brotli_sibling(&pack_dir.join("manifest.json")).unwrap();
         let validated =
             jbotci_embeddings::validate_native_reuse_source_with_adoption(&source, &spec, true)
                 .unwrap();
@@ -16962,7 +16965,7 @@ const generatedWasmPath = "assets/missing.wasm";"#,
 "#,
         )
         .unwrap();
-        fs::write(root.join("catalog.json.br"), "compressed catalog").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&root.join("catalog.json")).unwrap();
         fs::write(
             root.join("models/model/spaces/transformers-js-q4/packs/pack/manifest.json"),
             r#"{
@@ -16978,15 +16981,14 @@ const generatedWasmPath = "assets/missing.wasm";"#,
 "#,
         )
         .unwrap();
-        fs::write(
-            root.join("models/model/spaces/transformers-js-q4/packs/pack/manifest.json.br"),
-            "compressed manifest",
+        jbotci_embeddings::write_brotli_sibling(
+            &root.join("models/model/spaces/transformers-js-q4/packs/pack/manifest.json"),
         )
         .unwrap();
         fs::write(pack.join("items.json"), "[]").unwrap();
-        fs::write(pack.join("items.json.br"), "compressed items").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&pack.join("items.json")).unwrap();
         fs::write(pack.join("vectors.f32"), [0_u8, 1, 2, 3]).unwrap();
-        fs::write(pack.join("vectors.f32.br"), "compressed vectors").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&pack.join("vectors.f32")).unwrap();
         fs::write(root.join("stale.json"), "{}").unwrap();
         fs::write(root.join("stale.json.br"), "compressed stale").unwrap();
 
@@ -17018,6 +17020,13 @@ const generatedWasmPath = "assets/missing.wasm";"#,
         assert_eq!(vectors.content_encoding, Some("br"));
         assert_eq!(vectors.cache_control, R2_IMMUTABLE_CACHE_CONTROL);
         assert!(vectors.local_path.ends_with("vectors.f32.br"));
+
+        fs::write(pack.join("vectors.f32.br"), b"truncated").unwrap();
+        assert!(r2_upload_objects(&root, "/embeddings/web/v1/").is_err());
+        fs::write(pack.join("vectors.f32"), b"wrong").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&pack.join("vectors.f32")).unwrap();
+        fs::write(pack.join("vectors.f32"), [0_u8, 1, 2, 3]).unwrap();
+        assert!(r2_upload_objects(&root, "/embeddings/web/v1/").is_err());
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -17073,9 +17082,9 @@ const generatedWasmPath = "assets/missing.wasm";"#,
         )
         .unwrap();
         fs::write(pack.join("items.json"), "[]").unwrap();
-        fs::write(pack.join("items.json.br"), "compressed items").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&pack.join("items.json")).unwrap();
         fs::write(pack.join("vectors-0000.f32"), [0_u8, 1, 2, 3]).unwrap();
-        fs::write(pack.join("vectors-0000.f32.br"), "compressed vectors").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&pack.join("vectors-0000.f32")).unwrap();
         fs::write(root.join("stale.json"), "{}").unwrap();
 
         let objects = r2_upload_native_objects_without_catalog(&root, GGUF_EMBEDDINGS_R2_PREFIX)
@@ -17228,7 +17237,7 @@ const generatedWasmPath = "assets/missing.wasm";"#,
         ));
         fs::create_dir_all(root.join("tensors/layer")).unwrap();
         fs::write(root.join("manifest.json"), "{}").unwrap();
-        fs::write(root.join("manifest.json.br"), "compressed manifest").unwrap();
+        jbotci_embeddings::write_brotli_sibling(&root.join("manifest.json")).unwrap();
         fs::write(root.join("tokenizer.abc.compact.json"), "{}").unwrap();
         fs::write(root.join("tensors/layer/data.abc.bin"), [1_u8, 2, 3]).unwrap();
 
