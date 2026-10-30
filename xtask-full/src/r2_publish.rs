@@ -12,6 +12,8 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::R2UploadObject;
+#[cfg(test)]
+use crate::R2UploadObjectData;
 
 const WRANGLER_VERSION: &str = "4.149.0";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
