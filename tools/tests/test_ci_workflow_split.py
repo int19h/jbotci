@@ -103,6 +103,14 @@ class CiWorkflowSplitTests(unittest.TestCase):
             self.assertEqual(workflow.count(f"jbotci-{name}-target-v2-"), 3)
             self.assertNotIn(f"jbotci-{name}-target-${{{{", workflow)
 
+    def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
+        self.assertIn(
+            "      - name: Run release tooling tests\n"
+            "        env:\n"
+            "          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache-mtimes\n",
+            self.test_workflow,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
