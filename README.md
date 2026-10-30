@@ -129,6 +129,60 @@ into one merged pack without publishing, run
 `cargo run -r -p xtask-full -- build-f2llm-webgpu-assets`, then publish the
 result with `publish-f2llm-webgpu-r2 --skip-build`.
 
+Incremental builds copy stored vectors for unchanged embedding inputs.
+They embed changed and added rows, omit removed rows, and preserve the new corpus order.
+Each web document stores one pooled vector, including documents with several token windows.
+The web builder prints reused and embedded row counts for each corpus.
+It also reuses identical inputs that move between the two web corpora.
+
+For one web model, pass `--reuse-from /path/to/previous/pack` to
+`build-f2llm-webgpu-vectors` or `build-vector-pack.py`.
+The directory must contain `manifest.json`. A manifest URL also works.
+
+For all web models, pass `--reuse-catalog /path/to/previous/catalog.json`
+or `--reuse-published` to `build-f2llm-webgpu-assets`.
+Catalog URLs also work. The builder selects each model and vector space separately.
+The single-model builder accepts both catalog flags too.
+`publish-f2llm-webgpu-r2` accepts the catalog flags when it builds.
+
+Web reuse requires matching model weights, tokenizer, backend versions, vector space, input format, windowing, pooling, dimensions, and element type.
+The builder checks each source file against its manifest SHA-256 hash before reuse.
+It refuses incompatible, damaged, or incomplete sources without a fallback to full embedding.
+Older web packs lack tokenizer provenance and cannot supply reusable vectors.
+Build each web model once with this builder before requesting incremental builds.
+Full builds retain their existing corpus hashes and pack IDs.
+
+For native packs, pass `--reuse-index-dir /path/to/previous-index` to
+`build-gguf-embeddings` or `publish-gguf-embeddings-r2` when it builds.
+The source must contain `<model-key>/v1/catalog.json` for every selected model.
+This matches the layout that `--index-dir` produces.
+Use separate source, scratch index, and output directories.
+
+The builder checks the model revision, runtime, input format, vector format, and file hashes before it copies the source.
+Compatible older native packs already record input hashes and support reuse.
+The native xtask accepts local indexes. It does not fetch published packs for reuse.
+
+Without a reuse flag, the xtask clears its scratch index and builds every vector.
+Reuse flags do not grant permission to replace an output. The existing `--overwrite` rule still applies.
+
+With local model artifacts and previous native indexes available, build all packs without publishing:
+
+```sh
+cargo run -r -p xtask-full -- build-f2llm-webgpu-assets \
+  --f2llm-artifact-root /path/to/model-artifacts \
+  --model-out-root /build/jbotci/new-web-models \
+  --vector-out-dir /build/jbotci/new-web-vectors \
+  --reuse-published
+cargo run -r -p xtask-full -- build-gguf-embeddings \
+  --model-dir /path/to/local-gguf-models \
+  --reuse-index-dir /path/to/previous-index \
+  --index-dir /build/jbotci/new-native-index \
+  --out-dir /build/jbotci/new-native-vectors
+```
+
+The first incremental web command refuses published packs that lack reuse metadata.
+For that initial build, omit `--reuse-published`. Use its catalog for later builds.
+
 The pack builders support parallel work and host-specific backends.
 The web builder uses ONNX Runtime on the CPU.
 The native GGUF builder uses llama.cpp.
