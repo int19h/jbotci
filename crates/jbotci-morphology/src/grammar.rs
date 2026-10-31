@@ -57,7 +57,9 @@ pub(crate) fn segment_words_with_modifiers_recovered_attempt(
 ) -> RecoveredMorphologySegmentAttempt {
     let strict_attempt = Segmenter::new(input, options, source_id.clone()).segment_attempt();
     let strict_attempt = strict_attempt.into_data();
-    if let Ok(words) = strict_attempt.result {
+    if let Ok(words) = strict_attempt.result.and_then(|words| {
+        crate::apply_compiled_dialect_entries(words, &options.compiled_dialect, input)
+    }) {
         let result = new!(RecoveredMorphologySegmentation {
             words,
             errors: Vec::new(),
@@ -435,9 +437,19 @@ impl<'a> Segmenter<'a> {
             .zip(error_regions.drain(..))
             .map(|(error, region)| new!(RecoveryFailure { error, region }))
             .collect();
+        let application =
+            crate::DialectApplication::new(&self.options.compiled_dialect, self.input);
         for unit in words {
             match unit {
-                StreamUnit::Word(word) => surviving_words.push(word),
+                StreamUnit::Word(word) => {
+                    if let Err(failure) = application.append_word(word, &mut surviving_words) {
+                        let region = failure.span.clone();
+                        failures.push(new!(RecoveryFailure {
+                            error: MorphologyError::DialectExpansion(failure),
+                            region,
+                        }));
+                    }
+                }
                 StreamUnit::Fault(fault) => {
                     let fault = fault.into_data();
                     failures.push(new!(RecoveryFailure {

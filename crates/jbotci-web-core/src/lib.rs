@@ -7271,9 +7271,36 @@ mod tests {
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
 
-    /// A search card must not be able to claim a rule-status designation for a
-    /// projection that cannot have one — including when it arrives over the
-    /// wire rather than from the builders.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_gentufa_morphology_reports_dialect_expansion_limits() {
+        // Without the guard, twelve entries produce only 4,096 words.
+        let chain = format!("({})", "(mi -> mi mi) ".repeat(12).trim_end());
+        let options = GentufaWebOptions {
+            dialect: Some(chain.clone()),
+            ..GentufaWebOptions::default()
+        };
+        let analysis = analyze_gentufa_morphology_source("mi", &options).unwrap();
+        assert!(analysis.morphology.words.is_empty());
+        assert_eq!(analysis.diagnostics.len(), 1);
+        assert_eq!(
+            analysis.diagnostics[0].code,
+            "morphology.dialect-expansion-limit"
+        );
+        assert!(analysis.diagnostics[0].message.contains("source word `mi`"));
+        assert!(analysis.diagnostics[0].message.contains(&chain));
+        let oversized = format!("((mi -> {}))", vec!["mi"; 11].join(" "));
+        let options = GentufaWebOptions {
+            dialect: Some(oversized),
+            ..GentufaWebOptions::default()
+        };
+        let error = analyze_gentufa_morphology_source("mi", &options).unwrap_err();
+        assert!(error.to_string().contains("limit is 10"));
+    }
+
+    /// A search card can claim a rule-status designation only for a paragraph.
+    /// Deserialized cards must follow the same rule as cards from the builders.
     #[test]
     #[requires(true)]
     #[ensures(true)]

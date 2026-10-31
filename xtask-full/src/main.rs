@@ -9206,7 +9206,7 @@ fn v1_reference_projection_for_v0_case(case: &V0RefsCase) -> Result<ReferenceFix
             .map_err(|error| anyhow::anyhow!("invalid dialect `{formula}`: {}", error.message()))?,
         None => jbotci_dialect::DialectDefinition::baseline(),
     };
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = segment_words_with_modifiers_with_options_and_source_id(
         &case.lojban,
@@ -10169,7 +10169,8 @@ fn regenerate_morphology_fixture(fixture: &mut LoadedTestCase) -> std::result::R
         .test_case
         .dialect_definition()
         .map_err(|error| format!("dialect error: {error}"))?;
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        .map_err(|error| error.to_string())?;
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
         &options,
@@ -10339,7 +10340,8 @@ fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
         .test_case
         .dialect_definition()
         .map_err(|error| format!("dialect error: {error}"))?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        .map_err(|error| error.to_string())?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -10482,7 +10484,8 @@ fn render_vlasei_words_fixture(
         .test_case
         .dialect_definition()
         .map_err(|error| format!("dialect error: {error}"))?;
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        .map_err(|error| error.to_string())?;
     segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,
@@ -10683,7 +10686,7 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
     }
 
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -10774,7 +10777,7 @@ fn rederive_morphology_status_expectation(fixture: &mut LoadedTestCase, path: &P
     };
 
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
         &morphology_options,
@@ -10995,7 +10998,7 @@ fn is_legacy_morphology_placeholder(diagnostics: &[fixtures::DiagnosticExpectati
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -11277,7 +11280,7 @@ fn parse_generated_fixture_for_output(
     fixture: &LoadedTestCase,
 ) -> Result<Box<jbotci_syntax::generated_model::TextSyntax>> {
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -11509,7 +11512,7 @@ fn current_syntax_failure_diagnostics(
     fixture: &LoadedTestCase,
 ) -> Result<Vec<fixtures::DiagnosticExpectation>> {
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -11589,7 +11592,7 @@ fn refresh_fixture_expectations(
     only_semantics_refs: bool,
 ) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -12364,7 +12367,8 @@ fn syntax_parser_benchmark_worker(args: SyntaxParserBenchmarkArgs) -> Result<()>
             .test_case
             .dialect_definition()
             .with_context(|| format!("resolving dialect for `{}`", fixture.test_case.id))?;
-        let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+        let morphology_options =
+            fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
         let words = match segment_words_with_modifiers_with_options_and_source_id(
             &fixture.test_case.lojban,
             &morphology_options,
@@ -13429,7 +13433,7 @@ fn fixture_vector_stats_for_path(path: &Path) -> Result<VectorStats> {
             return Ok(stats);
         }
     };
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -13847,7 +13851,10 @@ fn run_vlasei_brackets_fixture(
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+        Ok(options) => options,
+        Err(error) => return FacetResult::failed(error.to_string()),
+    };
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,
@@ -13981,7 +13988,10 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+        Ok(options) => options,
+        Err(error) => return FacetResult::failed(error.to_string()),
+    };
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -14112,7 +14122,10 @@ fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+        Ok(options) => options,
+        Err(error) => return FacetResult::failed(error.to_string()),
+    };
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -14158,7 +14171,10 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+        Ok(options) => options,
+        Err(error) => return FacetResult::failed(error.to_string()),
+    };
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -14289,7 +14305,8 @@ fn parse_gentufa_fixture_tree(
         .test_case
         .dialect_definition()
         .map_err(|error| format!("dialect error: {error}"))?;
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        .map_err(|error| error.to_string())?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -14377,7 +14394,8 @@ fn semantics_refs_fixture_result(fixture: &LoadedTestCase) -> std::result::Resul
         .test_case
         .dialect_definition()
         .map_err(|error| format!("dialect error: {error}"))?;
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        .map_err(|error| error.to_string())?;
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
@@ -14653,7 +14671,10 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let options = match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+        Ok(options) => options,
+        Err(error) => return FacetResult::failed(error.to_string()),
+    };
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
@@ -14840,7 +14861,11 @@ fn run_recovered_syntax_fixture(
         Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options =
+        match fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect) {
+            Ok(options) => options,
+            Err(error) => return FacetResult::failed(error.to_string()),
+        };
     let mut syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     if let Some(max_errors) = expectation.max_errors {
         syntax_options = syntax_options.with_max_recovery_errors(max_errors);
@@ -15048,8 +15073,10 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     };
     let strict_result = match expectation.status {
         ExpectationStatus::Success => {
-            let options = match fixture.test_case.dialect_definition() {
-                Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+            let options = match fixture.test_case.dialect_definition().and_then(|dialect| {
+                fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+            }) {
+                Ok(options) => options,
                 Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
             };
             let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
@@ -15114,8 +15141,10 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
             }
         }
         ExpectationStatus::Failure => {
-            let options = match fixture.test_case.dialect_definition() {
-                Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+            let options = match fixture.test_case.dialect_definition().and_then(|dialect| {
+                fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+            }) {
+                Ok(options) => options,
                 Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
             };
             match segment_words_with_modifiers_with_options_and_source_id(
@@ -15167,10 +15196,13 @@ fn run_recovered_morphology_fixture(
     fixture: &LoadedTestCase,
     expectation: &fixtures::RecoveredExpectation,
 ) -> FacetResult {
-    let options = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
+    let options =
+        match fixture.test_case.dialect_definition().and_then(|dialect| {
+            fixtures::fixture_morphology_options(&fixture.test_case.id, &dialect)
+        }) {
+            Ok(options) => options,
+            Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+        };
     let recovered = segment_words_with_modifiers_recovered_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,

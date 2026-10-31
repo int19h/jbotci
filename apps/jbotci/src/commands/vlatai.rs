@@ -12,7 +12,7 @@ pub(crate) fn run_vlatai<WOut: Write>(
     let glyphs = cli_glyph_style(input.ascii);
     let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
     let dialect = input.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options = MorphologyOptions::default().try_with_dialect_definition(&dialect)?;
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let analyses = input
         .words
