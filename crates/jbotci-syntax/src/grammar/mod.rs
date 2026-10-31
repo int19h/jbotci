@@ -8628,19 +8628,6 @@ mod tests {
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(true)]
-    fn assert_first_contains_condition(rule: &str, condition: jbotci_dialect::DialectFeature) {
-        let metadata = generated_anchor_metadata(rule);
-        assert!(
-            metadata.first.iter().any(|entry| entry
-                .conditions
-                .iter()
-                .any(|entry_condition| entry_condition.feature == condition)),
-            "{rule} has no FIRST entry conditioned on {condition}",
-        );
-    }
-
-    #[requires(!rule.is_empty())]
     #[ensures(ret.rule == rule)]
     fn subtext_container(
         rule: &str,
@@ -9031,10 +9018,30 @@ mod tests {
             AnchorCmavo(Cmavo::Tuhu),
         );
 
-        assert_first_contains_condition(
-            "vocative_free_modifier",
+        for token in [AnchorCmavo(Cmavo::Doi), AnchorSelmaho(Selmaho::Coi)] {
+            assert!(
+                generated_anchor_metadata("vocative_free_modifier")
+                    .first
+                    .iter()
+                    .any(|entry| entry.conditions.is_empty() && entry.tokens.contains(&token)),
+                "the vocative marker must start without the modifier feature: {token:?}",
+            );
+        }
+        let vocative =
+            generated::generated_model::syntax_grammar_rule_by_name("vocative_free_modifier")
+                .expect("the vocative rule exists");
+        let generated::generated_model::SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+            condition: Some(condition),
+            ..
+        } = vocative.fields[0].recovery
+        else {
+            panic!("the modifier boundary must keep its feature condition");
+        };
+        assert_eq!(
+            condition.feature,
             jbotci_dialect::DialectFeature::UnrestrictedFree,
         );
+        assert!(!condition.negated);
         for rule in ["text", "statement", "sumti", "selbri"] {
             assert!(
                 !generated_anchor_metadata(rule).first.is_empty(),

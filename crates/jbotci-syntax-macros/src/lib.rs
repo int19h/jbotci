@@ -11457,8 +11457,8 @@ mod tests {
             expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
                 && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers")
                 && expanded.contains("condition : Some")
-                && feature_condition_count >= 3,
-            "`.wf_when(feature)` should preserve its feature argument, model wrapper, and recovery-metadata condition: {expanded}"
+                && feature_condition_count == 1,
+            "`.wf_when(feature)` must keep its feature condition only on the modifier boundary: {expanded}"
         );
     }
 
