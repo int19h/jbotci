@@ -16,7 +16,7 @@ from pathlib import Path
 from tools import cli_release
 
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 DISPATCH_SHA = "a" * 40
 
 
@@ -102,11 +102,11 @@ class CliReleaseTest(unittest.TestCase):
         self.assertEqual(
             cli_release.asset_names(VERSION),
             (
-                "jbotci-0.1.0-aarch64-apple-darwin.tar.gz",
-                "jbotci-0.1.0-aarch64-unknown-linux-musl.tar.gz",
-                "jbotci-0.1.0-x86_64-apple-darwin.tar.gz",
-                "jbotci-0.1.0-x86_64-pc-windows-msvc.zip",
-                "jbotci-0.1.0-x86_64-unknown-linux-musl.tar.gz",
+                "jbotci-0.2.0-aarch64-apple-darwin.tar.gz",
+                "jbotci-0.2.0-aarch64-unknown-linux-musl.tar.gz",
+                "jbotci-0.2.0-x86_64-apple-darwin.tar.gz",
+                "jbotci-0.2.0-x86_64-pc-windows-msvc.zip",
+                "jbotci-0.2.0-x86_64-unknown-linux-musl.tar.gz",
                 "SHA256SUMS",
             ),
         )

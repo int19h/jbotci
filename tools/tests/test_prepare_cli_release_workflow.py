@@ -40,6 +40,31 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
             "      - name: Build in pinned native Alpine toolchain\n", 1
         )[1].split("      - name: Reject dynamically linked ELF output\n", 1)[0]
 
+    def test_release_targets_use_one_pinned_rust_version(self) -> None:
+        self.assertEqual(self.workflow.count("      RUSTUP_TOOLCHAIN: 1.99.1\n"), 2)
+        self.assertIn("--env RUSTUP_TOOLCHAIN=1.99.1", self.build_step)
+        self.assertIn("rust:1.99.1-alpine3.24", self.build_step)
+        self.assertIn('= "1.99.1"', self.build_step)
+        self.assertNotIn("1.96.0", self.workflow)
+
+    def test_macos_and_windows_install_and_assert_the_pinned_compiler(self) -> None:
+        jobs = [("build-macos", "build-windows"), ("build-windows", "package")]
+        for name, next_job in jobs:
+            with self.subTest(job=name):
+                job = self.workflow.split(f"  {name}:\n", 1)[1].split(
+                    f"  {next_job}:\n", 1
+                )[0]
+                self.assertIn("      RUSTUP_TOOLCHAIN: 1.99.1\n", job)
+                install = job.index("      - name: Install pinned Rust toolchain\n")
+                build = job.index("      - name: Build jbotci\n")
+                self.assertLess(install, build)
+                step = job[install:build]
+                self.assertIn("rustup toolchain install", step)
+                self.assertIn("RUSTUP_TOOLCHAIN", step)
+                self.assertIn("--profile minimal", step)
+                self.assertIn("rustc --version", step)
+                self.assertIn("rustc 1.99.1 (58cf8f9c3 2026-10-13)", step)
+
     def test_matrix_declares_both_native_alpine_bindgen_targets(self) -> None:
         self.assertIn(
             "            target: x86_64-unknown-linux-musl\n"
