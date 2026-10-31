@@ -29,7 +29,7 @@ class Version(Enum):
 
 @unittest.skipUnless(sys.platform == "linux", "The CI Cargo cache runs on Linux.")
 class CargoCacheTests(unittest.TestCase):
-    native_watch = "native"
+    watch_native_tree = True
     def setUp(self) -> None:
         target = os.environ.get("CARGO_TARGET_DIR")
         self.assertTrue(target, "Set CARGO_TARGET_DIR before this test.")
@@ -269,12 +269,13 @@ class CargoCacheTests(unittest.TestCase):
         cpp = native / "version.cpp"
         cpp.write_text('extern "C" int version() { return 1; }\n')
         # The fixture runs the same copy function as the vendored native crate.
-        (self.repo / "build_inputs.rs").write_bytes(
-            (ROOT / "crates/vendor/llama-cpp-sys-4/build_inputs.rs").read_bytes())
+        helper = (ROOT / "crates/vendor/llama-cpp-sys-4/build_inputs.rs").read_text()
+        if not self.watch_native_tree:
+            helper = helper.replace("source.display()", 'source.join("CMakeLists.txt").display()')
+        (self.repo / "build_inputs.rs").write_text(helper)
         (self.repo / "build.rs").write_text("""
 mod build_inputs;
 fn main() {
-    println!("cargo:rerun-if-changed=native");
     let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
     build_inputs::prepare_native_source(std::path::Path::new("native"), &out.join("native"), &out);
     assert!(std::process::Command::new("c++").args(["-c", "-o"]).arg(out.join("version.o"))
@@ -285,9 +286,6 @@ fn main() {
     println!("cargo:rustc-link-lib=static=version");
 }
 """)
-        build_script = self.repo / "build.rs"
-        build_script.write_text(build_script.read_text().replace(
-            "rerun-if-changed=native", f"rerun-if-changed={self.native_watch}"))
         self._commit(Version.A)
         (self.repo / "src/main.rs").write_text(
             'extern "C" { fn version() -> i32; } fn main() { println!("{}", unsafe { version() }); }\n')

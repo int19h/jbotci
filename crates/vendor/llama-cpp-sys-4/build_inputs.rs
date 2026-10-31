@@ -2,6 +2,7 @@ use std::path::Path;
 
 /// Replace copied inputs and native outputs whenever Cargo reruns the script.
 pub fn prepare_native_source(source: &Path, destination: &Path, cmake_output: &Path) {
+    println!("cargo:rerun-if-changed={}", source.display());
     for directory in [
         destination.to_path_buf(),
         cmake_output.join("build"),

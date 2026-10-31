@@ -1303,7 +1303,6 @@ fn main() {
     // this unit's outputs between runs, so a timestamp or HEAD sentinel cannot
     // prove that the copied source still matches a local edit.
     let patches_dir = Path::new(&manifest_dir).join("patches");
-    println!("cargo:rerun-if-changed={}", llama_src.display());
     println!("cargo:rerun-if-changed={}", patches_dir.display());
     println!(
         "cargo:rerun-if-changed={}",
