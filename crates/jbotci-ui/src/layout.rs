@@ -1408,15 +1408,7 @@ pub(super) async fn measure_vlacku_controls_metrics_desktop() -> Option<VlackuCo
     metrics
 }
 
-/// No rendered document to measure: the headless build the crate's own tests and
-/// server-side rendering use keeps the layout it has.
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
-#[requires(true)]
-#[ensures(ret.is_none())]
-pub(super) async fn measure_vlacku_controls_layout_scheduled() -> Option<VlackuControlsLayout> {
-    None
-}
-
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_vlacku_controls_layout_measure(controls: VlackuControlsState) {
@@ -1425,6 +1417,15 @@ pub(super) fn schedule_vlacku_controls_layout_measure(controls: VlackuControlsSt
             update_vlacku_controls_layout(controls, next);
         }
     });
+}
+
+/// The headless build has no document to measure, so it never has a layout to
+/// apply.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_vlacku_controls_layout_measure(controls: VlackuControlsState) {
+    let _ = controls;
 }
 
 /// A font that arrives after the first measurement changes what the probes need;
