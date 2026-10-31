@@ -1658,7 +1658,7 @@ mod tests {
         let output_dir = temp.path().join("out");
         fs::create_dir_all(&raw_dir).expect("raw dir should be created");
         fs::create_dir_all(&output_dir).expect("output dir should be created");
-        fs::write(raw_dir.join("jbotci-app_0.1.0_x86_64.AppImage"), b"bundle")
+        fs::write(raw_dir.join("jbotci-app_0.2.0_x86_64.AppImage"), b"bundle")
             .expect("raw appimage should be written");
 
         let published =
