@@ -1,4 +1,4 @@
-"""Keep every retained Cargo unit tied to the stamped source."""
+"""Keep every retained Cargo unit tied to its own input content."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import subprocess
 import sys
 import tempfile
 import json
-import textwrap
 import unittest
 from uuid import uuid4
 
 
-from tools import cargo_cache
+from tools import cargo_inputs
+from tools.cargo_inputs_trace import trace
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -36,7 +36,7 @@ class CargoCacheTests(unittest.TestCase):
         self.target = Path(target).resolve()
         cases = self.target / "tests" / "cargo-cache"
         cases.mkdir(parents=True, exist_ok=True)
-        temporary = tempfile.TemporaryDirectory(prefix="case-", dir=cases)
+        temporary = tempfile.TemporaryDirectory(prefix="cargo-inputs-", dir=os.environ.get("TMPDIR"))
         self.addCleanup(temporary.cleanup)
         self.case = Path(temporary.name)
         self.repo = self.case / "source"
@@ -67,10 +67,9 @@ class CargoCacheTests(unittest.TestCase):
         )
         self._write_source(Version.A)
         self._run(["cargo", "generate-lockfile", "--offline"])
-        action = (ROOT / ".github/actions/cargo-cache-mtimes/action.yml").read_text()
-        self.restore_body = textwrap.dedent(action.split("      run: |\n", 1)[1])
-        self._run(["git", "remote", "add", "origin", str(self.repo)])
         self.states: list[Path] = []
+        self.layout = cargo_inputs.Layout(self.repo, self.target, (self.profile_dir,))
+        self.last_detection: dict[str, bool] = {}
 
     def _run(self, arguments: list[str]) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
@@ -98,26 +97,21 @@ class CargoCacheTests(unittest.TestCase):
         return commit
 
     def _build(self, *selection: str, subcommand: str = "build") -> str:
-        if (self.profile_dir / ".cache-commit").exists():
-            sha = self._run(["git", "rev-parse", "HEAD"]).stdout.strip()
-            environment = dict(self.env, MODE="restore", TARGET_DIR=str(self.profile_dir),
-                               STAMP_FILE=".cache-commit", OLD_TOUCH_TIMESTAMP="200001010000.00",
-                               GITHUB_WORKSPACE=str(self.repo), GITHUB_SHA=sha)
-            restored = subprocess.run(["bash", "-c", self.restore_body], cwd=self.repo, env=environment,
-                                      capture_output=True, text=True)
-            self.assertEqual(restored.returncode, 0, restored.stdout + restored.stderr)
         state = self.case / f"state-{len(self.states)}"
-        environment = cargo_cache.install(state)
         self.states.append(state)
+        cargo_inputs.begin(self.layout, state)
+        cargo_inputs.restore(self.layout)
+        environment = dict(self.env, PYTHONPATH=str(ROOT))
         result = subprocess.run(
-            [environment["CARGO"], subcommand, "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
-            cwd=self.repo, env=dict(self.env, **environment), capture_output=True, text=True,
+            [sys.executable, "-m", "tools.cargo_inputs", "--workspace", str(self.repo),
+             "--target", str(self.target), "--session", str(state), "trace", "--",
+             "cargo", subcommand, "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
+            cwd=self.repo, env=environment, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        units, aliases, _ = cargo_cache.selected_units(self.target, state)
-        cargo_cache.prune_profiles([self.profile_dir], units, aliases)
-        sha = self._run(["git", "rev-parse", "HEAD"]).stdout.strip()
-        (self.profile_dir / ".cache-commit").write_text(sha + "\n")
+        marker = json.loads((state / "session.json").read_text())["marker_ns"]
+        self.last_detection = {key: unit.built_after(marker) for key, unit in cargo_inputs.inventory(self.layout).items()}
+        cargo_inputs.save(self.layout, state, scrub=False)
         return result.stdout + result.stderr
 
     def _binary(self) -> str:
@@ -212,6 +206,7 @@ class CargoCacheTests(unittest.TestCase):
         manifest = self.repo / "Cargo.toml"
         manifest.write_text(manifest.read_text() +
             '\n[dependencies]\nlocal-dependency = { path = "vendor/local-dependency" }\n')
+        self._run(["cargo", "generate-lockfile", "--offline"])
         self._commit(Version.A)
         (self.repo / "src/main.rs").write_text(
             'fn main() { println!("{}", local_dependency::version()); }\n')
@@ -225,6 +220,20 @@ class CargoCacheTests(unittest.TestCase):
         self._build()
         self.assertEqual(self._binary(), Version.B.value)
         self.assertEqual((self.repo / "Cargo.lock").read_bytes(), lockfile)
+
+    def test_unselected_consumer_keeps_its_original_dependency_record(self) -> None:
+        library = self.repo / "src/lib.rs"
+        library.write_text("pub fn version() -> &'static str { \"version-A\" }\n")
+        self._commit(Version.A)
+        (self.repo / "src/main.rs").write_text('fn main() { println!("{}", cache_audit::version()); }\n')
+        self._run(["git", "commit", "-am", "Use the library for #951", "-m", COAUTHOR])
+        self._build("--bin", "cache-audit")
+        self.assertEqual(self._binary(), Version.A.value)
+        library.write_text("pub fn version() -> &'static str { \"version-B\" }\n")
+        self._run(["git", "commit", "-am", "Edit the library for #951", "-m", COAUTHOR])
+        self._build("--lib")
+        self._build("--bin", "cache-audit")
+        self.assertEqual(self._binary(), Version.B.value)
 
     def test_build_script_regenerates_output_from_changed_input(self) -> None:
         (self.repo / "build.rs").write_text(
@@ -247,20 +256,50 @@ class CargoCacheTests(unittest.TestCase):
         self._build()
         self.assertEqual(self._binary(), Version.B.value)
 
-    def test_fresh_build_script_runs_and_compile_units_are_reported(self) -> None:
+    def test_fresh_units_keep_their_fingerprint_mtimes(self) -> None:
         (self.repo / "version.txt").write_text("unchanged")
         (self.repo / "build.rs").write_text(
             'fn main() { println!("cargo:rerun-if-changed=version.txt"); }\n')
         self._commit(Version.A)
         self._build()
+        self.assertEqual(len(self.last_detection), 3)
+        self.assertTrue(all(self.last_detection.values()))
+        before = {key: (unit.directory / unit.stem).stat().st_mtime_ns
+                  for key, unit in cargo_inputs.inventory(self.layout).items()}
         self._build()
-        records = list(self.states[-1].glob("invocation-*.json"))
-        messages = json.loads(records[0].read_text())["messages"]
-        compiled = [m for m in messages if m["reason"] == "compiler-artifact"]
-        self.assertTrue(compiled)
-        self.assertTrue(all(m["fresh"] for m in compiled), compiled)
-        self.assertTrue(any(m["target"]["kind"] == ["custom-build"] for m in compiled))
-        self.assertEqual(sum(m["reason"] == "build-script-executed" for m in messages), 1)
+        self.assertFalse(any(self.last_detection.values()))
+        after = {key: (unit.directory / unit.stem).stat().st_mtime_ns
+                 for key, unit in cargo_inputs.inventory(self.layout).items()}
+        self.assertEqual(before, after)
+
+    def test_rebuilt_build_script_updates_its_compile_and_run_fingerprints(self) -> None:
+        script = self.repo / "build.rs"
+        script.write_text('fn main() { println!("cargo:rerun-if-changed=build.rs"); }\n')
+        self._commit(Version.A)
+        self._build()
+        script.write_text(script.read_text() + "// source edit\n")
+        self._run(["git", "commit", "-am", "Edit build script for #951", "-m", COAUTHOR])
+        self._build()
+        self.assertEqual(len(self.last_detection), 3)
+        self.assertTrue(all(self.last_detection.values()))
+
+    def test_undeclared_proc_macro_read_fails_the_contract_check(self) -> None:
+        macro = self.repo / "macro"
+        (macro / "src").mkdir(parents=True)
+        (macro / "Cargo.toml").write_text(
+            '[package]\nname="input-macro"\nversion="0.1.0"\nedition="2021"\n[lib]\nproc-macro=true\n')
+        (macro / "src/lib.rs").write_text(
+            '#[proc_macro] pub fn read_input(_: proc_macro::TokenStream) -> proc_macro::TokenStream {'
+            ' std::fs::read("hidden.txt").unwrap(); "fn main() {}".parse().unwrap() }\n')
+        (self.repo / "hidden.txt").write_text("undeclared")
+        manifest = self.repo / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + '\n[dependencies]\ninput-macro={path="macro"}\n')
+        self._run(["cargo", "generate-lockfile", "--offline"])
+        self._commit(Version.A)
+        (self.repo / "src/main.rs").write_text("input_macro::read_input!();\n")
+        self._run(["git", "commit", "-am", "Read macro input for #951", "-m", COAUTHOR])
+        with self.assertRaisesRegex(cargo_inputs.InputError, "Undeclared input.*hidden.txt"):
+            self._build()
 
     def test_native_cpp_edit_after_restore_rebuilds_the_native_crate(self) -> None:
         native = self.repo / "native"
@@ -301,71 +340,63 @@ fn main() {
         self.assertEqual(self._binary(), "2")
 
 
-    def test_nested_cargo_uses_the_proxy(self) -> None:
-        (self.repo / "build.rs").write_text("""
+
+    def test_nested_cargo_builds_receive_input_records(self) -> None:
+        child = self.repo / "child"
+        (child / "src").mkdir(parents=True)
+        (child / "Cargo.toml").write_text(
+            '[package]\nname="nested-input-child"\nversion="0.1.0"\nedition="2021"\n[workspace]\n'
+            f'[profile.{self.profile}]\ninherits="dev"\n')
+        (child / "src/main.rs").write_text('fn main() {}\n')
+        self._commit(Version.A)
+        (self.repo / "src/main.rs").write_text("""
 fn main() {
-    let result = std::process::Command::new(std::env::var_os("CARGO").unwrap())
-        .arg("--version").output().unwrap();
-    assert!(result.status.success());
-    println!("cargo:rerun-if-changed=build.rs");
+    assert!(std::process::Command::new("cargo").args(["build", "--offline", "--manifest-path", "child/Cargo.toml", "--profile"])
+        .arg(std::env::var("NESTED_PROFILE").unwrap()).args(["-j", "8"]).status().unwrap().success());
 }
 """)
+        self._run(["git", "add", "."])
+        self._run(["git", "commit", "-m", "Add nested build for #951", "-m", COAUTHOR])
+        self.env["NESTED_PROFILE"] = self.profile
+        self._build(subcommand="run")
+        units = cargo_inputs.inventory(self.layout)
+        child_units = [unit for unit in units.values() if unit.directory.name.startswith("nested-input-child-")]
+        self.assertTrue(child_units)
+        self.assertTrue(all((unit.directory / cargo_inputs.RECORD).exists() for unit in child_units))
+
+    def test_damaged_record_is_deleted_and_rebuilt(self) -> None:
         self._commit(Version.A)
         self._build()
-        reports = [json.loads(path.read_text()) for path in self.states[-1].glob("invocation-*.json")]
-        self.assertEqual(len(reports), 2)
-        self.assertTrue(any(report["arguments"] == ["--version"] for report in reports))
-
-    def test_json_passthrough_keeps_fresh_unit_messages(self) -> None:
-        self._commit(Version.A)
-        self._build()
-        output = self._build("--message-format=json")
-        messages = [json.loads(line) for line in output.splitlines() if line.startswith("{")]
-        self.assertTrue(any(message.get("reason") == "compiler-artifact" and message["fresh"] for message in messages))
-
-
-    def test_cargo_install_reports_its_selected_units(self) -> None:
-        self._commit(Version.A)
-        destination = self.case / "installed"
-        self._build("--path", str(self.repo), "--root", str(destination), subcommand="install")
-        self.assertEqual(self._run([str(destination / "bin/cache-audit")]).stdout.strip(), Version.A.value)
-
-    def test_direct_cargo_bypass_rejects_the_cache_save(self) -> None:
-        manifest = self.repo / "Cargo.toml"
-        manifest.write_text(manifest.read_text() + "\n[features]\nextra = []\n")
-        self._commit(Version.A)
-        self._build()
-        state = self.case / "bypass"
-        environment = cargo_cache.install(state)
-        result = subprocess.run(
-            [environment["JBOTCI_CARGO_REAL"], "build", "--offline", "--profile", self.profile,
-             "--features", "extra", "-j", "8"], cwd=self.repo,
-            env=dict(self.env, **environment), capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        with self.assertRaisesRegex(cargo_cache.CacheError, "Compiler parent"):
-            cargo_cache.selected_units(self.target, state)
-
-
-
-    def test_build_script_compiler_probes_belong_to_the_reported_run(self) -> None:
-        (self.repo / "build.rs").write_text("""
-use std::io::Write;
-fn main() {
-    let mut command = std::process::Command::new(std::env::var_os("RUSTC_WRAPPER").unwrap());
-    command.arg(std::env::var_os("RUSTC").unwrap());
-    let mut child = command.args(["--crate-name", "feature_probe", "--crate-type", "lib", "--emit=metadata", "--out-dir"])
-        .arg(std::env::var_os("OUT_DIR").unwrap()).arg("-")
-        .stdin(std::process::Stdio::piped()).spawn().unwrap();
-    child.stdin.take().unwrap().write_all(b"pub fn supported() {}\\n").unwrap();
-    assert!(child.wait().unwrap().success());
-    println!("cargo:rerun-if-changed=build.rs");
-}
-""")
-        self._commit(Version.A)
-        self._build()
-        self.assertTrue(list(self.states[-1].glob("probe-*.json")))
+        unit = next(unit for unit in cargo_inputs.inventory(self.layout).values() if unit.kind == cargo_inputs.Kind.COMPILE)
+        (unit.directory / cargo_inputs.RECORD).write_text('{"damaged":true}')
+        output = self._build()
+        self.assertIn("Compiling cache-audit", output)
         self.assertEqual(self._binary(), Version.A.value)
+        self.assertTrue((unit.directory / cargo_inputs.RECORD).exists())
 
+    def test_undeclared_build_script_read_fails_the_contract_check(self) -> None:
+        (self.repo / "secret.txt").write_text("secret")
+        (self.repo / "build.rs").write_text(
+            'fn main() { println!("cargo:rerun-if-changed=build.rs"); std::fs::read_to_string("secret.txt").unwrap(); }\n')
+        self._commit(Version.A)
+        with self.assertRaisesRegex(cargo_inputs.InputError, "Undeclared input.*secret.txt"):
+            self._build()
+
+    def test_option_env_is_a_rustc_environment_dependency(self) -> None:
+        self._commit(Version.A)
+        (self.repo / "src/main.rs").write_text(
+            'fn main() { println!("{}", option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL").unwrap_or("unset")); }\n')
+        self._run(["git", "commit", "-am", "Read the optional URL for #951", "-m", COAUTHOR])
+        self._build()
+        self.assertEqual(self._binary(), "unset")
+        unit = next(iter(cargo_inputs.inventory(self.layout).values()))
+        record = cargo_inputs.load_record(unit)
+        self.assertIn("JBOTCI_WEB_EMBEDDINGS_BASE_URL", record["cargo_env"])
+        self.assertIsNone(record["cargo_env"]["JBOTCI_WEB_EMBEDDINGS_BASE_URL"])
+        self.env["JBOTCI_WEB_EMBEDDINGS_BASE_URL"] = "https://example.invalid/B"
+        output = self._build()
+        self.assertIn("Compiling cache-audit", output)
+        self.assertEqual(self._binary(), "https://example.invalid/B")
 
 
 if __name__ == "__main__":

@@ -25,16 +25,33 @@ jobs:
       - name: Run release tooling tests
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache
-        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cargo_cache_units tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cargo_cache_units tools.tests.test_cargo_cache_identity tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+
+  build-image:
+    name: Resolve immutable build image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Resolve the image manifest
+        id: image
+        run: python3 -m tools.cargo_cache_identity resolve-image rust:1-bookworm
 
   cargo-test:
     name: Cargo tests
+    needs: build-image
     runs-on: ubuntu-latest
     container:
-      image: rust:1-bookworm
+      image: ${{ needs.build-image.outputs.image }}
     env:
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
+      CARGO_INCREMENTAL: "0"
+      JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
+      JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       NODE_VERSION: 24.14.0
       # Serial compilation is required: at exact head d08d0a798f, two-way concurrency exceeded
       # the 16 GB runner twice and exited 137 while compiling `jbotci-syntax`.
@@ -44,7 +61,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3 zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3 strace zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -62,12 +79,12 @@ jobs:
           node --version
           npm --version
 
-      - name: Capture Rust version
-        id: rustc
-        run: |
-          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
-          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
-          echo "Rust cache version: ${rustc_version}"
+      - name: Mark the start of Cargo work
+        run: python3 -m tools.cargo_inputs begin
+
+      - name: Identify the build environment
+        id: build-environment
+        run: python3 -m tools.cargo_cache_identity identity "${JBOTCI_BUILD_IMAGE_DIGEST}"
 
       - name: Restore cargo home cache
         id: cargo-home-cache
@@ -83,25 +100,18 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .github-cache/cargo-target/test
-          key: jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+            jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-
 
-      - name: Restore Cargo source timestamps
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: ${{ env.CARGO_TARGET_DIR }}
-
-      - name: Collect every Cargo invocation
-        run: python3 tools/cargo_cache.py install "${RUNNER_TEMP}/cargo-provenance"
+      - name: Check restored unit inputs
+        run: python3 -m tools.cargo_inputs restore
 
       - name: Run workspace tests with import feature
-        run: cargo test -r --workspace --features jbotci-dictionary/import
+        run: python3 -m tools.cargo_inputs trace -- cargo test -r --workspace --features jbotci-dictionary/import
 
       - name: Run fixture tests
-        run: cargo run -r -p xtask-full -- fixture-test --profile all
+        run: python3 -m tools.cargo_inputs trace -- cargo run -r -p xtask-full -- fixture-test --profile all
 
       - name: Assert native application graphs contain no wgpu
         run: |
@@ -114,19 +124,15 @@ jobs:
             exit 1
           fi
 
+      - name: Check declarations and record built unit inputs
+        run: python3 -m tools.cargo_inputs save
+
       - name: Save cargo home cache
         if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: .github-cache/cargo
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
-
-      - name: Prune and stamp checked Cargo units
-        if: ${{ success() && github.event_name != 'pull_request' }}
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: stamp
-          target-dir: ${{ env.CARGO_TARGET_DIR }}
 
       # Save compiled artifacts only after the job succeeds.
       - name: Save test target cache

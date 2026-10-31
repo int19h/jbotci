@@ -84,22 +84,29 @@ class CiWorkflowSplitTests(unittest.TestCase):
             (self.test_workflow, "test"),
             (self.render_workflow, "render"),
         ):
-            self.assertEqual(workflow.count(f"jbotci-{name}-target-v4-"), 3)
-            self.assertNotIn(f"jbotci-{name}-target-v3-", workflow)
+            self.assertEqual(workflow.count(f"jbotci-{name}-target-v5-"), 2)
+            self.assertNotIn(f"jbotci-{name}-target-v4-", workflow)
             self.assertNotIn(f"jbotci-{name}-target-${{{{", workflow)
 
-    def test_each_cached_job_collects_prunes_and_stamps(self) -> None:
+    def test_each_cached_job_records_content_before_saving(self) -> None:
         for workflow in (self.test_workflow, self.render_workflow):
-            restore = workflow.index("mode: restore")
-            collect = workflow.index("python3 tools/cargo_cache.py install")
-            stamp = workflow.index("mode: stamp")
-            save = workflow.index("uses: actions/cache/save@v5", stamp)
-            self.assertLess(restore, collect)
-            self.assertLess(collect, stamp)
-            self.assertLess(stamp, save)
+            marker = workflow.index("tools.cargo_inputs begin")
+            restore = workflow.index("tools.cargo_inputs restore")
+            record = workflow.index("tools.cargo_inputs save")
+            save = workflow.index("uses: actions/cache/save@v5", record)
+            self.assertLess(marker, restore)
+            self.assertLess(restore, record)
+            self.assertLess(record, save)
+            self.assertNotIn("cargo-cache-mtimes", workflow)
+            self.assertNotIn("cargo-provenance", workflow)
+            self.assertIn("needs: build-image", workflow)
+            self.assertIn("image: ${{ needs.build-image.outputs.image }}", workflow)
+            self.assertIn("tools.cargo_cache_identity identity", workflow)
+            self.assertIn("python3 strace zstd", workflow)
         self.assertNotIn(".github-cache/home/.dx", self.render_workflow)
         release = REPOSITORY_ROOT / ".github/workflows/prepare-cli-release.yml"
         self.assertNotIn("actions/cache", release.read_text())
+        self.assertFalse((REPOSITORY_ROOT / ".github/actions/cargo-cache-mtimes").exists())
 
     def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
         self.assertIn(

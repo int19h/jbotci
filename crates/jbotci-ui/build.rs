@@ -18,8 +18,6 @@ fn main() {
 #[ensures(true)]
 fn emit_git_build_info() {
     println!("cargo:rerun-if-env-changed=JBOTCI_GIT_COMMIT");
-    emit_git_rerun_paths();
-
     if let Some(commit) = explicit_git_commit().or_else(current_git_commit) {
         let short = commit.chars().take(7).collect::<String>();
         println!("cargo:rustc-env=JBOTCI_GIT_COMMIT={commit}");
@@ -45,6 +43,7 @@ fn explicit_git_commit() -> Option<String> {
 #[ensures(ret.as_ref().is_none_or(|commit| commit.chars().all(|character| character.is_ascii_hexdigit())))]
 fn current_git_commit() -> Option<String> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").ok()?;
+    emit_git_rerun_paths();
     let output = Command::new("git")
         .arg("-C")
         .arg(&manifest_dir)
@@ -70,6 +69,44 @@ fn emit_git_rerun_paths() {
     };
     let git_common_dir =
         git_path(&manifest_dir, "--git-common-dir").unwrap_or_else(|| git_dir.clone());
+    if let Some(root) = git_path(&manifest_dir, "--show-toplevel") {
+        let pointer = root.join(".git");
+        if pointer.is_file() {
+            println!("cargo:rerun-if-changed={}", pointer.display());
+        }
+    }
+    for path in [
+        git_dir.join("commondir"),
+        git_common_dir.join("config"),
+        git_dir.join("config.worktree"),
+    ] {
+        if path.is_file() {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
+    }
+    let configuration = Command::new("git")
+        .args([
+            "-C",
+            &manifest_dir,
+            "config",
+            "--show-origin",
+            "--name-only",
+            "--null",
+            "--list",
+        ])
+        .output()
+        .expect("failed to find Git configuration inputs");
+    if configuration.status.success() {
+        let fields: Vec<_> = configuration.stdout.split(|byte| *byte == 0).collect();
+        for pair in fields.chunks_exact(2) {
+            if let Some(raw) = pair[0].strip_prefix(b"file:") {
+                let path = Path::new(&manifest_dir).join(String::from_utf8_lossy(raw).as_ref());
+                if path.is_file() {
+                    println!("cargo:rerun-if-changed={}", path.display());
+                }
+            }
+        }
+    }
     let head_path = git_dir.join("HEAD");
     if head_path.exists() {
         println!("cargo:rerun-if-changed={}", head_path.display());

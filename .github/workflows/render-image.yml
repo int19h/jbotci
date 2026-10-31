@@ -18,14 +18,31 @@ env:
   SERVER_EMBEDDING_MODEL_KEY: f2llm-v2-80m-q4-k-m-320
 
 jobs:
+  build-image:
+    name: Resolve immutable build image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Resolve the image manifest
+        id: image
+        run: python3 -m tools.cargo_cache_identity resolve-image rust:1-bookworm
+
   build-bundle:
     name: Build Dioxus server bundle
+    needs: build-image
     runs-on: ubuntu-latest
     container:
-      image: rust:1-bookworm
+      image: ${{ needs.build-image.outputs.image }}
     env:
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/deploy
+      CARGO_INCREMENTAL: "0"
+      JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
+      JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       DIOXUS_HOME: ${{ github.workspace }}/.github-cache/home
       DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
       DIOXUS_CLI_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/dioxus-cli-0.7.9
@@ -36,7 +53,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev python3 zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev python3 strace zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -54,12 +71,12 @@ jobs:
           node --version
           npm --version
 
-      - name: Capture Rust version
-        id: rustc
-        run: |
-          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
-          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
-          echo "Rust cache version: ${rustc_version}"
+      - name: Mark the start of Cargo work
+        run: python3 -m tools.cargo_inputs begin
+
+      - name: Identify the build environment
+        id: build-environment
+        run: python3 -m tools.cargo_cache_identity identity "${JBOTCI_BUILD_IMAGE_DIGEST}"
 
       - name: Restore cargo home cache
         id: cargo-home-cache
@@ -75,7 +92,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
-          key: jbotci-dx-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.rustc.outputs.version }}
+          key: jbotci-dx-v2-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.build-environment.outputs.key }}
 
       - name: Restore render target cache
         id: target-cache
@@ -83,22 +100,15 @@ jobs:
         with:
           path: |
             .github-cache/cargo-target/deploy
-          key: jbotci-render-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-render-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-render-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-render-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+            jbotci-render-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-
 
       - name: Install Rust wasm target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Restore Cargo source timestamps
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: ${{ env.CARGO_TARGET_DIR }}
-
-      - name: Collect every Cargo invocation
-        run: python3 tools/cargo_cache.py install "${RUNNER_TEMP}/cargo-provenance" "${DIOXUS_CLI_TARGET_DIR}"
+      - name: Check restored unit inputs
+        run: python3 -m tools.cargo_inputs restore
 
       - name: Install Dioxus CLI
         run: |
@@ -106,7 +116,7 @@ jobs:
           mkdir -p "${DIOXUS_HOME}" "${DIOXUS_CLI_ROOT}" "${DIOXUS_CLI_TARGET_DIR}"
           if ! "${DIOXUS_CLI_ROOT}/bin/dx" --version | grep -Eq "^dioxus ${DIOXUS_CLI_VERSION}( |$)"; then
             CARGO_TARGET_DIR="${DIOXUS_CLI_TARGET_DIR}" \
-              cargo install dioxus-cli \
+              python3 -m tools.cargo_inputs trace -- cargo install dioxus-cli \
                 --version "${DIOXUS_CLI_VERSION}" \
                 --locked \
                 --root "${DIOXUS_CLI_ROOT}" \
@@ -122,7 +132,7 @@ jobs:
         run: |
           set -eux
           export PATH="${DIOXUS_CLI_ROOT}/bin:${PATH}"
-          cargo run --release -p xtask -- dist-server \
+          python3 -m tools.cargo_inputs trace -- cargo run --release -p xtask -- dist-server \
             --out-dir .jbotci-build/render \
             --base-path / \
             --skip-web-embeddings
@@ -132,7 +142,7 @@ jobs:
 
       - name: Run release wasm stack probe against deployment bundle
         run: |
-          cargo run --release -p xtask-full -- wasm-stack-test \
+          python3 -m tools.cargo_inputs trace -- cargo run --release -p xtask-full -- wasm-stack-test \
             --profile release \
             --no-build \
             --public-dir .jbotci-build/render/public
@@ -169,26 +179,22 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Check declarations and record built unit inputs
+        run: python3 -m tools.cargo_inputs save
+
       - name: Save cargo home cache
-        if: ${{ steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        if: ${{ success() && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: .github-cache/cargo
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
       - name: Save Dioxus CLI cache
-        if: ${{ steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
+        if: ${{ success() && steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
-
-      - name: Prune and stamp checked Cargo units
-        if: ${{ success() }}
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: stamp
-          target-dir: ${{ env.CARGO_TARGET_DIR }}
 
       # Save compiled artifacts only after the job succeeds.
       - name: Save render target cache

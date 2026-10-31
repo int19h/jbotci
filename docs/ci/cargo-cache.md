@@ -1,51 +1,67 @@
 # Cargo target cache
 
 A Cargo unit is one target, profile, feature set, and compilation mode.
-Each cached job collects the units that Cargo selects, including fresh units.
-The job removes every other unit before it stamps and saves the target directory.
-The stamp identifies the source commit of all retained units.
-The restore action backdates unchanged files against that commit and touches changed files.
+Each unit keeps a SHA-256 input record in its fingerprint directory.
+The record describes the content that produced that unit, even when later jobs select different units.
+CI uses stable Rust and one target directory for each cached job.
+The CLI release workflow never restores a target cache.
 
-`test.yml` collects workspace tests, fixture commands, and nested Cargo commands.
-`render-image.yml` also collects xtask and dx commands for host and wasm builds.
-The CLI release workflow uses fresh runners and does not restore a target cache.
-Cargo home and the installed Dioxus CLI use separate caches.
-The `target-v4` prefixes reject every earlier target cache.
+Each cached job writes a time marker before its first Cargo call.
+Cargo 1.99 leaves the committed fingerprint mtime unchanged for fresh units.
+It writes a new fingerprint mtime for rebuilt compile units, build-script binaries, and build-script runs.
+Before a successful save, CI records each unit whose committed fingerprint is newer than that marker.
+It preserves the records of fresh units and deletes units without valid records.
+This also covers units built by nested Cargo commands and by dx.
+It does not require Cargo JSON messages or a selected-unit set.
 
-`tools/cargo_cache.py install` creates a private Cargo proxy in the runner's temporary directory.
-It copies stable Cargo as `cargo-real` and sets both `PATH` and `CARGO` to the proxy.
-The proxy also collects the Dioxus CLI installation.
-Its declared target directory is separate from the saved target cache.
-The collector reports those units but does not retain or prune that uncached directory.
-The alternate executable name lets Cargo preserve that `CARGO` value for nested commands.
-A regression exercises this behavior with the installed stable Cargo.
-The Rust toolchain and Rust language remain stable.
+Compile records include every path in rustc's `.d` file and Cargo's implicit manifests and configuration.
+Build-script binaries use their `.d` files under `build/<pkg>-<hash>`.
+Other compile units use their `.d` files under `deps` or `examples`.
+Cargo's encoded dep-info omits immutable registry package sources, so it cannot replace the full rustc path list.
+The record also preserves rustc's environment dependencies and Cargo's filtered environment dependencies.
+Environment values use SHA-256 in the record, so the record does not expose secret values.
+Cargo continues to compare environment values and compiler configuration independently of file mtimes.
 
-The proxy requests `--message-format=json` for every compilation command.
-It records `compiler-artifact` messages and maps files to Cargo's unit directories.
-It records build-script compile units from their executable paths.
-It records build-script run units from `build-script-executed.out_dir`.
-The [Cargo documentation](https://doc.rust-lang.org/cargo/reference/external-tools.html#build-script-output) states that Cargo emits this message for fresh runs too.
-A regression requires both fresh compile messages and the cached build-script output.
-The proxy preserves JSON for callers such as dx and renders diagnostics for other callers.
-It passes program output through after `build-finished`.
+Build-script run records include every `rerun-if-changed` input.
+Directory inputs include recursive file content, membership, empty directories, and directory links.
+A script without a file declaration uses its whole package directory, without Git metadata or target output.
+Records also bind dependency records by SHA-256.
+An unbuilt consumer cannot acquire a new dependency record after another unit rebuilds.
+Dependency changes invalidate every affected variant, including variants that the current job does not select.
 
-A compiler guard records any Cargo process that bypasses the proxy.
-Build-script compiler probes also pass through that guard.
-The collector accepts them only from a reported script, with outputs inside its reported `OUT_DIR`.
-An incomplete invocation, unsupported command, unsupported artifact layout, or unreported compiler rejects the save.
-Expected compile failures use separate target directories, which the collector discards.
-A failed invocation for the main target directory rejects the save.
-The collector retains the union of selected units from all successful invocations.
-It removes unselected fingerprints, dependency files, build directories, and root aliases.
-It also removes DX bundles and other outputs that have no Cargo unit identity.
-CI disables and removes incremental directories because their session hashes differ from Cargo unit hashes.
+Each record has a format version and an integrity hash.
+Workspace input paths are relative to the checkout.
+Cargo home input paths remain absolute.
+Owned target inputs use paths relative to the target directory.
+A missing file, changed content, changed directory membership, or damaged record deletes the unit on restore.
+The restore also deletes affected consumers.
+Only then does it set tracked checkout files and directories to one fixed old time, including submodules.
+It never invalidates changed content through a comparison between two runners' clocks.
+There is no source commit stamp.
 
-The native build watches its original C++ tree, patches, shim, helper, wrapper, and prebuilt input directory.
-Each script rerun replaces its copied source and native outputs.
-It no longer uses a timestamp sentinel or a shared CMake cache outside Cargo's unit directories.
-Contract scripts watch the source directories that they scan.
-The dictionary script declares its dictionary, metadata, and extracted rafsi inputs.
-The CLL script declares its chapter directory and edition metadata.
-The UI and server scripts declare Git inputs and the explicit commit environment variable.
-Cargo tracks Rust module and `include_str!` or `include_bytes!` inputs through compiler dependency information.
+CI traces its existing builds rather than adding another cold build.
+`strace -f` follows build scripts, compiler processes, and nested Cargo or dx commands.
+The check compares repository file reads with each unit's declared input set.
+It excludes test execution, immutable registry source, system files, and owned target output from this contract.
+A deliberate undeclared read fails the regression fixture.
+The trace parser retains only file paths and unit metadata.
+It never stores raw command arguments or the full environment.
+An abbreviated or incomplete trace rejects the check.
+Each job also requires the checkout's tracked content to stay unchanged while it builds.
+
+The native script declares the full C++ tree, patches, shim, wrapper, and build helper.
+Each native script rerun replaces copied sources and native outputs.
+The UI and server declare Git inputs for their build tags.
+The dictionary and CLL scripts declare their source data and edition metadata.
+The contract scanner declares the source trees that it scans.
+`option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL")` already appears in rustc's environment dependencies.
+The regression proves that changing its value rebuilds the unit.
+
+The `target-v5` keys reject every earlier cache design.
+The key includes the full `rustc -vV`, runner OS, immutable container image digest, and installed system package hash.
+An image resolution job pins the manifest before the cached job starts.
+Every restore prefix also requires the same lockfile hash.
+Only successful jobs save target caches.
+DX state and other generated state stay out of the cache.
+CI disables and removes incremental directories because their session hashes do not identify Cargo units.
+Cargo recreates unhashed uplifted outputs from retained hashed artifacts after a restore.
