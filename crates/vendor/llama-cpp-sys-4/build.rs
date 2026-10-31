@@ -70,6 +70,7 @@ fn configure_libclang_path(target: &str) {
 }
 
 fn latest_child_dir(parent: &Path) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", parent.display());
     let mut dirs = fs::read_dir(parent)
         .ok()?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -956,6 +957,7 @@ fn cmake_system_processor(target: &str) -> String {
 /// Find a direct child directory of `parent` whose name matches `name`
 /// case-insensitively.  Returns the actual path on disk.
 fn find_child_dir_ci(parent: &Path, name: &str) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", parent.display());
     let lower = name.to_ascii_lowercase();
     std::fs::read_dir(parent)
         .ok()?
@@ -971,6 +973,7 @@ fn find_child_dir_ci(parent: &Path, name: &str) -> Option<PathBuf> {
 
 /// Find a file inside `dir` whose name matches `name` case-insensitively.
 fn find_file_ci(dir: &Path, name: &str) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", dir.display());
     let lower = name.to_ascii_lowercase();
     std::fs::read_dir(dir)
         .ok()?
@@ -1042,6 +1045,7 @@ fn find_file_recursive(dir: &Path, name: &str, max_depth: u32) -> Option<PathBuf
         return None;
     }
     let lower = name.to_ascii_lowercase();
+    println!("cargo:rerun-if-changed={}", dir.display());
     let entries: Vec<_> = std::fs::read_dir(dir)
         .ok()?
         .filter_map(|e| e.ok())
@@ -1130,6 +1134,7 @@ fn find_vulkan_sdk_windows() -> Option<PathBuf> {
     // 3. Scan the default install directory C:\VulkanSDK\<version>.
     let vulkan_base = PathBuf::from("C:\\VulkanSDK");
     if vulkan_base.is_dir() {
+        println!("cargo:rerun-if-changed={}", vulkan_base.display());
         let mut versions: Vec<PathBuf> = std::fs::read_dir(&vulkan_base)
             .ok()
             .into_iter()
@@ -1220,6 +1225,7 @@ fn main() {
         "LLAMA_NO_SCCACHE",
         "SCCACHE_PATH",
         "CMAKE_VERBOSE",
+        "BUILD_DEBUG",
         "MINGW_PREFIX",
         "ProgramFiles",
         "ProgramFiles(x86)",
@@ -1425,6 +1431,7 @@ fn main() {
         .opaque_type("std::.*");
 
     for include_dir in bindgen_system_include_dirs(&target) {
+        println!("cargo:rerun-if-changed={}", include_dir.display());
         builder = builder
             .clang_arg("-isystem")
             .clang_arg(include_dir.display().to_string());
