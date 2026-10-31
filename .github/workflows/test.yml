@@ -24,8 +24,8 @@ jobs:
 
       - name: Run release tooling tests
         env:
-          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache-mtimes
-        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache_mtimes tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache
+        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
 
   cargo-test:
     name: Cargo tests
@@ -78,21 +78,16 @@ jobs:
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
 
+      # Keep checkout timestamps so Cargo rebuilds local sources after a restore.
       - name: Restore test target cache
         id: target-cache
         uses: actions/cache/restore@v5
         with:
           path: .github-cache/cargo-target/test
-          key: jbotci-test-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-test-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-test-target-v2-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
-
-      - name: Normalize test target cache mtimes
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: .github-cache/cargo-target/test
+            jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
 
       - name: Run workspace tests with import feature
         run: cargo test -r --workspace --features jbotci-dictionary/import
@@ -111,14 +106,6 @@ jobs:
             exit 1
           fi
 
-      - name: Stamp test target cache
-        id: target-cache-stamp
-        if: ${{ success() && github.event_name != 'pull_request' }}
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: stamp
-          target-dir: .github-cache/cargo-target/test
-
       - name: Save cargo home cache
         if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
@@ -126,9 +113,9 @@ jobs:
           path: .github-cache/cargo
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
-      # A failed run can leave new binaries with an older source stamp.
+      # Save compiled artifacts only after the job succeeds.
       - name: Save test target cache
-        if: ${{ success() && github.event_name != 'pull_request' && steps.target-cache-stamp.outcome == 'success' }}
+        if: ${{ success() && github.event_name != 'pull_request' }}
         uses: actions/cache/save@v5
         with:
           path: .github-cache/cargo-target/test
