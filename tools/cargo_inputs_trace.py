@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import threading
 
 
@@ -206,11 +207,20 @@ class Parser:
         for raw in stream:
             try:
                 self.consume(raw.decode("utf-8", errors="surrogateescape").rstrip("\n"))
-            except (TraceError, ValueError, SyntaxError, IndexError, KeyError, OSError):
+            except (TraceError, ValueError, SyntaxError, IndexError, KeyError, OSError) as error:
                 # A raw line can contain credentials. Record no part of it.
                 self.errors += 1
+                match = re.match(rb"\s*(\d+)\s+(\w+)\(", raw)
+                self.emit({"event": "trace-error", "pid": int(match[1]) if match else None,
+                           "operation": match[2].decode("ascii") if match else "resumed",
+                           "unit": self.processes.get(int(match[1]), Process(str(self.workspace))).unit if match else None,
+                           "reason": str(error) if isinstance(error, TraceError) else type(error).__name__})
         if self.pending or self.waiting:
             self.errors += len(self.pending) + len(self.waiting)
+            self.emit({"event": "incomplete-processes",
+                       "pending": {pid: {"unit": self.processes[pid].unit,
+                                         "operation": body.split("(", 1)[0]} for pid, body in self.pending.items()},
+                       "waiting": list(self.waiting)})
         self.emit({"event": "complete", "errors": self.errors})
 
 
@@ -231,4 +241,6 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
             os.close(write_fd)
         status = process.wait()
         reader.join()
+    if parser.errors:
+        print(f"Input trace rejected {parser.errors} operations. Read the error events in {journal}.", file=sys.stderr)
     return status if status else (1 if parser.errors else 0)
