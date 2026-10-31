@@ -2727,50 +2727,38 @@ pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSynt
         .map(|parse_tree| *parse_tree)
 }
 
-/// Returns the grammar continuations expected at the end of `words`.
-///
-/// Syntax errors before the cut are recovered with the same machinery and
-/// `max_recovery_errors` limit as normal recovery parsing. If that limit is
-/// exhausted before reaching the cut, the expectations from the last viable
-/// recovery state are returned instead.
+/// A continuation query stopped before it reached the requested cut.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContinuationError {
+    TimedOut,
+    RecoveryLimit,
+}
+
+/// Return complete expectations, including an empty list when no continuation exists.
 #[requires(true)]
-#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[ensures(ret.iter().enumerate().all(|(index, expectation)| {
-    ret.iter()
-        .skip(index + 1)
-        .all(|other| expectation.reason != other.reason)
-}))]
+#[ensures(ret.as_ref().is_ok_and(|items| items.iter().all(|item| !item.tokens.is_empty())) || ret.is_err())]
+#[ensures(ret.as_ref().map_or(true, |items| items.iter().enumerate().all(|(index, item)| items.iter().skip(index + 1).all(|other| item.reason != other.reason))))]
 pub fn expected_continuations(
     words: &[WordLike],
     options: &ParseOptions,
-) -> Vec<SyntaxExpectation> {
-    merge_expectations_by_reason(&grammar::expected_continuations(words, options, None))
+) -> Result<Vec<SyntaxExpectation>, ContinuationError> {
+    grammar::expected_continuations(words, options, None)
+        .map(|items| merge_expectations_by_reason(&items))
 }
 
-/// Returns the grammar continuations expected at the end of `words`, subject
-/// to a wall-clock limit.
-///
-/// The limit is checked before parsing and between recovery trials. If it or
-/// the configured recovery-error budget is exhausted before the requested cut
-/// is reached, an empty result reports that grammar expectations are
-/// unavailable; callers can then fall back without failing the request.
+/// Return complete expectations or the reason that the query stopped.
+/// A zero limit deterministically reports a timeout before parsing starts.
 #[requires(true)]
-#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[ensures(ret.iter().enumerate().all(|(index, expectation)| {
-    ret.iter()
-        .skip(index + 1)
-        .all(|other| expectation.reason != other.reason)
-}))]
+#[ensures(ret.as_ref().is_ok_and(|items| items.iter().all(|item| !item.tokens.is_empty())) || ret.is_err())]
+#[ensures(ret.as_ref().map_or(true, |items| items.iter().enumerate().all(|(index, item)| items.iter().skip(index + 1).all(|other| item.reason != other.reason))))]
 pub fn expected_continuations_with_time_limit(
     words: &[WordLike],
     options: &ParseOptions,
     time_limit: Duration,
-) -> Vec<SyntaxExpectation> {
-    merge_expectations_by_reason(&grammar::expected_continuations(
-        words,
-        options,
-        Some(time_limit),
-    ))
+) -> Result<Vec<SyntaxExpectation>, ContinuationError> {
+    grammar::expected_continuations(words, options, Some(time_limit))
+        .map(|items| merge_expectations_by_reason(&items))
 }
 
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
@@ -3200,7 +3188,7 @@ mod tests {
     #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
     fn expected_continuations_for(source: &str) -> Vec<SyntaxExpectation> {
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
-        expected_continuations(&words, &ParseOptions::default())
+        expected_continuations(&words, &ParseOptions::default()).expect("complete grammar query")
     }
 
     #[test]
@@ -3224,30 +3212,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn time_limited_expectation_wrapper_preserves_empty_results() {
+    fn time_limited_expectation_wrapper_distinguishes_timeout_and_recovery_limit() {
         let words = jbotci_morphology::segment_words_with_modifiers("mi klama")
             .expect("fixture has valid morphology");
-
-        assert!(
+        assert_eq!(
             expected_continuations_with_time_limit(
                 &words,
                 &ParseOptions::default(),
-                Duration::ZERO,
-            )
-            .is_empty()
+                Duration::ZERO
+            ),
+            Err(ContinuationError::TimedOut),
         );
-
         let recovered_words =
             jbotci_morphology::segment_words_with_modifiers("mi ku .i do klama le zarci")
                 .expect("recovery fixture has valid morphology");
-        assert!(
-            expected_continuations_with_time_limit(
+        assert_eq!(
+            expected_continuations(
                 &recovered_words,
-                &ParseOptions::default().with_max_recovery_errors(1),
-                Duration::from_secs(1),
-            )
-            .is_empty(),
-            "bounded continuation parsing must not filter from an error before the cut",
+                &ParseOptions::default().with_max_recovery_errors(1)
+            ),
+            Err(ContinuationError::RecoveryLimit),
         );
     }
 
@@ -3378,7 +3362,8 @@ mod tests {
                 Some(data!(WordLike::QuotedWord { .. }))
             ));
 
-            let expectations = expected_continuations(&words, &ParseOptions::default());
+            let expectations = expected_continuations(&words, &ParseOptions::default())
+                .expect("complete grammar query");
             assert!(contains_expected_token(
                 &expectations,
                 &new!(SyntaxExpectedToken::Cmavo(Cmavo::I)),
@@ -3398,7 +3383,8 @@ mod tests {
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         assert!(parse_syntax_tree(&words).is_err());
 
-        let expectations = expected_continuations(&words, &ParseOptions::default());
+        let expectations = expected_continuations(&words, &ParseOptions::default())
+            .expect("complete grammar query");
 
         assert!(contains_expected_token(
             &expectations,
