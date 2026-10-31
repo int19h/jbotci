@@ -77,23 +77,17 @@ jobs:
           path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: jbotci-dx-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.rustc.outputs.version }}
 
+      # Keep checkout timestamps so Cargo rebuilds local sources after a restore.
       - name: Restore render target cache
         id: target-cache
         uses: actions/cache/restore@v5
         with:
           path: |
             .github-cache/cargo-target/deploy
-            .github-cache/home/.dx
-          key: jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-render-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
-
-      - name: Normalize render target cache mtimes
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: .github-cache/cargo-target/deploy
+            jbotci-render-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-render-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
 
       - name: Install Rust wasm target
         run: rustup target add wasm32-unknown-unknown
@@ -167,13 +161,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Stamp render target cache
-        if: ${{ success() }}
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: stamp
-          target-dir: .github-cache/cargo-target/deploy
-
       - name: Save cargo home cache
         if: ${{ steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
@@ -188,13 +175,13 @@ jobs:
           path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
 
+      # Save compiled artifacts only after the job succeeds.
       - name: Save render target cache
-        if: ${{ !cancelled() }}
+        if: ${{ success() }}
         uses: actions/cache/save@v5
         with:
           path: |
             .github-cache/cargo-target/deploy
-            .github-cache/home/.dx
           key: ${{ steps.target-cache.outputs.cache-primary-key }}
 
   f2llm-native-lavapipe:
