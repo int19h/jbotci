@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-ide/src/snapshot/completion.rs:CompletionIncompleteReason::Grammar",
+        "The cause is an already typed continuation error with no further constraint.",
+    ),
+    (
         "apps/jbotci-server/src/discord/interaction.rs:WriteError::Lane",
         "The variant preserves an already typed work failure.",
     ),
