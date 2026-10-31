@@ -530,6 +530,10 @@ pub(super) fn observe_cukta_edition_row(
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 const DESKTOP_EDITION_FIT_MESSAGE: &str = "edition-fit";
 
+/// What the message the desktop bridge relays for the vlacku controls is called.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+const DESKTOP_VLACKU_CONTROLS_MESSAGE: &str = "vlacku-controls";
+
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
@@ -1207,10 +1211,15 @@ impl VlackuControlsMetrics {
 /// The candidates are tried from the widest to the narrowest and the first that
 /// fits is taken, as the top bar does with its own probes. `Compact` is the last
 /// candidate and has no probe: it is what is left when nothing wider fits, so it
-/// is never asked.
+/// is never asked. The postconditions state that order in full, so a resolver
+/// that returned a narrower arrangement than one that fits would break them;
+/// they call `fits` again, which is why it must be a pure function of the
+/// arrangement.
 #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
-#[ensures(ret.is_compact() || fits(ret))]
+#[ensures(fits(VlackuControlsLayout::SingleRow) -> ret == VlackuControlsLayout::SingleRow)]
+#[ensures(!fits(VlackuControlsLayout::SingleRow) && fits(VlackuControlsLayout::SplitRows) -> ret == VlackuControlsLayout::SplitRows)]
+#[ensures(!fits(VlackuControlsLayout::SingleRow) && !fits(VlackuControlsLayout::SplitRows) -> ret == VlackuControlsLayout::Compact)]
 pub(super) fn vlacku_controls_layout_from_probe_fits(
     fits: impl Fn(VlackuControlsLayout) -> bool,
 ) -> VlackuControlsLayout {
@@ -1230,7 +1239,9 @@ pub(super) fn vlacku_controls_layout_from_probe_fits(
 /// line there, and a tolerance would only move the point at which it wraps.
 #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
-#[ensures(true)]
+#[ensures(metrics.single_row_required_width <= metrics.available_width -> ret == VlackuControlsLayout::SingleRow)]
+#[ensures(metrics.single_row_required_width > metrics.available_width && metrics.split_rows_required_width <= metrics.available_width -> ret == VlackuControlsLayout::SplitRows)]
+#[ensures(metrics.single_row_required_width > metrics.available_width && metrics.split_rows_required_width > metrics.available_width -> ret == VlackuControlsLayout::Compact)]
 pub(super) fn vlacku_controls_layout_from_metrics(
     metrics: VlackuControlsMetrics,
 ) -> VlackuControlsLayout {
@@ -1385,6 +1396,41 @@ pub(super) async fn measure_vlacku_controls_metrics_desktop() -> Option<VlackuCo
         const controls = form && form.querySelector(":scope > .dictionary-controls");
         const single = form && form.querySelector(":scope > .vlacku-controls-probes > .is-single-row");
         const split = form && form.querySelector(":scope > .vlacku-controls-probes > .is-split-rows");
+        // The observer is keyed by the form node: a page that is entered again
+        // has a new form, and the observer left on the old one is released here.
+        // The key is only recorded once everything is being watched, so a
+        // measurement that finds the page half-built tries again next time
+        // instead of leaving the controls unwatched for the rest of the visit.
+        const state = window.__jbotciVlackuControls
+            || (window.__jbotciVlackuControls = { observer: null, form: null });
+        if (state.form !== form) {
+            if (state.observer) {
+                state.observer.disconnect();
+            }
+            state.observer = null;
+            state.form = null;
+            if (form && controls && single && split) {
+                // Runs after layout and before paint.
+                const observer = new ResizeObserver(() => {
+                    if (!form.isConnected) {
+                        observer.disconnect();
+                        if (state.observer === observer) {
+                            state.observer = null;
+                            state.form = null;
+                        }
+                        return;
+                    }
+                    if (window.__jbotciVlackuControlsNotify) {
+                        window.__jbotciVlackuControlsNotify();
+                    }
+                });
+                observer.observe(controls);
+                observer.observe(single);
+                observer.observe(split);
+                state.observer = observer;
+                state.form = form;
+            }
+        }
         if (!controls || !single || !split) {
             return null;
         }
@@ -1441,6 +1487,249 @@ pub(super) fn schedule_vlacku_controls_layout_after_fonts_ready(controls: Vlacku
     platform::schedule_after_fonts_ready(&document, move || async move {
         schedule_vlacku_controls_layout_measure(controls);
     });
+}
+
+/// The Filters button, which is part of the dropdown as far as dismissal goes: a
+/// press on it is the button's own toggle, not a press outside.
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
+const VLACKU_FILTERS_BUTTON_SELECTOR: &str =
+    ".vlacku-page .dictionary-form > .dictionary-controls > .filters-button";
+
+/// Listeners on the document that dismiss the open dropdown, held for as long as
+/// it is open.
+///
+/// They are on the document, in the capture phase, because the controls cannot
+/// know what a user does elsewhere on the page: a press on the top bar, the
+/// settings menu or the jvozba pane is above anything this page could lay over
+/// them, focus can move out of the dropdown by keyboard into what it covers, and
+/// the page-find field handles Escape before it could reach the dropdown. They
+/// are removed when this is dropped, which is when the dropdown closes, the
+/// layout leaves `Compact`, or the page goes away.
+#[cfg(target_arch = "wasm32")]
+#[invariant(true)]
+pub(super) struct VlackuFiltersDismissal {
+    document: web_sys::Document,
+    listeners: Vec<(&'static str, Closure<dyn FnMut(web_sys::Event)>)>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Drop for VlackuFiltersDismissal {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        for (name, listener) in &self.listeners {
+            let _ = self.document.remove_event_listener_with_callback_and_bool(
+                name,
+                listener.as_ref().unchecked_ref(),
+                true,
+            );
+        }
+    }
+}
+
+/// Whether `event` happened outside the dropdown and its button.
+///
+/// An event with no node as its target is outside: nothing in the dropdown is it.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn event_is_outside_vlacku_filters(event: &web_sys::Event) -> bool {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return true;
+    };
+    let Some(target) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Node>().ok())
+    else {
+        return true;
+    };
+    let inside = |element: Option<web_sys::Element>| {
+        element.is_some_and(|element| element.contains(Some(&target)))
+    };
+    !inside(document.get_element_by_id(VLACKU_FILTER_PANEL_ID))
+        && !inside(
+            document
+                .query_selector(VLACKU_FILTERS_BUTTON_SELECTOR)
+                .ok()
+                .flatten(),
+        )
+}
+
+/// Put focus back on the Filters button, which is where a keyboard user opened
+/// the dropdown from. Focus is moved in the document rather than remembered from
+/// when the button was drawn, because a tap on the button does not focus it on
+/// every host.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn focus_vlacku_filters_button() {
+    if let Some(button) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| {
+            document
+                .query_selector(VLACKU_FILTERS_BUTTON_SELECTOR)
+                .ok()
+                .flatten()
+        })
+        .and_then(|button| button.dyn_into::<web_sys::HtmlElement>().ok())
+    {
+        let _ = button.focus();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn install_vlacku_filters_dismissal(
+    controls: VlackuControlsState,
+) -> Option<VlackuFiltersDismissal> {
+    let document = web_sys::window()?.document()?;
+    // A press or a focus elsewhere only closes the dropdown. It is not stopped,
+    // so that it still reaches what was pressed.
+    let dismiss_outside = move |event: web_sys::Event| {
+        if event_is_outside_vlacku_filters(&event) {
+            controls.close_filters();
+        }
+    };
+    let escape = move |event: web_sys::Event| {
+        let Some(key) = event.dyn_ref::<web_sys::KeyboardEvent>() else {
+            return;
+        };
+        if key.key() != "Escape" {
+            return;
+        }
+        // Escape belongs to the dropdown while it is open: it is stopped so that
+        // the page-find field does not also clear its query, and its default is
+        // prevented so that a search field does not clear itself either.
+        event.stop_propagation();
+        event.prevent_default();
+        controls.close_filters();
+        focus_vlacku_filters_button();
+    };
+    let listeners = vec![
+        (
+            "pointerdown",
+            Closure::<dyn FnMut(web_sys::Event)>::new(dismiss_outside),
+        ),
+        (
+            "focusin",
+            Closure::<dyn FnMut(web_sys::Event)>::new(dismiss_outside),
+        ),
+        ("keydown", Closure::<dyn FnMut(web_sys::Event)>::new(escape)),
+    ];
+    for (name, listener) in &listeners {
+        document
+            .add_event_listener_with_callback_and_bool(
+                name,
+                listener.as_ref().unchecked_ref(),
+                true,
+            )
+            .ok()?;
+    }
+    Some(VlackuFiltersDismissal {
+        document,
+        listeners,
+    })
+}
+
+/// The desktop webview has no `web_sys`, so the same listeners are installed by a
+/// script. It reports a dismissal back, and removes its own listeners when it is
+/// told to stop, which is what dropping this does.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[invariant(true)]
+pub(super) struct VlackuFiltersDismissal {
+    script: document::Eval,
+    watcher: Task,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+impl Drop for VlackuFiltersDismissal {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        // The script is waiting for this message to remove its listeners.
+        let _ = self.script.send("stop");
+        self.watcher.cancel();
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn install_vlacku_filters_dismissal(
+    controls: VlackuControlsState,
+) -> Option<VlackuFiltersDismissal> {
+    let script = document::eval(&format!(
+        r#"
+        const panelId = "{panel_id}";
+        const buttonSelector = "{button_selector}";
+        const dismiss = () => {{
+            try {{
+                dioxus.send("dismiss");
+            }} catch (_error) {{
+            }}
+        }};
+        const isOutside = (event) => {{
+            const target = event.target;
+            if (!(target instanceof Node)) {{
+                return true;
+            }}
+            const panel = document.getElementById(panelId);
+            const button = document.querySelector(buttonSelector);
+            return !((panel && panel.contains(target)) || (button && button.contains(target)));
+        }};
+        // A press or a focus elsewhere only closes the dropdown, and is not stopped.
+        const onOutside = (event) => {{
+            if (isOutside(event)) {{
+                dismiss();
+            }}
+        }};
+        // Escape belongs to the dropdown while it is open.
+        const onKey = (event) => {{
+            if (event.key !== "Escape") {{
+                return;
+            }}
+            event.stopPropagation();
+            event.preventDefault();
+            const button = document.querySelector(buttonSelector);
+            if (button) {{
+                button.focus();
+            }}
+            dismiss();
+        }};
+        document.addEventListener("pointerdown", onOutside, true);
+        document.addEventListener("focusin", onOutside, true);
+        document.addEventListener("keydown", onKey, true);
+        await dioxus.recv();
+        document.removeEventListener("pointerdown", onOutside, true);
+        document.removeEventListener("focusin", onOutside, true);
+        document.removeEventListener("keydown", onKey, true);
+        "#,
+        panel_id = VLACKU_FILTER_PANEL_ID,
+        button_selector = VLACKU_FILTERS_BUTTON_SELECTOR,
+    ));
+    let watcher = spawn(async move {
+        let mut script = script;
+        while script.recv::<String>().await.is_ok() {
+            controls.close_filters();
+        }
+    });
+    Some(VlackuFiltersDismissal { script, watcher })
+}
+
+/// The headless build has no document to listen on, and so never has anything to
+/// dismiss: this type has no values.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+pub(super) type VlackuFiltersDismissal = std::convert::Infallible;
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+pub(super) fn install_vlacku_filters_dismissal(
+    controls: VlackuControlsState,
+) -> Option<VlackuFiltersDismissal> {
+    let _ = controls;
+    None
 }
 
 #[requires(true)]
@@ -4033,6 +4322,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
+    vlacku_controls: VlackuControlsState,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
         if installed.get() {
@@ -4045,6 +4335,9 @@ pub(super) fn install_browser_dom_handlers(
     if !should_install {
         return;
     }
+    // The vlacku controls are measured from a resize observer on this host, which
+    // sees every change of those boxes, so no window event has to ask for it.
+    let _ = vlacku_controls;
     let Some(window) = web_sys::window() else {
         return;
     };
@@ -4188,6 +4481,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
+    vlacku_controls: VlackuControlsState,
 ) {
     if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
         return;
@@ -4226,6 +4520,14 @@ pub(super) fn install_browser_dom_handlers(
                 } catch (_error) {
                 }
             };
+            // Likewise for the vlacku controls' observer, which the measurement
+            // installs and which reports the boxes it watches changing size.
+            window.__jbotciVlackuControlsNotify = () => {
+                try {
+                    dioxus.send("vlacku-controls");
+                } catch (_error) {
+                }
+            };
             const scheduleLayout = () => requestAnimationFrame(sendLayout);
             window.addEventListener("resize", scheduleLayout);
             window.addEventListener("load", sendLayout);
@@ -4246,6 +4548,10 @@ pub(super) fn install_browser_dom_handlers(
                 schedule_cukta_edition_release_fit_measure(cukta_edition_release_fits);
                 continue;
             }
+            if message == DESKTOP_VLACKU_CONTROLS_MESSAGE {
+                schedule_vlacku_controls_layout_measure(vlacku_controls);
+                continue;
+            }
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
             schedule_topbar_settings_layout_measure(
@@ -4256,6 +4562,9 @@ pub(super) fn install_browser_dom_handlers(
             update_vlacku_jvozba_availability(jvozba_available);
             update_cukta_toc_forced_autohide(cukta_toc_forced_autohide);
             schedule_cukta_edition_release_fit_measure(cukta_edition_release_fits);
+            // A measurement that was missed, because the page had no boxes yet,
+            // is made up for by the next resize, load or font event.
+            schedule_vlacku_controls_layout_measure(vlacku_controls);
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
     });
@@ -4271,6 +4580,7 @@ pub(super) fn install_browser_dom_handlers(
     topbar_nav_layout: Signal<TopbarNavLayout>,
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
+    vlacku_controls: VlackuControlsState,
 ) {
     let _ = (
         jvozba_available,
@@ -4279,6 +4589,7 @@ pub(super) fn install_browser_dom_handlers(
         topbar_nav_layout,
         cukta_toc_forced_autohide,
         cukta_edition_release_fits,
+        vlacku_controls,
     );
 }
 

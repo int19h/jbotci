@@ -396,6 +396,7 @@ pub(super) fn AppShell() -> Element {
         topbar_nav_layout,
         cukta_toc_forced_autohide,
         cukta_edition_release_fits,
+        vlacku_controls,
     );
     let scroll_base_path = base_path.clone();
     let scroll_route_location = current_route_location.clone();

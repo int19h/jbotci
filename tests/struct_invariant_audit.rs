@@ -2164,6 +2164,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "owns a browser resize observer and the closure it calls; the pairing is the whole point and neither half constrains the other",
     ),
     (
+        "crates/jbotci-ui/src/layout.rs:VlackuFiltersDismissal",
+        "owns the document listeners (or, on the desktop webview, the script and the task that watches it) that dismiss the open dropdown; the pairing is the whole point, and dropping the value removes them",
+    ),
+    (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeMetrics",
         "desktop tree metrics are direct layout measurements used to derive overlay geometry",
     ),
@@ -2385,7 +2389,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-ui/src/vlacku.rs:VlackuControlsState",
-        "the shell's three independent handles for the filter controls: the measured layout, the dropdown flag and the Filters button; no value of one constrains another, and the flag is cleared by the transition out of the compact layout rather than held as an invariant",
+        "the shell's two independent handles for the filter controls: the measured layout and the dropdown flag; no value of one constrains the other, and the flag is cleared by the transition out of the compact layout rather than held as an invariant",
     ),
     (
         "crates/jbotci-ui/src/vlacku.rs:VlackuDraftState",

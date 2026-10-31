@@ -4181,7 +4181,6 @@ fn render_vlacku_controls_fixture(fixture: VlackuControlsFixture) -> String {
         let controls = VlackuControlsState {
             layout: use_signal(move || fixture.layout),
             filters_open: use_signal(move || fixture.filters_open),
-            filters_button: use_signal(|| None),
         };
         let state = draft.read().web_state();
         render_vlacku_controls(
@@ -4322,6 +4321,39 @@ fn vlacku_controls_layout_change_closes_the_dropdown_when_compact_is_left() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_dropdown_is_open_only_in_the_compact_layout() {
+    let slot = Rc::new(Cell::new(None::<VlackuControlsState>));
+    let mut dom = VirtualDom::new(|| {
+        let slot = consume_context::<Rc<Cell<Option<VlackuControlsState>>>>();
+        slot.set(Some(VlackuControlsState::use_new()));
+        rsx! {}
+    })
+    .with_root_context(slot.clone());
+    dom.rebuild_in_place();
+    let controls = slot.get().expect("mounted controls state");
+    dom.in_scope(ScopeId::ROOT, || {
+        let mut open = controls.filters_open;
+        let mut layout = controls.layout;
+        assert!(!controls.dropdown_is_open());
+        // A flag left set in a layout that has no dropdown opens nothing.
+        open.set(true);
+        for other in [
+            VlackuControlsLayout::SingleRow,
+            VlackuControlsLayout::SplitRows,
+        ] {
+            layout.set(other);
+            assert!(!controls.dropdown_is_open());
+        }
+        layout.set(VlackuControlsLayout::Compact);
+        assert!(controls.dropdown_is_open());
+        controls.close_filters();
+        assert!(!controls.dropdown_is_open());
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlacku_filters_changed_follows_the_defaults() {
     let default = VlackuWebState::default();
     assert!(!vlacku_filters_changed(&default));
@@ -4395,9 +4427,11 @@ fn vlacku_controls_render_one_live_copy_and_probes_without_ids() {
             live.contains("class=\"filters-button\""),
             layout.is_compact()
         );
-        // Closed, there is no scrim and the panel has no open mark.
+        // Closed, the panel has no open mark.
         assert!(!live.contains("is-open"));
-        assert!(!live.contains("vlacku-filters-scrim"));
+        // Dismissal is by listeners on the document, not by an element laid over
+        // the page.
+        assert!(!live.contains("scrim"));
     }
 }
 
@@ -4424,7 +4458,7 @@ fn vlacku_filters_button_reports_state_and_hidden_changes() {
     let open = render(true, default.clone());
     assert!(open.contains("aria-expanded=\"true\""));
     assert!(open.contains("dictionary-filter-panel is-open"));
-    assert!(open.contains("vlacku-filters-scrim"));
+    assert!(!open.contains("scrim"));
 
     // A filter that is not at its default is hidden in the dropdown, so the
     // button says so, by a badge and by its accessible name.
@@ -4459,7 +4493,9 @@ fn vlacku_open_flag_does_not_open_the_panel_outside_compact() {
         });
         let live = split_vlacku_controls_html(&html).0;
         assert!(!live.contains("is-open"), "{live}");
-        assert!(!live.contains("vlacku-filters-scrim"));
+        // Dismissal is by listeners on the document, not by an element laid over
+        // the page.
+        assert!(!live.contains("scrim"));
         assert!(!live.contains("filters-button"));
     }
 }

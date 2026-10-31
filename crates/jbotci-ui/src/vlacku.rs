@@ -146,8 +146,6 @@ pub(super) struct VlackuControlsState {
     /// Whether the dropdown is open. Only meaningful in `Compact`: it is closed
     /// by the transition out of `Compact`.
     pub(super) filters_open: Signal<bool>,
-    /// The Filters button, so that closing with Escape can return focus to it.
-    pub(super) filters_button: Signal<Option<Rc<MountedData>>>,
 }
 
 impl VlackuControlsState {
@@ -161,30 +159,25 @@ impl VlackuControlsState {
         Self {
             layout: use_signal(|| VlackuControlsLayout::SingleRow),
             filters_open: use_signal(|| false),
-            filters_button: use_signal(|| None),
         }
     }
 
-    /// Close the dropdown without moving focus.
+    /// Whether the dropdown is on screen: only the compact layout has one, and a
+    /// flag left set in another layout does not open anything. Reads both signals,
+    /// so a caller that runs in an effect is re-run when either changes.
+    #[requires(true)]
+    #[ensures(ret -> self.layout.peek().is_compact())]
+    pub(super) fn dropdown_is_open(&self) -> bool {
+        self.layout.read().is_compact() && *self.filters_open.read()
+    }
+
+    /// Close the dropdown.
     #[requires(true)]
     #[ensures(!*self.filters_open.peek())]
     pub(super) fn close_filters(&self) {
         let mut open = self.filters_open;
         if *open.peek() {
             open.set(false);
-        }
-    }
-
-    /// Close the dropdown and put focus back on the Filters button, which is
-    /// where a keyboard user opened it from.
-    #[requires(true)]
-    #[ensures(!*self.filters_open.peek())]
-    pub(super) fn close_filters_and_focus_button(&self) {
-        self.close_filters();
-        if let Some(button) = self.filters_button.peek().clone() {
-            spawn(async move {
-                let _ = button.set_focus(true).await;
-            });
         }
     }
 }
@@ -259,6 +252,7 @@ pub(super) fn VlackuPage(
         observe_controls();
         schedule_vlacku_controls_layout_measure(vlacku_controls);
     });
+    use_vlacku_filters_dismissal(vlacku_controls);
     // The dropdown belongs to this page: it must not still be open when the
     // page is entered again.
     use_drop(move || vlacku_controls.close_filters());
@@ -423,50 +417,34 @@ pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> imp
     }
 }
 
-/// The desktop webview has no `web_sys`, so the observer is installed in the
-/// page itself, and each change it sees asks for a measurement here.
+/// The desktop webview has no `web_sys`, so the observer is installed in the page
+/// itself, by the measurement (see `measure_vlacku_controls_metrics_desktop`), and
+/// reports back through the notifier that the layout bridge leaves on `window`.
+/// Doing it there means a failed install is simply tried again by the next
+/// measurement, which the bridge asks for on every resize, load and font event;
+/// nothing here can latch a failure. What is left to do from here is to release the
+/// observer when the page goes away.
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> impl Fn() + Copy {
-    let mut watcher = use_signal(|| None::<Task>);
-    use_drop(move || {
-        if let Some(task) = watcher.write().take() {
-            task.cancel();
-        }
-    });
-    move || {
-        let mut watcher = watcher;
-        if watcher.peek().is_some() {
-            return;
-        }
-        watcher.set(Some(spawn(async move {
-            let mut eval = document::eval(
-                r#"
-                const form = document.querySelector(".vlacku-page .dictionary-form");
-                if (!form) {
-                    return null;
+    let _ = controls;
+    use_drop(|| {
+        let _ = document::eval(
+            r#"
+            const state = window.__jbotciVlackuControls;
+            if (state) {
+                if (state.observer) {
+                    state.observer.disconnect();
                 }
-                // Runs after layout and before paint. It also runs once as soon
-                // as the elements start being watched.
-                const observer = new ResizeObserver(() => {
-                    try {
-                        dioxus.send("resize");
-                    } catch (_error) {
-                    }
-                });
-                observer.observe(form.querySelector(":scope > .dictionary-controls"));
-                for (const probe of form.querySelectorAll(":scope > .vlacku-controls-probes > .vlacku-controls-probe")) {
-                    observer.observe(probe);
-                }
-                await new Promise(() => {});
-                "#,
-            );
-            while eval.recv::<String>().await.is_ok() {
-                schedule_vlacku_controls_layout_measure(controls);
+                state.observer = null;
+                state.form = null;
             }
-        })));
-    }
+            return null;
+            "#,
+        );
+    });
+    || {}
 }
 
 /// The headless build has no document, so there is nothing to watch.
@@ -476,6 +454,31 @@ pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> imp
 pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> impl Fn() + Copy {
     let _ = controls;
     || {}
+}
+
+/// Dismiss the dropdown on what happens elsewhere on the page, for as long as it
+/// is open.
+///
+/// The listeners (see `VlackuFiltersDismissal`) exist only while the dropdown is
+/// on screen: they are installed when it opens and removed when it closes, when
+/// the layout leaves `Compact` (which closes it), and when the page goes away.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_vlacku_filters_dismissal(controls: VlackuControlsState) {
+    let mut dismissal = use_signal(|| None::<VlackuFiltersDismissal>);
+    use_effect(move || {
+        let open = controls.dropdown_is_open();
+        let installed = dismissal.peek().is_some();
+        if open && !installed {
+            dismissal.set(install_vlacku_filters_dismissal(controls));
+        } else if !open && installed {
+            // Dropping the value removes the listeners.
+            dismissal.set(None);
+        }
+    });
+    use_drop(move || {
+        let _ = dismissal.write().take();
+    });
 }
 
 /// Whether any dictionary filter differs from what a fresh page starts with.
@@ -501,26 +504,11 @@ pub(super) fn render_vlacku_controls(
     // The dropdown only exists in `Compact`; the state is also cleared when the
     // layout leaves `Compact`, but a stale flag must never open a panel in the
     // other layouts, where the panel is part of the row.
-    let filters_open = layout.is_compact() && *controls.filters_open.read();
+    let filters_open = controls.dropdown_is_open();
     let controls_class = format!("dictionary-controls {}", layout.class());
     rsx! {
         div { class: "dictionary-form",
-            div {
-                class: "{controls_class}",
-                onkeydown: move |event| {
-                    if event.key() == Key::Escape && *controls.filters_open.peek() {
-                        controls.close_filters_and_focus_button();
-                    }
-                },
-                if filters_open {
-                    // Closes the dropdown on a click anywhere else. A scrim keeps
-                    // this inside the renderer, which works the same on every host.
-                    div {
-                        class: "vlacku-filters-scrim",
-                        aria_hidden: "true",
-                        onclick: move |_| controls.close_filters(),
-                    }
-                }
+            div { class: "{controls_class}",
                 { render_vlacku_mode_selector(vlacku_draft_state, vlacku_committed_state, state.mode) }
                 if layout.is_compact() {
                     { render_vlacku_filters_button(controls, filters_open, vlacku_filters_changed(state)) }
@@ -668,7 +656,6 @@ pub(super) fn render_vlacku_filters_button(
         "Filters"
     };
     let mut filters_open = controls.filters_open;
-    let mut filters_button = controls.filters_button;
     rsx! {
         button {
             class: "filters-button",
@@ -677,7 +664,6 @@ pub(super) fn render_vlacku_filters_button(
             aria_expanded: if open { "true" } else { "false" },
             aria_controls: VLACKU_FILTER_PANEL_ID,
             title: "{label}",
-            onmounted: move |event| filters_button.set(Some(event.data())),
             onclick: move |_| filters_open.set(!open),
             svg {
                 class: "filters-icon",
