@@ -575,7 +575,6 @@ pub(crate) enum ToolOutcome {
 #[invariant(::Page(_) => true)]
 #[invariant(::Diagram(_) => true)]
 #[invariant(::Work(_) => true)]
-#[invariant(::Limit(_) => true)]
 #[invariant(::Internal { .. } => true)]
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperationError {
@@ -583,7 +582,6 @@ pub(crate) enum OperationError {
     Page(PageUnavailable),
     Diagram(DiagramError),
     Work(WorkError),
-    Limit(crate::policy::RequestLimitError),
     Internal { message: String },
 }
 
@@ -599,7 +597,6 @@ impl fmt::Display for OperationError {
                 _ => crate::error::ServerErrorCode::OutputLimit.message(),
             }),
             Self::Work(error) => write!(formatter, "{error}"),
-            Self::Limit(error) => write!(formatter, "{error}"),
             Self::Internal { message } => write!(formatter, "internal error: {message}"),
         }
     }
@@ -655,8 +652,31 @@ impl<'a> std::ops::Deref for AdmittedOperationContext<'a> {
 #[invariant(true)]
 #[derive(Clone)]
 pub(crate) struct CompletedOperation {
-    pub(crate) outcome: ToolOutcome,
+    pub(crate) outcome: Result<ToolOutcome, OperationError>,
     pub(crate) context: crate::execution::AdmittedWorkContext,
+}
+
+/// A refusal before the operation acquires a compute lease.
+#[invariant(::Invalid(_) => true)]
+#[invariant(::Limit(_) => true)]
+#[invariant(::Admission(_) => true)]
+#[derive(Debug, Clone)]
+pub(crate) enum PreflightError {
+    Invalid(RequestValidationError),
+    Limit(crate::policy::RequestLimitError),
+    Admission(WorkError),
+}
+
+impl fmt::Display for PreflightError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Invalid(error) => write!(formatter, "{error}"),
+            Self::Limit(error) => write!(formatter, "{error}"),
+            Self::Admission(error) => write!(formatter, "{error}"),
+        }
+    }
 }
 
 /// Run `request` to a typed outcome.
@@ -665,60 +685,66 @@ pub(crate) struct CompletedOperation {
 pub(crate) async fn run_request(
     request: DiscordRequest,
     context: OperationContext<'_>,
-) -> Result<CompletedOperation, OperationError> {
+) -> Result<CompletedOperation, PreflightError> {
     request
         .validate(&context.tools.execution.policy)
-        .map_err(OperationError::Limit)?;
-    preflight(&request).map_err(OperationError::Invalid)?;
+        .map_err(PreflightError::Limit)?;
+    preflight(&request).map_err(PreflightError::Invalid)?;
     let admitted = context
         .tools
         .execution
         .admit(Some(context.deadline))
-        .await?;
+        .await
+        .map_err(PreflightError::Admission)?;
     let context = AdmittedOperationContext { context, admitted };
     let retained = context.admitted.clone();
-    let outcome = match request {
-        DiscordRequest::Gentufa(request) => {
-            let limits = context.admitted.execution.policy.tool_limits();
-            let attachment_size_limit = context.attachment_size_limit;
-            context
+    let outcome = async {
+        match request {
+            DiscordRequest::Gentufa(request) => {
+                let limits = context.admitted.execution.policy.tool_limits();
+                let attachment_size_limit = context.attachment_size_limit;
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_gentufa(&request, limits, attachment_size_limit)
+                    })
+                    .await?
+                    .map(ToolOutcome::Gentufa)
+            }
+            DiscordRequest::Vlasei(request) => context
                 .admitted
-                .run_keeping(context.keepalive.clone(), move || {
-                    run_gentufa(&request, limits, attachment_size_limit)
-                })
+                .run_keeping(context.keepalive.clone(), move || run_vlasei(&request))
                 .await?
-                .map(ToolOutcome::Gentufa)
-        }
-        DiscordRequest::Vlasei(request) => context
-            .admitted
-            .run_keeping(context.keepalive.clone(), move || run_vlasei(&request))
-            .await?
-            .map(ToolOutcome::Vlasei),
-        DiscordRequest::Vlatai(request) => context
-            .admitted
-            .run_keeping(context.keepalive.clone(), move || run_vlatai(&request))
-            .await?
-            .map(ToolOutcome::Vlatai),
-        DiscordRequest::Vlacku(request) => {
-            run_vlacku(request, context).await.map(ToolOutcome::Vlacku)
-        }
-        DiscordRequest::Cukta(request) => run_cukta(request, context).await.map(ToolOutcome::Cukta),
-        DiscordRequest::Jvozba(request) => {
-            let limits = context.admitted.execution.policy.jvozba;
-            context
+                .map(ToolOutcome::Vlasei),
+            DiscordRequest::Vlatai(request) => context
                 .admitted
-                .run_keeping(context.keepalive.clone(), move || {
-                    run_jvozba(&request, limits)
-                })
+                .run_keeping(context.keepalive.clone(), move || run_vlatai(&request))
                 .await?
-                .map(ToolOutcome::Jvozba)
+                .map(ToolOutcome::Vlatai),
+            DiscordRequest::Vlacku(request) => {
+                run_vlacku(request, context).await.map(ToolOutcome::Vlacku)
+            }
+            DiscordRequest::Cukta(request) => {
+                run_cukta(request, context).await.map(ToolOutcome::Cukta)
+            }
+            DiscordRequest::Jvozba(request) => {
+                let limits = context.admitted.execution.policy.jvozba;
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_jvozba(&request, limits)
+                    })
+                    .await?
+                    .map(ToolOutcome::Jvozba)
+            }
+            DiscordRequest::Gimfihi(request) => context
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || run_gimfihi(&request))
+                .await?
+                .map(ToolOutcome::Gimfihi),
         }
-        DiscordRequest::Gimfihi(request) => context
-            .admitted
-            .run_keeping(context.keepalive.clone(), move || run_gimfihi(&request))
-            .await?
-            .map(ToolOutcome::Gimfihi),
-    }?;
+    }
+    .await;
     Ok(CompletedOperation {
         outcome,
         context: retained,
@@ -1470,7 +1496,14 @@ mod tests {
             },
         )
         .await
-        .map(|completed| completed.outcome)
+        .map_err(|error| match error {
+            PreflightError::Invalid(error) => OperationError::Invalid(error),
+            PreflightError::Limit(error) => {
+                panic!("test request exceeds the shared policy: {error}")
+            }
+            PreflightError::Admission(error) => OperationError::Work(error),
+        })
+        .and_then(|completed| completed.outcome)
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

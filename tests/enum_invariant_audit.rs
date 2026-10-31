@@ -76,10 +76,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The error carries a message and an optional stable code.",
     ),
     (
-        "apps/jbotci-server/src/discord/operations.rs:OperationError::Limit",
-        "The error wraps a closed request limit reason.",
-    ),
-    (
         "apps/jbotci-server/src/discord/assemble.rs:AssembleError::AttachmentName",
         "wraps a validated InvalidAttachmentName; nothing further to constrain",
     ),
@@ -240,7 +236,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "why a result could not be produced; each case wraps an error that carries its own constraints",
     ),
     (
-        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Invalid",
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Preflight",
         "why a result could not be produced; each case wraps an error that carries its own constraints",
     ),
     (
@@ -252,12 +248,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "why a result could not be produced; each case wraps an error that carries its own constraints",
     ),
     (
-        "apps/jbotci-server/src/discord/interaction.rs:RunError::Failed",
-        "how running a tool ended, wrapping the error the layer below reported",
+        "apps/jbotci-server/src/discord/operations.rs:PreflightError::Admission",
+        "The variant carries a typed error before compute admission.",
     ),
     (
-        "apps/jbotci-server/src/discord/interaction.rs:RunError::Invalid",
-        "how running a tool ended, wrapping the error the layer below reported",
+        "apps/jbotci-server/src/discord/operations.rs:PreflightError::Invalid",
+        "The variant carries a typed error before compute admission.",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:PreflightError::Limit",
+        "The variant carries a typed error before compute admission.",
     ),
     (
         "apps/jbotci-server/src/discord/interaction.rs:StateError::Block",

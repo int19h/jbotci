@@ -20,7 +20,9 @@ use bityzba::{data, ensures, invariant, new, requires};
 use serde_json::Value;
 use tokio::time::{Duration, Instant};
 
-use super::assemble::{AssembleError, AssembleErrorData, AssembledMessage, assemble_with_limit};
+use super::assemble::{
+    AssembleError, AssembleErrorData, AssembledMessage, assemble_admitted, retain_delivery,
+};
 use super::codec::{
     HeaderDecodeError, INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, PageControl,
     RequestHeader, decode_input_block,
@@ -34,7 +36,7 @@ use super::links::{AppLinkTooLarge, app_link};
 use super::locks::{MessageGuard, MessageLocks};
 use super::modal::{Submission, SubmissionError, build as build_modal, parse_submission};
 use super::operations::{
-    CompletedOperation, OperationContext, OperationError, RequestValidationError, run_request,
+    CompletedOperation, OperationContext, OperationError, PreflightError, run_request,
 };
 use super::present::{markdown, render_failure, render_validation_error, render_with_limits};
 use super::request::{BuildTag, PublishedRequest, Revision, Snowflake};
@@ -305,20 +307,38 @@ impl DiscordService {
         keepalive: Option<WorkKeepalive>,
     ) {
         use crate::error::ServerErrorCode;
-        let deadline = operation_deadline;
+        let deadline = error.admission().map_or(operation_deadline, |context| {
+            context.deadline.min(operation_deadline)
+        });
         let code = result_error_code(error);
         if code == Some(ServerErrorCode::OutputLimit)
-            || (Instant::now() >= deadline
-                && matches!(
-                    code,
-                    Some(ServerErrorCode::Busy | ServerErrorCode::Deadline)
-                ))
+            || (matches!(
+                code,
+                Some(ServerErrorCode::Busy | ServerErrorCode::Deadline)
+            ) && (error.admission().is_none() || Instant::now() >= deadline))
         {
             self.publish_refusal(target, code.unwrap(), deadline, keepalive)
                 .await;
             return;
         }
-        let limit = self.text_limit();
+        let context = match error.admission() {
+            Some(context) => context.clone(),
+            None => match self.tools.execution.admit(Some(deadline)).await {
+                Ok(context) => context,
+                Err(error) => {
+                    self.publish_refusal(
+                        target,
+                        ServerErrorCode::from(&error),
+                        deadline,
+                        keepalive,
+                    )
+                    .await;
+                    return;
+                }
+            },
+        };
+        let keepalive = Some(retain_delivery(Some(context.clone()), keepalive));
+        let limit = context.execution.policy.tool_limits().render.text;
         let rendered = render_failure(format_args!("{error}"), &published.request, limit);
         let rendered = match rendered {
             Ok(rendered) => rendered,
@@ -329,15 +349,20 @@ impl DiscordService {
             }
         };
         if !matches!(error, ResultError::Link(_)) {
-            match assemble_with_limit(
+            match assemble_admitted(
                 &rendered,
                 published,
                 self.attachment_limit(attachment_limit),
-                limit,
+                context.clone(),
             ) {
                 Ok(message) => {
-                    self.publish_first(target, &message.payload, deadline, keepalive)
-                        .await;
+                    self.publish_first(
+                        target,
+                        &message.payload,
+                        message.delivery_deadline(deadline),
+                        Some(message.delivery_keepalive(keepalive)),
+                    )
+                    .await;
                     return;
                 }
                 Err(error) if matches!(error.as_data(), data!(AssembleError::OutputLimit)) => {
@@ -962,28 +987,27 @@ impl DiscordService {
         // anything is published, so every published result of a tool with a
         // page has an exact one to reopen it with.
         app_link(&published.request, &self.config.public_base_url).map_err(ResultError::Link)?;
-        match self
+        let completed = match self
             .run_tool(published, deadline, keepalive, attachment_limit)
             .await
         {
-            Ok(completed) => {
-                self.prepare_result(completed, published, attachment_limit, false)
+            Ok(completed) => completed,
+            Err(PreflightError::Invalid(error)) => {
+                let context = self
+                    .tools
+                    .execution
+                    .admit(Some(deadline))
                     .await
+                    .map_err(|error| ResultError::Preflight(PreflightError::Admission(error)))?;
+                CompletedOperation {
+                    outcome: Err(OperationError::Invalid(error)),
+                    context,
+                }
             }
-            Err(RunError::Invalid(error)) => {
-                let limit = self.text_limit();
-                let rendered = render_validation_error(&error, &published.request, limit)
-                    .map_err(|error| ResultError::Operation(OperationError::Work(error)))?;
-                assemble_with_limit(
-                    &rendered,
-                    published,
-                    self.attachment_limit(attachment_limit),
-                    limit,
-                )
-                .map_err(ResultError::Assemble)
-            }
-            Err(RunError::Failed(error)) => Err(ResultError::Operation(error)),
-        }
+            Err(error) => return Err(ResultError::Preflight(error)),
+        };
+        self.prepare_result(completed, published, attachment_limit, false, true)
+            .await
     }
 
     /// Run a request for an edit. A request that cannot run replaces nothing:
@@ -1003,15 +1027,13 @@ impl DiscordService {
         let outcome = self
             .run_tool(published, deadline, keepalive, attachment_limit)
             .await
-            .map_err(|error| match error {
-                RunError::Invalid(error) => ResultError::Invalid(error),
-                RunError::Failed(error) => ResultError::Operation(error),
-            })?;
+            .map_err(ResultError::Preflight)?;
         self.prepare_result(
             outcome,
             published,
             attachment_limit,
             rebuilt_by_another_build,
+            false,
         )
         .await
     }
@@ -1024,6 +1046,7 @@ impl DiscordService {
         published: &PublishedRequest,
         attachment_limit: Option<u64>,
         rebuilt: bool,
+        editable_failure: bool,
     ) -> Result<AssembledMessage, ResultError> {
         let context = completed.context;
         let admission = context.clone();
@@ -1031,8 +1054,14 @@ impl DiscordService {
         let attachment_limit = self.attachment_limit(attachment_limit);
         context.run(move || {
             let limits = admission.execution.policy.tool_limits();
-            let mut rendered = render_with_limits(&completed.outcome, &published.request, limits.render)
-                .map_err(|error| ResultError::Operation(OperationError::Work(error)))?;
+            let operation_error = |error| ResultError::Operation { error, context: admission.clone() };
+            let mut rendered = match completed.outcome {
+                Ok(outcome) => render_with_limits(&outcome, &published.request, limits.render),
+                Err(OperationError::Invalid(error)) if editable_failure => {
+                    render_validation_error(&error, &published.request, limits.render.text)
+                }
+                Err(error) => return Err(operation_error(error)),
+            }.map_err(|error| operation_error(OperationError::Work(error)))?;
             if rebuilt {
                 let scope = jbotci_output::budget::TextScope::new(limits.render.text);
                 let note = markdown::subtext_in_scope("Recomputed by a different version of jbotci than the one that produced the previous result.", &scope);
@@ -1040,14 +1069,14 @@ impl DiscordService {
                     Some(existing) => scope.format(format_args!("{existing}\n{note}")),
                     None => note,
                 };
-                rendered.notice = Some(scope.finish(notice).map_err(|_| ResultError::Operation(OperationError::Work(crate::work::WorkError::OutputLimit)))?);
+                rendered.notice = Some(scope.finish(notice).map_err(|_| operation_error(OperationError::Work(crate::work::WorkError::OutputLimit)))?);
             }
-            let message = assemble_with_limit(&rendered, &published, attachment_limit, limits.render.text).map_err(ResultError::Assemble)?;
+            let message = assemble_admitted(&rendered, &published, attachment_limit, admission.clone()).map_err(|error| ResultError::Assemble {error, context: admission.clone()})?;
             // Encode before transferring the prepared result to the delivery task.
             message.payload.check_encoded_size(jbotci_output::budget::ByteLimit::new(admission.execution.policy.response_bytes).expect("validated policy"))
-                .map_err(|_| ResultError::Operation(OperationError::Work(crate::work::WorkError::OutputLimit)))?;
-            Ok(message.with_data(data! { admission: Some(admission) }))
-        }).await.map_err(|error| ResultError::Operation(OperationError::Work(error)))?
+                .map_err(|_| operation_error(OperationError::Work(crate::work::WorkError::OutputLimit)))?;
+            Ok(message)
+        }).await.map_err(|error| ResultError::Operation { error: OperationError::Work(error), context })?
     }
 
     #[requires(true)]
@@ -1058,7 +1087,7 @@ impl DiscordService {
         deadline: Instant,
         keepalive: Option<WorkKeepalive>,
         attachment_limit: Option<u64>,
-    ) -> Result<CompletedOperation, RunError> {
+    ) -> Result<CompletedOperation, PreflightError> {
         // `run_request` admits the request itself, so nothing is validated
         // twice and no part of it runs on this thread.
         let context = OperationContext {
@@ -1067,11 +1096,7 @@ impl DiscordService {
             keepalive,
             attachment_size_limit: Some(self.attachment_limit(attachment_limit) as u64),
         };
-        match run_request(published.request.clone(), context).await {
-            Ok(outcome) => Ok(outcome),
-            Err(OperationError::Invalid(error)) => Err(RunError::Invalid(error)),
-            Err(error) => Err(RunError::Failed(error)),
-        }
+        run_request(published.request.clone(), context).await
     }
 
     /// What one attachment may weigh: the smaller of what this interaction
@@ -1315,6 +1340,10 @@ impl DiscordService {
         operation_deadline: Instant,
         keepalive: Option<WorkKeepalive>,
     ) {
+        let operation_deadline = error.admission().map_or(operation_deadline, |context| {
+            context.deadline.min(operation_deadline)
+        });
+        let keepalive = Some(retain_delivery(error.admission().cloned(), keepalive));
         let Some(code) = result_refusal_code(error) else {
             self.report_privately_until(
                 target,
@@ -1671,29 +1700,48 @@ fn attachment_name_of(url: &str) -> String {
 /// allows. Discord's own default per-file limit is ten mebibytes.
 const DEFAULT_ATTACHMENT_LIMIT: usize = 10 * 1024 * 1024;
 
-/// Why a result could not be produced.
+/// Errors after admission always retain the original compute lease.
 #[invariant(::Link(_) => true)]
-#[invariant(::Invalid(_) => true)]
-#[invariant(::Operation(_) => true)]
-#[invariant(::Assemble(_) => true)]
+#[invariant(::Preflight(_) => true)]
+#[invariant(::Operation { .. } => true)]
+#[invariant(::Assemble { .. } => true)]
 #[derive(Debug)]
 enum ResultError {
     Link(AppLinkTooLarge),
-    /// The request itself is incomplete or wrong. Publishing shows this as an
-    /// editable result; an edit reports it privately and changes nothing.
-    Invalid(RequestValidationError),
-    Operation(OperationError),
-    Assemble(AssembleError),
+    Preflight(PreflightError),
+    Operation {
+        error: OperationError,
+        context: crate::execution::AdmittedWorkContext,
+    },
+    Assemble {
+        error: AssembleError,
+        context: crate::execution::AdmittedWorkContext,
+    },
+}
+
+impl ResultError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn admission(&self) -> Option<&crate::execution::AdmittedWorkContext> {
+        match self {
+            Self::Operation { context, .. } | Self::Assemble { context, .. } => Some(context),
+            Self::Link(_) | Self::Preflight(_) => None,
+        }
+    }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn result_error_code(error: &ResultError) -> Option<crate::error::ServerErrorCode> {
     match error {
-        ResultError::Operation(OperationError::Work(error)) => {
+        ResultError::Operation {
+            error: OperationError::Work(error),
+            ..
+        }
+        | ResultError::Preflight(PreflightError::Admission(error)) => {
             Some(crate::error::ServerErrorCode::from(error))
         }
-        ResultError::Assemble(error)
+        ResultError::Assemble { error, .. }
             if matches!(error.as_data(), data!(AssembleError::OutputLimit)) =>
         {
             Some(crate::error::ServerErrorCode::OutputLimit)
@@ -1705,15 +1753,12 @@ fn result_error_code(error: &ResultError) -> Option<crate::error::ServerErrorCod
 #[requires(true)]
 #[ensures(ret.is_none_or(|code| matches!(code, crate::error::ServerErrorCode::Busy | crate::error::ServerErrorCode::Deadline)))]
 fn result_refusal_code(error: &ResultError) -> Option<crate::error::ServerErrorCode> {
-    let ResultError::Operation(OperationError::Work(error)) = error else {
-        return None;
-    };
-    let code = crate::error::ServerErrorCode::from(error);
-    matches!(
-        code,
-        crate::error::ServerErrorCode::Busy | crate::error::ServerErrorCode::Deadline
-    )
-    .then_some(code)
+    result_error_code(error).filter(|code| {
+        matches!(
+            code,
+            crate::error::ServerErrorCode::Busy | crate::error::ServerErrorCode::Deadline
+        )
+    })
 }
 
 impl std::fmt::Display for ResultError {
@@ -1722,20 +1767,11 @@ impl std::fmt::Display for ResultError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Link(error) => write!(formatter, "{error}"),
-            Self::Invalid(error) => write!(formatter, "{error}"),
-            Self::Operation(error) => write!(formatter, "{error}"),
-            Self::Assemble(error) => write!(formatter, "{error}"),
+            Self::Preflight(error) => write!(formatter, "{error}"),
+            Self::Operation { error, .. } => write!(formatter, "{error}"),
+            Self::Assemble { error, .. } => write!(formatter, "{error}"),
         }
     }
-}
-
-/// How running a tool ended.
-#[invariant(::Invalid(_) => true)]
-#[invariant(::Failed(_) => true)]
-#[derive(Debug)]
-enum RunError {
-    Invalid(RequestValidationError),
-    Failed(OperationError),
 }
 
 /// Why a read of the published message did not produce one.
@@ -2436,6 +2472,197 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn malformed_jvozba_request() -> PublishedRequest {
+        PublishedRequest {
+            request: decode_command(
+                &command("100002", "jvozba", vec![option("parts", "-blo")])["data"],
+            )
+            .unwrap(),
+            ..failure_request()
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn preflight_overload_uses_reserved_delivery_without_compute_admission() {
+        let discord = FakeDiscord::start().await;
+        let service = service_with_policy(&discord, crate::ServerPolicy::default());
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        let held = service.tools.execution.admit(None).await.unwrap();
+        let error = ResultError::Preflight(PreflightError::Admission(WorkError::Overloaded {
+            lane: WorkLane::Compute,
+        }));
+        tokio::time::timeout(
+            Duration::from_secs(1),
+            service.publish_failure(
+                &failure_target(),
+                &malformed_jvozba_request(),
+                &error,
+                Instant::now() + Duration::from_secs(5),
+                None,
+                None,
+            ),
+        )
+        .await
+        .expect("an overload refusal needs no compute slot");
+        let text = discord.original().unwrap().to_string();
+        assert!(
+            text.contains(crate::error::ServerErrorCode::Busy.message()),
+            "{text}"
+        );
+        assert!(
+            !text.contains("custom_id"),
+            "the reserved refusal has no editable controls"
+        );
+        assert_eq!(
+            service.tools.execution.governor.snapshot().compute_active,
+            1
+        );
+        drop(held);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn editable_worker_failure_retains_admission() {
+        let discord = FakeDiscord::start().await;
+        let service = service_with_policy(&discord, crate::ServerPolicy::default());
+        let published = malformed_jvozba_request();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let message = service
+            .run_for_publication(&published, deadline, None, None)
+            .await
+            .unwrap();
+        assert!(
+            message.admission.is_some(),
+            "an editable worker failure must retain its compute lease"
+        );
+        assert_eq!(message.delivery_deadline(deadline), deadline);
+        assert!(message.payload.to_json().to_string().contains("Not run"));
+        assert_eq!(
+            service.tools.execution.governor.snapshot().compute_active,
+            1
+        );
+        drop(message);
+        assert_eq!(
+            service.tools.execution.governor.snapshot().compute_active,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn failure_patch_keeps_compute_admission_across_adapters() {
+        use crate::AppState;
+        for ordinary in [false, true] {
+            let discord = FakeDiscord::start().await;
+            let policy = crate::ServerPolicy::default();
+            let work = policy
+                .work
+                .with_data(data! {compute_workers: 1, compute_queue: 0});
+            let policy = policy.with_data(data! { work: work, deadline: Duration::from_secs(2),
+            error_delivery: Duration::from_millis(100) });
+            let service = service_with_policy(&discord, policy);
+            discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+            discord.plan_writes(&[Reply::Stall]);
+            let published = malformed_jvozba_request();
+            let delivery = if ordinary {
+                let context = service.tools.execution.admit(None).await.unwrap();
+                let deadline = context.deadline;
+                let error = service
+                    .prepare_result(
+                        CompletedOperation {
+                            context,
+                            outcome: Err(OperationError::Internal {
+                                message: "operation failed".to_owned(),
+                            }),
+                        },
+                        &published,
+                        None,
+                        false,
+                        true,
+                    )
+                    .await
+                    .unwrap_err();
+                assert!(error.admission().is_some());
+                let service = service.clone();
+                Some(tokio::spawn(async move {
+                    service
+                        .publish_failure(
+                            &failure_target(),
+                            &published,
+                            &error,
+                            deadline,
+                            None,
+                            None,
+                        )
+                        .await;
+                }))
+            } else {
+                service
+                    .handle(&command("100003", "jvozba", vec![option("parts", "-blo")]))
+                    .await;
+                None
+            };
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while discord.count("PATCH") == 0 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .expect("the failure PATCH starts");
+            let state = Arc::new(new!(AppState {
+                base_path: "/".to_owned(),
+                public_dir: std::path::PathBuf::from("/build/jbotci/scratch/issue-945"),
+                tool_services: service.tools.clone(),
+                discord: None,
+                page_meta_builder: crate::production_page_meta_builder,
+            }));
+            let rest_request = || jbotci_web_core::GentufaWebRequest {
+                text: "mi klama".to_owned(),
+                options: Default::default(),
+            };
+            let response = crate::gentufa(
+                axum::Extension(state.clone()),
+                axum::Extension(crate::delivery::OperationDeadline(
+                    Instant::now() + Duration::from_secs(2),
+                )),
+                axum::Json(rest_request()),
+            )
+            .await;
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                "REST cannot enter while the failure PATCH is pending, ordinary={ordinary}"
+            );
+            assert_eq!(response.headers()["x-jbotci-error"], "server_busy");
+            drop(response);
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while service.tools.execution.governor.snapshot().compute_active != 0 {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("delivery expiry releases admission");
+            if let Some(delivery) = delivery {
+                delivery.await.unwrap();
+            }
+            let response = crate::gentufa(
+                axum::Extension(state),
+                axum::Extension(crate::delivery::OperationDeadline(
+                    Instant::now() + Duration::from_secs(2),
+                )),
+                axum::Json(rest_request()),
+            )
+            .await;
+            assert_eq!(response.status(), axum::http::StatusCode::OK);
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[requires(true)]
     #[ensures(true)]
@@ -2469,9 +2696,13 @@ mod tests {
             let service = service_with_policy(&discord, policy);
             discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
             let request = failure_request();
-            let error = ResultError::Operation(OperationError::Internal {
-                message: "x".repeat(2000),
-            });
+            let context = service.tools.execution.admit(None).await.unwrap();
+            let error = ResultError::Operation {
+                error: OperationError::Internal {
+                    message: "x".repeat(2000),
+                },
+                context,
+            };
             if bytes == 2700 {
                 assert!(
                     render_failure(
@@ -3439,13 +3670,17 @@ mod tests {
             application_id: Snowflake::parse(APPLICATION).expect("snowflake"),
             token: InteractionToken::parse("test-token").expect("a token"),
         };
+        let admission = service.tools.execution.admit(None).await.unwrap();
         service
             .publish_failure(
                 &target,
                 &published,
-                &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
-                    lane: WorkLane::Compute,
-                })),
+                &ResultError::Operation {
+                    error: OperationError::Internal {
+                        message: "operation failed".to_owned(),
+                    },
+                    context: admission,
+                },
                 Instant::now() + Duration::from_secs(1),
                 None,
                 None,
@@ -3513,7 +3748,7 @@ mod tests {
             .publish_failure(
                 &target,
                 &state,
-                &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
+                &ResultError::Preflight(PreflightError::Admission(WorkError::Overloaded {
                     lane: WorkLane::Compute,
                 })),
                 Instant::now() + Duration::from_secs(1),

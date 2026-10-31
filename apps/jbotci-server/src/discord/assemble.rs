@@ -1156,11 +1156,36 @@ impl AssembledMessage {
         &self,
         interaction: Option<crate::work::WorkKeepalive>,
     ) -> crate::work::WorkKeepalive {
-        std::sync::Arc::new(DeliveryKeepalive {
-            admission: self.admission.clone(),
-            interaction,
-        })
+        retain_delivery(self.admission.clone(), interaction)
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn retain_delivery(
+    admission: Option<crate::execution::AdmittedWorkContext>,
+    interaction: Option<crate::work::WorkKeepalive>,
+) -> crate::work::WorkKeepalive {
+    std::sync::Arc::new(DeliveryKeepalive {
+        admission,
+        interaction,
+    })
+}
+
+/// Attach the original admission before a prepared message leaves assembly.
+#[requires(rendered.tool() == published.request.tool())]
+#[requires(attachment_size_limit > 0)]
+#[ensures(ret.as_ref().is_ok_and(|message| message.admission.is_some()) || ret.is_err())]
+pub(crate) fn assemble_admitted(
+    rendered: &RenderedResult,
+    published: &PublishedRequest,
+    attachment_size_limit: usize,
+    admission: crate::execution::AdmittedWorkContext,
+) -> Result<AssembledMessage, AssembleError> {
+    let limit = jbotci_output::budget::ByteLimit::new(admission.execution.policy.text_bytes)
+        .expect("validated text limit");
+    assemble_with_limit(rendered, published, attachment_size_limit, limit)
+        .map(|message| message.with_data(data! { admission: Some(admission) }))
 }
 
 #[cfg(test)]

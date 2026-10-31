@@ -1011,7 +1011,7 @@ mod tests {
                 )
                 .await
                 .unwrap();
-                let ToolOutcome::Jvozba(outcome) = &completed.outcome else {
+                let Ok(ToolOutcome::Jvozba(outcome)) = &completed.outcome else {
                     panic!("compound outcome");
                 };
                 assert!(
