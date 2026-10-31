@@ -97,6 +97,110 @@ impl VlackuDraftState {
     }
 }
 
+/// How the dictionary filter controls are arranged.
+///
+/// The arrangement is chosen by measuring what each one needs against the room
+/// the controls have (see `vlacku_controls_layout_from_probe_fits`), never by a
+/// width written down here. `SingleRow` and `SplitRows` keep every control on
+/// screen; `Compact` is the arrangement that needs no more than the mode
+/// selector and one button, and is what remains when neither of the others fits.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum VlackuControlsLayout {
+    /// Mode selector, min-votes stepper and word types on one row.
+    SingleRow,
+    /// Mode selector and stepper on one row, word types on the next.
+    SplitRows,
+    /// Mode selector and a Filters button; the other controls are in a dropdown.
+    Compact,
+}
+
+impl VlackuControlsLayout {
+    /// The class the stylesheet arranges the controls by.
+    #[requires(true)]
+    #[ensures(ret.starts_with("is-"))]
+    pub(super) fn class(self) -> &'static str {
+        match self {
+            Self::SingleRow => "is-single-row",
+            Self::SplitRows => "is-split-rows",
+            Self::Compact => "is-compact",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self == Self::Compact))]
+    pub(super) fn is_compact(self) -> bool {
+        self == Self::Compact
+    }
+}
+
+/// The controls state that outlives the dictionary page.
+///
+/// It lives in the shell, like the top bar's layout, so that coming back to the
+/// page starts from the layout that was last measured instead of from a guess
+/// that is corrected one frame later.
+#[invariant(true)]
+#[derive(Clone, Copy, PartialEq)]
+pub(super) struct VlackuControlsState {
+    pub(super) layout: Signal<VlackuControlsLayout>,
+    /// Whether the dropdown is open. Only meaningful in `Compact`: it is closed
+    /// by the transition out of `Compact`.
+    pub(super) filters_open: Signal<bool>,
+    /// The Filters button, so that closing with Escape can return focus to it.
+    pub(super) filters_button: Signal<Option<Rc<MountedData>>>,
+}
+
+impl VlackuControlsState {
+    /// The state the shell holds. A new shell starts from the widest arrangement,
+    /// with the dropdown closed, until the first measurement says otherwise. This
+    /// is a hook, so every later render of the shell gets the same signals back
+    /// with whatever they hold by then; it can promise nothing about their values.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn use_new() -> Self {
+        Self {
+            layout: use_signal(|| VlackuControlsLayout::SingleRow),
+            filters_open: use_signal(|| false),
+            filters_button: use_signal(|| None),
+        }
+    }
+
+    /// Close the dropdown without moving focus.
+    #[requires(true)]
+    #[ensures(!*self.filters_open.peek())]
+    pub(super) fn close_filters(&self) {
+        let mut open = self.filters_open;
+        if *open.peek() {
+            open.set(false);
+        }
+    }
+
+    /// Close the dropdown and put focus back on the Filters button, which is
+    /// where a keyboard user opened it from.
+    #[requires(true)]
+    #[ensures(!*self.filters_open.peek())]
+    pub(super) fn close_filters_and_focus_button(&self) {
+        self.close_filters();
+        if let Some(button) = self.filters_button.peek().clone() {
+            spawn(async move {
+                let _ = button.set_focus(true).await;
+            });
+        }
+    }
+}
+
+/// Whether the controls serve the user or only measure for them.
+///
+/// The fit probes are hidden copies of the controls, so the same markup is
+/// rendered twice; only the live copy may own the ids that other elements point
+/// at, and ids must stay unique.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum VlackuControlsRole {
+    Live,
+    Probe,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
 pub(super) struct VlackuPageSnapshot {
@@ -140,12 +244,24 @@ pub(super) fn VlackuPage(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: Signal<bool>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
+    vlacku_controls: VlackuControlsState,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: String,
     script: GentufaScript,
     page_find: PageFindContext,
 ) -> Element {
+    // The layout is decided from boxes the browser has laid out, so it is
+    // re-decided whenever those boxes change shape, and once now that there are
+    // boxes to measure.
+    let observe_controls = use_vlacku_controls_observer(vlacku_controls);
+    use_effect(move || {
+        observe_controls();
+        schedule_vlacku_controls_layout_measure(vlacku_controls);
+    });
+    // The dropdown belongs to this page: it must not still be open when the
+    // page is entered again.
+    use_drop(move || vlacku_controls.close_filters());
     let snapshot = use_memo(move || {
         vlacku_page_snapshot(
             vlacku_draft_state,
@@ -159,6 +275,7 @@ pub(super) fn VlackuPage(
     render_vlacku_page(
         vlacku_draft_state,
         vlacku_committed_state,
+        vlacku_controls,
         &snapshot,
         jvozba_pane,
         jvozba_drag,
@@ -175,6 +292,7 @@ pub(super) fn VlackuPage(
 pub(super) fn render_vlacku_page(
     mut vlacku_draft_state: Signal<VlackuDraftState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
+    vlacku_controls: VlackuControlsState,
     snapshot: &VlackuPageSnapshot,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
@@ -201,7 +319,7 @@ pub(super) fn render_vlacku_page(
         section { class: "spa-page dictionary-page vlacku-page",
             h1 { class: "sr-only", "jbotci vlacku" }
             div { class: "{shell_class}",
-                { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &snapshot.draft_state, &snapshot.word_type_options) }
+                { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, vlacku_controls, &snapshot.draft_state, &snapshot.word_type_options) }
                 if let Some(info) = &result.dictionary_info {
                     { render_dictionary_info(info) }
                 }
@@ -274,38 +392,140 @@ pub(super) fn render_semantic_search_message(
     }
 }
 
+/// Keep the layout decision current for as long as the dictionary page is
+/// mounted, and hand back a closure that starts watching the controls once they
+/// are in the document.
+///
+/// The browser build watches the live controls and the probes with a resize
+/// observer, so the layout is re-decided in the frame in which any of them changes
+/// size.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> impl Fn() + Copy {
+    let mut observer = use_signal(|| None::<ElementResizeObserver>);
+    use_drop(move || {
+        if let Some(attached) = observer.write().take() {
+            attached.disconnect();
+        }
+    });
+    move || {
+        let mut observer = observer;
+        if observer.peek().is_some() {
+            return;
+        }
+        // The form is rendered unconditionally by this page, so it is the same
+        // element for as long as this hook lives and one attachment is enough.
+        if let Some(attached) = observe_vlacku_controls(controls) {
+            observer.set(Some(attached));
+            schedule_vlacku_controls_layout_after_fonts_ready(controls);
+        }
+    }
+}
+
+/// The desktop webview has no `web_sys`, so the observer is installed in the
+/// page itself, and each change it sees asks for a measurement here.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> impl Fn() + Copy {
+    let mut watcher = use_signal(|| None::<Task>);
+    use_drop(move || {
+        if let Some(task) = watcher.write().take() {
+            task.cancel();
+        }
+    });
+    move || {
+        let mut watcher = watcher;
+        if watcher.peek().is_some() {
+            return;
+        }
+        watcher.set(Some(spawn(async move {
+            let mut eval = document::eval(
+                r#"
+                const form = document.querySelector(".vlacku-page .dictionary-form");
+                if (!form) {
+                    return null;
+                }
+                // Runs after layout and before paint. It also runs once as soon
+                // as the elements start being watched.
+                const observer = new ResizeObserver(() => {
+                    try {
+                        dioxus.send("resize");
+                    } catch (_error) {
+                    }
+                });
+                observer.observe(form.querySelector(":scope > .dictionary-controls"));
+                for (const probe of form.querySelectorAll(":scope > .vlacku-controls-probes > .vlacku-controls-probe")) {
+                    observer.observe(probe);
+                }
+                await new Promise(() => {});
+                "#,
+            );
+            while eval.recv::<String>().await.is_ok() {
+                schedule_vlacku_controls_layout_measure(controls);
+            }
+        })));
+    }
+}
+
+/// The headless build has no document, so there is nothing to watch.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn use_vlacku_controls_observer(controls: VlackuControlsState) -> impl Fn() + Copy {
+    let _ = controls;
+    || {}
+}
+
+/// Whether any dictionary filter differs from what a fresh page starts with.
+///
+/// The Filters button hides the filters, and a hidden filter still changes the
+/// results, so the button has to say so.
+#[requires(true)]
+#[ensures(ret == (state.min_votes != VlackuVoteFilter::default() || !state.word_types.is_empty()))]
+pub(super) fn vlacku_filters_changed(state: &VlackuWebState) -> bool {
+    state.min_votes != VlackuVoteFilter::default() || !state.word_types.is_empty()
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_vlacku_controls(
     mut vlacku_draft_state: Signal<VlackuDraftState>,
     vlacku_committed_state: Signal<VlackuWebState>,
+    controls: VlackuControlsState,
     state: &VlackuWebState,
     word_type_options: &[VlackuWordTypeOption],
 ) -> Element {
+    let layout = *controls.layout.read();
+    // The dropdown only exists in `Compact`; the state is also cleared when the
+    // layout leaves `Compact`, but a stale flag must never open a panel in the
+    // other layouts, where the panel is part of the row.
+    let filters_open = layout.is_compact() && *controls.filters_open.read();
+    let controls_class = format!("dictionary-controls {}", layout.class());
     rsx! {
         div { class: "dictionary-form",
-            div { class: "dictionary-controls",
-                div { class: "dictionary-mode-control",
-                    div { class: "mode-toggle-row",
-                        div { class: "mode-selector-wrap",
-                            div { class: "mode-bracket-row", aria_hidden: "true",
-                                span { class: "mode-bracket-label", "similar" }
-                                span { class: "mode-bracket-label", "exact" }
-                            }
-                            div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
-                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", false) }
-                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Sound, "sound", false) }
-                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Word, "word", false) }
-                                { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
-                            }
-                        }
+            div {
+                class: "{controls_class}",
+                onkeydown: move |event| {
+                    if event.key() == Key::Escape && *controls.filters_open.peek() {
+                        controls.close_filters_and_focus_button();
+                    }
+                },
+                if filters_open {
+                    // Closes the dropdown on a click anywhere else. A scrim keeps
+                    // this inside the renderer, which works the same on every host.
+                    div {
+                        class: "vlacku-filters-scrim",
+                        aria_hidden: "true",
+                        onclick: move |_| controls.close_filters(),
                     }
                 }
-                div { class: "dictionary-word-type-control",
-                    { render_vlacku_vote_filter(vlacku_draft_state, vlacku_committed_state, state.min_votes) }
-                    div { class: "vote-filter-divider", aria_hidden: "true" }
-                    { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
+                { render_vlacku_mode_selector(vlacku_draft_state, vlacku_committed_state, state.mode) }
+                if layout.is_compact() {
+                    { render_vlacku_filters_button(controls, filters_open, vlacku_filters_changed(state)) }
                 }
+                { render_vlacku_filter_panel(vlacku_draft_state, vlacku_committed_state, state, word_type_options, layout, VlackuControlsRole::Live, filters_open) }
             }
             div { class: "dictionary-query-row",
                 input {
@@ -323,6 +543,157 @@ pub(super) fn render_vlacku_controls(
                         schedule_vlacku_search_commit(vlacku_committed_state, next);
                     },
                 }
+            }
+            { render_vlacku_controls_probes(vlacku_draft_state, vlacku_committed_state, state, word_type_options) }
+        }
+    }
+}
+
+/// The hidden copies of the controls that the layout is measured with.
+///
+/// Each probe is the controls laid out in one candidate arrangement and sized to
+/// what they need (`max-content`), so comparing a probe's width with the room the
+/// live controls have decides the arrangement from the real font, text zoom and
+/// platform with no width written down anywhere. `Compact` needs no probe: it is
+/// the arrangement that is used when neither of the others fits.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_controls_probes(
+    vlacku_draft_state: Signal<VlackuDraftState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    state: &VlackuWebState,
+    word_type_options: &[VlackuWordTypeOption],
+) -> Element {
+    rsx! {
+        div { class: "vlacku-controls-probes", aria_hidden: "true",
+            for layout in [VlackuControlsLayout::SingleRow, VlackuControlsLayout::SplitRows] {
+                div { key: "{layout.class()}", class: "dictionary-controls vlacku-controls-probe {layout.class()}",
+                    { render_vlacku_mode_selector(vlacku_draft_state, vlacku_committed_state, state.mode) }
+                    { render_vlacku_filter_panel(vlacku_draft_state, vlacku_committed_state, state, word_type_options, layout, VlackuControlsRole::Probe, false) }
+                }
+            }
+        }
+    }
+}
+
+/// The search mode selector: two bracket groups of two buttons.
+///
+/// Only the buttons under one bracket label share a width, so the label can
+/// centre over its pair; the label cells are the real group widths.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_mode_selector(
+    vlacku_draft_state: Signal<VlackuDraftState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    current: VlackuWebMode,
+) -> Element {
+    rsx! {
+        div { class: "dictionary-mode-control",
+            div { class: "mode-toggle-row",
+                div { class: "mode-selector-wrap vlacku-mode-selector", role: "group", aria_label: "Dictionary search mode",
+                    span { class: "mode-bracket-label is-similar", aria_hidden: "true", "similar" }
+                    span { class: "mode-bracket-label is-exact", aria_hidden: "true", "exact" }
+                    div { class: "mode-toggle-subgroup is-similar",
+                        { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, current, VlackuWebMode::Meaning, "meaning", false) }
+                        { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, current, VlackuWebMode::Sound, "sound", false) }
+                    }
+                    div { class: "mode-toggle-subgroup is-exact",
+                        { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, current, VlackuWebMode::Word, "word", false) }
+                        { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, current, VlackuWebMode::Rafsi, "rafsi", false) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The one copy of the min-votes stepper and the word-type grid.
+///
+/// Outside `Compact` the stylesheet makes the panel `display: contents`, so its
+/// children are laid out as part of the controls row; in `Compact` it is the
+/// dropdown. Keeping one element for both means the controls exist once, with
+/// unique ids and one tab order.
+///
+/// The dropdown shows the word types first and the stepper below them, so that
+/// is also the order of the elements: tabbing must visit the controls in the
+/// order they are shown in.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_filter_panel(
+    vlacku_draft_state: Signal<VlackuDraftState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    state: &VlackuWebState,
+    word_type_options: &[VlackuWordTypeOption],
+    layout: VlackuControlsLayout,
+    role: VlackuControlsRole,
+    open: bool,
+) -> Element {
+    let panel_class = if open {
+        "dictionary-filter-panel is-open"
+    } else {
+        "dictionary-filter-panel"
+    };
+    let panel_id = (role == VlackuControlsRole::Live).then_some(VLACKU_FILTER_PANEL_ID);
+    rsx! {
+        div {
+            class: "{panel_class}",
+            id: panel_id,
+            role: "group",
+            aria_label: "Dictionary filters",
+            if layout.is_compact() {
+                { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
+                { render_vlacku_vote_filter(vlacku_draft_state, vlacku_committed_state, state.min_votes, role) }
+            } else {
+                { render_vlacku_vote_filter(vlacku_draft_state, vlacku_committed_state, state.min_votes, role) }
+                div { class: "vote-filter-divider", aria_hidden: "true" }
+                { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
+            }
+        }
+    }
+}
+
+/// The id of the live filter panel, which the Filters button controls.
+pub(super) const VLACKU_FILTER_PANEL_ID: &str = "vlacku-filter-panel";
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_filters_button(
+    controls: VlackuControlsState,
+    open: bool,
+    changed: bool,
+) -> Element {
+    let label = if changed {
+        "Filters (changed)"
+    } else {
+        "Filters"
+    };
+    let mut filters_open = controls.filters_open;
+    let mut filters_button = controls.filters_button;
+    rsx! {
+        button {
+            class: "filters-button",
+            r#type: "button",
+            aria_label: "{label}",
+            aria_expanded: if open { "true" } else { "false" },
+            aria_controls: VLACKU_FILTER_PANEL_ID,
+            title: "{label}",
+            onmounted: move |event| filters_button.set(Some(event.data())),
+            onclick: move |_| filters_open.set(!open),
+            svg {
+                class: "filters-icon",
+                "viewBox": "0 0 16 16",
+                "aria-hidden": "true",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "1.5",
+                stroke_linecap: "round",
+                path { d: "M2 4h7M13 4h1M2 8h2M8 8h6M2 12h8M14 12h0" }
+                circle { cx: "11", cy: "4", r: "1.6" }
+                circle { cx: "6", cy: "8", r: "1.6" }
+                circle { cx: "12", cy: "12", r: "1.6" }
+            }
+            if changed {
+                span { class: "filters-badge", aria_hidden: "true" }
             }
         }
     }
@@ -345,6 +716,9 @@ pub(super) fn render_vlacku_mode_button(
             disabled,
             title: vlacku_mode_title(mode, disabled),
             aria_pressed: pressed_attr(current == mode),
+            // The stylesheet reserves the bold width of this text in every
+            // button, so selecting a mode never changes the controls' width.
+            "data-label": label,
             onclick: move |_| {
                 if !disabled {
                     let next = vlacku_draft_state.read().select_mode(mode);
@@ -2343,11 +2717,15 @@ pub(super) fn render_vlacku_vote_filter(
     mut draft: Signal<VlackuDraftState>,
     mut committed: Signal<VlackuWebState>,
     filter: VlackuVoteFilter,
+    role: VlackuControlsRole,
 ) -> Element {
     let any = filter.as_search_min_votes().is_none();
+    // Only the live stepper is named by, and referenced as, this caption.
+    let live = role == VlackuControlsRole::Live;
+    let caption_id = live.then_some("vlacku-vote-filter-caption");
     rsx! {
         div { class: "vote-filter", title: "Hide dictionary entries with fewer community votes. Official words always show.",
-            span { class: "vote-filter-caption", id: "vlacku-vote-filter-caption", "min votes" }
+            span { class: "vote-filter-caption", id: caption_id, "min votes" }
             div { class: "vote-filter-stepper",
                 button { class: "vote-filter-step is-decrease", r#type: "button", tabindex: "-1",
                     aria_label: "Require fewer votes", title: "Require fewer votes", disabled: any,
@@ -2358,7 +2736,7 @@ pub(super) fn render_vlacku_vote_filter(
                     "−"
                 }
                 span { class: if any { "vote-filter-value is-any" } else { "vote-filter-value" },
-                    role: "spinbutton", tabindex: "0", aria_labelledby: "vlacku-vote-filter-caption",
+                    role: "spinbutton", tabindex: "0", aria_labelledby: caption_id,
                     aria_valuemin: "-11", aria_valuemax: "20", aria_valuenow: "{vote_filter_aria_now(filter)}",
                     aria_valuetext: vote_filter_value_text(filter),
                     onkeydown: move |event| {

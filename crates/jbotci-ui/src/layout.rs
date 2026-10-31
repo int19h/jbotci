@@ -437,27 +437,60 @@ pub(super) fn update_cukta_edition_release_fit_now(
     fit.apply_measurement(measured_for, claim, measured);
 }
 
-/// A resize observer watching the edition row, kept alive for as long as the
-/// cukta page is mounted.
+/// A resize observer watching one root element and whatever else it was asked
+/// to watch, kept alive for as long as its owner is mounted.
+///
+/// Both fit decisions that rest on hidden probes (the cukta edition row and the
+/// vlacku filter controls) need the same thing: a re-decision in the frame in
+/// which the box, or a probe's width, changes, whatever caused the change and
+/// whether or not anything re-rendered. A window `resize` event misses a
+/// sidebar being dragged, a pane opening and a font arriving, so the element
+/// boxes themselves are watched.
 #[cfg(target_arch = "wasm32")]
 #[invariant(true)]
-pub(super) struct CuktaEditionRowObserver {
+pub(super) struct ElementResizeObserver {
     observer: web_sys::ResizeObserver,
-    /// The row this observer was attached to, kept so that a row the renderer
-    /// has replaced can be recognised rather than silently watched forever.
-    row: web_sys::Element,
+    /// The element this observer was attached for, kept so that a root the
+    /// renderer has replaced can be recognised rather than silently watched
+    /// forever.
+    root: web_sys::Element,
     // Dropping the closure would leave the observer calling into freed memory,
     // so it is owned here and released with the observer.
     _callback: Closure<dyn FnMut(js_sys::Array, web_sys::ResizeObserver)>,
 }
 
 #[cfg(target_arch = "wasm32")]
-impl CuktaEditionRowObserver {
-    /// Whether this observer is still watching the row that is in the document.
+impl ElementResizeObserver {
+    /// Watch every element of `watched` and call `on_resize` after layout and
+    /// before paint whenever any of them changes size. The observation that the
+    /// browser delivers when an element starts being watched makes `on_resize`
+    /// run once for the state the elements are in now.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn watches(&self, row: &web_sys::Element) -> bool {
-        self.row.is_same_node(Some(row))
+    pub(super) fn attach(
+        root: web_sys::Element,
+        watched: &[&web_sys::Element],
+        mut on_resize: impl FnMut() + 'static,
+    ) -> Option<Self> {
+        let callback = Closure::<dyn FnMut(js_sys::Array, web_sys::ResizeObserver)>::new(
+            move |_entries: js_sys::Array, _observer: web_sys::ResizeObserver| on_resize(),
+        );
+        let observer = web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref()).ok()?;
+        for element in watched {
+            observer.observe(element);
+        }
+        Some(Self {
+            observer,
+            root,
+            _callback: callback,
+        })
+    }
+
+    /// Whether this observer is still watching the root that is in the document.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn watches(&self, root: &web_sys::Element) -> bool {
+        self.root.is_same_node(Some(root))
     }
 
     #[requires(true)]
@@ -480,26 +513,16 @@ impl CuktaEditionRowObserver {
 #[ensures(true)]
 pub(super) fn observe_cukta_edition_row(
     fit: CuktaEditionReleaseFitState,
-) -> Option<CuktaEditionRowObserver> {
+) -> Option<ElementResizeObserver> {
     let row = cukta_edition_row()?;
     let probe = row
         .query_selector(":scope > .cll-edition-fit-probe")
         .ok()
         .flatten()?;
-    let callback = Closure::<dyn FnMut(js_sys::Array, web_sys::ResizeObserver)>::new(
-        move |_entries: js_sys::Array, _observer: web_sys::ResizeObserver| {
-            // A box change supersedes whatever is already in flight: what is on
-            // screen now is newer than any measurement still being awaited.
-            update_cukta_edition_release_fit_now(fit, &fit.claim_measurement());
-        },
-    );
-    let observer = web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref()).ok()?;
-    observer.observe(&row);
-    observer.observe(&probe);
-    Some(CuktaEditionRowObserver {
-        observer,
-        row,
-        _callback: callback,
+    // A box change supersedes whatever is already in flight: what is on screen
+    // now is newer than any measurement still being awaited.
+    ElementResizeObserver::attach(row.clone(), &[&row, &probe], move || {
+        update_cukta_edition_release_fit_now(fit, &fit.claim_measurement());
     })
 }
 
@@ -1137,6 +1160,286 @@ pub(super) fn topbar_column_gap(element: &web_sys::Element) -> f64 {
         .and_then(|value| value.trim_end_matches("px").parse::<f64>().ok())
         .filter(|value| value.is_finite() && *value >= 0.0)
         .unwrap_or(0.0)
+}
+
+/// The room the vlacku controls have, and the room each arrangement needs, in
+/// CSS pixels.
+///
+/// These are read from boxes the browser laid out, never computed: the required
+/// widths are the widths of the hidden probes (the controls in one candidate
+/// arrangement, sized to `max-content`), so they follow the real font, the text
+/// zoom and the platform. A box that has no width yet is not a measurement, which
+/// is why every field must be positive.
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+#[invariant(available_width.is_finite() && *available_width > 0.0)]
+#[invariant(single_row_required_width.is_finite() && *single_row_required_width > 0.0)]
+#[invariant(split_rows_required_width.is_finite() && *split_rows_required_width > 0.0)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+// Only the desktop webview reports its measurements as JSON.
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "desktop"),
+    derive(Deserialize)
+)]
+pub(super) struct VlackuControlsMetrics {
+    pub(super) available_width: f64,
+    pub(super) single_row_required_width: f64,
+    pub(super) split_rows_required_width: f64,
+}
+
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+impl VlackuControlsMetrics {
+    /// What `layout` needs, or `None` for the layout that needs no more than
+    /// there is.
+    #[requires(true)]
+    #[ensures(ret.is_some() == !layout.is_compact())]
+    #[ensures(ret.is_none_or(|width| width > 0.0))]
+    pub(super) fn required_width(&self, layout: VlackuControlsLayout) -> Option<f64> {
+        match layout {
+            VlackuControlsLayout::SingleRow => Some(self.single_row_required_width),
+            VlackuControlsLayout::SplitRows => Some(self.split_rows_required_width),
+            VlackuControlsLayout::Compact => None,
+        }
+    }
+}
+
+/// The widest arrangement whose probe fits.
+///
+/// The candidates are tried from the widest to the narrowest and the first that
+/// fits is taken, as the top bar does with its own probes. `Compact` is the last
+/// candidate and has no probe: it is what is left when nothing wider fits, so it
+/// is never asked.
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret.is_compact() || fits(ret))]
+pub(super) fn vlacku_controls_layout_from_probe_fits(
+    fits: impl Fn(VlackuControlsLayout) -> bool,
+) -> VlackuControlsLayout {
+    [
+        VlackuControlsLayout::SingleRow,
+        VlackuControlsLayout::SplitRows,
+    ]
+    .into_iter()
+    .find(|candidate| fits(*candidate))
+    .unwrap_or(VlackuControlsLayout::Compact)
+}
+
+/// The arrangement the measured boxes call for.
+///
+/// The comparison is exact rather than tolerant: a probe that needs even a
+/// fraction of a pixel more than the controls have cannot be laid out on one
+/// line there, and a tolerance would only move the point at which it wraps.
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn vlacku_controls_layout_from_metrics(
+    metrics: VlackuControlsMetrics,
+) -> VlackuControlsLayout {
+    vlacku_controls_layout_from_probe_fits(|layout| {
+        metrics
+            .required_width(layout)
+            .is_none_or(|required| required <= metrics.available_width)
+    })
+}
+
+/// Make `next` the layout, and close the dropdown if `next` has none.
+///
+/// The dropdown is a `Compact` thing: in the other layouts the same panel is part
+/// of the row, so an open flag left over would reopen the dropdown the next time
+/// the window narrows, with no user action. The top bar closes its settings menu
+/// in the same way when it leaves its popout layout.
+#[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
+#[requires(true)]
+#[ensures(*controls.layout.peek() == next)]
+#[ensures(!next.is_compact() -> !*controls.filters_open.peek())]
+pub(super) fn update_vlacku_controls_layout(
+    controls: VlackuControlsState,
+    next: VlackuControlsLayout,
+) {
+    let mut layout = controls.layout;
+    if *layout.peek() != next {
+        layout.set(next);
+    }
+    if !next.is_compact() {
+        controls.close_filters();
+    }
+}
+
+/// The dictionary form that holds the live controls and their probes.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn vlacku_controls_form() -> Option<web_sys::Element> {
+    web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| {
+            document
+                .query_selector(".vlacku-page .dictionary-form")
+                .ok()
+                .flatten()
+        })
+}
+
+/// `None` when the controls cannot be measured yet, which is not the same answer
+/// as "nothing fits": before the stylesheet has applied, or while the page has no
+/// box, everything measures as nothing, and the layout must stay as it is.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn measure_vlacku_controls_metrics() -> Option<VlackuControlsMetrics> {
+    let form = vlacku_controls_form()?;
+    let controls = form
+        .query_selector(":scope > .dictionary-controls")
+        .ok()
+        .flatten()?;
+    let probe_width = |selector: &str| -> Option<f64> {
+        // The probe's own border box rather than `element_layout_width`: that
+        // takes `scrollWidth`, which is an integer, and rounding a requirement
+        // up would drop an arrangement that has room by part of a pixel.
+        form.query_selector(selector)
+            .ok()
+            .flatten()
+            .map(|probe| probe.get_bounding_client_rect().width())
+    };
+    let single_row_required_width =
+        probe_width(":scope > .vlacku-controls-probes > .is-single-row")?;
+    let split_rows_required_width =
+        probe_width(":scope > .vlacku-controls-probes > .is-split-rows")?;
+    try_new!(VlackuControlsMetrics {
+        available_width: element_content_box_width(&controls),
+        single_row_required_width: single_row_required_width,
+        split_rows_required_width: split_rows_required_width,
+    })
+    .ok()
+}
+
+/// Measure now and apply the answer in the same breath, which is what a resize
+/// observer needs: it runs after layout and before paint.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn update_vlacku_controls_layout_now(controls: VlackuControlsState) {
+    if let Some(metrics) = measure_vlacku_controls_metrics() {
+        update_vlacku_controls_layout(controls, vlacku_controls_layout_from_metrics(metrics));
+    }
+}
+
+/// Watch the live controls and both probes. The controls change when the window,
+/// the jvozba pane or the page zoom changes the room; a probe changes when a font
+/// arrives or the text size changes what the controls need.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn observe_vlacku_controls(
+    controls: VlackuControlsState,
+) -> Option<ElementResizeObserver> {
+    let form = vlacku_controls_form()?;
+    let live = form
+        .query_selector(":scope > .dictionary-controls")
+        .ok()
+        .flatten()?;
+    let probes = form
+        .query_selector_all(":scope > .vlacku-controls-probes > .vlacku-controls-probe")
+        .ok()?;
+    let mut watched = vec![live];
+    for index in 0..probes.length() {
+        watched.push(probes.item(index)?.dyn_into::<web_sys::Element>().ok()?);
+    }
+    let watched_refs: Vec<&web_sys::Element> = watched.iter().collect();
+    ElementResizeObserver::attach(form.clone(), &watched_refs, move || {
+        update_vlacku_controls_layout_now(controls);
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_vlacku_controls_layout_scheduled() -> Option<VlackuControlsLayout> {
+    measure_vlacku_controls_metrics().map(vlacku_controls_layout_from_metrics)
+}
+
+/// The same measurement through the webview's own script engine. It retries a few
+/// frames, as the top bar does, because the webview can report an unlaid-out page
+/// on the frame a resize lands on.
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_vlacku_controls_layout_scheduled() -> Option<VlackuControlsLayout> {
+    for delay_ms in [0, 16, 64] {
+        platform::sleep_ms(delay_ms).await;
+        if let Some(metrics) = measure_vlacku_controls_metrics_desktop().await {
+            return Some(vlacku_controls_layout_from_metrics(metrics));
+        }
+    }
+    None
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_vlacku_controls_metrics_desktop() -> Option<VlackuControlsMetrics> {
+    // The page reports `null` for anything it cannot measure; numbers that
+    // break the metrics' invariant are rejected when they are deserialized.
+    let metrics: Option<VlackuControlsMetrics> = document::eval(
+        r#"
+        const form = document.querySelector(".vlacku-page .dictionary-form");
+        const controls = form && form.querySelector(":scope > .dictionary-controls");
+        const single = form && form.querySelector(":scope > .vlacku-controls-probes > .is-single-row");
+        const split = form && form.querySelector(":scope > .vlacku-controls-probes > .is-split-rows");
+        if (!controls || !single || !split) {
+            return null;
+        }
+        const style = window.getComputedStyle(controls);
+        const inset = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"]
+            .reduce((sum, property) => {
+                const value = Number.parseFloat(style[property]);
+                return sum + (Number.isFinite(value) && value >= 0 ? value : 0);
+            }, 0);
+        const widths = {
+            available_width: controls.getBoundingClientRect().width - inset,
+            single_row_required_width: single.getBoundingClientRect().width,
+            split_rows_required_width: split.getBoundingClientRect().width,
+        };
+        return Object.values(widths).every((width) => width > 0) ? widths : null;
+        "#,
+    )
+    .join()
+    .await
+    .ok()?;
+    metrics
+}
+
+/// No rendered document to measure: the headless build the crate's own tests and
+/// server-side rendering use keeps the layout it has.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+pub(super) async fn measure_vlacku_controls_layout_scheduled() -> Option<VlackuControlsLayout> {
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_vlacku_controls_layout_measure(controls: VlackuControlsState) {
+    platform::schedule_visual_measure_task(move || async move {
+        if let Some(next) = measure_vlacku_controls_layout_scheduled().await {
+            update_vlacku_controls_layout(controls, next);
+        }
+    });
+}
+
+/// A font that arrives after the first measurement changes what the probes need;
+/// the probe observer sees that too, and this makes the first answer already
+/// account for the fonts the page is waiting for.
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_vlacku_controls_layout_after_fonts_ready(controls: VlackuControlsState) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    platform::schedule_after_fonts_ready(&document, move || async move {
+        schedule_vlacku_controls_layout_measure(controls);
+    });
 }
 
 #[requires(true)]

@@ -233,6 +233,7 @@ pub(super) fn AppShell() -> Element {
         verdict: use_signal(cukta_edition_release_fit_unmounted),
         claim: use_signal(CuktaEditionFitClaim::new),
     };
+    let vlacku_controls = VlackuControlsState::use_new();
     let initial_vlacku = initial_vlacku_state(&current_route_location);
     let vlacku_draft_state = use_signal(|| VlackuDraftState::from_state(initial_vlacku.clone()));
     let vlacku_committed_state = use_signal(|| initial_vlacku);
@@ -1133,6 +1134,7 @@ pub(super) fn AppShell() -> Element {
                                     jvozba_pane,
                                     jvozba_available,
                                     jvozba_drag,
+                                    vlacku_controls,
                                     pending_cukta_scroll,
                                     pending_vlacku_scroll_restore,
                                     base_path: base_path.clone(),
