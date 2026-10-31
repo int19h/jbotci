@@ -6,6 +6,15 @@ The record describes the content that produced that unit, even when later jobs s
 CI uses stable Rust and one target directory for each cached job.
 The CLI release workflow never restores a target cache.
 
+Both cached jobs export `JBOTCI_INPUT_SESSION` through `GITHUB_ENV` before their first Cargo step.
+Every later step receives the session path under `RUNNER_TEMP`.
+The job environment does not use the unavailable `runner` context.
+
+The CLI release tooling job installs actionlint 1.7.12 and compares the archive with its pinned SHA-256 before extraction.
+It runs actionlint on every workflow with ShellCheck enabled.
+The local Python workflow tests run the same command when actionlint is installed.
+Install ShellCheck too before you run those tests.
+
 Each cached job writes a time marker before its first Cargo call.
 Cargo 1.99 leaves the committed fingerprint mtime unchanged for fresh units.
 It writes a new fingerprint mtime for rebuilt compile units, build-script binaries, and build-script runs.

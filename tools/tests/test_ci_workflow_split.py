@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -16,6 +20,58 @@ class CiWorkflowSplitTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.test_workflow = TEST_WORKFLOW.read_text(encoding="utf-8")
         cls.render_workflow = RENDER_WORKFLOW.read_text(encoding="utf-8")
+
+    @unittest.skipUnless(shutil.which("actionlint"), "actionlint is not installed")
+    def test_every_workflow_passes_actionlint(self) -> None:
+        self.assertIsNotNone(shutil.which("shellcheck"), "actionlint requires ShellCheck")
+        result = subprocess.run(
+            ["actionlint", "-shellcheck=shellcheck", "-oneline"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(shutil.which("actionlint"), "actionlint is not installed")
+    def test_actionlint_rejects_a_runner_context_in_job_environment(self) -> None:
+        invalid_workflow = self.test_workflow.replace(
+            '      CARGO_INCREMENTAL: "0"\n',
+            '      CARGO_INCREMENTAL: "0"\n'
+            '      JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs\n',
+            1,
+        )
+        self.assertNotEqual(invalid_workflow, self.test_workflow)
+        result = subprocess.run(
+            ["actionlint", "-shellcheck=shellcheck", "-oneline", "-"],
+            input=invalid_workflow,
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('context "runner" is not allowed here', result.stdout)
+
+    def test_input_session_is_exported_before_cargo_work(self) -> None:
+        for workflow in (self.test_workflow, self.render_workflow):
+            with self.subTest(workflow=workflow.splitlines()[0]):
+                setup_name = "      - name: Set the input session path\n"
+                self.assertLess(workflow.index(setup_name), workflow.index("tools.cargo_inputs begin"))
+                setup = workflow.split(setup_name, 1)[1].split("\n      - name:", 1)[0]
+                command = setup.split("        run: ", 1)[1].strip()
+                with tempfile.TemporaryDirectory() as temporary:
+                    runner_temp = Path(temporary) / "runner with spaces"
+                    environment_file = Path(temporary) / "github-env"
+                    subprocess.run(
+                        ["bash", "-e", "-c", command],
+                        env={**os.environ, "RUNNER_TEMP": str(runner_temp), "GITHUB_ENV": str(environment_file)},
+                        check=True,
+                    )
+                    self.assertEqual(
+                        environment_file.read_text(),
+                        f"JBOTCI_INPUT_SESSION={runner_temp}/cargo-inputs\n",
+                    )
 
     def test_pr_workflow_keeps_regular_tests_without_deployment_gates(self) -> None:
         self.assertIn("CARGO_BUILD_JOBS: 1", self.test_workflow)

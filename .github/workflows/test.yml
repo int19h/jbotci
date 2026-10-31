@@ -22,8 +22,26 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
-      - name: Install input tracing
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends strace
+      - name: Install workflow tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck strace
+
+      - name: Install pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "${archive}" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' \
+            8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
+            "${archive}" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/actionlint-bin"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/actionlint-bin" actionlint
+          echo "${RUNNER_TEMP}/actionlint-bin" >> "${GITHUB_PATH}"
+
+      - name: Lint every workflow
+        run: actionlint -shellcheck=shellcheck
 
       - name: Run release tooling tests
         env:
@@ -54,7 +72,6 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
       CARGO_INCREMENTAL: "0"
       JBOTCI_GIT_COMMIT: ${{ github.sha }}
-      JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
       JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       NODE_VERSION: 24.14.0
       # Serial compilation is required: at exact head d08d0a798f, two-way concurrency exceeded
@@ -62,6 +79,10 @@ jobs:
       CARGO_BUILD_JOBS: 1
       RUSTUP_HOME: /usr/local/rustup
     steps:
+      - name: Set the input session path
+        shell: bash
+        run: printf 'JBOTCI_INPUT_SESSION=%s/cargo-inputs\n' "${RUNNER_TEMP}" >> "${GITHUB_ENV}"
+
       - name: Install build dependencies
         run: |
           apt-get update

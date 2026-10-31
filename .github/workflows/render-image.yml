@@ -42,7 +42,6 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/deploy
       CARGO_INCREMENTAL: "0"
       JBOTCI_GIT_COMMIT: ${{ github.sha }}
-      JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
       JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       DIOXUS_HOME: ${{ github.workspace }}/.github-cache/home
       DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
@@ -51,6 +50,10 @@ jobs:
       NODE_VERSION: 24.14.0
       RUSTUP_HOME: /usr/local/rustup
     steps:
+      - name: Set the input session path
+        shell: bash
+        run: printf 'JBOTCI_INPUT_SESSION=%s/cargo-inputs\n' "${RUNNER_TEMP}" >> "${GITHUB_ENV}"
+
       - name: Install build dependencies
         run: |
           apt-get update
@@ -160,6 +163,7 @@ jobs:
           server_pid="$!"
           trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
+            echo "Health probe ${attempt}/30"
             if curl -fsS http://127.0.0.1:10000/api/health; then
               exit 0
             fi
@@ -333,6 +337,7 @@ jobs:
           trap 'docker stop "${container_id}" >/dev/null 2>&1 || true' EXIT
           health_ready=0
           for attempt in $(seq 1 30); do
+            echo "Health probe ${attempt}/30"
             if curl -fsS http://127.0.0.1:8080/api/health; then
               health_ready=1
               break
