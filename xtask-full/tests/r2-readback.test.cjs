@@ -177,3 +177,72 @@ console.log('credential stub completed');
         for (const file of filesUnder(directory)) assert.equal(fs.readFileSync(file).includes(FAKE_TOKEN), false, file);
     }
 });
+
+async function listenStub(server) {
+    for (let port = 18800; port <= 18899; port++) {
+        try {
+            server.listen(port, '127.0.0.1');
+            await once(server, 'listening');
+            return;
+        } catch (error) {
+            if (error.code !== 'EADDRINUSE') throw error;
+        }
+    }
+    throw new Error('No free jbotci test port');
+}
+
+// These listeners are local stubs. No Cloudflare endpoint is contacted.
+test('prefix listing returns complete proof fields across pages without body reads', async () => {
+    const { listMetadata } = require('../src/r2_readback.cjs');
+    const requests = [];
+    const stub = http.createServer((request, response) => {
+        const url = new URL(request.url, 'http://localhost');
+        requests.push(url);
+        assert.equal(request.headers.authorization, 'Bearer stub-token');
+        assert.equal(request.headers['accept-encoding'], 'identity');
+        assert.equal(url.searchParams.get('prefix'), 'packs/');
+        assert.equal(url.searchParams.get('per_page'), '1000');
+        assert.ok(url.pathname.endsWith('/objects'));
+        const second = url.searchParams.get('cursor') === 'page-2';
+        response.setHeader('Content-Type', 'application/json');
+        response.end(JSON.stringify({ success: true, result: [{ key: second ? 'packs/b' : 'packs/a', size: 28,
+            etag: 'd41d8cd98f00b204e9800998ecf8427e', custom_metadata: { ignored: 'not-a-proof' },
+            http_metadata: { contentEncoding: 'br', contentType: 'application/octet-stream', cacheControl: 'immutable' } }],
+            result_info: second ? { is_truncated: false } : { is_truncated: true, cursor: 'page-2' } }));
+    });
+    await listenStub(stub);
+    try {
+        const result = await listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+            headers: { Authorization: 'Bearer stub-token' }, apiBase: `http://127.0.0.1:${stub.address().port}` });
+        assert.equal(requests.length, 2);
+        assert.equal(result.length, 2);
+        assert.deepEqual(result.map(object => object.key), ['packs/a', 'packs/b']);
+        for (const object of result) {
+            assert.equal(object.size, 28);
+            assert.equal(object.etag, 'd41d8cd98f00b204e9800998ecf8427e');
+            assert.deepEqual(object.http_metadata, { contentType: 'application/octet-stream', cacheControl: 'immutable', contentEncoding: 'br' });
+            assert.equal(object.custom_metadata, undefined);
+        }
+    } finally { await new Promise(resolve => stub.close(resolve)); }
+});
+
+for (const bad of ['http-error', 'bad-json', 'api-error', 'reported-error', 'truncated-no-cursor', 'duplicate-key', 'repeated-cursor']) {
+    test(`prefix listing refuses ${bad} and exposes no partial receipt`, async () => {
+        const { listMetadata } = require('../src/r2_readback.cjs');
+        let calls = 0;
+        const stub = http.createServer((request, response) => {
+            calls++;
+            if (bad === 'http-error') { response.writeHead(503); response.end('untrusted response body'); return; }
+            if (bad === 'bad-json') { response.end('not JSON'); return; }
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify({ success: bad !== 'api-error', errors: bad === 'reported-error' ? [{ code: 1000, message: 'stub' }] : [], result: [{ key: bad === 'repeated-cursor' ? `packs/${calls}` : 'packs/a' }],
+                result_info: bad === 'truncated-no-cursor' ? { is_truncated: true } : { cursor: 'next', is_truncated: true } }));
+        });
+        await listenStub(stub);
+        try {
+            await assert.rejects(listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+                headers: {}, apiBase: `http://127.0.0.1:${stub.address().port}` }));
+            assert.ok(calls <= 2);
+        } finally { await new Promise(resolve => stub.close(resolve)); }
+    });
+}

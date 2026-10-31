@@ -48,33 +48,84 @@ function request(url, headers) {
     });
 }
 
-async function objectMetadata(base, key, headers) {
+async function* metadataPages(base, prefix, headers, perPage) {
     const seen = new Set();
     let cursor;
     do {
         const url = new URL(base);
-        url.searchParams.set('prefix', key);
-        url.searchParams.set('per_page', '1');
+        url.searchParams.set('prefix', prefix);
+        url.searchParams.set('per_page', String(perPage));
         if (cursor) url.searchParams.set('cursor', cursor);
-        const response = await request(url, { ...headers, Accept: 'application/json', 'Accept-Encoding': 'identity' });
+        const response = await request(url, { ...headers, Accept: 'application/json', 'Accept-Encoding': 'identity', 'Cache-Control': 'no-cache' });
         const chunks = [];
-        for await (const chunk of response) chunks.push(chunk);
+        let bytes = 0;
+        for await (const chunk of response) {
+            bytes += chunk.length;
+            if (bytes > 64 * 1024 * 1024) {
+                response.destroy();
+                throw new Error('R2 metadata page exceeds the size limit');
+            }
+            chunks.push(chunk);
+        }
         let value;
         try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
         catch { throw new Error('R2 did not return valid metadata JSON'); }
         if (value.success !== true || !Array.isArray(value.result)) throw new Error('R2 did not return object metadata');
-        const object = value.result.find(object => object.key === key);
+        if (value.errors !== undefined && (!Array.isArray(value.errors) || value.errors.length)) throw new Error('R2 metadata response contains errors');
+        const info = value.result_info;
+        if (info !== undefined && (info === null || typeof info !== 'object' || Array.isArray(info))) throw new Error('R2 returned invalid pagination metadata');
+        if (info?.is_truncated !== undefined && typeof info.is_truncated !== 'boolean') throw new Error('R2 returned invalid truncation metadata');
+        yield value.result;
+        cursor = info?.cursor;
+        if (cursor !== undefined && typeof cursor !== 'string') throw new Error('R2 returned an invalid metadata cursor');
+        if (value.result_info?.is_truncated === true && !cursor) throw new Error('R2 omitted the next metadata cursor');
+        if (cursor && seen.has(cursor)) throw new Error('R2 repeated a metadata cursor');
+        if (cursor) seen.add(cursor);
+        if (info?.is_truncated === false) cursor = undefined;
+    } while (cursor);
+}
+
+async function objectMetadata(base, key, headers) {
+    for await (const objects of metadataPages(base, key, headers, 1)) {
+        const object = objects.find(object => object.key === key);
         if (object) {
             if (!Number.isSafeInteger(object.size) || object.size < 0 || typeof object.etag !== 'string' || !object.etag.length) {
                 throw new Error('R2 returned incomplete object metadata');
             }
             return object;
         }
-        cursor = value.result_info?.cursor;
-        if (cursor && (typeof cursor !== 'string' || seen.has(cursor))) throw new Error('R2 returned an invalid metadata cursor');
-        if (cursor) seen.add(cursor);
-    } while (cursor);
+    }
     throw new Error('R2 did not list the uploaded object');
+}
+
+async function listMetadata({ account, bucket, prefix, headers, apiBase = API_BASE }) {
+    const base = `${apiBase}/accounts/${encodeURIComponent(account)}/r2/buckets/${encodeURIComponent(bucket)}/objects`;
+    const objects = [];
+    const keys = new Set();
+    for await (const page of metadataPages(base, prefix, headers, 1000)) {
+        for (const object of page) {
+            if (typeof object.key !== 'string' || !object.key.startsWith(prefix) || keys.has(object.key)) {
+                throw new Error('R2 returned invalid or duplicate metadata keys');
+            }
+            if (object.size !== undefined && (!Number.isSafeInteger(object.size) || object.size < 0)) {
+                throw new Error('R2 returned an invalid stored size');
+            }
+            keys.add(object.key);
+            // Store only proof fields. Credentials and custom metadata never enter the receipt.
+            objects.push({ key: object.key, size: object.size, etag: object.etag,
+                http_metadata: object.http_metadata && {
+                    contentType: object.http_metadata.contentType,
+                    cacheControl: object.http_metadata.cacheControl,
+                    contentEncoding: object.http_metadata.contentEncoding,
+                } });
+        }
+    }
+    return objects;
+}
+
+async function metadataMain([script, account, bucket, prefix, output]) {
+    const objects = await listMetadata({ account, bucket, prefix, headers: credentials(script) });
+    fs.writeFileSync(output, JSON.stringify(objects), { flag: 'wx' });
 }
 
 async function readback({ account, bucket, key, encoding, downloaded, metadata, headers, apiBase = API_BASE }) {
@@ -103,4 +154,4 @@ async function main([script, account, bucket, key, encoding, downloaded, metadat
     await readback({ script, account, bucket, key, encoding, downloaded, metadata, headers: credentials(script) });
 }
 
-module.exports = { credentials, readback };
+module.exports = { credentials, readback, listMetadata };

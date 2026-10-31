@@ -62,18 +62,79 @@ impl Publisher {
     #[ensures(true)]
     pub(super) fn put(&self, bucket: &str, object: &R2UploadObject) -> Result<()> {
         self.put_with_readback(bucket, object, |downloaded, metadata| {
-            let mut get = self.node_command();
-            get.arg("-e")
-                .arg(concat!(include_str!("r2_readback.cjs"), "\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });"))
-                .arg(&self.script)
-                .arg(&self.account)
-                .arg(bucket.trim())
-                .arg(&object.object_key)
-                .arg(object.content_encoding.unwrap_or("identity"))
-                .arg(downloaded)
-                .arg(metadata);
-            run_bounded(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")
+            self.read_existing(bucket, object, downloaded, metadata)
         })
+    }
+
+    #[requires(!bucket.trim().is_empty())]
+    #[ensures(true)]
+    pub(super) fn verify_existing(&self, bucket: &str, object: &R2UploadObject) -> Result<()> {
+        self.verify_with_readback(object, |downloaded, metadata| {
+            self.read_existing(bucket, object, downloaded, metadata)
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn verify_with_readback(
+        &self,
+        object: &R2UploadObject,
+        readback: impl FnOnce(&Path, &Path) -> Result<()>,
+    ) -> Result<()> {
+        let expected = fingerprint(&object.local_path)?;
+        let temporary = Readback::new(&self.scratch)?;
+        let downloaded = temporary.path.join("object");
+        let metadata = temporary.path.join("metadata.json");
+        readback(&downloaded, &metadata)?;
+        verify_readback(
+            object,
+            &expected,
+            &downloaded,
+            &serde_json::from_slice(&fs::read(&metadata)?)?,
+        )
+    }
+
+    #[requires(!bucket.trim().is_empty())]
+    #[ensures(true)]
+    fn read_existing(
+        &self,
+        bucket: &str,
+        object: &R2UploadObject,
+        downloaded: &Path,
+        metadata: &Path,
+    ) -> Result<()> {
+        let mut get = self.node_command();
+        get.arg("-e")
+            .arg(concat!(include_str!("r2_readback.cjs"), "\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });"))
+            .arg(&self.script).arg(&self.account).arg(bucket.trim())
+            .arg(&object.object_key).arg(object.content_encoding.unwrap_or("identity"))
+            .arg(downloaded).arg(metadata);
+        run_bounded(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")
+    }
+
+    #[requires(!bucket.is_empty() && !prefix.is_empty())]
+    #[ensures(true)]
+    pub(super) fn live_metadata(
+        &self,
+        bucket: &str,
+        prefix: &str,
+    ) -> Result<std::collections::BTreeMap<String, crate::r2_skip::LiveMetadata>> {
+        let temporary = Readback::new(&self.scratch)?;
+        let output = temporary.path.join("live.json");
+        let mut list = self.node_command();
+        list.arg("-e")
+            .arg(concat!(include_str!("r2_readback.cjs"), "\nmetadataMain(process.argv.slice(1)).catch(() => { console.error('R2 live metadata request failed'); process.exitCode = 1; });"))
+            .arg(&self.script).arg(&self.account).arg(bucket).arg(prefix).arg(&output);
+        run_bounded(&mut list, COMMAND_TIMEOUT).context("R2 live metadata failed")?;
+        let objects: Vec<crate::r2_skip::LiveMetadata> =
+            serde_json::from_slice(&fs::read(output)?)?;
+        let mut metadata = std::collections::BTreeMap::new();
+        for object in objects {
+            if metadata.insert(object.key.clone(), object).is_some() {
+                bail!("R2 returned duplicate live metadata keys");
+            }
+        }
+        Ok(metadata)
     }
 
     #[requires(!bucket.trim().is_empty())]
@@ -586,6 +647,44 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         metadata.stored_encoding = Some("br".to_owned());
         metadata.stored_size += 1;
         assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn skipped_readback_uses_the_existing_comparison_and_never_uploads() {
+        let root = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap());
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let source = temporary.path.join("source");
+        fs::write(&source, b"right bytes").unwrap();
+        let object = R2UploadObject::from_data(data!(R2UploadObject {
+            local_path: source,
+            object_key: "packs/test.f16".to_owned(),
+            content_type: "application/octet-stream",
+            content_encoding: None,
+            cache_control: "immutable",
+        }));
+        let publisher = Publisher::from_data(data!(Publisher {
+            script: temporary.path.join("must-not-run.cjs"),
+            account: "0123456789abcdef0123456789abcdef".to_owned(),
+            scratch: temporary.path.clone(),
+        }));
+        for bytes in [b"right bytes", b"wrong bytes"] {
+            let mut calls = 0;
+            let result = publisher.verify_with_readback(&object, |downloaded, metadata| {
+                calls += 1;
+                fs::write(downloaded, bytes)?;
+                fs::write(
+                    metadata,
+                    r#"{"stored_size":11,"stored_encoding":null,"body_encoding":null}"#,
+                )?;
+                Ok(())
+            });
+            assert_eq!(calls, 1);
+            assert_eq!(result.is_ok(), bytes == b"right bytes");
+        }
+        assert_eq!(fs::read_dir(&temporary.path).unwrap().count(), 1);
     }
 
     #[test]

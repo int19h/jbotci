@@ -1,6 +1,7 @@
 #![recursion_limit = "1024"]
 
 mod r2_publish;
+mod r2_skip;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -903,6 +904,8 @@ struct DistServerArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct PublishWebEmbeddingsR2Args {
+    #[command(flatten)]
+    publication: r2_skip::Options,
     #[arg(long, default_value = "jbotci-web-assets")]
     bucket: String,
     #[arg(long, default_value = "embeddings/web/v1")]
@@ -924,6 +927,8 @@ struct PublishWebEmbeddingsR2Args {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct PublishF2LlmWebgpuR2Args {
+    #[command(flatten)]
+    publication: r2_skip::Options,
     #[command(flatten)]
     reuse: WebVectorReuseCli,
     #[arg(long, default_value = "jbotci-web-assets")]
@@ -962,6 +967,8 @@ struct PublishF2LlmWebgpuR2Args {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct PublishGgufEmbeddingsR2Args {
+    #[command(flatten)]
+    publication: r2_skip::Options,
     /// Previous index root with MODEL/v1/catalog.json for each selected model.
     #[arg(long, conflicts_with = "skip_validation")]
     reuse_index_dir: Option<PathBuf>,
@@ -2790,7 +2797,7 @@ fn build_f2llm_webgpu_assets(args: BuildF2LlmWebgpuAssetsArgs) -> Result<()> {
 #[requires(!args.reuse.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
-    let publisher = r2_publish::Publisher::from_env()?;
+    let mut publisher = r2_skip::Session::from_env(args.publication)?;
     let model_out_root = absolute_path(&args.model_out_root)?;
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
@@ -2837,16 +2844,31 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     for spec in F2LLM_MODEL_SPECS {
         let model_dir = f2llm_model_artifact_out_dir(&model_out_root, spec);
         let model_objects = r2_upload_tree_objects(&model_dir, spec.webgpu_r2_prefix)?;
-        put_r2_objects(&publisher, &args.bucket, &model_objects)?;
+        put_r2_objects(
+            &mut publisher,
+            &args.bucket,
+            spec.webgpu_r2_prefix,
+            &model_objects,
+        )?;
     }
 
     let onnx_fallback_dir = f2llm_onnx_fallback_out_dir(&model_out_root);
     let onnx_objects = r2_upload_tree_objects(&onnx_fallback_dir, F2LLM_ONNX_FALLBACK_R2_PREFIX)?;
-    put_r2_objects(&publisher, &args.bucket, &onnx_objects)?;
+    put_r2_objects(
+        &mut publisher,
+        &args.bucket,
+        F2LLM_ONNX_FALLBACK_R2_PREFIX,
+        &onnx_objects,
+    )?;
 
     let vector_objects =
         r2_upload_objects_without_catalog(&vector_out_dir, &args.embedding_prefix)?;
-    put_r2_objects(&publisher, &args.bucket, &vector_objects)?;
+    put_r2_objects(
+        &mut publisher,
+        &args.bucket,
+        &args.embedding_prefix,
+        &vector_objects,
+    )?;
 
     let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-f2llm-merged-catalog"))?;
     fs::create_dir_all(&merged_catalog_dir)
@@ -3120,7 +3142,7 @@ fn build_gguf_embeddings_with_setup(
 #[requires(!args.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
-    let publisher = r2_publish::Publisher::from_env()?;
+    let mut publisher = r2_skip::Session::from_env(args.publication)?;
     let out_dir = absolute_path(&args.out_dir)?;
     let selected_models = selected_gguf_model_keys(&args.models)?;
     if !args.skip_build {
@@ -3139,7 +3161,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
         validate_native_gguf_r2_tree(&out_dir)?;
     }
     let pack_objects = r2_upload_native_objects_without_catalog(&out_dir, &args.prefix)?;
-    put_r2_objects(&publisher, &args.bucket, &pack_objects)?;
+    put_r2_objects(&mut publisher, &args.bucket, &args.prefix, &pack_objects)?;
 
     let remote_catalog =
         fetch_optional_json_catalog(&args.remote_catalog_url).with_context(|| {
@@ -3173,7 +3195,7 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
 #[requires(!args.backend.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
-    let publisher = r2_publish::Publisher::from_env()?;
+    let mut publisher = r2_skip::Session::from_env(args.publication)?;
     let output = absolute_path(&args.out_dir)?;
     let existing_output = ExistingOutput::from_overwrite_flag(args.overwrite);
     let outputs = new!(WebEmbeddingOutputs {
@@ -3200,8 +3222,8 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
         outputs,
     )?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
-    put_r2_objects(&publisher, &args.bucket, &objects)?;
-    Ok(())
+    put_r2_objects(&mut publisher, &args.bucket, &args.prefix, &objects)?;
+    publisher.finish(&args.bucket)
 }
 
 #[requires(matches!(subcommand, "build" | "bundle"))]
@@ -5256,26 +5278,12 @@ fn path_has_extension(path: &Path, extension: &str) -> bool {
 #[requires(!objects.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn put_r2_objects(
-    publisher: &r2_publish::Publisher,
+    publisher: &mut r2_skip::Session,
     bucket: &str,
+    prefix: &str,
     objects: &[R2UploadObject],
 ) -> Result<()> {
-    let (boundary_objects, data_objects): (Vec<_>, Vec<_>) = objects
-        .iter()
-        .partition(|object| r2_upload_boundary_object(&object.object_key));
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(R2_UPLOAD_PARALLELISM)
-        .build()
-        .context("creating R2 upload thread pool")?;
-    pool.install(|| {
-        data_objects
-            .par_iter()
-            .try_for_each(|object| publisher.put(bucket, object))
-    })?;
-    for object in boundary_objects {
-        publisher.put(bucket, object)?;
-    }
-    Ok(())
+    publisher.batch(bucket, prefix, objects)
 }
 
 #[requires(!object_key.trim().is_empty())]

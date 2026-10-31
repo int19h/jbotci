@@ -63,8 +63,48 @@ A timeout kills the entire command process group and reaps the child.
 Read-back files use `CARGO_TARGET_DIR/r2-readback`, or `target/r2-readback` when the environment variable is absent.
 The publisher removes each temporary directory after success or failure.
 Four data uploads can run together.
-Manifests and catalogs run in order after the data objects pass the read-back comparison.
+Manifests and catalogs run in order after all required data comparisons pass.
 A failed batch prevents its later manifests and catalogs from publication.
+
+## Skip unchanged data
+
+The default mode uploads and reads back every object, as before.
+Add `--skip-unchanged` to any R2 publish command to reuse matching data objects.
+This mode still uploads and reads back every manifest and catalog.
+The order is data objects, their sampled comparison, manifests, and then catalogs.
+A failed data upload or sample prevents the later manifests and catalogs.
+
+The publisher obtains a fresh REST listing for each target prefix before its data uploads.
+It requests up to 1,000 entries per page and follows the returned cursors.
+The [R2 listing API](https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/objects/methods/list/) can include size, ETag, and HTTP metadata.
+This lets one listing supply the proof fields without a separate request for each object.
+A listing error discards the prefix receipt and uses the normal upload path.
+No cached listing or earlier publication receipt can authorize a skip.
+
+A skip requires the stored size, content-type, cache-control, and content-encoding to equal the intended upload values.
+It also requires a plain 32-digit hexadecimal MD5 ETag that equals the local upload file's MD5.
+The size and digest describe the encoded `.br` file when the planner selects a Brotli sibling.
+A multipart ETag, malformed value, missing field, or mismatch uses the normal upload and read-back path.
+In particular, an absent content-encoding field never authorizes a skip, even for an uncompressed local file.
+The publisher does not guess a missing value or replace it with `identity`.
+
+After the data uploads, the publisher reads back a random sample of the skipped objects.
+For each prefix batch, it samples the larger of 20 objects and 1% rounded up, limited to the skipped count.
+It compares these downloads with the local files through the existing size, encoding, and SHA-256 comparison.
+A different body or a failed read stops the publish.
+The sampler never repairs a mismatch by silently uploading that object.
+
+The publisher prints its random seed and the sample size for each prefix batch.
+Use `--skip-unchanged --skip-sample-seed NUMBER` to reproduce a sample with the same publisher build and object plan.
+The sampler sorts keys before it shuffles them, so listing and filesystem order do not change the sample.
+The seed option requires `--skip-unchanged`.
+A command without the flag keeps the established full comparison.
+
+Each object emits a JSON status line for `skipped` or `uploaded-verified`.
+A skipped line includes the matching live metadata.
+Sampled objects also emit `sample-verified` after the full comparison succeeds.
+At command exit, the publisher prints totals by prefix and corpus, including partial totals after a failed publish.
+Model assets and objects outside a corpus pack use the `shared` corpus label.
 
 Use this release order after review and merge approval:
 
