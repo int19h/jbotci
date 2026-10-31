@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use crate::R2UploadObject;
 #[cfg(test)]
 use crate::R2UploadObjectData;
+use crate::r2_skip::{LiveMetadata, local_proof_with, stored_byte_proof};
 
 const WRANGLER_VERSION: &str = "4.149.0";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
@@ -85,12 +86,13 @@ impl Publisher {
         let temporary = Readback::new(&self.scratch)?;
         let downloaded = temporary.path.join("object");
         let metadata = temporary.path.join("metadata.json");
-        readback(&downloaded, &metadata)?;
+        readback(&downloaded, &metadata)
+            .with_context(|| format!("R2 object `{}` read-back failed", object.object_key))?;
         verify_readback(
             object,
             &expected,
             &downloaded,
-            &serde_json::from_slice(&fs::read(&metadata)?)?,
+            &readback_metadata(&metadata, object)?,
         )
     }
 
@@ -105,11 +107,18 @@ impl Publisher {
     ) -> Result<()> {
         let mut get = self.node_command();
         get.arg("-e")
-            .arg(concat!(include_str!("r2_readback.cjs"), "\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });"))
-            .arg(&self.script).arg(&self.account).arg(bucket.trim())
-            .arg(&object.object_key).arg(object.content_encoding.unwrap_or("identity"))
-            .arg(downloaded).arg(metadata);
-        run_bounded(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")
+            .arg(concat!(
+                include_str!("r2_readback.cjs"),
+                "\nmain(process.argv.slice(1)).catch(reportReadbackError);"
+            ))
+            .arg(&self.script)
+            .arg(&self.account)
+            .arg(bucket.trim())
+            .arg(&object.object_key)
+            .arg(object.content_encoding.unwrap_or("identity"))
+            .arg(downloaded)
+            .arg(metadata);
+        run_readback(&mut get, COMMAND_TIMEOUT).context("R2 read-back failed")
     }
 
     #[requires(!bucket.is_empty() && !prefix.is_empty())]
@@ -176,8 +185,7 @@ impl Publisher {
                     fs::remove_file(&metadata_path)?;
                 }
                 readback(&downloaded, &metadata_path)?;
-                let metadata: ReadbackMetadata =
-                    serde_json::from_slice(&fs::read(&metadata_path)?)?;
+                let metadata = readback_metadata(&metadata_path, object)?;
                 verify_readback(object, &expected, &downloaded, &metadata)
             },
             std::thread::sleep,
@@ -242,8 +250,7 @@ fn configure_child_environment(command: &mut Command, account: &str) {
 #[invariant(true)]
 #[derive(Deserialize)]
 struct ReadbackMetadata {
-    stored_size: u64,
-    stored_encoding: Option<String>,
+    stored: LiveMetadata,
     body_encoding: Option<String>,
 }
 
@@ -255,19 +262,57 @@ fn verify_readback(
     downloaded: &Path,
     metadata: &ReadbackMetadata,
 ) -> Result<()> {
-    if metadata.stored_size != expected.size
-        || metadata.stored_encoding.as_deref() != object.content_encoding
-    {
-        bail!("R2 stored size or Content-Encoding differs from the upload");
-    }
+    verify_stored_proof(object, expected, &metadata.stored)
+        .with_context(|| format!("R2 object `{}` metadata proof failed", object.object_key))?;
     let actual = fingerprint(downloaded)?;
     match (object.content_encoding, metadata.body_encoding.as_deref()) {
-        (None, None) | (Some("br"), Some("br")) => compare_fingerprint(expected, &actual),
+        (None, None) | (Some("br"), Some("br")) => compare_fingerprint(expected, &actual)
+            .with_context(|| {
+                format!(
+                    "R2 object `{}` read-back size or SHA-256 differs",
+                    object.object_key
+                )
+            }),
         (Some("br"), None | Some("identity")) => {
-            bail!("R2 returned a decoded Brotli body. Exact stored bytes cannot be verified")
+            bail!(
+                "R2 object `{}` returned a decoded Brotli body. Exact stored bytes cannot be verified",
+                object.object_key
+            )
         }
-        _ => bail!("R2 returned an unexpected Content-Encoding"),
+        _ => bail!(
+            "R2 object `{}` returned an unexpected Content-Encoding",
+            object.object_key
+        ),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn readback_metadata(path: &Path, object: &R2UploadObject) -> Result<ReadbackMetadata> {
+    serde_json::from_slice(&fs::read(path)?).map_err(|_| {
+        anyhow::anyhow!(
+            "R2 object `{}` has malformed read-back metadata",
+            object.object_key
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn verify_stored_proof(
+    object: &R2UploadObject,
+    expected: &Fingerprint,
+    stored: &LiveMetadata,
+) -> Result<()> {
+    // The skip path and full read-back use one parser for the live size, MD5, and encoding proof.
+    let proof = stored_byte_proof(stored, object)?;
+    if proof.size != expected.size {
+        bail!("stored size differs from the local upload file");
+    }
+    if proof.md5 != expected.md5 {
+        bail!("stored MD5 differs from the local upload file");
+    }
+    Ok(())
 }
 
 #[invariant(true)]
@@ -275,26 +320,18 @@ fn verify_readback(
 struct Fingerprint {
     size: u64,
     digest: [u8; 32],
+    md5: [u8; 16],
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn fingerprint(path: &Path) -> Result<Fingerprint> {
-    let mut file = fs::File::open(path)?;
     let mut digest = Sha256::new();
-    let mut size = 0;
-    let mut buffer = [0u8; 64 * 1024];
-    loop {
-        let count = file.read(&mut buffer)?;
-        if count == 0 {
-            break;
-        }
-        digest.update(&buffer[..count]);
-        size += count as u64;
-    }
+    let proof = local_proof_with(path, |bytes| digest.update(bytes))?;
     Ok(Fingerprint {
-        size,
+        size: proof.size,
         digest: digest.finalize().into(),
+        md5: proof.md5,
     })
 }
 
@@ -346,6 +383,12 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
     let mut child = command
         .spawn()
         .context("Cannot start the publisher command")?;
+    wait_bounded(&mut child, timeout)
+}
+
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()> {
     let start = Instant::now();
     loop {
         match child.try_wait() {
@@ -374,6 +417,74 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
             }
         }
     }
+}
+
+#[invariant(true)]
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ReadbackDiagnostic {
+    Changed,
+    Decoded,
+    Metadata,
+    Http,
+    Io,
+}
+
+#[invariant(true)]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiagnosticEnvelope {
+    r2_readback_error: ReadbackDiagnostic,
+}
+
+#[requires(true)]
+#[ensures(ret.len() < 256)]
+fn redacted_readback_stderr(bytes: &[u8]) -> &'static str {
+    // Accept a closed diagnostic vocabulary. Arbitrary stderr cannot safely expose credentials.
+    match serde_json::from_slice::<DiagnosticEnvelope>(bytes).map(|value| value.r2_readback_error) {
+        Ok(ReadbackDiagnostic::Changed) => "R2 object changed between metadata and body reads",
+        Ok(ReadbackDiagnostic::Decoded) => {
+            "R2 returned a decoded Brotli body. Exact stored bytes cannot be verified"
+        }
+        Ok(ReadbackDiagnostic::Metadata) => "R2 returned invalid or incomplete object metadata",
+        Ok(ReadbackDiagnostic::Http) => "R2 read-back HTTP request failed",
+        Ok(ReadbackDiagnostic::Io) => "R2 read-back failed (untrusted details redacted)",
+        Err(_) => "[redacted untrusted read-back stderr]",
+    }
+}
+
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
+    require_unix_host(cfg!(unix))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let mut child = command
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let mut stderr = child
+        .stderr
+        .take()
+        .context("missing read-back stderr pipe")?;
+    let reader = std::thread::spawn(move || {
+        // Drain after the limit too, so verbose failures cannot block the child or grow memory use.
+        let mut bytes = Vec::new();
+        stderr.by_ref().take(4096).read_to_end(&mut bytes)?;
+        std::io::copy(&mut stderr, &mut std::io::sink())?;
+        Ok::<_, std::io::Error>(bytes)
+    });
+    let result = wait_bounded(&mut child, timeout);
+    #[cfg(unix)]
+    // Close inherited pipes if a command exits while one of its descendants survives.
+    unsafe {
+        libc::kill(-(child.id() as i32), libc::SIGKILL);
+    }
+    let bytes = reader.join().ok().and_then(Result::ok).unwrap_or_default();
+    result.with_context(|| format!("Read-back stderr: {}", redacted_readback_stderr(&bytes)))
 }
 
 #[invariant(true)]
@@ -409,6 +520,20 @@ impl Drop for Readback {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn receipt(object: &R2UploadObject) -> serde_json::Value {
+        use md5::Md5;
+        let bytes = fs::read(&object.local_path).unwrap();
+        let mut http = serde_json::json!({"contentType": object.content_type, "cacheControl": object.cache_control});
+        if let Some(encoding) = object.content_encoding {
+            http["contentEncoding"] = encoding.into();
+        }
+        serde_json::json!({"stored": {"key": object.object_key, "size": bytes.len(),
+            "etag": format!("{:x}", Md5::digest(&bytes)), "http_metadata": http},
+            "body_encoding": object.content_encoding})
+    }
 
     #[test]
     #[requires(true)]
@@ -459,13 +584,15 @@ mod tests {
         let expected = Fingerprint {
             size: 2,
             digest: [1; 32],
+            md5: [0; 16],
         };
         assert!(
             compare_fingerprint(
                 &expected,
                 &Fingerprint {
                     size: 2,
-                    digest: [2; 32]
+                    digest: [2; 32],
+                    md5: [0; 16]
                 }
             )
             .is_err()
@@ -475,7 +602,8 @@ mod tests {
                 &expected,
                 &Fingerprint {
                     size: 3,
-                    digest: [1; 32]
+                    digest: [1; 32],
+                    md5: [0; 16]
                 }
             )
             .is_err()
@@ -526,10 +654,7 @@ fs.copyFileSync(file, remote);
         publisher
             .put_with_readback("stub-bucket", &object, |downloaded, metadata| {
                 fs::copy(temporary.path.join("remote"), downloaded)?;
-                fs::write(
-                    metadata,
-                    r#"{"stored_size":18,"stored_encoding":null,"body_encoding":null}"#,
-                )?;
+                fs::write(metadata, serde_json::to_vec(&receipt(&object))?)?;
                 Ok(())
             })
             .unwrap();
@@ -578,10 +703,7 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         let error = publisher
             .put_with_readback("stub-bucket", &object, |downloaded, metadata| {
                 fs::write(downloaded, b"wrong bytes")?;
-                fs::write(
-                    metadata,
-                    r#"{"stored_size":11,"stored_encoding":null,"body_encoding":null}"#,
-                )?;
+                fs::write(metadata, serde_json::to_vec(&receipt(&object))?)?;
                 Ok(())
             })
             .unwrap_err();
@@ -596,57 +718,104 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn brotli_success_requires_the_exact_encoded_stream() {
-        const STREAM_A: &[u8] = b"\x83\x0b\x80validated original bytes\x03";
-        const STREAM_B: &[u8] = b"\x85\x0b\x80validated original bytes\x03";
-        assert_eq!(STREAM_A.len(), STREAM_B.len());
-        assert_ne!(STREAM_A, STREAM_B);
-        let root = std::env::var_os("CARGO_TARGET_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("target"));
-        fs::create_dir_all(&root).unwrap();
+    fn r4_readback_requires_every_stored_fact_and_the_exact_body() {
+        let root = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap());
         let temporary = Readback::new(&root).unwrap();
-        let original = temporary.path.join("vectors.f16");
-        fs::write(&original, b"validated original bytes").unwrap();
-        let sibling = crate::brotli_sidecar_path(&original).unwrap();
-        for stream in [STREAM_A, STREAM_B] {
-            fs::write(&sibling, stream).unwrap();
-            jbotci_embeddings::validate_brotli_sibling(&original).unwrap();
+        for encoding in [None, Some("br")] {
+            let source = temporary.path.join("source");
+            let original = b"validated original bytes";
+            let encoded = b"\x83\x0b\x80validated original bytes\x03";
+            fs::write(
+                &source,
+                if encoding.is_some() {
+                    encoded.as_slice()
+                } else {
+                    original.as_slice()
+                },
+            )
+            .unwrap();
+            let object = R2UploadObject::from_data(data!(R2UploadObject {
+                local_path: source,
+                object_key: "packs/test.f16".to_owned(),
+                content_type: "application/octet-stream",
+                content_encoding: encoding,
+                cache_control: "immutable",
+            }));
+            let expected = fingerprint(&object.local_path).unwrap();
+            let downloaded = temporary.path.join("download");
+            fs::copy(&object.local_path, &downloaded).unwrap();
+            let good = receipt(&object);
+            let metadata: ReadbackMetadata = serde_json::from_value(good.clone()).unwrap();
+            verify_readback(&object, &expected, &downloaded, &metadata).unwrap();
+            let mut cases = Vec::new();
+            let mut wrong = good.clone();
+            wrong["stored"]["size"] = (expected.size + 1).into();
+            cases.push(("stored size", wrong));
+            let mut wrong = good.clone();
+            wrong["stored"]["etag"] = "00000000000000000000000000000000".into();
+            cases.push(("stored MD5", wrong));
+            let mut wrong = good.clone();
+            wrong["stored"]["etag"] =
+                format!("{}-2", good["stored"]["etag"].as_str().unwrap()).into();
+            cases.push(("not a plain", wrong));
+            for (field, reason) in [
+                ("etag", "missing stored ETag"),
+                ("size", "missing stored size"),
+                ("http_metadata", "missing stored HTTP metadata"),
+            ] {
+                let mut wrong = good.clone();
+                wrong["stored"].as_object_mut().unwrap().remove(field);
+                cases.push((reason, wrong));
+            }
+            let mut wrong = good.clone();
+            if encoding.is_some() {
+                wrong["stored"]["http_metadata"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("contentEncoding");
+            } else {
+                wrong["stored"]["http_metadata"]["contentEncoding"] = "br".into();
+            }
+            cases.push(("Content-Encoding", wrong));
+            for (reason, value) in cases {
+                let metadata = serde_json::from_value(value).unwrap();
+                let error =
+                    verify_readback(&object, &expected, &downloaded, &metadata).unwrap_err();
+                let text = format!("{error:#}");
+                assert!(
+                    text.contains(reason) && text.contains(&object.object_key),
+                    "{encoding:?}: {text}"
+                );
+            }
+            let mut wrong_body = fs::read(&object.local_path).unwrap();
+            wrong_body[0] ^= 1;
+            fs::write(&downloaded, wrong_body).unwrap();
+            assert!(
+                verify_readback(&object, &expected, &downloaded, &metadata)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("SHA-256")
+            );
+            if encoding.is_some() {
+                // Equal decoded content is insufficient: read-back must retain the encoded stream.
+                fs::write(&downloaded, b"\x85\x0b\x80validated original bytes\x03").unwrap();
+                assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
+                fs::write(&downloaded, original).unwrap();
+                let mut decoded = good;
+                decoded["body_encoding"] = serde_json::Value::Null;
+                assert!(
+                    verify_readback(
+                        &object,
+                        &expected,
+                        &downloaded,
+                        &serde_json::from_value(decoded).unwrap()
+                    )
+                    .unwrap_err()
+                    .to_string()
+                    .contains("decoded Brotli")
+                );
+            }
         }
-        fs::write(&sibling, STREAM_A).unwrap();
-        let object =
-            crate::r2_upload_object_for_key(&temporary.path, "stub-prefix", "vectors.f16").unwrap();
-        let expected = fingerprint(&object.local_path).unwrap();
-        let downloaded = temporary.path.join("download");
-        let mut metadata = ReadbackMetadata {
-            stored_size: expected.size,
-            stored_encoding: Some("br".to_owned()),
-            body_encoding: Some("br".to_owned()),
-        };
-        fs::write(&downloaded, STREAM_A).unwrap();
-        verify_readback(&object, &expected, &downloaded, &metadata).unwrap();
-        fs::write(&downloaded, STREAM_B).unwrap();
-        assert!(
-            verify_readback(&object, &expected, &downloaded, &metadata)
-                .unwrap_err()
-                .to_string()
-                .contains("SHA-256")
-        );
-        fs::copy(&original, &downloaded).unwrap();
-        metadata.body_encoding = None;
-        assert!(
-            verify_readback(&object, &expected, &downloaded, &metadata)
-                .unwrap_err()
-                .to_string()
-                .contains("decoded Brotli")
-        );
-        fs::write(&downloaded, STREAM_A).unwrap();
-        metadata.body_encoding = Some("br".to_owned());
-        metadata.stored_encoding = None;
-        assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
-        metadata.stored_encoding = Some("br".to_owned());
-        metadata.stored_size += 1;
-        assert!(verify_readback(&object, &expected, &downloaded, &metadata).is_err());
     }
 
     #[test]
@@ -675,10 +844,7 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             let result = publisher.verify_with_readback(&object, |downloaded, metadata| {
                 calls += 1;
                 fs::write(downloaded, bytes)?;
-                fs::write(
-                    metadata,
-                    r#"{"stored_size":11,"stored_encoding":null,"body_encoding":null}"#,
-                )?;
+                fs::write(metadata, serde_json::to_vec(&receipt(&object))?)?;
                 Ok(())
             });
             assert_eq!(calls, 1);
@@ -712,6 +878,59 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             Duration::from_secs(30),
         )
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r4_stderr_surfaces_known_errors_and_redacts_untrusted_text() {
+        let root = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap());
+        let temporary = Readback::new(&root).unwrap();
+        let script = temporary.path.join("failure.cjs");
+        fs::write(
+            &script,
+            "console.error(JSON.stringify({r2_readback_error:'changed'})); process.exitCode=1;",
+        )
+        .unwrap();
+        let error =
+            run_readback(Command::new("node").arg(&script), Duration::from_secs(5)).unwrap_err();
+        assert!(format!("{error:#}").contains("R2 object changed between metadata and body reads"));
+        for text in [
+            "Authorization: Bearer FAKE_TOKEN; X-Auth-Key: FAKE_KEY".to_owned(),
+            format!("{{\"r2_readback_error\":\"changed\",\"Authorization\":\"FAKE_TOKEN\"}}"),
+            "FAKE_KEY".repeat(10_000),
+        ] {
+            fs::write(
+                &script,
+                format!(
+                    "process.stderr.write({}); process.exitCode=1;",
+                    serde_json::to_string(&text).unwrap()
+                ),
+            )
+            .unwrap();
+            let error = run_readback(Command::new("node").arg(&script), Duration::from_secs(5))
+                .unwrap_err();
+            let error = format!("{error:#}");
+            assert!(error.contains("redacted") && error.len() < 512);
+            for forbidden in ["FAKE_TOKEN", "FAKE_KEY", "Authorization", "X-Auth-Key"] {
+                assert!(!error.contains(forbidden));
+            }
+        }
+        fs::write(
+            &script,
+            "process.stderr.write('FAKE_TOKEN'); setTimeout(() => {}, 30000);",
+        )
+        .unwrap();
+        let error = run_readback(
+            Command::new("node").arg(&script),
+            Duration::from_millis(100),
+        )
+        .unwrap_err();
+        let text = format!("{error:#}");
+        assert!(
+            text.contains("timed out") && text.contains("redacted") && !text.contains("FAKE_TOKEN")
+        );
     }
 
     #[cfg(unix)]

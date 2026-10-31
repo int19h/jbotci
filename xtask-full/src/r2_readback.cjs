@@ -6,6 +6,31 @@ const { pipeline } = require('node:stream/promises');
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 
+const READBACK_MESSAGES = {
+    changed: 'R2 object changed between metadata and body reads',
+    decoded: 'R2 returned a decoded Brotli body. Exact stored bytes cannot be verified',
+    metadata: 'R2 returned invalid or incomplete object metadata',
+    http: 'R2 read-back HTTP request failed',
+    io: 'R2 read-back failed (untrusted details redacted)',
+};
+class ReadbackError extends Error {
+    constructor(code) { super(READBACK_MESSAGES[code]); this.code = code; }
+}
+function reportReadbackError(error) {
+    // Never copy request errors or credential output into diagnostics. The parent accepts only these codes.
+    const code = error instanceof ReadbackError ? error.code : 'io';
+    console.error(JSON.stringify({ r2_readback_error: code }));
+    process.exitCode = 1;
+}
+function proofFields(object) {
+    return { key: object.key, size: object.size, etag: object.etag,
+        http_metadata: object.http_metadata && {
+            contentType: object.http_metadata.contentType,
+            cacheControl: object.http_metadata.cacheControl,
+            contentEncoding: object.http_metadata.contentEncoding,
+        } };
+}
+
 function childEnvironment(parent = process.env) {
     const env = { ...parent, WRANGLER_WRITE_LOGS: 'false', WRANGLER_LOG: 'log',
         WRANGLER_LOG_SANITIZE: 'true', WRANGLER_SEND_METRICS: 'false', CI: 'true', NODE_V8_COVERAGE: '' };
@@ -41,7 +66,7 @@ function request(url, headers) {
         const outgoing = client.get(url, { headers }, response => {
             if (response.statusCode !== 200) {
                 response.destroy();
-                reject(new Error(`R2 read-back returned HTTP ${response.statusCode}`));
+                reject(new ReadbackError('http'));
             } else resolve(response);
         });
         outgoing.on('error', reject);
@@ -88,14 +113,9 @@ async function* metadataPages(base, prefix, headers, perPage) {
 async function objectMetadata(base, key, headers) {
     for await (const objects of metadataPages(base, key, headers, 1)) {
         const object = objects.find(object => object.key === key);
-        if (object) {
-            if (!Number.isSafeInteger(object.size) || object.size < 0 || typeof object.etag !== 'string' || !object.etag.length) {
-                throw new Error('R2 returned incomplete object metadata');
-            }
-            return object;
-        }
+        if (object) return object;
     }
-    throw new Error('R2 did not list the uploaded object');
+    throw new ReadbackError('metadata');
 }
 
 async function listMetadata({ account, bucket, prefix, headers, apiBase = API_BASE }) {
@@ -112,12 +132,7 @@ async function listMetadata({ account, bucket, prefix, headers, apiBase = API_BA
             }
             keys.add(object.key);
             // Store only proof fields. Credentials and custom metadata never enter the receipt.
-            objects.push({ key: object.key, size: object.size, etag: object.etag,
-                http_metadata: object.http_metadata && {
-                    contentType: object.http_metadata.contentType,
-                    cacheControl: object.http_metadata.cacheControl,
-                    contentEncoding: object.http_metadata.contentEncoding,
-                } });
+            objects.push(proofFields(object));
         }
     }
     return objects;
@@ -135,15 +150,18 @@ async function readback({ account, bucket, key, encoding, downloaded, metadata, 
     const response = await request(objectUrl, { ...headers, Accept: 'application/octet-stream', 'Accept-Encoding': encoding });
     if (encoding === 'br' && (response.headers['content-encoding'] === undefined || response.headers['content-encoding'] === 'identity')) {
         response.destroy();
-        throw new Error('R2 returned a decoded Brotli body. Exact stored bytes cannot be verified');
+        throw new ReadbackError('decoded');
     }
-    if (response.headers.etag !== JSON.stringify(stored.etag)) {
+    // Cloudflare marks identity responses weak. This validator only detects a change between reads.
+    // The local size/MD5 metadata proof and the body's SHA-256 provide the content proof.
+    const bodyETag = typeof response.headers.etag === 'string'
+        ? /^(?:W\/)?"([0-9a-fA-F]{32})"$/.exec(response.headers.etag) : null;
+    if (!bodyETag || bodyETag[0] !== response.headers.etag || bodyETag[1] !== stored.etag) {
         response.destroy();
-        throw new Error('R2 object changed between metadata and body reads');
+        throw new ReadbackError('changed');
     }
     const receipt = {
-        stored_size: stored.size,
-        stored_encoding: stored.http_metadata?.contentEncoding ?? null,
+        stored: proofFields(stored),
         body_encoding: response.headers['content-encoding'] ?? null,
     };
     await pipeline(response, fs.createWriteStream(downloaded, { flags: 'wx' }));
@@ -154,4 +172,4 @@ async function main([script, account, bucket, key, encoding, downloaded, metadat
     await readback({ script, account, bucket, key, encoding, downloaded, metadata, headers: credentials(script) });
 }
 
-module.exports = { credentials, readback, listMetadata };
+module.exports = { credentials, readback, listMetadata, reportReadbackError };

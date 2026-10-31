@@ -64,9 +64,9 @@ fn deserialize_present_encoding<'de, D: serde::Deserializer<'de>>(
 
 #[invariant(true)]
 #[derive(Debug, PartialEq, Eq)]
-struct LocalProof {
-    size: u64,
-    md5: [u8; 16],
+pub(super) struct LocalProof {
+    pub(super) size: u64,
+    pub(super) md5: [u8; 16],
 }
 
 #[contract_trait]
@@ -290,6 +290,12 @@ fn corpus_group<'a>(prefix: &str, key: &'a str) -> &'a str {
 #[requires(true)]
 #[ensures(true)]
 fn local_proof(path: &Path) -> Result<LocalProof> {
+    local_proof_with(path, |_| {})
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn local_proof_with(path: &Path, mut observe: impl FnMut(&[u8])) -> Result<LocalProof> {
     let mut file = fs::File::open(path)?;
     let mut digest = Md5::new();
     let mut size = 0_u64;
@@ -300,6 +306,7 @@ fn local_proof(path: &Path) -> Result<LocalProof> {
             break;
         }
         digest.update(&buffer[..count]);
+        observe(&buffer[..count]);
         size = size
             .checked_add(count as u64)
             .context("upload file size overflow")?;
@@ -330,20 +337,39 @@ fn plain_md5(etag: &str) -> Option<[u8; 16]> {
         && http.content_encoding.as_deref() != Some("")))]
 fn metadata_proof(live: &LiveMetadata, object: &R2UploadObject) -> Option<LocalProof> {
     let http = live.http_metadata.as_ref()?;
-    // R2 omits contentEncoding when no encoding is set, so absence matches only an unencoded upload.
-    // The metadata object must exist. Type and cache policy remain required because every upload sets them.
-    if live.key != object.object_key
-        || http.content_type.as_deref()? != object.content_type
+    // Every upload sets type and cache policy, so missing values cannot prove a match.
+    if http.content_type.as_deref()? != object.content_type
         || http.cache_control.as_deref()? != object.cache_control
-        || http.content_encoding.as_deref() == Some("")
-        || http.content_encoding.as_deref() != object.content_encoding
     {
         return None;
     }
-    Some(LocalProof {
-        size: live.size?,
-        md5: plain_md5(live.etag.as_deref()?)?,
-    })
+    stored_byte_proof(live, object).ok()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|proof| live.size == Some(proof.size)) || ret.is_err())]
+pub(super) fn stored_byte_proof(
+    live: &LiveMetadata,
+    object: &R2UploadObject,
+) -> Result<LocalProof> {
+    if live.key != object.object_key {
+        bail!("stored object key differs from the upload");
+    }
+    let http = live
+        .http_metadata
+        .as_ref()
+        .context("missing stored HTTP metadata")?;
+    // R2 omits contentEncoding when unset. Within a present metadata object, absence means no encoding.
+    // That matches only an unencoded upload. Other missing proof fields remain errors.
+    if http.content_encoding.as_deref() == Some("")
+        || http.content_encoding.as_deref() != object.content_encoding
+    {
+        bail!("stored Content-Encoding differs from the upload");
+    }
+    let size = live.size.context("missing stored size")?;
+    let etag = live.etag.as_deref().context("missing stored ETag")?;
+    let md5 = plain_md5(etag).context("stored ETag is not a plain 32-hex-digit MD5")?;
+    Ok(LocalProof { size, md5 })
 }
 
 #[requires(true)]
@@ -619,6 +645,42 @@ mod tests {
             }
         }
         Ok(total)
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r4_live_snake_case_listing_parses_the_reviewed_skip_proof() {
+        let value = r#"{"key":"packs/items.json","etag":"3503455e520328d564c05beb0020a517",
+            "last_modified":"2026-10-31","size":508332,
+            "http_metadata":{"cacheControl":"public, max-age=31536000, immutable","contentType":"application/json; charset=utf-8"},
+            "custom_metadata":{},"storage_class":"Standard"}"#;
+        let live: LiveMetadata = serde_json::from_str(value).unwrap();
+        let object = R2UploadObject::from_data(data!(R2UploadObject {
+            local_path: "unused".into(),
+            object_key: "packs/items.json".to_owned(),
+            content_type: "application/json; charset=utf-8",
+            content_encoding: None,
+            cache_control: "public, max-age=31536000, immutable",
+        }));
+        let proof = metadata_proof(&live, &object)
+            .expect("the supplied live entry must qualify for a local byte comparison");
+        assert_eq!(proof.size, 508332);
+        assert_eq!(
+            proof.md5,
+            [
+                0x35, 0x03, 0x45, 0x5e, 0x52, 0x03, 0x28, 0xd5, 0x64, 0xc0, 0x5b, 0xeb, 0x00, 0x20,
+                0xa5, 0x17
+            ]
+        );
+        let mut wrong: serde_json::Value = serde_json::from_str(value).unwrap();
+        let http = wrong
+            .as_object_mut()
+            .unwrap()
+            .remove("http_metadata")
+            .unwrap();
+        wrong["httpMetadata"] = http;
+        assert!(metadata_proof(&serde_json::from_value(wrong).unwrap(), &object).is_none());
     }
 
     #[test]

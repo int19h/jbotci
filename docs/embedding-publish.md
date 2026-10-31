@@ -42,14 +42,23 @@ The same 180-second limit covers credentials, metadata, and body download.
 The request advertises `br` for a Brotli upload and `identity` for an uncompressed upload.
 Node keeps the response bytes encoded when the server returns `Content-Encoding: br`.
 
-The publisher lists the exact object to read its stored size and Content-Encoding.
-It compares the metadata ETag with the body ETag to refuse an object that changes between reads.
+The publisher lists the exact object to read its stored size, MD5 ETag, and Content-Encoding.
+The stored size and plain MD5 must equal those of the local upload file.
+The stored encoding must also match, with no encoding field for an uncompressed upload.
+A missing metadata object, missing size or ETag, malformed value, or multipart ETag fails the comparison.
+
+The publisher compares the listing ETag with the body's quoted MD5 after removing one optional `W/` prefix.
+Cloudflare marks uncompressed responses weak, so this comparison accepts a matching weak ETag.
+This ETag comparison detects changes between the listing and the body read.
+The local metadata proof and the body's SHA-256 provide the content proof.
+A missing body ETag, a different digest, or extra prefixes fail.
+
 The response must match the uploaded file through size and SHA-256.
 For a Brotli upload, only an encoded response can succeed.
 A decoded response fails because it does not prove the identity of the stored bytes.
 The planner also validates each Brotli sibling against the original file before publication.
 
-Stored size and encoding must match the upload.
+The skip path and full read-back share the stored metadata parser and the file reader for MD5.
 An unexpected encoding or a different body stops the attempt.
 Wrangler's fetch client decodes compressed responses, so `r2 object get` does not preserve stored Brotli bytes.
 The [Cloudflare compression guide](https://developers.cloudflare.com/speed/optimization/content/compression/) describes response transformations and content negotiation.
@@ -58,6 +67,10 @@ The [R2 object API](https://developers.cloudflare.com/api/resources/r2/subresour
 A failed command, timeout, or different digest retries the upload and read-back together.
 The publisher makes at most three attempts, with waits of two and four seconds.
 A final failure names the object and stops publication.
+Read-back errors include a diagnostic from stderr.
+The publisher accepts only known diagnostic codes and redacts all other stderr text.
+It retains at most 4,096 stderr bytes and drains the rest without retaining them.
+
 A timeout kills the entire command process group and reaps the child.
 
 Read-back files use `CARGO_TARGET_DIR/r2-readback`, or `target/r2-readback` when the environment variable is absent.

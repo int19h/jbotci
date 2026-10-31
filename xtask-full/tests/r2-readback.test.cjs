@@ -19,6 +19,7 @@ let server;
 let apiBase;
 let mode;
 let gets;
+let requestedEncoding = 'br';
 
 test.before(async () => {
     const target = process.env.CARGO_TARGET_DIR;
@@ -31,17 +32,32 @@ test.before(async () => {
             assert.equal(url.searchParams.get('prefix'), key);
             response.setHeader('Content-Type', 'application/json');
             response.end(JSON.stringify({ success: true, result: [{
-                key, size: encoded.length, etag: 'stub-etag', http_metadata: { contentEncoding: 'br' },
+                key, size: requestedEncoding === 'br' ? encoded.length : original.length,
+                etag: createHash('md5').update(requestedEncoding === 'br' ? encoded : original).digest('hex'),
+                last_modified: '2026-10-31', custom_metadata: {}, storage_class: 'Standard',
+                http_metadata: { ...(requestedEncoding === 'br' ? { contentEncoding: 'br' } : {}),
+                    contentType: 'application/octet-stream', cacheControl: 'immutable' },
             }] }));
         } else {
             gets++;
             assert.equal(decodeURIComponent(url.pathname.split('/objects/')[1]), key);
-            assert.equal(request.headers['accept-encoding'], 'br');
-            response.setHeader('ETag', mode === 'changed' ? '"other-etag"' : mode === 'decoded' ? 'W/"stub-etag"' : '"stub-etag"');
+            assert.equal(request.headers['accept-encoding'], requestedEncoding);
+            const digest = createHash('md5').update(requestedEncoding === 'br' ? encoded : original).digest('hex');
+            let etag = requestedEncoding === 'br' ? `"${digest}"` : `W/"${digest}"`;
+            if (mode === 'changed' || mode === 'identity-changed') etag = `W/"${'0'.repeat(32)}"`;
+            if (mode === 'identity-double-weak') etag = `W/W/"${digest}"`;
+            if (mode === 'identity-multipart') etag = `W/"${digest}-2"`;
+            if (mode !== 'identity-missing-etag') response.setHeader('ETag', etag);
             if (mode === 'encoded' || mode === 'bad-encoded' || mode === 'alternate-encoded' || mode === 'changed') response.setHeader('Content-Encoding', 'br');
             const bytes = mode === 'alternate-encoded' ? Buffer.from(alternate) : mode === 'encoded' || mode === 'bad-encoded' || mode === 'changed' ? Buffer.from(encoded) : zlib.brotliDecompressSync(alternate);
             if (mode === 'bad-encoded' || mode === 'bad-decoded') bytes[0] ^= 1;
-            response.end(bytes);
+            if (requestedEncoding === 'identity') {
+                // Match the measured identity response: no encoding, no length, and a chunked body.
+                assert.equal(response.getHeader('Content-Encoding'), undefined);
+                response.write(original);
+                assert.equal(response.getHeader('Content-Length'), undefined);
+                response.end();
+            } else response.end(bytes);
         }
     });
     for (let port = 18858; port <= 18899; port++) {
@@ -82,7 +98,9 @@ for (const behavior of ['encoded', 'bad-encoded', 'alternate-encoded']) {
         if (behavior === 'encoded') assert.deepEqual(bytes, encoded);
         else assert.notDeepEqual(bytes, encoded);
         assert.deepEqual(JSON.parse(fs.readFileSync(metadata)), {
-            stored_size: encoded.length, stored_encoding: 'br', body_encoding: 'br',
+            stored: { key, size: encoded.length, etag: createHash('md5').update(encoded).digest('hex'),
+                http_metadata: { contentType: 'application/octet-stream', cacheControl: 'immutable', contentEncoding: 'br' } },
+            body_encoding: 'br',
         });
     });
 }
@@ -105,6 +123,37 @@ test('metadata and body must name the same stored object', async () => {
         downloaded: path.join(root, 'changed'), metadata: path.join(root, 'changed.json'),
         headers: { Authorization: 'Bearer stub-token' }, apiBase }), /changed between metadata and body/);
 });
+
+test('identity read-back accepts the measured weak ETag and chunked bytes', async () => {
+    requestedEncoding = 'identity';
+    mode = 'identity';
+    try {
+        const downloaded = path.join(root, 'identity');
+        const metadata = `${downloaded}.json`;
+        await readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'identity', downloaded, metadata,
+            headers: { Authorization: 'Bearer stub-token' }, apiBase });
+        assert.deepEqual(fs.readFileSync(downloaded), original);
+        const receipt = JSON.parse(fs.readFileSync(metadata));
+        assert.equal(receipt.body_encoding, null);
+        assert.equal(receipt.stored.size, original.length);
+        assert.equal(receipt.stored.etag, createHash('md5').update(original).digest('hex'));
+        assert.equal(Object.hasOwn(receipt.stored.http_metadata, 'contentEncoding'), false);
+    } finally { requestedEncoding = 'br'; }
+});
+
+for (const behavior of ['identity-changed', 'identity-double-weak', 'identity-missing-etag', 'identity-multipart']) {
+    test(`identity read-back refuses ${behavior}`, async () => {
+        requestedEncoding = 'identity';
+        mode = behavior;
+        const downloaded = path.join(root, behavior);
+        try {
+            await assert.rejects(readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'identity',
+                downloaded, metadata: `${downloaded}.json`, headers: { Authorization: 'Bearer stub-token' }, apiBase }),
+                /object changed between metadata and body reads/);
+            assert.equal(fs.existsSync(downloaded), false);
+        } finally { requestedEncoding = 'br'; }
+    });
+}
 
 test('Wrangler credentials support each declared type', () => {
     const script = path.join(root, 'auth.cjs');
