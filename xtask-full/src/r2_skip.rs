@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result, bail};
+#[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use clap::Args;
 use md5::{Digest, Md5};
