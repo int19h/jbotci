@@ -101,6 +101,8 @@ outside Docker, packages only `server` and `public/` with
 manual-only. The Render Dockerfile provides the self-contained local and fallback
 build path.
 
+The [embedding publication guide](docs/embedding-publish.md) describes the pinned Wrangler installation, account, upload safeguards, and release order.
+
 Browser embedding packs are deployed separately to Cloudflare R2 with
 `cargo xtask publish-web-embeddings-r2`. Browser builds default to
 `https://assets.jbotci.app/embeddings/web/v1`; set
