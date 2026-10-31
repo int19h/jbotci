@@ -8,7 +8,7 @@ const { once } = require('node:events');
 const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const { FAKE_TOKEN, FORCED, REMOVED } = require('./fixtures/wrangler-4.149.0-logging.cjs');
-const { readback, credentials } = require('../src/r2_readback.cjs');
+const { readback, credentials, reportReadbackError, etagDiagnostic } = require('../src/r2_readback.cjs');
 
 const original = Buffer.from('validated original bytes');
 const encoded = Buffer.from('830b8076616c696461746564206f726967696e616c20627974657303', 'hex');
@@ -19,6 +19,7 @@ let server;
 let apiBase;
 let mode;
 let gets;
+let requestedEncoding = 'br';
 
 test.before(async () => {
     const target = process.env.CARGO_TARGET_DIR;
@@ -31,17 +32,32 @@ test.before(async () => {
             assert.equal(url.searchParams.get('prefix'), key);
             response.setHeader('Content-Type', 'application/json');
             response.end(JSON.stringify({ success: true, result: [{
-                key, size: encoded.length, etag: 'stub-etag', http_metadata: { contentEncoding: 'br' },
+                key, size: requestedEncoding === 'br' ? encoded.length : original.length,
+                etag: createHash('md5').update(requestedEncoding === 'br' ? encoded : original).digest('hex'),
+                last_modified: '2026-10-31', custom_metadata: {}, storage_class: 'Standard',
+                http_metadata: { ...(requestedEncoding === 'br' ? { contentEncoding: 'br' } : {}),
+                    contentType: 'application/octet-stream', cacheControl: 'immutable' },
             }] }));
         } else {
             gets++;
             assert.equal(decodeURIComponent(url.pathname.split('/objects/')[1]), key);
-            assert.equal(request.headers['accept-encoding'], 'br');
-            response.setHeader('ETag', mode === 'changed' ? '"other-etag"' : mode === 'decoded' ? 'W/"stub-etag"' : '"stub-etag"');
+            assert.equal(request.headers['accept-encoding'], requestedEncoding);
+            const digest = createHash('md5').update(requestedEncoding === 'br' ? encoded : original).digest('hex');
+            let etag = requestedEncoding === 'br' ? `"${digest}"` : `W/"${digest}"`;
+            if (mode === 'changed' || mode === 'identity-changed') etag = `W/"${'0'.repeat(32)}"`;
+            if (mode === 'identity-double-weak') etag = `W/W/"${digest}"`;
+            if (mode === 'identity-multipart') etag = `W/"${digest}-2"`;
+            if (mode !== 'identity-missing-etag') response.setHeader('ETag', etag);
             if (mode === 'encoded' || mode === 'bad-encoded' || mode === 'alternate-encoded' || mode === 'changed') response.setHeader('Content-Encoding', 'br');
             const bytes = mode === 'alternate-encoded' ? Buffer.from(alternate) : mode === 'encoded' || mode === 'bad-encoded' || mode === 'changed' ? Buffer.from(encoded) : zlib.brotliDecompressSync(alternate);
             if (mode === 'bad-encoded' || mode === 'bad-decoded') bytes[0] ^= 1;
-            response.end(bytes);
+            if (requestedEncoding === 'identity') {
+                // Match the measured identity response: no encoding, no length, and a chunked body.
+                assert.equal(response.getHeader('Content-Encoding'), undefined);
+                response.write(original);
+                assert.equal(response.getHeader('Content-Length'), undefined);
+                response.end();
+            } else response.end(bytes);
         }
     });
     for (let port = 18858; port <= 18899; port++) {
@@ -82,7 +98,9 @@ for (const behavior of ['encoded', 'bad-encoded', 'alternate-encoded']) {
         if (behavior === 'encoded') assert.deepEqual(bytes, encoded);
         else assert.notDeepEqual(bytes, encoded);
         assert.deepEqual(JSON.parse(fs.readFileSync(metadata)), {
-            stored_size: encoded.length, stored_encoding: 'br', body_encoding: 'br',
+            stored: { key, size: encoded.length, etag: createHash('md5').update(encoded).digest('hex'),
+                http_metadata: { contentType: 'application/octet-stream', cacheControl: 'immutable', contentEncoding: 'br' } },
+            body_encoding: 'br',
         });
     });
 }
@@ -104,6 +122,75 @@ test('metadata and body must name the same stored object', async () => {
     await assert.rejects(readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'br',
         downloaded: path.join(root, 'changed'), metadata: path.join(root, 'changed.json'),
         headers: { Authorization: 'Bearer stub-token' }, apiBase }), /changed between metadata and body/);
+});
+
+test('identity read-back accepts the measured weak ETag and chunked bytes', async () => {
+    requestedEncoding = 'identity';
+    mode = 'identity';
+    try {
+        const downloaded = path.join(root, 'identity');
+        const metadata = `${downloaded}.json`;
+        await readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'identity', downloaded, metadata,
+            headers: { Authorization: 'Bearer stub-token' }, apiBase });
+        assert.deepEqual(fs.readFileSync(downloaded), original);
+        const receipt = JSON.parse(fs.readFileSync(metadata));
+        assert.equal(receipt.body_encoding, null);
+        assert.equal(receipt.stored.size, original.length);
+        assert.equal(receipt.stored.etag, createHash('md5').update(original).digest('hex'));
+        assert.equal(Object.hasOwn(receipt.stored.http_metadata, 'contentEncoding'), false);
+    } finally { requestedEncoding = 'br'; }
+});
+
+for (const behavior of ['identity-changed', 'identity-double-weak', 'identity-missing-etag', 'identity-multipart']) {
+    test(`identity read-back refuses ${behavior}`, async () => {
+        requestedEncoding = 'identity';
+        mode = behavior;
+        const downloaded = path.join(root, behavior);
+        try {
+            await assert.rejects(readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'identity',
+                downloaded, metadata: `${downloaded}.json`, headers: { Authorization: 'Bearer stub-token' }, apiBase }),
+                error => {
+                    assert.match(error.message, /object changed between metadata and body reads/);
+                    const stored = createHash('md5').update(original).digest('hex');
+                    const expected = {
+                        'identity-changed': `W/"${'0'.repeat(32)}"`,
+                        'identity-double-weak': `W/W/"${stored}"`,
+                        'identity-missing-etag': '[missing ETag]',
+                        'identity-multipart': `W/"${stored}-2"`,
+                    }[behavior];
+                    assert.equal(error.etags.body_etag, expected);
+                    assert.equal(error.etags.stored_etag, stored);
+                    assert.ok(error.message.includes(JSON.stringify(expected)));
+                    assert.ok(error.message.includes(JSON.stringify(stored)));
+                    let diagnostic;
+                    const previousError = console.error;
+                    const previousExitCode = process.exitCode;
+                    try {
+                        console.error = line => { diagnostic = JSON.parse(line); };
+                        reportReadbackError(error);
+                    } finally {
+                        console.error = previousError;
+                        process.exitCode = previousExitCode;
+                    }
+                    assert.deepEqual(diagnostic, { r2_readback_error: 'changed', body_etag: expected, stored_etag: stored });
+                    return true;
+                });
+            assert.equal(fs.existsSync(downloaded), false);
+        } finally { requestedEncoding = 'br'; }
+    });
+}
+
+test('ETag diagnostics retain raw ASCII values with bounds and omit every non-ASCII value', () => {
+    const raw = 'W/W/"unmodified"';
+    assert.equal(etagDiagnostic(raw), raw);
+    assert.equal(etagDiagnostic('x'.repeat(128)), 'x'.repeat(128));
+    const long = etagDiagnostic('x'.repeat(129));
+    assert.equal(long.length, 128);
+    assert.ok(long.startsWith('x') && long.endsWith('...[truncated]'));
+    assert.equal(etagDiagnostic('é'), '[non-ASCII ETag]');
+    assert.equal(etagDiagnostic('x'.repeat(128) + 'é'), '[non-ASCII ETag]');
+    assert.equal(etagDiagnostic(undefined), '[missing ETag]');
+    assert.equal(etagDiagnostic(null), '[malformed ETag]');
 });
 
 test('Wrangler credentials support each declared type', () => {
@@ -177,3 +264,99 @@ console.log('credential stub completed');
         for (const file of filesUnder(directory)) assert.equal(fs.readFileSync(file).includes(FAKE_TOKEN), false, file);
     }
 });
+
+// Give each stub a distinct origin so HTTP keep-alive cannot reuse a closed server's connection.
+let nextStubPort = 18800;
+async function listenStub(server) {
+    while (nextStubPort <= 18899) {
+        const port = nextStubPort++;
+        try {
+            server.listen(port, '127.0.0.1');
+            await once(server, 'listening');
+            return;
+        } catch (error) {
+            if (error.code !== 'EADDRINUSE') throw error;
+        }
+    }
+    throw new Error('No free jbotci test port');
+}
+
+// These listeners are local stubs. No Cloudflare endpoint is contacted.
+test('prefix listing returns complete proof fields across pages without body reads', async () => {
+    const { listMetadata } = require('../src/r2_readback.cjs');
+    const requests = [];
+    const stub = http.createServer((request, response) => {
+        const url = new URL(request.url, 'http://localhost');
+        requests.push(url);
+        assert.equal(request.headers.authorization, 'Bearer stub-token');
+        assert.equal(request.headers['accept-encoding'], 'identity');
+        assert.equal(url.searchParams.get('prefix'), 'packs/');
+        assert.equal(url.searchParams.get('per_page'), '1000');
+        assert.ok(url.pathname.endsWith('/objects'));
+        const second = url.searchParams.get('cursor') === 'page-2';
+        response.setHeader('Content-Type', 'application/json');
+        response.end(JSON.stringify({ success: true, result: [{ key: second ? 'packs/b' : 'packs/a', size: 28,
+            etag: 'd41d8cd98f00b204e9800998ecf8427e', custom_metadata: { ignored: 'not-a-proof' },
+            http_metadata: { contentEncoding: 'br', contentType: 'application/octet-stream', cacheControl: 'immutable' } }],
+            result_info: second ? { is_truncated: false } : { is_truncated: true, cursor: 'page-2' } }));
+    });
+    await listenStub(stub);
+    try {
+        const result = await listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+            headers: { Authorization: 'Bearer stub-token' }, apiBase: `http://127.0.0.1:${stub.address().port}` });
+        assert.equal(requests.length, 2);
+        assert.equal(result.length, 2);
+        assert.deepEqual(result.map(object => object.key), ['packs/a', 'packs/b']);
+        for (const object of result) {
+            assert.equal(object.size, 28);
+            assert.equal(object.etag, 'd41d8cd98f00b204e9800998ecf8427e');
+            assert.deepEqual(object.http_metadata, { contentType: 'application/octet-stream', cacheControl: 'immutable', contentEncoding: 'br' });
+            assert.equal(object.custom_metadata, undefined);
+        }
+    } finally { await new Promise(resolve => stub.close(resolve)); }
+});
+
+test('listing receipt distinguishes absent encoding from an absent metadata object', async () => {
+    const { listMetadata } = require('../src/r2_readback.cjs');
+    const stub = http.createServer((request, response) => {
+        response.setHeader('Content-Type', 'application/json');
+        response.end(JSON.stringify({ success: true, result: [
+            { key: 'packs/unencoded', http_metadata: { contentType: 'application/octet-stream', cacheControl: 'immutable' } },
+            { key: 'packs/unknown' },
+            { key: 'packs/malformed', http_metadata: { contentEncoding: null } },
+        ], result_info: { is_truncated: false } }));
+    });
+    await listenStub(stub);
+    try {
+        const listed = await listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+            headers: { Authorization: 'Bearer stub-token' }, apiBase: `http://127.0.0.1:${stub.address().port}` });
+        // Use the same JSON boundary as metadataMain and the Rust reader.
+        const receipt = JSON.parse(JSON.stringify(listed));
+        assert.deepEqual(receipt[0].http_metadata, { contentType: 'application/octet-stream', cacheControl: 'immutable' });
+        assert.equal(Object.hasOwn(receipt[0].http_metadata, 'contentEncoding'), false);
+        assert.equal(Object.hasOwn(receipt[1], 'http_metadata'), false);
+        assert.equal(Object.hasOwn(receipt[2].http_metadata, 'contentEncoding'), true);
+        assert.equal(receipt[2].http_metadata.contentEncoding, null);
+    } finally { await new Promise(resolve => stub.close(resolve)); }
+});
+
+for (const bad of ['http-error', 'bad-json', 'api-error', 'reported-error', 'truncated-no-cursor', 'duplicate-key', 'repeated-cursor']) {
+    test(`prefix listing refuses ${bad} and exposes no partial receipt`, async () => {
+        const { listMetadata } = require('../src/r2_readback.cjs');
+        let calls = 0;
+        const stub = http.createServer((request, response) => {
+            calls++;
+            if (bad === 'http-error') { response.writeHead(503); response.end('untrusted response body'); return; }
+            if (bad === 'bad-json') { response.end('not JSON'); return; }
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify({ success: bad !== 'api-error', errors: bad === 'reported-error' ? [{ code: 1000, message: 'stub' }] : [], result: [{ key: bad === 'repeated-cursor' ? `packs/${calls}` : 'packs/a' }],
+                result_info: bad === 'truncated-no-cursor' ? { is_truncated: true } : { cursor: 'next', is_truncated: true } }));
+        });
+        await listenStub(stub);
+        try {
+            await assert.rejects(listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+                headers: {}, apiBase: `http://127.0.0.1:${stub.address().port}` }));
+            assert.ok(calls <= 2);
+        } finally { await new Promise(resolve => stub.close(resolve)); }
+    });
+}
