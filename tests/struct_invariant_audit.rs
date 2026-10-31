@@ -2152,16 +2152,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pairs the verdict the renderer reads with the token deciding which measurement may write it; the two signals are independent handles and neither constrains the other",
     ),
     (
-        "crates/jbotci-ui/src/layout.rs:CuktaEditionRowObserver",
-        "owns a browser resize observer and the closure it calls; the pairing is the whole point and neither half constrains the other",
-    ),
-    (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeAnchorMetrics",
         "desktop tree anchor metrics are direct layout measurements used to derive overlay geometry",
     ),
     (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeLayout",
         "desktop tree layout is a transient overlay geometry result derived from measured rows",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:ElementResizeObserver",
+        "owns a browser resize observer and the closure it calls; the pairing is the whole point and neither half constrains the other",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:VlackuFiltersDismissal",
+        "owns the document listeners (or, on the desktop webview, the script and the task that watches it) that dismiss the open dropdown; the pairing is the whole point, and dropping the value removes them",
     ),
     (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeMetrics",
@@ -2376,8 +2380,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "settings page snapshots group memoized render inputs whose source settings states own validity",
     ),
     (
+        "crates/jbotci-ui/src/tests.rs:VlackuControlsFixture",
+        "test fixture naming the layout, the dropdown flag and the dictionary state that a rendering test starts from; the tests choose every combination on purpose",
+    ),
+    (
         "crates/jbotci-ui/src/tests.rs:VlackuHistoryTestRoute",
         "test route wraps one validated JbotciRoute and changes only the page that the test renders",
+    ),
+    (
+        "crates/jbotci-ui/src/vlacku.rs:VlackuControlsState",
+        "the shell's two independent handles for the filter controls: the measured layout and the dropdown flag; no value of one constrains the other, and the flag is cleared by the transition out of the compact layout rather than held as an invariant",
     ),
     (
         "crates/jbotci-ui/src/vlacku.rs:VlackuDraftState",
