@@ -35,6 +35,8 @@ struct Inner {
 #[derive(Debug)]
 pub(crate) struct RecentInteractions {
     inner: Mutex<Inner>,
+    #[cfg(test)]
+    settled: tokio::sync::Notify,
 }
 
 /// The outcome of admitting a delivery.
@@ -77,6 +79,8 @@ impl RecentInteractions {
                 settled_order: VecDeque::new(),
                 capacity,
             })),
+            #[cfg(test)]
+            settled: tokio::sync::Notify::new(),
         }
     }
 
@@ -117,6 +121,22 @@ impl RecentInteractions {
         self.lock().active.len()
     }
 
+    /// Wait for every delivery ticket and its retained work to finish.
+    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn wait_until_idle(&self) {
+        loop {
+            let settled = self.settled.notified();
+            tokio::pin!(settled);
+            settled.as_mut().enable();
+            if self.active_count() == 0 {
+                return;
+            }
+            settled.await;
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn settle(&self, interaction_id: &Snowflake) {
@@ -127,6 +147,8 @@ impl RecentInteractions {
             data.settled_order.push_back(interaction_id.clone());
         }
         *inner = Inner::from_data(data);
+        #[cfg(test)]
+        self.settled.notify_waiters();
     }
 
     #[requires(true)]
@@ -170,6 +192,27 @@ mod tests {
             Admission::First(ticket) => ticket,
             other => panic!("expected a first delivery, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn idle_waits_for_every_ticket_and_accepts_already_settled_work() {
+        let recent = Arc::new(RecentInteractions::new(2));
+        let first_ticket = first(recent.admit(&id("1")));
+        let second_ticket = first(recent.admit(&id("2")));
+        let mut idle = Box::pin(recent.wait_until_idle());
+        {
+            let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+            assert!(std::future::Future::poll(idle.as_mut(), &mut context).is_pending());
+            drop(first_ticket);
+            assert!(std::future::Future::poll(idle.as_mut(), &mut context).is_pending());
+            drop(second_ticket);
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(1), idle)
+            .await
+            .unwrap();
+        recent.wait_until_idle().await;
     }
 
     #[test]

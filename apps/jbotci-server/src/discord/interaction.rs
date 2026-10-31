@@ -2105,6 +2105,8 @@ mod tests {
         /// The write is lost, and nothing changes.
         LostAndNotApplied,
         Stall,
+        /// Publish the page, then wait for the test to release its response.
+        AppliedThenHeld,
     }
 
     #[invariant(true)]
@@ -2116,6 +2118,9 @@ mod tests {
         recorded: Mutex<Vec<(String, Value)>>,
         followup_times: Mutex<Vec<Instant>>,
         stall_followup: std::sync::atomic::AtomicBool,
+        replacement: Mutex<Option<Value>>,
+        held_reply: Mutex<Option<Arc<tokio::sync::Notify>>>,
+        patch_applied: tokio::sync::Notify,
     }
 
     /// A Discord that answers on localhost and remembers what it was asked.
@@ -2250,6 +2255,7 @@ mod tests {
             Some(Reply::Failed)
             | Some(Reply::LostAndNotApplied)
             | Some(Reply::AppliedThenLost)
+            | Some(Reply::AppliedThenHeld)
             | Some(Reply::Stall) => {
                 return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "lost").into_response();
             }
@@ -2286,7 +2292,22 @@ mod tests {
                 (axum::http::StatusCode::BAD_REQUEST, "rejected").into_response()
             }
             Some(Reply::LostAndNotApplied) => {
+                if let Some(replacement) = state.replacement.lock().expect("state").take() {
+                    *state.original.lock().expect("state") = Some(replacement);
+                }
                 (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "lost").into_response()
+            }
+            Some(Reply::AppliedThenHeld) => {
+                *state.original.lock().expect("state") = Some(message.clone());
+                let release = state
+                    .held_reply
+                    .lock()
+                    .expect("state")
+                    .take()
+                    .expect("a held reply");
+                state.patch_applied.notify_one();
+                release.notified().await;
+                axum::Json(message).into_response()
             }
             Some(Reply::AppliedThenLost) => {
                 *state.original.lock().expect("state") = Some(message);
@@ -2675,7 +2696,7 @@ mod tests {
         service
             .handle(&command("100002", "cukta", vec![option("mode", "word")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let message = discord.original().unwrap();
         let text = message.to_string();
         assert!(
@@ -2724,7 +2745,7 @@ mod tests {
                     None,
                 )
                 .await;
-            settle(&discord, 1).await;
+            settle(&discord, &service, 1).await;
             let message = discord.original().unwrap();
             let text = message.to_string();
             assert!(
@@ -3073,20 +3094,15 @@ mod tests {
         }
     }
 
-    /// Wait until the spawned work has finished with the fake.
+    /// Require the exact write count after every delivery finishes.
     #[requires(true)]
     #[ensures(true)]
-    async fn settle(discord: &FakeDiscord, writes: usize) {
-        for _ in 0..600 {
-            if discord.count("PATCH") >= writes {
-                // Give the task a moment to finish its own bookkeeping.
-                tokio::time::sleep(Duration::from_millis(20)).await;
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        panic!(
-            "the work never wrote {writes} time(s): {:?}",
+    async fn settle(discord: &FakeDiscord, service: &DiscordService, writes: usize) {
+        quiet(discord, service).await;
+        assert_eq!(
+            discord.count("PATCH"),
+            writes,
+            "delivery write count: {:?}",
             discord
                 .requests()
                 .iter()
@@ -3095,11 +3111,22 @@ mod tests {
         );
     }
 
+    /// Wait for delivery completion before inspecting the fake.
     #[requires(true)]
     #[ensures(true)]
-    async fn quiet(discord: &FakeDiscord) {
-        tokio::time::sleep(Duration::from_millis(250)).await;
-        let _ = discord.requests();
+    async fn quiet(discord: &FakeDiscord, service: &DiscordService) {
+        tokio::time::timeout(Duration::from_secs(6), service.recent.wait_until_idle())
+            .await
+            .unwrap_or_else(|_| {
+                panic!(
+                    "deliveries did not finish: {:?}",
+                    discord
+                        .requests()
+                        .iter()
+                        .map(|(what, _)| what)
+                        .collect::<Vec<_>>()
+                )
+            });
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -3112,6 +3139,7 @@ mod tests {
         // Discord has not created the deferred message yet; the first read
         // finds nothing, and the work waits for it rather than giving up.
         discord.plan_reads(&[Reply::NotCreated, Reply::NotCreated]);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
         let deferred = service
             .handle(&command(
                 "1",
@@ -3123,9 +3151,7 @@ mod tests {
             deferred,
             InteractionResponse::DeferredChannelMessage
         ));
-        tokio::time::sleep(Duration::from_millis(60)).await;
-        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
 
         let message = discord.original().expect("a published message");
         let text = message.to_string();
@@ -3164,7 +3190,7 @@ mod tests {
             submitted,
             InteractionResponse::DeferredUpdateMessage
         ));
-        settle(&discord, 2).await;
+        settle(&discord, &service, 2).await;
         let edited = discord.original().expect("an edited message");
         assert!(
             gear_of(&edited).contains(".2."),
@@ -3185,7 +3211,7 @@ mod tests {
         service
             .handle(&command("10", "vlatai", vec![option("text", "klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         // The reader edits it through the form.
@@ -3203,7 +3229,7 @@ mod tests {
                 &[("text", json!("klabajra"))],
             ))
             .await;
-        settle(&discord, 2).await;
+        settle(&discord, &service, 2).await;
         let edited = discord.original().expect("an edit");
         assert!(edited.to_string().contains("klabájra"), "the edit landed");
 
@@ -3214,7 +3240,7 @@ mod tests {
         restarted
             .handle(&command("10", "vlatai", vec![option("text", "klama")]))
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &restarted).await;
         assert_eq!(
             discord.count("PATCH"),
             writes_before,
@@ -3245,8 +3271,8 @@ mod tests {
             second,
             InteractionResponse::DeferredChannelMessage
         ));
-        settle(&discord, 1).await;
-        quiet(&discord).await;
+        settle(&discord, &service, 1).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), 1, "one delivery, one publication");
     }
 
@@ -3260,7 +3286,7 @@ mod tests {
         service
             .handle(&command("30", "gentufa", vec![option("text", "mi klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let modal = modal_of(
             service
@@ -3283,12 +3309,7 @@ mod tests {
             response,
             InteractionResponse::DeferredUpdateMessage
         ));
-        for _ in 0..100 {
-            if !discord.private_messages().is_empty() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        quiet(&discord, &service).await;
         let complaint = discord.private_messages().join("\n");
         assert!(complaint.contains("Nothing was changed"), "{complaint}");
         assert!(complaint.contains("dialect"), "{complaint}");
@@ -3315,6 +3336,7 @@ mod tests {
         ] {
             *discord.state.original.lock().expect("state") =
                 Some(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+            let writes = discord.count("PATCH");
             let response = service
                 .handle(&command(&id.to_string(), "cukta", options))
                 .await;
@@ -3322,8 +3344,7 @@ mod tests {
                 response,
                 InteractionResponse::DeferredChannelMessage
             ));
-            let writes = discord.count("PATCH");
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             let published = discord.original().expect("a result");
             let text = published.to_string();
             assert!(text.contains("Not run"), "{text}");
@@ -3346,7 +3367,7 @@ mod tests {
                     &[("query", json!("tanru"))],
                 ))
                 .await;
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             let finished = discord.original().expect("a result").to_string();
             assert!(!finished.contains("Not run"), "{finished}");
         }
@@ -3362,7 +3383,7 @@ mod tests {
         service
             .handle(&command("50", "vlatai", vec![option("text", "klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         // Anyone may open the form and use its link.
@@ -3386,7 +3407,7 @@ mod tests {
             text.contains("Only the person who ran this command"),
             "{text}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), 1, "nothing was written");
     }
 
@@ -3400,7 +3421,7 @@ mod tests {
         service
             .handle(&command("60", "vlatai", vec![option("text", "klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let stale_form = modal_of(
             service
@@ -3423,7 +3444,7 @@ mod tests {
                 &[("text", json!("bajra"))],
             ))
             .await;
-        settle(&discord, 2).await;
+        settle(&discord, &service, 2).await;
         let current = discord.original().expect("an edit");
 
         // The older form now describes a result that no longer exists.
@@ -3438,7 +3459,7 @@ mod tests {
             .await;
         let text = ephemeral_text(&response);
         assert!(text.contains("changed while the form was open"), "{text}");
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), 2, "the stale form wrote nothing");
         assert!(
             discord
@@ -3464,8 +3485,8 @@ mod tests {
         service
             .handle(&command("70", "vlatai", vec![option("text", "klama")]))
             .await;
-        settle(&discord, 1).await;
-        quiet(&discord).await;
+        settle(&discord, &service, 1).await;
+        quiet(&discord, &service).await;
         assert!(
             discord.private_messages().is_empty(),
             "an applied write needs no apology: {:?}",
@@ -3491,13 +3512,8 @@ mod tests {
                 &[("text", json!("bajra"))],
             ))
             .await;
-        settle(&discord, 2).await;
-        for _ in 0..100 {
-            if !discord.private_messages().is_empty() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        settle(&discord, &service, 2).await;
+        quiet(&discord, &service).await;
         let complaint = discord.private_messages().join("\n");
         assert!(
             complaint.contains("could not confirm the change"),
@@ -3523,7 +3539,7 @@ mod tests {
         service
             .handle(&command("80", "vlatai", vec![option("text", "klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let modal = modal_of(
             service
@@ -3537,6 +3553,7 @@ mod tests {
         let mut impostor = published.clone();
         impostor["components"] = json!([]);
         discord.plan_writes(&[Reply::LostAndNotApplied]);
+        *discord.state.replacement.lock().expect("state") = Some(impostor);
         service
             .handle(&submission(
                 "82",
@@ -3546,14 +3563,7 @@ mod tests {
                 &[("text", json!("bajra"))],
             ))
             .await;
-        tokio::time::sleep(Duration::from_millis(80)).await;
-        discord.publish(impostor);
-        for _ in 0..200 {
-            if !discord.private_messages().is_empty() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        quiet(&discord, &service).await;
         let complaint = discord.private_messages().join("\n");
         assert!(
             complaint.contains("could not confirm the change"),
@@ -3575,7 +3585,7 @@ mod tests {
         let mut interaction = command("90", "gentufa", vec![option("text", &long)]);
         interaction["attachment_size_limit"] = json!(64);
         service.handle(&interaction).await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         // The source cannot travel, so no result is published; the message
         // still has to stop saying it is thinking, and says why instead.
         let published = discord.original().expect("a message");
@@ -3594,7 +3604,7 @@ mod tests {
         interaction["attachment_size_limit"] = json!(1 << 20);
         let writes = discord.count("PATCH");
         service.handle(&interaction).await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let published = discord.original().expect("a result");
         assert!(
             published["attachments"]
@@ -3615,7 +3625,7 @@ mod tests {
         service
             .handle(&command("100", "gentufa", vec![option("text", &long)]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         assert!(
             published["attachments"]
@@ -3686,7 +3696,7 @@ mod tests {
                 None,
             )
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
 
         let message = discord.original().expect("a message");
         let text = message.to_string();
@@ -3727,7 +3737,7 @@ mod tests {
         service
             .handle(&command("130", "vlasei", vec![option("text", "mi klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         let request =
@@ -3756,7 +3766,7 @@ mod tests {
                 None,
             )
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(
             discord.original().expect("a result"),
@@ -3776,7 +3786,7 @@ mod tests {
         service
             .handle(&command("200", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
         let buttons = page_buttons(&first);
         assert_eq!(
@@ -3801,7 +3811,7 @@ mod tests {
         service
             .handle(&page_click("201", &first, ACTOR, "Next"))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let second = discord.original().expect("a result");
         assert!(
             second.to_string().contains("6-10"),
@@ -3829,7 +3839,7 @@ mod tests {
             service
                 .handle(&page_click(&format!("29{step}"), &current, ACTOR, "Next"))
                 .await;
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             current = discord.original().expect("a result");
             walked += 1;
         }
@@ -3853,7 +3863,7 @@ mod tests {
         service
             .handle(&page_click("202", &second, ACTOR, "Previous"))
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(
             discord.count("PATCH"),
             writes,
@@ -3871,7 +3881,7 @@ mod tests {
         service
             .handle(&command("210", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
 
         // The reader turns a page, so the message moves to a new revision.
@@ -3879,7 +3889,7 @@ mod tests {
         service
             .handle(&page_click("211", &first, ACTOR, "Next"))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let second = discord.original().expect("a result");
 
         // A button from the first version is now stale, and says so instead of
@@ -3891,7 +3901,7 @@ mod tests {
         service
             .handle(&page_click("212", &first, ACTOR, "Next"))
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         let complaint = discord.private_messages().join("\n");
         assert!(
             complaint.contains("changed while that page was loading"),
@@ -3915,7 +3925,7 @@ mod tests {
         service
             .handle(&command("220", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         let writes = discord.count("PATCH");
@@ -3926,7 +3936,7 @@ mod tests {
             ephemeral_text(&response).contains("Only the person who ran this command"),
             "{response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(discord.original().expect("a result"), published);
     }
@@ -3945,7 +3955,7 @@ mod tests {
                 vec![option("query", "destination"), option("mode", "meaning")],
             ))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
         // Meaning search needs the embedding index, which a deployment may not
         // have. Where it is missing the result says so and there is nothing to
@@ -3978,7 +3988,7 @@ mod tests {
             service
                 .handle(&page_click(&format!("28{step}1"), &current, ACTOR, "Next"))
                 .await;
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             current = discord.original().expect("a result");
             assert!(
                 current.to_string().contains(expected),
@@ -4006,7 +4016,7 @@ mod tests {
                 vec![option("query", "tanru"), option("mode", "meaning")],
             ))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
         // As with the dictionary, a deployment without the embedding index
         // says so and has nothing to page.
@@ -4020,7 +4030,7 @@ mod tests {
         service
             .handle(&page_click("291", &first, ACTOR, "Next"))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let second = discord.original().expect("a result");
         assert!(
             second.to_string().contains("6-10"),
@@ -4042,7 +4052,7 @@ mod tests {
         service
             .handle(&command("240", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         // Discord may deliver one click more than once. The second delivery is
@@ -4060,8 +4070,8 @@ mod tests {
                 "a page click is acknowledged and answered by the edit: {response:?}"
             );
         }
-        settle(&discord, writes + 1).await;
-        quiet(&discord).await;
+        settle(&discord, &service, writes + 1).await;
+        quiet(&discord, &service).await;
         assert_eq!(
             discord.count("PATCH"),
             writes + 1,
@@ -4084,7 +4094,7 @@ mod tests {
         service
             .handle(&command("250", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         // Nothing about the published request is held in the process: a new
@@ -4095,7 +4105,7 @@ mod tests {
         restarted
             .handle(&page_click("251", &published, ACTOR, "Next"))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &restarted, writes + 1).await;
         let turned = discord.original().expect("a result");
         assert!(
             turned.to_string().contains("6-10"),
@@ -4119,7 +4129,7 @@ mod tests {
         service
             .handle(&command("300", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
 
         // The first page's Previous is drawn greyed, so the message does not
@@ -4148,7 +4158,7 @@ mod tests {
             ephemeral_text(&response).contains("not one this result offers"),
             "a page identifier the message never drew is not one of its buttons: {response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(discord.original().expect("a result"), first);
     }
@@ -4203,7 +4213,7 @@ mod tests {
         service
             .handle(&command("320", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
 
         // Walk to the last page, where Next is drawn greyed. Discord will not
         // send that click, but one that arrives anyway asks for a page the
@@ -4220,7 +4230,7 @@ mod tests {
             service
                 .handle(&page_click(&format!("32{step}1"), &current, ACTOR, "Next"))
                 .await;
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             current = discord.original().expect("a result");
         }
         let writes = discord.count("PATCH");
@@ -4231,7 +4241,7 @@ mod tests {
             ephemeral_text(&response).contains("not one this result offers"),
             "a greyed button is not offered: {response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
 
         // A result that fits one page carries no buttons at all, so a page
@@ -4239,10 +4249,11 @@ mod tests {
         // is not one of its own either.
         *discord.state.original.lock().expect("state") =
             Some(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        let writes = discord.count("PATCH");
         service
             .handle(&command("340", "vlacku", vec![option("query", "klama")]))
             .await;
-        settle(&discord, discord.count("PATCH") + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let single = discord.original().expect("a result");
         assert!(
             page_buttons(&single).is_empty(),
@@ -4261,8 +4272,51 @@ mod tests {
             ephemeral_text(&response).contains("not one this result offers"),
             "a result with no buttons offers none: {response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_visible_page_can_turn_before_its_previous_delivery_releases_compute() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        let release = Arc::new(tokio::sync::Notify::new());
+        *discord.state.held_reply.lock().expect("state") = Some(release.clone());
+        discord.plan_writes(&[Reply::AppliedThenHeld]);
+        service
+            .handle(&command("500", "vlacku", vec![option("query", "kla*")]))
+            .await;
+        tokio::time::timeout(
+            Duration::from_secs(6),
+            discord.state.patch_applied.notified(),
+        )
+        .await
+        .unwrap();
+        let first = discord.original().expect("the visible page");
+        assert_eq!(
+            service.tools.execution.governor.snapshot().compute_active,
+            1
+        );
+        let response = service
+            .handle(&page_click("501", &first, ACTOR, "Next"))
+            .await;
+        assert!(matches!(
+            response,
+            InteractionResponse::DeferredUpdateMessage
+        ));
+        assert_eq!(service.recent.active_count(), 2);
+        release.notify_one();
+        settle(&discord, &service, 2).await;
+        let second = discord.original().expect("the next page");
+        assert!(second.to_string().contains("6-10"), "{second}");
+        assert!(
+            discord.private_messages().is_empty(),
+            "{:?}",
+            discord.requests()
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -4275,7 +4329,7 @@ mod tests {
         service
             .handle(&command("310", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let first = discord.original().expect("a result");
 
         // The reader turns to the second page, where both directions are
@@ -4284,7 +4338,7 @@ mod tests {
         service
             .handle(&page_click("311", &first, ACTOR, "Next"))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let second = discord.original().expect("a result");
         assert!(second.to_string().contains("6-10"), "{second}");
 
@@ -4304,8 +4358,8 @@ mod tests {
                 "both clicks are taken up: {response:?}"
             );
         }
-        settle(&discord, writes + 1).await;
-        quiet(&discord).await;
+        settle(&discord, &service, writes + 1).await;
+        quiet(&discord, &service).await;
         assert_eq!(
             discord.count("PATCH"),
             writes + 1,
@@ -4334,7 +4388,7 @@ mod tests {
         service
             .handle(&command("260", "vlacku", vec![option("query", "kla*")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let real = page_buttons(&published)
             .into_iter()
@@ -4363,7 +4417,7 @@ mod tests {
                 "{forged}: {response:?}"
             );
         }
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(discord.original().expect("a result"), published);
     }
@@ -4379,7 +4433,7 @@ mod tests {
         service
             .handle(&command("230", "gentufa", vec![option("text", "mi klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         assert!(
             page_buttons(&discord.original().expect("a result")).is_empty(),
             "a result with no pages carries no page buttons"
@@ -4407,7 +4461,7 @@ mod tests {
                 vec![option("sources", &records)],
             ))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
 
         let message = discord.original().expect("a result");
         let shown = message.to_string();
@@ -4459,7 +4513,7 @@ mod tests {
                 vec![option("sources", "eng:5:go, spa:3:[ir], cmn:4:[t͡ɕʰy]")],
             ))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let classic = published.to_string();
         assert!(
@@ -4485,7 +4539,7 @@ mod tests {
                 &[("scorer", json!(["phonetic"]))],
             ))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let edited = discord.original().expect("an edit").to_string();
         assert!(
             edited.contains("phonetic") && edited.contains("cigro"),
@@ -4549,7 +4603,7 @@ mod tests {
                 vec![option("sources", "eng:5:go")],
             ))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let before = published.to_string();
 
@@ -4581,7 +4635,7 @@ mod tests {
             ephemeral_text(&response).contains("came from an older version"),
             "the form is refused with the reopen message: {response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "and nothing was written");
         assert_eq!(
             discord.original().expect("a result").to_string(),
@@ -4600,7 +4654,7 @@ mod tests {
         let service = new_service(&discord);
         discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
         service.handle(&command("170", "gimfihi", Vec::new())).await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let modal = modal_of(
             service
@@ -4621,7 +4675,7 @@ mod tests {
                 &[("sources", json!(records))],
             ))
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
 
         assert_eq!(discord.count("PATCH"), writes, "the result is unchanged");
         let notes = discord.private_messages();
@@ -4656,7 +4710,7 @@ mod tests {
         service
             .handle(&command("150", "vlasei", vec![option("text", "mi klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
         let modal = modal_of(
             service
@@ -4683,7 +4737,7 @@ mod tests {
             ephemeral_text(&response).contains("Only the person who ran this command"),
             "{response:?}"
         );
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was applied");
     }
 
@@ -4700,7 +4754,7 @@ mod tests {
         service
             .handle(&command("140", "vlasei", vec![option("text", "mi klama")]))
             .await;
-        settle(&discord, 1).await;
+        settle(&discord, &service, 1).await;
         let published = discord.original().expect("a result");
 
         // The same message as an older build would have left it: only its
@@ -4724,7 +4778,7 @@ mod tests {
         service
             .handle(&submission("142", &modal, &older_message, ACTOR, &[]))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let edited = discord.original().expect("a result").to_string();
         assert!(
             edited.contains("Recomputed by a different version"),
@@ -4743,7 +4797,7 @@ mod tests {
         service
             .handle(&submission("144", &modal, &current, ACTOR, &[]))
             .await;
-        settle(&discord, writes + 1).await;
+        settle(&discord, &service, writes + 1).await;
         let edited = discord.original().expect("a result").to_string();
         assert!(
             !edited.contains("Recomputed by a different version"),
@@ -4766,7 +4820,7 @@ mod tests {
         service
             .handle(&command("120", "vlasei", vec![option("text", "mi klama")]))
             .await;
-        quiet(&discord).await;
+        quiet(&discord, &service).await;
 
         assert_eq!(discord.count("PATCH"), 0, "nothing was written");
         let complaint = discord.private_messages().join("\n");
@@ -4881,12 +4935,9 @@ mod tests {
         );
 
         release_tx.send(()).expect("the job is waiting");
-        for _ in 0..200 {
-            if recent.active_count() == 0 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        tokio::time::timeout(Duration::from_secs(2), recent.wait_until_idle())
+            .await
+            .unwrap();
         assert_eq!(
             recent.active_count(),
             0,
@@ -4921,7 +4972,7 @@ mod tests {
             service
                 .handle(&command(&format!("2{index}0"), tool.name(), options))
                 .await;
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             let published = discord.original().expect("a result");
             assert!(
                 gear_of(&published).starts_with(&format!("j1.{}", tool.code())),
@@ -4956,7 +5007,7 @@ mod tests {
                 matches!(response, InteractionResponse::DeferredUpdateMessage),
                 "{tool}: {response:?}"
             );
-            settle(&discord, writes + 1).await;
+            settle(&discord, &service, writes + 1).await;
             assert!(
                 gear_of(&discord.original().expect("an edit")).contains(".2."),
                 "{tool}: the revision moved"
