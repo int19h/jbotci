@@ -2,7 +2,7 @@ use std::fs;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bityzba::{ensures, requires};
+use bityzba::requires;
 
 #[test]
 #[requires(true)]
