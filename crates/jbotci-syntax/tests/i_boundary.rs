@@ -15,6 +15,7 @@ use jbotci_syntax::{
 #[invariant(true)]
 #[derive(Default)]
 struct Boundaries<'tree> {
+    ek: Vec<&'tree model::ExpEkStatementConnectiveSyntax>,
     joins: Vec<&'tree model::StatementJoinSyntax>,
     bo: Vec<&'tree model::BoStatementConnectionSyntax>,
     following: Vec<&'tree model::FollowingParagraphStatementSyntax>,
@@ -24,6 +25,16 @@ struct Boundaries<'tree> {
 }
 
 impl<'tree> model::TreeWalker<'tree> for Boundaries<'tree> {
+    #[requires(true)]
+    #[ensures(self.ek.len() >= old(self.ek.len()) + 1)]
+    fn walk_exp_ek_statement_connective(
+        &mut self,
+        node: &'tree model::ExpEkStatementConnectiveSyntax,
+    ) {
+        self.ek.push(node);
+        model::walk::exp_ek_statement_connective(self, node);
+    }
+
     #[requires(true)]
     #[ensures(self.sei.len() >= old(self.sei.len()) + 1)]
     fn walk_sei_free_modifier(&mut self, node: &'tree model::SeiFreeModifierSyntax) {
@@ -531,6 +542,37 @@ fn unrestricted_free_keeps_the_legacy_pre_i_nai_attachment() {
         assert_eq!(boundaries(&parsed).trailers.len(), 1, "{source}");
         assert!(parsed.warnings.iter().any(|warning| {
             warning.kind == ExperimentalConstruct::ExperimentalPreISentenceTrailer
+        }));
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn unrestricted_free_keeps_nai_inside_each_ek_statement_connector() {
+    for source in [
+        "mi klama .i .e to broda toi nai do cadzu",
+        "mi klama .i .e to broda toi nai bo do cadzu",
+        ".i .e to broda toi nai bo mi klama",
+    ] {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        for dialect in ["(+ek-statement-connective)", "(+unrestricted-free)"] {
+            let dialect = parse_dialect_definition(dialect).expect("valid dialect");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            assert!(parse_syntax_tree_with_source_and_options(&words, source, &options).is_err());
+        }
+        let parsed = parse(source, "(+ek-statement-connective +unrestricted-free)");
+        let nodes = boundaries(&parsed);
+        assert_eq!(nodes.ek.len(), 1);
+        let connector = nodes.ek[0];
+        assert_eq!(connector.a.free_modifiers.len(), 1);
+        assert!(matches!(
+            connector.a.free_modifiers[0].as_ref(),
+            model::FreeModifierSyntax::ParentheticalText(_)
+        ));
+        assert!(connector.nai.is_some());
+        assert!(parsed.warnings.iter().any(|warning| {
+            warning.kind == ExperimentalConstruct::ExperimentalEkStatementConnective
         }));
     }
 }

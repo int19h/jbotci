@@ -4237,7 +4237,7 @@ pub mod generated_model {
         /// The optional conversion prefix.
         field se <- opt(selmaho(Se));
         /// The connector word carries the warning.
-        field a <- selmaho(A).warn(ExperimentalEkStatementConnective);
+        field a <- selmaho(A).warn(ExperimentalEkStatementConnective).wf_when(UnrestrictedFree);
         /// The optional NAI suffix.
         field nai <- opt(cmavo(Nai));
     }
