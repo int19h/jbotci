@@ -35,7 +35,7 @@ impl TokenWindowRule {
     #[requires(true)]
     #[ensures(ret.len() == content.len().div_ceil(self.max_length - 1).max(1))]
     #[expensive_ensures(ret.iter().all(|window| window.len() <= self.max_length && window.last() == Some(&end_token)))]
-    pub fn split<T: Copy + PartialEq>(&self, content: &[T], end_token: T) -> Vec<Vec<T>> {
+    pub fn split<T: Copy + Eq>(&self, content: &[T], end_token: T) -> Vec<Vec<T>> {
         if content.is_empty() {
             return vec![vec![end_token]];
         }
