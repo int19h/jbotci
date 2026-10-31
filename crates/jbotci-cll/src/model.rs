@@ -1253,7 +1253,10 @@ impl CllRenderFormat {
 #[invariant(::Load(_) => true)]
 #[invariant(::Parse(_) => true)]
 #[invariant(::NotFound(_) => true)]
+#[invariant(::OutputLimit { .. } => true)]
 pub enum CllError {
+    #[error("The generated output exceeds the {}-byte limit.", limit.get())]
+    OutputLimit { limit: jbotci_budget::ByteLimit },
     #[error("failed to load CLL: {0}")]
     Load(String),
     #[error("failed to parse CLL: {0}")]

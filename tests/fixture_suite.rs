@@ -226,14 +226,14 @@ fn recovered_syntax_contracts_hold_for_fixture_corpus_inner() {
         let end = paths
             .len()
             .min(start + RECOVERED_SYNTAX_CONTRACT_CHUNK_SIZE);
-        let output = Command::new(&current_exe)
-            .arg("recovered_syntax_contracts_hold_for_fixture_corpus")
-            .arg("--exact")
-            .arg("--nocapture")
-            .env("RECOVERED_SYNTAX_CONTRACT_START", start.to_string())
-            .env("RECOVERED_SYNTAX_CONTRACT_END", end.to_string())
-            .output()
-            .expect("fixture chunk process should run");
+        let output = fixture_worker_command(
+            &current_exe,
+            "recovered_syntax_contracts_hold_for_fixture_corpus",
+        )
+        .env("RECOVERED_SYNTAX_CONTRACT_START", start.to_string())
+        .env("RECOVERED_SYNTAX_CONTRACT_END", end.to_string())
+        .output()
+        .expect("fixture chunk process should run");
         if !output.status.success() {
             panic!(
                 "fixture chunk {start}..{end} failed with status {:?}\nstdout:\n{}\nstderr:\n{}",
@@ -403,14 +403,14 @@ fn recovery_reachability_filter_matches_disabled_fixture_corpus_inner() {
     let mut telemetry_values = [0u64; 20];
     for start in (0..paths.len()).step_by(RECOVERY_REACHABILITY_CHUNK_SIZE) {
         let end = paths.len().min(start + RECOVERY_REACHABILITY_CHUNK_SIZE);
-        let output = Command::new(&current_exe)
-            .arg("recovery_reachability_filter_matches_disabled_fixture_corpus")
-            .arg("--exact")
-            .arg("--nocapture")
-            .env("RECOVERY_REACHABILITY_START", start.to_string())
-            .env("RECOVERY_REACHABILITY_END", end.to_string())
-            .output()
-            .expect("fixture chunk process should run");
+        let output = fixture_worker_command(
+            &current_exe,
+            "recovery_reachability_filter_matches_disabled_fixture_corpus",
+        )
+        .env("RECOVERY_REACHABILITY_START", start.to_string())
+        .env("RECOVERY_REACHABILITY_END", end.to_string())
+        .output()
+        .expect("fixture chunk process should run");
         if !output.status.success() {
             panic!(
                 "fixture chunk {start}..{end} failed with status {:?}\nstdout:\n{}\nstderr:\n{}",
@@ -645,6 +645,55 @@ fn recovery_reachability_values_from_test_stdout(stdout: &[u8]) -> [u64; 20] {
         .unwrap_or_else(|| panic!("worker stdout is missing telemetry: {stdout}"));
     serde_json::from_str(values)
         .unwrap_or_else(|error| panic!("worker telemetry should be a 20-value array: {error}"))
+}
+
+/// Keep worker markers separate from libtest's progress output in either thread mode.
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
+#[requires(exe.is_absolute() && !test_name.is_empty() && !test_name.contains('\0'))]
+#[ensures(ret.get_program() == exe.as_os_str())]
+#[ensures(ret.get_args().any(|arg| arg == std::ffi::OsStr::new("--format=terse")))]
+fn fixture_worker_command(exe: &Path, test_name: &str) -> Command {
+    let mut command = Command::new(exe);
+    command
+        .arg(test_name)
+        .arg("--exact")
+        .arg("--nocapture")
+        .arg("--format=terse");
+    command
+}
+
+#[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fixture_worker_count_protocol_survives_both_test_thread_modes() {
+    const PROBE: &str = "FIXTURE_WORKER_COUNT_PROTOCOL_PROBE";
+    if std::env::var_os(PROBE).is_some() {
+        println!("checked=7");
+        return;
+    }
+    let current_exe = std::env::current_exe().expect("current test binary path");
+    for threads in ["1", "2"] {
+        let output = fixture_worker_command(
+            &current_exe,
+            "fixture_worker_count_protocol_survives_both_test_thread_modes",
+        )
+        .env(PROBE, "1")
+        .env("RUST_TEST_THREADS", threads)
+        .output()
+        .expect("count probe should run");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            checked_count_from_test_stdout(&output.stdout),
+            7,
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
 }
 
 #[cfg(any(feature = "expensive_contracts", not(debug_assertions)))]
@@ -1063,14 +1112,14 @@ fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
         let end = paths
             .len()
             .min(start + RECOVERED_SYNTAX_FIRST_ERROR_CHUNK_SIZE);
-        let output = Command::new(&current_exe)
-            .arg("recovered_syntax_first_error_matches_strict_failure_fixtures")
-            .arg("--exact")
-            .arg("--nocapture")
-            .env("RECOVERED_SYNTAX_FIRST_ERROR_START", start.to_string())
-            .env("RECOVERED_SYNTAX_FIRST_ERROR_END", end.to_string())
-            .output()
-            .expect("fixture chunk process should run");
+        let output = fixture_worker_command(
+            &current_exe,
+            "recovered_syntax_first_error_matches_strict_failure_fixtures",
+        )
+        .env("RECOVERED_SYNTAX_FIRST_ERROR_START", start.to_string())
+        .env("RECOVERED_SYNTAX_FIRST_ERROR_END", end.to_string())
+        .output()
+        .expect("fixture chunk process should run");
         if !output.status.success() {
             panic!(
                 "fixture chunk {start}..{end} failed with status {:?}\nstdout:\n{}\nstderr:\n{}",

@@ -5,11 +5,18 @@ mod html;
 mod markdown;
 
 pub use discord::{
-    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_inline_code, escape_discord_markdown,
-    escape_discord_markdown_line,
+    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_code_block_in_scope, discord_inline_code,
+    discord_inline_code_in_scope, escape_discord_markdown, escape_discord_markdown_in_scope,
+    escape_discord_markdown_line, escape_discord_markdown_line_in_scope,
 };
+#[cfg(test)]
 pub(crate) use html::render_block_html;
-pub(crate) use markdown::{dialect_text, render_block_markdown, render_example_markdown};
+pub(crate) use html::render_block_html_in_scope;
+#[cfg(test)]
+pub(crate) use markdown::render_block_markdown;
+pub(crate) use markdown::{
+    dialect_text_in_scope, render_block_markdown_to, render_example_markdown_to,
+};
 
 /// Appends a rule-status note as a labelled block quote.
 ///
@@ -18,18 +25,21 @@ pub(crate) use markdown::{dialect_text, render_block_markdown, render_example_ma
 /// prose around it. Section rendering and search-result rendering share this so
 /// a note looks the same however a reader reached it, and the label is literal
 /// text because Markdown carries no styling.
-#[requires(true)]
-#[ensures(output.contains(CLL_STATUS_NOTE_LABEL))]
-pub(crate) fn push_status_note_markdown(output: &mut String, body: &str) {
-    output.push_str(&status_note_markdown(body));
-}
 
 /// A rule-status note as a labelled block quote. `body` is already rendered
 /// in the target Markdown dialect.
 #[requires(true)]
 #[ensures(ret.contains(CLL_STATUS_NOTE_LABEL) && ret.starts_with("> **"))]
 pub fn status_note_markdown(body: &str) -> String {
-    let mut output = String::new();
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    status_note_markdown_in_scope(body, &scope)
+}
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (ret.contains(CLL_STATUS_NOTE_LABEL) && ret.starts_with("> **")))]
+pub fn status_note_markdown_in_scope(body: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
     output.push_str("> **");
     output.push_str(CLL_STATUS_NOTE_LABEL);
     output.push_str(".** ");
@@ -39,7 +49,7 @@ pub fn status_note_markdown(body: &str) -> String {
         }
         output.push_str(line);
     }
-    output
+    output.into_piece()
 }
 
 /// Renders a rule-status note as a labelled aside.
@@ -49,16 +59,17 @@ pub fn status_note_markdown(body: &str) -> String {
 /// not only as a class, because the CLI and the MCP tool both hand this HTML to
 /// a reader with no stylesheet attached.
 #[requires(!classes.is_empty())]
-#[ensures(ret.contains(CLL_STATUS_NOTE_LABEL))]
+#[ensures(scope.is_exceeded() || ret.contains(CLL_STATUS_NOTE_LABEL))]
 pub(crate) fn render_status_note_html(
     id_attribute: &str,
     classes: &'static str,
     body: &str,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
-    format!(
+    scope.format(format_args!(
         "<aside{id_attribute} class=\"{classes}\"><span class=\"cll-status-note-label\">{}</span>{CLL_STATUS_NOTE_LABEL_SEPARATOR}{body}</aside>",
         escape_html(CLL_STATUS_NOTE_LABEL),
-    )
+    ))
 }
 
 #[invariant(true)]

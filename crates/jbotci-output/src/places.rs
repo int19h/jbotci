@@ -392,3 +392,62 @@ mod tests {
         );
     }
 }
+
+/// Render definition places into a bounded text scope.
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub fn format_definition_line_with_indexed_places_in_scope(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    glyphs: GlyphStyle,
+    scope: &crate::budget::TextScope,
+) -> String {
+    render_segments_in_scope(
+        &definition_place_segments_for_definition_line(input, place_map),
+        glyphs,
+        scope,
+    )
+}
+/// Render notes places into a bounded text scope.
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+pub fn format_notes_line_with_indexed_places_in_scope(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    glyphs: GlyphStyle,
+    scope: &crate::budget::TextScope,
+) -> String {
+    render_segments_in_scope(
+        &definition_place_segments_for_notes_line(input, place_map),
+        glyphs,
+        scope,
+    )
+}
+#[requires(true)]
+#[ensures(ret.len() <= scope.limit().get())]
+fn render_segments_in_scope(
+    segments: &[DefinitionPlaceSegment],
+    glyphs: GlyphStyle,
+    scope: &crate::budget::TextScope,
+) -> String {
+    let mut output = scope.buffer();
+    for segment in segments {
+        if scope.is_exceeded() {
+            break;
+        }
+        match segment.as_data() {
+            data!(DefinitionPlaceSegment::Text(text)) => output.push_str(text),
+            data!(DefinitionPlaceSegment::Place(place)) => output.push_str(&scope.format(
+                format_args!("{}{place}{}", glyphs.slot_open(), glyphs.slot_close()),
+            )),
+            data!(DefinitionPlaceSegment::UnmappedVariable { letter, index }) => match glyphs {
+                GlyphStyle::Unicode => output
+                    .push_str(&scope.format(format_args!("{letter}{}", subscript_number(*index)))),
+                GlyphStyle::Ascii => {
+                    output.push_str(&scope.format(format_args!("{letter}_{index}")))
+                }
+            },
+        }
+    }
+    output.into_piece()
+}

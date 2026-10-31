@@ -791,16 +791,31 @@ impl Phonemes {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty()) || ret.is_err())]
     pub fn render_canonical(text: &str, options: PhonemeRenderOptions) -> Result<String, String> {
+        let mut rendered = String::new();
+        Self::render_canonical_to(text, options, &mut rendered)?;
+        Ok(rendered)
+    }
+
+    /// Write phonemes directly so callers can enforce their own output bound.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn render_canonical_to(
+        text: &str,
+        options: PhonemeRenderOptions,
+        output: &mut impl std::fmt::Write,
+    ) -> Result<(), String> {
         if text.is_empty() {
             return Err("phoneme text must not be empty".to_owned());
         }
         if !text.chars().all(is_valid_phoneme) {
             return Err("phonemes must use canonical Lojban phoneme characters".to_owned());
         }
-        Ok(text
-            .chars()
-            .map(|ch| render_phoneme_char(ch, options))
-            .collect())
+        for ch in text.chars() {
+            output
+                .write_char(render_phoneme_char(ch, options))
+                .map_err(|_| "phoneme output writer refused the text".to_owned())?;
+        }
+        Ok(())
     }
 
     #[requires(true)]

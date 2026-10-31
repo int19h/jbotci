@@ -26,7 +26,10 @@ use unicode_normalization::UnicodeNormalization;
 #[invariant(::MissingOpeningBracket => true)]
 #[invariant(::PartialBracketedQuery => true)]
 #[invariant(::Syllabification { .. } => true)]
+#[invariant(::OutputLimit { .. } => true)]
 pub enum PhoneticError {
+    #[error("The generated output exceeds the server limit.")]
+    OutputLimit { limit: jbotci_budget::ByteLimit },
     #[error("{message}")]
     Morphology { message: String },
     #[error("no pronounceable words in `{input}`")]
@@ -1439,8 +1442,8 @@ enum IpaSurfaceChunk<'word> {
     Text(&'word str),
 }
 
+#[invariant(!body.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct IpaRenderedWord {
     body: String,
     leading_pause_required: bool,
@@ -2773,106 +2776,131 @@ fn concrete_pronunciation_target(symbol: &str) -> PronunciationTargetId {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn render_ipa_surface_chunks(
+fn render_ipa_surface_chunks_in_scope(
     chunks: &[IpaSurfaceChunk<'_>],
     source: &str,
+    scope: &jbotci_budget::TextScope,
 ) -> Result<String, PhoneticError> {
-    let mut rendered = Vec::new();
+    let mut rendered = scope.buffer();
     let mut previous_word: Option<IpaRenderedWord> = None;
     for chunk in chunks {
+        if scope.is_exceeded() {
+            break;
+        }
         match chunk {
             IpaSurfaceChunk::Word {
                 word,
                 leading_pause_context,
             } => {
-                let word = render_word_ipa(word, source, *leading_pause_context)?;
+                let word = render_word_ipa(word, source, *leading_pause_context, scope)?;
                 let pause_before = previous_word
                     .as_ref()
                     .is_some_and(|previous| previous.trailing_pause_required)
                     || (previous_word.is_some() && word.leading_pause_required);
                 let body = if pause_before {
-                    ipa_body_with_leading_pause(&word.body)
+                    ipa_body_with_leading_pause(&word.body, scope)
                 } else {
-                    word.body.clone()
+                    scope.copy(&word.body)
                 };
-                rendered.push(body);
+                if !rendered.is_empty() {
+                    rendered.push(' ');
+                }
+                rendered.push_str(&body);
                 previous_word = Some(word);
             }
             IpaSurfaceChunk::Text(text) => {
                 if !text.is_empty() {
-                    rendered.push((*text).to_owned());
+                    if !rendered.is_empty() {
+                        rendered.push(' ');
+                    }
+                    rendered.push_str(text);
                 }
                 previous_word = None;
             }
         }
     }
-    Ok(rendered.join(" "))
+    scope
+        .finish(rendered.into_piece())
+        .map_err(|_| PhoneticError::OutputLimit {
+            limit: scope.limit(),
+        })
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.body.is_empty()) || ret.is_err())]
+#[ensures(scope.is_exceeded() || (ret.as_ref().is_ok_and(|rendered| !rendered.body.is_empty()) || ret.is_err()))]
 fn render_word_ipa(
     word: &Word,
     source: &str,
     leading_pause_context: LeadingPauseContext,
+    scope: &jbotci_budget::TextScope,
 ) -> Result<IpaRenderedWord, PhoneticError> {
     let phonemes = word.phonemes();
     let body = if word.kind() == WordKind::Cmevla {
-        render_cmevla_ipa_body(&phonemes)
+        render_cmevla_ipa_body(&phonemes, scope)
     } else {
-        render_syllabified_ipa_body(&pronunciation_syllables(&phonemes).map_err(|error| {
-            PhoneticError::Syllabification {
-                message: error.to_string(),
-            }
-        })?)
+        render_syllabified_ipa_body(
+            &pronunciation_syllables(&phonemes).map_err(|error| {
+                PhoneticError::Syllabification {
+                    message: error.to_string(),
+                }
+            })?,
+            scope,
+        )
     };
-    Ok(IpaRenderedWord {
+    if scope.is_exceeded() {
+        return Err(PhoneticError::OutputLimit {
+            limit: scope.limit(),
+        });
+    }
+    Ok(new!(IpaRenderedWord {
         body,
         leading_pause_required: explicit_leading_pause_count(source, word) > 0
             || required_leading_pause_count(word, leading_pause_context) > 0,
         trailing_pause_required: explicit_trailing_pause_count(source, word) > 0
             || word.kind() == WordKind::Cmevla,
-    })
+    }))
 }
 
-#[requires(!body.is_empty())]
-#[ensures(!ret.is_empty())]
-fn ipa_body_with_leading_pause(body: &str) -> String {
+#[requires(scope.is_exceeded() || !body.is_empty())]
+#[ensures(scope.is_exceeded() || (!ret.is_empty()))]
+fn ipa_body_with_leading_pause(body: &str, scope: &jbotci_budget::TextScope) -> String {
     body.strip_prefix('ˈ')
-        .map(|rest| format!("ˈʔ{rest}"))
-        .unwrap_or_else(|| format!("ʔ{body}"))
+        .map(|rest| scope.format(format_args!("ˈʔ{rest}")))
+        .unwrap_or_else(|| scope.format(format_args!("ʔ{body}")))
 }
 
 #[requires(!phonemes.as_str().is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_cmevla_ipa_body(phonemes: &Phonemes) -> String {
+#[ensures(scope.is_exceeded() || (!ret.is_empty()))]
+fn render_cmevla_ipa_body(phonemes: &Phonemes, scope: &jbotci_budget::TextScope) -> String {
     let text = phonemes.as_str();
     if text.contains(',') {
         let syllables = text
             .split(',')
             .filter(|syllable| !syllable.is_empty())
-            .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
         if !syllables.is_empty() {
-            return render_syllabified_ipa_body(&syllables);
+            return render_syllabified_ipa_body(&syllables, scope);
         }
     }
     if text.chars().any(is_explicit_stress_char) {
-        return render_unsyllabified_cmevla_ipa(text);
+        return render_unsyllabified_cmevla_ipa(text, scope);
     }
     match pronunciation_syllables(phonemes) {
-        Ok(syllables) => render_syllabified_ipa_body(&syllables),
-        Err(_) => render_unsyllabified_cmevla_ipa(text),
+        Ok(syllables) => render_syllabified_ipa_body(&syllables, scope),
+        Err(_) => render_unsyllabified_cmevla_ipa(text, scope),
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || syllables.is_empty())]
-fn render_syllabified_ipa_body(syllables: &[String]) -> String {
+#[ensures(scope.is_exceeded() || (!ret.is_empty() || syllables.is_empty()))]
+fn render_syllabified_ipa_body(
+    syllables: &[impl AsRef<str>],
+    scope: &jbotci_budget::TextScope,
+) -> String {
     let stress_index = explicit_stress_syllable_index(syllables)
         .or_else(|| conventional_stress_syllable_index(syllables));
 
-    let mut rendered = String::new();
+    let mut rendered = scope.buffer();
     for (index, syllable) in syllables.iter().enumerate() {
         if index > 0 {
             rendered.push('.');
@@ -2880,41 +2908,41 @@ fn render_syllabified_ipa_body(syllables: &[String]) -> String {
         if stress_index == Some(index) {
             rendered.push('ˈ');
         }
-        rendered.push_str(&render_ipa_syllable(syllable));
+        rendered.push_str(&render_ipa_syllable(syllable.as_ref(), scope));
     }
-    rendered
+    rendered.into_piece()
 }
 
 #[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_unsyllabified_cmevla_ipa(text: &str) -> String {
-    let mut rendered = String::new();
+#[ensures(scope.is_exceeded() || (!ret.is_empty()))]
+fn render_unsyllabified_cmevla_ipa(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut rendered = scope.buffer();
     for value in text.chars() {
         if is_explicit_stress_char(value) {
             rendered.push('ˈ');
         }
         push_ipa_phoneme(&mut rendered, value);
     }
-    rendered
+    rendered.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn explicit_stress_syllable_index(syllables: &[String]) -> Option<usize> {
+fn explicit_stress_syllable_index(syllables: &[impl AsRef<str>]) -> Option<usize> {
     syllables
         .iter()
-        .position(|syllable| syllable.chars().any(is_explicit_stress_char))
+        .position(|syllable| syllable.as_ref().chars().any(is_explicit_stress_char))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn conventional_stress_syllable_index(syllables: &[String]) -> Option<usize> {
-    let stressable = syllables
+fn conventional_stress_syllable_index(syllables: &[impl AsRef<str>]) -> Option<usize> {
+    syllables
         .iter()
         .enumerate()
-        .filter_map(|(index, syllable)| syllable_has_full_vowel(syllable).then_some(index))
-        .collect::<Vec<_>>();
-    stressable.iter().rev().nth(1).copied()
+        .rev()
+        .filter_map(|(index, syllable)| syllable_has_full_vowel(syllable.as_ref()).then_some(index))
+        .nth(1)
 }
 
 #[requires(true)]
@@ -2936,32 +2964,32 @@ fn is_explicit_stress_char(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ipa_syllable(syllable: &str) -> String {
-    let mut rendered = String::new();
+fn render_ipa_syllable(syllable: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut rendered = scope.buffer();
     for value in syllable.chars() {
         push_ipa_phoneme(&mut rendered, value);
     }
-    rendered
+    rendered.into_piece()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn push_ipa_phoneme(output: &mut String, value: char) {
-    match value {
-        'a' | 'á' | 'à' => output.push('a'),
-        'e' | 'é' | 'è' => output.push('e'),
-        'i' | 'í' | 'ì' => output.push('i'),
-        'o' | 'ó' | 'ò' => output.push('o'),
-        'u' | 'ú' | 'ù' => output.push('u'),
-        'y' | 'ý' | 'ỳ' => output.push('ə'),
-        'ĭ' => output.push('j'),
-        'ŭ' => output.push('w'),
-        '\'' => output.push('h'),
-        '.' => output.push('ʔ'),
-        'c' => output.push('ʃ'),
-        'j' => output.push('ʒ'),
-        other => output.push(other),
-    }
+fn push_ipa_phoneme(output: &mut impl std::fmt::Write, value: char) {
+    let _ = match value {
+        'a' | 'á' | 'à' => output.write_char('a'),
+        'e' | 'é' | 'è' => output.write_char('e'),
+        'i' | 'í' | 'ì' => output.write_char('i'),
+        'o' | 'ó' | 'ò' => output.write_char('o'),
+        'u' | 'ú' | 'ù' => output.write_char('u'),
+        'y' | 'ý' | 'ỳ' => output.write_char('ə'),
+        'ĭ' => output.write_char('j'),
+        'ŭ' => output.write_char('w'),
+        '\'' => output.write_char('h'),
+        '.' => output.write_char('ʔ'),
+        'c' => output.write_char('ʃ'),
+        'j' => output.write_char('ʒ'),
+        other => output.write_char(other),
+    };
 }
 
 #[requires(true)]
@@ -4052,4 +4080,34 @@ mod tests {
         assert_eq!(lojban_text_to_ipa("klama").expect("IPA"), "ˈkla.ma");
         assert_eq!(lojban_text_to_ipa("coi").expect("IPA"), "ʃoj");
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn render_ipa_surface_chunks(
+    chunks: &[IpaSurfaceChunk<'_>],
+    source: &str,
+) -> Result<String, PhoneticError> {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    render_ipa_surface_chunks_in_scope(chunks, source, &scope)
+}
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn ipa_morphology_text_with_limit(
+    words: &[WordLike],
+    source: &str,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, PhoneticError> {
+    let chunks = words
+        .iter()
+        .flat_map(flatten_word_like_ipa)
+        .collect::<Vec<_>>();
+    if chunks.is_empty() {
+        return Err(PhoneticError::NoPronounceableWords {
+            input: source.to_owned(),
+        });
+    }
+    render_ipa_surface_chunks_in_scope(&chunks, source, &jbotci_budget::TextScope::new(limit))
 }

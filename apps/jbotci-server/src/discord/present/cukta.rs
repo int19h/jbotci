@@ -12,12 +12,13 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
     CllLinkRenderMode, CllParagraphRole, CllRenderFormat, CllSearchChunkKind,
-    cll_section_chapter_title, render_example, render_section, search_chunk_kind_label,
-    status_note_markdown,
+    cll_section_chapter_title, render_example_with_limit, render_section_with_limit,
+    search_chunk_kind_label,
 };
 
 use super::markdown::{
-    escape, inline_code, join_lines, percent, split_paragraphs, subtext, truncate_units,
+    escape_in_scope, inline_code_in_scope, join_lines_in_scope, percent_in_scope,
+    split_paragraphs_in_scope, subtext_in_scope, truncate_units_in_scope,
 };
 use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::{CuktaOutcome, CuktaSearchCard};
@@ -27,8 +28,12 @@ use crate::discord::request::{CuktaMode, CuktaRequest, CuktaResultKind, DiscordT
 const MAX_PREVIEW_UNITS: usize = 320;
 
 #[requires(true)]
-#[ensures(ret.tool() == DiscordTool::Cukta)]
-pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> RenderedResult {
+#[ensures(text_scope.is_exceeded() || (ret.tool() == DiscordTool::Cukta))]
+pub(crate) fn render_in_scope(
+    outcome: &CuktaOutcome,
+    request: &CuktaRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     let mode_label = match request.options.mode {
         CuktaMode::Meaning => "meaning search",
         CuktaMode::Word => "word search",
@@ -38,45 +43,53 @@ pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> Rendered
     };
     match outcome {
         CuktaOutcome::Unavailable { reason } => {
-            let mut rendered = RenderedResult::new(
+            let mut rendered = RenderedResult::new_in_scope(
                 DiscordTool::Cukta,
-                format!("cukta · {mode_label} · unavailable"),
+                text_scope.format(format_args!("cukta · {mode_label} · unavailable")),
+                text_scope,
             );
-            rendered.body.push(format!(
+            rendered.body.push(text_scope.format(format_args!(
                 "**Meaning search is unavailable on this server:** {}",
-                escape(reason)
-            ));
-            rendered.notice = Some(subtext(
+                escape_in_scope(reason, text_scope)
+            )));
+            rendered.notice = Some(subtext_in_scope(
                 "Word search, sections, examples and the contents still work; change the mode with the ⚙️ button.",
+                text_scope,
             ));
             rendered
         }
         CuktaOutcome::NotFound { what, reference } => {
-            let mut rendered = RenderedResult::new(
+            let mut rendered = RenderedResult::new_in_scope(
                 DiscordTool::Cukta,
-                format!("cukta · {mode_label} · not found"),
+                text_scope.format(format_args!("cukta · {mode_label} · not found")),
+                text_scope,
             );
-            rendered.body.push(format!(
+            rendered.body.push(text_scope.format(format_args!(
                 "**No {what} {}.** References look like `5.2` for sections and `6.8` for examples.",
-                inline_code(reference)
-            ));
+                inline_code_in_scope(reference, text_scope)
+            )));
             rendered
         }
         CuktaOutcome::Search { results, message } => {
-            let mut status = format!("cukta · {mode_label} · {}", page_status(results));
+            let mut status = text_scope.buffer_with(&text_scope.format(format_args!(
+                "cukta · {mode_label} · {}",
+                page_status(results)
+            )));
             if !request.options.kinds.is_empty() {
                 let kinds = CuktaResultKind::ALL
                     .iter()
                     .filter(|kind| request.options.kinds.contains(**kind))
                     .map(|kind| kind.value())
                     .collect::<Vec<_>>();
-                status.push_str(&format!(" · {}", kinds.join("/")));
+                status.push_str(
+                    &text_scope.format(format_args!(" · {}", text_scope.join(&kinds, "/"))),
+                );
             }
-            let mut rendered = RenderedResult::new(DiscordTool::Cukta, status);
+            let mut rendered = RenderedResult::new_in_scope(DiscordTool::Cukta, status, text_scope);
             rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             if let Some(message) = message {
-                lines.push(escape(message));
+                lines.push(escape_in_scope(message, text_scope));
             }
             if results.is_empty() {
                 lines.push("**No matches found.**".to_owned());
@@ -84,14 +97,14 @@ pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> Rendered
             let mut full = Vec::new();
             let mut shows_excerpt = false;
             for card in &results.items {
-                let (markdown, plain, cut) = search_card(card);
+                let (markdown, plain, cut) = search_card_in_scope(card, text_scope);
                 shows_excerpt |= cut;
                 lines.push(markdown);
                 full.push(plain);
             }
-            rendered.body.push(join_lines(lines));
+            rendered.body.push(join_lines_in_scope(lines, text_scope));
             if !full.is_empty() {
-                let full = full.join("\n\n");
+                let full = text_scope.join(&full, "\n\n");
                 if shows_excerpt {
                     rendered.show_excerpt_of(full);
                 } else {
@@ -101,65 +114,105 @@ pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> Rendered
             rendered
         }
         CuktaOutcome::Section { site, section } => {
-            let mut rendered =
-                RenderedResult::new(DiscordTool::Cukta, "cukta · section".to_owned());
-            let mut chunks = split_paragraphs(&render_section(
-                site,
-                section,
-                CllRenderFormat::DiscordMarkdown,
-                CllLinkRenderMode::Plain,
-            ));
+            let mut rendered = RenderedResult::new_in_scope(
+                DiscordTool::Cukta,
+                "cukta · section".to_owned(),
+                text_scope,
+            );
+            let mut chunks = split_paragraphs_in_scope(
+                &super::render_cll_in_scope(
+                    render_section_with_limit(
+                        site,
+                        section,
+                        CllRenderFormat::DiscordMarkdown,
+                        CllLinkRenderMode::Plain,
+                        text_scope.limit(),
+                    ),
+                    text_scope,
+                ),
+                text_scope,
+            );
             if let Some(chapter) = cll_section_chapter_title(site, &section.section_id)
                 && let Some(heading) = chunks.first_mut()
             {
                 heading.push('\n');
-                heading.push_str(&subtext(&chapter));
+                heading.push_str(&subtext_in_scope(&chapter, text_scope));
             }
             rendered.body = chunks;
-            rendered.set_full_text(render_section(
-                site,
-                section,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Plain,
+            rendered.set_full_text(super::render_cll_in_scope(
+                render_section_with_limit(
+                    site,
+                    section,
+                    CllRenderFormat::Markdown,
+                    CllLinkRenderMode::Plain,
+                    text_scope.limit(),
+                ),
+                text_scope,
             ));
             rendered
         }
         CuktaOutcome::Example { site, example } => {
-            let mut rendered =
-                RenderedResult::new(DiscordTool::Cukta, "cukta · example".to_owned());
-            rendered.body = split_paragraphs(&render_example(
-                site,
-                example,
-                CllRenderFormat::DiscordMarkdown,
-                CllLinkRenderMode::Plain,
-            ));
-            rendered.set_full_text(render_example(
-                site,
-                example,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Plain,
+            let mut rendered = RenderedResult::new_in_scope(
+                DiscordTool::Cukta,
+                "cukta · example".to_owned(),
+                text_scope,
+            );
+            rendered.body = split_paragraphs_in_scope(
+                &super::render_cll_in_scope(
+                    render_example_with_limit(
+                        site,
+                        example,
+                        CllRenderFormat::DiscordMarkdown,
+                        CllLinkRenderMode::Plain,
+                        text_scope.limit(),
+                    ),
+                    text_scope,
+                ),
+                text_scope,
+            );
+            rendered.set_full_text(super::render_cll_in_scope(
+                render_example_with_limit(
+                    site,
+                    example,
+                    CllRenderFormat::Markdown,
+                    CllLinkRenderMode::Plain,
+                    text_scope.limit(),
+                ),
+                text_scope,
             ));
             rendered
         }
         CuktaOutcome::Contents { edition, chapters } => {
-            let mut rendered =
-                RenderedResult::new(DiscordTool::Cukta, "cukta · contents".to_owned());
-            let mut lines = vec![format!("**{}**", escape(edition))];
+            let mut rendered = RenderedResult::new_in_scope(
+                DiscordTool::Cukta,
+                "cukta · contents".to_owned(),
+                text_scope,
+            );
+            let mut lines = vec![
+                text_scope.format(format_args!("**{}**", escape_in_scope(edition, text_scope))),
+            ];
             for chapter in chapters {
-                let sections = format!(
+                let sections = text_scope.format(format_args!(
                     "{} section{}",
                     chapter.section_count,
                     if chapter.section_count == 1 { "" } else { "s" }
-                );
+                ));
                 lines.push(match chapter.number {
-                    Some(number) => format!("{number}. {} — {sections}", escape(&chapter.title)),
-                    None => format!("- {} — {sections}", escape(&chapter.title)),
+                    Some(number) => text_scope.format(format_args!(
+                        "{number}. {} — {sections}",
+                        escape_in_scope(&chapter.title, text_scope)
+                    )),
+                    None => text_scope.format(format_args!(
+                        "- {} — {sections}",
+                        escape_in_scope(&chapter.title, text_scope)
+                    )),
                 });
             }
-            lines.push(subtext(
+            lines.push(subtext_in_scope(
                 "Open a section with mode Section and a reference such as 5.2.",
+                text_scope,
             ));
-            rendered.body.push(join_lines(lines));
+            rendered.body.push(join_lines_in_scope(lines, text_scope));
             rendered
         }
     }
@@ -168,32 +221,66 @@ pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> Rendered
 /// One search hit as Discord Markdown, as plain text, and whether the shown
 /// preview leaves anything out.
 #[requires(true)]
-#[ensures(!ret.0.is_empty())]
-fn search_card(card: &CuktaSearchCard) -> (String, String, bool) {
+#[ensures(text_scope.is_exceeded() || (!ret.0.is_empty()))]
+fn search_card_in_scope(
+    card: &CuktaSearchCard,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> (String, String, bool) {
     let kind = search_chunk_kind_label(card.kind);
-    let mut head = format!("{}. **{}**", card.rank, escape(&card.label));
+    let mut head = text_scope.buffer_with(&text_scope.format(format_args!(
+        "{}. **{}**",
+        card.rank,
+        escape_in_scope(&card.label, text_scope)
+    )));
     if card.kind != CllSearchChunkKind::Section {
-        head.push_str(&format!(" · {kind} in {}", escape(&card.section_label)));
+        head.push_str(&text_scope.format(format_args!(
+            " · {kind} in {}",
+            escape_in_scope(&card.section_label, text_scope)
+        )));
     }
     if let Some(similarity) = card.similarity {
-        head.push_str(&format!(" · {}", percent(similarity)));
+        head.push_str(&text_scope.format(format_args!(
+            " · {}",
+            percent_in_scope(similarity, text_scope)
+        )));
     }
-    let compact = card.text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let (preview, cut) = truncate_units(&compact, MAX_PREVIEW_UNITS);
+    let compact = text_scope.join(card.text.split_whitespace(), " ");
+    let (preview, cut) = truncate_units_in_scope(&compact, MAX_PREVIEW_UNITS, text_scope);
     let body = if card
         .role
         .as_ref()
         .is_some_and(CllParagraphRole::is_status_note)
     {
-        status_note_markdown(&escape(&preview))
+        jbotci_cll::status_note_markdown_in_scope(
+            &escape_in_scope(&preview, text_scope),
+            text_scope,
+        )
     } else {
-        escape(&preview)
+        escape_in_scope(&preview, text_scope)
     };
-    let plain = format!(
+    let plain = text_scope.format(format_args!(
         "{}. {} · {kind} in {}\n{}",
         card.rank, card.label, card.section_label, card.text
+    ));
+    (
+        join_lines_in_scope(vec![head.into_piece(), body], text_scope),
+        plain,
+        cut,
+    )
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> RenderedResult {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
-    (join_lines(vec![head, body]), plain, cut)
+    let result = render_in_scope(outcome, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
 }
 
 #[cfg(test)]

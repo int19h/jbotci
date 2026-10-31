@@ -1,3 +1,4 @@
+use crate::budget::ByteLimit;
 use bityzba::{data, new};
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_ensures};
@@ -31,6 +32,22 @@ pub(crate) fn pretty_morphology_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
+    pretty_morphology_brackets_with_limit(
+        words,
+        source,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_morphology_brackets_with_limit(
+    words: &[WordLike],
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
     let _ = source;
     let context = BracketContext { options };
     let sexpr = sexpr::node(
@@ -39,10 +56,7 @@ pub(crate) fn pretty_morphology_brackets_with_options(
             .map(|word_like| word_like_brackets(word_like, &context))
             .collect(),
     );
-    Ok(sexpr::render_bracketed_with_options(
-        &sexpr::flatten(sexpr),
-        options,
-    ))
+    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit)
 }
 
 #[requires(true)]
@@ -53,11 +67,24 @@ pub(crate) fn pretty_generated_model_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options);
-    Ok(sexpr::render_bracketed_with_options(
-        &sexpr::flatten(sexpr),
+    pretty_generated_model_brackets_with_limit(
+        tree,
+        source,
         options,
-    ))
+        ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_generated_model_brackets_with_limit(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, OutputError> {
+    let sexpr = generated_model_bracket_sexpr(tree, source, options);
+    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit)
 }
 
 #[requires(true)]

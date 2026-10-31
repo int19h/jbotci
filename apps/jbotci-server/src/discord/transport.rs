@@ -8,12 +8,14 @@
 //! [`TransportError::Ambiguous`] means the request may have been applied and
 //! the caller must re-read the message before deciding anything.
 
+use jbotci_output::budget::{ByteLimit, OutputBudget};
 use std::fmt;
+use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires, try_new};
+use bityzba::{data, ensures, invariant, new, requires, try_new};
 use serde_json::{Value, json};
 
 use super::components::{FLAG_EPHEMERAL, MessagePayload};
@@ -248,8 +250,12 @@ impl MultipartBody {
     /// Build the body. The boundary is regenerated until it occurs in no part,
     /// so arbitrary upload bytes can never terminate the form early.
     #[requires(true)]
-    #[ensures(ret.bytes.ends_with(b"--\r\n"))]
-    pub(crate) fn build(payload_json: &str, uploads: &[(usize, &str, &str, &[u8])]) -> Self {
+    #[ensures(ret.as_ref().is_ok_and(|body| body.bytes.ends_with(b"--\r\n")) || ret.is_err())]
+    pub(crate) fn build_with_limit(
+        payload_json: &[u8],
+        uploads: &[(usize, &str, &str, &[u8])],
+        limit: ByteLimit,
+    ) -> std::io::Result<Self> {
         let mut attempt = 0u32;
         loop {
             let counter = MULTIPART_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -265,7 +271,6 @@ impl MultipartBody {
                 attempt
             );
             let collides = payload_json
-                .as_bytes()
                 .windows(boundary.len())
                 .any(|window| window == boundary.as_bytes())
                 || uploads.iter().any(|(_, name, content_type, bytes)| {
@@ -279,27 +284,37 @@ impl MultipartBody {
                 attempt += 1;
                 continue;
             }
-            let mut bytes = Vec::new();
-            bytes.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-            bytes.extend_from_slice(
-                b"Content-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n",
-            );
-            bytes.extend_from_slice(payload_json.as_bytes());
-            bytes.extend_from_slice(b"\r\n");
-            for (index, name, content_type, data) in uploads {
-                bytes.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-                bytes.extend_from_slice(
-                    format!(
-                        "Content-Disposition: form-data; name=\"files[{index}]\"; filename=\"{name}\"\r\nContent-Type: {content_type}\r\n\r\n"
-                    )
-                    .as_bytes(),
-                );
-                bytes.extend_from_slice(data);
-                bytes.extend_from_slice(b"\r\n");
-            }
-            bytes.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-            return new!(MultipartBody { boundary, bytes });
+            let bytes = Self::encode_parts(&boundary, payload_json, uploads, limit)?;
+            return Ok(new!(MultipartBody { boundary, bytes }));
         }
+    }
+
+    #[requires(!boundary.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() <= limit.get()) || ret.is_err())]
+    fn encode_parts(
+        boundary: &str,
+        payload_json: &[u8],
+        uploads: &[(usize, &str, &str, &[u8])],
+        limit: ByteLimit,
+    ) -> std::io::Result<Vec<u8>> {
+        let mut bytes = OutputBudget::new(limit).writer();
+        write!(bytes, "--{boundary}\r\n")?;
+        bytes.write_all(
+    b"Content-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n",
+)?;
+        bytes.write_all(payload_json)?;
+        bytes.write_all(b"\r\n")?;
+        for (index, name, content_type, data) in uploads {
+            write!(bytes, "--{boundary}\r\n")?;
+            write!(
+                bytes,
+                "Content-Disposition: form-data; name=\"files[{index}]\"; filename=\"{name}\"\r\nContent-Type: {content_type}\r\n\r\n"
+            )?;
+            bytes.write_all(data)?;
+            bytes.write_all(b"\r\n")?;
+        }
+        write!(bytes, "--{boundary}--\r\n")?;
+        Ok(bytes.into_bytes())
     }
 
     #[requires(true)]
@@ -311,16 +326,27 @@ impl MultipartBody {
 
 /// Blocking Discord API client bound to one API base URL.
 #[invariant(!base_url.is_empty() && !base_url.ends_with('/'))]
+#[invariant(response_limit.get() <= MAX_REQUEST_BYTES)]
 #[derive(Debug, Clone)]
 pub(crate) struct DiscordApi {
     base_url: String,
     agent: ureq::Agent,
+    response_limit: ByteLimit,
 }
 
 impl DiscordApi {
     #[requires(!base_url.trim().is_empty())]
     #[ensures(true)]
     pub(crate) fn new(base_url: &str) -> Self {
+        Self::with_limit(
+            base_url,
+            ByteLimit::new(MAX_REQUEST_BYTES).expect("positive Discord request limit"),
+        )
+    }
+
+    #[requires(!base_url.trim().is_empty())]
+    #[ensures(true)]
+    pub(crate) fn with_limit(base_url: &str, response_limit: ByteLimit) -> Self {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .http_status_as_error(false)
             .timeout_connect(Some(CONNECT_TIMEOUT))
@@ -335,6 +361,8 @@ impl DiscordApi {
         new!(DiscordApi {
             base_url: base_url.trim().trim_end_matches('/').to_owned(),
             agent,
+            response_limit: ByteLimit::new(response_limit.get().min(MAX_REQUEST_BYTES))
+                .expect("positive request limit"),
         })
     }
 
@@ -385,7 +413,9 @@ impl DiscordApi {
         timeout: Duration,
     ) -> Result<Value, TransportError> {
         let url = self.original_message_url(application_id, token);
-        let json = payload.to_json().to_string();
+        let json = payload
+            .encode_with_limit(self.response_limit)
+            .map_err(output_rejected)?;
         let uploads = payload.uploads();
         let response = if uploads.is_empty() {
             self.agent
@@ -394,7 +424,7 @@ impl DiscordApi {
                 .timeout_global(Some(timeout))
                 .build()
                 .header("content-type", "application/json")
-                .send(json.as_bytes())
+                .send(json.as_slice())
         } else {
             let parts = uploads
                 .iter()
@@ -402,15 +432,8 @@ impl DiscordApi {
                     (*index, name.as_str(), *content_type, *bytes)
                 })
                 .collect::<Vec<_>>();
-            let body = MultipartBody::build(&json, &parts);
-            if body.bytes.len() > MAX_REQUEST_BYTES {
-                return Err(TransportError::NotSent {
-                    reason: format!(
-                        "request body of {} bytes exceeds Discord's limit",
-                        body.bytes.len()
-                    ),
-                });
-            }
+            let body = MultipartBody::build_with_limit(&json, &parts, self.response_limit)
+                .map_err(output_rejected)?;
             self.agent
                 .patch(&url)
                 .config()
@@ -421,6 +444,61 @@ impl DiscordApi {
         }
         .map_err(classify)?;
         read_json_response(response, CallKind::Mutating)
+    }
+
+    /// Reserve only the bytes of the two fixed error envelopes.
+    #[requires(true)]
+    #[ensures(true)]
+    fn for_refusal(&self, code: crate::error::ServerErrorCode) -> Self {
+        let unlimited = ByteLimit::new(usize::MAX).expect("positive counting limit");
+        let original = MessagePayload::refusal(code)
+            .encode_with_limit(unlimited)
+            .expect("fixed refusal JSON")
+            .len();
+        let followup = jbotci_output::budget::bounded_json_size(
+            &json!({
+                "content": code.message(), "flags": FLAG_EPHEMERAL,
+                "allowed_mentions": { "parse": [] }, "attachments": [],
+            }),
+            unlimited,
+        )
+        .expect("fixed follow-up JSON");
+        self.clone().with_data(data! { response_limit: ByteLimit::new(self.response_limit.get().max(original).max(followup)).expect("positive reserved limit") })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn edit_original_refusal(
+        &self,
+        application_id: &Snowflake,
+        token: &InteractionToken,
+        code: crate::error::ServerErrorCode,
+        timeout: Duration,
+    ) -> Result<Value, TransportError> {
+        self.for_refusal(code).edit_original(
+            application_id,
+            token,
+            &MessagePayload::refusal(code),
+            timeout,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn create_refusal_followup(
+        &self,
+        application_id: &Snowflake,
+        token: &InteractionToken,
+        code: crate::error::ServerErrorCode,
+        timeout: Duration,
+    ) -> Result<(), TransportError> {
+        self.for_refusal(code).create_ephemeral_followup(
+            application_id,
+            token,
+            code.message(),
+            None,
+            timeout,
+        )
     }
 
     /// `POST /webhooks/{app}/{token}`: a private follow-up to the acting user.
@@ -440,15 +518,18 @@ impl DiscordApi {
             application_id,
             token.as_str()
         );
-        let payload = json!({
-            "content": content,
-            "flags": FLAG_EPHEMERAL,
-            "allowed_mentions": { "parse": [] },
-            "attachments": detail
-                .map(|(name, _)| json!([{ "id": 0, "filename": name }]))
-                .unwrap_or_else(|| json!([])),
-        })
-        .to_string();
+        let payload = jbotci_output::budget::bounded_json(
+            &json!({
+                "content": content,
+                "flags": FLAG_EPHEMERAL,
+                "allowed_mentions": { "parse": [] },
+                "attachments": detail
+                    .map(|(name, _)| json!([{ "id": 0, "filename": name }]))
+                    .unwrap_or_else(|| json!([])),
+            }),
+            self.response_limit,
+        )
+        .map_err(output_rejected)?;
         let request = self
             .agent
             .post(&url)
@@ -459,22 +540,19 @@ impl DiscordApi {
             // A note too long to read in a message carries the whole of it as
             // a file, which means the same multipart body an edit uses.
             Some((name, bytes)) => {
-                let body = MultipartBody::build(&payload, &[(0, name, TEXT_CONTENT_TYPE, bytes)]);
-                if body.bytes.len() > MAX_REQUEST_BYTES {
-                    return Err(TransportError::NotSent {
-                        reason: format!(
-                            "request body of {} bytes exceeds Discord's limit",
-                            body.bytes.len()
-                        ),
-                    });
-                }
+                let body = MultipartBody::build_with_limit(
+                    payload.as_slice(),
+                    &[(0, name, TEXT_CONTENT_TYPE, bytes)],
+                    self.response_limit,
+                )
+                .map_err(output_rejected)?;
                 request
                     .header("content-type", &body.content_type())
                     .send(body.bytes.as_slice())
             }
             None => request
                 .header("content-type", "application/json")
-                .send(payload.as_bytes()),
+                .send(payload.as_slice()),
         }
         .map_err(classify)?;
         read_json_response(response, CallKind::Mutating).map(|_| ())
@@ -647,6 +725,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn multipart_encoding_counts_headers_json_and_binary_at_exact_boundaries() {
+        let payload = br#"{"content":"\n\""}"#;
+        let uploads = [(0, "é.png", "image/png", b"\x89PNG".as_slice())];
+        let bytes = MultipartBody::encode_parts(
+            "test-boundary",
+            payload,
+            &uploads,
+            ByteLimit::new(4096).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            MultipartBody::encode_parts(
+                "test-boundary",
+                payload,
+                &uploads,
+                ByteLimit::new(bytes.len()).unwrap(),
+            )
+            .unwrap(),
+            bytes
+        );
+        assert_eq!(
+            MultipartBody::encode_parts(
+                "test-boundary",
+                payload,
+                &uploads,
+                ByteLimit::new(bytes.len() - 1).unwrap(),
+            )
+            .unwrap_err()
+            .kind(),
+            std::io::ErrorKind::FileTooLarge
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn tokens_are_validated_and_redacted() {
         assert!(InteractionToken::parse("aW50ZXJhY3Rpb24.abc-DEF_123").is_ok());
         assert!(InteractionToken::parse("bad/token").is_err());
@@ -658,5 +772,26 @@ mod tests {
             api.original_message_url(&Snowflake::parse("1").expect("id"), &token),
             "https://discord.com/api/v10/webhooks/1/secret-token/messages/@original"
         );
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn output_rejected(_error: impl std::fmt::Display) -> TransportError {
+    TransportError::NotSent {
+        reason: crate::work::WorkError::OutputLimit.to_string(),
+    }
+}
+#[cfg(test)]
+impl MultipartBody {
+    #[requires(true)]
+    #[ensures(ret.bytes.ends_with(b"--\r\n"))]
+    pub(crate) fn build(payload_json: &str, uploads: &[(usize, &str, &str, &[u8])]) -> Self {
+        Self::build_with_limit(
+            payload_json.as_bytes(),
+            uploads,
+            ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        )
+        .expect("unrestricted multipart rendering")
     }
 }

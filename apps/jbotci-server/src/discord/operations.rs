@@ -47,13 +47,14 @@ use jbotci_web_core::{
 };
 use tokio::time::Instant;
 
-use super::diagram::{DiagramError, DiagramImage, DiagramLimits, render_diagram};
+use super::diagram::{DiagramError, DiagramImage, render_diagram};
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, GentufaRequest,
     GimfihiRequest as DiscordGimfihiRequest, JvozbaRequest, JvozbaTarget, PAGE_SIZE, PageNumber,
     SourceField, SourceText, VlackuMode, VlackuRequest, VlaseiRequest, VlataiRequest,
 };
-use super::work::{WorkError, WorkGovernor, WorkKeepalive};
+use crate::policy::ServerRequest;
+use crate::work::{WorkError, WorkKeepalive};
 use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
 /// What one page asks a source for: its own results and one more, which is
@@ -124,6 +125,7 @@ impl<T> PagedResults<T> {
     /// One page out of the beginning of a ranking. `fetched` is what the
     /// source returned when asked for [`prefix_len`] items; returning fewer
     /// than that is how a ranked source says it has reached the end.
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|paged| paged.page == page) || ret.is_err())]
     pub(crate) fn from_prefix(fetched: Vec<T>, page: PageNumber) -> Result<Self, PageUnavailable> {
@@ -234,6 +236,7 @@ impl<T> PagedResults<T> {
 
 /// How much of a ranking one page needs: everything up to the end of it, and
 /// one more result, which is what tells the page whether another follows.
+#[cfg(test)]
 #[requires(true)]
 #[ensures(ret > PAGE_SIZE)]
 pub(crate) fn prefix_len(page: PageNumber) -> usize {
@@ -241,6 +244,7 @@ pub(crate) fn prefix_len(page: PageNumber) -> usize {
 }
 
 /// [`prefix_len`] as a positive count, for a worker that needs one.
+#[cfg(test)]
 #[requires(true)]
 #[ensures(ret.get() == prefix_len(page) || ret.get() == usize::MAX)]
 pub(crate) fn prefix_count(page: PageNumber) -> NonZeroUsize {
@@ -588,7 +592,10 @@ impl fmt::Display for OperationError {
         match self {
             Self::Invalid(error) => write!(formatter, "{error}"),
             Self::Page(error) => write!(formatter, "{error}"),
-            Self::Diagram(error) => write!(formatter, "{error}"),
+            Self::Diagram(error) => formatter.write_str(match error {
+                DiagramError::Render { .. } => crate::error::ServerErrorCode::Failed.message(),
+                _ => crate::error::ServerErrorCode::OutputLimit.message(),
+            }),
             Self::Work(error) => write!(formatter, "{error}"),
             Self::Internal { message } => write!(formatter, "internal error: {message}"),
         }
@@ -618,7 +625,6 @@ impl From<PageUnavailable> for OperationError {
 #[derive(Clone)]
 pub(crate) struct OperationContext<'a> {
     pub(crate) tools: &'a ToolServices,
-    pub(crate) governor: &'a WorkGovernor,
     pub(crate) deadline: Instant,
     /// What the running work stands for. It is carried into every compute
     /// job, so a caller that stops waiting does not release a delivery whose
@@ -626,7 +632,51 @@ pub(crate) struct OperationContext<'a> {
     pub(crate) keepalive: Option<WorkKeepalive>,
     /// Discord's per-interaction attachment size limit, when supplied.
     pub(crate) attachment_size_limit: Option<u64>,
-    pub(crate) diagram_limits: DiagramLimits,
+}
+
+#[invariant(true)]
+#[derive(Clone)]
+struct AdmittedOperationContext<'a> {
+    context: OperationContext<'a>,
+    admitted: crate::execution::AdmittedWorkContext,
+}
+impl<'a> std::ops::Deref for AdmittedOperationContext<'a> {
+    type Target = OperationContext<'a>;
+    #[requires(true)]
+    #[ensures(true)]
+    fn deref(&self) -> &Self::Target {
+        &self.context
+    }
+}
+
+#[invariant(true)]
+#[derive(Clone)]
+pub(crate) struct CompletedOperation {
+    pub(crate) outcome: Result<ToolOutcome, OperationError>,
+    pub(crate) context: crate::execution::AdmittedWorkContext,
+}
+
+/// A refusal before the operation acquires a compute lease.
+#[invariant(::Invalid(_) => true)]
+#[invariant(::Limit(_) => true)]
+#[invariant(::Admission(_) => true)]
+#[derive(Debug, Clone)]
+pub(crate) enum PreflightError {
+    Invalid(RequestValidationError),
+    Limit(crate::policy::RequestLimitError),
+    Admission(WorkError),
+}
+
+impl fmt::Display for PreflightError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Invalid(error) => write!(formatter, "{error}"),
+            Self::Limit(error) => write!(formatter, "{error}"),
+            Self::Admission(error) => write!(formatter, "{error}"),
+        }
+    }
 }
 
 /// Run `request` to a typed outcome.
@@ -635,53 +685,70 @@ pub(crate) struct OperationContext<'a> {
 pub(crate) async fn run_request(
     request: DiscordRequest,
     context: OperationContext<'_>,
-) -> Result<ToolOutcome, OperationError> {
-    preflight(&request).map_err(OperationError::Invalid)?;
-    match request {
-        DiscordRequest::Gentufa(request) => {
-            let limits = context.diagram_limits;
-            let attachment_size_limit = context.attachment_size_limit;
-            context
-                .governor
-                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                    run_gentufa(&request, limits, attachment_size_limit)
-                })
+) -> Result<CompletedOperation, PreflightError> {
+    request
+        .validate(&context.tools.execution.policy)
+        .map_err(PreflightError::Limit)?;
+    preflight(&request).map_err(PreflightError::Invalid)?;
+    let admitted = context
+        .tools
+        .execution
+        .admit(Some(context.deadline))
+        .await
+        .map_err(PreflightError::Admission)?;
+    let context = AdmittedOperationContext { context, admitted };
+    let retained = context.admitted.clone();
+    let outcome = async {
+        match request {
+            DiscordRequest::Gentufa(request) => {
+                let limits = context.admitted.execution.policy.tool_limits();
+                let attachment_size_limit = context.attachment_size_limit;
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_gentufa(&request, limits, attachment_size_limit)
+                    })
+                    .await?
+                    .map(ToolOutcome::Gentufa)
+            }
+            DiscordRequest::Vlasei(request) => context
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || run_vlasei(&request))
                 .await?
-                .map(ToolOutcome::Gentufa)
+                .map(ToolOutcome::Vlasei),
+            DiscordRequest::Vlatai(request) => context
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || run_vlatai(&request))
+                .await?
+                .map(ToolOutcome::Vlatai),
+            DiscordRequest::Vlacku(request) => {
+                run_vlacku(request, context).await.map(ToolOutcome::Vlacku)
+            }
+            DiscordRequest::Cukta(request) => {
+                run_cukta(request, context).await.map(ToolOutcome::Cukta)
+            }
+            DiscordRequest::Jvozba(request) => {
+                let limits = context.admitted.execution.policy.jvozba;
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_jvozba(&request, limits)
+                    })
+                    .await?
+                    .map(ToolOutcome::Jvozba)
+            }
+            DiscordRequest::Gimfihi(request) => context
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || run_gimfihi(&request))
+                .await?
+                .map(ToolOutcome::Gimfihi),
         }
-        DiscordRequest::Vlasei(request) => context
-            .governor
-            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                run_vlasei(&request)
-            })
-            .await?
-            .map(ToolOutcome::Vlasei),
-        DiscordRequest::Vlatai(request) => context
-            .governor
-            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                run_vlatai(&request)
-            })
-            .await?
-            .map(ToolOutcome::Vlatai),
-        DiscordRequest::Vlacku(request) => {
-            run_vlacku(request, context).await.map(ToolOutcome::Vlacku)
-        }
-        DiscordRequest::Cukta(request) => run_cukta(request, context).await.map(ToolOutcome::Cukta),
-        DiscordRequest::Jvozba(request) => context
-            .governor
-            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                run_jvozba(&request)
-            })
-            .await?
-            .map(ToolOutcome::Jvozba),
-        DiscordRequest::Gimfihi(request) => context
-            .governor
-            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                run_gimfihi(&request)
-            })
-            .await?
-            .map(ToolOutcome::Gimfihi),
     }
+    .await;
+    Ok(CompletedOperation {
+        outcome,
+        context: retained,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -692,7 +759,7 @@ pub(crate) async fn run_request(
 #[ensures(true)]
 fn run_gentufa(
     request: &GentufaRequest,
-    limits: DiagramLimits,
+    limits: jbotci_cli::ToolExecutionLimits,
     attachment_size_limit: Option<u64>,
 ) -> Result<GentufaOutcome, OperationError> {
     let options = request.options;
@@ -710,13 +777,23 @@ fn run_gentufa(
             phonemes: PhonemeRenderOptions::default(),
         },
     };
-    let result = jbotci_web_core::parse_gentufa_for_web(&web_request);
+    let result =
+        jbotci_web_core::parse_gentufa_for_web_with_limits(&web_request, Some(limits.render))
+            .map_err(|error| {
+                if error.is_output_limit() {
+                    OperationError::Work(WorkError::OutputLimit)
+                } else {
+                    OperationError::Internal {
+                        message: error.to_string(),
+                    }
+                }
+            })?;
     let diagram = match (&result, options.include_diagram) {
         (GentufaWebResult::Success(success), true) => Some(
             render_diagram(
                 &success.blocks_layout,
                 options.show_glosses,
-                limits,
+                limits.diagram,
                 attachment_size_limit,
             )
             .map_err(OperationError::Diagram)?,
@@ -808,7 +885,7 @@ fn vlacku_search_options(
 #[ensures(true)]
 async fn run_vlacku(
     request: VlackuRequest,
-    context: OperationContext<'_>,
+    context: AdmittedOperationContext<'_>,
 ) -> Result<VlackuOutcome, OperationError> {
     let query = request.query.as_str().trim().to_owned();
     if request.options.mode == VlackuMode::Meaning {
@@ -828,11 +905,11 @@ async fn run_vlacku(
         let page = request.options.page;
         let hits = match context
             .tools
-            .semantic_vlacku_hits(
+            .semantic_vlacku_hits_admitted(
                 search_query,
-                prefix_count(page),
-                vlacku_search_options(&request, 0, prefix_len(page)),
-                Some(context.deadline),
+                WINDOW_COUNT,
+                vlacku_search_options(&request, page.first_index(), WINDOW_LEN),
+                &context.admitted,
                 context.keepalive.clone(),
             )
             .await
@@ -843,16 +920,16 @@ async fn run_vlacku(
             }
         };
         return context
-            .governor
-            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                let options = vlacku_search_options(&request, 0, prefix_len(page));
+            .admitted
+            .run_keeping(context.keepalive.clone(), move || {
+                let options = vlacku_search_options(&request, page.first_index(), WINDOW_LEN);
                 // The hits are the ranking itself: the worker applied the
                 // reader's filters while it ranked, so what came back is what
                 // passed them, and how many came back is what says whether the
                 // ranking reached its end. Cutting the list again here would
                 // make a short list look like the end of the results when it
                 // was only a second opinion about them.
-                let results = PagedResults::from_prefix(hits, page)?.map(|hit| {
+                let results = PagedResults::from_window(hits, page)?.map(|hit| {
                     let entry = dictionary
                         .entries()
                         .get(hit.entry_index)
@@ -873,8 +950,8 @@ async fn run_vlacku(
             .await?;
     }
     context
-        .governor
-        .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+        .admitted
+        .run_keeping(context.keepalive.clone(), move || {
             let search_request = match request.options.mode {
                 VlackuMode::Word => SearchRequest::valsi(query),
                 VlackuMode::Rafsi => SearchRequest::rafsi(query),
@@ -965,7 +1042,7 @@ pub(crate) fn cukta_card_for_tests(item: &CllSearchMatch) -> CuktaSearchCard {
 #[ensures(true)]
 async fn run_cukta(
     request: CuktaRequest,
-    context: OperationContext<'_>,
+    context: AdmittedOperationContext<'_>,
 ) -> Result<CuktaOutcome, OperationError> {
     let query = request
         .query
@@ -984,11 +1061,11 @@ async fn run_cukta(
             };
             let output = match context
                 .tools
-                .semantic_cukta_search(
+                .semantic_cukta_search_admitted(
                     search_query,
                     CuktaSearchWindow::after(request.options.page.first_index(), WINDOW_LEN),
                     targets,
-                    Some(context.deadline),
+                    &context.admitted,
                     context.keepalive.clone(),
                 )
                 .await
@@ -1013,8 +1090,8 @@ async fn run_cukta(
             let page = request.options.page;
             let targets = cukta_targets(&request);
             context
-                .governor
-                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1039,8 +1116,8 @@ async fn run_cukta(
         }
         CuktaMode::Section => {
             context
-                .governor
-                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1062,8 +1139,8 @@ async fn run_cukta(
         }
         CuktaMode::Example => {
             context
-                .governor
-                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1081,8 +1158,8 @@ async fn run_cukta(
         }
         CuktaMode::Contents => {
             context
-                .governor
-                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                .admitted
+                .run_keeping(context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1208,48 +1285,26 @@ fn fixed_rafsi_text(span: &str) -> Result<String, RequestValidationError> {
     Ok(normalized)
 }
 
-/// How much work one Discord compound build may do. The search compares every
-/// spelling before it can name a best one and nothing stops it once it starts,
-/// so the whole request is refused when the plan is too large.
-///
-/// Measured in release on the development machine, with `klama` repeated so
-/// each non-final piece offers two candidates: 48 placements took 5.5ms, 320
-/// took 65ms, 768 took 178ms, 4096 took 1.24s, 9216 took 3.1s, 20480 took
-/// 7.4s, and 458752 took 213s; the cost per placement rose from 0.12ms to
-/// 0.46ms across those samples. 8192 placements is a couple of seconds of one
-/// compute worker in the shapes measured, and it admits eight plain words or
-/// five pieces offering four candidates each. The piece and spelling bounds
-/// stand apart from it because a short choice list can still carry long
-/// pieces, and because recursion depth follows the pieces; no attested
-/// compound approaches either figure.
-#[requires(true)]
-#[ensures(ret.max_placements == 8192)]
-fn jvozba_limits() -> JvozbaBuildLimits {
-    new!(JvozbaBuildLimits {
-        max_pieces: 24,
-        max_placements: 8192,
-        max_spelling_letters: 256,
-    })
-}
-
 #[requires(true)]
 #[ensures(true)]
-fn run_jvozba(request: &JvozbaRequest) -> Result<JvozbaOutcome, OperationError> {
+fn run_jvozba(
+    request: &JvozbaRequest,
+    limits: JvozbaBuildLimits,
+) -> Result<JvozbaOutcome, OperationError> {
     let inputs = jvozba_inputs(request).map_err(OperationError::Invalid)?;
     let mode = match request.options.target {
         JvozbaTarget::Lujvo => JvozbaMode::Lujvo,
         JvozbaTarget::Cmevla => JvozbaMode::Cmevla,
     };
     let dictionary = jbotci_dictionary_data::english();
-    let result = build_best_jvozba_detailed_within(mode, dictionary, &inputs, jvozba_limits()).map(
-        |built| {
+    let result =
+        build_best_jvozba_detailed_within(mode, dictionary, &inputs, limits).map(|built| {
             let constituents = constituents_for(dictionary, &built);
             new!(JvozbaBuilt {
                 word: built.word.clone(),
                 constituents,
             })
-        },
-    );
+        });
     Ok(JvozbaOutcome {
         inputs,
         target: request.options.target,
@@ -1418,7 +1473,6 @@ mod tests {
         CuktaOptions, CuktaResultKindSet, GentufaOptions, GimfihiOptions, GimfihiScorer,
         JvozbaOptions, VlackuOptions, VlaseiOptions, VlataiOptions,
     };
-    use crate::discord::work::WorkLimits;
     use jbotci_cll::format_section_display_title;
     use std::time::Duration;
 
@@ -1432,19 +1486,24 @@ mod tests {
     #[ensures(true)]
     async fn run(request: DiscordRequest) -> Result<ToolOutcome, OperationError> {
         let tools = ToolServices::new();
-        let governor = WorkGovernor::new(WorkLimits::default());
         run_request(
             request,
             OperationContext {
                 tools: &tools,
-                governor: &governor,
                 deadline: Instant::now() + Duration::from_secs(60),
                 keepalive: None,
                 attachment_size_limit: None,
-                diagram_limits: DiagramLimits::default(),
             },
         )
         .await
+        .map_err(|error| match error {
+            PreflightError::Invalid(error) => OperationError::Invalid(error),
+            PreflightError::Limit(error) => {
+                panic!("test request exceeds the shared policy: {error}")
+            }
+            PreflightError::Admission(error) => OperationError::Work(error),
+        })
+        .and_then(|completed| completed.outcome)
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

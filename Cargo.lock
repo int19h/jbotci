@@ -68,8 +68,6 @@ dependencies = [
 [[package]]
 name = "annotate-snippets"
 version = "0.12.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1"
 dependencies = [
  "anstyle",
  "memchr",
@@ -4005,11 +4003,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "jbotci-budget"
+version = "0.1.0"
+dependencies = [
+ "bityzba",
+ "serde",
+ "serde_json",
+ "serde_stacker",
+ "stacker",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "jbotci-cll"
 version = "0.1.0"
 dependencies = [
  "bityzba",
  "bzip2",
+ "jbotci-budget",
  "jbotci-morphology",
  "jbotci-syntax",
  "roxmltree 0.21.1",
@@ -4151,13 +4162,13 @@ dependencies = [
  "jbotci-source",
  "jbotci-syntax",
  "jbotci-tree",
+ "png 0.18.1",
  "resvg",
  "roxmltree 0.21.1",
  "serde",
  "thiserror 2.0.18",
  "tiny-skia",
  "usvg",
- "xmlwriter",
 ]
 
 [[package]]
@@ -4238,6 +4249,7 @@ version = "0.1.0"
 dependencies = [
  "annotate-snippets",
  "bityzba",
+ "jbotci-budget",
  "jbotci-diagnostics",
  "jbotci-dictionary",
  "jbotci-dictionary-data",
@@ -4265,6 +4277,7 @@ name = "jbotci-phonetic"
 version = "0.1.0"
 dependencies = [
  "bityzba",
+ "jbotci-budget",
  "jbotci-morphology",
  "serde",
  "thiserror 2.0.18",
@@ -4312,6 +4325,9 @@ dependencies = [
  "bityzba",
  "dioxus",
  "ed25519-dalek",
+ "futures-channel",
+ "http-body",
+ "http-body-util",
  "jbotci",
  "jbotci-cll",
  "jbotci-diagnostics",
@@ -4319,6 +4335,7 @@ dependencies = [
  "jbotci-dictionary",
  "jbotci-dictionary-data",
  "jbotci-embeddings",
+ "jbotci-gentufa",
  "jbotci-gimfihi",
  "jbotci-jvozba",
  "jbotci-morphology",

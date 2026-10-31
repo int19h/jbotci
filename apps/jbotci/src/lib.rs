@@ -4,6 +4,26 @@
 #![recursion_limit = "2048"]
 
 use jbotci_output::Indentation;
+use jbotci_output::budget::{ByteLimit, OutputBudget, RenderLimits, bounded_format};
+use jbotci_output::{
+    compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limits,
+    compact_recovered_morphology_json_string_with_limits,
+    compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
+    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
+    pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
+    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
+    pretty_recovered_syntax_tree_with_limit, render_diagnostics_with_limit,
+};
+
+#[requires(true)]
+#[ensures(true)]
+fn tool_render_limits(limits: Option<&ToolExecutionLimits>) -> RenderLimits {
+    limits.map(|limits| limits.render).unwrap_or_else(|| {
+        let unlimited = ByteLimit::new(usize::MAX).expect("positive unlimited limit");
+        RenderLimits::new(unlimited, unlimited)
+    })
+}
 
 mod benchmark;
 mod cli;
@@ -164,8 +184,7 @@ use clap::{
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
     CllError, CllLinkRenderMode, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaSearchWindow,
-    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request,
-    render_search_output,
+    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site,
 };
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
@@ -203,24 +222,16 @@ use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DefinitionPlaceMap,
     DiagnosticDetailMode, DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions,
     LojbanScript, PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
-    compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
-    compact_morphology_json_value, compact_recovered_morphology_json_string_with_options,
-    compact_recovered_syntax_json_string_with_options, format_definition_line_with_indexed_places,
-    format_notes_line_with_indexed_places, ipa_morphology_text,
-    pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
-    pretty_recovered_morphology_tree_with_options, pretty_recovered_syntax_brackets_with_options,
-    pretty_recovered_syntax_raw, pretty_recovered_syntax_tree_with_options, render_diagnostics,
+    compact_morphology_json_value, pretty_morphology_brackets_with_options,
     render_json_value_with_options, render_trace_report,
 };
 use jbotci_phonetic::{AlineFeature, AlineNormalizer, AlineParameters, AlineSaliences};
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
-    WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
-    format_vote_display, normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
+    WordTypeFilter, dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
+    dictionary_entry_passes_vlacku_filters, format_vote_display, normalize_word_type_filter,
+    parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -1387,33 +1398,6 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-#[requires(!source_label.is_empty())]
-#[requires(diagnostic_terminal_width > 0)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn write_source_diagnostics<W: Write>(
-    stderr: &mut W,
-    source_label: &str,
-    source: &str,
-    diagnostics: &[Diagnostic],
-    color_enabled: bool,
-    diagnostic_detail: DiagnosticDetailMode,
-    glyphs: GlyphStyle,
-    diagnostic_terminal_width: usize,
-) -> Result<()> {
-    let rendered = render_source_diagnostics(
-        source_label,
-        source,
-        diagnostics,
-        color_enabled,
-        diagnostic_detail,
-        glyphs,
-        diagnostic_terminal_width,
-    )?;
-    stderr.write_all(rendered.as_bytes())?;
-    Ok(())
-}
-
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
@@ -1427,7 +1411,32 @@ fn render_source_diagnostics(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
 ) -> Result<String> {
-    render_diagnostics(
+    render_source_diagnostics_with_limit(
+        source_label,
+        source,
+        diagnostics,
+        color_enabled,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+
+#[requires(!source_label.is_empty())]
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+fn render_source_diagnostics_with_limit(
+    source_label: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    color_enabled: bool,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    limit: ByteLimit,
+) -> Result<String> {
+    render_diagnostics_with_limit(
         source_label,
         source,
         diagnostics,
@@ -1437,6 +1446,7 @@ fn render_source_diagnostics(
             glyphs,
             terminal_width: diagnostic_terminal_width,
         }),
+        limit,
     )
     .map_err(|error| anyhow!(error))
 }
@@ -2022,16 +2032,6 @@ fn write_debug_output<W: Write, T: std::fmt::Debug>(
         writeln!(stdout, "{value:#?}")?;
     }
     Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.ends_with('\n'))]
-fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<Indentation>) -> String {
-    if indent == Some(Indentation::compact()) {
-        format!("{value:?}\n")
-    } else {
-        format!("{value:#?}\n")
-    }
 }
 
 #[requires(true)]

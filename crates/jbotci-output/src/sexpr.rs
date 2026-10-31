@@ -1,4 +1,6 @@
+use crate::budget::{ByteLimit, OutputBudget};
 use bityzba::{invariant, new, requires};
+use std::io::Write;
 
 use crate::{
     BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceFragmentRole,
@@ -222,9 +224,128 @@ pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub(crate) fn render_bracketed_with_limit(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+) -> Result<String, crate::OutputError> {
+    let mut output = OutputBudget::new(limit).writer();
+    write_bracketed(&mut output, 0, expr, options)
+        .map_err(|error| crate::OutputError::from_render_io(error, limit))?;
+    Ok(output.into_string().expect("bracket output is UTF-8"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_text(expr: &SExpr) -> bool {
+    match expr {
+        SExpr::Leaf { text, role, .. } => !text.is_empty() || *role == LeafRole::Error,
+        SExpr::Node { children, .. } => children.iter().any(has_text),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_bracketed(
+    output: &mut crate::budget::BudgetedWriter,
+    depth: usize,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> std::io::Result<()> {
+    match expr {
+        SExpr::Leaf { text, role, .. } => {
+            if text.is_empty() && *role != LeafRole::Error {
+                return Ok(());
+            }
+            write_style_open(output, depth, options, *role)?;
+            output.write_all(text.as_bytes())?;
+            write_style_close(output, depth, options, *role)
+        }
+        SExpr::Node { children, .. } => {
+            let mut children = children.iter().filter(|child| has_text(child)).peekable();
+            let Some(first) = children.next() else {
+                return Ok(());
+            };
+            if children.peek().is_none() {
+                return write_bracketed(output, depth + 1, first, options);
+            }
+            write_style_open(output, depth, options, LeafRole::Normal)?;
+            let (open, close) = bracket_pair(depth);
+            write!(output, "{open}")?;
+            if options.insert_hair_space {
+                output.write_all("\u{200a}".as_bytes())?;
+            }
+            write_bracketed(output, depth + 1, first, options)?;
+            for child in children {
+                output.write_all(b" ")?;
+                write_bracketed(output, depth + 1, child, options)?;
+            }
+            if options.insert_hair_space {
+                output.write_all("\u{200a}".as_bytes())?;
+            }
+            write!(output, "{close}")?;
+            write_style_close(output, depth, options, LeafRole::Normal)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_style_open(
+    output: &mut crate::budget::BudgetedWriter,
+    depth: usize,
+    options: BracketRenderOptions,
+    role: LeafRole,
+) -> std::io::Result<()> {
+    if role == LeafRole::Error {
+        if options.color {
+            output.write_all(b"\x1b[91m")?;
+        }
+        output.write_all("‼".as_bytes())?;
+        if options.color {
+            output.write_all(b"\x1b[9m")?;
+        }
+    } else if options.color {
+        output.write_all(ansi_color_for_depth(depth).as_bytes())?;
+        if role == LeafRole::Elided {
+            output.write_all(b"\x1b[3m")?;
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_style_close(
+    output: &mut crate::budget::BudgetedWriter,
+    depth: usize,
+    options: BracketRenderOptions,
+    role: LeafRole,
+) -> std::io::Result<()> {
+    if role == LeafRole::Error {
+        if options.color {
+            output.write_all(b"\x1b[29m")?;
+        }
+        output.write_all("‼".as_bytes())?;
+    } else if role == LeafRole::Elided && options.color {
+        output.write_all(b"\x1b[23m")?;
+    }
+    if options.color {
+        output.write_all(ansi_parent_color_for_depth(depth).as_bytes())?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRenderOptions) -> String {
-    render_bracketed_at_depth(0, expr, options)
+    render_bracketed_with_limit(
+        expr,
+        options,
+        ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+    .expect("unrestricted bracket rendering")
 }
 
 #[requires(true)]
@@ -243,37 +364,10 @@ pub(crate) fn render_bracketed_at_depth(
     expr: &SExpr,
     options: BracketRenderOptions,
 ) -> String {
-    match expr {
-        SExpr::Leaf { text, role, .. } => style_at_depth(depth, text.clone(), options, *role),
-        SExpr::Node { children, .. } => {
-            let rendered = children
-                .iter()
-                .map(|child| render_bracketed_at_depth(depth + 1, child, options))
-                .filter(|text| !text.is_empty())
-                .collect::<Vec<_>>();
-            match rendered.as_slice() {
-                [] => String::new(),
-                [single] => single.clone(),
-                _ => {
-                    let (open, close) = bracket_pair(depth);
-                    let hair_space = if options.insert_hair_space {
-                        "\u{200a}"
-                    } else {
-                        ""
-                    };
-                    style_at_depth(
-                        depth,
-                        format!(
-                            "{open}{hair_space}{}{hair_space}{close}",
-                            rendered.join(" ")
-                        ),
-                        options,
-                        LeafRole::Normal,
-                    )
-                }
-            }
-        }
-    }
+    let mut output =
+        OutputBudget::new(ByteLimit::new(usize::MAX).expect("positive limit")).writer();
+    write_bracketed(&mut output, depth, expr, options).expect("unrestricted bracket rendering");
+    output.into_string().expect("bracket output is UTF-8")
 }
 
 #[requires(true)]
@@ -393,6 +487,7 @@ fn bracket_pair(depth: usize) -> (&'static str, &'static str) {
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(!options.color && role != LeafRole::Error -> ret == old(text.clone()))]
 #[ensures(!options.color && role == LeafRole::Error -> ret.starts_with('‼') && ret.ends_with('‼'))]
@@ -404,34 +499,15 @@ fn style_at_depth(
     options: BracketRenderOptions,
     role: LeafRole,
 ) -> String {
-    if role == LeafRole::Error {
-        if !options.color {
-            return format!("‼{text}‼");
-        }
-        return format!(
-            "\x1b[91m‼\x1b[9m{text}\x1b[29m‼{}",
-            ansi_parent_color_for_depth(depth)
-        );
-    }
-    if options.color && !text.is_empty() {
-        if role == LeafRole::Elided {
-            format!(
-                "{}\x1b[3m{}\x1b[23m{}",
-                ansi_color_for_depth(depth),
-                text,
-                ansi_parent_color_for_depth(depth)
-            )
-        } else {
-            format!(
-                "{}{}{}",
-                ansi_color_for_depth(depth),
-                text,
-                ansi_parent_color_for_depth(depth)
-            )
-        }
-    } else {
-        text
-    }
+    render_bracketed_at_depth(
+        depth,
+        &SExpr::Leaf {
+            text,
+            range: None,
+            role,
+        },
+        options,
+    )
 }
 
 #[requires(true)]

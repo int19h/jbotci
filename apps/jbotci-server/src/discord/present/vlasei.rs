@@ -5,24 +5,29 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{LujvoPart, PhonemeRenderOptions, WordKind, WordLike, WordLikeData};
 use jbotci_output::{
-    BracketRenderOptions, GlyphStyle, LojbanScript, TreeRenderOptions, ipa_morphology_text,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_recovered_morphology_brackets_with_options,
-    pretty_recovered_morphology_tree_with_options,
+    BracketRenderOptions, GlyphStyle, LojbanScript, TreeRenderOptions,
+    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
+    pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_tree_with_limit,
 };
 use jbotci_web_core::VlaseiAnalysis;
 
 use super::RenderedResult;
-use super::diagnostics::{render_diagnostics, summary};
-use super::markdown::{code_block, escape, join_lines, strike, subtext};
+use super::diagnostics::{render_diagnostics_in_scope, summary_in_scope};
+use super::markdown::{
+    code_block_in_scope, escape_in_scope, join_lines_in_scope, strike_in_scope, subtext_in_scope,
+};
 use crate::discord::request::{DiscordTool, VlaseiRequest, VlaseiView};
 
 /// Words listed in the message before the rest goes to the attachment.
 const MAX_LISTED_WORDS: usize = 80;
 
 #[requires(true)]
-#[ensures(ret.tool() == DiscordTool::Vlasei)]
-pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> RenderedResult {
+#[ensures(text_scope.is_exceeded() || (ret.tool() == DiscordTool::Vlasei))]
+pub(crate) fn render_in_scope(
+    analysis: &VlaseiAnalysis,
+    request: &VlaseiRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     let source = request.text.as_str();
     let options = request.options;
     let view_label = match options.view {
@@ -31,63 +36,73 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
         VlaseiView::Tree => "tree",
         VlaseiView::Ipa => "IPA",
     };
-    let mut status = format!("vlasei · {view_label}");
+    let mut status =
+        text_scope.buffer_with(&text_scope.format(format_args!("vlasei · {view_label}")));
     if options.decompose_lujvo {
         status.push_str(" · lujvo decomposed");
     }
     if !analysis.is_complete() {
         status.push_str(" · recovered");
     }
-    if let Some(counts) = summary(&analysis.diagnostics) {
-        status.push_str(&format!(" · {counts}"));
+    if let Some(counts) = summary_in_scope(&analysis.diagnostics, text_scope) {
+        status.push_str(&text_scope.format(format_args!(" · {counts}")));
     }
-    let mut rendered = RenderedResult::new(DiscordTool::Vlasei, status);
+    let mut rendered = RenderedResult::new_in_scope(DiscordTool::Vlasei, status, text_scope);
     let words = &analysis.morphology.words;
     let phonemes = PhonemeRenderOptions::default();
     let (body, full_text, listed_in_part) = match options.view {
-        VlaseiView::Words => words_view(source, analysis, options.decompose_lujvo),
+        VlaseiView::Words => {
+            words_view_in_scope(source, analysis, options.decompose_lujvo, text_scope)
+        }
         VlaseiView::Brackets => {
-            let text = if analysis.is_complete() {
-                pretty_morphology_brackets_with_options(
+            let result = if analysis.is_complete() {
+                pretty_morphology_brackets_with_limit(
                     words,
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
+                    text_scope.limit(),
                 )
             } else {
-                pretty_recovered_morphology_brackets_with_options(
+                pretty_recovered_morphology_brackets_with_limit(
                     &analysis.morphology,
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
+                    text_scope.limit(),
                 )
-            }
-            .unwrap_or_else(|error| error.to_string());
-            (code_block(&text), text, false)
+            };
+            let text = super::render_output_in_scope(result, text_scope);
+            (code_block_in_scope(&text, text_scope), text, false)
         }
         VlaseiView::Tree => {
-            let text = if analysis.is_complete() {
-                pretty_morphology_tree_with_options(
+            let result = if analysis.is_complete() {
+                pretty_morphology_tree_with_limit(
                     words,
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
+                    text_scope.limit(),
                 )
             } else {
-                pretty_recovered_morphology_tree_with_options(
+                pretty_recovered_morphology_tree_with_limit(
                     &analysis.morphology,
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
+                    text_scope.limit(),
                 )
-            }
-            .unwrap_or_else(|error| error.to_string());
-            (code_block(&text), text, false)
+            };
+            let text = super::render_output_in_scope(result, text_scope);
+            (code_block_in_scope(&text, text_scope), text, false)
         }
         VlaseiView::Ipa => {
-            let text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
-            let mut body = code_block(&text);
+            let text = super::render_output_in_scope(
+                jbotci_output::ipa_morphology_text_with_limit(words, source, text_scope.limit()),
+                text_scope,
+            );
+            let mut body = code_block_in_scope(&text, text_scope);
             if !analysis.is_complete() {
                 body.push('\n');
-                body.push_str(&subtext(
+                body.push_str(&subtext_in_scope(
                     "IPA covers the words the parser recovered; skipped input has no pronunciation.",
-                ));
+                 text_scope));
             }
             (body, text, false)
         }
@@ -98,10 +113,15 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
     } else {
         rendered.set_full_text(full_text);
     }
-    rendered.set_diagnostics(render_diagnostics(source, &analysis.diagnostics));
+    rendered.set_diagnostics(render_diagnostics_in_scope(
+        source,
+        &analysis.diagnostics,
+        text_scope,
+    ));
     if !analysis.is_complete() {
-        rendered.notice = Some(subtext(
+        rendered.notice = Some(subtext_in_scope(
             "Recovered segmentation: struck-through input was skipped after a morphology error.",
+            text_scope,
         ));
     }
     rendered
@@ -153,100 +173,122 @@ pub(crate) fn word_kind_label(kind: WordKind) -> &'static str {
 /// regions interleaved in source order. Returns the Markdown body, the plain
 /// text of every word, and whether the body lists fewer than all of them.
 #[requires(true)]
-#[ensures(!ret.0.is_empty())]
-fn words_view(
+#[ensures(text_scope.is_exceeded() || (!ret.0.is_empty()))]
+fn words_view_in_scope(
     source: &str,
     analysis: &VlaseiAnalysis,
     decompose_lujvo: bool,
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> (String, String, bool) {
     let mut entries: Vec<(usize, String, String)> = Vec::new();
     for word in &analysis.morphology.words {
+        if text_scope.is_exceeded() {
+            break;
+        }
         let (start, text) = word
             .byte_range()
             .and_then(|range| {
                 source
                     .get(range.clone())
-                    .map(|text| (range.start, text.to_owned()))
+                    .map(|text| (range.start, text_scope.copy(text)))
             })
-            .unwrap_or((usize::MAX, word_fallback_text(word)));
-        let description = describe_word(word, decompose_lujvo);
+            .unwrap_or_else(|| (usize::MAX, word_fallback_text_in_scope(word, text_scope)));
+        let description = describe_word_in_scope(word, decompose_lujvo, text_scope);
         entries.push((
             start,
-            format!("{} — {}", escape(&text), escape(&description)),
-            format!("{text} — {description}"),
+            text_scope.format(format_args!(
+                "{} — {}",
+                escape_in_scope(&text, text_scope),
+                escape_in_scope(&description, text_scope)
+            )),
+            text_scope.format(format_args!("{text} — {description}")),
         ));
     }
     for region in &analysis.morphology.error_regions {
-        let text = source
-            .get(region.byte_start..region.byte_end)
-            .unwrap_or("")
-            .trim_end()
-            .to_owned();
+        let text = text_scope.copy(
+            source
+                .get(region.byte_start..region.byte_end)
+                .unwrap_or("")
+                .trim_end(),
+        );
         if text.is_empty() {
             continue;
         }
         entries.push((
             region.byte_start,
-            format!("{} — skipped", strike(&text)),
-            format!("{text} — skipped"),
+            text_scope.format(format_args!(
+                "{} — skipped",
+                strike_in_scope(&text, text_scope)
+            )),
+            text_scope.format(format_args!("{text} — skipped")),
         ));
     }
     entries.sort_by_key(|(start, _, _)| *start);
     if entries.is_empty() {
         return ("*(no words)*".to_owned(), "(no words)".to_owned(), false);
     }
-    let full_text = entries
-        .iter()
-        .map(|(_, _, plain)| plain.clone())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let full_text = text_scope.join(entries.iter().map(|(_, _, plain)| plain.as_str()), "\n");
     let mut lines = entries
         .iter()
         .take(MAX_LISTED_WORDS)
         .map(|(_, markdown, _)| markdown.clone())
         .collect::<Vec<_>>();
     if entries.len() > MAX_LISTED_WORDS {
-        lines.push(subtext(&format!(
-            "showing the first {MAX_LISTED_WORDS} of {} words",
-            entries.len()
-        )));
+        lines.push(subtext_in_scope(
+            &text_scope.format(format_args!(
+                "showing the first {MAX_LISTED_WORDS} of {} words",
+                entries.len()
+            )),
+            text_scope,
+        ));
     }
     (
-        join_lines(lines),
+        join_lines_in_scope(lines, text_scope),
         full_text,
         entries.len() > MAX_LISTED_WORDS,
     )
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn word_fallback_text(word: &WordLike) -> String {
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn word_fallback_text_in_scope(
+    word: &WordLike,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> String {
     word.bare_word()
-        .map(|word| word.phonemes().as_str().to_owned())
+        .map(|word| text_scope.copy(word.phonemes().as_str()))
         .unwrap_or_else(|| "?".to_owned())
 }
 
 /// Class and, where the morphology knows it, selma'o or lujvo parts.
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn describe_word(word: &WordLike, decompose_lujvo: bool) -> String {
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn describe_word_in_scope(
+    word: &WordLike,
+    decompose_lujvo: bool,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> String {
     match word.as_data() {
         data!(WordLike::PlainWord(plain)) => {
-            let mut description = word_kind_label(plain.kind()).to_owned();
+            let mut description = text_scope.buffer_with(word_kind_label(plain.kind()));
             if let Some(selmaho) = plain.selmaho() {
-                description.push_str(&format!(" ({selmaho})"));
+                description.push_str(&text_scope.format(format_args!(" ({selmaho})")));
             }
             if decompose_lujvo && let Some(parts) = plain.lujvo_parts() {
                 let parts = parts
                     .iter()
                     .map(|part| match part {
-                        LujvoPart::Rafsi(phonemes) => phonemes.as_str().to_owned(),
-                        LujvoPart::Hyphen(phonemes) => format!("-{}-", phonemes.as_str()),
+                        LujvoPart::Rafsi(phonemes) => text_scope.copy(phonemes.as_str()),
+                        LujvoPart::Hyphen(phonemes) => {
+                            text_scope.format(format_args!("-{}-", phonemes.as_str()))
+                        }
                     })
                     .collect::<Vec<_>>();
-                description.push_str(&format!(": {}", parts.join(" + ")));
+                description.push_str(
+                    &text_scope.format(format_args!(": {}", text_scope.join(&parts, " + "))),
+                );
             }
-            description
+            description.into_piece()
         }
         data!(WordLike::QuotedWord { .. }) => "zo quote of one word".to_owned(),
         data!(WordLike::SelmahoQuotedWord { .. }) => "ma'oi quote of one word".to_owned(),
@@ -257,6 +299,20 @@ fn describe_word(word: &WordLike, decompose_lujvo: bool) -> String {
         data!(WordLike::LerfuWord { .. }) => "lerfu word (bu)".to_owned(),
         data!(WordLike::ZeiCompound { .. }) => "zei compound".to_owned(),
     }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> RenderedResult {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_in_scope(analysis, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
 }
 
 #[cfg(test)]

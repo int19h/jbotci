@@ -1705,6 +1705,7 @@ fn run_tool_command_with_context(
         CliProgressPolicy::disabled(),
         None,
         tool_context,
+        None,
     )?;
     let stderr =
         String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
@@ -2038,4 +2039,166 @@ mod tests {
             assert!(definitions.ends_with('\n'), "{format:?}");
         }
     }
+}
+
+/// These limits bound generated output and compound searches.
+/// The server bounds source fields before it admits work.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolExecutionLimits {
+    pub render: jbotci_output::budget::RenderLimits,
+    pub entries: std::num::NonZeroUsize,
+    pub jvozba: jbotci_jvozba::JvozbaBuildLimits,
+    pub diagram: jbotci_gentufa::GentufaRenderLimits,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn check_tool_count(count: usize, maximum: std::num::NonZeroUsize) -> Result<()> {
+    if count == 0 || count > maximum.get() {
+        bail!(
+            "The requested result count must be from 1 through {}.",
+            maximum.get()
+        );
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_gentufa_with_limits(
+    request: ToolGentufaRequest,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    let content_type = request.format.content_type();
+    run_tool_command_with_limits(Command::from(request), Some(content_type), None, limits)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_vlasei_with_limits(
+    request: ToolVlaseiRequest,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    let content_type = request.format.content_type();
+    run_tool_command_with_limits(Command::from(request), Some(content_type), None, limits)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_cukta_with_limits(
+    request: ToolCuktaRequest,
+    context: Option<&mut ToolExecutionContext<'_>>,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    if matches!(request.mode, ToolCuktaMode::Word | ToolCuktaMode::Meaning) {
+        check_tool_count(
+            request
+                .count
+                .unwrap_or(jbotci_cll::DEFAULT_CUKTA_CLI_RESULT_COUNT),
+            limits.entries,
+        )?;
+    }
+    let content_type = request.format.content_type();
+    run_tool_command_with_limits(Command::from(request), Some(content_type), context, limits)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_vlacku_with_limits(
+    request: ToolVlackuRequest,
+    context: Option<&mut ToolExecutionContext<'_>>,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    check_tool_count(
+        request
+            .count
+            .unwrap_or(jbotci_search::vlacku::DEFAULT_VLACKU_RESULT_COUNT),
+        limits.entries,
+    )?;
+    run_tool_command_with_limits(
+        Command::try_from(request)?,
+        Some(TEXT_PLAIN_CONTENT_TYPE),
+        context,
+        limits,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_gimfihi_with_limits(
+    request: ToolGimfihiRequest,
+    word_kind: GimfihiSourceWordKind,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    check_tool_count(
+        request
+            .count
+            .unwrap_or(jbotci_gimfihi::GIMFIHI_DEFAULT_COUNT),
+        limits.entries,
+    )?;
+    let content_type = request.format.content_type();
+    let command = Command::try_from(ToolGimfihiCommandInput { request, word_kind })?;
+    run_tool_command_with_limits(command, Some(content_type), None, limits)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn run_tool_command_with_limits(
+    command: Command,
+    content_type: Option<&'static str>,
+    context: Option<&mut ToolExecutionContext<'_>>,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    use jbotci_output::budget::{ByteLimit, OutputBudget};
+    let text = OutputBudget::new(limits.render.text);
+    let diagram =
+        matches!(&command, Command::Gentufa(input) if input.format == GentufaFormat::Blocks);
+    let mut stdout = if diagram {
+        OutputBudget::new(
+            ByteLimit::new(limits.diagram.max_bytes).expect("validated diagram limit"),
+        )
+        .writer()
+    } else {
+        text.writer()
+    };
+    let mut stderr = text.writer();
+    let status = run_cli_command_with_tool_context(
+        command,
+        &mut stdout,
+        &mut stderr,
+        CliColorPolicy::never(),
+        DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        None,
+        CliProgressPolicy::disabled(),
+        None,
+        context,
+        Some(limits),
+    )?;
+    let stderr = stderr
+        .into_string()
+        .context("tool diagnostics were not valid UTF-8")?;
+    Ok(ToolRenderedOutput::new(
+        status,
+        stdout.into_bytes(),
+        stderr,
+        content_type,
+    ))
+}
+/// Run a server compound build with an explicit expansion and output budget.
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_jvozba_with_limits(
+    request: ToolJvozbaRequest,
+    limits: &ToolExecutionLimits,
+) -> Result<ToolRenderedOutput> {
+    if request.parts.len() > limits.jvozba.max_pieces {
+        bail!("The requested compound has too many parts for the execution limit.");
+    }
+    run_tool_command_with_limits(
+        Command::from(request),
+        Some(TEXT_PLAIN_CONTENT_TYPE),
+        None,
+        limits,
+    )
 }

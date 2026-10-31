@@ -13,45 +13,16 @@
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_web_core::{
     DEFAULT_GENTUFA_PNG_SCALE, GentufaBlocksLayout, GentufaExportFormat, GentufaScript,
-    render_gentufa_blocks_web_export,
+    render_gentufa_blocks_web_export_with_limits,
 };
 
-/// Bounds applied to every Discord diagram.
-#[invariant(*max_blocks > 0 && *max_columns > 0 && *max_pixels > 0 && *max_bytes > 0)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DiagramLimits {
-    /// Layout blocks (nodes and leaves) the renderer will lay out.
-    pub(crate) max_blocks: usize,
-    /// Grid columns (leaves) across.
-    pub(crate) max_columns: usize,
-    /// Rasterized pixel area (width × height after scaling).
-    pub(crate) max_pixels: u64,
-    /// Encoded PNG bytes.
-    pub(crate) max_bytes: usize,
-}
-
-impl Default for DiagramLimits {
-    #[requires(true)]
-    #[ensures(ret.max_blocks > 0)]
-    fn default() -> Self {
-        new!(DiagramLimits {
-            max_blocks: 600,
-            max_columns: 160,
-            // 8 megapixels of RGBA is a 32 MiB raster buffer. Measured, one
-            // render near that size costs the process about 50 MiB including
-            // the layout, the encoder and what the allocator keeps; the
-            // instance has 512 MiB and the embedding model takes about 240 of
-            // them, so this is what one image may spend.
-            max_pixels: 8_000_000,
-            max_bytes: 8 * 1024 * 1024,
-        })
-    }
-}
+pub(crate) use crate::policy::DiagramLimits;
 
 /// A rendered diagram ready to attach.
+
 #[invariant(!bytes.is_empty() && *width > 0 && *height > 0)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagramImage {
@@ -85,9 +56,9 @@ impl fmt::Display for DiagramError {
                 formatter,
                 "the diagram would be {width}×{height} pixels, larger than a Discord image may be"
             ),
-            Self::TooManyBytes { bytes, limit } => write!(
+            Self::TooManyBytes { limit, .. } => write!(
                 formatter,
-                "the diagram encodes to {bytes} bytes, over the {limit}-byte attachment limit"
+                "the diagram exceeds the {limit}-byte attachment limit"
             ),
             Self::Render { message } => {
                 write!(formatter, "the diagram could not be rendered ({message})")
@@ -115,47 +86,39 @@ pub(crate) fn render_diagram(
     }
     // Lay out as SVG first: this is text measurement only, no raster
     // allocation, and it yields the dimensions the PNG pass would rasterize.
-    let svg = render_gentufa_blocks_web_export(
+    let svg = render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,
         GentufaExportFormat::Svg,
+        Some(limits),
+    )
+    .map_err(diagram_export_error)?;
+    let svg_text = std::str::from_utf8(&svg.bytes).expect("SVG export writes UTF-8");
+    let plan = jbotci_gentufa::checked_svg_raster_plan(
+        svg_text,
+        DEFAULT_GENTUFA_PNG_SCALE,
+        limits.max_pixels,
     )
     .map_err(|error| DiagramError::Render {
         message: error.to_string(),
     })?;
-    let (svg_width, svg_height) = match (svg.width, svg.height) {
-        (Some(width), Some(height)) if width > 0 && height > 0 => (width, height),
-        _ => {
-            return Err(DiagramError::Render {
-                message: "the diagram layout has no size".to_owned(),
-            });
-        }
-    };
-    let scale = f64::from(DEFAULT_GENTUFA_PNG_SCALE);
-    let width = (svg_width as f64 * scale).ceil() as usize;
-    let height = (svg_height as f64 * scale).ceil() as usize;
-    if (width as u64).saturating_mul(height as u64) > limits.max_pixels {
-        return Err(DiagramError::TooLarge { width, height });
+    let width = plan.width as usize;
+    let height = plan.height as usize;
+    let byte_limit = attachment_size_limit
+        .and_then(|limit| usize::try_from(limit).ok())
+        .map_or(limits.max_bytes, |limit| limit.min(limits.max_bytes));
+    if byte_limit == 0 {
+        return Err(DiagramError::TooManyBytes { bytes: 1, limit: 0 });
     }
-    let png = render_gentufa_blocks_web_export(
+    let png = render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,
         GentufaExportFormat::Png,
+        Some(limits.with_data(bityzba::data! { max_bytes: byte_limit })),
     )
-    .map_err(|error| DiagramError::Render {
-        message: error.to_string(),
-    })?;
-    let byte_limit = attachment_size_limit
-        .and_then(|limit| usize::try_from(limit).ok())
-        .map_or(limits.max_bytes, |limit| limit.min(limits.max_bytes));
-    if png.bytes.len() > byte_limit {
-        return Err(DiagramError::TooManyBytes {
-            bytes: png.bytes.len(),
-            limit: byte_limit,
-        });
-    }
+    .map_err(diagram_export_error)?;
     if png.bytes.is_empty() {
         return Err(DiagramError::Render {
             message: "the PNG encoder produced no bytes".to_owned(),
@@ -191,8 +154,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn renders_a_small_diagram_within_default_limits() {
-        let image = render_diagram(&layout("mi klama"), false, DiagramLimits::default(), None)
-            .expect("diagram");
+        let image = render_diagram(
+            &layout("mi klama"),
+            false,
+            crate::policy::default_diagram_limits(),
+            None,
+        )
+        .expect("diagram");
         assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
         assert!(image.width > 0 && image.height > 0);
     }
@@ -202,25 +170,59 @@ mod tests {
     #[ensures(true)]
     fn refuses_complexity_area_and_byte_overflow_before_committing() {
         let layout = layout("mi klama lo zarci");
-        let tiny_blocks = DiagramLimits::default().with_data(bityzba::data! { max_blocks: 1 });
+        let tiny_blocks =
+            crate::policy::default_diagram_limits().with_data(bityzba::data! { max_blocks: 1 });
         assert!(matches!(
             render_diagram(&layout, false, tiny_blocks, None),
             Err(DiagramError::TooComplex { .. })
         ));
-        let tiny_area = DiagramLimits::default().with_data(bityzba::data! { max_pixels: 1 });
+        let tiny_area =
+            crate::policy::default_diagram_limits().with_data(bityzba::data! { max_pixels: 1 });
         assert!(matches!(
             render_diagram(&layout, false, tiny_area, None),
             Err(DiagramError::TooLarge { .. })
         ));
-        let tiny_bytes = DiagramLimits::default().with_data(bityzba::data! { max_bytes: 1 });
+        let tiny_bytes =
+            crate::policy::default_diagram_limits().with_data(bityzba::data! { max_bytes: 1 });
         assert!(matches!(
             render_diagram(&layout, false, tiny_bytes, None),
             Err(DiagramError::TooManyBytes { limit: 1, .. })
         ));
         // The interaction's own attachment limit wins when it is smaller.
         assert!(matches!(
-            render_diagram(&layout, false, DiagramLimits::default(), Some(16)),
+            render_diagram(
+                &layout,
+                false,
+                crate::policy::default_diagram_limits(),
+                Some(16)
+            ),
             Err(DiagramError::TooManyBytes { limit: 16, .. })
         ));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagram_export_error(error: jbotci_web_core::WebComputeError) -> DiagramError {
+    match error.diagram_limit().as_ref().map(|limit| limit.as_data()) {
+        Some(data!(jbotci_gentufa::GentufaLimit::Layout { blocks, columns })) => {
+            DiagramError::TooComplex {
+                blocks: *blocks,
+                columns: *columns,
+            }
+        }
+        Some(data!(jbotci_gentufa::GentufaLimit::Pixels { width, height })) => {
+            DiagramError::TooLarge {
+                width: *width as usize,
+                height: *height as usize,
+            }
+        }
+        Some(data!(jbotci_gentufa::GentufaLimit::Bytes { limit })) => DiagramError::TooManyBytes {
+            bytes: limit.get().saturating_add(1),
+            limit: limit.get(),
+        },
+        None => DiagramError::Render {
+            message: error.to_string(),
+        },
     }
 }

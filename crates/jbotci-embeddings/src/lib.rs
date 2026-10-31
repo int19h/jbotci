@@ -3882,12 +3882,72 @@ where
     )
 }
 
+/// Copy only the requested window after ranking eligible entries.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
+pub fn semantic_vlacku_hits_window_filtered<B, F>(
+    backend: &mut B,
+    query: &str,
+    skip: usize,
+    count: usize,
+    index_root: &Path,
+    model_key: &str,
+    entry_allowed: F,
+) -> Result<Vec<DictionarySemanticHit>, EmbeddingError>
+where
+    B: EmbeddingBackend,
+    F: FnMut(usize) -> bool,
+{
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    semantic_vlacku_hits_window_filtered_with_identity(
+        backend,
+        query,
+        skip,
+        count,
+        index_root,
+        &spec,
+        current_native_corpus_identity()?,
+        entry_allowed,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
 fn semantic_vlacku_hits_with_identity<B, F>(
     backend: &mut B,
     query: &str,
+    count: usize,
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    identity: &NativeCorpusIdentity,
+    entry_allowed: F,
+) -> Result<Vec<DictionarySemanticHit>, EmbeddingError>
+where
+    B: EmbeddingBackend,
+    F: FnMut(usize) -> bool,
+{
+    semantic_vlacku_hits_window_filtered_with_identity(
+        backend,
+        query,
+        0,
+        count,
+        index_root,
+        spec,
+        identity,
+        entry_allowed,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
+fn semantic_vlacku_hits_window_filtered_with_identity<B, F>(
+    backend: &mut B,
+    query: &str,
+    skip: usize,
     count: usize,
     index_root: &Path,
     spec: &EmbeddingModelSpec,
@@ -3908,7 +3968,7 @@ where
         loaded.dimensions,
         &query_embedding,
         loaded.row_count,
-        count.max(1),
+        skip.saturating_add(count.max(1)),
         |row_index| {
             items
                 .get(row_index)
@@ -3917,6 +3977,8 @@ where
     )?;
     Ok(hits
         .into_iter()
+        .skip(skip)
+        .take(count.max(1))
         .filter_map(|hit| {
             let item = items.get(hit.row_index)?;
             Some(DictionarySemanticHit {
@@ -6257,6 +6319,41 @@ mod tests {
         )
         .expect("semantic vlacku search");
         assert_eq!(hits.len(), 3);
+
+        let allowed = |index: usize| index % 2 == 0;
+        let identity = native_corpus_identity(dictionary, cll_chunks);
+        let prefix = semantic_vlacku_hits_with_identity(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            8,
+            dir.path(),
+            &spec,
+            &identity,
+            allowed,
+        )
+        .unwrap();
+        let window = semantic_vlacku_hits_window_filtered_with_identity(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            2,
+            3,
+            dir.path(),
+            &spec,
+            &identity,
+            allowed,
+        )
+        .unwrap();
+        assert_eq!(
+            window,
+            prefix[2..5],
+            "the window skips eligible hits without copying the whole prefix"
+        );
 
         let output = semantic_cukta_output_with_identity(
             &mut FakeBackend {

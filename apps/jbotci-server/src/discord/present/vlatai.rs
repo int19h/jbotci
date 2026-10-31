@@ -9,13 +9,16 @@ use jbotci_morphology::{
     ValsiLujvoPartKind, ValsiLujvoRafsiKind, WordKind,
 };
 use jbotci_output::{
-    BracketRenderOptions, GlyphStyle, LojbanScript, pretty_morphology_brackets_with_options,
+    BracketRenderOptions, GlyphStyle, LojbanScript, pretty_morphology_brackets_with_limit,
 };
 use jbotci_web_core::VlataiReport;
 
 use super::RenderedResult;
-use super::diagnostics::{render_diagnostics, summary};
-use super::markdown::{code_block, escape, inline_code, join_lines, subtext};
+use super::diagnostics::{render_diagnostics_in_scope, summary_in_scope};
+use super::markdown::{
+    code_block_in_scope, escape_in_scope, inline_code_in_scope, join_lines_in_scope,
+    subtext_in_scope,
+};
 use super::vlasei::word_kind_label;
 use crate::discord::request::{DiscordTool, VlataiOptions, VlataiRequest};
 
@@ -37,8 +40,12 @@ pub(crate) fn phoneme_options(options: VlataiOptions) -> PhonemeRenderOptions {
 }
 
 #[requires(true)]
-#[ensures(ret.tool() == DiscordTool::Vlatai)]
-pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> RenderedResult {
+#[ensures(text_scope.is_exceeded() || (ret.tool() == DiscordTool::Vlatai))]
+pub(crate) fn render_in_scope(
+    report: &VlataiReport,
+    request: &VlataiRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     let options = request.options;
     let phonemes = phoneme_options(options);
     let input = report.analysis.input.as_str();
@@ -47,11 +54,12 @@ pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> Rendered
         ValsiAnalysisStatus::Invalid => "invalid",
         ValsiAnalysisStatus::NotSingleWord => "not a single word",
     };
-    let mut status = format!("vlatai · {status_word}");
-    if let Some(counts) = summary(&report.diagnostics) {
-        status.push_str(&format!(" · {counts}"));
+    let mut status =
+        text_scope.buffer_with(&text_scope.format(format_args!("vlatai · {status_word}")));
+    if let Some(counts) = summary_in_scope(&report.diagnostics, text_scope) {
+        status.push_str(&text_scope.format(format_args!(" · {counts}")));
     }
-    let mut rendered = RenderedResult::new(DiscordTool::Vlatai, status);
+    let mut rendered = RenderedResult::new_in_scope(DiscordTool::Vlatai, status, text_scope);
     let mut lines = Vec::new();
     match report.analysis.result.status {
         ValsiAnalysisStatus::Valid => {
@@ -61,28 +69,35 @@ pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> Rendered
                 .classification
                 .as_ref()
                 .expect("valid vlatai result carries classification");
-            lines.push(format!("**{}** — valid", escape(input)));
-            lines.extend(classification_lines(
+            lines.push(text_scope.format(format_args!(
+                "**{}** — valid",
+                escape_in_scope(input, text_scope)
+            )));
+            lines.extend(classification_lines_in_scope(
                 classification,
                 &report.possible_rafsi,
                 phonemes,
                 options.show_details,
                 "",
+                text_scope,
             ));
         }
         ValsiAnalysisStatus::Invalid => {
-            lines.push(format!("**{}** — not a valid Lojban word", escape(input)));
+            lines.push(text_scope.format(format_args!(
+                "**{}** — not a valid Lojban word",
+                escape_in_scope(input, text_scope)
+            )));
         }
         ValsiAnalysisStatus::NotSingleWord => {
             let words = &report.analysis.result.words;
-            lines.push(format!(
+            lines.push(text_scope.format(format_args!(
                 "**{}** — {} word{}, not one",
-                escape(input),
+                escape_in_scope(input, text_scope),
                 words.len(),
                 if words.len() == 1 { "" } else { "s" }
-            ));
+            )));
             if !words.is_empty() {
-                let brackets = pretty_morphology_brackets_with_options(
+                let brackets = pretty_morphology_brackets_with_limit(
                     words,
                     input,
                     BracketRenderOptions {
@@ -94,27 +109,36 @@ pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> Rendered
                         insert_hair_space: false,
                         show_elided: false,
                     },
-                )
-                .unwrap_or_else(|error| error.to_string());
-                lines.push(code_block(&brackets));
-                lines.push(subtext("Use vlasei for the full segmentation."));
+                    text_scope.limit(),
+                );
+                let brackets = super::render_output_in_scope(brackets, text_scope);
+                lines.push(code_block_in_scope(&brackets, text_scope));
+                lines.push(subtext_in_scope(
+                    "Use vlasei for the full segmentation.",
+                    text_scope,
+                ));
             }
         }
     }
-    rendered.body.push(join_lines(lines));
-    rendered.set_diagnostics(render_diagnostics(input, &report.diagnostics));
+    rendered.body.push(join_lines_in_scope(lines, text_scope));
+    rendered.set_diagnostics(render_diagnostics_in_scope(
+        input,
+        &report.diagnostics,
+        text_scope,
+    ));
     rendered
 }
 
 /// Lines describing a classification; `prefix` labels nested parts.
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn classification_lines(
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn classification_lines_in_scope(
     classification: &ValsiClassification,
     possible_rafsi: &[String],
     phonemes: PhonemeRenderOptions,
     show_details: bool,
     prefix: &str,
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> Vec<String> {
     let mut lines = Vec::new();
     match classification.kind() {
@@ -122,109 +146,122 @@ fn classification_lines(
             let word = classification
                 .word()
                 .expect("plain-word classification carries word");
-            lines.extend(plain_word_lines(
+            lines.extend(plain_word_lines_in_scope(
                 word,
                 possible_rafsi,
                 phonemes,
                 show_details,
                 prefix,
+                text_scope,
             ));
         }
         ValsiClassificationKind::QuotedWord => {
-            lines.push(format!("{prefix}quoted word"));
-            lines.extend(plain_word_lines(
+            lines.push(text_scope.format(format_args!("{prefix}quoted word")));
+            lines.extend(plain_word_lines_in_scope(
                 classification.marker().expect("marker"),
                 &[],
                 phonemes,
                 show_details,
                 "marker: ",
+                text_scope,
             ));
-            lines.extend(plain_word_lines(
+            lines.extend(plain_word_lines_in_scope(
                 classification.quoted_word().expect("quoted"),
                 &[],
                 phonemes,
                 show_details,
                 "quoted: ",
+                text_scope,
             ));
         }
         ValsiClassificationKind::DelimitedNonLojbanQuote => {
-            lines.push(format!("{prefix}delimited non-Lojban quote"));
-            lines.extend(plain_word_lines(
+            lines.push(text_scope.format(format_args!("{prefix}delimited non-Lojban quote")));
+            lines.extend(plain_word_lines_in_scope(
                 classification.marker().expect("marker"),
                 &[],
                 phonemes,
                 show_details,
                 "marker: ",
+                text_scope,
             ));
-            lines.push(format!(
+            lines.push(text_scope.format(format_args!(
                 "delimiter: {}",
-                inline_code(classification.delimiter().expect("delimiter"))
-            ));
+                inline_code_in_scope(classification.delimiter().expect("delimiter"), text_scope)
+            )));
         }
         ValsiClassificationKind::QuotedWords => {
-            lines.push(format!(
+            lines.push(text_scope.format(format_args!(
                 "{prefix}quoted words ({})",
                 classification.quoted_words().len()
-            ));
-            lines.extend(plain_word_lines(
+            )));
+            lines.extend(plain_word_lines_in_scope(
                 classification.marker().expect("marker"),
                 &[],
                 phonemes,
                 show_details,
                 "marker: ",
+                text_scope,
             ));
         }
         ValsiClassificationKind::ReplacementQuote => {
-            lines.push(format!(
+            lines.push(text_scope.format(format_args!(
                 "{prefix}replacement quote ({} raw words)",
                 classification.replacement_words().len()
-            ));
+            )));
         }
         ValsiClassificationKind::DelimitedWordQuote => {
-            lines.push(format!(
+            lines.push(text_scope.format(format_args!(
                 "{prefix}delimited word quote, marker {}",
-                inline_code(classification.marker_text().expect("marker text"))
-            ));
+                inline_code_in_scope(
+                    classification.marker_text().expect("marker text"),
+                    text_scope
+                )
+            )));
         }
         ValsiClassificationKind::LerfuWord => {
-            lines.push(format!("{prefix}lerfu word"));
-            lines.extend(classification_lines(
+            lines.push(text_scope.format(format_args!("{prefix}lerfu word")));
+            lines.extend(classification_lines_in_scope(
                 classification.base().expect("base"),
                 &[],
                 phonemes,
                 show_details,
                 "base: ",
+                text_scope,
             ));
-            lines.extend(plain_word_lines(
+            lines.extend(plain_word_lines_in_scope(
                 classification.suffix().expect("suffix"),
                 &[],
                 phonemes,
                 show_details,
                 "suffix: ",
+                text_scope,
             ));
         }
         ValsiClassificationKind::ZeiCompound => {
-            lines.push(format!("{prefix}zei compound"));
-            lines.extend(classification_lines(
+            lines.push(text_scope.format(format_args!("{prefix}zei compound")));
+            lines.extend(classification_lines_in_scope(
                 classification.left().expect("left"),
                 &[],
                 phonemes,
                 show_details,
                 "left: ",
+                text_scope,
             ));
-            lines.extend(plain_word_lines(
+            lines.extend(plain_word_lines_in_scope(
                 classification.link().expect("link"),
                 &[],
                 phonemes,
                 show_details,
                 "link: ",
+                text_scope,
             ));
-            lines.extend(plain_word_lines(
+            lines.extend(plain_word_lines_in_scope(
                 classification.right().expect("right"),
                 &[],
                 phonemes,
                 show_details,
                 "right: ",
+                text_scope,
             ));
         }
     }
@@ -232,57 +269,82 @@ fn classification_lines(
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn plain_word_lines(
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn plain_word_lines_in_scope(
     word: &PlainWordClassification,
     possible_rafsi: &[String],
     phonemes: PhonemeRenderOptions,
     show_details: bool,
     prefix: &str,
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> Vec<String> {
-    let mut head = format!("{prefix}{}", word_kind_label(word.category));
+    let mut head = text_scope.buffer_with(
+        &text_scope.format(format_args!("{prefix}{}", word_kind_label(word.category))),
+    );
     if let Some(selmaho) = &word.selmaho {
-        head.push_str(&format!(" · selma'o {}", escape(selmaho)));
+        head.push_str(&text_scope.format(format_args!(
+            " · selma'o {}",
+            escape_in_scope(selmaho, text_scope)
+        )));
     }
     if let Some(stage) = word.stage {
-        head.push_str(&format!(
+        head.push_str(&text_scope.format(format_args!(
             " · {}",
             match stage {
                 ValsiFuhivlaStage::Stage3 => "stage 3",
                 ValsiFuhivlaStage::Stage4 => "stage 4",
                 ValsiFuhivlaStage::Unknown => "stage unknown",
             }
-        ));
+        )));
     }
-    let rendered_phonemes = Phonemes::render_canonical(&word.phonemes, phonemes)
-        .unwrap_or_else(|_| word.phonemes.clone());
-    head.push_str(&format!(" · phonemes {}", inline_code(&rendered_phonemes)));
-    let mut lines = vec![head];
+    let mut rendered_phonemes = text_scope.buffer();
+    if Phonemes::render_canonical_to(&word.phonemes, phonemes, &mut rendered_phonemes).is_err()
+        && !text_scope.is_exceeded()
+    {
+        rendered_phonemes = text_scope.buffer_with(&word.phonemes);
+    }
+    let rendered_phonemes = rendered_phonemes.into_piece();
+    head.push_str(&text_scope.format(format_args!(
+        " · phonemes {}",
+        inline_code_in_scope(&rendered_phonemes, text_scope)
+    )));
+    let mut lines = vec![head.into_piece()];
     if show_details {
         if word.category == WordKind::Gismu && !possible_rafsi.is_empty() {
-            lines.push(subtext(&format!(
-                "possible short rafsi (by form only, not dictionary assignment): {}",
-                possible_rafsi.join(" ")
-            )));
+            lines.push(subtext_in_scope(
+                &text_scope.format(format_args!(
+                    "possible short rafsi (by form only, not dictionary assignment): {}",
+                    text_scope.join(possible_rafsi, " ")
+                )),
+                text_scope,
+            ));
         }
         if word.category == WordKind::Lujvo {
             if let Some(split) = &word.split {
-                lines.push(subtext(&format!("split: {split}")));
+                lines.push(subtext_in_scope(
+                    &text_scope.format(format_args!("split: {split}")),
+                    text_scope,
+                ));
             }
             if !word.parts.is_empty() {
                 let parts = word
                     .parts
                     .iter()
                     .map(|part| match part.kind {
-                        ValsiLujvoPartKind::Hyphen => format!("-{}-", part.text),
-                        ValsiLujvoPartKind::Rafsi => format!(
+                        ValsiLujvoPartKind::Hyphen => {
+                            text_scope.format(format_args!("-{}-", part.text))
+                        }
+                        ValsiLujvoPartKind::Rafsi => text_scope.format(format_args!(
                             "{} ({})",
                             part.text,
                             part.rafsi_kind.map(rafsi_kind_label).unwrap_or("rafsi")
-                        ),
+                        )),
                     })
                     .collect::<Vec<_>>();
-                lines.push(subtext(&format!("parts: {}", parts.join(" + "))));
+                lines.push(subtext_in_scope(
+                    &text_scope.format(format_args!("parts: {}", text_scope.join(&parts, " + "))),
+                    text_scope,
+                ));
             }
         }
     }
@@ -303,6 +365,20 @@ fn rafsi_kind_label(kind: ValsiLujvoRafsiKind) -> &'static str {
         ValsiLujvoRafsiKind::Extended => "extended rafsi",
         ValsiLujvoRafsiKind::Unknown => "unknown rafsi",
     }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> RenderedResult {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_in_scope(report, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
 }
 
 #[cfg(test)]

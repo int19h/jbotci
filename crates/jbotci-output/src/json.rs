@@ -37,6 +37,54 @@ enum JsonFrame<N> {
     },
 }
 
+/// Borrow the parser model until the bounded serializer accepts its projection.
+#[invariant(true)]
+struct MorphologyProjection<'a>(&'a [WordLike]);
+impl serde::Serialize for MorphologyProjection<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeSeq;
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for word in self.0 {
+            #[cfg(test)]
+            record_projection_visit();
+            sequence.serialize_element(word)?;
+        }
+        sequence.end()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn morphology_projection_with_limit(
+    words: &[WordLike],
+    limit: crate::budget::ByteLimit,
+) -> Result<Value, crate::OutputError> {
+    crate::compact_json_value_with_limit(&MorphologyProjection(words), limit)
+}
+
+#[cfg(test)]
+thread_local! { static PROJECTION_VISITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn record_projection_visit() {
+    PROJECTION_VISITS.with(|count| count.set(count.get() + 1));
+}
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reset_projection_visits() {
+    PROJECTION_VISITS.with(|count| count.set(0));
+}
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn projection_visits() -> usize {
+    PROJECTION_VISITS.with(|count| count.get())
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn morphology_json_value(words: &[WordLike], phonemes: PhonemeRenderOptions) -> Value {

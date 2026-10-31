@@ -10,7 +10,9 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     color_policy: CliColorPolicy,
     diagnostic_terminal_width: usize,
     stdin_text: Option<&str>,
+    limits: Option<&ToolExecutionLimits>,
 ) -> Result<CliStatus> {
+    let render_limits = tool_render_limits(limits);
     let glyphs = cli_glyph_style(input.ascii);
     let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
     let trace_limit = input.trace_limit.unwrap_or(DEFAULT_TRACE_LIMIT);
@@ -70,6 +72,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
             color_policy.stdout,
             glyphs,
             phoneme_options,
+            render_limits,
         )? {
             stdout.write_all(rendered.as_bytes())?;
         }
@@ -84,15 +87,18 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                 .to_diagnostic(Some(SourceId(source_label.clone())), &text)
                 .expect("morphology error offsets belong to the parser source")
         }));
-        write_source_diagnostics(
-            stderr,
-            &source_label,
-            &text,
-            &diagnostics,
-            color_policy.stderr,
-            diagnostic_detail,
-            glyphs,
-            diagnostic_terminal_width,
+        stderr.write_all(
+            render_source_diagnostics_with_limit(
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+                render_limits.text,
+            )?
+            .as_bytes(),
         )?;
         return Ok(CliStatus::Failure);
     }
@@ -104,19 +110,22 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
         Some(SourceId(source_label.clone())),
         &text,
     );
-    write_source_diagnostics(
-        stderr,
-        &source_label,
-        &text,
-        &diagnostics,
-        color_policy.stderr,
-        diagnostic_detail,
-        glyphs,
-        diagnostic_terminal_width,
+    stderr.write_all(
+        render_source_diagnostics_with_limit(
+            &source_label,
+            &text,
+            &diagnostics,
+            color_policy.stderr,
+            diagnostic_detail,
+            glyphs,
+            diagnostic_terminal_width,
+            render_limits.text,
+        )?
+        .as_bytes(),
     )?;
     match input.format {
         VlaseiFormat::Json => {
-            let rendered = compact_morphology_json_string_with_options(
+            let rendered = compact_morphology_json_string_with_limits(
                 &words,
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or_default(),
@@ -124,11 +133,13 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     show_elided: false,
                     color: color_policy.stdout,
                 },
+                render_limits.text,
+                render_limits.projection,
             )?;
             writeln!(stdout, "{rendered}")?;
         }
         VlaseiFormat::Brackets => {
-            let rendered = pretty_morphology_brackets_with_options(
+            let rendered = pretty_morphology_brackets_with_limit(
                 &words,
                 &text,
                 BracketRenderOptions {
@@ -140,11 +151,12 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     insert_hair_space: false,
                     show_elided: false,
                 },
+                render_limits.text,
             )?;
             writeln!(stdout, "{rendered}")?;
         }
         VlaseiFormat::Tree => {
-            let rendered = pretty_morphology_tree_with_options(
+            let rendered = pretty_morphology_tree_with_limit(
                 &words,
                 &text,
                 TreeRenderOptions {
@@ -158,11 +170,13 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     decompose_lujvo: input.decompose_lujvo,
                     show_elided: false,
                 },
+                render_limits.text,
             )?;
             writeln!(stdout, "{rendered}")?;
         }
         VlaseiFormat::Ipa => {
-            let rendered = ipa_morphology_text(&words, &text)?;
+            let rendered =
+                jbotci_output::ipa_morphology_text_with_limit(&words, &text, render_limits.text)?;
             writeln!(stdout, "{rendered}")?;
         }
         VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
@@ -179,10 +193,11 @@ fn render_recovered_vlasei_output(
     color: bool,
     glyphs: GlyphStyle,
     phonemes: PhonemeRenderOptions,
+    render_limits: RenderLimits,
 ) -> Result<Option<String>> {
     let rendered = match input.format {
         VlaseiFormat::Ipa => return Ok(None),
-        VlaseiFormat::Json => compact_recovered_morphology_json_string_with_options(
+        VlaseiFormat::Json => compact_recovered_morphology_json_string_with_limits(
             recovered,
             source,
             JsonRenderOptions {
@@ -191,8 +206,10 @@ fn render_recovered_vlasei_output(
                 show_elided: false,
                 color,
             },
+            render_limits.text,
+            render_limits.projection,
         )?,
-        VlaseiFormat::Brackets => pretty_recovered_morphology_brackets_with_options(
+        VlaseiFormat::Brackets => pretty_recovered_morphology_brackets_with_limit(
             recovered,
             source,
             BracketRenderOptions {
@@ -204,8 +221,9 @@ fn render_recovered_vlasei_output(
                 insert_hair_space: false,
                 show_elided: false,
             },
+            render_limits.text,
         )?,
-        VlaseiFormat::Tree => pretty_recovered_morphology_tree_with_options(
+        VlaseiFormat::Tree => pretty_recovered_morphology_tree_with_limit(
             recovered,
             source,
             TreeRenderOptions {
@@ -218,12 +236,21 @@ fn render_recovered_vlasei_output(
                 decompose_lujvo: input.decompose_lujvo,
                 show_elided: false,
             },
+            render_limits.text,
         )?,
-        VlaseiFormat::Raw => pretty_recovered_morphology_raw(recovered, source, input.indent)?,
+        VlaseiFormat::Raw => pretty_recovered_morphology_raw_with_limit(
+            recovered,
+            source,
+            input.indent,
+            render_limits.text,
+        )?,
     };
     if matches!(input.format, VlaseiFormat::Raw) {
         Ok(Some(rendered))
     } else {
-        Ok(Some(format!("{rendered}\n")))
+        Ok(Some(bounded_format(
+            format_args!("{rendered}\n"),
+            render_limits.text,
+        )?))
     }
 }

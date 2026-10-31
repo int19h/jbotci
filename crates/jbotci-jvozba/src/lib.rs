@@ -226,19 +226,51 @@ pub fn build_best_jvozba_detailed_within(
     raw_inputs: &[JvozbaInput],
     limits: JvozbaBuildLimits,
 ) -> Result<JvozbaBuildResult, JvozbaError> {
-    let expanded_inputs = raw_inputs
-        .iter()
-        .flat_map(|input| expand_input(dictionary, input))
-        .collect::<Vec<_>>();
-    if expanded_inputs.len() < 2 {
-        return Err(JvozbaError::RequiresAtLeastTwoInputs);
+    build_best_jvozba_with_evaluator(
+        mode,
+        dictionary,
+        raw_inputs,
+        limits,
+        choose_best_lujvo_candidate_from_parts,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_best_jvozba_with_evaluator(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    raw_inputs: &[JvozbaInput],
+    limits: JvozbaBuildLimits,
+    evaluate: impl FnOnce(
+        LujvoBuildMode,
+        &[Vec<LujvoBuildPart>],
+    ) -> Option<jbotci_morphology::LujvoCandidate>,
+) -> Result<JvozbaBuildResult, JvozbaError> {
+    let mut plans = Vec::with_capacity(raw_inputs.len().min(limits.max_pieces));
+    let mut count = Some(0usize);
+    for input in raw_inputs {
+        let plan = plan_expansion(dictionary, input);
+        count = count.and_then(|count| count.checked_add(plan.piece_count()));
+        // Count every occurrence for the exact refusal reason. Retain a plan
+        // only while the eventual expansion can still fit the piece limit.
+        if count.is_some_and(|count| count <= limits.max_pieces) {
+            plans.push(plan);
+        }
     }
-    if expanded_inputs.len() > limits.max_pieces {
+    let Some(count) = count.filter(|count| *count <= limits.max_pieces) else {
         return Err(JvozbaError::TooMuchWork {
             measure: JvozbaWorkMeasure::Pieces,
-            amount: expanded_inputs.len() as u64,
+            amount: count.unwrap_or(usize::MAX) as u64,
             limit: limits.max_pieces as u64,
         });
+    };
+    if count < 2 {
+        return Err(JvozbaError::RequiresAtLeastTwoInputs);
+    }
+    let mut expanded_inputs = Vec::with_capacity(count);
+    for plan in plans {
+        plan.append_to(&mut expanded_inputs);
     }
     let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs)?;
     // A short choice list can still carry long pieces, and every spelling is
@@ -261,8 +293,7 @@ pub fn build_best_jvozba_detailed_within(
             limit: limits.max_placements,
         });
     }
-    let Some(candidate) = choose_best_lujvo_candidate_from_parts(mode.into(), &candidate_lists)
-    else {
+    let Some(candidate) = evaluate(mode.into(), &candidate_lists) else {
         return Err(match mode {
             JvozbaMode::Lujvo => JvozbaError::CouldNotBuildLujvo,
             JvozbaMode::Cmevla => JvozbaError::CouldNotBuildCompound,
@@ -339,24 +370,57 @@ pub struct LujvoSegmentInfo<'a> {
     pub source: Option<&'a str>,
 }
 
+/// A borrowed input or its parsed decomposition, before expanded strings are allocated.
+#[invariant(true)]
+#[invariant(::Plain { .. } => true)]
+#[invariant(::Decomposed { .. } => true)]
+#[derive(Debug)]
+enum ExpansionPlan<'input, 'dictionary> {
+    Plain {
+        input: &'input JvozbaInput,
+    },
+    Decomposed {
+        decomposition: LujvoDecomposition<'dictionary>,
+    },
+}
+impl ExpansionPlan<'_, '_> {
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    fn piece_count(&self) -> usize {
+        match self {
+            Self::Plain { .. } => 1,
+            Self::Decomposed { decomposition } => {
+                sourced_rafsi_words(&decomposition.segments).count()
+            }
+        }
+    }
+    #[requires(true)]
+    #[ensures(destination.len() >= old(destination.len()))]
+    fn append_to(self, destination: &mut Vec<JvozbaInput>) {
+        match self {
+            Self::Plain { input } => destination.push(match input {
+                JvozbaInput::FixedRafsi(text) => JvozbaInput::FixedRafsi(canonicalize_text(text)),
+                JvozbaInput::Word(text) => JvozbaInput::Word(canonicalize_text(text)),
+            }),
+            Self::Decomposed { decomposition } => destination.extend(
+                sourced_rafsi_words(&decomposition.segments)
+                    .map(|source| JvozbaInput::Word(source.to_owned())),
+            ),
+        }
+    }
+}
 #[requires(true)]
 #[ensures(true)]
-fn expand_input(dictionary: &Dictionary<'_>, input: &JvozbaInput) -> Vec<JvozbaInput> {
-    match input {
-        JvozbaInput::FixedRafsi(rafsi_text) => {
-            vec![JvozbaInput::FixedRafsi(canonicalize_text(rafsi_text))]
-        }
-        // A word built from rafsi enters the build as the words it is built
-        // from, one input per rafsi it spells. That is the sequence of its
-        // pieces, not the set of words it names: `latlat` is `lat` + `lat`
-        // and enters as `mlatu` twice, so its `source_words` - which are
-        // deliberately unique - cannot stand in for it here.
-        JvozbaInput::Word(word_text) => match decompose_lujvo_like(dictionary, word_text) {
-            Some(decomposition) => sourced_rafsi_words(&decomposition.segments)
-                .map(|source_word| JvozbaInput::Word(source_word.to_owned()))
-                .collect(),
-            None => vec![JvozbaInput::Word(canonicalize_text(word_text))],
-        },
+fn plan_expansion<'input, 'dictionary>(
+    dictionary: &Dictionary<'dictionary>,
+    input: &'input JvozbaInput,
+) -> ExpansionPlan<'input, 'dictionary> {
+    if let JvozbaInput::Word(text) = input
+        && let Some(decomposition) = decompose_lujvo_like(dictionary, text)
+    {
+        ExpansionPlan::Decomposed { decomposition }
+    } else {
+        ExpansionPlan::Plain { input }
     }
 }
 
@@ -1416,5 +1480,49 @@ mod tests {
             .map(|segment| segment.text.as_str())
             .collect::<Vec<_>>();
         assert_eq!(actual, expected);
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_operation_limit_refuses_work_before_candidate_evaluation() {
+        use std::cell::Cell;
+        let dictionary = jbotci_dictionary_data::english();
+        let inputs = [
+            JvozbaInput::Word("klama".to_owned()),
+            JvozbaInput::Word("bajra".to_owned()),
+            JvozbaInput::Word("gerku".to_owned()),
+        ];
+        for mode in [JvozbaMode::Lujvo, JvozbaMode::Cmevla] {
+            for (limits, measure) in [
+                (
+                    bounded().with_data(bityzba::data! { max_pieces: 2 }),
+                    JvozbaWorkMeasure::Pieces,
+                ),
+                (
+                    bounded().with_data(bityzba::data! { max_placements: 1 }),
+                    JvozbaWorkMeasure::Placements,
+                ),
+                (
+                    bounded().with_data(bityzba::data! { max_spelling_letters: 1 }),
+                    JvozbaWorkMeasure::SpellingLetters,
+                ),
+            ] {
+                let evaluations = Cell::new(0);
+                let result =
+                    build_best_jvozba_with_evaluator(mode, dictionary, &inputs, limits, |_, _| {
+                        evaluations.set(evaluations.get() + 1);
+                        None
+                    });
+                assert!(
+                    matches!(result, Err(JvozbaError::TooMuchWork { measure: actual, .. }) if actual == measure),
+                    "{mode:?}: {result:?}"
+                );
+                assert_eq!(
+                    evaluations.get(),
+                    0,
+                    "rejected work reached the candidate evaluator"
+                );
+            }
+        }
     }
 }

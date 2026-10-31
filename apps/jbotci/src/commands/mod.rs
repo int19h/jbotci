@@ -14,7 +14,7 @@ pub(super) use jvozba::run_jvozba;
 pub(super) use setup::run_setup;
 pub use vlacku::VlackuRenderOptions;
 pub(super) use vlacku::{
-    render_dictionary_definitions_for_word_likes, render_vlacku_output,
+    render_dictionary_definitions_with_limits, render_vlacku_output,
     render_vlacku_output_with_options, render_vlacku_output_with_width, run_vlacku,
 };
 pub(super) use vlasei::run_vlasei;

@@ -20,7 +20,6 @@ pub(crate) mod present;
 pub(crate) mod request;
 pub(crate) mod schema;
 pub(crate) mod transport;
-pub(crate) mod work;
 
 use std::sync::Arc;
 

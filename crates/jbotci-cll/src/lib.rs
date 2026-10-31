@@ -79,14 +79,15 @@ pub use search::{
 use search::{build_search_chunks, example_plain_text};
 
 mod render;
+use render::render_status_note_html;
 pub use render::{
-    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_inline_code, escape_discord_markdown,
-    escape_discord_markdown_line, status_note_markdown,
+    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_code_block_in_scope, discord_inline_code,
+    discord_inline_code_in_scope, escape_discord_markdown, escape_discord_markdown_in_scope,
+    escape_discord_markdown_line, escape_discord_markdown_line_in_scope, status_note_markdown,
+    status_note_markdown_in_scope,
 };
-use render::{
-    dialect_text, push_status_note_markdown, render_block_html, render_block_markdown,
-    render_example_markdown, render_status_note_html,
-};
+#[cfg(test)]
+use render::{render_block_html, render_block_markdown};
 
 mod visitor;
 use visitor::{CllBlockVisitor, walk_block};
@@ -327,28 +328,37 @@ pub fn cll_next_section_id<'a>(site: &'a CllSite, section_id: &str) -> Option<&'
 
 #[requires(true)]
 #[ensures(true)]
-pub fn render_cukta_request(
+pub(crate) fn render_cukta_request_in_scope(
     site: &CllSite,
     request: &CuktaRequest,
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> Result<String, CllError> {
     match request {
-        CuktaRequest::Toc => Ok(render_toc(site, format, link_mode)),
-        CuktaRequest::Index => Ok(render_index(site, format, link_mode)),
+        CuktaRequest::Toc => Ok(render_toc_in_scope(site, format, link_mode, scope)),
+        CuktaRequest::Index => Ok(render_index_in_scope(site, format, link_mode, scope)),
         CuktaRequest::Section { reference } => {
-            let section_id = cll_resolve_section_reference(site, reference)
-                .ok_or_else(|| CllError::NotFound(format!("CLL section not found: {reference}")))?;
-            let section = cll_lookup_section(site, &section_id)
-                .ok_or_else(|| CllError::NotFound(format!("CLL section not found: {reference}")))?;
-            Ok(render_section(site, section, format, link_mode))
+            let section_id = cll_resolve_section_reference(site, reference).ok_or_else(|| {
+                CllError::NotFound(scope.format(format_args!("CLL section not found: {reference}")))
+            })?;
+            let section = cll_lookup_section(site, &section_id).ok_or_else(|| {
+                CllError::NotFound(scope.format(format_args!("CLL section not found: {reference}")))
+            })?;
+            Ok(render_section_in_scope(
+                site, section, format, link_mode, scope,
+            ))
         }
         CuktaRequest::Example { reference } => {
-            let example_id = cll_resolve_example_reference(site, reference)
-                .ok_or_else(|| CllError::NotFound(format!("CLL example not found: {reference}")))?;
-            let example = cll_lookup_example(site, &example_id)
-                .ok_or_else(|| CllError::NotFound(format!("CLL example not found: {reference}")))?;
-            Ok(render_example(site, example, format, link_mode))
+            let example_id = cll_resolve_example_reference(site, reference).ok_or_else(|| {
+                CllError::NotFound(scope.format(format_args!("CLL example not found: {reference}")))
+            })?;
+            let example = cll_lookup_example(site, &example_id).ok_or_else(|| {
+                CllError::NotFound(scope.format(format_args!("CLL example not found: {reference}")))
+            })?;
+            Ok(render_example_in_scope(
+                site, example, format, link_mode, scope,
+            ))
         }
         CuktaRequest::Search {
             mode,
@@ -359,7 +369,7 @@ pub fn render_cukta_request(
             if *mode == CuktaSearchMode::Meaning {
                 return Err(CllError::SemanticSearchDisabled);
             }
-            Ok(render_search_output(
+            Ok(render_search_output_in_scope(
                 &cukta_search(
                     site,
                     *mode,
@@ -369,6 +379,7 @@ pub fn render_cukta_request(
                 ),
                 format,
                 link_mode,
+                scope,
             ))
         }
     }
@@ -377,7 +388,7 @@ pub fn render_cukta_request(
 /// The heading level a document title takes: Discord's first level is
 /// oversized for a message, so its titles start one level down.
 #[requires(true)]
-#[ensures(ret.chars().all(|character| character == '#') && !ret.is_empty())]
+#[ensures(true)]
 fn top_heading(dialect: CllMarkdownDialect) -> &'static str {
     match dialect {
         CllMarkdownDialect::GitHub => "#",
@@ -388,13 +399,14 @@ fn top_heading(dialect: CllMarkdownDialect) -> &'static str {
 /// Append an HTML list of `section_ids`, nesting each section's subsections
 /// under it, so the table of contents shows the book's full section tree.
 #[requires(true)]
-#[ensures(output.len() > old(output.len()))]
+#[ensures(true)]
 fn push_html_toc_sections(
     site: &CllSite,
     section_ids: &[String],
     link_mode: CllLinkRenderMode,
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
 ) {
+    let scope = output.scope();
     output.push_str("<ol>");
     for section_id in section_ids {
         let section = site
@@ -404,10 +416,16 @@ fn push_html_toc_sections(
         output.push_str("<li>");
         if link_mode == CllLinkRenderMode::Web {
             output.push_str("<a href=\"");
-            output.push_str(&escape_html(&section_href(&section.section_id)));
+            output.push_str(&escape_html_in_scope(
+                &section_href(&section.section_id),
+                &scope,
+            ));
             output.push_str("\">");
         }
-        output.push_str(&escape_html(&format_section_display_title(section)));
+        output.push_str(&escape_html_in_scope(
+            &format_section_display_title(section),
+            &scope,
+        ));
         if link_mode == CllLinkRenderMode::Web {
             output.push_str("</a>");
         }
@@ -422,66 +440,75 @@ fn push_html_toc_sections(
 /// Append Markdown list items for `section_ids` at `depth`, with each
 /// section's subsections indented one level under it.
 #[requires(depth > 0)]
-#[ensures(section_ids.is_empty() || output.len() > old(output.len()))]
+#[ensures(true)]
 fn push_markdown_toc_sections(
     site: &CllSite,
     section_ids: &[String],
     dialect: CllMarkdownDialect,
     depth: usize,
-    output: &mut String,
+    output: &mut jbotci_budget::TextBuffer,
 ) {
+    let scope = output.scope();
     for section_id in section_ids {
         let section = site
             .sections_by_id
             .get(section_id)
             .expect("CllSite invariant guarantees section ids resolve");
-        output.push_str(&format!(
+        output.push_str(&scope.format(format_args!(
             "{}- {}\n",
-            "  ".repeat(depth),
-            dialect_text(&format_section_display_title(section), dialect)
-        ));
+            scope.repeat("  ", depth),
+            render::dialect_text_in_scope(&format_section_display_title(section), dialect, &scope)
+        )));
         push_markdown_toc_sections(site, &section.child_section_ids, dialect, depth + 1, output);
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
+#[ensures(true)]
+pub(crate) fn render_toc_in_scope(
+    site: &CllSite,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+) -> String {
     match format.markdown_dialect() {
         None => {
             let edition = &site.metadata.edition;
-            let mut output = format!(
+            let mut output = scope.buffer_with(&(scope.format(format_args!(
                 "<nav class=\"cll-toc-rendered\"><h1>{}</h1><p class=\"cll-edition\">{}</p><p class=\"cll-edition-lineage\">{}</p><h2>Table of Contents</h2><ol>",
-                escape_html(&edition.title),
-                escape_html(&format!("{} — {}", edition.version, edition.publisher)),
-                escape_html(&format!("Lineage: {}", edition.lineage())),
-            );
+                escape_html_in_scope(&edition.title, &scope),
+                escape_html_in_scope(&scope.format(format_args!("{} — {}", edition.version, edition.publisher)), &scope),
+                escape_html_in_scope(&scope.format(format_args!("Lineage: {}", edition.lineage())), &scope),
+            ))));
             for chapter in &site.chapters {
                 output.push_str("<li>");
-                output.push_str(&escape_html(&cll_numbered_title(
-                    chapter.division.chapter_number(),
-                    &chapter.chapter_title,
-                )));
+                output.push_str(&escape_html_in_scope(
+                    &cll_numbered_title(chapter.division.chapter_number(), &chapter.chapter_title),
+                    &scope,
+                ));
                 push_html_toc_sections(site, &chapter.root_section_ids, link_mode, &mut output);
                 output.push_str("</li>");
             }
             output.push_str("</ol></nav>\n");
-            output
+            output.into_piece()
         }
         Some(dialect) => {
             let edition = &site.metadata.edition;
             let heading = top_heading(dialect);
-            let mut output = format!(
-                "{heading} {}\n\n{} — {}\n\nLineage: {}\n\n{heading}# Table of Contents\n\n",
-                dialect_text(&edition.title, dialect),
-                dialect_text(&edition.version, dialect),
-                dialect_text(&edition.publisher, dialect),
-                dialect_text(&edition.lineage(), dialect),
+            let mut output = scope.buffer_with(
+                &(scope.format(format_args!(
+                    "{heading} {}\n\n{} — {}\n\nLineage: {}\n\n{heading}# Table of Contents\n\n",
+                    render::dialect_text_in_scope(&edition.title, dialect, &scope),
+                    render::dialect_text_in_scope(&edition.version, dialect, &scope),
+                    render::dialect_text_in_scope(&edition.publisher, dialect, &scope),
+                    render::dialect_text_in_scope(&edition.lineage(), dialect, &scope),
+                ))),
             );
             for chapter in &site.chapters {
-                output.push_str(&dialect_text(
+                output.push_str(&render::dialect_text_in_scope(
                     &cll_numbered_title(chapter.division.chapter_number(), &chapter.chapter_title),
                     dialect,
+                    &scope,
                 ));
                 output.push('\n');
                 push_markdown_toc_sections(
@@ -493,27 +520,63 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
                 );
                 output.push('\n');
             }
-            output
+            output.into_piece()
         }
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_index(
+#[ensures(true)]
+pub(crate) fn render_index_in_scope(
     site: &CllSite,
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
     match format.markdown_dialect() {
         None => {
-            let mut output = String::from("<section class=\"cll-index\"><h1>Index</h1>");
+            let mut output = scope.buffer_with(&("<section class=\"cll-index\"><h1>Index</h1>"));
             for entry in &site.index_entries {
                 output.push_str("<p><strong>");
-                output.push_str(&escape_html(&entry.key));
+                output.push_str(&escape_html_in_scope(&entry.key, &scope));
                 output.push_str("</strong>: ");
                 output.push_str(
-                    &entry
+                    &scope.join(
+                        entry
+                            .section_ids
+                            .iter()
+                            .map(|section_id| {
+                                site.sections_by_id.get(section_id).expect(
+                                    "CllSite invariant guarantees index entry section ids resolve",
+                                )
+                            })
+                            .map(|section| match link_mode {
+                                CllLinkRenderMode::Web => scope.format(format_args!(
+                                    "<a href=\"{}\">{}</a>",
+                                    escape_html_in_scope(
+                                        &section_href(&section.section_id),
+                                        &scope
+                                    ),
+                                    escape_html_in_scope(&cll_section_index_label(section), &scope)
+                                )),
+                                CllLinkRenderMode::Plain => {
+                                    escape_html_in_scope(&cll_section_index_label(section), &scope)
+                                }
+                            }),
+                        ", ",
+                    ),
+                );
+                output.push_str("</p>");
+            }
+            output.push_str("</section>\n");
+            output.into_piece()
+        }
+        Some(dialect) => {
+            let mut output = scope
+                .buffer_with(&(scope.format(format_args!("{} Index\n\n", top_heading(dialect)))));
+            for entry in &site.index_entries {
+                let refs = scope.join(
+                    entry
                         .section_ids
                         .iter()
                         .map(|section_id| {
@@ -521,64 +584,39 @@ pub fn render_index(
                                 "CllSite invariant guarantees index entry section ids resolve",
                             )
                         })
-                        .map(|section| match link_mode {
-                            CllLinkRenderMode::Web => format!(
-                                "<a href=\"{}\">{}</a>",
-                                escape_html(&section_href(&section.section_id)),
-                                escape_html(&cll_section_index_label(section))
-                            ),
-                            CllLinkRenderMode::Plain => {
-                                escape_html(&cll_section_index_label(section))
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", "),
+                        .map(cll_section_index_label),
+                    ", ",
                 );
-                output.push_str("</p>");
-            }
-            output.push_str("</section>\n");
-            output
-        }
-        Some(dialect) => {
-            let mut output = format!("{} Index\n\n", top_heading(dialect));
-            for entry in &site.index_entries {
-                let refs = entry
-                    .section_ids
-                    .iter()
-                    .map(|section_id| {
-                        site.sections_by_id
-                            .get(section_id)
-                            .expect("CllSite invariant guarantees index entry section ids resolve")
-                    })
-                    .map(cll_section_index_label)
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                output.push_str(&format!(
+                output.push_str(&scope.format(format_args!(
                     "- **{}**: {}\n",
-                    dialect_text(&entry.key, dialect),
-                    dialect_text(&refs, dialect)
-                ));
+                    render::dialect_text_in_scope(&entry.key, dialect, &scope),
+                    render::dialect_text_in_scope(&refs, dialect, &scope)
+                )));
             }
-            output
+            output.into_piece()
         }
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_section(
+#[ensures(true)]
+pub(crate) fn render_section_in_scope(
     site: &CllSite,
     section: &CllSection,
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
     match format.markdown_dialect() {
         None => {
-            let mut output = String::new();
+            let mut output = scope.buffer();
             output.push_str(
                 "<article class=\"cll-section-content\"><div class=\"cll-section-heading\"><h1>",
             );
-            output.push_str(&escape_html(&format_section_display_title(section)));
+            output.push_str(&escape_html_in_scope(
+                &format_section_display_title(section),
+                &scope,
+            ));
             output.push_str("</h1>");
             if link_mode == CllLinkRenderMode::Web
                 && let Some(parse_href) = chrestomathy_section_parse_href(site, section)
@@ -586,7 +624,7 @@ pub fn render_section(
                 output.push_str(
                     "<a class=\"cll-parse-example cll-parse-section spa-cll-link spa-cll-link-parse\" href=\"",
                 );
-                output.push_str(&escape_html(&parse_href));
+                output.push_str(&escape_html_in_scope(&parse_href, &scope));
                 output.push_str("\">Parse</a>");
             }
             output.push_str("</div>");
@@ -594,112 +632,134 @@ pub fn render_section(
             if !prelude_blocks.is_empty() {
                 output.push_str("<div class=\"cll-chapter-prelude\">");
                 for block in prelude_blocks {
-                    output.push_str(&render_block_html(site, block, link_mode));
+                    output.push_str(&render::render_block_html_in_scope(
+                        site, block, link_mode, scope,
+                    ));
                 }
                 output.push_str("</div>");
             }
             for block in &section.blocks {
-                output.push_str(&render_block_html(site, block, link_mode));
+                output.push_str(&render::render_block_html_in_scope(
+                    site, block, link_mode, scope,
+                ));
             }
             output.push_str("</article>\n");
-            output
+            output.into_piece()
         }
         Some(dialect) => {
-            let mut output = format!(
-                "{} {}\n\n",
-                top_heading(dialect),
-                dialect_text(&format_section_display_title(section), dialect)
+            let mut output = scope.buffer_with(
+                &(scope.format(format_args!(
+                    "{} {}\n\n",
+                    top_heading(dialect),
+                    render::dialect_text_in_scope(
+                        &format_section_display_title(section),
+                        dialect,
+                        &scope
+                    )
+                ))),
             );
             if link_mode == CllLinkRenderMode::Web
                 && let Some(parse_href) = chrestomathy_section_parse_href(site, section)
             {
-                output.push_str(&format!("[Parse]({parse_href})\n\n"));
+                output.push_str(&scope.format(format_args!("[Parse]({parse_href})\n\n")));
             }
             for block in cll_section_prelude_blocks(site, section) {
-                render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
+                render::render_block_markdown_to(site, block, &mut output, 0, link_mode, dialect);
             }
             for block in &section.blocks {
-                render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
+                render::render_block_markdown_to(site, block, &mut output, 0, link_mode, dialect);
             }
-            output
+            output.into_piece()
         }
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_example(
+#[ensures(true)]
+pub(crate) fn render_example_in_scope(
     site: &CllSite,
     example: &CllExample,
     format: CllRenderFormat,
     link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
     match format.markdown_dialect() {
         None => {
-            let mut output = format!(
+            let mut output = scope.buffer_with(&(scope.format(format_args!(
                 "<figure id=\"{}\" class=\"cll-example\"><figcaption class=\"cll-example-head\"><span class=\"cll-example-title\">{}</span>",
-                escape_html(&example.anchor_id),
-                escape_html(&example.label)
-            );
+                escape_html_in_scope(&example.anchor_id, &scope),
+                escape_html_in_scope(&example.label, &scope)
+            ))));
             if link_mode == CllLinkRenderMode::Web
                 && let Some(parse_href) = &example.parse_href
             {
                 output.push_str(
                     "<a class=\"cll-parse-example spa-cll-link spa-cll-link-parse\" href=\"",
                 );
-                output.push_str(&escape_html(parse_href));
+                output.push_str(&escape_html_in_scope(parse_href, &scope));
                 output.push_str("\">Parse</a>");
             }
             output.push_str("</figcaption>");
             for block in &example.blocks {
-                output.push_str(&render_block_html(site, block, link_mode));
+                output.push_str(&render::render_block_html_in_scope(
+                    site, block, link_mode, scope,
+                ));
             }
             output.push_str("</figure>\n");
-            output
+            output.into_piece()
         }
         Some(dialect) => {
-            let mut output = String::new();
-            render_example_markdown(site, example, &mut output, link_mode, dialect);
-            output
+            let mut output = scope.buffer();
+            render::render_example_markdown_to(site, example, &mut output, link_mode, dialect);
+            output.into_piece()
         }
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_search_output(
+#[ensures(true)]
+pub(crate) fn render_search_output_in_scope(
     output: &CuktaSearchOutput,
     format: CllRenderFormat,
     _link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
 ) -> String {
     match format.markdown_dialect() {
         None => {
-            let mut rendered = String::from("<section class=\"cll-search-results\">");
+            let mut rendered = scope.buffer_with(&("<section class=\"cll-search-results\">"));
             if let Some(message) = &output.message {
                 rendered.push_str("<p>");
-                rendered.push_str(&escape_html(message));
+                rendered.push_str(&escape_html_in_scope(message, &scope));
                 rendered.push_str("</p>");
             }
             for item in &output.matches {
                 rendered.push_str("<article class=\"cll-search-result\"><h2>");
-                rendered.push_str(&escape_html(&format!(
-                    "{}. {}",
-                    item.rank, item.chunk.label
-                )));
+                rendered.push_str(&escape_html_in_scope(
+                    &scope.format(format_args!("{}. {}", item.rank, item.chunk.label)),
+                    &scope,
+                ));
                 rendered.push_str("</h2><p class=\"cll-search-result-meta\">");
-                rendered.push_str(&escape_html(search_chunk_kind_label(item.chunk.kind)));
+                rendered.push_str(&escape_html_in_scope(
+                    search_chunk_kind_label(item.chunk.kind),
+                    &scope,
+                ));
                 rendered.push_str(" in ");
-                rendered.push_str(&escape_html(&cll_numbered_title(
-                    item.chunk.section_number.as_deref(),
-                    &item.chunk.section_title,
-                )));
+                rendered.push_str(&escape_html_in_scope(
+                    &cll_numbered_title(
+                        item.chunk.section_number.as_deref(),
+                        &item.chunk.section_title,
+                    ),
+                    &scope,
+                ));
                 rendered.push_str("</p>");
-                let preview = escape_html(&truncate_preview(&item.chunk.text, 420));
+                let preview =
+                    escape_html_in_scope(&truncate_preview(&item.chunk.text, 420), &scope);
                 if item.chunk.is_status_note() {
                     rendered.push_str(&render_status_note_html(
                         "",
                         CLL_STATUS_NOTE_PREVIEW_CLASSES,
                         &preview,
+                        &scope,
                     ));
                 } else {
                     rendered.push_str("<p class=\"cll-search-preview\">");
@@ -709,40 +769,49 @@ pub fn render_search_output(
                 rendered.push_str("</article>");
             }
             rendered.push_str("</section>\n");
-            rendered
+            rendered.into_piece()
         }
         Some(dialect) => {
-            let mut rendered = String::new();
+            let mut rendered = scope.buffer();
             if let Some(message) = &output.message {
-                rendered.push_str(&dialect_text(message, dialect));
+                rendered.push_str(&render::dialect_text_in_scope(message, dialect, &scope));
                 rendered.push_str("\n\n");
             }
             for item in &output.matches {
-                let title = format!("{}. {}", item.rank, item.chunk.label);
-                let place = format!(
+                let title = scope.format(format_args!("{}. {}", item.rank, item.chunk.label));
+                let place = scope.format(format_args!(
                     "{} in {}",
                     search_chunk_kind_label(item.chunk.kind),
                     cll_numbered_title(
                         item.chunk.section_number.as_deref(),
                         &item.chunk.section_title,
                     ),
-                );
+                ));
                 match dialect {
                     CllMarkdownDialect::GitHub => {
-                        rendered.push_str(&format!("### {title}\n\n{place}\n\n"));
+                        rendered
+                            .push_str(&scope.format(format_args!("### {title}\n\n{place}\n\n")));
                     }
                     CllMarkdownDialect::Discord => {
-                        rendered.push_str(&format!(
+                        rendered.push_str(&scope.format(format_args!(
                             "**{}**\n-# {}\n",
-                            dialect_text(&title, dialect),
-                            dialect_text(&place, dialect)
-                        ));
+                            render::dialect_text_in_scope(&title, dialect, &scope),
+                            render::dialect_text_in_scope(&place, dialect, &scope)
+                        )));
                     }
                 }
                 let preview = truncate_preview(&item.chunk.text, 420);
-                let preview = dialect_text(&preview, dialect);
+                let preview = render::dialect_text_in_scope(&preview, dialect, &scope);
                 if item.chunk.is_status_note() {
-                    push_status_note_markdown(&mut rendered, &preview);
+                    rendered.push_str("> **");
+                    rendered.push_str(CLL_STATUS_NOTE_LABEL);
+                    rendered.push_str(".** ");
+                    for (index, line) in preview.lines().enumerate() {
+                        if index != 0 {
+                            rendered.push_str("\n> ");
+                        }
+                        rendered.push_str(line);
+                    }
                 } else {
                     rendered.push_str(&preview);
                 }
@@ -751,7 +820,7 @@ pub fn render_search_output(
             if rendered.is_empty() {
                 "No matches found.\n".to_owned()
             } else {
-                rendered
+                rendered.into_piece()
             }
         }
     }
@@ -787,17 +856,17 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
 
 #[requires(true)]
 #[ensures(true)]
-fn inline_plain_text(inlines: &[CllInline]) -> String {
+fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
     let mut visitor = InlinePlainTextVisitor {
-        output: String::new(),
+        output: scope.buffer(),
     };
     visitor.visit_inline_run(inlines);
-    normalized_plain_text(&visitor.output)
+    scope.join(visitor.output.split_whitespace(), " ")
 }
 
 #[invariant(true)]
 struct InlinePlainTextVisitor {
-    output: String,
+    output: jbotci_budget::TextBuffer,
 }
 
 #[contract_trait]
@@ -835,19 +904,23 @@ impl CllBlockVisitor for InlinePlainTextVisitor {
 
 #[requires(true)]
 #[ensures(true)]
-fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
+fn blocks_plain_text_in_scope(
+    site: &CllSite,
+    blocks: &[CllBlock],
+    scope: &jbotci_budget::TextScope,
+) -> String {
     let mut visitor = BlockPlainTextVisitor {
         site,
-        output: String::new(),
+        output: scope.buffer(),
     };
     visitor.visit_blocks(blocks);
-    normalized_plain_text(&visitor.output)
+    scope.join(visitor.output.split_whitespace(), " ")
 }
 
 #[invariant(true)]
 struct BlockPlainTextVisitor<'site> {
     site: &'site CllSite,
-    output: String,
+    output: jbotci_budget::TextBuffer,
 }
 
 #[contract_trait]
@@ -855,6 +928,7 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_block(&mut self, block: &CllBlock) {
+        let scope = self.output.scope();
         match block {
             CllBlock::Paragraph { text, .. }
             | CllBlock::Code { text, .. }
@@ -882,7 +956,8 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 ..
             } => {
                 if let Some(caption) = caption {
-                    self.output.push_str(&inline_plain_text(caption));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(caption, &scope));
                     self.output.push('\n');
                 }
                 for row in header_rows.iter().chain(body_rows.iter()) {
@@ -895,14 +970,16 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
             CllBlock::SimpleListTable { rows, .. } => {
                 for row in rows {
                     for cell in row.iter().flatten() {
-                        self.output.push_str(&inline_plain_text(cell));
+                        self.output
+                            .push_str(&inline_plain_text_in_scope(cell, &scope));
                         self.output.push('\n');
                     }
                 }
             }
             CllBlock::VariableList { entries, .. } => {
                 for entry in entries {
-                    self.output.push_str(&inline_plain_text(&entry.term));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(&entry.term, &scope));
                     self.output.push('\n');
                     self.visit_blocks(&entry.blocks);
                     self.output.push('\n');
@@ -922,7 +999,8 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 self.output.push('\n');
             }
             CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-                self.output.push_str(&inline_plain_text(body));
+                self.output
+                    .push_str(&inline_plain_text_in_scope(body, &scope));
                 self.output.push('\n');
             }
             CllBlock::InterlinearGloss {
@@ -933,12 +1011,14 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
             } => {
                 for row in rows {
                     for cell in &row.cells {
-                        self.output.push_str(&inline_plain_text(cell));
+                        self.output
+                            .push_str(&inline_plain_text_in_scope(cell, &scope));
                         self.output.push('\n');
                     }
                 }
                 for line in natlang.iter().chain(comments.iter()) {
-                    self.output.push_str(&inline_plain_text(line));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(line, &scope));
                     self.output.push('\n');
                 }
             }
@@ -949,7 +1029,8 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 ..
             } => {
                 for line in titles {
-                    self.output.push_str(&inline_plain_text(line));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(line, &scope));
                     self.output.push('\n');
                 }
                 let column_count = headers
@@ -957,7 +1038,8 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                     .max(rows.iter().map(Vec::len).max().unwrap_or(0));
                 for index in 0..column_count {
                     if let Some(header) = headers.get(index) {
-                        self.output.push_str(&inline_plain_text(header));
+                        self.output
+                            .push_str(&inline_plain_text_in_scope(header, &scope));
                     } else {
                         self.output
                             .push_str(cmavo_list_plain_text_column_label(index));
@@ -966,24 +1048,28 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 }
                 for row in rows {
                     for cell in row {
-                        self.output.push_str(&inline_plain_text(cell));
+                        self.output
+                            .push_str(&inline_plain_text_in_scope(cell, &scope));
                         self.output.push('\n');
                     }
                 }
             }
             CllBlock::Lojbanization { lines, .. } => {
                 for line in lines {
-                    self.output.push_str(&inline_plain_text(&line.body));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(&line.body, &scope));
                     self.output.push('\n');
                     if let Some(comment) = &line.comment {
-                        self.output.push_str(&inline_plain_text(comment));
+                        self.output
+                            .push_str(&inline_plain_text_in_scope(comment, &scope));
                         self.output.push('\n');
                     }
                 }
             }
             CllBlock::LujvoMaking { parts, .. } => {
                 for part in parts {
-                    self.output.push_str(&inline_plain_text(&part.body));
+                    self.output
+                        .push_str(&inline_plain_text_in_scope(&part.body, &scope));
                     self.output.push('\n');
                 }
             }
@@ -1383,6 +1469,23 @@ mod tests {
         let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
 
         assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
+        for (format, expected) in [
+            (CllRenderFormat::Markdown, &markdown),
+            (CllRenderFormat::Html, &html),
+        ] {
+            let exact = jbotci_budget::ByteLimit::new(expected.len()).unwrap();
+            assert_eq!(
+                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, exact)
+                    .unwrap(),
+                *expected,
+            );
+            let small = jbotci_budget::ByteLimit::new(16).unwrap();
+            assert!(matches!(
+                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, small),
+                Err(CllError::OutputLimit { .. }),
+            ));
+        }
+
         assert!(html.contains("class=\"cll-search-preview cll-status-note\""));
         assert!(html.contains(&format!(
             "<span class=\"cll-status-note-label\">{CLL_STATUS_NOTE_LABEL}</span>"
@@ -3693,4 +3796,229 @@ mod tests {
             Some("Meaning search is not available yet.")
         );
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(render_toc_in_scope(site, format, link_mode, &scope))
+        .expect("unrestricted CLL rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_toc_with_limit(
+    site: &CllSite,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    scope
+        .finish(render_toc_in_scope(site, format, link_mode, &scope))
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_index(
+    site: &CllSite,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(render_index_in_scope(site, format, link_mode, &scope))
+        .expect("unrestricted CLL rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_index_with_limit(
+    site: &CllSite,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    scope
+        .finish(render_index_in_scope(site, format, link_mode, &scope))
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_section(
+    site: &CllSite,
+    section: &CllSection,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(render_section_in_scope(
+            site, section, format, link_mode, &scope,
+        ))
+        .expect("unrestricted CLL rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_section_with_limit(
+    site: &CllSite,
+    section: &CllSection,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    scope
+        .finish(render_section_in_scope(
+            site, section, format, link_mode, &scope,
+        ))
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_example(
+    site: &CllSite,
+    example: &CllExample,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(render_example_in_scope(
+            site, example, format, link_mode, &scope,
+        ))
+        .expect("unrestricted CLL rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_example_with_limit(
+    site: &CllSite,
+    example: &CllExample,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    scope
+        .finish(render_example_in_scope(
+            site, example, format, link_mode, &scope,
+        ))
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_search_output(
+    output: &CuktaSearchOutput,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(render_search_output_in_scope(
+            output, format, link_mode, &scope,
+        ))
+        .expect("unrestricted CLL rendering")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_search_output_with_limit(
+    output: &CuktaSearchOutput,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    scope
+        .finish(render_search_output_in_scope(
+            output, format, link_mode, &scope,
+        ))
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_cukta_request(
+    site: &CllSite,
+    request: &CuktaRequest,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+) -> Result<String, CllError> {
+    render_cukta_request_with_limit(
+        site,
+        request,
+        format,
+        link_mode,
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    )
+}
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_cukta_request_with_limit(
+    site: &CllSite,
+    request: &CuktaRequest,
+    format: CllRenderFormat,
+    link_mode: CllLinkRenderMode,
+    limit: jbotci_budget::ByteLimit,
+) -> Result<String, CllError> {
+    let scope = jbotci_budget::TextScope::new(limit);
+    let output = render_cukta_request_in_scope(site, request, format, link_mode, &scope)?;
+    scope
+        .finish(output)
+        .map_err(|_| CllError::OutputLimit { limit })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn inline_plain_text(inlines: &[CllInline]) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(inline_plain_text_in_scope(inlines, &scope))
+        .expect("unrestricted plain text")
+}
+#[requires(true)]
+#[ensures(true)]
+fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(blocks_plain_text_in_scope(site, blocks, &scope))
+        .expect("unrestricted plain text")
+}
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_in_scope(input: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for character in input.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            character => output.push(character),
+        }
+    }
+    output.into_piece()
 }

@@ -7,35 +7,46 @@ use jbotci_gimfihi::{
     CollisionKind, CollisionScope, GimfihiCandidate, RafsiAvailabilityData, RafsiClaimKind,
 };
 
-use super::markdown::{escape, inline_code, join_lines, subtext};
+use super::markdown::{
+    escape_in_scope, inline_code_in_scope, join_lines_in_scope, subtext_in_scope,
+};
 use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::GimfihiOutcome;
 use crate::discord::request::{DiscordTool, GimfihiRequest, GimfihiScorer, GismuShape};
 
 #[requires(true)]
-#[ensures(ret.tool() == DiscordTool::Gimfihi)]
-pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> RenderedResult {
+#[ensures(text_scope.is_exceeded() || (ret.tool() == DiscordTool::Gimfihi))]
+pub(crate) fn render_in_scope(
+    outcome: &GimfihiOutcome,
+    request: &GimfihiRequest,
+    text_scope: &jbotci_output::budget::TextScope,
+) -> RenderedResult {
     match outcome {
         GimfihiOutcome::Setup { preset, languages } => {
-            let mut rendered =
-                RenderedResult::new(DiscordTool::Gimfihi, "gimfihi · setup".to_owned());
+            let mut rendered = RenderedResult::new_in_scope(
+                DiscordTool::Gimfihi,
+                "gimfihi · setup".to_owned(),
+                text_scope,
+            );
             let mut lines = vec!["**No source words yet.**".to_owned()];
             match preset {
-                Some(preset) => lines.push(format!(
+                Some(preset) => lines.push(text_scope.format(format_args!(
                     "Preset {} expects one word for each of: {}.",
-                    inline_code(preset.as_str()),
-                    languages.iter().map(|language| inline_code(language)).collect::<Vec<_>>().join(", ")
-                )),
+                    inline_code_in_scope(preset.as_str(), text_scope), text_scope.join(languages.iter().map(|language| inline_code_in_scope(language, text_scope)), ", ")
+                ))),
                 None => lines.push(
                     "Choose a preset or give weighted sources; candidates are generated once every source has a word."
                         .to_owned(),
                 ),
             }
-            lines.push(subtext(
+            lines.push(subtext_in_scope(
                 "Format: LANG[:WEIGHT]:WORD per record, separated by commas; WORD is Lojban letters or [narrow phonetic IPA] from the supported inventory. Example: eng:5:go, spa:3:[ir]",
+             text_scope));
+            rendered.body.push(join_lines_in_scope(lines, text_scope));
+            rendered.notice = Some(subtext_in_scope(
+                "Use the ⚙️ button to enter sources.",
+                text_scope,
             ));
-            rendered.body.push(join_lines(lines));
-            rendered.notice = Some(subtext("Use the ⚙️ button to enter sources."));
             rendered
         }
         GimfihiOutcome::Candidates {
@@ -50,49 +61,55 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
             // is shown for both of them rather than only for the one that is
             // not the default: silence would be indistinguishable from a
             // result published before there was a choice.
-            let mut status = format!(
+            let mut status = text_scope.buffer_with(&text_scope.format(format_args!(
                 "gimfihi · {} · {}",
                 page_status(results),
                 options.scorer.as_str()
-            );
+            )));
             if let Some(preset) = options.preset {
-                status.push_str(&format!(" · {}", preset.as_str()));
+                status.push_str(&text_scope.format(format_args!(" · {}", preset.as_str())));
             }
-            let mut rendered = RenderedResult::new(DiscordTool::Gimfihi, status);
+            let mut rendered =
+                RenderedResult::new_in_scope(DiscordTool::Gimfihi, status, text_scope);
             rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
-            let source_text = sources
-                .iter()
-                .map(|source| match &source.ipa {
-                    Some(ipa) => format!(
+            let source_text = text_scope.join(
+                sources.iter().map(|source| match &source.ipa {
+                    Some(ipa) => text_scope.format(format_args!(
                         "{}:[{}]→{} ×{}",
                         source.language, ipa, source.word, source.weight
-                    ),
-                    None => format!("{}:{} ×{}", source.language, source.word, source.weight),
-                })
-                .collect::<Vec<_>>()
-                .join(" · ");
-            lines.push(subtext(&format!("sources: {source_text}")));
+                    )),
+                    None => text_scope.format(format_args!(
+                        "{}:{} ×{}",
+                        source.language, source.word, source.weight
+                    )),
+                }),
+                " · ",
+            );
+            lines.push(subtext_in_scope(
+                &text_scope.format(format_args!("sources: {source_text}")),
+                text_scope,
+            ));
             let shapes = if options.shapes.is_empty() {
                 "ccvcv+cvccv".to_owned()
             } else {
-                options
-                    .shapes
-                    .shapes()
-                    .iter()
-                    .map(|shape| match shape {
+                text_scope.join(
+                    options.shapes.shapes().iter().map(|shape| match shape {
                         GismuShape::Ccvcv => "ccvcv",
                         GismuShape::Cvccv => "cvccv",
-                    })
-                    .collect::<Vec<_>>()
-                    .join("+")
+                    }),
+                    "+",
+                )
             };
             let collisions = match options.collisions {
                 CollisionScope::All => "checked against all gismu",
                 CollisionScope::Official => "checked against official gismu only",
                 CollisionScope::None => "NOT checked (collision checking off)",
             };
-            let mut settings = vec![format!("shapes {shapes}"), collisions.to_owned()];
+            let mut settings = vec![
+                text_scope.format(format_args!("shapes {shapes}")),
+                collisions.to_owned(),
+            ];
             if options.show_collisions {
                 settings.push("colliding candidates shown".to_owned());
             }
@@ -107,27 +124,31 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
             }
             // The scorer counts every candidate it filtered, so this total is
             // the real one rather than the size of what was fetched.
-            lines.push(subtext(&format!(
-                "{} of {} passing ({} valid) · {}",
-                results
-                    .range()
-                    .map(|(first, last)| format!("{first}-{last}"))
-                    .unwrap_or_else(|| "none".to_owned()),
-                filtered_count,
-                candidate_count,
-                settings.join(" · ")
-            )));
+            lines.push(subtext_in_scope(
+                &text_scope.format(format_args!(
+                    "{} of {} passing ({} valid) · {}",
+                    results
+                        .range()
+                        .map(|(first, last)| text_scope.format(format_args!("{first}-{last}")))
+                        .unwrap_or_else(|| "none".to_owned()),
+                    filtered_count,
+                    candidate_count,
+                    text_scope.join(&settings, " · ")
+                )),
+                text_scope,
+            ));
             if results.items.is_empty() {
                 lines.push("**No gismu candidates matched the selected filters.**".to_owned());
             }
             for candidate in &results.items {
-                lines.push(candidate_line(
+                lines.push(candidate_line_in_scope(
                     candidate,
                     winner.as_deref(),
                     options.collisions,
+                    text_scope,
                 ));
             }
-            rendered.body.push(join_lines(lines));
+            rendered.body.push(join_lines_in_scope(lines, text_scope));
             rendered
         }
     }
@@ -136,35 +157,39 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
 /// One candidate: rank, word, score, rafsi standing and per-source
 /// contributions, each on its own short line so nothing needs alignment.
 #[requires(!candidate.word.is_empty())]
-#[ensures(!ret.is_empty())]
-fn candidate_line(
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn candidate_line_in_scope(
     candidate: &GimfihiCandidate,
     winner: Option<&str>,
     scope: CollisionScope,
+    text_scope: &jbotci_output::budget::TextScope,
 ) -> String {
-    let mut head = format!(
+    let mut head = text_scope.buffer_with(&text_scope.format(format_args!(
         "**{}** — score {}",
-        escape(&candidate.word),
-        format_score(candidate.score)
-    );
+        escape_in_scope(&candidate.word, text_scope),
+        format_score_in_scope(candidate.score, text_scope)
+    )));
     if winner == Some(candidate.word.as_str()) {
         head.push_str(" · best");
     }
     if let Some(collision) = &candidate.collision {
         let kind = match collision.kind {
-            CollisionKind::Identical => format!(
+            CollisionKind::Identical => text_scope.format(format_args!(
                 "identical to existing {}",
                 collision.existing_word_type.as_str()
-            ),
-            CollisionKind::FinalVowel => {
-                format!("collides with {} (final vowel)", collision.existing_word)
-            }
-            CollisionKind::SimilarConsonant => format!(
+            )),
+            CollisionKind::FinalVowel => text_scope.format(format_args!(
+                "collides with {} (final vowel)",
+                collision.existing_word
+            )),
+            CollisionKind::SimilarConsonant => text_scope.format(format_args!(
                 "collides with {} (similar consonant)",
                 collision.existing_word
-            ),
+            )),
         };
-        head.push_str(&format!(" · ⚠ {}", escape(&kind)));
+        head.push_str(
+            &text_scope.format(format_args!(" · ⚠ {}", escape_in_scope(&kind, text_scope))),
+        );
     }
     let mut details = Vec::new();
     let rafsi = candidate
@@ -173,52 +198,78 @@ fn candidate_line(
         .map(|rafsi| {
             let standing = match rafsi.availability.as_data() {
                 data!(RafsiAvailability::Free) => "free".to_owned(),
-                data!(RafsiAvailability::Taken { kind, words }) => format!(
+                data!(RafsiAvailability::Taken { kind, words }) => text_scope.format(format_args!(
                     "{} by {}",
                     match kind {
                         RafsiClaimKind::Official => "taken",
                         RafsiClaimKind::Experimental => "taken (experimental)",
                     },
-                    words
-                        .iter()
-                        .map(String::as_str)
-                        .collect::<Vec<_>>()
-                        .join("/")
-                ),
+                    text_scope.join(words.iter().map(String::as_str), "/")
+                )),
             };
-            format!("{} {}", inline_code(&rafsi.form), escape(&standing))
+            text_scope.format(format_args!(
+                "{} {}",
+                inline_code_in_scope(&rafsi.form, text_scope),
+                escape_in_scope(&standing, text_scope)
+            ))
         })
         .collect::<Vec<_>>();
     if !rafsi.is_empty() {
-        details.push(format!("rafsi: {}", rafsi.join(", ")));
+        details.push(text_scope.format(format_args!("rafsi: {}", text_scope.join(&rafsi, ", "))));
     } else if scope != CollisionScope::None {
         details.push("rafsi: none possible".to_owned());
     }
     let contributions = candidate
         .source_scores
         .iter()
-        .map(|score| format!("{} {}", score.language, format_score(score.weighted_score)))
+        .map(|score| {
+            text_scope.format(format_args!(
+                "{} {}",
+                score.language,
+                format_score_in_scope(score.weighted_score, text_scope)
+            ))
+        })
         .collect::<Vec<_>>();
     if !contributions.is_empty() {
-        details.push(format!("from: {}", escape(&contributions.join(", "))));
+        details.push(text_scope.format(format_args!(
+            "from: {}",
+            escape_in_scope(&text_scope.join(&contributions, ", "), text_scope)
+        )));
     }
     if details.is_empty() {
-        head
+        head.into_piece()
     } else {
-        format!("{head}\n-# {}", details.join(" · "))
+        text_scope.format(format_args!(
+            "{head}\n-# {}",
+            text_scope.join(&details, " · ")
+        ))
     }
 }
 
 #[requires(score.is_finite())]
-#[ensures(!ret.is_empty())]
-fn format_score(score: f64) -> String {
-    let text = format!("{score:.3}");
+#[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
+fn format_score_in_scope(score: f64, text_scope: &jbotci_output::budget::TextScope) -> String {
+    let text = text_scope.format(format_args!("{score:.3}"));
     let trimmed = text.trim_end_matches('0').trim_end_matches('.');
     if trimmed.is_empty() {
         "0".to_owned()
     } else {
         trimmed.to_owned()
     }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> RenderedResult {
+    let text_scope = jbotci_output::budget::TextScope::new(
+        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    let result = render_in_scope(outcome, request, &text_scope);
+    text_scope
+        .finish(String::new())
+        .expect("unrestricted Discord rendering");
+    result
 }
 
 #[cfg(test)]

@@ -1,5 +1,16 @@
 //! HTTP server for the jbotci web app and API integrations.
 
+#[cfg(test)]
+use jbotci_web_core::GentufaWebResult;
+
+mod delivery;
+mod error;
+mod execution;
+use execution::{AdmittedWorkContext, ServerExecution};
+pub use policy::{PolicyError, ServerPolicy};
+mod policy;
+mod work;
+
 mod discord;
 mod mcp;
 
@@ -30,8 +41,7 @@ use bityzba::{ensures, invariant, new, requires, try_new};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
-    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
-    run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
+    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest,
 };
 use jbotci_cll::{
     CuktaSearchOutput, CuktaSearchWindow, CuktaTargetFilter, cll_search_all_chunks,
@@ -40,18 +50,16 @@ use jbotci_cll::{
 use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
 use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_entry_filters};
 use jbotci_web_core::{
-    FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
-    MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
-    WebRoute, blocking::build_computed_page_meta, escape_html_text, parse_gentufa_for_web,
-    parse_gentufa_web_export_request, parse_web_route, render_gentufa_state_web_export,
-    render_page_head_metadata_block, web_route_url,
+    FAVICON_ASSET_PATH, GentufaExportFormat, GentufaWebRequest, MANIFEST_ASSET_PATH,
+    META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability, WebRoute,
+    parse_gentufa_web_export_request, parse_web_route, web_route_url,
 };
 use serde::Serialize;
-use tokio::sync::{Semaphore, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
 use tower::ServiceExt;
 
-use crate::discord::work::{WorkError, WorkKeepalive, WorkLane};
+use crate::work::{WorkError, WorkKeepalive, WorkLane};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
@@ -103,9 +111,9 @@ pub(crate) struct AppState {
     page_meta_builder: PageMetaBuilder,
 }
 
-type PageMetaTaskResult = std::result::Result<PageMeta, tokio::task::JoinError>;
+type PageMetaTaskResult = std::result::Result<PageMeta, WorkError>;
 type PageMetaFuture = Pin<Box<dyn Future<Output = PageMetaTaskResult> + Send>>;
-type PageMetaBuilder = fn(String, WebRoute) -> PageMetaFuture;
+type PageMetaBuilder = fn(String, WebRoute, AdmittedWorkContext) -> PageMetaFuture;
 
 const UNHASHED_WEB_MODULE_ASSET_PATHS: &[&str] = &[
     "/assets/app-module-ready.js",
@@ -124,9 +132,9 @@ const WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES: &[&str] = &[
 impl AppState {
     #[requires(true)]
     #[ensures(ret.base_path.starts_with('/'))]
-    fn new(config: ServerConfig, page_meta_builder: PageMetaBuilder) -> Self {
+    fn new(config: ServerConfig, page_meta_builder: PageMetaBuilder, policy: ServerPolicy) -> Self {
         let config = config.into_data();
-        let tool_services = ToolServices::new();
+        let tool_services = ToolServices::with_execution(ServerExecution::new(policy));
         let discord = discord::configured_service(tool_services.clone());
         new!(AppState {
             base_path: config.base_path,
@@ -154,10 +162,8 @@ impl AppState {
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct ToolServices {
-    embedding_worker: mpsc::Sender<EmbeddingJob>,
-    /// Callers allowed to wait for a queue slot at once; beyond this a request
-    /// is refused immediately instead of piling up handler futures.
-    embedding_waiters: Arc<Semaphore>,
+    pub(crate) execution: Arc<ServerExecution>,
+    embedding_worker: mpsc::Sender<AdmittedEmbeddingJob>,
 }
 
 /// A meaning-search query: never blank, so every worker job is a real search.
@@ -193,8 +199,7 @@ pub(crate) enum SemanticSearchError {
     /// This server has no usable embedding index; the reason is stable until
     /// restart.
     Unavailable { reason: String },
-    /// Admission or completion within the deadline failed. The worker is
-    /// alive and may still be busy; nothing about the index is implied.
+    /// Admission or execution failed. The error describes the work, not the index.
     Lane(WorkError),
     /// The search itself failed.
     Failed { message: String },
@@ -257,6 +262,12 @@ fn non_blank(text: String, fallback: &str) -> String {
 /// receive dictionary hits. The rendered variants serve the CLI-shaped
 /// MCP/REST tools; the typed variants serve Discord, which presents the hits
 /// itself.
+#[invariant(true)]
+struct AdmittedEmbeddingJob {
+    job: EmbeddingJob,
+    context: AdmittedWorkContext,
+}
+
 #[invariant(::Cukta { .. } => true)]
 #[invariant(::Vlacku { .. } => true)]
 #[invariant(::VlackuHits { .. } => true)]
@@ -264,10 +275,12 @@ fn non_blank(text: String, fallback: &str) -> String {
 enum EmbeddingJob {
     Cukta {
         request: ToolCuktaRequest,
+        limits: jbotci_cli::ToolExecutionLimits,
         reply: oneshot::Sender<Result<ToolRenderedOutput>>,
     },
     Vlacku {
         request: ToolVlackuRequest,
+        limits: jbotci_cli::ToolExecutionLimits,
         reply: oneshot::Sender<Result<ToolRenderedOutput>>,
     },
     VlackuHits {
@@ -307,20 +320,47 @@ impl EmbeddingJob {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn expire(self) {
+        let error = WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        };
+        match self {
+            Self::Cukta { reply, .. } | Self::Vlacku { reply, .. } => {
+                let _ = reply.send(Err(anyhow!(error)));
+            }
+            Self::VlackuHits { reply, .. } => {
+                let _ = reply.send(Err(SemanticSearchError::lane(error)));
+            }
+            Self::CuktaSearch { reply, .. } => {
+                let _ = reply.send(Err(SemanticSearchError::lane(error)));
+            }
+        }
+    }
+
     /// Run against the worker's cache and deliver the result; a reply nobody
     /// awaits any more is dropped.
     #[requires(true)]
     #[ensures(true)]
     fn run(self, cache: &mut EmbeddingSearchCache) {
         match self {
-            Self::Cukta { request, reply } => {
+            Self::Cukta {
+                request,
+                limits,
+                reply,
+            } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    run_tool_cukta_with_context(request, context)
+                    jbotci_cli::run_tool_cukta_with_limits(request, Some(context), &limits)
                 }));
             }
-            Self::Vlacku { request, reply } => {
+            Self::Vlacku {
+                request,
+                limits,
+                reply,
+            } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    run_tool_vlacku_with_context(request, context)
+                    jbotci_cli::run_tool_vlacku_with_limits(request, Some(context), &limits)
                 }));
             }
             Self::VlackuHits {
@@ -338,8 +378,9 @@ impl EmbeddingJob {
                     .and_then(|service| {
                         let dictionary = jbotci_dictionary_data::english();
                         service
-                            .semantic_vlacku_hits_filtered(
+                            .semantic_vlacku_hits_window_filtered(
                                 query.as_str(),
+                                options.skip,
                                 count.get(),
                                 |entry_index| {
                                     dictionary.entries().get(entry_index).is_some_and(|entry| {
@@ -411,41 +452,43 @@ enum EmbeddingSearchCache {
     Unavailable { error: CachedEmbeddingError },
 }
 
-/// Jobs the worker channel holds ahead of the worker.
-const EMBEDDING_TOOL_QUEUE_CAPACITY: usize = 16;
-/// Callers allowed to wait for a channel slot at once.
-const EMBEDDING_MAX_WAITERS: usize = 32;
-
 impl ToolServices {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     fn new() -> Self {
-        let startup = configured_embedding_search_startup();
-        Self::with_worker(
-            EMBEDDING_TOOL_QUEUE_CAPACITY,
-            EMBEDDING_MAX_WAITERS,
-            move || embedding_job_runner(startup),
-        )
+        Self::with_execution(ServerExecution::new(ServerPolicy::default()))
     }
 
-    /// Start the single worker thread; `build_handler` runs on that thread
-    /// and returns the job evaluator, so the evaluator (and the embedding
-    /// cache it owns, which is not `Send`) never leaves the thread. Tests
-    /// substitute their own evaluator to exercise admission without a model.
-    #[requires(queue_capacity > 0 && max_waiters > 0)]
+    #[requires(true)]
     #[ensures(true)]
-    fn with_worker<B, H>(queue_capacity: usize, max_waiters: usize, build_handler: B) -> Self
+    fn with_execution(execution: Arc<ServerExecution>) -> Self {
+        let startup = configured_embedding_search_startup();
+        Self::with_worker_and_execution(execution, move || embedding_job_runner(startup))
+    }
+
+    /// Build the native evaluator on its own thread to preserve cache affinity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn with_worker_and_execution<B, H>(execution: Arc<ServerExecution>, build_handler: B) -> Self
     where
         B: FnOnce() -> H + Send + 'static,
         H: FnMut(EmbeddingJob),
     {
-        let (sender, mut receiver) = mpsc::channel::<EmbeddingJob>(queue_capacity);
+        let queue_capacity = execution.policy.work.compute_workers;
+        let (sender, mut receiver) = mpsc::channel::<AdmittedEmbeddingJob>(queue_capacity);
         thread::Builder::new()
             .name("jbotci-embedding-search".to_owned())
             .spawn(move || {
                 let mut handler = build_handler();
-                while let Some(job) = receiver.blocking_recv() {
+                while let Some(envelope) = receiver.blocking_recv() {
+                    let AdmittedEmbeddingJob { job, context } = envelope;
+                    let _context = context;
                     if job.abandoned() {
+                        continue;
+                    }
+                    if Instant::now() >= _context.deadline {
+                        job.expire();
                         continue;
                     }
                     handler(job);
@@ -453,39 +496,75 @@ impl ToolServices {
             })
             .expect("embedding search worker thread starts");
         Self {
+            execution,
             embedding_worker: sender,
-            embedding_waiters: Arc::new(Semaphore::new(max_waiters)),
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub(crate) async fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
+    #[ensures(true)]
+    pub(crate) async fn run_cukta_admitted(
+        &self,
+        request: ToolCuktaRequest,
+        context: &AdmittedWorkContext,
+    ) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             let (reply, received) = oneshot::channel();
-            self.admit(EmbeddingJob::Cukta { request, reply }, None)
-                .await
-                .map_err(|error| anyhow!(error.to_string()))?;
-            await_rendered_reply(received).await
+            self.admit_with_context(
+                EmbeddingJob::Cukta {
+                    request,
+                    reply,
+                    limits: context.execution.policy.tool_limits(),
+                },
+                context,
+            )
+            .await
+            .map_err(anyhow::Error::new)?;
+            await_rendered_reply(received, context.deadline).await
         } else {
-            run_blocking_tool(move || run_tool_cukta(request)).await
+            let limits = context.execution.policy.tool_limits();
+            context
+                .run(move || jbotci_cli::run_tool_cukta_with_limits(request, None, &limits))
+                .await?
         }
     }
 
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub(crate) async fn run_vlacku(
         &self,
         request: ToolVlackuRequest,
     ) -> Result<ToolRenderedOutput> {
+        let context = self.execution.admit(None).await?;
+        self.run_vlacku_admitted(request, &context).await
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn run_vlacku_admitted(
+        &self,
+        request: ToolVlackuRequest,
+        context: &AdmittedWorkContext,
+    ) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             let (reply, received) = oneshot::channel();
-            self.admit(EmbeddingJob::Vlacku { request, reply }, None)
-                .await
-                .map_err(|error| anyhow!(error.to_string()))?;
-            await_rendered_reply(received).await
+            self.admit_with_context(
+                EmbeddingJob::Vlacku {
+                    request,
+                    reply,
+                    limits: context.execution.policy.tool_limits(),
+                },
+                context,
+            )
+            .await
+            .map_err(anyhow::Error::new)?;
+            await_rendered_reply(received, context.deadline).await
         } else {
-            run_blocking_tool(move || run_tool_vlacku(request)).await
+            let limits = context.execution.policy.tool_limits();
+            context
+                .run(move || jbotci_cli::run_tool_vlacku_with_limits(request, None, &limits))
+                .await?
         }
     }
 
@@ -493,6 +572,7 @@ impl ToolServices {
     /// filters in `options` while ranking. `deadline` bounds both the wait
     /// for the worker and the result; `keepalive` is what the started search
     /// holds onto whether or not anyone is still waiting for it.
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.get()) || ret.is_err())]
     pub(crate) async fn semantic_vlacku_hits(
@@ -503,8 +583,27 @@ impl ToolServices {
         deadline: Option<Instant>,
         keepalive: Option<WorkKeepalive>,
     ) -> std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError> {
+        let context = self
+            .execution
+            .admit(deadline)
+            .await
+            .map_err(SemanticSearchError::lane)?;
+        self.semantic_vlacku_hits_admitted(query, count, options, &context, keepalive)
+            .await
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn semantic_vlacku_hits_admitted(
+        &self,
+        query: SearchQuery,
+        count: NonZeroUsize,
+        options: VlackuSearchOptions,
+        context: &AdmittedWorkContext,
+        keepalive: Option<WorkKeepalive>,
+    ) -> std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError> {
         let (reply, received) = oneshot::channel();
-        self.admit(
+        self.admit_with_context(
             EmbeddingJob::VlackuHits {
                 query,
                 count,
@@ -512,26 +611,27 @@ impl ToolServices {
                 reply,
                 keepalive,
             },
-            deadline,
+            context,
         )
         .await?;
-        await_typed_reply(received, deadline).await
+        await_typed_reply(received, Some(context.deadline)).await
     }
 
     /// Meaning search over the CLL from the server's embedding index, for the
     /// stretch of the ranking `window` names.
+
     #[requires(true)]
     #[ensures(true)]
-    pub(crate) async fn semantic_cukta_search(
+    pub(crate) async fn semantic_cukta_search_admitted(
         &self,
         query: SearchQuery,
         window: CuktaSearchWindow,
         targets: CuktaTargetFilter,
-        deadline: Option<Instant>,
+        context: &AdmittedWorkContext,
         keepalive: Option<WorkKeepalive>,
     ) -> std::result::Result<CuktaSearchOutput, SemanticSearchError> {
         let (reply, received) = oneshot::channel();
-        self.admit(
+        self.admit_with_context(
             EmbeddingJob::CuktaSearch {
                 query,
                 window,
@@ -539,40 +639,32 @@ impl ToolServices {
                 reply,
                 keepalive,
             },
-            deadline,
+            context,
         )
         .await?;
-        await_typed_reply(received, deadline).await
+        await_typed_reply(received, Some(context.deadline)).await
     }
 
-    /// Bounded admission to the worker queue: an expired deadline admits
-    /// nothing, at most `EMBEDDING_MAX_WAITERS` callers wait for a queue slot
-    /// at once (the rest are refused at once), and the wait itself ends at
-    /// the deadline. A refusal or timeout says nothing about the index.
     #[requires(true)]
     #[ensures(true)]
-    async fn admit(
+    async fn admit_with_context(
         &self,
         job: EmbeddingJob,
-        deadline: Option<Instant>,
+        context: &AdmittedWorkContext,
     ) -> std::result::Result<(), SemanticSearchError> {
         let lane = WorkLane::Embedding;
+        let deadline = Some(context.deadline);
         if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-            return Err(SemanticSearchError::lane(WorkError::WaitTimedOut { lane }));
+            return Err(SemanticSearchError::lane(WorkError::TimedOut { lane }));
         }
-        let Ok(_waiter) = self.embedding_waiters.try_acquire() else {
-            return Err(SemanticSearchError::lane(WorkError::Overloaded { lane }));
-        };
-        let not_running = || {
-            SemanticSearchError::unavailable("embedding search worker is not running".to_owned())
-        };
+        let not_running = || SemanticSearchError::lane(WorkError::Panicked { lane });
         let permit = match deadline {
             Some(deadline) => {
                 match tokio::time::timeout_at(deadline, self.embedding_worker.reserve()).await {
                     Ok(Ok(permit)) => permit,
                     Ok(Err(_closed)) => return Err(not_running()),
                     Err(_elapsed) => {
-                        return Err(SemanticSearchError::lane(WorkError::WaitTimedOut { lane }));
+                        return Err(SemanticSearchError::lane(WorkError::TimedOut { lane }));
                     }
                 }
             }
@@ -582,7 +674,10 @@ impl ToolServices {
                 .await
                 .map_err(|_closed| not_running())?,
         };
-        permit.send(job);
+        permit.send(AdmittedEmbeddingJob {
+            job,
+            context: context.clone(),
+        });
         Ok(())
     }
 }
@@ -591,10 +686,20 @@ impl ToolServices {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 async fn await_rendered_reply(
     received: oneshot::Receiver<Result<ToolRenderedOutput>>,
+    deadline: Instant,
 ) -> Result<ToolRenderedOutput> {
-    received
+    tokio::time::timeout_at(deadline, received)
         .await
-        .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+        .map_err(|_| {
+            anyhow!(WorkError::TimedOut {
+                lane: WorkLane::Compute
+            })
+        })?
+        .map_err(|_| {
+            anyhow!(WorkError::Panicked {
+                lane: WorkLane::Embedding
+            })
+        })?
 }
 
 /// Await a typed reply; past the deadline the caller gives up (the job is
@@ -617,22 +722,10 @@ async fn await_typed_reply<T>(
         None => received.await,
     };
     outcome.map_err(|_stopped| {
-        SemanticSearchError::unavailable(
-            "embedding search worker stopped before returning output".to_owned(),
-        )
+        SemanticSearchError::lane(WorkError::Panicked {
+            lane: WorkLane::Embedding,
+        })
     })?
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-async fn run_blocking_tool<F>(runner: F) -> Result<ToolRenderedOutput>
-where
-    F: FnOnce() -> Result<ToolRenderedOutput> + Send + 'static,
-{
-    match tokio::task::spawn_blocking(runner).await {
-        Ok(result) => result,
-        Err(error) => Err(anyhow!("tool task failed: {error}")),
-    }
 }
 
 /// The production job handler: owns the embedding cache for the worker's
@@ -787,13 +880,18 @@ pub fn config_from_env() -> ServerConfig {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub async fn run_server(config: ServerConfig) -> Result<()> {
+    let policy = ServerPolicy::from_env()?;
     let listener = tokio::net::TcpListener::bind(config.address)
         .await
         .with_context(|| format!("failed to bind `{}`", config.address))?;
-    axum::serve(listener, router(config))
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .context("server failed")?;
+    axum::serve(
+        delivery::DeadlineListener(listener),
+        router_with_policy(config, policy)
+            .into_make_service_with_connect_info::<delivery::Connection>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .context("server failed")?;
     Ok(())
 }
 
@@ -835,16 +933,28 @@ async fn shutdown_signal() {
 #[requires(true)]
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
-    router_with_page_meta_builder(config, production_page_meta_builder)
+    router_with_policy(config, ServerPolicy::default())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn router_with_page_meta_builder(
+pub fn router_with_policy(config: ServerConfig, policy: ServerPolicy) -> Router {
+    router_with_builder_and_policy(config, production_page_meta_builder, policy)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn router_with_builder_and_policy(
     config: ServerConfig,
     page_meta_builder: PageMetaBuilder,
+    policy: ServerPolicy,
 ) -> Router {
-    let state = Arc::new(AppState::new(config, page_meta_builder));
+    router_with_state(Arc::new(AppState::new(config, page_meta_builder, policy)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn router_with_state(state: Arc<AppState>) -> Router {
     // The MCP spec's Origin-validation MUST protects localhost servers with
     // ambient authority from DNS rebinding. It does not apply to this public,
     // stateless endpoint whose tools are nonmutating pure functions, so open
@@ -875,6 +985,7 @@ fn router_with_page_meta_builder(
         .merge(public_browser_api)
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
+        .layer(axum::middleware::from_fn(delivery::enforce))
         .layer(Extension(Arc::clone(&state)))
         .with_state(FullstackState::headless())
 }
@@ -919,81 +1030,155 @@ async fn health() -> Json<HealthResponse> {
 
 #[requires(true)]
 #[ensures(true)]
-async fn gentufa(Json(request): Json<GentufaWebRequest>) -> Json<GentufaWebResult> {
-    Json(parse_gentufa_for_web_blocking(request).await)
+async fn gentufa(
+    Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
+    Json(request): Json<GentufaWebRequest>,
+) -> Response<Body> {
+    let execution = &state.tool_services.execution;
+    if let Err(error) = execution.policy.validate_sources(
+        std::iter::once(request.text.as_str()).chain(request.options.dialect.as_deref()),
+    ) {
+        return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
+    }
+    let context = match execution.admit(Some(deadline.0)).await {
+        Ok(context) => context,
+        Err(error) => return execution::work_error_response(error),
+    };
+    let render_limits = context.execution.policy.tool_limits().render;
+    let result = match context
+        .run(move || {
+            jbotci_web_core::parse_gentufa_for_web_with_limits(&request, Some(render_limits))
+        })
+        .await
+    {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) => {
+            return execution::operation_error_response(anyhow!(error), context).await;
+        }
+        Err(error) => return execution::work_error_response(error),
+    };
+    execution::admitted_json_response(StatusCode::OK, result, context).await
 }
 
 #[requires(true)]
 #[ensures(true)]
-async fn gimfihi(Json(request): Json<ToolGimfihiRequest>) -> Response<Body> {
-    match tokio::task::spawn_blocking(move || run_tool_gimfihi(request, GimfihiSourceWordKind::Ipa))
+async fn gimfihi(
+    Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
+    Json(request): Json<ToolGimfihiRequest>,
+) -> Response<Body> {
+    use crate::policy::ServerRequest;
+    let execution = &state.tool_services.execution;
+    if let Err(error) = request.validate(&execution.policy) {
+        return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
+    }
+    let context = match execution.admit(Some(deadline.0)).await {
+        Ok(context) => context,
+        Err(error) => return execution::work_error_response(error),
+    };
+    let mut limits = context.execution.policy.tool_limits();
+    limits.render = jbotci_output::budget::RenderLimits::new(
+        jbotci_output::budget::ByteLimit::new(
+            limits
+                .render
+                .text
+                .get()
+                .min(context.execution.policy.response_bytes),
+        )
+        .expect("positive overlapping limits"),
+        limits.render.projection,
+    );
+    match context
+        .run(move || {
+            jbotci_cli::run_tool_gimfihi_with_limits(request, GimfihiSourceWordKind::Ipa, &limits)
+        })
         .await
     {
-        Ok(Ok(output)) => rest_tool_output(output),
-        Ok(Err(error)) => plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
-        Err(error) => plain_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("gimfihi task failed: {error}"),
-        ),
+        Ok(Ok(output)) => rest_tool_output_admitted(output, context).await,
+        Ok(Err(error)) => execution::operation_error_response(error, context).await,
+        Err(error) => execution::work_error_response(error),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn rest_tool_output(output: ToolRenderedOutput) -> Response<Body> {
+async fn rest_tool_output_admitted(
+    output: ToolRenderedOutput,
+    context: AdmittedWorkContext,
+) -> Response<Body> {
+    let owner = context.clone();
+    match context
+        .run(move || build_rest_tool_output(output, owner))
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => execution::work_error_response(error),
+    }
+}
+#[requires(true)]
+#[ensures(true)]
+fn build_rest_tool_output(
+    output: ToolRenderedOutput,
+    context: AdmittedWorkContext,
+) -> Response<Body> {
+    use std::io::Write;
     let status = match output.status {
         ToolStatus::Success => StatusCode::OK,
         ToolStatus::ValidMissing => StatusCode::NOT_FOUND,
         ToolStatus::InvalidInput => StatusCode::BAD_REQUEST,
         ToolStatus::Failure => StatusCode::INTERNAL_SERVER_ERROR,
     };
-    let body = if output.status.is_success() {
-        output.stdout
-    } else {
-        let mut text = output.stderr;
-        if let Ok(stdout) = std::str::from_utf8(&output.stdout)
-            && !stdout.trim().is_empty()
-        {
-            text.push_str(stdout);
-        }
-        text.into_bytes()
-    };
-    let mut builder = Response::builder().status(status);
+    let policy = &context.execution.policy;
     let content_type = if output.status.is_success() {
         output.content_type.as_deref()
     } else {
         Some("text/plain; charset=utf-8")
     };
+    let mut builder = Response::builder().status(status);
     if let Some(content_type) = content_type {
         builder = builder.header(CONTENT_TYPE, content_type);
     }
+    let bytes = if output.status.is_success() {
+        let raw_limit =
+            if content_type.is_some_and(|content_type| content_type.starts_with("image/")) {
+                policy.diagram.max_bytes
+            } else {
+                policy.text_bytes
+            };
+        if output.stdout.len() > raw_limit.min(policy.response_bytes) {
+            return execution::work_error_response(WorkError::OutputLimit);
+        }
+        output.stdout
+    } else {
+        let limit =
+            jbotci_output::budget::ByteLimit::new(policy.text_bytes.min(policy.response_bytes))
+                .expect("positive overlapping limits");
+        let mut writer = jbotci_output::budget::OutputBudget::new(limit).writer();
+        let result = writer.write_all(output.stderr.as_bytes()).and_then(|_| {
+            if let Ok(stdout) = std::str::from_utf8(&output.stdout)
+                && !stdout.trim().is_empty()
+            {
+                writer.write_all(stdout.as_bytes())
+            } else {
+                Ok(())
+            }
+        });
+        if result.is_err() {
+            return execution::work_error_response(WorkError::OutputLimit);
+        }
+        writer.into_bytes()
+    };
     builder
-        .body(Body::from(body))
-        .expect("REST tool response builder is valid")
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn parse_gentufa_for_web_blocking(request: GentufaWebRequest) -> GentufaWebResult {
-    tokio::task::spawn_blocking(move || parse_gentufa_for_web(&request))
-        .await
-        .unwrap_or_else(gentufa_task_error)
-}
-
-#[requires(true)]
-#[ensures(matches!(ret, GentufaWebResult::Error(_)))]
-fn gentufa_task_error(error: tokio::task::JoinError) -> GentufaWebResult {
-    GentufaWebResult::Error(GentufaError {
-        phase: None,
-        message: format!("gentufa parse task failed: {error}"),
-        diagnostics: Vec::new(),
-    })
+        .body(execution::owned_body(bytes, Some(context)))
+        .expect("REST tool response")
 }
 
 #[requires(true)]
 #[ensures(true)]
 async fn static_or_spa(
     Extension(state): Extension<Arc<AppState>>,
+    Extension(deadline): Extension<delivery::OperationDeadline>,
     headers: HeaderMap,
     uri: Uri,
 ) -> Response<Body> {
@@ -1021,13 +1206,19 @@ async fn static_or_spa(
         return redirect_response(&location);
     }
     if let Some(format) = gentufa_export_format_for_request_path(request_path, &state.base_path) {
-        return gentufa_export_response(format, uri.query().unwrap_or_default().to_owned()).await;
+        return gentufa_export_response(
+            format,
+            uri.query().unwrap_or_default().to_owned(),
+            Arc::clone(&state.tool_services.execution),
+            deadline.0,
+        )
+        .await;
     }
     let Some(asset_path) = asset_path_for_request(request_path, &state.base_path) else {
         return plain_response(StatusCode::NOT_FOUND, "not found");
     };
     if asset_path == "/index.html" {
-        return match spa_index_response(&state, &headers, &uri).await {
+        return match spa_index_response(&state, &headers, &uri, deadline.0).await {
             Ok(Some(response)) => response,
             Ok(None) => plain_response(StatusCode::NOT_FOUND, "not found"),
             Err(error) => page_meta_task_failure_response(request_path, &error),
@@ -1051,7 +1242,8 @@ async fn spa_index_response(
     state: &AppState,
     headers: &HeaderMap,
     uri: &Uri,
-) -> std::result::Result<Option<Response<Body>>, tokio::task::JoinError> {
+    deadline: Instant,
+) -> std::result::Result<Option<Response<Body>>, WorkError> {
     let Some(bytes) = load_index_html_bytes(state).await else {
         return Ok(None);
     };
@@ -1064,73 +1256,138 @@ async fn spa_index_response(
         }
     });
     let route = parse_web_route(&logical_path, uri.query().unwrap_or_default());
-    let meta = (state.page_meta_builder)(state.base_path.clone(), route).await?;
-    let rendered = apply_spa_head_metadata(&html, request_origin(headers).as_deref(), &meta);
+    use crate::policy::ServerRequest;
+    if let Err(error) = route.validate(&state.tool_services.execution.policy) {
+        return Ok(Some(plain_response(
+            StatusCode::BAD_REQUEST,
+            &error.to_string(),
+        )));
+    }
+    let context = state.tool_services.execution.admit(Some(deadline)).await?;
+    let meta = (state.page_meta_builder)(state.base_path.clone(), route, context.clone()).await?;
+    let render = context.execution.policy.tool_limits().render;
+    let limits = jbotci_output::budget::RenderLimits::new(
+        jbotci_output::budget::ByteLimit::new(render.text.get().min(render.projection.get()))
+            .expect("positive text and response limits"),
+        render.projection,
+    );
+    let html = html.into_owned();
+    let origin = request_origin(headers);
+    let rendered = context
+        .run(move || apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits))
+        .await??;
     Ok(Some(asset_response(
         StatusCode::OK,
         "/index.html",
         None,
-        Body::from(rendered),
+        execution::owned_body(rendered.into_bytes(), Some(context)),
     )))
 }
 
 #[requires(true)]
 #[ensures(true)]
-async fn gentufa_export_response(format: GentufaExportFormat, query: String) -> Response<Body> {
+async fn gentufa_export_response(
+    format: GentufaExportFormat,
+    query: String,
+    execution: Arc<ServerExecution>,
+    deadline: Instant,
+) -> Response<Body> {
     let request = parse_gentufa_web_export_request(&query);
-    let task = tokio::task::spawn_blocking(move || {
-        render_gentufa_state_web_export(&request.state, request.script, format)
-    })
-    .await;
+    if let Err(error) = execution.policy.validate_sources(
+        std::iter::once(request.state.text.as_str()).chain(request.state.dialect.as_deref()),
+    ) {
+        return plain_response(StatusCode::BAD_REQUEST, &error.to_string());
+    }
+    let context = match execution.admit(Some(deadline)).await {
+        Ok(context) => context,
+        Err(error) => return execution::work_error_response(error),
+    };
+    let limits = context.execution.policy.tool_limits();
+    let diagram = limits.diagram.with_data(bityzba::data! { max_bytes: limits.diagram.max_bytes.min(context.execution.policy.response_bytes) });
+    let task = context
+        .run(move || {
+            jbotci_web_core::render_gentufa_state_web_export_with_limits(
+                &request.state,
+                request.script,
+                format,
+                Some(limits.render),
+                Some(diagram),
+            )
+        })
+        .await;
     let export = match task {
         Ok(Ok(export)) => export,
-        Ok(Err(error)) => return plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
-        Err(error) => {
-            return plain_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("gentufa export task failed: {error}"),
-            );
+        Ok(Err(error)) => {
+            return execution::operation_error_response(anyhow!(error), context).await;
         }
+        Err(error) => return execution::work_error_response(error),
     };
     Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, export.content_type)
         .header(CACHE_CONTROL, "no-cache")
-        .body(Body::from(export.bytes))
+        .body(execution::owned_body(export.bytes, Some(context)))
         .expect("gentufa export response builder is valid")
 }
 
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
-async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> PageMetaTaskResult {
-    run_page_meta_task(move || build_computed_page_meta(&base_path, &route)).await
+async fn build_page_meta_blocking(
+    base_path: String,
+    route: WebRoute,
+    context: AdmittedWorkContext,
+) -> PageMetaTaskResult {
+    let limits = context.execution.policy.tool_limits();
+    context
+        .run(move || {
+            jbotci_web_core::blocking::build_computed_page_meta_with_limits(
+                &base_path,
+                &route,
+                limits.render,
+                limits.diagram,
+            )
+        })
+        .await?
+        .map_err(|error| {
+            if error.is_output_limit() {
+                WorkError::OutputLimit
+            } else {
+                eprintln!("metadata computation failed: {error}");
+                WorkError::Panicked {
+                    lane: crate::work::WorkLane::Compute,
+                }
+            }
+        })
 }
 
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
-fn production_page_meta_builder(base_path: String, route: WebRoute) -> PageMetaFuture {
-    Box::pin(build_page_meta_blocking(base_path, route))
+fn production_page_meta_builder(
+    base_path: String,
+    route: WebRoute,
+    context: AdmittedWorkContext,
+) -> PageMetaFuture {
+    Box::pin(build_page_meta_blocking(base_path, route, context))
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 async fn run_page_meta_task(
+    context: AdmittedWorkContext,
     task: impl FnOnce() -> PageMeta + Send + 'static,
 ) -> PageMetaTaskResult {
-    tokio::task::spawn_blocking(task).await
+    context.run(task).await
 }
 
 #[requires(request_path.starts_with('/'))]
-#[ensures(ret.status() == StatusCode::INTERNAL_SERVER_ERROR)]
-fn page_meta_task_failure_response(
-    request_path: &str,
-    error: &tokio::task::JoinError,
-) -> Response<Body> {
+#[ensures(true)]
+fn page_meta_task_failure_response(request_path: &str, error: &WorkError) -> Response<Body> {
     // The public response intentionally omits panic and task internals. The
     // server-side report keeps the affected route path (but not its possibly
     // sensitive query) together with Tokio's panic/cancellation diagnosis.
     eprintln!("SPA metadata task failed for request path `{request_path}`: {error}");
-    plain_response(StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
+    execution::work_error_response(error.clone())
 }
 
 #[requires(true)]
@@ -1333,57 +1590,69 @@ fn vary_mentions_accept_encoding(value: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn apply_spa_head_metadata(html: &str, origin: Option<&str>, meta: &PageMeta) -> String {
-    let without_old_block = remove_managed_meta_block(html);
-    let (with_title, inserted_title) = replace_title(&without_old_block, &meta.title);
-    let block = render_page_head_metadata_block(origin, meta, !inserted_title);
-    if let Some(head_end) = with_title.find("</head>") {
-        let mut output = String::with_capacity(with_title.len() + block.len() + 1);
-        output.push_str(&with_title[..head_end]);
-        output.push_str(&block);
-        output.push_str(&with_title[head_end..]);
-        output
-    } else {
-        format!("{with_title}{block}")
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn remove_managed_meta_block(html: &str) -> String {
-    let Some(start) = html.find(META_BLOCK_START) else {
-        return html.to_owned();
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limits.projection.get()) || ret.is_err())]
+fn apply_spa_head_metadata_with_limits(
+    html: &str,
+    origin: Option<&str>,
+    meta: &PageMeta,
+    limits: jbotci_output::budget::RenderLimits,
+) -> std::result::Result<String, WorkError> {
+    let scope = jbotci_output::budget::TextScope::new(limits.projection);
+    let without_old_block = match html.find(META_BLOCK_START).and_then(|start| {
+        html[start..]
+            .find(META_BLOCK_END)
+            .map(|end| (start, start + end + META_BLOCK_END.len()))
+    }) {
+        Some((start, end)) => scope.format(format_args!("{}{}", &html[..start], &html[end..])),
+        None => scope.copy(html),
     };
-    let Some(end) = html[start..].find(META_BLOCK_END) else {
-        return html.to_owned();
+    let title_range = without_old_block
+        .find("<title")
+        .and_then(|open_start| {
+            without_old_block[open_start..]
+                .find('>')
+                .map(|end| open_start + end + 1)
+        })
+        .and_then(|start| {
+            without_old_block[start..]
+                .find("</title>")
+                .map(|end| (start, start + end))
+        });
+    let inserted_title = title_range.is_some();
+    let with_title = match title_range {
+        Some((start, end)) => {
+            let mut output = scope.buffer();
+            output.push_str(&without_old_block[..start]);
+            for character in meta.title.chars() {
+                match character {
+                    '&' => output.push_str("&amp;"),
+                    '<' => output.push_str("&lt;"),
+                    '>' => output.push_str("&gt;"),
+                    character => output.push(character),
+                }
+            }
+            output.push_str(&without_old_block[end..]);
+            output.into_piece()
+        }
+        None => without_old_block,
     };
-    let block_end = start + end + META_BLOCK_END.len();
-    let mut output = String::with_capacity(html.len().saturating_sub(block_end - start));
-    output.push_str(&html[..start]);
-    output.push_str(&html[block_end..]);
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn replace_title(html: &str, title: &str) -> (String, bool) {
-    let Some(open_start) = html.find("<title") else {
-        return (html.to_owned(), false);
+    let block = jbotci_web_core::render_page_head_metadata_block_with_limit(
+        origin,
+        meta,
+        !inserted_title,
+        limits.text,
+    )
+    .map_err(|_| WorkError::OutputLimit)?;
+    let rendered = match with_title.find("</head>") {
+        Some(head_end) => scope.format(format_args!(
+            "{}{}{}",
+            &with_title[..head_end],
+            block,
+            &with_title[head_end..]
+        )),
+        None => scope.format(format_args!("{with_title}{block}")),
     };
-    let Some(open_end_offset) = html[open_start..].find('>') else {
-        return (html.to_owned(), false);
-    };
-    let content_start = open_start + open_end_offset + 1;
-    let Some(close_offset) = html[content_start..].find("</title>") else {
-        return (html.to_owned(), false);
-    };
-    let content_end = content_start + close_offset;
-    let mut output = String::with_capacity(html.len() + title.len());
-    output.push_str(&html[..content_start]);
-    output.push_str(&escape_html_text(title));
-    output.push_str(&html[content_end..]);
-    (output, true)
+    scope.finish(rendered).map_err(|_| WorkError::OutputLimit)
 }
 
 #[requires(true)]
@@ -1500,6 +1769,7 @@ mod tests {
         ToolAlineSaliences, ToolCollisionScope, ToolGimfihiFormat, ToolGimfihiScorer,
         ToolGimfihiSource,
     };
+    use jbotci_web_core::parse_gentufa_for_web;
     use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;
 
@@ -1614,8 +1884,12 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn panicking_page_meta_builder(_base_path: String, _route: WebRoute) -> PageMetaFuture {
-        Box::pin(run_page_meta_task(|| -> PageMeta {
+    fn panicking_page_meta_builder(
+        _base_path: String,
+        _route: WebRoute,
+        context: AdmittedWorkContext,
+    ) -> PageMetaFuture {
+        Box::pin(run_page_meta_task(context, || -> PageMeta {
             panic!("deterministic metadata worker failure")
         }))
     }
@@ -2043,7 +2317,12 @@ mod tests {
         cache: &mut EmbeddingSearchCache,
     ) -> Result<ToolRenderedOutput> {
         let (reply, received) = oneshot::channel();
-        EmbeddingJob::Vlacku { request, reply }.run(cache);
+        EmbeddingJob::Vlacku {
+            request,
+            reply,
+            limits: ServerPolicy::default().tool_limits(),
+        }
+        .run(cache);
         received.blocking_recv().expect("reply delivered")
     }
 
@@ -2087,91 +2366,163 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
     #[requires(true)]
     #[ensures(true)]
-    async fn embedding_admission_bounds_waiters_and_discards_abandoned_jobs() {
-        let processed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
-        let services = ToolServices::with_worker(1, 1, {
+    async fn native_work_shares_admission_and_cancelled_waiters_do_not_run() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let processed = Arc::new(AtomicUsize::new(0));
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let execution = ServerExecution::new(ServerPolicy::default());
+        let services = ToolServices::with_worker_and_execution(Arc::clone(&execution), {
             let processed = Arc::clone(&processed);
             move || {
+                let mut started_tx = Some(started_tx);
                 move |job| {
-                    let seen = processed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-                    if seen == 1 {
-                        // The first job holds the worker until released.
+                    processed.fetch_add(1, Ordering::SeqCst);
+                    if let Some(started_tx) = started_tx.take() {
+                        let _ = started_tx.send(());
                         let _ = release_rx.recv();
                     }
                     reply_empty_hits(job);
                 }
             }
         });
-        // Job 1 is taken by the worker and blocks there.
         let first_services = services.clone();
         let first = tokio::spawn(async move {
             hits_with_deadline(&first_services, Duration::from_secs(10)).await
         });
-        for _ in 0..400 {
-            if processed.load(std::sync::atomic::Ordering::SeqCst) == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
+        started_rx.await.unwrap();
+        let mut queued = Vec::new();
+        for expected in 1..=8 {
+            let services = services.clone();
+            queued.push(tokio::spawn(async move {
+                hits_with_deadline(&services, Duration::from_secs(10)).await
+            }));
+            wait_for_compute_waiters(&execution, expected).await;
         }
-        assert_eq!(processed.load(std::sync::atomic::Ordering::SeqCst), 1);
-        // Job 2 takes the single queue slot and gives up waiting for its
-        // reply: a timeout, not an unavailability.
-        let second = hits_with_deadline(&services, Duration::from_millis(50)).await;
         assert_eq!(
-            second,
-            Err(SemanticSearchError::lane(WorkError::TimedOut {
-                lane: WorkLane::Embedding
-            }))
-        );
-        assert!(second.unwrap_err().to_string().contains("meaning search"));
-        // Job 3 finds the queue full and waits for a slot; job 4 arrives
-        // while job 3 holds the only waiter place and is refused at once.
-        let third_services = services.clone();
-        let third = tokio::spawn(async move {
-            hits_with_deadline(&third_services, Duration::from_millis(400)).await
-        });
-        tokio::time::sleep(Duration::from_millis(60)).await;
-        let fourth = hits_with_deadline(&services, Duration::from_millis(100)).await;
-        assert_eq!(
-            fourth,
+            hits_with_deadline(&services, Duration::from_secs(1)).await,
             Err(SemanticSearchError::lane(WorkError::Overloaded {
-                lane: WorkLane::Embedding
+                lane: WorkLane::Compute
             }))
         );
-        assert_eq!(
-            third.await.expect("task"),
-            Err(SemanticSearchError::lane(WorkError::WaitTimedOut {
-                lane: WorkLane::Embedding
-            }))
-        );
-        // An already expired deadline admits nothing.
-        let expired = services
-            .semantic_vlacku_hits(
-                search_query(),
-                NonZeroUsize::new(5).expect("count"),
-                VlackuSearchOptions::default(),
-                Some(Instant::now()),
-                None,
-            )
+        assert_eq!(processed.load(Ordering::SeqCst), 1);
+        queued.pop().unwrap().abort();
+        wait_for_compute_waiters(&execution, 7).await;
+        let context = execution
+            .admit(Some(Instant::now() + Duration::from_millis(20)))
             .await;
+        assert!(matches!(
+            context,
+            Err(WorkError::WaitTimedOut {
+                lane: WorkLane::Compute
+            })
+        ));
+        assert_eq!(execution.governor.snapshot().compute_waiting, 7);
+        for caller in queued {
+            caller.abort();
+        }
+        wait_for_compute_waiters(&execution, 0).await;
+        assert_eq!(processed.load(Ordering::SeqCst), 1);
+        release_tx.send(()).unwrap();
+        assert_eq!(first.await.unwrap(), Ok(Vec::new()));
         assert_eq!(
-            expired,
-            Err(SemanticSearchError::lane(WorkError::WaitTimedOut {
-                lane: WorkLane::Embedding
-            }))
+            hits_with_deadline(&services, Duration::from_secs(10)).await,
+            Ok(Vec::new())
         );
-        // Release the worker: job 1 completes; job 2's caller is gone, so the
-        // worker discards it without evaluation; a fresh job runs.
-        release_tx.send(()).expect("worker waiting");
-        assert_eq!(first.await.expect("task"), Ok(Vec::new()));
-        let fifth = hits_with_deadline(&services, Duration::from_secs(10)).await;
-        assert_eq!(fifth, Ok(Vec::new()));
+        assert_eq!(processed.load(Ordering::SeqCst), 2);
+    }
+
+    #[requires(expected <= 8)]
+    #[ensures(execution.governor.snapshot().compute_waiting == expected)]
+    async fn wait_for_compute_waiters(execution: &ServerExecution, expected: usize) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while execution.governor.snapshot().compute_waiting != expected {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("admission reached the expected queue count");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn native_reply_does_not_release_the_worker_lease_before_the_handler_exits() {
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let policy = ServerPolicy::default();
+        let work = policy.work.with_data(bityzba::data! {compute_queue: 0});
+        let execution = ServerExecution::new(policy.with_data(bityzba::data! { work: work }));
+        let services = ToolServices::with_worker_and_execution(Arc::clone(&execution), move || {
+            move |job| {
+                reply_empty_hits(job);
+                let _ = release_rx.recv();
+            }
+        });
         assert_eq!(
-            processed.load(std::sync::atomic::Ordering::SeqCst),
-            2,
-            "the abandoned job was never evaluated"
+            hits_with_deadline(&services, Duration::from_secs(2)).await,
+            Ok(Vec::new())
         );
+        assert_eq!(execution.governor.snapshot().compute_active, 1);
+        let state = AppState::new(
+            test_config(test_static_dir()),
+            production_page_meta_builder,
+            execution.policy.clone(),
+        )
+        .with_data(bityzba::data! {tool_services: services, discord: None});
+        let app = router_with_state(Arc::new(state));
+        for uri in [
+            "/jbotci/gentufa.png?text=mi+klama",
+            "/jbotci/vlacku?query=klama",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{uri}");
+            assert_eq!(response.headers()["x-jbotci-error"], "server_busy");
+            assert_eq!(
+                response_text(response).await,
+                "The server is busy. Try again later."
+            );
+        }
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/gentufa")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::to_vec(&GentufaWebRequest {
+                            text: "mi klama".into(),
+                            options: Default::default(),
+                        })
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let response = app.oneshot(Request::builder().method("POST").uri("/mcp").body(Body::from(r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"vlasei","arguments":{"text":"klama"}}}"#)).unwrap()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let value: serde_json::Value =
+            serde_json::from_str(&response_text(response).await).unwrap();
+        assert_eq!(value["result"]["isError"], true);
+        assert_eq!(
+            value["result"]["structuredContent"]["error"]["code"],
+            "server_busy"
+        );
+        assert_eq!(execution.governor.snapshot().compute_active, 1);
+        release_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while execution.governor.snapshot().compute_active != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
@@ -2200,17 +2551,20 @@ mod tests {
 
         let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
         let started = Arc::new(AtomicBool::new(false));
-        let services = ToolServices::with_worker(1, 1, {
-            let started = Arc::clone(&started);
-            move || {
-                move |job| {
-                    started.store(true, Ordering::Release);
-                    // However long this takes, it is work that has begun.
-                    let _ = release_rx.recv();
-                    reply_empty_hits(job);
+        let services = ToolServices::with_worker_and_execution(
+            ServerExecution::new(ServerPolicy::default()),
+            {
+                let started = Arc::clone(&started);
+                move || {
+                    move |job| {
+                        started.store(true, Ordering::Release);
+                        // However long this takes, it is work that has begun.
+                        let _ = release_rx.recv();
+                        reply_empty_hits(job);
+                    }
                 }
-            }
-        });
+            },
+        );
 
         let released = Arc::new(AtomicBool::new(false));
         let keepalive: WorkKeepalive = Arc::new(Probe {
@@ -2258,17 +2612,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn a_cold_model_load_times_out_callers_without_claiming_unavailability() {
-        let services = ToolServices::with_worker(4, 4, || {
-            let mut loaded = false;
-            move |job| {
-                if !loaded {
-                    // The first job pays the model load.
-                    thread::sleep(Duration::from_millis(300));
-                    loaded = true;
+        let services = ToolServices::with_worker_and_execution(
+            ServerExecution::new(ServerPolicy::default()),
+            || {
+                let mut loaded = false;
+                move |job| {
+                    if !loaded {
+                        // The first job pays the model load.
+                        thread::sleep(Duration::from_millis(300));
+                        loaded = true;
+                    }
+                    reply_empty_hits(job);
                 }
-                reply_empty_hits(job);
-            }
-        });
+            },
+        );
         let during_load = hits_with_deadline(&services, Duration::from_millis(50)).await;
         assert_eq!(
             during_load,
@@ -4184,7 +4541,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let body = response_text(response).await;
-        assert_eq!(body, "internal server error");
+        assert_eq!(body, crate::error::ServerErrorCode::Failed.message());
         assert!(!body.contains("deterministic metadata worker failure"));
     }
 
@@ -4307,4 +4664,230 @@ mod tests {
         assert!(body.contains("<title>jbotci vlacku</title>"));
         assert!(body.contains("property=\"og:url\" content=\"http://example.test/jbotci/vlacku\""));
     }
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn exports_and_computed_metadata_use_each_shared_diagram_limit() {
+        let defaults = ServerPolicy::default();
+        let public_dir = test_static_dir();
+        for diagram in [
+            defaults.diagram.with_data(bityzba::data! { max_blocks: 1 }),
+            defaults
+                .diagram
+                .with_data(bityzba::data! { max_columns: 1 }),
+            defaults.diagram.with_data(bityzba::data! { max_pixels: 1 }),
+            defaults.diagram.with_data(bityzba::data! { max_bytes: 1 }),
+        ] {
+            let app = router_with_policy(
+                test_config(public_dir.clone()),
+                defaults
+                    .clone()
+                    .with_data(bityzba::data! { diagram: diagram }),
+            );
+            for path in ["gentufa.png", "gentufa.svg", "gentufa"] {
+                let response = app
+                    .clone()
+                    .oneshot(
+                        Request::builder()
+                            .uri(format!("/jbotci/{path}?text=lo+nanmu+cu+klama"))
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    response.status(),
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "{path} bypassed {diagram:?}"
+                );
+                assert_eq!(
+                    response.headers()["x-jbotci-error"],
+                    "output_limit_exceeded"
+                );
+                assert_eq!(
+                    response_text(response).await,
+                    crate::error::ServerErrorCode::OutputLimit.message()
+                );
+            }
+        }
+        std::fs::remove_dir_all(public_dir).unwrap();
+    }
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_native_worker_panic_releases_its_lease_and_returns_the_stable_failure() {
+        let execution = ServerExecution::new(ServerPolicy::default());
+        let services = ToolServices::with_worker_and_execution(execution.clone(), || {
+            |_job| panic!("deterministic native worker failure")
+        });
+        let expected = SemanticSearchError::lane(WorkError::Panicked {
+            lane: WorkLane::Embedding,
+        });
+        assert_eq!(
+            hits_with_deadline(&services, Duration::from_secs(2)).await,
+            Err(SemanticSearchError::lane(WorkError::Panicked {
+                lane: WorkLane::Embedding
+            }))
+        );
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while execution.governor.snapshot().compute_active != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            hits_with_deadline(&services, Duration::from_secs(2)).await,
+            Err(expected)
+        );
+        assert_eq!(execution.governor.snapshot().compute_active, 0);
+    }
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn image_exports_use_the_diagram_budget_while_metadata_uses_the_text_budget() {
+        let policy = ServerPolicy::default().with_data(bityzba::data! { text_bytes: 1 });
+        let public_dir = test_static_dir();
+        let app = router_with_policy(test_config(public_dir.clone()), policy.clone());
+        for format in ["png", "svg"] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/jbotci/gentufa.{format}?text=mi+klama"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "HTTP {format}");
+            assert!(
+                response.headers()[CONTENT_TYPE]
+                    .to_str()
+                    .unwrap()
+                    .starts_with("image/")
+            );
+            let bytes = to_bytes(response.into_body(), policy.response_bytes)
+                .await
+                .unwrap();
+            assert!(!bytes.is_empty());
+            assert!(bytes.len() <= policy.diagram.max_bytes);
+            drop(bytes);
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri("/mcp")
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(Body::from(
+                            serde_json::json!({
+                                "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                "params": {"name": "gentufa", "arguments": {
+                                    "text": "mi klama", "format": format, "show-defs": false,
+                                }},
+                            })
+                            .to_string(),
+                        ))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let json = response_json(response).await;
+            assert_ne!(
+                json["result"]["isError"],
+                serde_json::json!(true),
+                "MCP {format}: {json}"
+            );
+            let content = &json["result"]["content"][0];
+            if format == "png" {
+                assert_eq!(content["type"], "image");
+                assert!(!content["data"].as_str().unwrap().is_empty());
+            } else {
+                assert_eq!(content["type"], "text");
+                assert!(content["text"].as_str().unwrap().contains("<svg"));
+            }
+        }
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            response.headers()["x-jbotci-error"],
+            "output_limit_exceeded"
+        );
+        std::fs::remove_dir_all(public_dir).unwrap();
+    }
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn framework_errors_use_the_wire_limit_while_health_and_assets_stay_available() {
+        let public_dir = test_static_dir();
+        std::fs::create_dir_all(public_dir.join("assets")).unwrap();
+        std::fs::write(public_dir.join("assets/limit-test.js"), "static contents").unwrap();
+        let policy = ServerPolicy::default().with_data(bityzba::data! { response_bytes: 1 });
+        let app = router_with_policy(test_config(public_dir.clone()), policy);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/gentufa")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"text":null}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            response.headers()["x-jbotci-error"],
+            "output_limit_exceeded"
+        );
+        assert_eq!(
+            response_text(response).await,
+            crate::error::ServerErrorCode::OutputLimit.message()
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_json(response).await["status"], "ok");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/assets/limit-test.js")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_text(response).await, "static contents");
+        std::fs::remove_dir_all(public_dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn router_with_page_meta_builder(
+    config: ServerConfig,
+    page_meta_builder: PageMetaBuilder,
+) -> Router {
+    router_with_builder_and_policy(config, page_meta_builder, ServerPolicy::default())
 }

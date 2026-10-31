@@ -3,9 +3,14 @@
 //! Output format selection and render facade.
 
 mod brackets;
+pub use brackets::{
+    pretty_generated_model_brackets_with_limit, pretty_morphology_brackets_with_limit,
+};
+pub mod budget;
 mod diagnostics;
 mod indentation;
 mod json;
+mod json_writer;
 mod markdown;
 mod places;
 mod recovered;
@@ -21,6 +26,7 @@ use bityzba::expensive_ensures;
 use bityzba::{invariant, requires};
 pub use diagnostics::{
     DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
+    render_diagnostics_with_limit,
 };
 pub use indentation::{Indentation, InvalidIndentation};
 pub use jbotci_diagnostics::DiagnosticDetailMode;
@@ -35,21 +41,27 @@ pub use markdown::{
     render_vlacku_cards_markdown_with_link_base, render_vlacku_decomposition_markdown,
     render_vlacku_headword_markdown,
 };
-use owo_colors::OwoColorize;
 pub use places::{
     DefinitionPlaceMap, IndexedPlaceSpan, format_definition_line_with_indexed_places,
-    format_notes_line_with_indexed_places, indexed_place_spans_for_definition_line,
+    format_definition_line_with_indexed_places_in_scope, format_notes_line_with_indexed_places,
+    format_notes_line_with_indexed_places_in_scope, indexed_place_spans_for_definition_line,
     indexed_place_spans_for_notes_line,
 };
 pub use recovered::{
+    compact_recovered_morphology_json_string_with_limit,
+    compact_recovered_morphology_json_string_with_limits,
     compact_recovered_morphology_json_string_with_options,
+    compact_recovered_syntax_json_string_with_limits,
     compact_recovered_syntax_json_string_with_options,
+    pretty_recovered_morphology_brackets_with_limit,
     pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
+    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
     pretty_recovered_morphology_tree_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
-    pretty_recovered_syntax_brackets_with_options,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_brackets_with_options,
     pretty_recovered_syntax_error_region_brackets_with_options, pretty_recovered_syntax_raw,
-    pretty_recovered_syntax_tree_with_options,
+    pretty_recovered_syntax_raw_with_limit, pretty_recovered_syntax_tree_with_limit,
+    pretty_recovered_syntax_tree_with_options, raw_with_limit,
 };
 pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
@@ -65,8 +77,11 @@ pub use surface::{
 };
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
-pub use tree::pretty_generated_model_tree_with_reference_display;
 pub use tree::{GeneratedReferenceDisplay, generated_reference_display};
+pub use tree::{
+    pretty_generated_model_tree_with_limit, pretty_generated_model_tree_with_reference_display,
+    pretty_morphology_tree_with_limit,
+};
 
 #[invariant(byte_start <= byte_end, "bracket source byte range must be ordered")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,7 +148,13 @@ impl BracketSourceFragmentRole {
 #[invariant(::Ipa(..) => true)]
 #[invariant(::References(..) => true)]
 #[invariant(::Recovery(..) => true)]
+#[invariant(::Render(..) => true)]
+#[invariant(::Limit { .. } => true)]
 pub enum OutputError {
+    #[error("The generated output exceeds the {}-byte limit.", limit.get())]
+    Limit { limit: budget::ByteLimit },
+    #[error("failed to render output: {0}")]
+    Render(String),
     #[error("failed to render diagnostic: {0}")]
     Diagnostic(String),
     #[error("failed to encode compact JSON: {0}")]
@@ -144,6 +165,27 @@ pub enum OutputError {
     References(String),
     #[error("failed to render recovered parse: {0}")]
     Recovery(String),
+}
+
+impl OutputError {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_render_io(error: std::io::Error, limit: budget::ByteLimit) -> Self {
+        if error.kind() == std::io::ErrorKind::FileTooLarge {
+            Self::Limit { limit }
+        } else {
+            Self::Render(error.to_string())
+        }
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_json(error: serde_json::Error, limit: budget::ByteLimit) -> Self {
+        if error.io_error_kind() == Some(std::io::ErrorKind::FileTooLarge) {
+            Self::Limit { limit }
+        } else {
+            Self::Json(error.to_string())
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -309,6 +351,73 @@ impl Default for TreeRenderOptions {
     }
 }
 
+/// Serialize a projection before its JSON buffer can exceed the limit.
+#[requires(true)]
+#[ensures(true)]
+pub fn compact_json_value_with_limit<T: Serialize>(
+    value: &T,
+    limit: budget::ByteLimit,
+) -> Result<Value, OutputError> {
+    let bytes =
+        budget::bounded_json(value, limit).map_err(|error| OutputError::from_json(error, limit))?;
+    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
+    deserializer.disable_recursion_limit();
+    Value::deserialize(serde_stacker::Deserializer::new(&mut deserializer))
+        .map(compact_json_shape)
+        .map_err(|error| OutputError::Json(error.to_string()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_json_value_with_limit(
+    value: &Value,
+    options: JsonRenderOptions,
+    limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    json_writer::render(value, 0, options, false, limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn render_compact_json_value_with_limit(
+    value: &Value,
+    options: JsonRenderOptions,
+    limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    json_writer::render(value, 0, options, true, limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= text_limit.get()) || ret.is_err())]
+pub fn compact_json_string_with_limits<T: Serialize>(
+    value: &T,
+    options: JsonRenderOptions,
+    text_limit: budget::ByteLimit,
+    projection_limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    render_compact_json_value_with_limit(
+        &compact_json_value_with_limit(value, projection_limit)?,
+        options,
+        text_limit,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= text_limit.get()) || ret.is_err())]
+pub fn compact_generated_model_json_string_with_limits(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+    options: JsonRenderOptions,
+    text_limit: budget::ByteLimit,
+    projection_limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    let mut value = compact_json_value_with_limit(tree, projection_limit)?;
+    if options.show_elided {
+        json::insert_generated_model_elided_terminators(&mut value, options);
+    }
+    json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    render_compact_json_value_with_limit(&value, options, text_limit)
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError> {
@@ -365,6 +474,29 @@ pub fn compact_morphology_json_string_with_options(
         0,
         options,
     ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn compact_morphology_json_string_with_limit(
+    words: &[WordLike],
+    options: JsonRenderOptions,
+    limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    compact_morphology_json_string_with_limits(words, options, limit, limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= text_limit.get()) || ret.is_err())]
+pub fn compact_morphology_json_string_with_limits(
+    words: &[WordLike],
+    options: JsonRenderOptions,
+    text_limit: budget::ByteLimit,
+    projection_limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    let mut value = json::morphology_projection_with_limit(words, projection_limit)?;
+    json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    render_compact_json_value_with_limit(&value, options, text_limit)
 }
 
 #[requires(true)]
@@ -509,341 +641,27 @@ fn compact_json_shape(value: Value) -> Value {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn format_compact_json_value(value: &Value, indent: usize, options: JsonRenderOptions) -> String {
-    match value {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-            format_json_scalar(value, options)
-        }
-        Value::Array(items) => format_compact_json_array(items, indent, options),
-        Value::Object(object) if is_constructor_object(object) => {
-            format_compact_json_constructor(object, indent, options)
-        }
-        Value::Object(object) => format_compact_json_object(object, indent, options),
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_compact_json_field_value(
-    value: &Value,
-    field_indent: usize,
-    options: JsonRenderOptions,
-) -> String {
-    match value {
-        Value::Object(object) if is_constructor_object(object) => {
-            format_compact_json_constructor(object, field_indent, options)
-        }
-        _ => format_compact_json_value(value, field_indent, options),
-    }
+    json_writer::render(
+        value,
+        indent,
+        options,
+        true,
+        budget::ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+    .expect("unrestricted JSON rendering")
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn format_standard_json_value(value: &Value, indent: usize, options: JsonRenderOptions) -> String {
-    match value {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-            format_json_scalar(value, options)
-        }
-        Value::Array(items) => format_standard_json_array(items, indent, options),
-        Value::Object(object) => format_standard_json_object(object, indent, options),
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_standard_json_array(
-    items: &[Value],
-    indent: usize,
-    options: JsonRenderOptions,
-) -> String {
-    if items.is_empty() {
-        return format!(
-            "{}{}",
-            json_punctuation("[", options),
-            json_punctuation("]", options)
-        );
-    }
-    if options.indent.spaces() == 0 {
-        let separator = json_punctuation(",", options);
-        let items = items
-            .iter()
-            .map(|item| format_standard_json_value(item, indent, options))
-            .collect::<Vec<_>>()
-            .join(&separator);
-        return format!(
-            "{}{items}{}",
-            json_punctuation("[", options),
-            json_punctuation("]", options)
-        );
-    }
-
-    let item_indent = indent + options.indent.spaces();
-    let pad = " ".repeat(item_indent);
-    let end = " ".repeat(indent);
-    let mut output = format!("{}\n", json_punctuation("[", options));
-    for (index, item) in items.iter().enumerate() {
-        output.push_str(&pad);
-        output.push_str(&format_standard_json_value(item, item_indent, options));
-        if index + 1 != items.len() {
-            output.push_str(&json_punctuation(",", options));
-        }
-        output.push('\n');
-    }
-    output.push_str(&end);
-    output.push_str(&json_punctuation("]", options));
-    output
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_standard_json_object(
-    object: &serde_json::Map<String, Value>,
-    indent: usize,
-    options: JsonRenderOptions,
-) -> String {
-    if object.is_empty() {
-        return format!(
-            "{}{}",
-            json_punctuation("{", options),
-            json_punctuation("}", options)
-        );
-    }
-    let constructor_object = is_constructor_object(object);
-    if options.indent.spaces() == 0 {
-        let separator = json_punctuation(",", options);
-        let fields = object
-            .iter()
-            .map(|(key, value)| {
-                format!(
-                    "{}{}{}",
-                    json_key(key, constructor_object, options),
-                    json_punctuation(":", options),
-                    format_standard_json_value(value, indent, options)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(&separator);
-        return format!(
-            "{}{fields}{}",
-            json_punctuation("{", options),
-            json_punctuation("}", options)
-        );
-    }
-
-    let field_indent = indent + options.indent.spaces();
-    let pad = " ".repeat(field_indent);
-    let end = " ".repeat(indent);
-    let mut output = format!("{}\n", json_punctuation("{", options));
-    for (index, (key, value)) in object.iter().enumerate() {
-        output.push_str(&pad);
-        output.push_str(&json_key(key, constructor_object, options));
-        output.push_str(&json_punctuation(":", options));
-        output.push(' ');
-        output.push_str(&format_standard_json_value(value, field_indent, options));
-        if index + 1 != object.len() {
-            output.push_str(&json_punctuation(",", options));
-        }
-        output.push('\n');
-    }
-    output.push_str(&end);
-    output.push_str(&json_punctuation("}", options));
-    output
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRenderOptions) -> String {
-    if items.is_empty() {
-        return "[]".to_owned();
-    }
-    if options.indent.spaces() == 0 || items.iter().all(is_compact_json_scalar) {
-        let separator = if options.indent.spaces() == 0 {
-            json_punctuation(",", options)
-        } else {
-            format!("{} ", json_punctuation(",", options))
-        };
-        let items = items
-            .iter()
-            .map(|item| format_compact_json_value(item, indent, options))
-            .collect::<Vec<_>>()
-            .join(&separator);
-        return format!(
-            "{}{items}{}",
-            json_punctuation("[", options),
-            json_punctuation("]", options)
-        );
-    }
-
-    let item_indent = indent + options.indent.spaces();
-    let pad = " ".repeat(item_indent);
-    let end = " ".repeat(indent);
-    let mut output = format!("{}\n", json_punctuation("[", options));
-    for (index, item) in items.iter().enumerate() {
-        output.push_str(&pad);
-        output.push_str(&format_compact_json_value(item, item_indent, options));
-        if index + 1 != items.len() {
-            output.push_str(&json_punctuation(",", options));
-        }
-        output.push('\n');
-    }
-    output.push_str(&end);
-    output.push_str(&json_punctuation("]", options));
-    output
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_compact_json_object(
-    object: &serde_json::Map<String, Value>,
-    indent: usize,
-    options: JsonRenderOptions,
-) -> String {
-    if object.is_empty() {
-        return format!(
-            "{}{}",
-            json_punctuation("{", options),
-            json_punctuation("}", options)
-        );
-    }
-    if options.indent.spaces() == 0 {
-        let fields = object
-            .iter()
-            .map(|(key, value)| {
-                format!(
-                    "{}{}{}",
-                    json_key(key, false, options),
-                    json_punctuation(":", options),
-                    format_compact_json_field_value(value, indent, options)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(&json_punctuation(",", options));
-        return format!(
-            "{}{fields}{}",
-            json_punctuation("{", options),
-            json_punctuation("}", options)
-        );
-    }
-
-    let field_indent = indent + options.indent.spaces();
-    let pad = " ".repeat(field_indent);
-    let end = " ".repeat(indent);
-    let mut output = format!("{}\n", json_punctuation("{", options));
-    for (index, (key, value)) in object.iter().enumerate() {
-        output.push_str(&pad);
-        output.push_str(&json_key(key, false, options));
-        output.push_str(&json_punctuation(":", options));
-        output.push(' ');
-        output.push_str(&format_compact_json_field_value(
-            value,
-            field_indent,
-            options,
-        ));
-        if index + 1 != object.len() {
-            output.push_str(&json_punctuation(",", options));
-        }
-        output.push('\n');
-    }
-    output.push_str(&end);
-    output.push_str(&json_punctuation("}", options));
-    output
-}
-
-#[requires(is_constructor_object(object))]
-#[ensures(!ret.is_empty())]
-fn format_compact_json_constructor(
-    object: &serde_json::Map<String, Value>,
-    constructor_indent: usize,
-    options: JsonRenderOptions,
-) -> String {
-    let (constructor, payload) = object.iter().next().expect("constructor object has item");
-    let constructor = json_key(constructor, true, options);
-    match payload {
-        Value::Object(fields) if fields.is_empty() && options.indent.spaces() == 0 => {
-            format!(
-                "{}{constructor}{}{}{}{}",
-                json_punctuation("{", options),
-                json_punctuation(":", options),
-                json_punctuation("{", options),
-                json_punctuation("}", options),
-                json_punctuation("}", options)
-            )
-        }
-        Value::Object(fields) if fields.is_empty() => format!(
-            "{}{constructor}{} {}{}{}",
-            json_punctuation("{", options),
-            json_punctuation(":", options),
-            json_punctuation("{", options),
-            json_punctuation("}", options),
-            json_punctuation("}", options)
-        ),
-        Value::Object(fields) if options.indent.spaces() == 0 => {
-            let fields = fields
-                .iter()
-                .map(|(key, value)| {
-                    format!(
-                        "{}{}{}",
-                        json_key(key, false, options),
-                        json_punctuation(":", options),
-                        format_compact_json_field_value(value, constructor_indent, options)
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(&json_punctuation(",", options));
-            format!(
-                "{}{constructor}{}{}{}{}{}",
-                json_punctuation("{", options),
-                json_punctuation(":", options),
-                json_punctuation("{", options),
-                fields,
-                json_punctuation("}", options),
-                json_punctuation("}", options)
-            )
-        }
-        Value::Object(fields) => {
-            let field_indent = constructor_indent + options.indent.spaces();
-            let pad = " ".repeat(field_indent);
-            let end = " ".repeat(constructor_indent);
-            let mut output = format!(
-                "{}{constructor}{} {}\n",
-                json_punctuation("{", options),
-                json_punctuation(":", options),
-                json_punctuation("{", options)
-            );
-            for (index, (key, value)) in fields.iter().enumerate() {
-                output.push_str(&pad);
-                output.push_str(&json_key(key, false, options));
-                output.push_str(&json_punctuation(":", options));
-                output.push(' ');
-                output.push_str(&format_compact_json_field_value(
-                    value,
-                    field_indent,
-                    options,
-                ));
-                if index + 1 != fields.len() {
-                    output.push_str(&json_punctuation(",", options));
-                }
-                output.push('\n');
-            }
-            output.push_str(&end);
-            output.push_str(&json_punctuation("}", options));
-            output.push_str(&json_punctuation("}", options));
-            output
-        }
-        other if options.indent.spaces() == 0 => format!(
-            "{}{constructor}{}{}{}",
-            json_punctuation("{", options),
-            json_punctuation(":", options),
-            format_compact_json_value(other, constructor_indent, options),
-            json_punctuation("}", options)
-        ),
-        other => format!(
-            "{}{constructor}{} {}{}",
-            json_punctuation("{", options),
-            json_punctuation(":", options),
-            format_compact_json_value(other, constructor_indent + options.indent.spaces(), options),
-            json_punctuation("}", options)
-        ),
-    }
+    json_writer::render(
+        value,
+        indent,
+        options,
+        false,
+        budget::ByteLimit::new(usize::MAX).expect("positive limit"),
+    )
+    .expect("unrestricted JSON rendering")
 }
 
 #[requires(true)]
@@ -863,66 +681,6 @@ fn is_compact_json_scalar(value: &Value) -> bool {
         value,
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
     )
-}
-
-#[requires(true)]
-#[ensures(ret.starts_with('"') && ret.ends_with('"'))]
-fn json_string(value: &str) -> String {
-    serde_json::to_string(value).expect("serializing JSON string cannot fail")
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-enum JsonColorRole {
-    Punctuation,
-    ConstructorKey,
-    FieldKey,
-    String,
-    Number,
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_json_scalar(value: &Value, options: JsonRenderOptions) -> String {
-    let text = serde_json::to_string(value).expect("serializing JSON scalar cannot fail");
-    let role = match value {
-        Value::String(_) => JsonColorRole::String,
-        Value::Null | Value::Bool(_) | Value::Number(_) => JsonColorRole::Number,
-        Value::Array(_) | Value::Object(_) => unreachable!("caller passes only JSON scalars"),
-    };
-    json_color_token(&text, role, options)
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn json_key(key: &str, constructor: bool, options: JsonRenderOptions) -> String {
-    let role = if constructor {
-        JsonColorRole::ConstructorKey
-    } else {
-        JsonColorRole::FieldKey
-    };
-    json_color_token(&json_string(key), role, options)
-}
-
-#[requires(!token.is_empty())]
-#[ensures(!ret.is_empty())]
-fn json_punctuation(token: &str, options: JsonRenderOptions) -> String {
-    json_color_token(token, JsonColorRole::Punctuation, options)
-}
-
-#[requires(!token.is_empty())]
-#[ensures(!ret.is_empty())]
-fn json_color_token(token: &str, role: JsonColorRole, options: JsonRenderOptions) -> String {
-    if !options.color {
-        return token.to_owned();
-    }
-    match role {
-        JsonColorRole::Punctuation => token.bright_black().to_string(),
-        JsonColorRole::ConstructorKey => token.bright_blue().to_string(),
-        JsonColorRole::FieldKey => token.green().to_string(),
-        JsonColorRole::String => token.yellow().to_string(),
-        JsonColorRole::Number => token.magenta().to_string(),
-    }
 }
 
 #[requires(true)]
@@ -1938,5 +1696,192 @@ mod tests {
         items.len() == 2
             && items[0].as_u64() == Some(span[0] as u64)
             && items[1].as_u64() == Some(span[1] as u64)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn ipa_morphology_text_with_limit(
+    words: &[WordLike],
+    source: &str,
+    limit: budget::ByteLimit,
+) -> Result<String, OutputError> {
+    jbotci_phonetic::ipa_morphology_text_with_limit(words, source, limit).map_err(|error| {
+        match error {
+            jbotci_phonetic::PhoneticError::OutputLimit { .. } => OutputError::Limit { limit },
+            error => OutputError::Ipa(error.to_string()),
+        }
+    })
+}
+
+#[cfg(test)]
+mod bounded_output_tests {
+    use super::*;
+    use budget::ByteLimit;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_projection_refuses_before_visiting_the_complete_result() {
+        let source = "mi ".repeat(1333);
+        let words = jbotci_morphology::segment_words_with_modifiers(&source).unwrap();
+        let small = ByteLimit::new(64).unwrap();
+        let projection = ByteLimit::new(4096).unwrap();
+        crate::json::reset_projection_visits();
+        let result = compact_morphology_json_string_with_limits(
+            &words,
+            JsonRenderOptions::default(),
+            small,
+            projection,
+        );
+        assert!(matches!(result, Err(OutputError::Limit { .. })));
+        let visits = crate::json::projection_visits();
+        assert!(
+            visits > 0 && visits < words.len(),
+            "visited {visits} of {}",
+            words.len()
+        );
+        let source = format!("{source}@");
+        let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(&source);
+        assert!(!recovered.errors.is_empty());
+        crate::json::reset_projection_visits();
+        let result = compact_recovered_morphology_json_string_with_limits(
+            &recovered,
+            &source,
+            JsonRenderOptions::default(),
+            small,
+            projection,
+        );
+        assert!(matches!(result, Err(OutputError::Limit { .. })));
+        let visits = crate::json::projection_visits();
+        assert!(
+            visits > 0 && visits < recovered.words.len(),
+            "visited {visits} of {}",
+            recovered.words.len()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bounded_morphology_projection_preserves_strict_and_recovered_output() {
+        let unlimited = ByteLimit::new(usize::MAX).unwrap();
+        for source in [
+            "mi klama",
+            "zo broda cu melbi",
+            "zoi gy hello gy",
+            "mi broda zei brode",
+            "mi @ do",
+        ] {
+            let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(source);
+            let options = JsonRenderOptions::default();
+            let expected = if recovered.errors.is_empty() {
+                compact_morphology_json_string_with_options(&recovered.words, options).unwrap()
+            } else {
+                let items = crate::recovered::recovered_morphology_sequence_for_json_test(
+                    &recovered, source,
+                );
+                render_compact_json_value_with_limit(&items, options, unlimited).unwrap()
+            };
+            let actual = compact_recovered_morphology_json_string_with_limits(
+                &recovered, source, options, unlimited, unlimited,
+            )
+            .unwrap();
+            assert_eq!(actual, expected, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_formats_refuse_one_byte_below_the_exact_output() {
+        let source = "mi klama lo zarci";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("morphology");
+        for indent in [
+            Indentation::compact(),
+            Indentation::try_from(8).expect("bounded indentation"),
+        ] {
+            let tree_options = TreeRenderOptions {
+                indent,
+                ..TreeRenderOptions::default()
+            };
+            let json_options = JsonRenderOptions {
+                indent,
+                ..JsonRenderOptions::default()
+            };
+            let raw_indent = (indent == Indentation::compact()).then_some(indent);
+            let unlimited = ByteLimit::new(usize::MAX).unwrap();
+            let outputs = [
+                compact_morphology_json_string_with_limits(
+                    &words,
+                    json_options,
+                    unlimited,
+                    unlimited,
+                )
+                .unwrap(),
+                pretty_morphology_tree_with_limit(&words, source, tree_options, unlimited).unwrap(),
+                pretty_morphology_brackets_with_limit(
+                    &words,
+                    source,
+                    BracketRenderOptions::default(),
+                    unlimited,
+                )
+                .unwrap(),
+                ipa_morphology_text_with_limit(&words, source, unlimited).unwrap(),
+                raw_with_limit(&words, raw_indent, unlimited).unwrap(),
+            ];
+            for (format, expected) in outputs.iter().enumerate() {
+                for bytes in [expected.len() - 1, expected.len()] {
+                    let limit = ByteLimit::new(bytes).unwrap();
+                    let result = match format {
+                        0 => compact_morphology_json_string_with_limits(
+                            &words,
+                            json_options,
+                            limit,
+                            unlimited,
+                        ),
+                        1 => pretty_morphology_tree_with_limit(&words, source, tree_options, limit),
+                        2 => pretty_morphology_brackets_with_limit(
+                            &words,
+                            source,
+                            BracketRenderOptions::default(),
+                            limit,
+                        ),
+                        3 => ipa_morphology_text_with_limit(&words, source, limit),
+                        _ => raw_with_limit(&words, raw_indent, limit),
+                    };
+                    if bytes == expected.len() {
+                        assert_eq!(result.unwrap(), *expected);
+                    } else {
+                        assert!(
+                            matches!(result, Err(OutputError::Limit { .. })),
+                            "format={format}: {result:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn escaped_utf8_json_keeps_the_typed_limit_error() {
+        let value = serde_json::json!({"text": "😀\"\n\\"});
+        let options = JsonRenderOptions::default();
+        let expected = render_json_value_with_options(&value, options);
+        assert_eq!(
+            render_json_value_with_limit(&value, options, ByteLimit::new(expected.len()).unwrap())
+                .unwrap(),
+            expected
+        );
+        assert!(matches!(
+            render_json_value_with_limit(
+                &value,
+                options,
+                ByteLimit::new(expected.len() - 1).unwrap()
+            ),
+            Err(OutputError::Limit { .. })
+        ));
     }
 }

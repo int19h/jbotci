@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use base64::Engine;
+use base64::display::Base64Display;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 #[cfg(test)]
 use jbotci_morphology::WordKind;
+use jbotci_output::budget::{BudgetedWriter, ByteLimit, OutputBudget};
+use std::io::Write;
 use thiserror::Error;
-use xmlwriter::{Indent, Options as XmlOptions, XmlWriter};
 
 use crate::{
     GentufaBlock, GentufaBlocksLayout, GentufaScript, ReferenceLabel, ReferenceMarker,
@@ -39,13 +40,193 @@ const GLOSS_INK: &str = "#6f6257";
 const GLOSS_BG: &str = "#ece3d7";
 pub const DEFAULT_GENTUFA_PNG_SCALE: f32 = 2.0;
 
+/// Resource bounds for one diagram export.
+#[invariant(*max_blocks > 0 && *max_columns > 0 && *max_pixels > 0 && *max_bytes > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GentufaRenderLimits {
+    pub max_blocks: usize,
+    pub max_columns: usize,
+    pub max_pixels: u64,
+    pub max_bytes: usize,
+}
+
+impl GentufaRenderLimits {
+    #[requires(true)]
+    #[ensures(ret.is_ok() -> layout.blocks.len() <= self.max_blocks && layout.max_col <= self.max_columns)]
+    fn check_layout<T, R>(
+        &self,
+        layout: &GentufaBlocksLayout<T, R>,
+    ) -> Result<(), GentufaExportError> {
+        if layout.blocks.len() > self.max_blocks || layout.max_col > self.max_columns {
+            Err(GentufaExportError::Limit(new!(GentufaLimit::Layout {
+                blocks: layout.blocks.len(),
+                columns: layout.max_col
+            })))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Raster dimensions that pass the pixel limit before allocation.
+#[invariant(*width > 0 && *height > 0)]
+#[invariant(u64::from(*width) * u64::from(*height) <= *max_pixels)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GentufaRasterPlan {
+    pub width: u32,
+    pub height: u32,
+    max_pixels: u64,
+}
+impl GentufaRasterPlan {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|plan| u64::from(plan.width) * u64::from(plan.height) <= max_pixels) || ret.is_err())]
+    pub fn from_dimensions(
+        width: f32,
+        height: f32,
+        scale: f32,
+        max_pixels: u64,
+    ) -> Result<Self, GentufaExportError> {
+        let width = (width * scale).ceil();
+        let height = (height * scale).ceil();
+        if !scale.is_finite()
+            || scale <= 0.0
+            || !width.is_finite()
+            || !height.is_finite()
+            || width <= 0.0
+            || height <= 0.0
+            || f64::from(width) > f64::from(u32::MAX)
+            || f64::from(height) > f64::from(u32::MAX)
+        {
+            return Err(GentufaExportError::InvalidSize);
+        }
+        let width = width as u32;
+        let height = height as u32;
+        if u64::from(width) * u64::from(height) > max_pixels {
+            return Err(GentufaExportError::Limit(new!(GentufaLimit::Pixels {
+                width,
+                height
+            })));
+        }
+        Ok(new!(GentufaRasterPlan {
+            width,
+            height,
+            max_pixels
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+struct SvgBudget {
+    output: OutputBudget,
+    failed: std::sync::atomic::AtomicBool,
+}
+impl SvgBudget {
+    #[requires(true)]
+    #[ensures(true)]
+    fn new(limit: ByteLimit) -> Arc<Self> {
+        Arc::new(Self {
+            output: OutputBudget::new(limit),
+            failed: std::sync::atomic::AtomicBool::new(false),
+        })
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn charge(&self, bytes: Option<usize>) -> bool {
+        use std::sync::atomic::Ordering;
+        if self.failed.load(Ordering::Relaxed) {
+            return false;
+        }
+        if bytes.is_some_and(|bytes| self.output.charge(bytes).is_ok()) {
+            true
+        } else {
+            self.failed.store(true, Ordering::Relaxed);
+            false
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn charge_svg(budget: &Option<Arc<SvgBudget>>, bytes: Option<usize>) -> bool {
+    budget.as_ref().is_none_or(|budget| budget.charge(bytes))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escaped_xml_len(text: &str, attribute: bool) -> Option<usize> {
+    text.chars().try_fold(0usize, |len, character| {
+        len.checked_add(match character {
+            '&' => 5,
+            '<' | '>' => 4,
+            '"' if attribute => 6,
+            '\'' if attribute => 6,
+            character => character.len_utf8(),
+        })
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_escaped_xml(
+    output: &mut BudgetedWriter,
+    text: &str,
+    attribute: bool,
+) -> std::io::Result<()> {
+    for character in text.chars() {
+        match character {
+            '&' => output.write_all(b"&amp;")?,
+            '<' => output.write_all(b"&lt;")?,
+            '>' => output.write_all(b"&gt;")?,
+            '"' if attribute => output.write_all(b"&quot;")?,
+            '\'' if attribute => output.write_all(b"&apos;")?,
+            character => {
+                let mut bytes = [0; 4];
+                output.write_all(character.encode_utf8(&mut bytes).as_bytes())?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The diagram resource that exhausted its configured budget.
+#[invariant(::Layout { blocks, columns } => *blocks > 0 || *columns > 0)]
+#[invariant(::Pixels { width, height } => *width > 0 && *height > 0)]
+#[invariant(::Bytes { .. } => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GentufaLimit {
+    Layout { blocks: usize, columns: usize },
+    Pixels { width: u32, height: u32 },
+    Bytes { limit: ByteLimit },
+}
+impl std::fmt::Display for GentufaLimit {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_data() {
+            data!(GentufaLimit::Layout { blocks, columns }) => {
+                write!(formatter, "{blocks} blocks across {columns} columns")
+            }
+            data!(GentufaLimit::Pixels { width, height }) => {
+                write!(formatter, "{width} by {height} raster pixels")
+            }
+            data!(GentufaLimit::Bytes { limit }) => {
+                write!(formatter, "{} encoded bytes", limit.get())
+            }
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 #[invariant(true)]
 #[invariant(::Xml(_) => true)]
 #[invariant(::Svg(_) => true)]
 #[invariant(::Png(_) => true)]
 #[invariant(::InvalidSize => true)]
+#[invariant(::Limit(_) => true)]
 pub enum GentufaExportError {
+    #[error("diagram exceeds the server limit: {0}")]
+    Limit(GentufaLimit),
     #[error("failed to parse generated SVG XML: {0}")]
     Xml(String),
     #[error("failed to parse generated SVG for rendering: {0}")]
@@ -144,7 +325,7 @@ pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'static>,
 ) -> Result<String, GentufaExportError> {
     let usvg_options = usvg_options(fonts);
-    render_gentufa_blocks_svg_with_options(layout, options, fonts, &usvg_options)
+    render_gentufa_blocks_svg_with_options(layout, options, fonts, &usvg_options, None)
 }
 
 #[requires(true)]
@@ -154,11 +335,21 @@ fn render_gentufa_blocks_svg_with_options<Tooltip, ReferenceTooltip>(
     options: &GentufaSvgOptions,
     fonts: GentufaFontData<'static>,
     usvg_options: &usvg::Options<'static>,
+    byte_limit: Option<ByteLimit>,
 ) -> Result<String, GentufaExportError> {
-    let mut measurer = TextMeasurer::new(usvg_options);
+    let mut measurer = TextMeasurer::with_limit(usvg_options, byte_limit);
     let positioned = PositionedBlocks::new(layout, options, &mut measurer)?;
-    let document = svg_document(layout, options, fonts, &positioned, &mut measurer)?;
-    Ok(document.to_xml())
+    let document = svg_document(
+        layout,
+        options,
+        fonts,
+        &positioned,
+        &mut measurer,
+        byte_limit,
+    )?;
+    document.to_xml_with_limit(
+        byte_limit.unwrap_or(ByteLimit::new(usize::MAX).expect("positive limit")),
+    )
 }
 
 #[requires(true)]
@@ -169,7 +360,8 @@ pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'static>,
 ) -> Result<Vec<u8>, GentufaExportError> {
     let usvg_options = usvg_options(fonts);
-    let svg = render_gentufa_blocks_svg_with_options(layout, &options.svg, fonts, &usvg_options)?;
+    let svg =
+        render_gentufa_blocks_svg_with_options(layout, &options.svg, fonts, &usvg_options, None)?;
     let xml = roxmltree::Document::parse(&svg)
         .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
     let tree = usvg::Tree::from_xmltree(&xml, &usvg_options)
@@ -187,6 +379,95 @@ pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
     pixmap
         .encode_png()
         .map_err(|error| GentufaExportError::Png(error.to_string()))
+}
+
+/// Render SVG with limits on its model and encoded bytes.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|svg| svg.len() <= limits.max_bytes) || ret.is_err())]
+pub fn render_gentufa_blocks_svg_with_limits<T, R>(
+    layout: &GentufaBlocksLayout<T, R>,
+    options: &GentufaSvgOptions,
+    fonts: GentufaFontData<'static>,
+    limits: GentufaRenderLimits,
+) -> Result<String, GentufaExportError> {
+    limits.check_layout(layout)?;
+    let options_usvg = usvg_options(fonts);
+    let svg = render_gentufa_blocks_svg_with_options(
+        layout,
+        options,
+        fonts,
+        &options_usvg,
+        Some(ByteLimit::new(limits.max_bytes).expect("validated diagram limit")),
+    )?;
+    checked_svg_raster_plan(&svg, DEFAULT_GENTUFA_PNG_SCALE, limits.max_pixels)?;
+    Ok(svg)
+}
+
+/// Plan the raster before allocation and stream the PNG through its byte limit.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|png| png.len() <= limits.max_bytes) || ret.is_err())]
+pub fn render_gentufa_blocks_png_with_limits<T, R>(
+    layout: &GentufaBlocksLayout<T, R>,
+    options: &GentufaPngOptions,
+    fonts: GentufaFontData<'static>,
+    limits: GentufaRenderLimits,
+) -> Result<Vec<u8>, GentufaExportError> {
+    limits.check_layout(layout)?;
+    let options_usvg = usvg_options(fonts);
+    let svg = render_gentufa_blocks_svg_with_options(
+        layout,
+        &options.svg,
+        fonts,
+        &options_usvg,
+        Some(ByteLimit::new(limits.max_bytes).expect("validated diagram limit")),
+    )?;
+    let xml = roxmltree::Document::parse(&svg)
+        .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
+    let tree = usvg::Tree::from_xmltree(&xml, &options_usvg)
+        .map_err(|error| GentufaExportError::Svg(error.to_string()))?;
+    let size = tree.size();
+    let plan = GentufaRasterPlan::from_dimensions(
+        size.width(),
+        size.height(),
+        options.scale,
+        limits.max_pixels,
+    )?;
+    let mut pixmap =
+        tiny_skia::Pixmap::new(plan.width, plan.height).ok_or(GentufaExportError::InvalidSize)?;
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::from_scale(options.scale, options.scale),
+        &mut pixmap.as_mut(),
+    );
+    encode_png_with_limit(
+        pixmap,
+        ByteLimit::new(limits.max_bytes).expect("validated diagram limit"),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() <= limit.get()) || ret.is_err())]
+fn encode_png_with_limit(
+    pixmap: tiny_skia::Pixmap,
+    limit: ByteLimit,
+) -> Result<Vec<u8>, GentufaExportError> {
+    let width = pixmap.width();
+    let height = pixmap.height();
+    let data = pixmap.take_demultiplied();
+    let mut output = OutputBudget::new(limit).writer();
+    {
+        let mut encoder = png::Encoder::new(&mut output, width, height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().map_err(export_png_error)?;
+        {
+            let mut stream = writer.stream_writer().map_err(export_png_error)?;
+            stream.write_all(&data).map_err(export_io_error)?;
+            stream.finish().map_err(export_png_error)?;
+        }
+        writer.finish().map_err(export_png_error)?;
+    }
+    Ok(output.into_bytes())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -265,15 +546,27 @@ struct TextMeasureStyleKey {
 #[invariant(true)]
 struct TextMeasurer<'options> {
     options: &'options usvg::Options<'static>,
+    byte_limit: Option<ByteLimit>,
     cache: HashMap<TextMeasureStyleKey, HashMap<String, TextSize>>,
 }
 
 impl<'options> TextMeasurer<'options> {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     fn new(options: &'options usvg::Options<'static>) -> Self {
+        Self::with_limit(options, None)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn with_limit(
+        options: &'options usvg::Options<'static>,
+        byte_limit: Option<ByteLimit>,
+    ) -> Self {
         Self {
             options,
+            byte_limit,
             cache: HashMap::new(),
         }
     }
@@ -294,7 +587,7 @@ impl<'options> TextMeasurer<'options> {
         {
             return Ok(*size);
         }
-        let size = measure_text_with_usvg(text, role, script, self.options)?;
+        let size = measure_text_with_usvg(text, role, script, self.options, self.byte_limit)?;
         self.cache
             .entry(style_key)
             .or_default()
@@ -310,13 +603,15 @@ fn measure_text_with_usvg(
     role: TextRole,
     script: GentufaScript,
     options: &usvg::Options<'_>,
+    byte_limit: Option<ByteLimit>,
 ) -> Result<TextSize, GentufaExportError> {
-    let mut root = SvgElement::new(SvgTag::Svg);
+    let budget = byte_limit.map(SvgBudget::new);
+    let mut root = SvgElement::new_with_budget(SvgTag::Svg, budget.clone());
     root.attr("xmlns", SVG_NS);
     root.attr("width", "10000");
     root.attr("height", "1000");
     root.attr("viewBox", "0 0 10000 1000");
-    let mut text_node = SvgElement::new(SvgTag::Text);
+    let mut text_node = SvgElement::new_with_budget(SvgTag::Text, budget.clone());
     text_node.attr("id", "measure-text");
     text_node.attr("x", "0");
     text_node.attr("y", "200");
@@ -326,7 +621,9 @@ fn measure_text_with_usvg(
     text_node.attr("font-style", role.font_style());
     text_node.text(text);
     root.child(text_node);
-    let svg = SvgDocument { root }.to_xml();
+    let svg = SvgDocument { root }.to_xml_with_limit(
+        byte_limit.unwrap_or(ByteLimit::new(usize::MAX).expect("positive limit")),
+    )?;
     let xml = roxmltree::Document::parse(&svg)
         .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
     let tree = usvg::Tree::from_xmltree(&xml, options)
@@ -890,8 +1187,10 @@ fn svg_document<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'_>,
     positioned: &PositionedBlocks,
     measurer: &mut TextMeasurer,
+    byte_limit: Option<ByteLimit>,
 ) -> Result<SvgDocument, GentufaExportError> {
-    let mut root = SvgElement::new(SvgTag::Svg);
+    let budget = byte_limit.map(SvgBudget::new);
+    let mut root = SvgElement::new_with_budget(SvgTag::Svg, budget.clone());
     root.attr("xmlns", SVG_NS);
     root.attr("width", &format_float(positioned.width));
     root.attr("height", &format_float(positioned.height));
@@ -904,13 +1203,17 @@ fn svg_document<Tooltip, ReferenceTooltip>(
         ),
     );
     root.attr("role", "img");
-    let mut title = SvgElement::new(SvgTag::Title);
+    let mut title = SvgElement::new_with_budget(SvgTag::Title, budget.clone());
     title.text(&options.title);
     root.child(title);
-    let mut style = SvgElement::new(SvgTag::Style);
-    style.text(&svg_css(options.script, fonts));
+    let mut style = SvgElement::new_with_budget(SvgTag::Style, budget.clone());
+    style.text(&svg_css(
+        options.script,
+        fonts,
+        byte_limit.unwrap_or(ByteLimit::new(usize::MAX).expect("positive limit")),
+    )?);
     root.child(style);
-    let mut background = SvgElement::new(SvgTag::Rect);
+    let mut background = SvgElement::new_with_budget(SvgTag::Rect, budget.clone());
     background.attr("x", "0");
     background.attr("y", "0");
     background.attr("width", &format_float(positioned.width));
@@ -918,12 +1221,18 @@ fn svg_document<Tooltip, ReferenceTooltip>(
     background.attr("fill", "#ffffff");
     root.child(background);
     for block in &layout.blocks {
-        root.child(block_element(block, options, positioned, measurer)?);
+        root.child(block_element(
+            block,
+            options,
+            positioned,
+            measurer,
+            budget.clone(),
+        )?);
     }
     if options.show_glosses {
         for block in layout.blocks.iter().filter(|block| block.is_leaf) {
             if block_gloss_text(block).is_some() {
-                root.child(gloss_element(block, options, positioned));
+                root.child(gloss_element(block, options, positioned, budget.clone()));
             }
         }
     }
@@ -937,12 +1246,13 @@ fn block_element<Tooltip, ReferenceTooltip>(
     options: &GentufaSvgOptions,
     positioned: &PositionedBlocks,
     measurer: &mut TextMeasurer,
+    budget: Option<Arc<SvgBudget>>,
 ) -> Result<SvgElement, GentufaExportError> {
     let x = positioned.col_x(block.col);
     let y = positioned.row_y(block.row);
     let width = positioned.span_width(block.col, block.col_span);
     let height = positioned.span_height(block.row, block.row_span);
-    let mut group = SvgElement::new(SvgTag::G);
+    let mut group = SvgElement::new_with_budget(SvgTag::G, budget.clone());
     group.attr("id", &block.block_id);
     if block.role.is_error() {
         group.attr("data-role", "error");
@@ -958,7 +1268,7 @@ fn block_element<Tooltip, ReferenceTooltip>(
             group.attr("data-byte-end", &span.byte_end.to_string());
         }
     }
-    let mut rect = SvgElement::new(SvgTag::Rect);
+    let mut rect = SvgElement::new_with_budget(SvgTag::Rect, budget.clone());
     rect.attr("x", &format_float(x));
     rect.attr("y", &format_float(y));
     rect.attr("width", &format_float(width));
@@ -1001,7 +1311,7 @@ fn add_block_label<Tooltip, ReferenceTooltip>(
     } else {
         y + height - NONLEAF_LABEL_BOTTOM_PADDING
     };
-    let mut text = text_element(role, options.script, &block.label);
+    let mut text = text_element(role, options.script, &block.label, group.budget.clone());
     text.attr("x", &format_float(x + width / 2.0));
     text.attr("y", &format_float(baseline_y));
     text.attr("text-anchor", "middle");
@@ -1039,6 +1349,7 @@ fn add_referent_text<Tooltip, ReferenceTooltip>(
             TextRole::Reference,
             options.script,
             &reference_label_text(&marker.label),
+            group.budget.clone(),
         );
         text.attr("x", &format_float(x + REF_PAD_X));
         text.attr(
@@ -1072,7 +1383,12 @@ fn add_reference_text<Tooltip, ReferenceTooltip>(
         return Ok(());
     }
     let text_size = measurer.measure(&text_value, TextRole::Reference, options.script)?;
-    let mut text = text_element(TextRole::Reference, options.script, &text_value);
+    let mut text = text_element(
+        TextRole::Reference,
+        options.script,
+        &text_value,
+        group.budget.clone(),
+    );
     text.attr("x", &format_float(x + width - REF_PAD_X));
     text.attr(
         "y",
@@ -1105,13 +1421,14 @@ fn gloss_element<Tooltip, ReferenceTooltip>(
     block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     positioned: &PositionedBlocks,
+    budget: Option<Arc<SvgBudget>>,
 ) -> SvgElement {
     let x = positioned.col_x(block.col);
     let y = positioned.gloss_y();
     let width = positioned.span_width(block.col, block.col_span);
     let height = positioned.gloss_row_height.unwrap_or(GLOSS_ROW_HEIGHT);
-    let mut group = SvgElement::new(SvgTag::G);
-    let mut rect = SvgElement::new(SvgTag::Rect);
+    let mut group = SvgElement::new_with_budget(SvgTag::G, budget.clone());
+    let mut rect = SvgElement::new_with_budget(SvgTag::Rect, budget.clone());
     rect.attr("x", &format_float(x));
     rect.attr("y", &format_float(y));
     rect.attr("width", &format_float(width));
@@ -1119,7 +1436,7 @@ fn gloss_element<Tooltip, ReferenceTooltip>(
     rect.attr("fill", GLOSS_BG);
     group.child(rect);
     if let Some(gloss) = block_gloss_text(block) {
-        let mut text = text_element(TextRole::Gloss, options.script, gloss);
+        let mut text = text_element(TextRole::Gloss, options.script, gloss, group.budget.clone());
         text.attr("x", &format_float(x + BLOCK_PADDING));
         text.attr(
             "y",
@@ -1133,8 +1450,13 @@ fn gloss_element<Tooltip, ReferenceTooltip>(
 
 #[requires(!value.is_empty())]
 #[ensures(true)]
-fn text_element(role: TextRole, script: GentufaScript, value: &str) -> SvgElement {
-    let mut text = SvgElement::new(SvgTag::Text);
+fn text_element(
+    role: TextRole,
+    script: GentufaScript,
+    value: &str,
+    budget: Option<Arc<SvgBudget>>,
+) -> SvgElement {
+    let mut text = SvgElement::new_with_budget(SvgTag::Text, budget);
     text.attr("font-family", role.font_family(script));
     text.attr("font-size", &format_float(role.font_size()));
     text.attr("font-weight", role.font_weight());
@@ -1145,17 +1467,21 @@ fn text_element(role: TextRole, script: GentufaScript, value: &str) -> SvgElemen
 }
 
 #[requires(true)]
-#[ensures(ret.contains("@font-face"))]
-fn svg_css(script: GentufaScript, fonts: GentufaFontData<'_>) -> String {
+#[ensures(ret.as_ref().is_ok_and(|text| text.contains("@font-face") && text.len() <= limit.get()) || ret.is_err())]
+fn svg_css(
+    script: GentufaScript,
+    fonts: GentufaFontData<'_>,
+    limit: ByteLimit,
+) -> Result<String, GentufaExportError> {
     let crisa = if script == GentufaScript::Zbalermorna {
-        crisa_font_face(fonts.crisa)
+        crisa_font_face(fonts.crisa, limit)?
     } else {
         String::new()
     };
     // CDN font URLs are deliberate for exported SVGs: broad SVG viewer support
     // for data-URI font embedding is poor, while PNG export is the
     // self-contained output path.
-    format!(
+    jbotci_output::budget::bounded_format(format_args!(
         r#"
 @font-face {{
   font-family: "Noto Sans";
@@ -1188,32 +1514,42 @@ fn svg_css(script: GentufaScript, fonts: GentufaFontData<'_>) -> String {
   font-style: normal;
 }}{}"#,
         crisa
-    )
+    ), limit).map_err(|error| export_io_error(error))
 }
 
 #[requires(true)]
-#[ensures(ret.is_empty() || ret.contains("Crisa"))]
-fn crisa_font_face(font: Option<&[u8]>) -> String {
+#[ensures(ret.as_ref().is_ok_and(|text| text.contains("Crisa") && text.len() <= limit.get()) || ret.is_err())]
+fn crisa_font_face(font: Option<&[u8]>, limit: ByteLimit) -> Result<String, GentufaExportError> {
     if let Some(font) = font {
-        let encoded = base64::engine::general_purpose::STANDARD.encode(font);
-        format!(
-            r#"
+        let encoded = Base64Display::new(font, &base64::engine::general_purpose::STANDARD);
+        jbotci_output::budget::bounded_format(
+            format_args!(
+                r#"
 @font-face {{
   font-family: "Crisa";
   src: url("data:font/otf;base64,{encoded}") format("opentype");
   font-weight: 400;
   font-style: normal;
 }}"#
+            ),
+            limit,
         )
+        .map_err(export_io_error)
     } else {
-        r#"
+        jbotci_output::budget::bounded_format(
+            format_args!(
+                "{}",
+                r#"
 @font-face {
   font-family: "Crisa";
   src: local("Crisa");
   font-weight: 400;
   font-style: normal;
 }"#
-        .to_owned()
+            ),
+            limit,
+        )
+        .map_err(export_io_error)
     }
 }
 
@@ -1246,38 +1582,63 @@ fn usvg_options(fonts: GentufaFontData<'static>) -> usvg::Options<'static> {
     options
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 #[invariant(true)]
 struct SvgDocument {
     root: SvgElement,
 }
 
 impl SvgDocument {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.starts_with("<svg"))]
     fn to_xml(&self) -> String {
-        let mut writer = XmlWriter::new(XmlOptions {
-            indent: Indent::None,
-            ..XmlOptions::default()
-        });
-        self.root.write(&mut writer);
-        writer.end_document()
+        self.to_xml_with_limit(ByteLimit::new(usize::MAX).expect("positive limit"))
+            .expect("unrestricted SVG output")
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+    fn to_xml_with_limit(&self, limit: ByteLimit) -> Result<String, GentufaExportError> {
+        if self
+            .root
+            .budget
+            .as_ref()
+            .is_some_and(|budget| budget.failed.load(std::sync::atomic::Ordering::Relaxed))
+        {
+            return Err(GentufaExportError::Limit(new!(GentufaLimit::Bytes {
+                limit
+            })));
+        }
+        let mut output = OutputBudget::new(limit).writer();
+        self.root.write(&mut output).map_err(export_io_error)?;
+        Ok(output.into_string().expect("SVG output is UTF-8"))
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 #[invariant(true)]
 struct SvgElement {
+    budget: Option<Arc<SvgBudget>>,
     tag: SvgTag,
     attributes: Vec<SvgAttribute>,
     children: Vec<SvgNode>,
 }
 
 impl SvgElement {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(ret.tag == tag)]
     fn new(tag: SvgTag) -> Self {
+        Self::new_with_budget(tag, None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.tag == tag)]
+    fn new_with_budget(tag: SvgTag, budget: Option<Arc<SvgBudget>>) -> Self {
+        charge_svg(&budget, tag.name().len().checked_add(3));
         Self {
+            budget,
             tag,
             attributes: Vec::new(),
             children: Vec::new(),
@@ -1287,42 +1648,69 @@ impl SvgElement {
     #[requires(!name.is_empty())]
     #[ensures(true)]
     fn attr(&mut self, name: &'static str, value: &str) {
+        let bytes = escaped_xml_len(value, true)
+            .and_then(|len| len.checked_add(name.len()))
+            .and_then(|len| len.checked_add(4));
+        if !charge_svg(&self.budget, bytes) {
+            return;
+        }
         self.attributes.push(SvgAttribute {
             name,
             value: value.to_owned(),
         });
     }
 
-    #[requires(true)]
+    #[requires(match (&self.budget, &element.budget) { (Some(left), Some(right)) => Arc::ptr_eq(left, right), (None, None) => true, _ => false })]
     #[ensures(true)]
     fn child(&mut self, element: SvgElement) {
+        if self.children.is_empty()
+            && !charge_svg(&self.budget, self.tag.name().len().checked_add(2))
+        {
+            return;
+        }
+        if self
+            .budget
+            .as_ref()
+            .is_some_and(|budget| budget.failed.load(std::sync::atomic::Ordering::Relaxed))
+        {
+            return;
+        }
         self.children.push(SvgNode::Element(element));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn text(&mut self, text: &str) {
+        let bytes = escaped_xml_len(text, false).and_then(|len| {
+            if self.children.is_empty() {
+                len.checked_add(self.tag.name().len() + 2)
+            } else {
+                Some(len)
+            }
+        });
+        if !charge_svg(&self.budget, bytes) {
+            return;
+        }
         self.children.push(SvgNode::Text(text.to_owned()));
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn write(&self, writer: &mut XmlWriter) {
-        writer.start_element(self.tag.name());
+    fn write(&self, writer: &mut BudgetedWriter) -> std::io::Result<()> {
+        write!(writer, "<{}", self.tag.name())?;
         for attribute in &self.attributes {
-            writer.write_attribute(attribute.name, &escape_xml_attribute(&attribute.value));
+            write!(writer, " {}=\"", attribute.name)?;
+            write_escaped_xml(writer, &attribute.value, true)?;
+            writer.write_all(b"\"")?;
         }
-        let preserve = self.tag == SvgTag::Style || self.tag == SvgTag::Text;
-        if preserve {
-            writer.set_preserve_whitespaces(true);
+        if self.children.is_empty() {
+            return writer.write_all(b"/>");
         }
+        writer.write_all(b">")?;
         for child in &self.children {
-            child.write(writer);
+            child.write(writer)?;
         }
-        if preserve {
-            writer.set_preserve_whitespaces(false);
-        }
-        writer.end_element();
+        write!(writer, "</{}>", self.tag.name())
     }
 }
 
@@ -1359,7 +1747,7 @@ struct SvgAttribute {
     value: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 #[invariant(true)]
 #[invariant(::Element(_) => true)]
 #[invariant(::Text(_) => true)]
@@ -1371,46 +1759,12 @@ enum SvgNode {
 impl SvgNode {
     #[requires(true)]
     #[ensures(true)]
-    fn write(&self, writer: &mut XmlWriter) {
+    fn write(&self, writer: &mut BudgetedWriter) -> std::io::Result<()> {
         match self {
             Self::Element(element) => element.write(writer),
-            Self::Text(text) => writer.write_text(&escape_xml_text(text)),
+            Self::Text(text) => write_escaped_xml(writer, text, false),
         }
     }
-}
-
-#[requires(true)]
-#[ensures(!ret.contains('<'))]
-#[ensures(!ret.contains('&') || ret.contains("&amp;") || ret.contains("&lt;") || ret.contains("&gt;"))]
-fn escape_xml_text(text: &str) -> String {
-    let mut output = String::with_capacity(text.len());
-    for character in text.chars() {
-        match character {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '>' => output.push_str("&gt;"),
-            _ => output.push(character),
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(!ret.contains('<'))]
-#[ensures(!ret.contains('"'))]
-fn escape_xml_attribute(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    for character in value.chars() {
-        match character {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '>' => output.push_str("&gt;"),
-            '"' => output.push_str("&quot;"),
-            '\'' => output.push_str("&apos;"),
-            _ => output.push(character),
-        }
-    }
-    output
 }
 
 #[requires(value.is_finite())]
@@ -1429,6 +1783,82 @@ fn format_float(value: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raster_plan_counts_scaled_pixels_and_rejects_invalid_dimensions() {
+        let plan = GentufaRasterPlan::from_dimensions(2.25, 1.25, 2.0, 15).unwrap();
+        assert_eq!((plan.width, plan.height), (5, 3));
+        assert!(GentufaRasterPlan::from_dimensions(2.25, 1.25, 2.0, 14).is_err());
+        for value in [0.0, -1.0, f32::INFINITY, f32::NAN, f32::MAX] {
+            assert!(GentufaRasterPlan::from_dimensions(value, 1.0, 2.0, u64::MAX).is_err());
+        }
+        assert!(GentufaRasterPlan::from_dimensions(1.0, 1.0, 1.0, 0).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn svg_model_and_serialization_have_the_same_exact_byte_boundary() {
+        let expected = "<svg a=\"&lt;&amp;&quot;\">😀&lt;&amp;</svg>";
+        let limit = ByteLimit::new(expected.len()).unwrap();
+        let budget = SvgBudget::new(limit);
+        let mut root = SvgElement::new_with_budget(SvgTag::Svg, Some(Arc::clone(&budget)));
+        root.attr("a", "<&\"");
+        root.text("😀<&");
+        assert_eq!(budget.output.remaining(), 0);
+        assert_eq!(
+            SvgDocument { root }.to_xml_with_limit(limit).unwrap(),
+            expected
+        );
+        let tiny = ByteLimit::new(1).unwrap();
+        let mut root = SvgElement::new_with_budget(SvgTag::Svg, Some(SvgBudget::new(tiny)));
+        root.attr("a", "this value cannot fit");
+        root.text("this value cannot fit");
+        assert_eq!(root.attributes.capacity(), 0);
+        assert_eq!(root.children.capacity(), 0);
+        assert!(SvgDocument { root }.to_xml_with_limit(tiny).is_err());
+    }
+
+    #[requires(true)]
+    #[ensures(ret.width() == 2 && ret.height() == 1)]
+    fn sample_raster() -> tiny_skia::Pixmap {
+        let mut pixmap = tiny_skia::Pixmap::new(2, 1).unwrap();
+        pixmap
+            .data_mut()
+            .copy_from_slice(&[128, 0, 0, 128, 0, 64, 0, 64]);
+        pixmap
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn decoded_png(bytes: &[u8]) -> Vec<u8> {
+        let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+        let mut reader = decoder.read_info().unwrap();
+        let mut decoded = vec![0; reader.output_buffer_size().unwrap()];
+        let info = reader.next_frame(&mut decoded).unwrap();
+        decoded.truncate(info.buffer_size());
+        decoded
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn png_stream_obeys_the_exact_limit_and_keeps_the_pixels() {
+        let png = encode_png_with_limit(sample_raster(), ByteLimit::new(4096).unwrap()).unwrap();
+        assert_eq!(
+            encode_png_with_limit(sample_raster(), ByteLimit::new(png.len()).unwrap()).unwrap(),
+            png
+        );
+        assert!(
+            encode_png_with_limit(sample_raster(), ByteLimit::new(png.len() - 1).unwrap()).is_err()
+        );
+        assert_eq!(
+            decoded_png(&png),
+            decoded_png(&sample_raster().encode_png().unwrap())
+        );
+    }
 
     #[test]
     #[requires(true)]
@@ -1866,4 +2296,57 @@ mod tests {
     fn occurrence(value: usize) -> Option<NonZeroUsize> {
         NonZeroUsize::new(value)
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn export_io_error(error: std::io::Error) -> GentufaExportError {
+    match output_limit_cause(&error) {
+        Some(limit) => GentufaExportError::Limit(new!(GentufaLimit::Bytes { limit })),
+        None => GentufaExportError::Png(error.to_string()),
+    }
+}
+#[requires(true)]
+#[ensures(true)]
+fn output_limit_cause(error: &(dyn std::error::Error + 'static)) -> Option<ByteLimit> {
+    if let Some(error) = error.downcast_ref::<jbotci_output::budget::OutputLimitError>() {
+        return Some(error.limit);
+    }
+    if let Some(inner) = error
+        .downcast_ref::<std::io::Error>()
+        .and_then(std::io::Error::get_ref)
+    {
+        return output_limit_cause(inner);
+    }
+    error.source().and_then(output_limit_cause)
+}
+#[requires(true)]
+#[ensures(true)]
+fn export_png_error(error: png::EncodingError) -> GentufaExportError {
+    match output_limit_cause(&error) {
+        Some(limit) => GentufaExportError::Limit(new!(GentufaLimit::Bytes { limit })),
+        None => GentufaExportError::Png(error.to_string()),
+    }
+}
+
+/// Use the encoded SVG dimensions so the plan matches the PNG renderer exactly.
+#[requires(true)]
+#[ensures(true)]
+pub fn checked_svg_raster_plan(
+    svg: &str,
+    scale: f32,
+    max_pixels: u64,
+) -> Result<GentufaRasterPlan, GentufaExportError> {
+    let xml = roxmltree::Document::parse(svg)
+        .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
+    let root = xml.root_element();
+    let width = root
+        .attribute("width")
+        .and_then(|width| width.parse::<f32>().ok())
+        .ok_or(GentufaExportError::InvalidSize)?;
+    let height = root
+        .attribute("height")
+        .and_then(|height| height.parse::<f32>().ok())
+        .ok_or(GentufaExportError::InvalidSize)?;
+    GentufaRasterPlan::from_dimensions(width, height, scale, max_pixels)
 }

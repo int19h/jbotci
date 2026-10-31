@@ -24,11 +24,14 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
 /// the start of a line, so those characters are escaped only there; every
 /// other escape is unconditional.
 #[requires(!line.contains('\n'))]
-#[ensures(!ret.trim_start().starts_with(['-', '#', '+']))]
-#[ensures(line.is_empty() == ret.is_empty())]
-pub fn escape_discord_markdown_line(line: &str) -> String {
+#[ensures(scope.is_exceeded() || (!ret.trim_start().starts_with(['-', '#', '+'])))]
+#[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
+pub fn escape_discord_markdown_line_in_scope(
+    line: &str,
+    scope: &jbotci_budget::TextScope,
+) -> String {
     let indent = line.len() - line.trim_start().len();
-    let mut escaped = String::with_capacity(line.len() + 8);
+    let mut escaped = scope.buffer();
     // True while only digits have followed the indent: a `.` there would
     // complete an ordered-list marker.
     let mut in_ordered_prefix = true;
@@ -45,22 +48,22 @@ pub fn escape_discord_markdown_line(line: &str) -> String {
         }
         escaped.push(character);
     }
-    escaped
+    escaped.into_piece()
 }
 
 /// Escape arbitrary text, line by line, so Discord renders it verbatim.
 #[requires(true)]
-#[ensures(text.is_empty() == ret.is_empty())]
-#[ensures(ret.split('\n').count() == text.split('\n').count())]
-pub fn escape_discord_markdown(text: &str) -> String {
-    let mut escaped = String::with_capacity(text.len() + 8);
+#[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
+#[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
+pub fn escape_discord_markdown_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut escaped = scope.buffer();
     for (index, line) in text.split('\n').enumerate() {
         if index > 0 {
             escaped.push('\n');
         }
-        escaped.push_str(&escape_discord_markdown_line(line));
+        escaped.push_str(&escape_discord_markdown_line_in_scope(line, scope));
     }
-    escaped
+    escaped.into_piece()
 }
 
 /// The longest run of consecutive backticks in `text`.
@@ -91,15 +94,15 @@ const ZERO_WIDTH_SPACE: char = '\u{200b}';
 /// which is inert and still readable. Longer delimiters are CommonMark rather
 /// than documented Discord syntax, so they are not used.
 #[requires(true)]
-#[ensures(ret.starts_with('`') == (!text.is_empty() && !text.contains('`') && !text.contains('\n') && !text.contains('\r')))]
-pub fn discord_inline_code(text: &str) -> String {
+#[ensures(scope.is_exceeded() || (ret.starts_with('`') == (!text.is_empty() && !text.contains('`') && !text.contains('\n') && !text.contains('\r'))))]
+pub fn discord_inline_code_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
     if text.is_empty() {
         return String::new();
     }
     if text.contains('`') || text.contains('\n') || text.contains('\r') {
-        return escape_discord_markdown(text);
+        return escape_discord_markdown_in_scope(text, scope);
     }
-    format!("`{text}`")
+    scope.format(format_args!("`{text}`"))
 }
 
 /// A fenced code block carrying `text`. The fence is Discord's documented
@@ -107,26 +110,29 @@ pub fn discord_inline_code(text: &str) -> String {
 /// it: every such run is broken with a zero-width space, which is the only
 /// difference between the content and what is shown.
 #[requires(true)]
-#[ensures(ret.starts_with("```\n") && ret.ends_with("\n```"))]
-#[ensures(!ret["```\n".len()..ret.len() - "\n```".len()].contains("```"))]
-pub fn discord_code_block(text: &str) -> String {
-    format!("```\n{}\n```", break_backtick_runs(text))
+#[ensures(scope.is_exceeded() || (ret.starts_with("```\n") && ret.ends_with("\n```")))]
+#[ensures(scope.is_exceeded() || (!ret["```\n".len()..ret.len() - "\n```".len()].contains("```")))]
+pub fn discord_code_block_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    scope.format(format_args!(
+        "```\n{}\n```",
+        break_backtick_runs_in_scope(text, scope)
+    ))
 }
 
 /// `text` with a zero-width space inside every backtick run of three or more,
 /// so that no run of three survives. Runs are emitted in pairs, which keeps
 /// the inserted spaces to the minimum a triple fence needs.
 #[requires(true)]
-#[ensures(!ret.contains("```"))]
+#[ensures(scope.is_exceeded() || (!ret.contains("```")))]
 // Content of its own may already carry zero-width spaces, so what is
 // preserved is the text apart from them, not the text with mine removed.
-#[ensures(ret.chars().filter(|character| *character != ZERO_WIDTH_SPACE)
-    .eq(text.chars().filter(|character| *character != ZERO_WIDTH_SPACE)))]
-fn break_backtick_runs(text: &str) -> String {
+#[ensures(scope.is_exceeded() || (ret.chars().filter(|character| *character != ZERO_WIDTH_SPACE)
+    .eq(text.chars().filter(|character| *character != ZERO_WIDTH_SPACE))))]
+fn break_backtick_runs_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
     if longest_backtick_run(text) < 3 {
-        return text.to_owned();
+        return scope.copy(text);
     }
-    let mut broken = String::with_capacity(text.len() + 8);
+    let mut broken = scope.buffer();
     let mut run = 0;
     for character in text.chars() {
         if character == '`' {
@@ -140,7 +146,51 @@ fn break_backtick_runs(text: &str) -> String {
         }
         broken.push(character);
     }
-    broken
+    broken.into_piece()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn escape_discord_markdown_line(line: &str) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(escape_discord_markdown_line_in_scope(line, &scope))
+        .expect("unrestricted Discord Markdown")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn escape_discord_markdown(text: &str) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(escape_discord_markdown_in_scope(text, &scope))
+        .expect("unrestricted Discord Markdown")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn discord_inline_code(text: &str) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(discord_inline_code_in_scope(text, &scope))
+        .expect("unrestricted Discord Markdown")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn discord_code_block(text: &str) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(discord_code_block_in_scope(text, &scope))
+        .expect("unrestricted Discord Markdown")
 }
 
 #[cfg(test)]
