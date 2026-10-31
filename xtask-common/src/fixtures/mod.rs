@@ -96,6 +96,22 @@ impl<'de> Deserialize<'de> for TestCase {
     }
 }
 
+/// Compile a fixture dialect and keep its identity in compilation errors.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| matches!(error, FixtureError::InvalidDialect { .. })))]
+pub fn fixture_morphology_options(
+    id: &str,
+    dialect: &DialectDefinition,
+) -> Result<jbotci_morphology::MorphologyOptions, FixtureError> {
+    jbotci_morphology::MorphologyOptions::default()
+        .try_with_dialect_definition(dialect)
+        .map_err(|error| FixtureError::InvalidDialect {
+            id: id.to_owned(),
+            formula: jbotci_dialect::dialect_definition_to_text(dialect),
+            message: error.to_string(),
+        })
+}
+
 impl TestCase {
     #[requires(true)]
     #[ensures(ret -> !self.id.is_empty())]
