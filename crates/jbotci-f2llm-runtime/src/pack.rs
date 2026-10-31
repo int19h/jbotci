@@ -34,10 +34,14 @@ pub enum DistanceMetric {
 }
 
 #[invariant(::MeanNormalizedWindows => true)]
+#[invariant(::TokenWeightedMeanNormalizedWindows => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Pooling {
+    /// Retained for historical manifest metadata. Current runtimes reject this pooling rule.
     #[serde(rename = "mean_normalized_windows")]
     MeanNormalizedWindows,
+    #[serde(rename = "token_weighted_mean_normalized_windows")]
+    TokenWeightedMeanNormalizedWindows,
 }
 
 #[invariant(!runtime.is_empty())]
@@ -363,7 +367,7 @@ mod tests {
       "input_format_version": "f2llm-v2-330m-q4-k-m-v0",
       "input_hash": "f6bcb6c55027144dec1f9c53fc337745b431ed08d062e64782be2bb7abfe1839",
       "max_sequence_length": 512,
-      "pooling": "mean_normalized_windows",
+      "pooling": "token_weighted_mean_normalized_windows",
       "max_window_tokens": 512,
       "built_by": {
         "runtime": "onnxruntime",
@@ -380,7 +384,7 @@ mod tests {
         "version": "0.2.0",
         "dtype": "q4",
         "device": "webgpu",
-        "pooling": "mean_normalized_windows",
+        "pooling": "token_weighted_mean_normalized_windows",
         "max_window_tokens": 512
       }],
       "corpora": [{
@@ -480,7 +484,7 @@ mod tests {
         );
         let manifest = new!(WebVectorPackManifestV2 {
             schema_version: WEB_VECTOR_PACK_SCHEMA_VERSION,
-            artifact_version: "f2llm-vector-pack-windowed-ca-v2".to_owned(),
+            artifact_version: "f2llm-vector-pack-windowed-ca-v3".to_owned(),
             model_key: "f2llm-v2-80m-q4-320".to_owned(),
             model_revision: "f4a16a11c9f5c8c7e22694653de6ce75430f4538".to_owned(),
             web_model: "codefuse-ai/F2LLM-v2-80M".to_owned(),
@@ -501,7 +505,7 @@ mod tests {
             input_format_version: "f2llm-v2-330m-q4-k-m-v0".to_owned(),
             input_hash: input_hash,
             max_sequence_length: 512,
-            pooling: Pooling::MeanNormalizedWindows,
+            pooling: Pooling::TokenWeightedMeanNormalizedWindows,
             max_window_tokens: 512,
             dimensions: 2,
             element_type: VectorElementType::F16Le,
@@ -512,7 +516,7 @@ mod tests {
                 version: "0.2.0".to_owned(),
                 dtype: "q4".to_owned(),
                 device: "webgpu".to_owned(),
-                pooling: Pooling::MeanNormalizedWindows,
+                pooling: Pooling::TokenWeightedMeanNormalizedWindows,
                 max_window_tokens: 512,
             })],
             corpora: vec![new!(CorpusVectorManifest {

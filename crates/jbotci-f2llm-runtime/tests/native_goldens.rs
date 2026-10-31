@@ -248,30 +248,13 @@ fn all_vendored_native_goldens() {
 }
 
 #[requires(true)]
-#[ensures(ret.len() == 4)]
+#[ensures(ret.len() == 1)]
 fn golden_specs() -> Vec<GoldenSpec> {
-    vec![
-        new!(GoldenSpec {
-            id: "80m",
-            model_key: "f2llm-v2-80m-q4-320",
-            golden_relative: "testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json",
-        }),
-        new!(GoldenSpec {
-            id: "160m",
-            model_key: "f2llm-v2-160m-q4-640",
-            golden_relative: "testdata/goldens/legacy-v0.1.0/f2llm-v2-160m-q4-640/goldens.json",
-        }),
-        new!(GoldenSpec {
-            id: "330m",
-            model_key: "f2llm-v2-330m-q4-896",
-            golden_relative: "testdata/goldens/legacy-v0.1.0/f2llm-v2-330m-q4-896/goldens.json",
-        }),
-        new!(GoldenSpec {
-            id: "0.6b",
-            model_key: "f2llm-v2-0.6b-q4-1024",
-            golden_relative: "testdata/goldens/legacy-v0.1.0/f2llm-v2-0.6b-q4-1024/goldens.json",
-        }),
-    ]
+    vec![new!(GoldenSpec {
+        id: "80m",
+        model_key: "f2llm-v2-80m-q4-320",
+        golden_relative: "testdata/goldens/current-v0.4.0/f2llm-v2-80m-q4-320/goldens.json",
+    })]
 }
 
 #[requires(dimensions > 0)]

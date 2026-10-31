@@ -11,14 +11,14 @@ import onnxruntime as ort
 from transformers import AutoTokenizer
 
 
-ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v2"
+ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v3"
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 RUNTIME = "jbotci-webgpu-f2llm"
-RUNTIME_VERSION = "0.3.0"
+RUNTIME_VERSION = "0.4.0"
 WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
-WASM_RUNTIME_VERSION = "0.3.0"
-POOLING = "mean_normalized_windows"
-VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v2"
+WASM_RUNTIME_VERSION = "0.4.0"
+POOLING = "token_weighted_mean_normalized_windows"
+VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v3"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
 DEFAULT_Q4_ONNX = (
@@ -247,7 +247,7 @@ def embed_texts(
         pooled = normalize(last_token_pool(hidden, attention_mask).astype(np.float32))
         if pooled.shape[1] != dimensions:
             raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {pooled.shape[1]}")
-        vectors.append(mean_pool_normalized([row for row in pooled], dimensions))
+        vectors.append(token_weighted_mean_normalized([row for row in pooled], [len(w) for w in windows], dimensions))
     return np.stack(vectors, axis=0)
 
 
@@ -256,11 +256,14 @@ def token_windows(text: str, tokenizer, max_sequence_length: int) -> list[np.nda
     eos_token_id = tokenizer.eos_token_id
     if eos_token_id is None:
         raise AssertionError("F2LLM tokenizer does not expose eos_token_id")
-    token_ids.append(int(eos_token_id))
+    if max_sequence_length <= 1:
+        raise ValueError("embedding window length must exceed one token")
+    capacity = max_sequence_length - 1
     return [
-        np.asarray(token_ids[start:start + max_sequence_length], dtype=np.int64)
-        for start in range(0, len(token_ids), max_sequence_length)
+        np.asarray(token_ids[start:start + capacity] + [int(eos_token_id)], dtype=np.int64)
+        for start in range(0, max(1, len(token_ids)), capacity)
     ]
+
 
 
 def padded_window_batch(windows: list[np.ndarray], tokenizer) -> tuple[np.ndarray, np.ndarray]:
@@ -311,13 +314,16 @@ def normalize(values: np.ndarray) -> np.ndarray:
     return (values / norms).astype(np.float32)
 
 
-def mean_pool_normalized(window_vectors: list[np.ndarray], dimensions: int) -> np.ndarray:
+def token_weighted_mean_normalized(window_vectors: list[np.ndarray], token_counts: list[int], dimensions: int) -> np.ndarray:
     if not window_vectors:
         raise AssertionError("document produced no token windows")
     stacked = np.stack(window_vectors, axis=0).astype(np.float32)
     if stacked.shape[1] != dimensions:
         raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {stacked.shape[1]}")
-    mean = stacked.mean(axis=0, dtype=np.float32).reshape(1, dimensions)
+    if len(token_counts) != len(window_vectors) or any(count <= 0 for count in token_counts):
+        raise ValueError("window token counts must be positive and match the vectors")
+    weights = np.asarray(token_counts, dtype=np.float32)
+    mean = ((stacked * weights[:, None]).sum(axis=0, dtype=np.float32) / weights.sum(dtype=np.float32)).reshape(1, dimensions)
     return normalize(mean)[0]
 
 

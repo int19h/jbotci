@@ -112,7 +112,7 @@ const GGUF_MODEL_KEYS: &[&str] = &[
     GGUF_DEFAULT_MODEL_KEY,
     GGUF_0_6B_MODEL_KEY,
 ];
-const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v2";
+const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v3";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
 const DEFAULT_WIKI_SOURCE_URL: &str = "https://mw.lojban.org";
@@ -4575,7 +4575,7 @@ fn build_f2llm_onnx_fallback_asset(
         &serde_json::json!({
             "schema_version": 1,
             "runtime": "jbotci-onnxruntime-web-f2llm",
-            "artifact_version": "0.3.0",
+            "artifact_version": "0.4.0",
             "model_key": spec.model_key,
             "source_model": spec.model_id,
             "source_revision": spec.model_revision,

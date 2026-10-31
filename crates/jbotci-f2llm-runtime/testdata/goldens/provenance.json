@@ -56,10 +56,32 @@
   "current_fixture": {
     "model_key": "f2llm-v2-80m-q4-320",
     "runtime": "jbotci-webgpu-f2llm",
+    "runtime_version": "0.4.0",
+    "golden_path": "crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.4.0/f2llm-v2-80m-q4-320/goldens.json",
+    "golden_sha256": "7b46e8d812e7e2220200242451b91688fe847467746d42e3ddac4df19e32f0a0",
+    "generator_path": "tools/f2llm-oracles/generate-f2llm-goldens.py",
+    "generator_sha256": "28434c4b19ed095b8fa1f43c526d0deaf37f70783979eecbb6ecb07e94fb49ce",
+    "requirements_path": "tools/f2llm-oracles/requirements.txt",
+    "requirements_sha256": "b980072e4e502586b9599dc909702838ab79e8076ee5c09ac17f8e9e4ce5f8b4",
+    "published_q4_onnx_r2_key": "models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx",
+    "published_q4_onnx_sha256": "00ec8cc51400b74b0d215b794536a81a24f9002926c340ebde139092b3a36cc6",
+    "published_q4_onnx_manifest_r2_key": "models/f2llm-v2-80m-onnx-q4/v1/manifest.json",
+    "published_q4_onnx_manifest_sha256": "c034193d12df6a623cfa00b8661752a42e82e3fd705d4f073356068b194e9bb3",
+    "target_artifact_manifest_r2_key": "models/f2llm-v2-80m-webgpu/v1/manifest.json",
+    "target_artifact_manifest_sha256": "e644964979e8ae259455e52034ec4a267975ee1a4221154fa41f9f6265143945"
+  },
+  "version_resolution": {
+    "legacy_fixture_version": "0.1.0",
+    "current_runtime_version": "0.4.0",
+    "policy": "The 0.1.0 and 0.2.0 files remain historical evidence. The independent 80M ONNX reference supplies the 0.4.0 expectations. Published source manifests retain their original 0.2.0 identities."
+  },
+  "historical_fixture_02": {
+    "model_key": "f2llm-v2-80m-q4-320",
+    "runtime": "jbotci-webgpu-f2llm",
     "runtime_version": "0.2.0",
     "golden_path": "crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json",
     "golden_sha256": "1af849624dd143f1d447254fc8815c57a921a17d9237d4e572d8024de1b596d3",
-    "generator_path": "tools/f2llm-oracles/generate-f2llm-goldens.py",
+    "generator_path": "tools/f2llm-oracles/legacy-v0.2.0/generate-f2llm-goldens.py",
     "generator_sha256": "2fcccd2823e3d96521474eadca3aeead258d7420ac0c94c082175e55693c4249",
     "requirements_path": "tools/f2llm-oracles/requirements.txt",
     "requirements_sha256": "b980072e4e502586b9599dc909702838ab79e8076ee5c09ac17f8e9e4ce5f8b4",
@@ -69,10 +91,5 @@
     "published_q4_onnx_manifest_sha256": "c034193d12df6a623cfa00b8661752a42e82e3fd705d4f073356068b194e9bb3",
     "target_artifact_manifest_r2_key": "models/f2llm-v2-80m-webgpu/v1/manifest.json",
     "target_artifact_manifest_sha256": "f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2"
-  },
-  "version_resolution": {
-    "legacy_fixture_version": "0.1.0",
-    "current_runtime_version": "0.2.0",
-    "policy": "The vendored prototype fixtures and manifests remain byte-for-byte 0.1.0 evidence. Their current-artifact digests are recorded only to prove that the 0.2.0 artifacts are different; no 0.2.0 compatibility is inferred from the legacy vectors. The separately generated 80m fixture is the 0.2.0 oracle."
   }
 }

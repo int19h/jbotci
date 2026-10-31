@@ -506,13 +506,31 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
                     with self.assertRaisesRegex(AssertionError, 'invalid embedding row 2'):
                         validator.main()
         with self.assertRaisesRegex(AssertionError, 'invalid embedding row'):
-            validator.mean_pool_normalized([np.array([1., 0.]), np.array([-1., 0.])], 2)
+            validator.token_weighted_mean_normalized([np.array([1., 0.]), np.array([-1., 0.])], [1, 1], 2)
+
+    def test_every_window_ends_with_eos_and_the_short_tail_has_its_token_weight(self):
+        modules = [pack]
+        for filename in ['embedding-pack/f2llm/validate-vector-pack.py', 'f2llm-oracles/generate-f2llm-goldens.py']:
+            spec = importlib.util.spec_from_file_location(filename, SCRIPT.parents[2] / filename)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[filename] = module
+            spec.loader.exec_module(module)
+            modules.append(module)
+        for module in modules:
+            for count in [0, 510, 511, 512, 1021, 1022, 1023]:
+                windows = module.token_windows('x' * count, Tokenizer(), 512)
+                self.assertEqual(len(windows), max(1, (count + 510) // 511))
+                self.assertTrue(all(len(w) <= 512 and w[-1] == 1 for w in windows))
+                self.assertEqual(sum(len(w) - 1 for w in windows), count)
+                self.assertTrue(count == 0 or all(len(w) > 1 for w in windows))
+            pooled = module.token_weighted_mean_normalized([np.array([1., 0.]), np.array([0., 1.])], [512, 2], 2)
+            self.assertAlmostEqual(float(pooled[1] / pooled[0]), 2 / 512, places=7)
 
     def test_old_vector_space_cannot_supply_rows_or_resume(self):
-        previous, _, _, _ = self.build('old-space', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v1')
+        previous, _, _, _ = self.build('old-space', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v2')
         with self.assertRaisesRegex(ValueError, 'vector_space_key'):
             self.build('new-space', self.old, '--reuse-from', str(next(previous.rglob('manifest.json'))))
-        self.interrupt('old-checkpoint', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v1')
+        self.interrupt('old-checkpoint', self.old, '--vector-space-key', 'jbotci-browser-f2llm-q4-f16-windowed-512-v2')
         _, _, embed, output = self.build('old-checkpoint', self.old, '--chunk-rows', '1')
         self.assertEqual(sum(len(call.args[0]) for call in embed.call_args_list), 5)
         self.assertIn('Discarding checkpoint', output)

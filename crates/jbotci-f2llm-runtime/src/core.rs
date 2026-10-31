@@ -5,12 +5,51 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use fancy_regex::Regex;
 use serde::Deserialize;
 use unicode_normalization::UnicodeNormalization;
 
 pub const DEFAULT_MAX_SEQUENCE_LENGTH: usize = 512;
+
+/// Every window reserves its final slot for the end token.
+#[invariant(*max_length > 1)]
+#[derive(Debug, Clone, Copy)]
+pub struct TokenWindowRule {
+    max_length: usize,
+}
+
+impl TokenWindowRule {
+    #[requires(true)]
+    #[ensures(ret.is_ok() == (max_length > 1))]
+    pub fn new(max_length: usize) -> Result<Self, String> {
+        if max_length <= 1 {
+            return Err("embedding window length must exceed one token".to_owned());
+        }
+        Ok(new!(TokenWindowRule {
+            max_length: max_length
+        }))
+    }
+
+    /// Empty input retains one end token so that it can produce an embedding.
+    #[requires(true)]
+    #[ensures(ret.len() == content.len().div_ceil(self.max_length - 1).max(1))]
+    #[expensive_ensures(ret.iter().all(|window| window.len() <= self.max_length && window.last() == Some(&end_token)))]
+    pub fn split<T: Copy + PartialEq>(&self, content: &[T], end_token: T) -> Vec<Vec<T>> {
+        if content.is_empty() {
+            return vec![vec![end_token]];
+        }
+        content
+            .chunks(self.max_length - 1)
+            .map(|chunk| {
+                let mut window = Vec::with_capacity(chunk.len() + 1);
+                window.extend_from_slice(chunk);
+                window.push(end_token);
+                window
+            })
+            .collect()
+    }
+}
 
 const TOKEN_PATTERN: &str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
 
@@ -199,11 +238,13 @@ impl QwenByteBpeTokenizer {
         Ok(())
     }
 
-    #[requires(max_length > 0)]
+    #[requires(max_length > 1)]
     #[ensures(ret.as_ref().is_ok_and(|windows| windows.iter().all(|window| !window.is_empty() && window.len() <= max_length)) || ret.is_err())]
     pub fn token_windows(&self, text: &str, max_length: usize) -> Result<Vec<Vec<u32>>, String> {
-        let ids = self.encode_untruncated(text)?;
-        Ok(ids.chunks(max_length).map(|chunk| chunk.to_vec()).collect())
+        let mut ids = self.encode_untruncated(text)?;
+        // Remove only the end token that this tokenizer appended.
+        ids.pop();
+        Ok(TokenWindowRule::new(max_length)?.split(&ids, self.eos_id))
     }
 
     #[requires(true)]
@@ -625,14 +666,17 @@ pub fn pack_token_windows(windows: &[TokenWindow], budget: usize) -> Vec<PackedT
     batches
 }
 
+#[requires(vectors.len() == token_counts.len())]
+#[requires(token_counts.iter().all(|count| *count > 0))]
 #[requires(dimensions > 0)]
 #[ensures(ret.as_ref().is_ok_and(|vector| {
     vector.len() == dimensions
         && vector.iter().all(|value| value.is_finite())
         && vector.iter().any(|value| *value != 0.0)
 }) || ret.is_err())]
-pub fn mean_pool_normalized(
+pub fn token_weighted_mean_normalized(
     vectors: &[Vec<f32>],
+    token_counts: &[usize],
     dimensions: usize,
 ) -> Result<Vec<f32>, EmbeddingVectorError> {
     if vectors.is_empty() {
@@ -641,13 +685,13 @@ pub fn mean_pool_normalized(
         }));
     }
     let mut pooled = vec![0.0; dimensions];
-    for vector in vectors {
+    for (vector, token_count) in vectors.iter().zip(token_counts) {
         embedding_normalization_magnitude(vector, dimensions)?;
         for (index, value) in vector.iter().enumerate() {
-            pooled[index] += *value;
+            pooled[index] += *value * *token_count as f32;
         }
     }
-    let divisor = vectors.len() as f32;
+    let divisor = token_counts.iter().sum::<usize>() as f32;
     for value in &mut pooled {
         *value /= divisor;
     }
@@ -727,6 +771,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn window_boundaries_reserve_eos_and_weight_the_short_tail() {
+        let rule = TokenWindowRule::new(512).unwrap();
+        assert!(TokenWindowRule::new(1).is_err());
+        for count in [0, 510, 511, 512, 1021, 1022, 1023] {
+            let content = vec![7_u32; count];
+            let windows = rule.split(&content, 151645);
+            assert_eq!(windows.len(), count.div_ceil(511).max(1));
+            assert!(
+                windows
+                    .iter()
+                    .all(|w| w.len() <= 512 && w.last() == Some(&151645))
+            );
+            assert_eq!(windows.iter().map(|w| w.len() - 1).sum::<usize>(), count);
+            assert!(count == 0 || windows.iter().all(|w| w.len() > 1));
+        }
+        let pooled =
+            token_weighted_mean_normalized(&[vec![1.0, 0.0], vec![0.0, 1.0]], &[512, 2], 2)
+                .unwrap();
+        assert!((pooled[1] / pooled[0] - 2.0 / 512.0).abs() < 1e-7);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn packs_token_windows_by_best_fit_decreasing() {
         assert_eq!(DEFAULT_MAX_SEQUENCE_LENGTH, 512);
         let windows = vec![
@@ -743,8 +811,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn mean_pool_normalizes_after_averaging() {
-        let pooled =
-            mean_pool_normalized(&[vec![1.0, 0.0], vec![0.0, 1.0]], 2).expect("valid pooling");
+        let pooled = token_weighted_mean_normalized(&[vec![1.0, 0.0], vec![0.0, 1.0]], &[1, 1], 2)
+            .expect("valid pooling");
         let expected = 1.0 / 2.0_f32.sqrt();
         assert!((pooled[0] - expected).abs() < 1e-6);
         assert!((pooled[1] - expected).abs() < 1e-6);
@@ -754,7 +822,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn mean_pool_rejects_exact_window_cancellation() {
-        let error = mean_pool_normalized(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
+        let error = token_weighted_mean_normalized(&[vec![1.0, 0.0], vec![-1.0, 0.0]], &[1, 1], 2)
             .expect_err("cancelling windows must not produce a successful zero embedding");
 
         assert!(error.is_zero_norm());
@@ -765,19 +833,19 @@ mod tests {
     #[ensures(true)]
     fn mean_pool_rejects_empty_misdimensioned_and_non_finite_inputs() {
         assert!(
-            mean_pool_normalized(&[], 2)
+            token_weighted_mean_normalized(&[], &[], 2)
                 .unwrap_err()
                 .to_string()
                 .contains("at least one")
         );
         assert!(
-            mean_pool_normalized(&[vec![1.0]], 2)
+            token_weighted_mean_normalized(&[vec![1.0]], &[1], 2)
                 .unwrap_err()
                 .to_string()
                 .contains("1 dimensions, expected 2")
         );
         assert!(
-            mean_pool_normalized(&[vec![1.0, f32::INFINITY]], 2)
+            token_weighted_mean_normalized(&[vec![1.0, f32::INFINITY]], &[1], 2)
                 .unwrap_err()
                 .to_string()
                 .contains("non-finite value")
@@ -811,10 +879,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tokenizer_windows_preserve_single_final_eos() {
+    fn tokenizer_windows_end_each_window_with_eos() {
         let tokenizer = tiny_tokenizer();
         let windows = tokenizer.token_windows("hello world!", 3).unwrap();
-        assert_eq!(windows, vec![vec![8, 9, 16], vec![20, 999]]);
+        assert_eq!(windows, vec![vec![8, 9, 999], vec![16, 20, 999]]);
     }
 
     #[test]

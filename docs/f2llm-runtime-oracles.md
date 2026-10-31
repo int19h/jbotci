@@ -14,14 +14,24 @@ The `legacy-v0.1.0` sets contain prototype vectors for three model sizes.
 Their source ONNX bytes are unavailable, as the provenance file records.
 These sets do not establish compatibility with runtime version `0.2.0`.
 
-The `current-v0.2.0/f2llm-v2-80m-q4-320` set uses the published 80m q4 ONNX model with onnxruntime 1.28.0.
-It records token IDs, windows, normalized window vectors, final vectors, and little-endian f32 digests.
-The final vector is the normalized mean of the normalized window vectors.
+The `current-v0.2.0/f2llm-v2-80m-q4-320` set remains unchanged as historical evidence.
+Its full windows lack EOS, and its pooling gives each window the same weight.
+Its original generator remains in `tools/f2llm-oracles/legacy-v0.2.0/`.
+These vectors do not establish compatibility with runtime `0.4.0`.
+
+The `current-v0.4.0/f2llm-v2-80m-q4-320` set uses the pinned published 80M q4 ONNX model.
+The reference runs that model with onnxruntime 1.28.0 on the CPU. It does not call the Rust or WebGPU implementation.
+The generator compares the downloaded model SHA-256 with the pinned value before inference.
+Published source manifests retain version `0.2.0` because their model bytes stay unchanged.
+The new golden records runtime `0.4.0`, which changes windows and pooling.
+Each window holds at most 511 content tokens and then EOS.
+The final vector uses the token-weighted mean of normalized window vectors, followed by normalization.
+Each weight includes the window's EOS token.
 Its inputs cover these boundaries:
 
 - Empty and non-ASCII text.
-- Post-EOS token counts of 511, 512, and 513.
-- A 1,025-token document with windows `[512, 512, 1]`.
+- Content-token counts of 510, 511, 512, 1021, 1022, and 1023.
+- A 1,025-content-token document with windows `[512, 512, 4]`.
 - The last slot of one eight-window batch and the first slot of the next batch.
 
 Do not edit pinned files to accept a runtime difference.
@@ -61,7 +71,9 @@ For legacy sets, it matches published objects by byte length and SHA-256 and wri
 
 Prepare model directories under `/build/jbotci/scratch/f2llm-native-artifacts` before the native tests.
 Use the manifests that correspond to the selected golden data.
-For all four models, operate:
+Only the current 80M set supplies numerical expectations. The other sets remain historical records.
+Re-export the pinned model artifacts for runtime `0.4.0` before a GPU comparison.
+For the current set, operate:
 
 ```sh
 WGPU_BACKEND=vulkan \

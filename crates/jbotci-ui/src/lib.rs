@@ -250,9 +250,9 @@ const F2LLM_WASM_RUNTIME: &str = "jbotci-onnxruntime-web-f2llm";
 const F2LLM_BROWSER_QUERY_PREFIX: &str =
     "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
 #[cfg(target_arch = "wasm32")]
-const F2LLM_BROWSER_POOLING: &str = "mean_normalized_windows";
+const F2LLM_BROWSER_POOLING: &str = "token_weighted_mean_normalized_windows";
 #[cfg(target_arch = "wasm32")]
-const F2LLM_BROWSER_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v2";
+const F2LLM_BROWSER_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v3";
 #[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_MAX_SEQUENCE_LENGTH: usize = 512;
 #[cfg(target_arch = "wasm32")]

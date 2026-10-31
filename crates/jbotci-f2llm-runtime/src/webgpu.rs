@@ -13,8 +13,8 @@ use sha2::{Digest, Sha256};
 
 use crate::core::{
     DEFAULT_MAX_SEQUENCE_LENGTH, EmbeddingVectorError, QwenByteBpeTokenizer, TokenWindow,
-    embedding_normalization_magnitude, mean_pool_normalized, normalize_validated_in_place,
-    pack_token_windows, q4_padded_row_stride, validate_sha256_hex, validate_token_ids,
+    embedding_normalization_magnitude, normalize_validated_in_place, pack_token_windows,
+    q4_padded_row_stride, token_weighted_mean_normalized, validate_sha256_hex, validate_token_ids,
 };
 use crate::webgpu_manifest::{
     ArtifactManifest, ChunkedSpec, TensorSpec, TokenizerSpec, checked_rank2_shape,
@@ -533,6 +533,8 @@ impl From<String> for RuntimeError {
     }
 }
 
+#[requires(vectors.len() == token_counts.len())]
+#[requires(token_counts.iter().all(|count| *count > 0))]
 #[requires(dimensions > 0)]
 #[ensures(ret.as_ref().is_ok_and(|vector| {
     vector.len() == dimensions
@@ -541,9 +543,10 @@ impl From<String> for RuntimeError {
 }) || ret.is_err())]
 fn pool_window_embeddings(
     vectors: &[Vec<f32>],
+    token_counts: &[usize],
     dimensions: usize,
 ) -> Result<Vec<f32>, RuntimeError> {
-    mean_pool_normalized(vectors, dimensions).map_err(|error| {
+    token_weighted_mean_normalized(vectors, token_counts, dimensions).map_err(|error| {
         RuntimeError::invalid_embedding("pool F2LLM window embeddings".to_owned(), error)
     })
 }
@@ -1061,6 +1064,7 @@ impl WebGpuRuntime {
             }
         }
         let mut window_vectors = vec![Vec::<Vec<f32>>::new(); texts.len()];
+        let mut window_token_counts = vec![Vec::new(); texts.len()];
         for batch in pack_token_windows(&windows, self.max_sequence_length) {
             let rows = self.embed_packed_batch(&batch.segments).await?;
             if rows.len() != batch.segments.len() {
@@ -1073,6 +1077,7 @@ impl WebGpuRuntime {
             }
             for (segment, vector) in batch.segments.iter().zip(rows) {
                 window_vectors[segment.text_index].push(vector);
+                window_token_counts[segment.text_index].push(segment.token_ids.len());
             }
         }
         let mut output = Vec::with_capacity(texts.len());
@@ -1082,7 +1087,11 @@ impl WebGpuRuntime {
                     format!("missing F2LLM window embeddings for text row {text_index}").into(),
                 );
             }
-            output.push(pool_window_embeddings(&vectors, self.dimensions)?);
+            output.push(pool_window_embeddings(
+                &vectors,
+                &window_token_counts[text_index],
+                self.dimensions,
+            )?);
         }
         Ok(output)
     }
@@ -2607,8 +2616,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
+    fn short_tail_window_has_its_token_weight() {
+        let vector =
+            pool_window_embeddings(&[vec![1.0, 0.0], vec![0.0, 1.0]], &[512, 2], 2).unwrap();
+        assert!((vector[1] / vector[0] - 2.0 / 512.0).abs() < 1e-7);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
     fn cancelling_window_pooling_surfaces_typed_runtime_error() {
-        let error = pool_window_embeddings(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
+        let error = pool_window_embeddings(&[vec![1.0, 0.0], vec![-1.0, 0.0]], &[1, 1], 2)
             .expect_err("cancelling windows must fail");
 
         assert!(

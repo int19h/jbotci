@@ -855,7 +855,7 @@ class F2LlmOnnxWasmRuntime {
     for (const tokenIds of windows) {
       windowVectors.push(await this.embedTokenWindow(tokenIds));
     }
-    return meanPoolNormalized(windowVectors, this.dimensions);
+    return tokenWeightedMeanNormalized(windowVectors, windows.map((window) => window.length), this.dimensions);
   }
 
   async embedTokenWindow(tokenIds) {
@@ -906,21 +906,26 @@ function positionIdsToBigInt64(length) {
   return ids;
 }
 
-function meanPoolNormalized(vectors, dimensions) {
+function tokenWeightedMeanNormalized(vectors, tokenCounts, dimensions) {
   if (vectors.length === 0) {
     throw new Error("F2LLM produced no token windows");
   }
+  if (tokenCounts.length !== vectors.length || tokenCounts.some((count) => !Number.isSafeInteger(count) || count <= 0)) {
+    throw new Error("F2LLM window token counts must be positive and match the vectors");
+  }
+  const totalTokens = tokenCounts.reduce((total, count) => total + count, 0);
   if (vectors.length === 1) {
     requireVector(vectors[0], dimensions, "F2LLM window");
     return vectors[0];
   }
   const output = new Float32Array(dimensions);
-  for (const vector of vectors) {
+  for (const [index, vector] of vectors.entries()) {
     requireVector(vector, dimensions, "F2LLM window");
     for (let dim = 0; dim < dimensions; dim += 1) {
-      output[dim] += vector[dim] / vectors.length;
+      output[dim] += vector[dim] * tokenCounts[index];
     }
   }
+  for (let dim = 0; dim < dimensions; dim += 1) output[dim] /= totalTokens;
   normalize(output, dimensions);
   return output;
 }
@@ -1892,6 +1897,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime, identity = modelR
     ["element_type", manifest.element_type, expectedElementType],
     ["normalized", manifest.normalized, true],
     ["distance", manifest.distance, "dot"],
+    ["vector_space_key", manifest.vector_space_key, spec.localVectorSpaceKey],
     ["pooling", manifest.pooling, spec.outputPooling],
     ["max_window_tokens", manifest.max_window_tokens, spec.maxSequenceLength],
   ]) {
@@ -3079,7 +3085,7 @@ export {
   f16ToF32,
   requireVector,
   normalize,
-  meanPoolNormalized,
+  tokenWeightedMeanNormalized,
   pooledOnnxVector,
   F2LlmOnnxWasmRuntime,
   validateVectorBytes,

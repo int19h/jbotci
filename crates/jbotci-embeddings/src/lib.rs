@@ -39,7 +39,7 @@ pub const EMBEDDING_INDEX_DIR_ENV: &str = "JBOTCI_EMBEDDING_INDEX_DIR";
 pub const EMBEDDING_MODEL_DIR_ENV: &str = "JBOTCI_EMBEDDING_MODEL_DIR";
 pub const HF_ENDPOINT_ENV: &str = "HF_ENDPOINT";
 pub const HF_TOKEN_ENV: &str = "HF_TOKEN";
-pub const F2LLM_NATIVE_VECTOR_SPACE_KEY: &str = "jbotci-native-f2llm-q4-k-m-windowed-2048-v2";
+pub const F2LLM_NATIVE_VECTOR_SPACE_KEY: &str = "jbotci-native-f2llm-q4-k-m-windowed-2048-v3";
 pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
@@ -317,9 +317,8 @@ pub struct NativeVectorParameters {
 fn native_vector_parameters() -> NativeVectorParameters {
     new!(NativeVectorParameters {
         window_size: NATIVE_MAX_WINDOW_TOKENS,
-        window_scheme: "nfc-gguf-special-tokens-then-single-sequence-nonoverlapping-windows-v2"
-            .to_owned(),
-        pooling: "token-weighted-mean-of-normalized-last-token-windows".to_owned(),
+        window_scheme: "nfc-content-windows-with-eos-single-sequence-v3".to_owned(),
+        pooling: "token_weighted_mean_normalized_windows".to_owned(),
     })
 }
 
@@ -914,7 +913,7 @@ pub fn normalize_vector(values: &mut [f32], dimensions: usize) -> Result<(), Emb
 
 /// Native tokenization follows the pinned tokenizer's NFC rule.
 #[cfg(any(test, feature = "native-llama"))]
-#[requires(!input.is_empty())]
+#[requires(true)]
 #[ensures(true)]
 fn tokenize_native_input<T>(
     input: &str,
@@ -4478,7 +4477,7 @@ mod tests {
         let identity = native_corpus_identity(&dictionary, chunks);
         load_pack_for_identity(dir.path(), &spec, &identity).unwrap();
         validate_native_reuse_source(dir.path(), &spec).unwrap();
-        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v2"), None] {
             let mut manifest = serde_json::to_value(&original).unwrap();
             if let Some(key) = key {
                 manifest["vector_space"] = serde_json::json!(key);
@@ -4549,7 +4548,7 @@ mod tests {
             )
             .is_some()
         );
-        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v2"), None] {
             let mut value = serde_json::to_value(&checkpoint).unwrap();
             if let Some(key) = key {
                 value["vector_space"] = serde_json::json!(key);
@@ -6910,8 +6909,8 @@ mod tests {
     fn native_parameters_keep_the_wire_shape_and_reject_invalid_records() {
         let expected = serde_json::json!({
             "window_size": 2048,
-            "window_scheme": "nfc-gguf-special-tokens-then-single-sequence-nonoverlapping-windows-v2",
-            "pooling": "token-weighted-mean-of-normalized-last-token-windows",
+            "window_scheme": "nfc-content-windows-with-eos-single-sequence-v3",
+            "pooling": "token_weighted_mean_normalized_windows",
         });
         assert_eq!(
             serde_json::to_value(native_vector_parameters()).unwrap(),
