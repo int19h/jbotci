@@ -178,8 +178,11 @@ console.log('credential stub completed');
     }
 });
 
+// Give each stub a distinct origin so HTTP keep-alive cannot reuse a closed server's connection.
+let nextStubPort = 18800;
 async function listenStub(server) {
-    for (let port = 18800; port <= 18899; port++) {
+    while (nextStubPort <= 18899) {
+        const port = nextStubPort++;
         try {
             server.listen(port, '127.0.0.1');
             await once(server, 'listening');
@@ -223,6 +226,30 @@ test('prefix listing returns complete proof fields across pages without body rea
             assert.deepEqual(object.http_metadata, { contentType: 'application/octet-stream', cacheControl: 'immutable', contentEncoding: 'br' });
             assert.equal(object.custom_metadata, undefined);
         }
+    } finally { await new Promise(resolve => stub.close(resolve)); }
+});
+
+test('listing receipt distinguishes absent encoding from an absent metadata object', async () => {
+    const { listMetadata } = require('../src/r2_readback.cjs');
+    const stub = http.createServer((request, response) => {
+        response.setHeader('Content-Type', 'application/json');
+        response.end(JSON.stringify({ success: true, result: [
+            { key: 'packs/unencoded', http_metadata: { contentType: 'application/octet-stream', cacheControl: 'immutable' } },
+            { key: 'packs/unknown' },
+            { key: 'packs/malformed', http_metadata: { contentEncoding: null } },
+        ], result_info: { is_truncated: false } }));
+    });
+    await listenStub(stub);
+    try {
+        const listed = await listMetadata({ account: 'stub-account', bucket: 'stub-bucket', prefix: 'packs/',
+            headers: { Authorization: 'Bearer stub-token' }, apiBase: `http://127.0.0.1:${stub.address().port}` });
+        // Use the same JSON boundary as metadataMain and the Rust reader.
+        const receipt = JSON.parse(JSON.stringify(listed));
+        assert.deepEqual(receipt[0].http_metadata, { contentType: 'application/octet-stream', cacheControl: 'immutable' });
+        assert.equal(Object.hasOwn(receipt[0].http_metadata, 'contentEncoding'), false);
+        assert.equal(Object.hasOwn(receipt[1], 'http_metadata'), false);
+        assert.equal(Object.hasOwn(receipt[2].http_metadata, 'contentEncoding'), true);
+        assert.equal(receipt[2].http_metadata.contentEncoding, null);
     } finally { await new Promise(resolve => stub.close(resolve)); }
 });
 

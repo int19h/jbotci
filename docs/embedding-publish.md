@@ -84,9 +84,15 @@ No cached listing or earlier publication receipt can authorize a skip.
 A skip requires the stored size, content-type, cache-control, and content-encoding to equal the intended upload values.
 It also requires a plain 32-digit hexadecimal MD5 ETag that equals the local upload file's MD5.
 The size and digest describe the encoded `.br` file when the planner selects a Brotli sibling.
-A multipart ETag, malformed value, missing field, or mismatch uses the normal upload and read-back path.
-In particular, an absent content-encoding field never authorizes a skip, even for an uncompressed local file.
-The publisher does not guess a missing value or replace it with `identity`.
+
+An absent `contentEncoding` field in a present HTTP metadata object means that the stored object has no Content-Encoding.
+It matches only an upload that sets no encoding.
+A present encoding must match exactly, and an empty value is malformed.
+The publisher does not replace absence with `identity`.
+
+A missing HTTP metadata object, content-type, or cache-control still prevents a skip.
+The publisher always sets content-type and cache-control, so their absence cannot prove a match.
+A multipart ETag, malformed value, other missing proof field, or mismatch uses the normal upload and read-back path.
 
 After the data uploads, the publisher reads back a random sample of the skipped objects.
 For each prefix batch, it samples the larger of 20 objects and 1% rounded up, limited to the skipped count.

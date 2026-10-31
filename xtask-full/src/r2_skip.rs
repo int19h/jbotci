@@ -44,8 +44,22 @@ struct HttpMetadata {
     content_type: Option<String>,
     #[serde(rename = "cacheControl")]
     cache_control: Option<String>,
-    #[serde(rename = "contentEncoding")]
+    #[serde(
+        rename = "contentEncoding",
+        default,
+        deserialize_with = "deserialize_present_encoding",
+        skip_serializing_if = "Option::is_none"
+    )]
     content_encoding: Option<String>,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|encoding| encoding.is_some()) || ret.is_err())]
+fn deserialize_present_encoding<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    // Only an omitted field denotes no encoding. An explicit null is malformed metadata.
+    String::deserialize(deserializer).map(Some)
 }
 
 #[invariant(true)]
@@ -311,13 +325,18 @@ fn plain_md5(etag: &str) -> Option<[u8; 16]> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|proof| live.size == Some(proof.size)))]
+#[ensures(ret.is_none() || live.http_metadata.as_ref().is_some_and(|http|
+    http.content_encoding.as_deref() == object.content_encoding
+        && http.content_encoding.as_deref() != Some("")))]
 fn metadata_proof(live: &LiveMetadata, object: &R2UploadObject) -> Option<LocalProof> {
     let http = live.http_metadata.as_ref()?;
-    // Missing fields never prove equivalence, even when the intended encoding is absent.
+    // R2 omits contentEncoding when no encoding is set, so absence matches only an unencoded upload.
+    // The metadata object must exist. Type and cache policy remain required because every upload sets them.
     if live.key != object.object_key
         || http.content_type.as_deref()? != object.content_type
         || http.cache_control.as_deref()? != object.cache_control
-        || Some(http.content_encoding.as_deref()?) != object.content_encoding
+        || http.content_encoding.as_deref() == Some("")
+        || http.content_encoding.as_deref() != object.content_encoding
     {
         return None;
     }
@@ -869,13 +888,46 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn absent_encoding_on_an_uncompressed_object_is_not_a_complete_proof() {
+    fn absent_encoding_on_an_unencoded_upload_skips_and_samples() {
         let files = Files::new();
         let mut data = files.object("packs/data.f16").into_data();
         data.content_encoding = None;
         let object = R2UploadObject::from_data(data);
         let stub = Stub {
-            metadata: BTreeMap::from([(object.object_key.clone(), metadata(&object))]),
+            metadata: BTreeMap::from([(
+                object.object_key.clone(),
+                serde_json::from_value({
+                    let value = serde_json::to_value(metadata(&object)).unwrap();
+                    assert!(value["http_metadata"].get("contentEncoding").is_none());
+                    value
+                })
+                .unwrap(),
+            )]),
+            ..Stub::default()
+        };
+        assert_eq!(
+            run(&stub, &[object], Some(23)).unwrap(),
+            Counts {
+                uploaded: 0,
+                skipped: 1
+            }
+        );
+        assert_eq!(
+            *stub.calls.lock().unwrap(),
+            ["list:packs/", "sample:packs/data.f16"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_encoding_on_a_brotli_upload_requires_upload() {
+        let files = Files::new();
+        let object = files.object("packs/data.f16");
+        let mut live = metadata(&object);
+        live.http_metadata.as_mut().unwrap().content_encoding = None;
+        let stub = Stub {
+            metadata: BTreeMap::from([(object.object_key.clone(), live)]),
             ..Stub::default()
         };
         assert_eq!(
@@ -889,6 +941,79 @@ mod tests {
             *stub.calls.lock().unwrap(),
             ["list:packs/", "put:packs/data.f16"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn present_encoding_requires_an_exact_nonempty_match() {
+        let files = Files::new();
+        for planned in [None, Some("br")] {
+            let object = files
+                .object("packs/data.f16")
+                .with_data(data! { content_encoding: planned });
+            for stored in ["gzip", "BR", "identity", ""] {
+                let mut live = metadata(&object);
+                live.http_metadata.as_mut().unwrap().content_encoding = Some(stored.to_owned());
+                let stub = Stub {
+                    metadata: BTreeMap::from([(object.object_key.clone(), live)]),
+                    ..Stub::default()
+                };
+                assert_eq!(
+                    run(&stub, std::slice::from_ref(&object), Some(23)).unwrap(),
+                    Counts {
+                        uploaded: 1,
+                        skipped: 0
+                    },
+                    "planned={planned:?}, stored={stored:?}"
+                );
+                assert_eq!(
+                    *stub.calls.lock().unwrap(),
+                    ["list:packs/", "put:packs/data.f16"]
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_http_metadata_on_an_unencoded_upload_requires_upload() {
+        let files = Files::new();
+        let object = files
+            .object("packs/data.f16")
+            .with_data(data! { content_encoding: None });
+        let mut value = serde_json::to_value(metadata(&object)).unwrap();
+        value.as_object_mut().unwrap().remove("http_metadata");
+        let stub = Stub {
+            metadata: BTreeMap::from([(
+                object.object_key.clone(),
+                serde_json::from_value(value).unwrap(),
+            )]),
+            ..Stub::default()
+        };
+        assert_eq!(
+            run(&stub, &[object], Some(23)).unwrap(),
+            Counts {
+                uploaded: 1,
+                skipped: 0
+            }
+        );
+        assert_eq!(
+            *stub.calls.lock().unwrap(),
+            ["list:packs/", "put:packs/data.f16"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_null_encoding_is_not_an_absent_encoding_field() {
+        let files = Files::new();
+        let object = files.object("packs/data.f16");
+        let mut value = serde_json::to_value(metadata(&object)).unwrap();
+        value["http_metadata"]["contentEncoding"] = serde_json::Value::Null;
+        assert!(serde_json::from_value::<LiveMetadata>(value).is_err());
     }
 
     #[test]
