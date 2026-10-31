@@ -67,9 +67,15 @@ The [R2 object API](https://developers.cloudflare.com/api/resources/r2/subresour
 A failed command, timeout, or different digest retries the upload and read-back together.
 The publisher makes at most three attempts, with waits of two and four seconds.
 A final failure names the object and stops publication.
+
 Read-back errors include a diagnostic from stderr.
-The publisher accepts only known diagnostic codes and redacts all other stderr text.
+The publisher accepts known diagnostic codes and bounded ASCII ETag fields.
+It redacts all other stderr text.
 It retains at most 4,096 stderr bytes and drains the rest without retaining them.
+
+An ETag mismatch also reports the raw body and stored ETags, with at most 128 ASCII characters per value.
+A non-ASCII ETag uses a placeholder.
+ETag values use JSON quotes, so control characters cannot create new log lines.
 
 A timeout kills the entire command process group and reaps the child.
 

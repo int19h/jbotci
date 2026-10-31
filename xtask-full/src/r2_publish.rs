@@ -435,21 +435,38 @@ enum ReadbackDiagnostic {
 #[serde(deny_unknown_fields)]
 struct DiagnosticEnvelope {
     r2_readback_error: ReadbackDiagnostic,
+    body_etag: Option<String>,
+    stored_etag: Option<String>,
 }
 
-#[requires(true)]
-#[ensures(ret.len() < 256)]
-fn redacted_readback_stderr(bytes: &[u8]) -> &'static str {
-    // Accept a closed diagnostic vocabulary. Arbitrary stderr cannot safely expose credentials.
-    match serde_json::from_slice::<DiagnosticEnvelope>(bytes).map(|value| value.r2_readback_error) {
-        Ok(ReadbackDiagnostic::Changed) => "R2 object changed between metadata and body reads",
-        Ok(ReadbackDiagnostic::Decoded) => {
-            "R2 returned a decoded Brotli body. Exact stored bytes cannot be verified"
+#[requires(bytes.len() <= 4096)]
+#[ensures(ret.len() < 2048)]
+fn redacted_readback_stderr(bytes: &[u8]) -> String {
+    // ETag values are not credentials. Keep their bounded ASCII fields separate from arbitrary stderr.
+    let Ok(value) = serde_json::from_slice::<DiagnosticEnvelope>(bytes) else {
+        return "[redacted untrusted read-back stderr]".to_owned();
+    };
+    match (value.r2_readback_error, value.body_etag, value.stored_etag) {
+        (ReadbackDiagnostic::Changed, Some(body), Some(stored))
+            if body.len() <= 128 && body.is_ascii() && stored.len() <= 128 && stored.is_ascii() =>
+        {
+            format!(
+                "R2 object changed between metadata and body reads; body ETag={}; stored ETag={}",
+                serde_json::to_string(&body).expect("ASCII string serialization"),
+                serde_json::to_string(&stored).expect("ASCII string serialization")
+            )
         }
-        Ok(ReadbackDiagnostic::Metadata) => "R2 returned invalid or incomplete object metadata",
-        Ok(ReadbackDiagnostic::Http) => "R2 read-back HTTP request failed",
-        Ok(ReadbackDiagnostic::Io) => "R2 read-back failed (untrusted details redacted)",
-        Err(_) => "[redacted untrusted read-back stderr]",
+        (ReadbackDiagnostic::Decoded, None, None) => {
+            "R2 returned a decoded Brotli body. Exact stored bytes cannot be verified".to_owned()
+        }
+        (ReadbackDiagnostic::Metadata, None, None) => {
+            "R2 returned invalid or incomplete object metadata".to_owned()
+        }
+        (ReadbackDiagnostic::Http, None, None) => "R2 read-back HTTP request failed".to_owned(),
+        (ReadbackDiagnostic::Io, None, None) => {
+            "R2 read-back failed (untrusted details redacted)".to_owned()
+        }
+        _ => "[redacted untrusted read-back stderr]".to_owned(),
     }
 }
 
@@ -880,6 +897,32 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         .unwrap();
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r5_changed_diagnostics_accept_only_bounded_ascii_etags() {
+        let safe = serde_json::json!({"r2_readback_error":"changed", "body_etag":"\"wrong\"", "stored_etag":"stored"});
+        let error = redacted_readback_stderr(&serde_json::to_vec(&safe).unwrap());
+        assert!(error.contains("wrong") && error.contains("stored"));
+        let controls = serde_json::json!({"r2_readback_error":"changed", "body_etag":"\u{0001}".repeat(128), "stored_etag":"\u{0001}".repeat(128)});
+        let error = redacted_readback_stderr(&serde_json::to_vec(&controls).unwrap());
+        assert!(error.len() < 2048 && !error.contains('\u{0001}'));
+        for field in ["body_etag", "stored_etag"] {
+            for unsafe_value in ["x".repeat(129), "non-ASCII é".to_owned()] {
+                let mut wrong = safe.clone();
+                wrong[field] = unsafe_value.into();
+                assert!(
+                    redacted_readback_stderr(&serde_json::to_vec(&wrong).unwrap())
+                        .contains("redacted")
+                );
+            }
+        }
+        let mut wrong = safe;
+        wrong["Authorization"] = "FAKE_TOKEN".into();
+        let error = redacted_readback_stderr(&serde_json::to_vec(&wrong).unwrap());
+        assert!(error.contains("redacted") && !error.contains("FAKE_TOKEN"));
+    }
+
     #[cfg(unix)]
     #[test]
     #[requires(true)]
@@ -890,12 +933,14 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         let script = temporary.path.join("failure.cjs");
         fs::write(
             &script,
-            "console.error(JSON.stringify({r2_readback_error:'changed'})); process.exitCode=1;",
+            r#"console.error(JSON.stringify({r2_readback_error:'changed',body_etag:'W/"00000000000000000000000000000000"',stored_etag:'3503455e520328d564c05beb0020a517'})); process.exitCode=1;"#,
         )
         .unwrap();
         let error =
             run_readback(Command::new("node").arg(&script), Duration::from_secs(5)).unwrap_err();
         assert!(format!("{error:#}").contains("R2 object changed between metadata and body reads"));
+        assert!(format!("{error:#}").contains("W/\\\"00000000000000000000000000000000\\\""));
+        assert!(format!("{error:#}").contains("3503455e520328d564c05beb0020a517"));
         for text in [
             "Authorization: Bearer FAKE_TOKEN; X-Auth-Key: FAKE_KEY".to_owned(),
             format!("{{\"r2_readback_error\":\"changed\",\"Authorization\":\"FAKE_TOKEN\"}}"),

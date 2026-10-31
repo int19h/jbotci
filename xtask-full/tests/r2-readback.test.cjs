@@ -8,7 +8,7 @@ const { once } = require('node:events');
 const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const { FAKE_TOKEN, FORCED, REMOVED } = require('./fixtures/wrangler-4.149.0-logging.cjs');
-const { readback, credentials } = require('../src/r2_readback.cjs');
+const { readback, credentials, reportReadbackError, etagDiagnostic } = require('../src/r2_readback.cjs');
 
 const original = Buffer.from('validated original bytes');
 const encoded = Buffer.from('830b8076616c696461746564206f726967696e616c20627974657303', 'hex');
@@ -149,11 +149,49 @@ for (const behavior of ['identity-changed', 'identity-double-weak', 'identity-mi
         try {
             await assert.rejects(readback({ account: 'stub-account', bucket: 'stub-bucket', key, encoding: 'identity',
                 downloaded, metadata: `${downloaded}.json`, headers: { Authorization: 'Bearer stub-token' }, apiBase }),
-                /object changed between metadata and body reads/);
+                error => {
+                    assert.match(error.message, /object changed between metadata and body reads/);
+                    const stored = createHash('md5').update(original).digest('hex');
+                    const expected = {
+                        'identity-changed': `W/"${'0'.repeat(32)}"`,
+                        'identity-double-weak': `W/W/"${stored}"`,
+                        'identity-missing-etag': '[missing ETag]',
+                        'identity-multipart': `W/"${stored}-2"`,
+                    }[behavior];
+                    assert.equal(error.etags.body_etag, expected);
+                    assert.equal(error.etags.stored_etag, stored);
+                    assert.ok(error.message.includes(JSON.stringify(expected)));
+                    assert.ok(error.message.includes(JSON.stringify(stored)));
+                    let diagnostic;
+                    const previousError = console.error;
+                    const previousExitCode = process.exitCode;
+                    try {
+                        console.error = line => { diagnostic = JSON.parse(line); };
+                        reportReadbackError(error);
+                    } finally {
+                        console.error = previousError;
+                        process.exitCode = previousExitCode;
+                    }
+                    assert.deepEqual(diagnostic, { r2_readback_error: 'changed', body_etag: expected, stored_etag: stored });
+                    return true;
+                });
             assert.equal(fs.existsSync(downloaded), false);
         } finally { requestedEncoding = 'br'; }
     });
 }
+
+test('ETag diagnostics retain raw ASCII values with bounds and omit every non-ASCII value', () => {
+    const raw = 'W/W/"unmodified"';
+    assert.equal(etagDiagnostic(raw), raw);
+    assert.equal(etagDiagnostic('x'.repeat(128)), 'x'.repeat(128));
+    const long = etagDiagnostic('x'.repeat(129));
+    assert.equal(long.length, 128);
+    assert.ok(long.startsWith('x') && long.endsWith('...[truncated]'));
+    assert.equal(etagDiagnostic('é'), '[non-ASCII ETag]');
+    assert.equal(etagDiagnostic('x'.repeat(128) + 'é'), '[non-ASCII ETag]');
+    assert.equal(etagDiagnostic(undefined), '[missing ETag]');
+    assert.equal(etagDiagnostic(null), '[malformed ETag]');
+});
 
 test('Wrangler credentials support each declared type', () => {
     const script = path.join(root, 'auth.cjs');

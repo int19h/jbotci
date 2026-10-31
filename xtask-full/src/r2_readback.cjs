@@ -14,12 +14,29 @@ const READBACK_MESSAGES = {
     io: 'R2 read-back failed (untrusted details redacted)',
 };
 class ReadbackError extends Error {
-    constructor(code) { super(READBACK_MESSAGES[code]); this.code = code; }
+    constructor(code, bodyETag, storedETag) {
+        const etags = code === 'changed' ? {
+            body_etag: etagDiagnostic(bodyETag), stored_etag: etagDiagnostic(storedETag),
+        } : undefined;
+        super(READBACK_MESSAGES[code] + (etags
+            ? `; body ETag=${JSON.stringify(etags.body_etag)}; stored ETag=${JSON.stringify(etags.stored_etag)}` : ''));
+        this.code = code;
+        this.etags = etags;
+    }
+}
+function etagDiagnostic(value) {
+    if (value === undefined) return '[missing ETag]';
+    if (typeof value !== 'string') return '[malformed ETag]';
+    if (/[^\x00-\x7f]/.test(value)) return '[non-ASCII ETag]';
+    const suffix = '...[truncated]';
+    return value.length <= 128 ? value : value.slice(0, 128 - suffix.length) + suffix;
 }
 function reportReadbackError(error) {
-    // Never copy request errors or credential output into diagnostics. The parent accepts only these codes.
+    // Only known codes and bounded ASCII ETag fields can cross the diagnostic boundary.
+    // Request errors and credential output never enter this envelope.
     const code = error instanceof ReadbackError ? error.code : 'io';
-    console.error(JSON.stringify({ r2_readback_error: code }));
+    console.error(JSON.stringify({ r2_readback_error: code,
+        ...(error instanceof ReadbackError && code === 'changed' ? error.etags : {}) }));
     process.exitCode = 1;
 }
 function proofFields(object) {
@@ -147,18 +164,22 @@ async function readback({ account, bucket, key, encoding, downloaded, metadata, 
     const base = `${apiBase}/accounts/${encodeURIComponent(account)}/r2/buckets/${encodeURIComponent(bucket)}/objects`;
     const stored = await objectMetadata(base, key, headers);
     const objectUrl = new URL(`${base}/${key.split('/').map(encodeURIComponent).join('/')}`);
+    // Measured Cloudflare behavior, 2026-10-31: identity GET returns W/"<md5>", without Content-Length or Content-Encoding.
+    // A br GET with Accept-Encoding: br returns raw stored bytes, a strong ETag, Content-Encoding: br, and Content-Length.
+    // List Objects uses snake_case http_metadata with camelCase keys, an unquoted plain-MD5 etag,
+    // and no contentEncoding for uncompressed objects.
     const response = await request(objectUrl, { ...headers, Accept: 'application/octet-stream', 'Accept-Encoding': encoding });
     if (encoding === 'br' && (response.headers['content-encoding'] === undefined || response.headers['content-encoding'] === 'identity')) {
         response.destroy();
         throw new ReadbackError('decoded');
     }
-    // Cloudflare marks identity responses weak. This validator only detects a change between reads.
+    // Cloudflare marks identity responses weak. This ETag check only tests consistency between the two reads.
     // The local size/MD5 metadata proof and the body's SHA-256 provide the content proof.
     const bodyETag = typeof response.headers.etag === 'string'
         ? /^(?:W\/)?"([0-9a-fA-F]{32})"$/.exec(response.headers.etag) : null;
     if (!bodyETag || bodyETag[0] !== response.headers.etag || bodyETag[1] !== stored.etag) {
         response.destroy();
-        throw new ReadbackError('changed');
+        throw new ReadbackError('changed', response.headers.etag, stored.etag);
     }
     const receipt = {
         stored: proofFields(stored),
@@ -172,4 +193,4 @@ async function main([script, account, bucket, key, encoding, downloaded, metadat
     await readback({ script, account, bucket, key, encoding, downloaded, metadata, headers: credentials(script) });
 }
 
-module.exports = { credentials, readback, listMetadata, reportReadbackError };
+module.exports = { credentials, readback, listMetadata, reportReadbackError, etagDiagnostic };
