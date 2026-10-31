@@ -1105,6 +1105,11 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             AssignmentSource::SequentialTerm
         };
         self.assign_term_refs(&mut cursors, &tail.terms, tail_source);
+        if let generated::BridiSyntax::ExpTrailedBridi(sentence) = bridi {
+            for trailer in &sentence.trailers {
+                self.walk_node(trailer);
+            }
+        }
         predicate_frame
     }
 
@@ -3218,19 +3223,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_paragraph(&mut self, node: &'tree generated::ParagraphSyntax) {
-        match node {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.walk_node(&paragraph.0);
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                for free_modifier in &paragraph.free_modifiers {
-                    self.walk_node(free_modifier);
-                }
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.walk_node(statements);
-                }
-            }
-        }
+        self.walk_node(&node.0);
     }
 
     #[requires(true)]
@@ -3287,40 +3280,49 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     self.walk_node(continuation);
                 }
             }
-            generated::StatementSyntax::PreposedIStatementConnection(connection) => {
-                self.walk_node(&connection.leading_statement);
-                self.walk_node(&connection.trailing_statement);
+            generated::StatementSyntax::BoStatementConnection(connection) => {
+                self.walk_node(connection);
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_i_statement_connection_tail(
-        &mut self,
-        node: &'tree generated::IStatementConnectionTailSyntax,
-    ) {
-        match node {
-            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
-                self.walk_node(&tail.trailing_statement);
-            }
-            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-                self.walk_node(&tail.trailing_statement);
-            }
+    fn walk_statement_join(&mut self, node: &'tree generated::StatementJoinSyntax) {
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_statement_after_i_connective(
+    fn walk_bo_statement_connection(
         &mut self,
-        node: &'tree generated::StatementAfterIConnectiveSyntax,
+        node: &'tree generated::BoStatementConnectionSyntax,
     ) {
+        self.walk_node(&node.leading_statement);
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_exp_sentence_trailer(&mut self, node: &'tree generated::ExpSentenceTrailerSyntax) {
+        for modifier in &node.free_modifiers {
+            self.walk_node(modifier);
+        }
+        self.walk_node(&node.subsentence);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_atom(&mut self, node: &'tree generated::StatementAtomSyntax) {
         match node {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            generated::StatementAtomSyntax::BridiStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+            generated::StatementAtomSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
         }
@@ -3872,55 +3874,20 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_i_paragraph_statement_connective(
+        &mut self,
+        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+    ) {
+    }
+
     // Boundary: these paragraph/statement connective nodes are not descended
     // for place analysis. The #219 TreeVisitor spike proved that descending
     // into the `i ... bo` connective `fi'o` selbri for corpus.camxes.157/.159
     // creates frames for connective material instead of only the main
     // statement. The leading-`i` wrapper itself remains traversed because it
     // can carry semantic free modifiers such as vocatives.
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_trailing_ijek_paragraph_statement(
-        &mut self,
-        _node: &'tree generated::TrailingIjekParagraphStatementSyntax,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pending_i_connective(&mut self, _node: &'tree generated::PendingIConnectiveSyntax) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::IStandardParagraphStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::ITagBoParagraphStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_statement_connective_i_standard_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::IStandardStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_statement_connective_i_tag_bo_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::ITagBoStatementConnectiveSyntax>,
-    ) {
-    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -4848,14 +4815,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_statement_base(statement);
             }
             generated::StatementSyntax::IStatementConnection(connection) => {
-                self.visit_statement_base(&connection.leading_statement);
+                self.walk_node(&connection.leading_statement);
                 for continuation in &connection.continuations {
                     self.walk_node(continuation);
                 }
             }
-            generated::StatementSyntax::PreposedIStatementConnection(connection) => {
-                self.visit_statement_base(&connection.leading_statement);
-                self.walk_node(&connection.trailing_statement);
+            generated::StatementSyntax::BoStatementConnection(connection) => {
+                self.walk_node(connection);
             }
         }
         self.current_utterance = previous_utterance;
@@ -4930,20 +4896,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         if !is_in_abstraction {
             self.discourse_predicate_stack.push(predicate_id.0);
         }
-        match bridi {
-            generated::BridiSyntax::BridiWithLeadingTerms(bridi) => {
-                for term in &bridi.leading_terms {
-                    self.walk_node(term);
-                }
-                self.visit_sentence_bridi_tail(&bridi.bridi_tail);
-            }
-            generated::BridiSyntax::BareCuBridi(bridi) => {
-                self.visit_sentence_bridi_tail(&bridi.bridi_tail);
-            }
-            generated::BridiSyntax::RelationOnlyBridi(bridi) => {
-                self.visit_sentence_bridi_tail(&bridi.0);
-            }
+        for term in generated_bridi_leading_terms(bridi) {
+            self.walk_node(term);
         }
+        self.visit_sentence_bridi_tail(generated_bridi_tail(bridi));
         if !is_in_abstraction {
             self.discourse_predicate_stack.pop();
         }
@@ -4953,6 +4909,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         self.last_bridi = Some(predicate_id);
         if was_top_predicate {
             self.note_predicate_mention(predicate_id.0);
+        }
+        if let generated::BridiSyntax::ExpTrailedBridi(sentence) = bridi {
+            for trailer in &sentence.trailers {
+                self.walk_node(trailer);
+            }
         }
     }
 
@@ -6738,19 +6699,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_paragraph(&mut self, node: &'tree generated::ParagraphSyntax) {
-        match node {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.walk_node(&paragraph.0);
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                for free_modifier in &paragraph.free_modifiers {
-                    self.walk_node(free_modifier);
-                }
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.walk_node(statements);
-                }
-            }
-        }
+        self.walk_node(&node.0);
     }
 
     #[requires(true)]
@@ -6802,31 +6751,41 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_i_statement_connection_tail(
-        &mut self,
-        node: &'tree generated::IStatementConnectionTailSyntax,
-    ) {
-        match node {
-            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
-                self.walk_node(&tail.trailing_statement);
-            }
-            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-                self.walk_node(&tail.trailing_statement);
-            }
+    fn walk_statement_join(&mut self, node: &'tree generated::StatementJoinSyntax) {
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_statement_after_i_connective(
+    fn walk_bo_statement_connection(
         &mut self,
-        node: &'tree generated::StatementAfterIConnectiveSyntax,
+        node: &'tree generated::BoStatementConnectionSyntax,
     ) {
+        self.walk_node(&node.leading_statement);
+        if let Some(statement) = node.trailing_statement.as_deref() {
+            self.walk_node(statement);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_exp_sentence_trailer(&mut self, node: &'tree generated::ExpSentenceTrailerSyntax) {
+        for modifier in &node.free_modifiers {
+            self.walk_node(modifier);
+        }
+        self.walk_node(&node.subsentence);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_atom(&mut self, node: &'tree generated::StatementAtomSyntax) {
         match node {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            generated::StatementAtomSyntax::BridiStatement(statement) => {
                 self.walk_node(statement);
             }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+            generated::StatementAtomSyntax::TextGroupStatement(statement) => {
                 self.walk_node(statement);
             }
         }
@@ -7132,55 +7091,20 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_i_paragraph_statement_connective(
+        &mut self,
+        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+    ) {
+    }
+
     // Boundary: these paragraph/statement connective nodes are not descended
     // for discourse references. The #219 TreeVisitor spike proved that
     // descending into the `i ... bo` connective `fi'o` selbri for
     // corpus.camxes.157/.159 creates references for connective material
     // instead of only the main statement. The leading-`i` wrapper itself
     // remains traversed because it can carry semantic free modifiers.
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_trailing_ijek_paragraph_statement(
-        &mut self,
-        _node: &'tree generated::TrailingIjekParagraphStatementSyntax,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pending_i_connective(&mut self, _node: &'tree generated::PendingIConnectiveSyntax) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::IStandardParagraphStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::ITagBoParagraphStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_statement_connective_i_standard_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::IStandardStatementConnectiveSyntax>,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_i_statement_connective_i_tag_bo_statement_connective(
-        &mut self,
-        _node: &'tree Arc<generated::ITagBoStatementConnectiveSyntax>,
-    ) {
-    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -7233,6 +7157,11 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 #[ensures(true)]
 fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[Arc<generated::TermSyntax>] {
     match bridi {
+        generated::BridiSyntax::ExpTrailedBridi(sentence) => match sentence.first.as_ref() {
+            generated::PlainBridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.leading_terms,
+            generated::PlainBridiSyntax::BareCuBridi(_)
+            | generated::PlainBridiSyntax::RelationOnlyBridi(_) => &[],
+        },
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.leading_terms,
         generated::BridiSyntax::BareCuBridi(_) | generated::BridiSyntax::RelationOnlyBridi(_) => {
             &[]
@@ -7314,6 +7243,11 @@ fn interval_bridi_tail_joints(
 #[ensures(true)]
 fn generated_bridi_tail(bridi: &generated::BridiSyntax) -> &generated::SentenceBridiTailSyntax {
     match bridi {
+        generated::BridiSyntax::ExpTrailedBridi(sentence) => match sentence.first.as_ref() {
+            generated::PlainBridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.bridi_tail,
+            generated::PlainBridiSyntax::BareCuBridi(bridi) => &bridi.bridi_tail,
+            generated::PlainBridiSyntax::RelationOnlyBridi(bridi) => &bridi.0,
+        },
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.bridi_tail,
         generated::BridiSyntax::BareCuBridi(bridi) => &bridi.bridi_tail,
         generated::BridiSyntax::RelationOnlyBridi(bridi) => &bridi.0,

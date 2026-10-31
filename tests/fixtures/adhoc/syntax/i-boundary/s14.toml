@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s14"
+lojban = "mi klama .i fi'o broda fe'u je pu to brode toi nai bo do cadzu"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "free before NAI after the full stag fallback"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [51, 53], source-text = "bo", message = "unexpected cmavo" }]

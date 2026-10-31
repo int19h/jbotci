@@ -10,4 +10,4 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-spa
 # Issue #1050 records this recovery ranking witness.
 [expectations.syntax.recovered]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-pre-i-sentence-trailer", byte-span = [15, 16], source-text = "e", message = "experimental syntax: connective before I inside a sentence", word-index = 3 }, { severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]

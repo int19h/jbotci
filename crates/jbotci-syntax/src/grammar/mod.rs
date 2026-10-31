@@ -8628,19 +8628,6 @@ mod tests {
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(true)]
-    fn assert_first_contains_condition(rule: &str, condition: jbotci_dialect::DialectFeature) {
-        let metadata = generated_anchor_metadata(rule);
-        assert!(
-            metadata.first.iter().any(|entry| entry
-                .conditions
-                .iter()
-                .any(|entry_condition| entry_condition.feature == condition)),
-            "{rule} has no FIRST entry conditioned on {condition}",
-        );
-    }
-
-    #[requires(!rule.is_empty())]
     #[ensures(ret.rule == rule)]
     fn subtext_container(
         rule: &str,
@@ -8898,6 +8885,38 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn i_boundary_metadata_uses_the_declared_connection_tiers() {
+        use generated::generated_model::SyntaxGrammarAnchorToken::Cmavo as AnchorCmavo;
+
+        for rule in [
+            "statement_join",
+            "standard_bo_statement_connective",
+            "exp_bo_statement_connective",
+        ] {
+            let metadata = generated_anchor_metadata(rule);
+            assert!(!metadata.first.is_empty(), "{rule}");
+            for start in metadata.first {
+                assert_eq!(start.tokens, &[AnchorCmavo(Cmavo::I)], "{rule}");
+            }
+        }
+        let paragraph = generated_anchor_metadata("paragraph");
+        assert!(
+            paragraph
+                .first
+                .iter()
+                .all(|start| { !start.tokens.contains(&AnchorCmavo(Cmavo::I)) })
+        );
+        for rule in ["statement_join", "bo_statement_connection"] {
+            let metadata = generated_anchor_metadata(rule);
+            assert_eq!(metadata.fields.len(), 3, "{rule}");
+            assert_eq!(metadata.fields[2].field_name, "trailing_statement");
+            assert_eq!(metadata.fields[2].field_index, 2);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_recovery_anchor_metadata_snapshot_matches() {
         let snapshot = recovery_anchor_metadata_snapshot();
         let path = Path::new(RECOVERY_ANCHOR_SNAPSHOT_PATH);
@@ -8999,10 +9018,30 @@ mod tests {
             AnchorCmavo(Cmavo::Tuhu),
         );
 
-        assert_first_contains_condition(
-            "vocative_free_modifier",
+        for token in [AnchorCmavo(Cmavo::Doi), AnchorSelmaho(Selmaho::Coi)] {
+            assert!(
+                generated_anchor_metadata("vocative_free_modifier")
+                    .first
+                    .iter()
+                    .any(|entry| entry.conditions.is_empty() && entry.tokens.contains(&token)),
+                "the vocative marker must start without the modifier feature: {token:?}",
+            );
+        }
+        let vocative =
+            generated::generated_model::syntax_grammar_rule_by_name("vocative_free_modifier")
+                .expect("the vocative rule exists");
+        let generated::generated_model::SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+            condition: Some(condition),
+            ..
+        } = vocative.fields[0].recovery
+        else {
+            panic!("the modifier boundary must keep its feature condition");
+        };
+        assert_eq!(
+            condition.feature,
             jbotci_dialect::DialectFeature::UnrestrictedFree,
         );
+        assert!(!condition.negated);
         for rule in ["text", "statement", "sumti", "selbri"] {
             assert!(
                 !generated_anchor_metadata(rule).first.is_empty(),
@@ -9143,7 +9182,7 @@ mod tests {
                 .expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("ITagBoParagraphStatementConnective"));
+            assert!(raw.contains("StandardParagraphBoConnective"));
             assert!(raw.contains("FihoTense"));
             assert!(raw.contains("GroupedTanruUnit"));
             assert!(raw.contains("fi'o"));

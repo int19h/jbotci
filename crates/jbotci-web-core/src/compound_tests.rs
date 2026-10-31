@@ -173,7 +173,11 @@ fn straddling_compound_preserves_the_remaining_number_and_its_annotations() {
 #[requires(true)]
 #[ensures(true)]
 fn recovered_projection_keeps_error_barriers_and_later_compounds() {
-    for source in ["ba pu mi ku i do", "mi ku i je do"] {
+    for (source, has_compound) in [
+        ("ba pu mi ku i do", true),
+        ("mi ku i je do", false),
+        ("mi klama ku .i je do cadzu", true),
+    ] {
         for elided in [false, true] {
             let enabled = parse(source, true, elided);
             let disabled = parse(source, false, elided);
@@ -190,7 +194,7 @@ fn recovered_projection_keeps_error_barriers_and_later_compounds() {
                 .iter()
                 .filter(|block| block.compound_kind.is_some())
                 .collect::<Vec<_>>();
-            assert!(!compounds.is_empty(), "{source}");
+            assert_eq!(!compounds.is_empty(), has_compound, "{source}");
             for compound in compounds {
                 let span = compound.span.unwrap();
                 assert!(errors.iter().all(|error| {

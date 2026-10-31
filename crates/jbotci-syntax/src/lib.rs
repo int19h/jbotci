@@ -1502,6 +1502,25 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
+    parser_construct_metadata!("statement atom", "statement"),
+    parser_construct_metadata!("BO statement", "statement"),
+    parser_construct_metadata!("statement join", "statement connection"),
+    parser_construct_metadata!("BO statement connection", "BO statement"),
+    parser_construct_metadata!("BO statement connective", "BO statement connection"),
+    parser_construct_metadata!("sentence trailer", "bridi"),
+    parser_construct_metadata!("sentence trailer connective", "sentence trailer"),
+    parser_construct_metadata!("statement stag", "tag"),
+    parser_construct_metadata!("experimental statement stag", "statement stag"),
+    parser_construct_metadata!("statement tense modal", "statement stag"),
+    parser_construct_metadata!("statement tense", "statement tense modal"),
+    parser_construct_metadata!("statement stag atom run", "experimental statement stag"),
+    parser_construct_metadata!("statement stag prefixed atom", "statement stag atom run"),
+    parser_construct_metadata!("statement stag atom", "statement stag prefixed atom"),
+    parser_construct_metadata!("statement stag ROI placement", "statement stag atom"),
+    parser_construct_metadata!("statement stag FEhE placement", "statement stag atom"),
+    parser_construct_metadata!("statement stag spatial property", "statement stag atom"),
+    parser_construct_metadata!("statement stag MOhI placement", "statement stag atom"),
+    parser_construct_metadata!("experimental stag connective", "statement stag"),
     SyntaxConstructMetadata {
         name: "statement connection",
         parent: Some("statement"),
@@ -4185,27 +4204,24 @@ mod tests {
         recovered_syntax_probe(source)
     }
 
-    // The next three inputs each fail at an error whose first-phase recovery
-    // candidates are all tried and rejected. Recovery must then consult the
-    // final candidates, exactly as it does when the first phase offers none,
-    // instead of degrading the whole text: each keeps the valid prefix as
-    // structure and skips only the construct that could not be completed.
-    // Each input degrades to one invalid item when the fallback is disabled (#927).
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_syntax_rejected_first_phase_retains_bridi_prefix() {
-        let probe = recovered_syntax_probe_at_strict_error("mi broda .e pu cu brode", 12);
+    fn recovered_syntax_preserves_bridi_before_failed_sentence_trailer() {
+        let probe = recovered_syntax_probe_at_strict_error("mi broda .e pu cu brode", 15);
 
-        assert_eq!(probe.error_byte_starts, [12]);
-        assert_eq!(probe.valid_tokens, ["mi", "bróda", "e"]);
+        assert_eq!(probe.error_byte_starts, [15]);
+        assert_eq!(probe.valid_tokens, ["mi", "bróda"]);
         assert_eq!(
             probe.recovery_spans,
-            [(12, 14), (15, 17), (18, 23), (12, 12), (12, 12)]
+            [(10, 11), (12, 14), (15, 17), (18, 23)]
         );
-        assert_eq!(probe.missing_count, 2);
+        assert_eq!(probe.missing_count, 0);
     }
+
+    // The forethought and later-error tests below need the final recovery
+    // candidates after the first phase fails. Each keeps a valid prefix.
+    // Without the fallback, each input degrades to one invalid item (#927).
 
     #[test]
     #[requires(true)]

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.r11"
+lojban = "mi klama .i je .i bo do cadzu"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "rightless join and paragraph resumption"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "bo", message = "unexpected cmavo" }]

@@ -1,0 +1,13 @@
+id = "adhoc.syntax.i-boundary.s47-na-joik"
+lojban = "mi klama .i na joi gi do cadzu gi ti tavla"
+dialect = "(+na-joik)"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The existing NA JOI feature remains separate from the new default-on source slots."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 21], source-text = "gi", message = "unexpected cmavo" }]

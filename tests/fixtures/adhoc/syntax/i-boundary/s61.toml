@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s61"
+lojban = "mi klama .e to broda toi nai .i do cadzu"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "A free modifier before NAI changes the reference attachment. The legacy attachment requires unrestricted-free. The independent NAI reading belongs to #1030."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [25, 28], source-text = "nai", message = "unexpected cmavo" }]

@@ -1,0 +1,13 @@
+id = "adhoc.syntax.i-boundary.m03"
+lojban = "mi klama .i su'i pa ku'e .i do cadzu"
+dialect = "(+mex-quantifier)"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "raw mex and I-boundary overlap"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 24], source-text = "ku'e", message = "unexpected cmavo" }]

@@ -143,6 +143,26 @@ fn warning_codes_and_messages_remain_stable() {
             "LAhE/NAhE term wrapper",
         ),
         (
+            ExperimentalConstruct::ExperimentalEkStatementConnective,
+            "syntax.warning.experimental-ek-statement-connective",
+            "EK used as a statement connective after I",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalEkStagConnective,
+            "syntax.warning.experimental-ek-stag-connective",
+            "EK used inside a tense or modal connection",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalPreISentenceTrailer,
+            "syntax.warning.experimental-pre-i-sentence-trailer",
+            "connective before I inside a sentence",
+        ),
+        (
+            ExperimentalConstruct::ExperimentalStatementStag,
+            "syntax.warning.experimental-statement-stag",
+            "extended tense or modal before BO at an I boundary",
+        ),
+        (
             ExperimentalConstruct::ExperimentalVuhuConnective,
             "syntax.warning.experimental-vuhu-connective",
             "VUhU used as a non-MEX connective",

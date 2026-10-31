@@ -586,8 +586,7 @@ fn span_covers_offset(span: &SourceSpan, offset: usize, document_char_len: usize
 fn foldable_constructor(constructor: &str, contains_lohu_quote: bool) -> bool {
     matches!(
         constructor,
-        "SimpleParagraphSyntax"
-            | "INihoParagraphSyntax"
+        "ParagraphSyntax"
             | "NihoParagraphSyntax"
             | "BridiStatementSyntax"
             | "BridiTailSyntax"

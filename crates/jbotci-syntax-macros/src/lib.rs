@@ -10555,14 +10555,10 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Many1(inner)
             | RecoveryExpr::Boxed(inner)
             | RecoveryExpr::Arc(inner)
-            | RecoveryExpr::Ignored(inner) => {
+            | RecoveryExpr::Ignored(inner)
+            | RecoveryExpr::WithFreeModifiers { inner, .. } => {
+                // The feature gates only the trailing modifiers, not the inner parser.
                 entries.extend(self.expr_first_entries(inner)?);
-            }
-            RecoveryExpr::WithFreeModifiers { inner, condition } => {
-                let conditions = condition.iter().cloned().collect::<Vec<_>>();
-                for entry in self.expr_first_entries(inner)? {
-                    push_first_entry(&mut entries, entry.with_conditions(&conditions));
-                }
             }
             RecoveryExpr::Choice(alternatives) => {
                 for alternative in alternatives {
@@ -11461,8 +11457,8 @@ mod tests {
             expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
                 && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers")
                 && expanded.contains("condition : Some")
-                && feature_condition_count >= 3,
-            "`.wf_when(feature)` should preserve its feature argument, model wrapper, and recovery-metadata condition: {expanded}"
+                && feature_condition_count == 1,
+            "`.wf_when(feature)` must keep its feature condition only on the modifier boundary: {expanded}"
         );
     }
 
@@ -12759,6 +12755,45 @@ mod tests {
                 .unwrap()
                 .to_string();
             assert_eq!(plain_metadata, warned_metadata, "{parser}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn conditional_free_modifiers_keep_unconditional_inner_starts() {
+        let env = GrammarTypeEnv::new(&[], &[]);
+        let analyzer = RecoveryAnchorAnalyzer::new(&[], &env);
+        let arguments = BTreeSet::new();
+        for (parser, wrapped_parser) in [
+            (
+                parse_quote!(selmaho(A)),
+                parse_quote!(selmaho(A).wf_when(UnrestrictedFree)),
+            ),
+            (
+                parse_quote!(opt(selmaho(A))),
+                parse_quote!(opt(selmaho(A)).wf_when(UnrestrictedFree)),
+            ),
+            (
+                parse_quote!((opt(selmaho(Na)), selmaho(A))),
+                parse_quote!((opt(selmaho(Na)), selmaho(A)).wf_when(UnrestrictedFree)),
+            ),
+        ] {
+            let plain = classify_recovery_expr(&parser, &arguments, &env).unwrap();
+            let wrapped = classify_recovery_expr(&wrapped_parser, &arguments, &env).unwrap();
+            let entries = analyzer.expr_first_entries(&wrapped).unwrap();
+            assert!(!entries.is_empty());
+            assert!(entries.iter().all(|entry| entry.conditions.is_empty()));
+            assert_eq!(entries, analyzer.expr_first_entries(&plain).unwrap());
+            assert_eq!(
+                analyzer.expr_nullable(&wrapped).unwrap(),
+                analyzer.expr_nullable(&plain).unwrap()
+            );
+            assert_eq!(literal_start_tokens(&wrapped), literal_start_tokens(&plain));
+            assert_eq!(
+                anchor_origin_for_non_literal_expr(&wrapped),
+                anchor_origin_for_non_literal_expr(&plain)
+            );
         }
     }
 

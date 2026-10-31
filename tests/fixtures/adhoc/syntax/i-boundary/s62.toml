@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s62"
+lojban = "y xu jibri galfi .iji jibri zvati galfi"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The real question connector needs the direct EK feature. The default keeps the standard grammar."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [22, 27], source-text = "jibri", message = "unexpected brivla" }]

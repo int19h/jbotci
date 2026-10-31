@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s63"
+lojban = " i lu e'upei mi'a troci lo drata morna be fi le xasyjukni vonseldansu sei la cpicinfo cu di'a cusku iji aupei la jitfa cakyrespa cu sanga da do li'u "
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The quoted real question connector needs the direct EK feature."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [144, 148], source-text = "li'u", message = "unexpected cmavo" }]

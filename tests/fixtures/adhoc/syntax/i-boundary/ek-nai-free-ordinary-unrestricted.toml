@@ -1,0 +1,13 @@
+id = "adhoc.syntax.i-boundary.ek-nai-free-ordinary-unrestricted"
+lojban = "mi klama .i .e to broda toi nai do cadzu"
+dialect = "(+ek-statement-connective +unrestricted-free)"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 review regression"
+description = "Issue #803 decision 2 applies #847: A before NAI permits an internal free modifier only with unrestricted-free."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ek-statement-connective", byte-span = [13, 14], source-text = "e", message = "experimental syntax: EK used as a statement connective after I", word-index = 3 }]

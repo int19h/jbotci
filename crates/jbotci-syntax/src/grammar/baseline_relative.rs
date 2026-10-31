@@ -189,6 +189,8 @@ fn subsentence_opens_with_leading_sumti(value: view::SubbridiSyntaxRef<'_>) -> b
         view::SubbridiSyntaxView::BridiSubbridi(bridi) => bridi.valid().is_some_and(|bridi| {
             let view::BridiSubbridiSyntaxView(bridi) = bridi.get();
             bridi.valid().is_some_and(|bridi| match bridi.get() {
+                // A pre-I trailer has no standard reciprocal reading to preserve.
+                view::BridiSyntaxView::ExpTrailedBridi(_) => false,
                 view::BridiSyntaxView::BridiWithLeadingTerms(bridi) => {
                     bridi.valid().is_some_and(|bridi| {
                         let view::BridiWithLeadingTermsSyntaxView {

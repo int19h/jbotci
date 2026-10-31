@@ -713,10 +713,7 @@ fn is_following_statement_constructor(constructor: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_leading_paragraph_constructor(constructor: &str) -> bool {
-    matches!(
-        constructor,
-        "INihoParagraph" | "INihoParagraphSyntax" | "NihoParagraphSyntax"
-    )
+    constructor == "NihoParagraphSyntax"
 }
 
 #[requires(true)]

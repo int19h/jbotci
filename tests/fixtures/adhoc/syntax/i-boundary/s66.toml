@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s66"
+lojban = ".i .e bo mi klama"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The EK BO prefix needs the feature. Its connector emits the experimental warning."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "bo", message = "unexpected cmavo" }]

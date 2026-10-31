@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s67"
+lojban = ".i .e ro da zo'u mi klama"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "With the EK feature, the parent text owns the prenex statement after this prefix."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "da", message = "unexpected cmavo" }]

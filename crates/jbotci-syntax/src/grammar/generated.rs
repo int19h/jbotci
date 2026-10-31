@@ -56,6 +56,10 @@ pub mod generated_model {
                 runtime ExperimentalMexOperatorConnective => ("syntax.warning.experimental-mex-operator-connective", "camxes-exp BO-bound or connective-atom MEX operator"),
                 runtime ExperimentalCuTermsSelbri => ("syntax.warning.experimental-cu-terms-selbri", "CU followed by terms before the main selbri"),
                 ExperimentalLaheNaheTermWrapper => ("syntax.warning.experimental-lahe-nahe-term-wrapper", "LAhE/NAhE term wrapper"),
+                ExperimentalEkStatementConnective => ("syntax.warning.experimental-ek-statement-connective", "EK used as a statement connective after I"),
+                ExperimentalEkStagConnective => ("syntax.warning.experimental-ek-stag-connective", "EK used inside a tense or modal connection"),
+                ExperimentalPreISentenceTrailer => ("syntax.warning.experimental-pre-i-sentence-trailer", "connective before I inside a sentence"),
+                ExperimentalStatementStag => ("syntax.warning.experimental-statement-stag", "extended tense or modal before BO at an I boundary"),
                 ExperimentalVuhuConnective => ("syntax.warning.experimental-vuhu-connective", "VUhU used as a non-MEX connective"),
                 ExperimentalFaAsTag => ("syntax.warning.experimental-fa-as-tag", "FA place tag used as a tag/stag atom"),
                 runtime ExperimentalFlattenedTag => ("syntax.warning.experimental-flattened-tag", "experimental flattened tag form"),
@@ -96,7 +100,10 @@ pub mod generated_model {
         paragraph: ParagraphSyntax;
         statement_or_fragment: StatementOrFragmentSyntax;
         statement: StatementSyntax;
+        bo_statement: BoStatementSyntax;
+        statement_atom: StatementAtomSyntax;
         bridi: BridiSyntax;
+        plain_bridi: PlainBridiSyntax;
         bridi_tail: BridiTailSyntax;
         sentence_bridi_tail: SentenceBridiTailSyntax;
         // Guard-only recognizers for the FA chain's reservations; see the "guard-only
@@ -110,10 +117,7 @@ pub mod generated_model {
         subbridi: SubbridiSyntax;
         // camxes-exp's tanru-unit relative chain (camxes-exp.peg:214-218).
         exp_selbri_relative_clauses: ExpSelbriRelativeClausesSyntax;
-        // camxes-exp's `subsentence` (camxes-exp.peg:94) as a consumer-specific entry.  It is
-        // the shared `subbridi` shape today, because the one delta between them -- exp's JACU
-        // sentence trailer -- is an adjudicated non-adoption; naming it separately is what keeps
-        // a later JACU decision from having to widen every abstraction and forethought consumer.
+        // Every subsentence consumer uses the same sentence trailer family.
         exp_subsentence: SubbridiSyntax;
         term: TermSyntax;
         // Every level of the term ladder belongs here, as every level of the sumti, selbri and
@@ -178,6 +182,8 @@ pub mod generated_model {
         bound_linked_term: BoundLinkedTermSyntax;
         bound_linked_term_operand: BoundLinkedTermOperandSyntax;
         tense_modal: TenseModalSyntax;
+        statement_stag: StatementStagSyntax;
+        exp_statement_stag: ExpStatementStagSyntax;
         baseline_term_tense_modal: BaselineTermTenseModalSyntax;
         mekso: MeksoSyntax;
         mekso_base: MeksoBaseSyntax;
@@ -208,7 +214,7 @@ pub mod generated_model {
     }
 
     /// Ordinary text with source-ordered leading material and an optional paragraph tree.
-    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal, statement_stag, exp_statement_stag) -> struct {
         /// NAI words that precede the first formal text construct.
         field leading_nai <- [zero_or_more cmavo(Nai)];
         /// CMEVLA words accepted before the first formal text construct.
@@ -225,7 +231,7 @@ pub mod generated_model {
         );
         /// I-led statement prefixes that occur before the paragraph tree.
         #[recovery_boundary]
-        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
+        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal)];
         #[tree_child(primary)]
         /// The primary paragraph subtree, absent when the text contains only leading material.
         field paragraphs <- opt(arc(text_paragraphs(
@@ -237,10 +243,10 @@ pub mod generated_model {
 
     /// The text_1 body of a TUhE group, without the initial text envelope.
     /// Keep the text diagnostic label that the body used before the type split.
-    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+    rule "text" text_body(paragraph, statement_or_fragment, free_modifier, statement_stag, exp_statement_stag, tense_modal) -> struct {
         /// I-led prefixes before the paragraph tree.
         #[recovery_boundary]
-        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
+        field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal)];
         #[tree_child(primary)]
         /// The paragraph tree, absent in an empty group.
         field paragraphs <- opt(arc(text_paragraphs(
@@ -276,53 +282,30 @@ pub mod generated_model {
     }
 
     /// Product node for paragraph statement; preserves `i`, `connective`, and `free_modifiers` in source order.
-    rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
+    rule "paragraph statement" leading_i_statement(free_modifier, statement_stag, exp_statement_stag, tense_modal) -> struct {
         /// The `I` cmavo marker.
         field i <- cmavo(I);
         /// The optional connective component.
-        field connective <- opt(arc(i_paragraph_statement_connective(tense_modal)));
+        field connective <- opt(arc(i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal)));
         /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
-    /// Sum node for paragraph; selects among the `i_niho_paragraph` and `simple_paragraph` forms.
-    rule "paragraph" paragraph(statement_or_fragment, free_modifier) -> enum {
-        /// Uses the `i_niho_paragraph` product form, whose payload preserves `i`, `niho`, `free_modifiers`, and `statements`.
-        i_niho_paragraph,
-        /// Uses the `simple_paragraph` product form, whose payload preserves `statements`.
-        simple_paragraph,
-    }
-
-    /// Transparent product node for paragraph; preserves the `statements` component.
-    rule "paragraph" simple_paragraph(statement_or_fragment, free_modifier) -> struct {
+    /// The paragraph contains only its statement and fragment sequence.
+    rule "paragraph" paragraph(statement_or_fragment, free_modifier) -> struct {
         #[tree_child(primary)]
-        /// The paragraph primary statement sequence.
+        /// The statements and fragments in this paragraph.
         field statements <- paragraph_statement_sequence(statement_or_fragment, free_modifier);
     }
 
-    /// Product node for paragraph statement sequence; preserves `initial`, `following`, and `trailing` in source order.
+    /// The first paragraph item and its later bare-I items.
     rule "paragraph statement sequence" paragraph_statement_sequence(statement_or_fragment, free_modifier) -> struct {
         #[tree_child(primary)]
-        /// The initial paragraph statement before following I-led or trailing-connective entries.
+        /// The first statement or fragment.
         field initial <- initial_paragraph_statement(statement_or_fragment);
-        /// Ordered sequence of zero or more following components.
+        /// Bare-I items that resume after a completed statement or fragment.
         #[recovery_boundary]
         field following <- [zero_or_more following_paragraph_statement(statement_or_fragment, free_modifier)];
-        /// Ordered sequence of zero or more trailing components.
-        field trailing <- [zero_or_more trailing_ijek_paragraph_statement()];
-    }
-
-    /// Product node for paragraph; preserves `i`, `niho`, `free_modifiers`, and `statements` in source order.
-    rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
-        /// The `I` cmavo marker.
-        field i <- cmavo(I);
-        /// Non-empty ordered sequence of niho components.
-        field niho <- [one_or_more selmaho(Niho)];
-        /// Ordered sequence of zero or more free modifiers components.
-        field free_modifiers <- [zero_or_more free_modifier];
-        #[tree_child(primary)]
-        /// The optional statements component.
-        field statements <- opt(arc(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     /// Product node for paragraph; preserves `niho`, `free_modifiers`, and `statements` in source order.
@@ -347,7 +330,7 @@ pub mod generated_model {
     rule "paragraph statement" following_paragraph_statement(statement_or_fragment, free_modifier) -> struct {
         /// The `I` cmavo marker.
         field i <- cmavo(I);
-        assert !statement_connective;
+        assert !ordinary_statement_connective;
         /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
@@ -355,30 +338,22 @@ pub mod generated_model {
         field statement <- opt(arc(statement_or_fragment));
     }
 
-    /// Product node for paragraph statement; preserves `i` and `connective` in source order.
-    rule "paragraph statement" trailing_ijek_paragraph_statement -> struct {
-        /// The `I` cmavo marker.
-        field i <- cmavo(I);
-        /// The statement connective after I, retained for the following paragraph statement.
-        field connective <- statement_connective;
-    }
-
-    /// Sum node for statement; selects among the `i_statement_connection`, `preposed_i_statement_connection`, and `statement_base` forms.
-    rule "statement" statement(statement, bridi, term, tense_modal, text_body) -> enum {
-        /// Uses the `i_statement_connection` product form, whose payload preserves `leading_statement` and `continuations`.
+    /// Both statement connection tiers, or an atom or prenex fallback.
+    rule "statement" statement(statement, bo_statement, statement_atom, bridi, term, tense_modal, text_body, statement_stag, exp_statement_stag) -> enum {
+        /// Ordinary joins bind less tightly than BO joins.
         i_statement_connection,
-        /// Uses the `preposed_i_statement_connection` product form, whose payload preserves `leading_statement`, `connective`, `i`, and `trailing_statement`.
-        preposed_i_statement_connection,
-        /// Uses the nested `statement_base` sum form and preserves its selected alternative.
+        /// A BO join groups to the right.
+        bo_statement_connection,
+        /// A plain atom or a prenex enclosing a complete statement.
         statement_base,
     }
 
     /// Sum node for statement; selects among the `prenex_statement`, `bridi_statement`, and `text_group_statement` forms.
-    rule "statement" statement_base(statement, bridi, term, text_body, tense_modal) -> enum {
-        /// Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.
+    rule "statement" statement_base(statement, statement_atom, bridi, term, text_body, tense_modal) -> enum {
+        // The sentence or TUhE group, before the prenex fallback.
+        splice statement_atom,
+        /// The prenex encloses both connection tiers.
         prenex_statement,
-        // The forms without a prenex.
-        splice statement_after_i_connective,
     }
 
     /// Sum node for paragraph statement; selects among the `statement_or_fragment_statement` and `fragment_statement` forms.
@@ -423,11 +398,19 @@ pub mod generated_model {
     }
 
     /// Sum node for statement; selects among the `bridi_statement` and `text_group_statement` forms.
-    rule "statement" statement_after_i_connective(bridi, tense_modal, text_body) -> enum {
-        /// Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.
+    rule "statement atom" statement_atom(bridi, tense_modal, text_body) -> enum {
+        /// A sentence.
         bridi_statement,
-        /// Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.
+        /// A TUhE group with its text_1 body.
         text_group_statement,
+    }
+
+    /// The right operand tier of both statement joins.
+    rule "BO statement" bo_statement(bo_statement, statement_atom, bridi, tense_modal, text_body, statement_stag, exp_statement_stag) -> enum {
+        /// A right-recursive BO connection.
+        bo_statement_connection,
+        // A sentence or TUhE group.
+        splice statement_atom,
     }
 
     /// Product node for fragment; preserves `first_na`, `second_na`, and `additional_na` in source order.
@@ -461,63 +444,78 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `leading_statement` and `continuations` in source order.
-    rule "statement connection" i_statement_connection(statement, bridi, term, tense_modal, text_body) -> struct {
-        /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, text_body, tense_modal));
-        /// Non-empty ordered sequence of continuations components.
+    rule "statement connection" i_statement_connection(bo_statement) -> struct {
+        /// The first BO-level operand.
+        field leading_statement <- arc(bo_statement);
+        /// Left-grouped ordinary joins, each with its own optional right operand.
         #[recovery_boundary]
-        field continuations <- [one_or_more i_statement_connection_tail(bridi, tense_modal, text_body)];
+        field continuations <- [one_or_more statement_join(bo_statement)];
     }
 
-    /// Product node for statement connective; preserves `i` and `connective` in source order.
-    rule "statement connective" pending_i_connective -> struct {
-        /// The `I` cmavo marker.
+    /// One ordinary join. A later bare I belongs to the paragraph.
+    rule "statement join" statement_join(bo_statement) -> struct {
+        /// The I that starts this join.
         field i <- cmavo(I);
-        /// The `statement_connective` connective retained while its following statement remains pending.
-        field connective <- statement_connective;
-        assert cmavo(I);
+        /// The complete connector, then its free modifiers.
+        field connective <- ordinary_statement_connective().wf();
+        /// The right operand, absent in a rightless join.
+        field trailing_statement <- opt(arc(bo_statement));
     }
 
-    /// Sum node for statement connection; selects among the `chained_i_connective_statement_tail` and `simple_i_connective_statement_tail` forms.
-    rule "statement connection" i_statement_connection_tail(bridi, tense_modal, text_body) -> enum {
-        /// Uses the `chained_i_connective_statement_tail` product form, whose payload preserves `pending`, `i`, `connective`, and `trailing_statement`.
-        chained_i_connective_statement_tail,
-        /// Uses the `simple_i_connective_statement_tail` product form, whose payload preserves `i`, `connective`, and `trailing_statement`.
-        simple_i_connective_statement_tail,
+    /// BO owns its recursive right operand in the syntax tree.
+    rule "BO statement connection" bo_statement_connection(bo_statement, statement_atom, statement_stag, exp_statement_stag, tense_modal) -> struct {
+        /// The left sentence or TUhE group.
+        field leading_statement <- arc(statement_atom);
+        /// The I-led BO connector.
+        field connective <- bo_statement_connective(statement_stag, exp_statement_stag, tense_modal);
+        /// The optional BO-level right operand.
+        field trailing_statement <- opt(arc(bo_statement));
     }
 
-    /// Product node for statement connection; preserves `pending`, `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" chained_i_connective_statement_tail(bridi, tense_modal, text_body) -> struct {
-        /// Non-empty ordered sequence of pending components.
-        field pending <- [one_or_more pending_i_connective];
-        /// The `I` cmavo marker.
+    /// Bare connectors keep internal free placement separate from the BO boundary.
+    rule "BO statement connective" bo_statement_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
+        /// The complete standard candidate has priority.
+        standard_bo_statement_connective,
+        /// The sourced experimental stag route.
+        exp_bo_statement_connective,
+        /// Legacy inner free placement requires the unrestricted feature.
+        when feature(UnrestrictedFree) unrestricted_bo_statement_connective,
+    }
+
+    /// The standard I, optional connector, optional stag, and required BO.
+    rule "BO statement connective" standard_bo_statement_connective(statement_stag) -> struct {
+        /// The I boundary.
         field i <- cmavo(I);
-        /// The `i_statement_connective` connective joining the adjacent constituents of the `chained_i_connective_statement_tail` production.
-        field connective <- i_statement_connective(tense_modal);
-        /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
+        /// Free modifiers after the complete connector use the prohibited-placement warning.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The ordered standard stag.
+        field stag <- opt(arc(statement_stag));
+        /// BO and the free modifiers that follow it.
+        field bo <- cmavo(Bo).wf();
     }
 
-    /// Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.
-    rule "statement connection" simple_i_connective_statement_tail(bridi, tense_modal, text_body) -> struct {
-        /// The `I` cmavo marker.
+    /// A complete experimental candidate cannot steal a successful standard candidate.
+    rule "BO statement connective" exp_bo_statement_connective(exp_statement_stag) -> struct {
+        /// The I boundary.
         field i <- cmavo(I);
-        /// The `i_statement_connective` connective joining the adjacent constituents of the `simple_i_connective_statement_tail` production.
-        field connective <- i_statement_connective(tense_modal);
-        /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
+        /// The optional bare connector.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The experimental stag, with a warning at its first word.
+        field stag <- arc(exp_statement_stag.warn_if(ExperimentalStatementStag).ignore_then(exp_statement_stag));
+        /// The required BO and its free modifiers.
+        field bo <- cmavo(Bo).wf();
     }
 
-    /// Product node for statement connection; preserves `leading_statement`, `connective`, `i`, and `trailing_statement` in source order.
-    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, text_body, tense_modal) -> struct {
-        /// The shared leading statement child syntax node.
-        field leading_statement <- arc(statement_base(statement, bridi, term, text_body, tense_modal));
-        /// The `statement_connective` connective joining the adjacent constituents of the `preposed_i_statement_connection` production.
-        field connective <- statement_connective;
-        /// The `I` cmavo marker.
+    /// A complete candidate for the explicitly unrestricted free boundaries.
+    rule "BO statement connective" unrestricted_bo_statement_connective(tense_modal) -> struct {
+        /// The I boundary.
         field i <- cmavo(I);
-        /// The shared trailing statement child syntax node.
-        field trailing_statement <- arc(statement_after_i_connective(bridi, tense_modal, text_body));
+        /// The optional bare connector.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The unrestricted stag, with a warning at its first word.
+        field stag <- arc(tense_modal.warn_if(ExperimentalStatementStag).ignore_then(tense_modal));
+        /// The required BO and its free modifiers.
+        field bo <- cmavo(Bo).wf();
     }
 
     /// Product node for text group; preserves `tense_modal`, `tuhe`, `text`, and `tuhu` in source order.
@@ -643,20 +641,101 @@ pub mod generated_model {
         field linkargs <- linkargs;
     }
 
-    /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bare_cu_bridi`, and
-    /// `relation_only_bridi` forms.
+    /// A sentence body, with or without the camxes-exp sentence trailers.
     ///
     /// camxes-standard's sentence carries one leading `terms CU_elidible? free*` group
     /// (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
     /// second outer group jbotci used to model here as `bridi_with_post_cu_terms` /
     /// `bare_cu_terms_bridi` over a shared `cu_terms_bridi_tail` is now the tail's own prefix.
-    rule "bridi" bridi(term, sentence_bridi_tail) -> enum {
+    rule "bridi" bridi(plain_bridi, exp_subsentence, statement_stag, exp_statement_stag, free_modifier, term, sentence_bridi_tail, tense_modal) -> enum {
+        /// The camxes-exp sentence trailer, with a required subsentence.
+        exp_trailed_bridi,
+        // The baseline sentence forms keep their existing variants.
+        splice plain_bridi,
+    }
+
+    /// The shared sentence body before any sentence trailer.
+    rule "bridi" plain_bridi(term, sentence_bridi_tail) -> enum {
         /// Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.
         bridi_with_leading_terms,
         /// Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.
         bare_cu_bridi,
         /// Uses the `relation_only_bridi` product form, whose payload preserves `bridi_tail`.
         relation_only_bridi,
+    }
+
+
+    /// The trailer is part of the sentence, below statement joins and prenexes.
+    rule "sentence trailer" exp_trailed_bridi(plain_bridi, exp_subsentence, statement_stag, exp_statement_stag, free_modifier, tense_modal) -> struct {
+        /// The first sentence body.
+        field first <- arc(plain_bridi);
+        /// Each trailer has a required subsentence on its right.
+        field trailers <- [one_or_more exp_sentence_trailer(exp_subsentence, statement_stag, exp_statement_stag, free_modifier, tense_modal)];
+    }
+
+    /// camxes-exp.peg:81, with the connector before I.
+    rule "sentence trailer" exp_sentence_trailer(exp_subsentence, statement_stag, exp_statement_stag, free_modifier, tense_modal) -> struct {
+        /// The connector word carries the warning.
+        field connective <- sentence_trailer_connective().wf();
+        /// The optional stag and BO pair before I.
+        field tag_bo <- opt(sentence_trailer_tag_bo(statement_stag, exp_statement_stag, tense_modal));
+        /// The boundary after the connective.
+        field i <- cmavo(I);
+        /// The free modifiers that follow I.
+        field free_modifiers <- [zero_or_more free_modifier];
+        /// A required subsentence. TUhE groups are not subsentences.
+        field subsentence <- arc(exp_subsentence);
+    }
+
+    /// The optional BO suffix of a pre-I trailer.
+    rule "sentence trailer" sentence_trailer_tag_bo(statement_stag, exp_statement_stag, tense_modal) -> enum {
+        /// The standard ordered stag, when present.
+        standard_sentence_trailer_tag_bo,
+        /// The experimental full stag.
+        exp_sentence_trailer_tag_bo,
+        /// Legacy inner free placement requires the unrestricted feature.
+        when feature(UnrestrictedFree) unrestricted_sentence_trailer_tag_bo,
+    }
+
+    // camxes-exp.peg:347 gives the three NA-prefixed connective forms.
+    // Required NA keeps this probe's start set exact. The BO suffix stays shared.
+    alias "negated sentence trailer prefix" negated_sentence_trailer_prefix(
+        statement_stag,
+        exp_statement_stag,
+        tense_modal,
+    ) = (
+        (
+            selmaho(Na),
+            opt(selmaho(Se)),
+            choice((selmaho(Joi), selmaho(Ja), selmaho(A))).wf_when(UnrestrictedFree),
+            opt(cmavo(Nai)),
+        ).wf(),
+        opt(sentence_trailer_tag_bo(statement_stag, exp_statement_stag, tense_modal)),
+        cmavo(I),
+    ).ignored();
+
+    /// Standard stag before a trailer BO.
+    rule "sentence trailer" standard_sentence_trailer_tag_bo(statement_stag) -> struct {
+        /// The optional stag.
+        field stag <- opt(arc(statement_stag));
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
+    }
+
+    /// Experimental stag before a trailer BO.
+    rule "sentence trailer" exp_sentence_trailer_tag_bo(exp_statement_stag) -> struct {
+        /// The experimental stag and its warning.
+        field stag <- arc(exp_statement_stag.warn_if(ExperimentalStatementStag).ignore_then(exp_statement_stag));
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
+    }
+
+    /// A complete candidate for the explicitly unrestricted free boundaries.
+    rule "sentence trailer" unrestricted_sentence_trailer_tag_bo(tense_modal) -> struct {
+        /// The unrestricted stag and its warning.
+        field stag <- arc(tense_modal.warn_if(ExperimentalStatementStag).ignore_then(tense_modal));
+        /// BO permits a prohibited trailing free placement with a warning.
+        field bo <- cmavo(Bo).prohibited_wf();
     }
 
     /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.
@@ -1215,7 +1294,7 @@ pub mod generated_model {
     /// branch. A branch would wrap the lower level in a public variant, which Debug and serde
     /// output would show as an extra level. The splice gives this enum the variants of every
     /// lower level directly, so each level adds only its own connection.
-    rule "term" term(gek_termset, exp_subsentence, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" term(gek_termset, exp_subsentence, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         // The CEhE level and the levels below it.
@@ -1224,7 +1303,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, exp_subsentence, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" cehe_term(gek_termset, exp_subsentence, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         // The loose connective level and the levels below it.
@@ -1234,7 +1313,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" loose_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         // The BO-bound level and the leaves below it.
@@ -1250,7 +1329,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek) -> enum {
+    rule "term" nonabs_term(gek_termset, exp_subsentence, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1281,7 +1360,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 12 forms including `place_tagged_sumti_term`, `elided_nahe_fiho_tag_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" simple_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the absorption-safe `fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1315,7 +1394,7 @@ pub mod generated_model {
     ///
     /// The leaves come from a splice of `simple_term`, not from a `simple_term` branch: a branch
     /// would add a public wrapper variant to Debug and serde output.
-    rule "term" bound_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, simple_term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek) -> enum {
+    rule "term" bound_term(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, simple_term, letter_tokens, exp_gek_sentence_guard, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         // The absorption-guarded leaves.
@@ -1408,7 +1487,7 @@ pub mod generated_model {
     /// Each level of this ladder splices the level below it, exactly as the other ladders do: a
     /// branch would add a public wrapper variant to Debug and serde output. The leaves are those
     /// of `normal_term_atom`.
-    rule "term" normal_term(gek_termset, exp_subsentence, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek) -> enum {
+    rule "term" normal_term(gek_termset, exp_subsentence, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, forethought_bridi_connection, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
         // The BO-bound level and the unguarded leaves below it.
@@ -1434,7 +1513,7 @@ pub mod generated_model {
     }
 
     /// The optional-stag BO-bound level of the normal-flavour term constituent.
-    rule "term" bound_normal_term(gek_termset, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, exp_guard_gek) -> enum {
+    rule "term" bound_normal_term(gek_termset, exp_subsentence, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, selbri, letter_tokens, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
         // The unguarded leaves.
@@ -1476,7 +1555,7 @@ pub mod generated_model {
     /// their absorption-guarded twins. A splice cannot express that swap, so this rule lists its
     /// leaves itself, and the `normal_term_atom_swaps_only_the_guarded_tag_leaves` test in
     /// `grammar/mod.rs` checks that the two inventories stay aligned.
-    rule "term" normal_term_atom(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_guard_gek) -> enum {
+    rule "term" normal_term_atom(gek_termset, exp_subsentence, sumti, tense_modal, baseline_term_tense_modal, selbri, term, letter_tokens, exp_guard_gek, statement_stag, exp_statement_stag) -> enum {
         /// Uses the unguarded `nonabs_fa_chain_tagged_sumti_term` product form, camxes-exp's JOIK-chained FA tag.
         nonabs_fa_chain_tagged_sumti_term,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1960,15 +2039,17 @@ pub mod generated_model {
     }
 
     /// Transparent product node for NA term; preserves the `na` component.
-    rule "NA term" bare_na_term(selbri, tense_modal) -> struct {
+    rule "NA term" bare_na_term(selbri, tense_modal, statement_stag, exp_statement_stag) -> struct {
         // camxes-exp's bare NA term begins with `!joik_jek` (camxes-exp.peg:160), checked before
         // NA, and its merged `joik` (:347) reads `NA SE? (JOI / JA / A)` as one connective. So
         // `na joi` and `na se je` never begin a bare NA term there, but a free modifier between
         // NA and JOI does, because NA_clause takes no free modifier. The default grammar keeps
-        // its bare NA term before JOI; the `na-joik` feature gives it camxes-exp's guard.
+        // its bare NA term before JOI outside a pre-I trailer. The `na-joik` feature
+        // gives the other sites camxes-exp's guard.
         assert !feature(NaJoik, (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Ja)))));
-        /// A word from selmaho `Na`.
-        field na <- selmaho(Na).warn(ExperimentalBareNaTerm).wf();
+        /// The complete pre-I connector prefix owns NA at this boundary.
+        field na <- negated_sentence_trailer_prefix(statement_stag, exp_statement_stag, tense_modal)
+            .lookahead().not().ignore_then(selmaho(Na).warn(ExperimentalBareNaTerm).wf());
         assert !choice((
             selbri
                 .reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection)
@@ -4085,7 +4166,7 @@ pub mod generated_model {
     rule "non-logical connective" vuhu_nonlogical_connective -> struct {
         #[tree_child(primary)]
         /// A word from selmaho `Vuhu`.
-        field vuhu <- selmaho(Vuhu).wf();
+        field vuhu <- selmaho(Vuhu).warn(ExperimentalVuhuConnective).wf();
     }
 
     /// Sum node for sumti connective; selects among the `joik_connective`, `ek_connective`, `jehi_connective`, and `experimental_vuhu_sumti_connective` forms.
@@ -4133,51 +4214,83 @@ pub mod generated_model {
         jek_connective,
     }
 
-    /// Sum node for statement connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
-    rule "statement connective" statement_connective -> enum {
-        // The standard JOI and JA connectives.
-        splice standard_statement_connective,
-        /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
-        ek_connective,
-        /// Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.
+    /// An ordinary I join permits a bare connector or a VUhU word.
+    rule "statement connective" ordinary_statement_connective -> enum {
+        // The standard bare family, with feature-gated EK.
+        splice bare_statement_connective,
+        /// VUhU occurs only in the ordinary join inventory.
         vuhu_nonlogical_connective,
     }
 
-    /// Sum node for statement connective; selects among the `i_standard_statement_connective` and `i_tag_bo_statement_connective` forms.
-    rule "statement connective" i_statement_connective(tense_modal) -> enum {
-        /// Uses the `i_standard_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.
-        i_standard_statement_connective,
-        /// Uses the `i_tag_bo_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.
-        i_tag_bo_statement_connective,
+    /// The shared bare inventory for BO and leading-I sites.
+    rule "statement connective" bare_statement_connective -> enum {
+        // JA and JOI, including their existing NA JOI feature arm.
+        splice paragraph_standard_statement_connective,
+        /// EK changes the standard bare-I plus fragment reading.
+        when feature(EkStatementConnective) exp_ek_statement_connective,
     }
 
-    /// Product node for statement connective; preserves `connective` and `tag_bo` in source order.
-    rule "statement connective" i_standard_statement_connective(tense_modal) -> struct {
-        #[tree_child(primary)]
-        /// The shared connective child syntax node.
-        field connective <- arc(statement_connective);
-        /// The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.
-        field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo).wf()));
+    /// An EK connector at a statement boundary.
+    rule "statement connective" exp_ek_statement_connective -> struct {
+        /// The optional negation prefix.
+        field na <- opt(selmaho(Na));
+        /// The optional conversion prefix.
+        field se <- opt(selmaho(Se));
+        /// The connector word carries the warning.
+        field a <- selmaho(A).warn(ExperimentalEkStatementConnective).wf_when(UnrestrictedFree);
+        /// The optional NAI suffix.
+        field nai <- opt(cmavo(Nai));
     }
 
-    /// Sum node for statement connective; selects among the `i_standard_paragraph_statement_connective` and `i_tag_bo_paragraph_statement_connective` forms.
-    rule "statement connective" i_paragraph_statement_connective(tense_modal) -> enum {
-        /// Uses the `i_standard_paragraph_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.
-        i_standard_paragraph_statement_connective,
-        /// Uses the `i_tag_bo_paragraph_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.
-        i_tag_bo_paragraph_statement_connective,
+    /// The optional connector and BO suffix after a leading I.
+    rule "statement connective" i_paragraph_statement_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
+        /// A complete BO connector after the prefix I.
+        paragraph_bo_connective,
+        /// A bare connector with no BO suffix.
+        bare_statement_connective,
     }
 
-    /// Product node for statement connective; preserves `connective` and `tag_bo` in source order.
-    rule "statement connective" i_standard_paragraph_statement_connective(tense_modal) -> struct {
-        #[tree_child(primary)]
-        /// The shared connective child syntax node.
-        field connective <- arc(paragraph_standard_statement_connective);
-        /// The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.
-        field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo)));
+    /// The prefix I stays on its enclosing leading-I node.
+    rule "statement connective" paragraph_bo_connective(statement_stag, exp_statement_stag, tense_modal) -> enum {
+        /// The standard stag route.
+        standard_paragraph_bo_connective,
+        /// The experimental stag route.
+        exp_paragraph_bo_connective,
+        /// Legacy inner free placement requires the unrestricted feature.
+        when feature(UnrestrictedFree) unrestricted_paragraph_bo_connective,
     }
 
-    /// Paragraph JOIK family with the same mixed ownership ordering as `joik_connective`.
+    /// A bare connector and optional standard stag before BO.
+    rule "statement connective" standard_paragraph_bo_connective(statement_stag) -> struct {
+        /// The optional bare connector.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The optional standard stag.
+        field stag <- opt(arc(statement_stag));
+        /// The BO marker. The enclosing prefix owns trailing free modifiers.
+        field bo <- cmavo(Bo);
+    }
+
+    /// The experimental stag at a leading-I prefix.
+    rule "statement connective" exp_paragraph_bo_connective(exp_statement_stag) -> struct {
+        /// The optional bare connector.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The experimental stag and its warning.
+        field stag <- arc(exp_statement_stag.warn_if(ExperimentalStatementStag).ignore_then(exp_statement_stag));
+        /// The BO marker.
+        field bo <- cmavo(Bo);
+    }
+
+    /// A complete candidate for the explicitly unrestricted free boundaries.
+    rule "statement connective" unrestricted_paragraph_bo_connective(tense_modal) -> struct {
+        /// The optional bare connector.
+        field connective <- opt(arc(bare_statement_connective().prohibited_wf()));
+        /// The unrestricted stag and its warning.
+        field stag <- arc(tense_modal.warn_if(ExperimentalStatementStag).ignore_then(tense_modal));
+        /// The BO marker.
+        field bo <- cmavo(Bo);
+    }
+
+    /// The bare JA and JOI families, including interval connectors.
     rule "statement connective" paragraph_standard_statement_connective -> enum {
         /// Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.
         paragraph_closed_interval_connective,
@@ -4200,7 +4313,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// The JOI word, which carries the warning for the construct.
-        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective);
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4213,7 +4326,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Ja`.
-        field ja <- selmaho(Ja);
+        field ja <- selmaho(Ja).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4224,7 +4337,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Joi`.
-        field joi <- selmaho(Joi);
+        field joi <- selmaho(Joi).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4235,7 +4348,7 @@ pub mod generated_model {
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
         /// A word from selmaho `Bihi`.
-        field bihi <- selmaho(Bihi);
+        field bihi <- selmaho(Bihi).wf_when(UnrestrictedFree);
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
@@ -4257,20 +4370,100 @@ pub mod generated_model {
         field right_interval <- selmaho(Gaho);
     }
 
-    /// Product node for statement connective; preserves `tense_modal` and `bo` in source order.
-    rule "statement connective" i_tag_bo_paragraph_statement_connective(tense_modal) -> struct {
-        /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo);
+    /// The camxes-exp joik_jek inventory at a sentence trailer.
+    rule "sentence trailer connective" sentence_trailer_connective -> enum {
+        /// The trailer paragraph closed interval connective alternative.
+        trailer_paragraph_closed_interval_connective,
+        /// The trailer paragraph joi connective alternative.
+        trailer_paragraph_joi_connective,
+        /// The trailer paragraph simple interval connective alternative.
+        trailer_paragraph_simple_interval_connective,
+        /// The trailer paragraph jek connective alternative.
+        trailer_paragraph_jek_connective,
+        /// The trailer exp paragraph na joi connective alternative.
+        trailer_exp_paragraph_na_joi_connective,
+        /// The trailer ek connective alternative.
+        trailer_ek_connective,
+        /// The trailer vuhu connective alternative.
+        trailer_vuhu_connective,
     }
 
-    /// Product node for statement connective; preserves `tense_modal` and `bo` in source order.
-    rule "statement connective" i_tag_bo_statement_connective(tense_modal) -> struct {
-        /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
+    /// EK at this sourced sentence consumer does not require the I-led EK feature.
+    rule "sentence trailer connective" trailer_ek_connective -> struct {
+        /// The na in source order.
+        field na <- opt(selmaho(Na));
+        /// The se in source order.
+        field se <- opt(selmaho(Se));
+        /// The a in source order.
+        field a <- selmaho(A).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
+        /// The nai in source order.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// VUhU belongs to joik_jek at the trailer, including before its BO suffix.
+    rule "sentence trailer connective" trailer_vuhu_connective -> struct {
+        /// The vuhu in source order.
+        field vuhu <- selmaho(Vuhu).warn(ExperimentalVuhuConnective).warn(ExperimentalPreISentenceTrailer);
+    }
+    /// The trailer paragraph closed interval connective at this grammar consumer.
+    rule "interval" trailer_paragraph_closed_interval_connective -> struct {
+        #[tree_child(primary)]
+        /// A word from selmaho `Gaho`.
+        field left_interval <- selmaho(Gaho);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// A word from selmaho `Bihi`.
+        field bihi <- selmaho(Bihi).warn(ExperimentalPreISentenceTrailer);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+        #[tree_child(primary)]
+        /// A word from selmaho `Gaho`.
+        field right_interval <- selmaho(Gaho);
+    }
+    /// The trailer paragraph joi connective at this grammar consumer.
+    rule "joik" trailer_paragraph_joi_connective -> struct {
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// A word from selmaho `Joi`.
+        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+    /// The trailer paragraph simple interval connective at this grammar consumer.
+    rule "interval" trailer_paragraph_simple_interval_connective -> struct {
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// A word from selmaho `Bihi`.
+        field bihi <- selmaho(Bihi).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+    /// The trailer paragraph jek connective at this grammar consumer.
+    rule "jek" trailer_paragraph_jek_connective -> struct {
+        /// The optional na component.
+        field na <- opt(selmaho(Na));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// A word from selmaho `Ja`.
+        field ja <- selmaho(Ja).warn(ExperimentalPreISentenceTrailer).wf_when(UnrestrictedFree);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+    /// The trailer exp paragraph na joi connective at this grammar consumer.
+    rule "joik" trailer_exp_paragraph_na_joi_connective -> struct {
+        /// A word from selmaho `Na`.
+        field na <- selmaho(Na);
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI word, which carries the warning for the construct.
+        field joi <- selmaho(Joi).warn(ExperimentalPreISentenceTrailer).warn(ExperimentalNaJoiConnective).wf_when(UnrestrictedFree);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for gihek; preserves `na`, `se`, `giha`, and `nai` in source order.
@@ -5130,6 +5323,590 @@ pub mod generated_model {
     rule "tag" sticky_tense -> struct {
         /// The `Ki` cmavo marker.
         field ki <- cmavo(Ki).wf();
+    }
+
+
+    /// Standard stag keeps the PEG ordered choice inside its own production.
+    rule "statement stag" statement_stag(selbri, letter_tokens) -> enum {
+        /// The bare simple statement stag alternative.
+        bare_simple_statement_stag,
+        /// The full standard statement stag alternative.
+        full_standard_statement_stag,
+    }
+
+    /// The simple-tense route has no free boundary inside or after its atoms.
+    rule "statement stag" bare_simple_statement_stag(letter_tokens) -> struct {
+        /// The first in source order.
+        field first <- bare_simple_statement_tense(letter_tokens);
+        /// The continuations in source order.
+        field continuations <- [zero_or_more bare_simple_statement_stag_tail(letter_tokens)];
+    }
+
+    /// One connector and the next simple tense.
+    rule "statement stag" bare_simple_statement_stag_tail(letter_tokens) -> struct {
+        /// The connective in source order.
+        field connective <- paragraph_standard_statement_connective;
+        /// The tense in source order.
+        field tense <- bare_simple_statement_tense(letter_tokens);
+    }
+
+    /// A simple tense without internal free modifiers.
+    rule "statement tense" bare_simple_statement_tense(letter_tokens) -> enum {
+        /// The bare composite tense alternative.
+        bare_composite_tense,
+        /// The bare modal tense alternative.
+        bare_modal_tense,
+        /// The bare sticky tense alternative.
+        bare_sticky_tense,
+    }
+
+    /// FIhO reaches the full standard fallback when the simple route fails.
+    rule "statement stag" full_standard_statement_stag(selbri, letter_tokens) -> struct {
+        /// The first in source order.
+        field first <- statement_full_tense(selbri, letter_tokens);
+        /// The continuations in source order.
+        field continuations <- [zero_or_more full_standard_statement_stag_tail(selbri, letter_tokens)];
+    }
+
+    /// One joik_jek and the next full standard tense-modal.
+    rule "statement stag" full_standard_statement_stag_tail(selbri, letter_tokens) -> struct {
+        /// The connective in source order.
+        field connective <- paragraph_standard_statement_connective().wf();
+        /// The tense in source order.
+        field tense <- statement_full_tense(selbri, letter_tokens);
+    }
+
+    /// The adopted exp tag family supplies its own typed consumer entry.
+    rule "experimental statement stag" exp_statement_stag(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The complete first atom run, without the generic tag ownership filter.
+        field first <- arc(statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier));
+        /// Connectives and later atom runs in source order.
+        field continuations <- [zero_or_more exp_statement_stag_tail(selbri, sumti, mekso, letter_tokens, free_modifier)];
+    }
+
+    /// The full standard tense-modal fallback of stag.
+    rule "statement tense modal" statement_full_tense(selbri, letter_tokens) -> enum {
+        /// A complete simple tense with one trailing free boundary.
+        statement_simple_tense_with_free,
+        /// FIhO keeps both source free boundaries.
+        fiho_tense,
+    }
+
+    /// No free modifier occurs inside a standard simple tense at this site.
+    rule "statement tense modal" statement_simple_tense_with_free(letter_tokens) -> struct {
+        /// The complete simple tense and its trailing free modifiers.
+        field tense <- bare_simple_statement_tense(letter_tokens).wf();
+    }
+
+    /// A camxes-exp joik_jek followed by another complete atom run.
+    rule "experimental statement stag" exp_statement_stag_tail(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The complete connector and its trailing free modifiers.
+        field connective <- exp_stag_connective().wf();
+        /// The next atom run.
+        field tense <- arc(statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier));
+    }
+
+    /// The atom run at this consumer includes the approved prohibited free positions.
+    rule "statement stag atom run" statement_stag_atom_run(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The first atom and its prefixes.
+        field first <- arc(statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier));
+        /// The later atoms in the same run.
+        field additional <- [zero_or_more arc(statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier))];
+    }
+
+    /// Prefix placement follows the existing tag policy from #847.
+    rule "statement stag prefixed atom" statement_stag_prefixed_atom(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// NAhE permits the prohibited placement with its warning.
+        field nahe <- opt(selmaho(Nahe).prohibited_wf());
+        /// A free modifier after SE requires the unrestricted feature.
+        field se <- opt(selmaho(Se).wf_when(UnrestrictedFree));
+        /// Every complete atom has the sourced trailing free boundary.
+        field atom <- arc(statement_stag_atom(selbri, sumti, mekso, letter_tokens, free_modifier)).wf();
+    }
+
+    /// The extra arms require an actual free modifier at the prohibited position.
+    rule "statement stag atom" statement_stag_atom(selbri, sumti, mekso, letter_tokens, free_modifier) -> enum {
+        /// A number and a free modifier before ROI.
+        statement_stag_number_free_roi,
+        /// A free modifier after the FEhE prefix.
+        statement_stag_fehe_free_property,
+        /// A free modifier between MOhI and FAhA.
+        statement_stag_mohi_free_faha,
+        // The exact camxes-exp atom inventory.
+        splice exp_tag_atom,
+    }
+
+    /// A required free modifier distinguishes this arm from the sourced ROI arm.
+    rule "statement stag ROI placement" statement_stag_number_free_roi(letter_tokens, free_modifier) -> struct {
+        /// The inherited standard number language, with the split feature applied.
+        field number <- number_words(letter_tokens);
+        /// Actual modifiers carry the prohibited-placement warning on their first words.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// The ROI word after the modifiers.
+        field roi <- selmaho(Roi);
+        /// The standard adjacent NAI suffix.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A required free modifier distinguishes this arm from a sourced FEhE atom.
+    rule "statement stag FEhE placement" statement_stag_fehe_free_property(selbri, sumti, mekso, letter_tokens, free_modifier) -> struct {
+        /// The spatial-property prefix.
+        field fehe <- cmavo(Fehe);
+        /// Actual modifiers carry the prohibited-placement warning.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// A property without another FEhE prefix.
+        field property <- statement_stag_fehe_property(selbri, sumti, mekso, letter_tokens, free_modifier);
+    }
+
+    /// Each ROI alternative includes its closing word, so a partial number cannot hide another arm.
+    rule "statement stag spatial property" statement_stag_fehe_property(selbri, sumti, mekso, letter_tokens, free_modifier) -> enum {
+        /// A further prohibited placement before ROI.
+        statement_stag_number_free_roi,
+        /// The complete standard number, ROI, and optional NAI.
+        statement_stag_standard_roi,
+        /// The complete experimental number or VEI payload followed by ROI.
+        statement_stag_exp_roi,
+        /// A TAhE property.
+        bare_tahe_interval_property_tense,
+        /// A ZAhO property.
+        bare_zaho_interval_property_tense,
+    }
+
+    /// A complete experimental ROI property without a second FEhE prefix.
+    rule "statement stag spatial property" statement_stag_exp_roi(selbri, sumti, mekso) -> struct {
+        /// The sourced experimental interval payload.
+        field interval <- exp_roi_interval(selbri, sumti, mekso);
+        /// The required ROI word.
+        field roi <- selmaho(Roi);
+    }
+
+    /// A complete standard number and ROI, including the normal mixed number policy.
+    rule "statement stag spatial property" statement_stag_standard_roi(letter_tokens) -> struct {
+        /// The standard number language under the fixture dialect.
+        field number <- number_words(letter_tokens);
+        /// The required ROI word.
+        field roi <- selmaho(Roi);
+        /// The standard adjacent NAI suffix.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A required free modifier distinguishes this arm from sourced MOhI FAhA.
+    rule "statement stag MOhI placement" statement_stag_mohi_free_faha(free_modifier) -> struct {
+        /// The motion prefix.
+        field mohi <- selmaho(Mohi);
+        /// Actual modifiers carry the prohibited-placement warning.
+        field free_modifiers <- [one_or_more free_modifier.warn_if(CllProhibitedFreeModifierPlacement).ignore_then(free_modifier)];
+        /// The complete standard offset, with its adjacent NAI and VA words.
+        field offset <- bare_faha_space_offset_tense();
+    }
+
+    /// The source joik_jek inventory inside an experimental stag.
+    rule "experimental stag connective" exp_stag_connective -> enum {
+        /// NA JOI is sourced here even when the global feature is off.
+        paragraph_na_joi_stag_connective,
+        // The other JA and JOI forms.
+        splice paragraph_standard_statement_connective,
+        /// EK is sourced inside camxes-exp stag, independently of the I connector slot.
+        paragraph_ek_connective,
+        /// VUhU is sourced only in joik_jek, not the bare BO connector.
+        vuhu_nonlogical_connective,
+    }
+
+    /// NA JOI inside a stag does not have a standard reading to preserve.
+    rule "experimental stag connective" paragraph_na_joi_stag_connective -> struct {
+        /// The required negation prefix.
+        field na <- selmaho(Na);
+        /// The optional conversion prefix.
+        field se <- opt(selmaho(Se));
+        /// The JOI word carries the construct warning.
+        field joi <- selmaho(Joi).warn(ExperimentalNaJoiConnective).wf_when(UnrestrictedFree);
+        /// The optional NAI suffix.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// The bare EK used inside camxes-exp stag.
+    rule "experimental stag connective" paragraph_ek_connective -> struct {
+        /// The optional negation prefix.
+        field na <- opt(selmaho(Na));
+        /// The optional conversion prefix.
+        field se <- opt(selmaho(Se));
+        /// The EK word.
+        field a <- selmaho(A).warn(ExperimentalEkStagConnective).wf_when(UnrestrictedFree);
+        /// The optional NAI suffix.
+        field nai <- opt(cmavo(Nai));
+    }
+    // These words have no free boundary in standard stag. The generic tag model
+    // includes those boundaries. Separate fields keep parsing and recovery anchors aligned.
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_composite_tense(letter_tokens) -> enum {
+        /// Uses the `bare_prefixed_time_space_caha_tense` product form, whose payload preserves `nahe`, `tense`, and `ki`.
+        bare_prefixed_time_space_caha_tense,
+        /// Uses the `bare_time_space_caha_ki_tense` product form, whose payload preserves `tense` and `ki`.
+        bare_time_space_caha_ki_tense,
+        /// Uses the `bare_cuhe_tense` product form, whose payload preserves `cuhe`.
+        bare_cuhe_tense,
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_prefixed_time_space_caha_tense(letter_tokens) -> struct {
+        /// A word from selmaho `Nahe`.
+        field nahe <- selmaho(Nahe);
+        /// The shared tense child syntax node.
+        field tense <- arc(bare_time_space_caha_tense(letter_tokens));
+        /// The optional ki component.
+        field ki <- opt(arc(bare_ki_composite_tense()));
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_time_space_caha_ki_tense(letter_tokens) -> struct {
+        /// The shared tense child syntax node.
+        field tense <- arc(bare_time_space_caha_tense(letter_tokens));
+        /// The optional ki component.
+        field ki <- opt(arc(bare_ki_composite_tense()));
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_time_space_caha_tense(letter_tokens) -> enum {
+        /// Uses the `bare_time_then_space_caha_tense` product form, whose payload preserves `time`, `space`, and `caha`.
+        bare_time_then_space_caha_tense,
+        /// Uses the `bare_space_then_time_caha_tense` product form, whose payload preserves `space`, `time`, and `caha`.
+        bare_space_then_time_caha_tense,
+        /// Uses the `bare_caha_tense` product form, whose payload preserves `caha`.
+        bare_caha_tense,
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_then_space_caha_tense(letter_tokens) -> struct {
+        /// The shared time child syntax node.
+        field time <- arc(bare_time_tense(letter_tokens));
+        /// The optional space component.
+        field space <- opt(arc(bare_space_tense(letter_tokens)));
+        /// The optional caha component.
+        field caha <- opt(arc(bare_caha_tense()));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_then_time_caha_tense(letter_tokens) -> struct {
+        /// The shared space child syntax node.
+        // Keep the probe inside this field to preserve recovery field indices.
+        // A space-only tense is standard. Warn only when a time part follows.
+        /// The space in source order.
+        field space <- arc(
+            bare_space_tense(letter_tokens)
+                .ignore_then(bare_time_tense(letter_tokens))
+                .warn_if(ExperimentalSpaceBeforeTimeTense)
+                .ignore_then(bare_space_tense(letter_tokens))
+        );
+        /// The optional time component.
+        field time <- opt(arc(bare_time_tense(letter_tokens)));
+        /// The optional caha component.
+        field caha <- opt(arc(bare_caha_tense()));
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_tense(letter_tokens) -> enum {
+        /// Uses the `bare_time_tense_with_zi` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
+        bare_time_tense_with_zi,
+        /// Uses the `bare_time_tense_with_offset` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
+        bare_time_tense_with_offset,
+        /// Uses the `bare_time_tense_with_interval` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
+        bare_time_tense_with_interval,
+        /// Uses the `bare_time_tense_with_properties` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
+        bare_time_tense_with_properties,
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_tense_with_zi(letter_tokens) -> struct {
+        /// The shared zi child syntax node.
+        field zi <- arc(bare_zi_time_distance_tense());
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_pu_time_offset_tense())];
+        /// The optional zeha component.
+        field zeha <- opt(arc(bare_zeha_time_interval_tense()));
+        /// Ordered sequence of zero or more properties components.
+        field properties <- [zero_or_more arc(bare_interval_property_tense(letter_tokens))];
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_tense_with_offset(letter_tokens) -> struct {
+        /// The optional zi component.
+        field zi <- opt(arc(bare_zi_time_distance_tense()));
+        /// Non-empty ordered sequence of offsets components.
+        field offsets <- [one_or_more arc(bare_pu_time_offset_tense())];
+        /// The optional zeha component.
+        field zeha <- opt(arc(bare_zeha_time_interval_tense()));
+        /// Ordered sequence of zero or more properties components.
+        field properties <- [zero_or_more arc(bare_interval_property_tense(letter_tokens))];
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_tense_with_interval(letter_tokens) -> struct {
+        /// The optional zi component.
+        field zi <- opt(arc(bare_zi_time_distance_tense()));
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_pu_time_offset_tense())];
+        /// The shared zeha child syntax node.
+        field zeha <- arc(bare_zeha_time_interval_tense());
+        /// Ordered sequence of zero or more properties components.
+        field properties <- [zero_or_more arc(bare_interval_property_tense(letter_tokens))];
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_time_tense_with_properties(letter_tokens) -> struct {
+        /// The optional zi component.
+        field zi <- opt(arc(bare_zi_time_distance_tense()));
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_pu_time_offset_tense())];
+        /// The optional zeha component.
+        field zeha <- opt(arc(bare_zeha_time_interval_tense()));
+        /// Non-empty ordered sequence of properties components.
+        field properties <- [one_or_more arc(bare_interval_property_tense(letter_tokens))];
+    }
+
+    /// A bare interval property at the standard stag consumer.
+    rule "interval property" bare_interval_property_tense(letter_tokens) -> enum {
+        /// Uses the `bare_numbered_interval_property_tense` product form, whose payload preserves `number`, `roi`, and `nai`.
+        bare_numbered_interval_property_tense,
+        /// Uses the `bare_tahe_interval_property_tense` product form, whose payload preserves `tahe` and `nai`.
+        bare_tahe_interval_property_tense,
+        /// Uses the `bare_zaho_interval_property_tense` product form, whose payload preserves `zaho` and `nai`.
+        bare_zaho_interval_property_tense,
+    }
+
+    /// A bare interval property at the standard stag consumer.
+    rule "interval property" bare_numbered_interval_property_tense(letter_tokens) -> struct {
+        /// The shared `number_words` grammar result in the `number` structural role of the `bare_numbered_interval_property_tense` production.
+        field number <- number_words(letter_tokens);
+        /// A word from selmaho `Roi`.
+        field roi <- selmaho(Roi);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A bare interval property at the standard stag consumer.
+    rule "interval property" bare_tahe_interval_property_tense -> struct {
+        /// A word from selmaho `Tahe`.
+        field tahe <- selmaho(Tahe);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A bare interval property at the standard stag consumer.
+    rule "interval property" bare_zaho_interval_property_tense -> struct {
+        /// A word from selmaho `Zaho`.
+        field zaho <- selmaho(Zaho);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_pu_time_offset_tense -> struct {
+        /// A word from selmaho `Pu`.
+        field pu <- selmaho(Pu);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+        /// The optional distance component.
+        field distance <- opt(selmaho(Zi));
+    }
+
+    /// A bare time tense at the standard stag consumer.
+    rule "time tense" bare_zi_time_distance_tense -> struct {
+        /// A word from selmaho `Zi`.
+        field zi <- selmaho(Zi);
+    }
+
+    /// A bare time interval at the standard stag consumer.
+    rule "time interval" bare_zeha_time_interval_tense -> struct {
+        /// A word from selmaho `Zeha`.
+        field zeha <- selmaho(Zeha);
+        /// The optional pair containing a required PU-family direction word followed by an optional `Nai` cmavo marker.
+        field direction <- opt((selmaho(Pu), opt(cmavo(Nai))));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_tense(letter_tokens) -> enum {
+        /// Uses the `bare_space_tense_with_va` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
+        bare_space_tense_with_va,
+        /// Uses the `bare_space_tense_with_offset` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
+        bare_space_tense_with_offset,
+        /// Uses the `bare_space_tense_with_interval` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
+        bare_space_tense_with_interval,
+        /// Uses the `bare_space_tense_with_mohi` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
+        bare_space_tense_with_mohi,
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_tense_with_va(letter_tokens) -> struct {
+        /// The shared va child syntax node.
+        field va <- arc(bare_va_space_distance_tense());
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_faha_space_offset_tense())];
+        /// The optional interval component.
+        field interval <- opt(arc(bare_space_interval_tense(letter_tokens)));
+        /// The optional mohi component.
+        field mohi <- opt(arc(bare_mohi_space_offset_tense()));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_tense_with_offset(letter_tokens) -> struct {
+        /// The optional va component.
+        field va <- opt(arc(bare_va_space_distance_tense()));
+        /// Non-empty ordered sequence of offsets components.
+        field offsets <- [one_or_more arc(bare_faha_space_offset_tense())];
+        /// The optional interval component.
+        field interval <- opt(arc(bare_space_interval_tense(letter_tokens)));
+        /// The optional mohi component.
+        field mohi <- opt(arc(bare_mohi_space_offset_tense()));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_tense_with_interval(letter_tokens) -> struct {
+        /// The optional va component.
+        field va <- opt(arc(bare_va_space_distance_tense()));
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_faha_space_offset_tense())];
+        /// The shared interval child syntax node.
+        field interval <- arc(bare_space_interval_tense(letter_tokens));
+        /// The optional mohi component.
+        field mohi <- opt(arc(bare_mohi_space_offset_tense()));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_space_tense_with_mohi(letter_tokens) -> struct {
+        /// The optional va component.
+        field va <- opt(arc(bare_va_space_distance_tense()));
+        /// Ordered sequence of zero or more offsets components.
+        field offsets <- [zero_or_more arc(bare_faha_space_offset_tense())];
+        /// The optional interval component.
+        field interval <- opt(arc(bare_space_interval_tense(letter_tokens)));
+        /// The shared mohi child syntax node.
+        field mohi <- arc(bare_mohi_space_offset_tense());
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_va_space_distance_tense -> struct {
+        /// A word from selmaho `Va`.
+        field va <- selmaho(Va);
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_faha_space_offset_tense -> struct {
+        /// A word from selmaho `Faha`.
+        field faha <- selmaho(Faha);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+        /// The optional distance component.
+        field distance <- opt(selmaho(Va));
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_faha_interval_direction_tense -> struct {
+        /// A word from selmaho `Faha`.
+        field faha <- selmaho(Faha);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_space_interval_tense(letter_tokens) -> enum {
+        /// Uses the `bare_space_interval_with_extent_tense` product form, whose payload preserves `extent`, `direction`, and `properties`.
+        bare_space_interval_with_extent_tense,
+        /// Uses the `bare_space_interval_properties_tense` product form, whose payload preserves `first` and `additional`.
+        bare_space_interval_properties_tense,
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_space_interval_with_extent_tense(letter_tokens) -> struct {
+        /// The shared extent child syntax node.
+        field extent <- arc(bare_space_interval_extent_tense);
+        /// The optional direction component.
+        field direction <- opt(arc(bare_faha_interval_direction_tense()));
+        /// The optional properties component.
+        field properties <- opt(arc(bare_space_interval_properties_tense(letter_tokens)));
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_space_interval_extent_tense -> enum {
+        /// Uses the `bare_veha_space_interval_tense` product form, whose payload preserves `veha` and `viha`.
+        bare_veha_space_interval_tense,
+        /// Uses the `bare_viha_space_interval_tense` product form, whose payload preserves `viha`.
+        bare_viha_space_interval_tense,
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_space_interval_properties_tense(letter_tokens) -> struct {
+        /// The shared first child syntax node.
+        field first <- arc(bare_fehe_interval_property_tense(letter_tokens));
+        /// Ordered sequence of zero or more additional components.
+        field additional <- [zero_or_more arc(bare_fehe_interval_property_tense(letter_tokens))];
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_veha_space_interval_tense -> struct {
+        /// A word from selmaho `Veha`.
+        field veha <- selmaho(Veha);
+        /// The optional viha component.
+        field viha <- opt(selmaho(Viha));
+    }
+
+    /// A bare space interval at the standard stag consumer.
+    rule "space interval" bare_viha_space_interval_tense -> struct {
+        /// A word from selmaho `Viha`.
+        field viha <- selmaho(Viha);
+    }
+
+    /// A bare space interval property at the standard stag consumer.
+    rule "space interval property" bare_fehe_interval_property_tense(letter_tokens) -> struct {
+        /// The `Fehe` cmavo marker.
+        field fehe <- cmavo(Fehe);
+        /// The shared property child syntax node.
+        field property <- arc(bare_interval_property_tense(letter_tokens));
+    }
+
+    /// A bare space tense at the standard stag consumer.
+    rule "space tense" bare_mohi_space_offset_tense -> struct {
+        /// A word from selmaho `Mohi`.
+        field mohi <- selmaho(Mohi);
+        /// The shared offset child syntax node.
+        field offset <- arc(bare_faha_space_offset_tense());
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_caha_tense -> struct {
+        /// A word from selmaho `Caha`.
+        field caha <- selmaho(Caha);
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_ki_composite_tense -> struct {
+        /// The `Ki` cmavo marker.
+        field ki <- cmavo(Ki);
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_cuhe_tense -> struct {
+        /// A word from selmaho `Cuhe`.
+        field cuhe <- selmaho(Cuhe);
+    }
+
+    /// A bare modal tag at the standard stag consumer.
+    rule "modal tag" bare_modal_tense -> struct {
+        /// The optional nahe component.
+        field nahe <- opt(selmaho(Nahe));
+        /// The optional se component.
+        field se <- opt(selmaho(Se));
+        /// A word from selmaho `Bai`.
+        field bai <- selmaho(Bai);
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai));
+        /// The optional `Ki` cmavo marker.
+        field ki <- opt(cmavo(Ki));
+    }
+
+    /// A bare tag at the standard stag consumer.
+    rule "tag" bare_sticky_tense -> struct {
+        /// The `Ki` cmavo marker.
+        field ki <- cmavo(Ki);
     }
 
     /// Sum node for selbri; preserves the existing relative/CEI and ordinary owners.

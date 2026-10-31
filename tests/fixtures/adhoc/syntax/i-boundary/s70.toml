@@ -1,0 +1,12 @@
+id = "adhoc.syntax.i-boundary.s70"
+lojban = ".i .e mi"
+tags = ["adhoc", "syntax", "i-boundary"]
+
+[[provenance]]
+kind = "other"
+name = "issue #803 witness and control"
+description = "The bare-I and fragment route remains separate from the feature-gated EK prefix."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "mi", message = "unexpected cmavo" }]
