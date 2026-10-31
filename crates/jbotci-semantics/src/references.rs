@@ -441,11 +441,14 @@ pub struct ReferenceEdge {
     pub rule: ReferenceRule,
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[invariant(::NumberedPlaceExhausted { .. } => true)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ReferenceAnalysisError {
     #[error("syntax index did not contain the root text node")]
     MissingRootNode,
+    #[error("cannot assign another numbered place after place 255")]
+    NumberedPlaceExhausted { frame: SelbriPlaceFrameId },
 }
 
 #[derive(Debug)]
@@ -482,7 +485,7 @@ pub fn analyze_generated_references<'tree>(
     syntax: &'tree GeneratedTextSyntax,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
     let syntax_index = GeneratedSyntaxIndex::new(syntax)?;
-    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax);
+    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax)?;
     let discourse_references =
         DiscourseReferences::analyze_generated(&syntax_index, &place_analysis, syntax);
     Ok(GeneratedReferenceAnalysis {
@@ -511,7 +514,7 @@ impl PlaceAnalysis {
     fn analyze_generated<'tree>(
         index: &GeneratedSyntaxIndex<'tree>,
         syntax: &'tree GeneratedTextSyntax,
-    ) -> Self {
+    ) -> Result<Self, ReferenceAnalysisError> {
         let mut builder = GeneratedPlaceAnalysisBuilder::new(index);
         GeneratedSyntaxTreeWalkable::walk_with(syntax, &mut builder);
         builder.finish()
@@ -1014,7 +1017,9 @@ struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     assignment_ids_by_frame_slot:
         HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<SumtiPlaceAssignmentId>>,
     max_numbered_place_by_frame: HashMap<SelbriPlaceFrameId, u8>,
-    next_place_after_linked_arguments_by_frame: HashMap<SelbriPlaceFrameId, u8>,
+    next_place_after_linked_arguments_by_frame: HashMap<SelbriPlaceFrameId, NextPlace>,
+    // The generated walker returns (). Keep its first error for finish().
+    error: Option<ReferenceAnalysisError>,
     cursor_blocking_assignments: HashSet<SumtiPlaceAssignmentId>,
 }
 
@@ -1033,14 +1038,18 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             assignment_ids_by_frame_slot: HashMap::new(),
             max_numbered_place_by_frame: HashMap::new(),
             next_place_after_linked_arguments_by_frame: HashMap::new(),
+            error: None,
             cursor_blocking_assignments: HashSet::new(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(self) -> PlaceAnalysis {
-        PlaceAnalysis {
+    fn finish(self) -> Result<PlaceAnalysis, ReferenceAnalysisError> {
+        if let Some(error) = self.error {
+            return Err(error);
+        }
+        Ok(PlaceAnalysis {
             frames: self.frames,
             frame_ids_by_node: self.frame_ids_by_node,
             assignments: self.assignments,
@@ -1048,21 +1057,21 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             assignment_ids_by_term: self.assignment_ids_by_term,
             assignment_ids_by_frame: self.assignment_ids_by_frame,
             assignment_ids_by_frame_slot: self.assignment_ids_by_frame_slot,
-        }
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn analyze_predicate(&mut self, bridi: &'tree generated::BridiSyntax) -> SelbriPlaceFrameId {
-        self.analyze_predicate_with_initial_place(bridi, 1)
+        self.analyze_predicate_with_initial_place(bridi, NextPlace::FIRST)
     }
 
-    #[requires(initial_place > 0)]
+    #[requires(true)]
     #[ensures(true)]
     fn analyze_predicate_with_initial_place(
         &mut self,
         bridi: &'tree generated::BridiSyntax,
-        initial_place: u8,
+        initial_place: NextPlace,
     ) -> SelbriPlaceFrameId {
         let leading_terms = generated_bridi_leading_terms(bridi);
         let tail = generated_bridi_tail(bridi);
@@ -1087,7 +1096,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         };
         self.assign_terms(&mut cursors, leading_terms, leading_source);
         for cursor in &mut cursors {
-            cursor.ensure_next_place_at_least(2);
+            cursor.ensure_next_place_at_least(NextPlace::SECOND);
             self.apply_linked_argument_cursor(cursor);
         }
         let tail_source = if shared_branch_terms {
@@ -1104,7 +1113,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_sentence_bridi_tail(
         &mut self,
         tail: &'tree generated::SentenceBridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SentenceBridiTailSyntax::ExpIntervalConnectedBridiTail(tail) => {
@@ -1127,7 +1136,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_interval_connected_bridi_tail(
         &mut self,
         tail: &'tree generated::ExpIntervalConnectedBridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let mut analysis = self.analyze_bridi_tail(&tail.first, branch_initial_place);
         let mut branch_cursors =
@@ -1160,7 +1169,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail(
         &mut self,
         tail: &'tree generated::BridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
@@ -1177,7 +1186,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::BridiTailWithoutTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let first = self
             .analyze_afterthought_bridi_tail_without_tail_terms(&tail.first, branch_initial_place);
@@ -1228,7 +1237,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bridi_tail_with_possible_tail_terms(
         &mut self,
         tail: &'tree generated::BridiTailWithPossibleTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let first = self.analyze_afterthought_bridi_tail(&tail.first, branch_initial_place);
         let mut branches = first.frames;
@@ -1278,7 +1287,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_afterthought_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::AfterthoughtBridiTailWithoutTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let mut analysis = self
             .analyze_bo_grouped_bridi_tail_without_tail_terms(&tail.0.first, branch_initial_place);
@@ -1318,7 +1327,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_afterthought_bridi_tail(
         &mut self,
         tail: &'tree generated::AfterthoughtBridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let mut analysis = self.analyze_bo_grouped_bridi_tail(&tail.0.first, branch_initial_place);
         let mut branch_cursors = if tail.0.links.is_empty() {
@@ -1360,7 +1369,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bo_grouped_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::BoGroupedBridiTailWithoutTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let mut analysis =
             self.analyze_simple_bridi_tail_without_tail_terms(&tail.first, branch_initial_place);
@@ -1404,7 +1413,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_bo_grouped_bridi_tail(
         &mut self,
         tail: &'tree generated::BoGroupedBridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         let mut analysis = self.analyze_simple_bridi_tail(&tail.first, branch_initial_place);
         let mut branch_cursors = analysis.branch_cursors.take();
@@ -1449,7 +1458,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_simple_bridi_tail_without_tail_terms(
         &mut self,
         tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
@@ -1496,7 +1505,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_simple_bridi_tail(
         &mut self,
         tail: &'tree generated::SimpleBridiTailSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
             generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
@@ -1515,7 +1524,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     .chain(selbri_tail.tail.terms.iter().map(Arc::as_ref))
                     .collect::<Vec<_>>();
                 if let Some(seltau_frame) = self.co_seltau_term_frame(relation_frame) {
-                    let mut cursors = vec![self.cursor_with_existing_assignments(seltau_frame, 2)];
+                    let mut cursors = vec![
+                        self.cursor_with_existing_assignments(seltau_frame, NextPlace::SECOND),
+                    ];
                     self.assign_term_refs(&mut cursors, &terms, AssignmentSource::CoSeltauTerm);
                     terms.clear();
                 }
@@ -1549,7 +1560,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_forethought_bridi_connection(
         &mut self,
         connection: &'tree generated::ForethoughtBridiConnectionSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> Vec<SelbriPlaceFrameId> {
         match connection {
             generated::ForethoughtBridiConnectionSyntax::DirectForethoughtBridiConnection(
@@ -1596,7 +1607,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_forethought_bridi_connection_without_tail_terms(
         &mut self,
         connection: &'tree generated::ForethoughtBridiConnectionWithoutTailTermsSyntax,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> Vec<SelbriPlaceFrameId> {
         match connection {
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::DirectForethoughtBridiConnectionWithoutTailTerms(connection) => {
@@ -1619,12 +1630,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         }
     }
 
-    #[requires(initial_place > 0)]
+    #[requires(true)]
     #[ensures(true)]
     fn analyze_subbridi_frame_with_initial_place(
         &mut self,
         subbridi: &'tree generated::SubbridiSyntax,
-        initial_place: u8,
+        initial_place: NextPlace,
     ) -> SelbriPlaceFrameId {
         match subbridi {
             generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
@@ -2037,7 +2048,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
                 let propagation = if generated_abstraction_is_property(unit) {
-                    let inner = self.analyze_subbridi_frame_with_initial_place(&unit.subbridi, 1);
+                    let inner = self.analyze_subbridi_frame_with_initial_place(
+                        &unit.subbridi,
+                        NextPlace::FIRST,
+                    );
                     propagation_forward(inner)
                 } else {
                     self.walk_node(&unit.subbridi);
@@ -2391,7 +2405,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         let term_id = TermNodeId(self.raw_for_node(term));
         let blocks_cursor = generated_sumti_spine_cmavo(sumti) != Some(Cmavo::Cehu);
         for cursor in cursors {
-            let slot = explicit_slot.unwrap_or_else(|| cursor.next_numbered_slot());
+            let Some(slot) = self.slot_for_argument(cursor, explicit_slot) else {
+                return;
+            };
             self.add_assignment(
                 cursor.frame,
                 slot,
@@ -2417,9 +2433,33 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         let argument_id = SumtiNodeId(self.raw_for_elided_sumti(sumti));
         let term_id = TermNodeId(self.raw_for_node(term));
         for cursor in cursors {
-            let slot = explicit_slot.unwrap_or_else(|| cursor.next_numbered_slot());
+            let Some(slot) = self.slot_for_argument(cursor, explicit_slot) else {
+                return;
+            };
             self.add_assignment(cursor.frame, slot, argument_id, Some(term_id), source, true);
             cursor.record_slot(slot);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() || self.error.is_some())]
+    fn slot_for_argument(
+        &mut self,
+        cursor: &mut PlaceCursor,
+        explicit_slot: Option<PlaceSlot>,
+    ) -> Option<PlaceSlot> {
+        if self.error.is_some() {
+            return None;
+        }
+        if let Some(slot) = explicit_slot {
+            return Some(slot);
+        }
+        match cursor.next_numbered_slot() {
+            Ok(slot) => Some(slot),
+            Err(error) => {
+                self.error = Some(error);
+                None
+            }
         }
     }
 
@@ -2430,7 +2470,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         frame: SelbriPlaceFrameId,
         linkargs: &'tree generated::LinkargsSyntax,
     ) {
-        let mut cursor = PlaceCursor::new_at(frame, 2);
+        let mut cursor = PlaceCursor::new_at(frame, NextPlace::SECOND);
         let mut assigned_any = false;
         assigned_any |= GeneratedLinkedSumtiRef::from_linked_term(&linkargs.first_link)
             .is_some_and(|link| self.assign_linked_sumti(&mut cursor, link));
@@ -2513,7 +2553,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     ) {
         self.walk_node(sumti);
         let argument_id = SumtiNodeId(self.raw_for_node(sumti));
-        let slot = explicit_slot.unwrap_or_else(|| cursor.next_numbered_slot());
+        let Some(slot) = self.slot_for_argument(cursor, explicit_slot) else {
+            return;
+        };
         self.add_assignment(
             cursor.frame,
             slot,
@@ -2533,7 +2575,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         sumti: &'tree generated::TaggedElidedSumtiSyntax,
         explicit_slot: Option<PlaceSlot>,
     ) {
-        let slot = explicit_slot.unwrap_or_else(|| cursor.next_numbered_slot());
+        let Some(slot) = self.slot_for_argument(cursor, explicit_slot) else {
+            return;
+        };
         self.add_assignment(
             cursor.frame,
             slot,
@@ -2742,15 +2786,15 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     /// start at `branch_initial_place`, the place after the leading terms that all branches
     /// share, so that `mi do klama gi'e cadzu ko'a` gives ko'a cadzu's x3 (CLL 2.6). They never
     /// start at x1, which belongs to the leading position even when it is empty.
-    #[requires(branch_initial_place > 0)]
+    #[requires(true)]
     #[ensures(ret.len() == frames.len())]
-    #[ensures(ret.iter().all(|cursor| cursor.next_place >= 2))]
+    #[ensures(ret.iter().all(|cursor| cursor.next_place >= NextPlace::SECOND))]
     fn branch_tail_cursors(
         &self,
         frames: &[SelbriPlaceFrameId],
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> Vec<PlaceCursor> {
-        let start = branch_initial_place.max(2);
+        let start = branch_initial_place.max(NextPlace::SECOND);
         frames
             .iter()
             .copied()
@@ -2758,12 +2802,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             .collect()
     }
 
-    #[requires(start > 0)]
+    #[requires(true)]
     #[ensures(ret.next_place >= start)]
     fn cursor_with_existing_assignments(
         &self,
         frame: SelbriPlaceFrameId,
-        start: u8,
+        start: NextPlace,
     ) -> PlaceCursor {
         let mut cursor = PlaceCursor::new_at(frame, start);
         for place in 1..=self.max_existing_numbered_place_for_frame(frame) {
@@ -2775,12 +2819,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         cursor
     }
 
-    #[requires(start > 0)]
+    #[requires(true)]
     #[ensures(ret.frame == frame)]
     fn tail_cursor_with_existing_assignments(
         &self,
         frame: SelbriPlaceFrameId,
-        start: u8,
+        start: NextPlace,
     ) -> PlaceCursor {
         let mut cursor = self.cursor_with_existing_assignments(frame, start);
         self.apply_linked_argument_cursor(&mut cursor);
@@ -2797,7 +2841,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_place_after_linked_arguments(&self, frame: SelbriPlaceFrameId) -> Option<u8> {
+    fn next_place_after_linked_arguments(&self, frame: SelbriPlaceFrameId) -> Option<NextPlace> {
         let mut visited = HashSet::new();
         self.next_place_after_linked_arguments_recursive(frame, &mut visited)
     }
@@ -2808,7 +2852,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &self,
         frame: SelbriPlaceFrameId,
         visited: &mut HashSet<SelbriPlaceFrameId>,
-    ) -> Option<u8> {
+    ) -> Option<NextPlace> {
         if let Some(next_place) = self.next_place_after_linked_arguments_by_frame.get(&frame) {
             return Some(*next_place);
         }
@@ -2994,7 +3038,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn consume_branch_tail_cursors(
         &mut self,
         analysis: &mut GeneratedBridiTailAnalysis<'tree>,
-        branch_initial_place: u8,
+        branch_initial_place: NextPlace,
     ) -> Vec<PlaceCursor> {
         if let Some(cursors) = analysis.branch_cursors.take() {
             return cursors;
@@ -3052,7 +3096,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     where
         N: GeneratedSyntaxTreeWalkable<'tree> + ?Sized,
     {
-        GeneratedSyntaxTreeWalkable::walk_with(node, self);
+        if self.error.is_none() {
+            GeneratedSyntaxTreeWalkable::walk_with(node, self);
+        }
     }
 
     /// Walk one term leaf, whichever hierarchy level listed it.
@@ -4086,18 +4132,38 @@ struct GeneratedBridiTailAnalysis<'tree> {
     branch_cursors: Option<Vec<PlaceCursor>>,
 }
 
-#[derive(Debug, Clone)]
+// Exhaustion sorts after every supported place, so minimum-place updates preserve it.
 #[invariant(true)]
+#[invariant(::Numbered(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum NextPlace {
+    Numbered(NonZeroU8),
+    Exhausted,
+}
+
+impl NextPlace {
+    const FIRST: Self = Self::Numbered(NonZeroU8::MIN);
+    const SECOND: Self = Self::Numbered(NonZeroU8::new(2).expect("two is non-zero"));
+
+    #[requires(true)]
+    #[ensures(ret > NextPlace::Numbered(place))]
+    fn after(place: NonZeroU8) -> Self {
+        place.checked_add(1).map_or(Self::Exhausted, Self::Numbered)
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
 struct PlaceCursor {
     frame: SelbriPlaceFrameId,
-    next_place: u8,
-    filled_numbered: HashSet<u8>,
+    next_place: NextPlace,
+    filled_numbered: HashSet<NonZeroU8>,
 }
 
 impl PlaceCursor {
-    #[requires(start > 0)]
+    #[requires(true)]
     #[ensures(ret.next_place == start)]
-    fn new_at(frame: SelbriPlaceFrameId, start: u8) -> Self {
+    fn new_at(frame: SelbriPlaceFrameId, start: NextPlace) -> Self {
         Self {
             frame,
             next_place: start,
@@ -4106,53 +4172,74 @@ impl PlaceCursor {
     }
 
     #[requires(true)]
-    #[ensures(ret.numbered_index().is_some())]
-    fn next_numbered_slot(&mut self) -> PlaceSlot {
-        while self.filled_numbered.contains(&self.next_place) {
-            self.next_place = self.next_place.saturating_add(1);
+    #[ensures(ret.as_ref().is_ok_and(|slot| slot.numbered_index().is_some()) || ret.is_err())]
+    #[ensures(ret.is_err() == matches!(self.next_place, NextPlace::Exhausted))]
+    fn next_numbered_slot(&mut self) -> Result<PlaceSlot, ReferenceAnalysisError> {
+        self.skip_filled_numbered_places();
+        match self.next_place {
+            NextPlace::Numbered(place) => Ok(numbered_slot(place)),
+            NextPlace::Exhausted => {
+                Err(ReferenceAnalysisError::NumberedPlaceExhausted { frame: self.frame })
+            }
         }
-        numbered_slot(NonZeroU8::new(self.next_place).expect("next place is non-zero"))
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.next_place >= old(self.next_place))]
+    #[ensures(match self.next_place {
+        NextPlace::Numbered(place) => !self.filled_numbered.contains(&place),
+        NextPlace::Exhausted => true,
+    })]
+    fn skip_filled_numbered_places(&mut self) {
+        while let NextPlace::Numbered(place) = self.next_place {
+            if !self.filled_numbered.contains(&place) {
+                break;
+            }
+            self.next_place = NextPlace::after(place);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(match slot {
+        PlaceSlot::Numbered(place) => self.filled_numbered.contains(&place)
+            && self.next_place == NextPlace::after(place),
+        PlaceSlot::Modal(_) | PlaceSlot::Fai => self.next_place == old(self.next_place),
+        PlaceSlot::PlaceQuestion => self.next_place >= old(self.next_place),
+    })]
     fn record_slot(&mut self, slot: PlaceSlot) {
         match slot {
             PlaceSlot::Numbered(place) => {
-                let place = place.get();
                 self.filled_numbered.insert(place);
-                self.next_place = place.saturating_add(1);
+                self.next_place = NextPlace::after(place);
             }
             PlaceSlot::Modal(_) | PlaceSlot::Fai => {}
             PlaceSlot::PlaceQuestion => {
-                self.next_place = self.next_place.saturating_add(1);
+                if let NextPlace::Numbered(place) = self.next_place {
+                    self.next_place = NextPlace::after(place);
+                }
             }
         }
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.next_place >= old(self.next_place))]
     fn mark_filled_slot(&mut self, slot: PlaceSlot) {
         if let PlaceSlot::Numbered(place) = slot {
-            self.filled_numbered.insert(place.get());
-            while self.filled_numbered.contains(&self.next_place) {
-                self.next_place = self.next_place.saturating_add(1);
-            }
+            self.filled_numbered.insert(place);
+            self.skip_filled_numbered_places();
         }
     }
 
-    #[requires(next_place > 0)]
-    #[ensures(true)]
-    fn reset_next_place(&mut self, next_place: u8) {
+    #[requires(true)]
+    #[ensures(self.next_place >= next_place)]
+    fn reset_next_place(&mut self, next_place: NextPlace) {
         self.next_place = next_place;
-        while self.filled_numbered.contains(&self.next_place) {
-            self.next_place = self.next_place.saturating_add(1);
-        }
+        self.skip_filled_numbered_places();
     }
 
-    #[requires(minimum > 0)]
+    #[requires(true)]
     #[ensures(self.next_place >= minimum)]
-    fn ensure_next_place_at_least(&mut self, minimum: u8) {
+    fn ensure_next_place_at_least(&mut self, minimum: NextPlace) {
         self.next_place = self.next_place.max(minimum);
     }
 }
@@ -7266,9 +7353,12 @@ fn generated_abstraction_is_property(abstraction: &generated::AbstractionTanruUn
     abstraction.nu.value.cmavo() == Some(Cmavo::Ka)
 }
 
-#[requires(start > 0)]
-#[ensures(ret >= start)]
-fn next_generated_place_after_common_terms(start: u8, terms: &[Arc<generated::TermSyntax>]) -> u8 {
+#[requires(true)]
+#[ensures(true)]
+fn next_generated_place_after_common_terms(
+    start: NextPlace,
+    terms: &[Arc<generated::TermSyntax>],
+) -> NextPlace {
     let mut cursor = PlaceCursor::new_at(SelbriPlaceFrameId(usize::MAX), start);
     for term in terms {
         advance_cursor_for_generated_term_shape(&mut cursor, term);
@@ -7422,13 +7512,15 @@ fn advance_cursor_for_generated_simple_term_shape(
     term: GeneratedSimpleTermRef<'_>,
 ) {
     match term {
-        GeneratedSimpleTermRef::SumtiTerm(term) => {
-            advance_cursor_for_generated_argument_term_shape(cursor, &term.0);
+        GeneratedSimpleTermRef::SumtiTerm(_) => {
+            advance_cursor_for_generated_argument_term_shape(cursor);
         }
         GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
-            let slot =
-                generated_fa_place_slot(&term.fa).unwrap_or_else(|| cursor.next_numbered_slot());
-            cursor.record_slot(slot);
+            if let Some(slot) = generated_fa_place_slot(&term.fa) {
+                cursor.record_slot(slot);
+            } else {
+                advance_cursor_for_generated_argument_term_shape(cursor);
+            }
         }
         GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
             if matches!(
@@ -7464,12 +7556,12 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_cursor_for_generated_argument_term_shape(
-    cursor: &mut PlaceCursor,
-    _sumti: &generated::SumtiSyntax,
-) {
-    let slot = cursor.next_numbered_slot();
-    cursor.record_slot(slot);
+fn advance_cursor_for_generated_argument_term_shape(cursor: &mut PlaceCursor) {
+    // This pass summarizes the position. The assignment pass reports exhaustion.
+    cursor.skip_filled_numbered_places();
+    if let NextPlace::Numbered(place) = cursor.next_place {
+        cursor.record_slot(numbered_slot(place));
+    }
 }
 
 #[requires(true)]
@@ -8262,6 +8354,142 @@ mod tests {
     use bityzba::{ensures, requires};
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn numbered_place_boundary_probes_finish_within_the_deadline() {
+        const CHILD_FLAG: &str = "JBOTCI_TEST_PLACE_BOUNDARY_CHILD";
+        const PROBE_PASSED: i32 = 42;
+        if std::env::var(CHILD_FLAG).as_deref() == Ok("1") {
+            probe_place_cursor_boundary();
+            probe_public_place_analysis_boundary();
+            std::process::exit(PROBE_PASSED);
+        }
+
+        // A broken progression loop must not hang the workspace test process.
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "references::tests::numbered_place_boundary_probes_finish_within_the_deadline",
+                "--nocapture",
+            ])
+            .env(CHILD_FLAG, "1")
+            .stdin(std::process::Stdio::null())
+            .spawn()
+            .expect("start the place-boundary probe");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            if let Some(status) = child.try_wait().expect("read the probe status") {
+                // An empty test filter exits zero. Require proof that both probes ran.
+                assert_eq!(
+                    status.code(),
+                    Some(PROBE_PASSED),
+                    "place-boundary probe failed: {status}"
+                );
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                child.kill().expect("stop the stalled place-boundary probe");
+                child.wait().expect("reap the place-boundary probe");
+                panic!("The place-boundary probe did not finish within 30 seconds.");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_place_cursor_boundary() {
+        let frame = SelbriPlaceFrameId(7);
+        let maximum = NonZeroU8::MAX;
+        let below = NonZeroU8::new(u8::MAX - 1).unwrap();
+        let exhausted = ReferenceAnalysisError::NumberedPlaceExhausted { frame };
+        let mut cursor = PlaceCursor::new_at(frame, NextPlace::Numbered(below));
+        assert_eq!(cursor.next_numbered_slot(), Ok(numbered_slot(below)));
+        cursor.record_slot(numbered_slot(below));
+        assert_eq!(cursor.next_numbered_slot(), Ok(numbered_slot(maximum)));
+        cursor.record_slot(numbered_slot(maximum));
+        assert_eq!(cursor.next_numbered_slot(), Err(exhausted.clone()));
+        cursor.ensure_next_place_at_least(NextPlace::SECOND);
+        assert_eq!(cursor.next_place, NextPlace::Exhausted);
+
+        cursor.reset_next_place(NextPlace::Numbered(below));
+        assert_eq!(cursor.next_place, NextPlace::Exhausted);
+        assert_eq!(cursor.next_numbered_slot(), Err(exhausted.clone()));
+        cursor.reset_next_place(NextPlace::FIRST);
+        assert_eq!(
+            cursor.next_numbered_slot(),
+            Ok(numbered_slot(NonZeroU8::MIN))
+        );
+
+        let mut cursor = PlaceCursor::new_at(frame, NextPlace::Numbered(below));
+        cursor.mark_filled_slot(numbered_slot(below));
+        assert_eq!(cursor.next_numbered_slot(), Ok(numbered_slot(maximum)));
+        cursor.mark_filled_slot(numbered_slot(maximum));
+        assert_eq!(cursor.next_place, NextPlace::Exhausted);
+        assert_eq!(cursor.next_numbered_slot(), Err(exhausted.clone()));
+
+        // Exercise the selection loop with an occupied maximum that is not normalized yet.
+        let mut cursor = PlaceCursor::new_at(frame, NextPlace::Numbered(maximum));
+        cursor.filled_numbered.insert(maximum);
+        assert_eq!(cursor.next_numbered_slot(), Err(exhausted));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_public_place_analysis_boundary() {
+        for count in [u8::MAX - 1, u8::MAX] {
+            let source = format!("mi klama{}", " mi".repeat(usize::from(count) - 1));
+            let syntax = parse_generated_syntax(&source);
+            let analysis = GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+            assert_eq!(
+                analysis
+                    .place_analysis
+                    .assignments()
+                    .iter()
+                    .filter_map(|assignment| assignment.slot.numbered_index())
+                    .max(),
+                Some(count)
+            );
+        }
+
+        let source = format!("mi klama{}", " mi".repeat(usize::from(u8::MAX)));
+        assert_public_place_exhaustion(&source);
+
+        // Common leading terms carry their next position into connected branches.
+        let source = format!(
+            "{} cu klama gi'e cadzu do",
+            "mi ".repeat(usize::from(u8::MAX))
+        );
+        assert_public_place_exhaustion(&source);
+
+        // Explicit FA can repeat an occupied place after the cursor is exhausted.
+        let source = format!("{} cu klama fa do", "mi ".repeat(usize::from(u8::MAX)));
+        let syntax = parse_generated_syntax(&source);
+        GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+
+        // BE starts at x2. Its 254 arguments fill x2 through x255.
+        let linked = format!(
+            "mi klama be mi{} be'o",
+            " bei mi".repeat(usize::from(u8::MAX) - 2)
+        );
+        let syntax = parse_generated_syntax(&linked);
+        GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+        assert_public_place_exhaustion(&format!("{linked} do"));
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_public_place_exhaustion(source: &str) {
+        let syntax = parse_generated_syntax(source);
+        let error = analyze_generated_references(&syntax).unwrap_err();
+        let ReferenceAnalysisError::NumberedPlaceExhausted { frame } = &error else {
+            panic!("expected a numbered-place capacity error, got {error}");
+        };
+        assert_ne!(*frame, SelbriPlaceFrameId(usize::MAX));
+        assert!(error.to_string().contains("after place 255"));
+    }
 
     #[requires(true)]
     #[ensures(true)]
