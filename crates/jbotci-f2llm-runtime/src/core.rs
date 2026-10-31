@@ -238,13 +238,14 @@ impl QwenByteBpeTokenizer {
         Ok(())
     }
 
-    #[requires(max_length > 1)]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|windows| windows.iter().all(|window| !window.is_empty() && window.len() <= max_length)) || ret.is_err())]
     pub fn token_windows(&self, text: &str, max_length: usize) -> Result<Vec<Vec<u32>>, String> {
+        let rule = TokenWindowRule::new(max_length)?;
         let mut ids = self.encode_untruncated(text)?;
         // Remove only the end token that this tokenizer appended.
         ids.pop();
-        Ok(TokenWindowRule::new(max_length)?.split(&ids, self.eos_id))
+        Ok(rule.split(&ids, self.eos_id))
     }
 
     #[requires(true)]
@@ -881,6 +882,8 @@ mod tests {
     #[ensures(true)]
     fn tokenizer_windows_end_each_window_with_eos() {
         let tokenizer = tiny_tokenizer();
+        assert!(tokenizer.token_windows("hello", 0).is_err());
+        assert!(tokenizer.token_windows("hello", 1).is_err());
         let windows = tokenizer.token_windows("hello world!", 3).unwrap();
         assert_eq!(windows, vec![vec![8, 9, 999], vec![16, 20, 999]]);
     }
