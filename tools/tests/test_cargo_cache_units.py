@@ -83,6 +83,21 @@ class CargoUnitTests(unittest.TestCase):
         prune(self.root, self.state)
         self.assertFalse(isolated.exists())
 
+    def test_declared_uncached_install_target_is_reported_but_not_saved(self) -> None:
+        self.save_record()
+        outside = self.state / "installation-target"
+        outside.mkdir()
+        write_json(self.state / "environment.json", {"JBOTCI_CARGO_UNCACHED_TARGETS": json.dumps([str(outside)])})
+        write_json(self.state / "invocation-install.json", dict(self.record, target=str(outside), units=[]))
+        self.assertEqual(prune(self.root, self.state)["invocations"], 2)
+
+    def test_undeclared_target_rejects_the_save(self) -> None:
+        self.record["target"] = str(self.state)
+        self.save_record()
+        with self.assertRaisesRegex(CacheError, "undeclared"):
+            prune(self.root, self.state)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,7 @@ class Command(Enum):
     RUN = "run"
     RUSTC = "rustc"
     BENCH = "bench"
+    INSTALL = "install"
 
 
 READ_ONLY = {"metadata", "tree", "locate-project", "pkgid", "read-manifest", "fetch", "generate-lockfile", "--version", "-V", "--help", "-h", "version"}
@@ -49,7 +50,7 @@ def reject(reason: str) -> None:
     write_json(state_dir() / f"rejected-{uuid4().hex}.json", {"reason": reason})
 
 
-def install(directory: Path) -> dict[str, str]:
+def install(directory: Path, uncached_targets: tuple[Path, ...] = ()) -> dict[str, str]:
     directory.mkdir(parents=True, exist_ok=False)
     real = subprocess.check_output(["rustup", "which", "cargo"], text=True).strip()
     # Cargo uses CARGO for nested commands when its executable is not named cargo.
@@ -61,6 +62,10 @@ def install(directory: Path) -> dict[str, str]:
     environment = {
         "JBOTCI_CARGO_CACHE_STATE": str(directory),
         "JBOTCI_CARGO_REAL": str(directory / "cargo-real"),
+        "JBOTCI_CARGO_UNCACHED_TARGETS": json.dumps([str(path.resolve()) for path in uncached_targets]),
+        "RUSTUP_TOOLCHAIN": subprocess.check_output(["rustup", "show", "active-toolchain"], text=True).split()[0],
+        "RUSTC": subprocess.check_output(["rustup", "which", "rustc"], text=True).strip(),
+        "RUSTDOC": subprocess.check_output(["rustup", "which", "rustdoc"], text=True).strip(),
         "JBOTCI_CARGO_PREVIOUS_WRAPPER": os.environ.get("RUSTC_WRAPPER", ""),
         "CARGO": str(directory / "cargo"),
         "RUSTC_WRAPPER": str(directory / "rustc-guard"),
@@ -215,10 +220,18 @@ def selected_units(root: Path, state: Path) -> tuple[set[Path], set[Path], int]:
         raise CacheError("Every Cargo invocation must finish and report its units before a cache save")
     units: set[Path] = set()
     aliases: set[Path] = set()
+    environment_path = state / "environment.json"
+    environment = json.loads(environment_path.read_text()) if environment_path.is_file() else {}
+    uncached = [Path(path) for path in json.loads(environment.get("JBOTCI_CARGO_UNCACHED_TARGETS", "[]"))]
+    if any(path.is_relative_to(root) or root.is_relative_to(path) for path in uncached):
+        raise CacheError("An uncached target directory must be separate from the saved target directory")
     for record in records:
         target = Path(record["target"])
         if not target.is_relative_to(root):
-            raise CacheError(f"Cargo used an uncached target directory: {target}")
+            if not any(target.is_relative_to(path) for path in uncached):
+                raise CacheError(f"Cargo used an undeclared target directory: {target}")
+            # Reports remain complete, but this directory is never saved.
+            continue
         if not record["success"]:
             # Expected compile-fail tests use isolated target directories.
             if target == root:
@@ -273,7 +286,7 @@ def main() -> int:
     elif mode == "rustc":
         guard(arguments)
     elif mode == "install":
-        environment = install(Path(arguments[0]).resolve())
+        environment = install(Path(arguments[0]).resolve(), tuple(Path(path) for path in arguments[1:]))
         with open(os.environ["GITHUB_ENV"], "a") as output:
             for key, value in environment.items():
                 output.write(f"{key}={value}\n")

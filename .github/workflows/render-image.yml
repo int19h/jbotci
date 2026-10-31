@@ -91,6 +91,15 @@ jobs:
       - name: Install Rust wasm target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Restore Cargo source timestamps
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: ${{ env.CARGO_TARGET_DIR }}
+
+      - name: Collect every Cargo invocation
+        run: python3 tools/cargo_cache.py install "${RUNNER_TEMP}/cargo-provenance" "${DIOXUS_CLI_TARGET_DIR}"
+
       - name: Install Dioxus CLI
         run: |
           set -eux
@@ -104,15 +113,6 @@ jobs:
                 --force
           fi
           "${DIOXUS_CLI_ROOT}/bin/dx" --version
-
-      - name: Restore Cargo source timestamps
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: ${{ env.CARGO_TARGET_DIR }}
-
-      - name: Collect every Cargo invocation
-        run: python3 tools/cargo_cache.py install "${RUNNER_TEMP}/cargo-provenance"
 
       - name: Build deployment bundle
         env:

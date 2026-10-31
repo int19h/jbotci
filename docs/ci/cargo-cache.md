@@ -14,6 +14,9 @@ The `target-v4` prefixes reject every earlier target cache.
 
 `tools/cargo_cache.py install` creates a private Cargo proxy in the runner's temporary directory.
 It copies stable Cargo as `cargo-real` and sets both `PATH` and `CARGO` to the proxy.
+The proxy also collects the Dioxus CLI installation.
+Its declared target directory is separate from the saved target cache.
+The collector reports those units but does not retain or prune that uncached directory.
 The alternate executable name lets Cargo preserve that `CARGO` value for nested commands.
 A regression exercises this behavior with the installed stable Cargo.
 The Rust toolchain and Rust language remain stable.

@@ -25,7 +25,6 @@ COAUTHOR = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 class Version(Enum):
     A = "version-A"
     B = "version-B"
-    C = "version-C"
 
 
 @unittest.skipUnless(sys.platform == "linux", "The CI Cargo cache runs on Linux.")
@@ -98,7 +97,7 @@ class CargoCacheTests(unittest.TestCase):
         commit = self._run(["git", "rev-parse", "HEAD"]).stdout.strip()
         return commit
 
-    def _build(self, *selection: str) -> str:
+    def _build(self, *selection: str, subcommand: str = "build") -> str:
         if (self.profile_dir / ".cache-commit").exists():
             sha = self._run(["git", "rev-parse", "HEAD"]).stdout.strip()
             environment = dict(self.env, MODE="restore", TARGET_DIR=str(self.profile_dir),
@@ -111,7 +110,7 @@ class CargoCacheTests(unittest.TestCase):
         environment = cargo_cache.install(state)
         self.states.append(state)
         result = subprocess.run(
-            [environment["CARGO"], "build", "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
+            [environment["CARGO"], subcommand, "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
             cwd=self.repo, env=dict(self.env, **environment), capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -325,6 +324,28 @@ fn main() {
         output = self._build("--message-format=json")
         messages = [json.loads(line) for line in output.splitlines() if line.startswith("{")]
         self.assertTrue(any(message.get("reason") == "compiler-artifact" and message["fresh"] for message in messages))
+
+
+    def test_cargo_install_reports_its_selected_units(self) -> None:
+        self._commit(Version.A)
+        destination = self.case / "installed"
+        self._build("--path", str(self.repo), "--root", str(destination), subcommand="install")
+        self.assertEqual(self._run([str(destination / "bin/cache-audit")]).stdout.strip(), Version.A.value)
+
+    def test_direct_cargo_bypass_rejects_the_cache_save(self) -> None:
+        manifest = self.repo / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + "\n[features]\nextra = []\n")
+        self._commit(Version.A)
+        self._build()
+        state = self.case / "bypass"
+        environment = cargo_cache.install(state)
+        result = subprocess.run(
+            [environment["JBOTCI_CARGO_REAL"], "build", "--offline", "--profile", self.profile,
+             "--features", "extra", "-j", "8"], cwd=self.repo,
+            env=dict(self.env, **environment), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with self.assertRaisesRegex(cargo_cache.CacheError, "Compiler parent"):
+            cargo_cache.selected_units(self.target, state)
 
 
 
