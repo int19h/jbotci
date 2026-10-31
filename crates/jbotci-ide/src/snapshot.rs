@@ -22,8 +22,10 @@ mod structure_inlays;
 mod tree_regions;
 
 pub use completion::{
-    CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
-    CompletionItem, CompletionKind, CompletionProvenance, completion_documentation_markdown,
+    COMPLETION_GRAMMAR_TIME_LIMIT, CompletionCancellationToken, CompletionDocumentationHandle,
+    CompletionIncompleteReason, CompletionInterpretation, CompletionItem, CompletionKind,
+    CompletionProvenance, CompletionProvenanceData, CompletionResult, CompletionResultData,
+    completion_documentation_markdown,
 };
 pub use hover::HoverContent;
 pub use incremental_diagnostics::{

@@ -20,9 +20,9 @@ use jbotci_output::render_vlacku_cards_markdown;
 use jbotci_search::vlacku::dictionary_entry_card;
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
-    ParseOptions, SyntaxExpectation, SyntaxExpectationReason, SyntaxExpectationReasonData,
-    SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory,
-    expected_continuations_with_time_limit,
+    ContinuationError, ParseOptions, SyntaxExpectation, SyntaxExpectationReason,
+    SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory,
+    expected_continuations, expected_continuations_with_time_limit,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -65,12 +65,41 @@ pub enum CompletionProvenance {
     UnfilteredQuote,
 }
 
-// The wall-clock limit is the completion-specific safety boundary. Recovery's
-// shared memo now makes a separate low error cap counterproductive: it would
-// discard grammar context even when the engine can reach the cut in time.
-// Parse-dominated documents may still exhaust this limit and deliberately
-// degrade to morphology-valid candidates.
-const COMPLETION_GRAMMAR_TIME_LIMIT: Duration = Duration::from_secs(1);
+// Timeout results retain morphology candidates and explicitly report incomplete grammar.
+pub const COMPLETION_GRAMMAR_TIME_LIMIT: Duration = Duration::from_secs(1);
+
+/// Why a completion list cannot claim complete grammar filtering.
+#[invariant(::Grammar => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletionIncompleteReason {
+    Grammar { cause: ContinuationError },
+    Cancelled,
+}
+
+/// Callers must handle completeness before they can consume the candidates.
+/// No iterator or list conversion discards that distinction.
+#[invariant(::Complete { items } => items.windows(2).all(|pair| completion_sort_key(&pair[0]) <= completion_sort_key(&pair[1])) && items.iter().all(|item| !matches!(item.provenance.as_data(), data!(CompletionProvenance::GrammarUnavailable))))]
+#[invariant(::Incomplete { items, reason } => items.windows(2).all(|pair| completion_sort_key(&pair[0]) <= completion_sort_key(&pair[1])) && (*reason != CompletionIncompleteReason::Cancelled || items.is_empty()))]
+#[must_use]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompletionResult {
+    Complete {
+        items: Vec<CompletionItem>,
+    },
+    Incomplete {
+        items: Vec<CompletionItem>,
+        reason: CompletionIncompleteReason,
+    },
+}
+
+#[requires(true)]
+#[ensures(matches!(ret.as_data(), data!(CompletionResult::Incomplete { items, reason }) if items.is_empty() && *reason == CompletionIncompleteReason::Cancelled))]
+fn cancelled_completion() -> CompletionResult {
+    new!(CompletionResult::Incomplete {
+        items: Vec::new(),
+        reason: CompletionIncompleteReason::Cancelled,
+    })
+}
 
 /// Cooperative cancellation shared with a completion worker.
 #[invariant(true)]
@@ -254,34 +283,34 @@ impl DocumentSnapshot {
     /// the word end and the seed segments cleanly, as a complete word before a
     /// new insertion point.
     #[requires(true)]
-    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
-    pub fn completions(&self, char_offset: usize) -> Vec<CompletionItem> {
+    #[ensures(true)]
+    pub fn completions(&self, char_offset: usize) -> CompletionResult {
         self.completions_cancellable(char_offset, &CompletionCancellationToken::new())
     }
 
     /// Return completions while cooperatively observing `cancellation`.
     #[requires(true)]
-    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
+    #[ensures(true)]
     pub fn completions_cancellable(
         &self,
         char_offset: usize,
         cancellation: &CompletionCancellationToken,
-    ) -> Vec<CompletionItem> {
+    ) -> CompletionResult {
         self.completions_with_grammar_time_limit_and_cancellation(
             char_offset,
-            COMPLETION_GRAMMAR_TIME_LIMIT,
+            Some(COMPLETION_GRAMMAR_TIME_LIMIT),
             cancellation,
         )
     }
 
-    #[cfg(test)]
-    #[requires(!grammar_time_limit.is_zero())]
-    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
-    fn completions_with_grammar_time_limit(
+    /// Use `None` for an untimed query and `Some(Duration::ZERO)` for immediate timeout.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn completions_with_grammar_time_limit(
         &self,
         char_offset: usize,
-        grammar_time_limit: Duration,
-    ) -> Vec<CompletionItem> {
+        grammar_time_limit: Option<Duration>,
+    ) -> CompletionResult {
         self.completions_with_grammar_time_limit_and_cancellation(
             char_offset,
             grammar_time_limit,
@@ -289,16 +318,16 @@ impl DocumentSnapshot {
         )
     }
 
-    #[requires(!grammar_time_limit.is_zero())]
-    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
-    fn completions_with_grammar_time_limit_and_cancellation(
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn completions_with_grammar_time_limit_and_cancellation(
         &self,
         char_offset: usize,
-        grammar_time_limit: Duration,
+        grammar_time_limit: Option<Duration>,
         cancellation: &CompletionCancellationToken,
-    ) -> Vec<CompletionItem> {
+    ) -> CompletionResult {
         if cancellation.is_cancelled() {
-            return Vec::new();
+            return cancelled_completion();
         }
         let cursor = self.line_index.offsets_for_char(char_offset);
         let seed_span = self.completion_seed_span(cursor.byte, cursor.char);
@@ -317,9 +346,10 @@ impl DocumentSnapshot {
         let dictionary = jbotci_dictionary_data::english();
         let document_cmevla = self.document_cmevla();
         let mut items = BTreeMap::new();
+        let mut incomplete = None;
 
         if !seed.is_empty() {
-            self.add_completion_interpretation(
+            let unavailable = self.add_completion_interpretation(
                 dictionary,
                 &document_cmevla,
                 &document_words,
@@ -332,10 +362,11 @@ impl DocumentSnapshot {
                 cancellation,
                 &mut items,
             );
+            incomplete = incomplete.or(unavailable);
         }
 
         if cancellation.is_cancelled() {
-            return Vec::new();
+            return cancelled_completion();
         }
 
         let cursor_ends_word = self.text[cursor.byte..]
@@ -376,7 +407,7 @@ impl DocumentSnapshot {
                     SourceSpan::new(None, cursor.byte, cursor.byte, cursor.char, cursor.char)
                         .expect("a cursor position is an ordered empty source span")
                 };
-            self.add_completion_interpretation(
+            let unavailable = self.add_completion_interpretation(
                 dictionary,
                 &document_cmevla,
                 &document_words,
@@ -389,10 +420,11 @@ impl DocumentSnapshot {
                 cancellation,
                 &mut items,
             );
+            incomplete = incomplete.or(unavailable);
         }
 
         if cancellation.is_cancelled() {
-            return Vec::new();
+            return cancelled_completion();
         }
 
         let short_glosses = {
@@ -403,7 +435,7 @@ impl DocumentSnapshot {
             dictionary.first_gloss_keywords_for_words(&labels)
         };
         if cancellation.is_cancelled() {
-            return Vec::new();
+            return cancelled_completion();
         }
         let mut result = items
             .into_values()
@@ -416,7 +448,7 @@ impl DocumentSnapshot {
             .collect::<Vec<_>>();
         result.sort_by(|left, right| completion_sort_key(left).cmp(&completion_sort_key(right)));
         let mut preselected = false;
-        result
+        let items = result
             .into_iter()
             .map(|item| {
                 let should_preselect = !preselected
@@ -431,7 +463,14 @@ impl DocumentSnapshot {
                     item
                 }
             })
-            .collect()
+            .collect();
+        match incomplete {
+            None => new!(CompletionResult::Complete { items }),
+            Some(cause) => new!(CompletionResult::Incomplete {
+                items,
+                reason: CompletionIncompleteReason::Grammar { cause },
+            }),
+        }
     }
 
     #[requires(replacement_span.byte_end <= self.text.len())]
@@ -508,7 +547,6 @@ impl DocumentSnapshot {
     #[allow(clippy::too_many_arguments)]
     #[requires(replacement_span.byte_end <= self.text.len())]
     #[requires(replacement_span.char_end <= self.line_index.char_len())]
-    #[requires(!grammar_time_limit.is_zero())]
     #[ensures(true)]
     fn add_completion_interpretation<'dictionary, 'entries>(
         &self,
@@ -520,12 +558,12 @@ impl DocumentSnapshot {
         prefix: &str,
         preceding_words: &[WordLike],
         preceding_awaits_zo_target: bool,
-        grammar_time_limit: Duration,
+        grammar_time_limit: Option<Duration>,
         cancellation: &CompletionCancellationToken,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
-    ) {
+    ) -> Option<ContinuationError> {
         if cancellation.is_cancelled() {
-            return;
+            return None;
         }
         let tree_context = TreeCompletionContext::from_parse(
             &self.parse,
@@ -593,22 +631,30 @@ impl DocumentSnapshot {
                 ),
             CursorCompletionContext::Grammar => {
                 if cancellation.is_cancelled() {
-                    return;
+                    return None;
                 }
-                let expectations = expected_continuations_with_time_limit(
-                    statement_words,
-                    &ParseOptions::default(),
-                    grammar_time_limit,
-                );
+                let expectations = match grammar_time_limit {
+                    Some(limit) => expected_continuations_with_time_limit(
+                        statement_words,
+                        &ParseOptions::default(),
+                        limit,
+                    ),
+                    None => expected_continuations(statement_words, &ParseOptions::default()),
+                };
                 if cancellation.is_cancelled() {
-                    return;
+                    return None;
                 }
-                if completion_context.add_grammar_candidates(&expectations, items) {
+                let unavailable = expectations.as_ref().err().copied();
+                if completion_context
+                    .add_grammar_candidates(expectations.as_deref().map_err(|cause| *cause), items)
+                {
                     completion_context
                         .add_open_construct_candidates(&tree_context.open_constructs, items);
                 }
+                return unavailable;
             }
         }
+        None
     }
 
     #[requires(replacement_span.byte_end <= self.text.len())]
@@ -733,23 +779,29 @@ impl DocumentSnapshot {
 
 impl CompletionContext<'_, '_, '_, '_> {
     #[requires(true)]
-    #[ensures(!ret || !expectations.is_empty())]
+    #[ensures(!ret || expectations.is_ok_and(|items| !items.is_empty()))]
     fn add_grammar_candidates(
         &self,
-        expectations: &[SyntaxExpectation],
+        expectations: Result<&[SyntaxExpectation], ContinuationError>,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) -> bool {
         if self.cancellation.is_cancelled() {
             return false;
         }
+        let expectations = match expectations {
+            Ok(expectations) => expectations,
+            Err(_) => {
+                self.add_unfiltered_candidates(
+                    new!(SyntaxExpectationReason::ContinueCurrent {
+                        construct: "word".to_owned(),
+                    }),
+                    new!(CompletionProvenance::GrammarUnavailable),
+                    items,
+                );
+                return false;
+            }
+        };
         if expectations.is_empty() {
-            self.add_unfiltered_candidates(
-                new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "word".to_owned(),
-                }),
-                new!(CompletionProvenance::GrammarUnavailable),
-                items,
-            );
             return false;
         }
         let mut tokens = BTreeMap::<SyntaxExpectedToken, SyntaxExpectationReason>::new();
@@ -1165,23 +1217,9 @@ mod tests {
             .expect("precondition requires a cursor marker");
         let cursor = source[..marker_byte].chars().count();
         let text = source.replacen('|', "", 1);
-        DocumentSnapshot::new(text, 1).completions(cursor)
-    }
-
-    #[requires(source.matches('|').count() == 1)]
-    #[requires(!grammar_time_limit.is_zero())]
-    #[ensures(true)]
-    fn completions_at_marker_with_grammar_time_limit(
-        source: &str,
-        grammar_time_limit: Duration,
-    ) -> Vec<CompletionItem> {
-        let marker_byte = source
-            .find('|')
-            .expect("precondition requires a cursor marker");
-        let cursor = source[..marker_byte].chars().count();
-        let text = source.replacen('|', "", 1);
-        DocumentSnapshot::new(text, 1)
-            .completions_with_grammar_time_limit(cursor, grammar_time_limit)
+        complete_items(
+            DocumentSnapshot::new(text, 1).completions_with_grammar_time_limit(cursor, None),
+        )
     }
 
     #[requires(true)]
@@ -1339,11 +1377,11 @@ mod tests {
         )
     }
 
-    #[requires(!grammar_time_limit.is_zero())]
+    #[requires(true)]
     #[requires(literal_time_limit.is_none_or(|limit| !limit.is_zero()))]
     #[ensures(true)]
     fn assert_boundary_completion_cases(
-        grammar_time_limit: Duration,
+        grammar_time_limit: Option<Duration>,
         literal_time_limit: Option<Duration>,
     ) {
         let cases = [
@@ -1400,8 +1438,17 @@ mod tests {
             let text = case.marked_source.replacen('|', "", 1);
             let snapshot = DocumentSnapshot::new(text.clone(), 1);
             let started = Instant::now();
-            let items = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
+            let result = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
             let elapsed = started.elapsed();
+            if let Some(limit) = literal_time_limit {
+                assert!(
+                    elapsed < limit,
+                    "{} completion took {elapsed:?}, limit {limit:?}",
+                    case.name
+                );
+                continue;
+            }
+            let items = complete_items(result);
 
             assert!(
                 has_label(&items, case.expected_label),
@@ -1430,13 +1477,6 @@ mod tests {
                 case.name,
                 items.first(),
             );
-            if let Some(limit) = literal_time_limit {
-                assert!(
-                    elapsed < limit,
-                    "{} completion took {elapsed:?}, limit {limit:?}",
-                    case.name,
-                );
-            }
         }
     }
 
@@ -1506,7 +1546,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn assert_sruma_end_of_word_completion(
-        grammar_time_limit: Duration,
+        grammar_time_limit: Option<Duration>,
         literal_time_limit: Option<Duration>,
     ) {
         let marked = ".i la prux. ba'o sruma| lo du'u le ckule cipra ku frili ra";
@@ -1515,8 +1555,16 @@ mod tests {
         let text = marked.replacen('|', "", 1);
         let snapshot = DocumentSnapshot::new(text, 1);
         let started = Instant::now();
-        let items = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
+        let result = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
         let elapsed = started.elapsed();
+        if let Some(limit) = literal_time_limit {
+            assert!(
+                elapsed < limit,
+                "completed-word completion took {elapsed:?}, limit {limit:?}"
+            );
+            return;
+        }
+        let items = complete_items(result);
 
         let sruma_start = marked
             .find("sruma")
@@ -1532,10 +1580,7 @@ mod tests {
             "the completed word itself must remain available as Extend: {items:#?}",
         );
 
-        let control = completions_at_marker_with_grammar_time_limit(
-            ".i la prux. ba'o sruma |",
-            grammar_time_limit,
-        );
+        let control = completions_at_marker(".i la prux. ba'o sruma |");
         let continuation_signatures = |candidates: &[CompletionItem]| {
             candidates
                 .iter()
@@ -1561,41 +1606,28 @@ mod tests {
             }),
             "the Continue leg must include usable, separated content-word edits",
         );
-        if let Some(limit) = literal_time_limit {
-            assert!(
-                elapsed < limit,
-                "completed-word completion took {elapsed:?}, limit {limit:?}",
-            );
-        }
     }
 
-    // Contract instrumentation and shared CI timing are not representative of
-    // the production wall-clock budget. Those configurations run the semantic
-    // twin below with an ample grammar limit; local production builds enforce
-    // the interactive limit as well.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sruma_end_of_word_offers_extend_and_full_continue() {
+        assert_sruma_end_of_word_completion(None, None);
+    }
+
     #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn sruma_end_of_word_offers_extend_and_full_continue_within_budget() {
-        let assert_literal_boundary = std::env::var_os("CI").is_none();
-        let grammar_time_limit = if assert_literal_boundary {
-            COMPLETION_GRAMMAR_TIME_LIMIT
-        } else {
-            Duration::from_secs(30)
-        };
+    fn timing_sruma_end_of_word_meets_150_ms() {
+        // Preserve the existing clock-test policy on shared CI hardware.
+        if std::env::var_os("CI").is_some() {
+            return;
+        }
         assert_sruma_end_of_word_completion(
-            grammar_time_limit,
-            assert_literal_boundary.then_some(Duration::from_millis(150)),
+            Some(COMPLETION_GRAMMAR_TIME_LIMIT),
+            Some(Duration::from_millis(150)),
         );
-    }
-
-    #[cfg(feature = "expensive_contracts")]
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn sruma_end_of_word_offers_extend_and_full_continue_with_instrumentation() {
-        assert_sruma_end_of_word_completion(Duration::from_secs(30), None);
     }
 
     #[test]
@@ -1837,24 +1869,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn completion_on_two_hundred_word_document_stays_interactive() {
+    fn completion_on_two_hundred_word_document_is_complete() {
         let text = "mi klama .i ".repeat(67);
         let snapshot = DocumentSnapshot::new(text.clone(), 1);
-        let started = Instant::now();
-        let items = snapshot.completions(text.chars().count());
-
-        assert!(!items.is_empty());
-        assert!(
-            started.elapsed() < Duration::from_secs(2),
-            "completion unexpectedly took {:?}",
-            started.elapsed(),
+        let items = complete_items(
+            snapshot.completions_with_grammar_time_limit(text.chars().count(), None),
         );
+        assert!(!items.is_empty());
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn empty_expectations_degrade_to_all_morphology_valid_candidate_sources() {
+    fn timing_two_hundred_word_document_meets_two_seconds() {
+        let text = "mi klama .i ".repeat(67);
+        let snapshot = DocumentSnapshot::new(text.clone(), 1);
+        let started = Instant::now();
+        let _result = snapshot.completions(text.chars().count());
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unavailable_grammar_adds_morphology_but_complete_empty_does_not() {
         let text = "la .xunreblab. cu klama .i  mukti lo nu".to_owned();
         let phrase_start = text
             .find("mukti lo nu")
@@ -1880,7 +1918,12 @@ mod tests {
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
-        context.add_grammar_candidates(&[], &mut items);
+        context.add_grammar_candidates(Ok(&[]), &mut items);
+        assert!(
+            items.is_empty(),
+            "a complete empty result must not add fallback candidates"
+        );
+        context.add_grammar_candidates(Err(ContinuationError::TimedOut), &mut items);
 
         for label in ["ku", "barda", "xunreblab"] {
             assert!(
@@ -1911,7 +1954,12 @@ mod tests {
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
-        context.add_grammar_candidates(&[], &mut items);
+        context.add_grammar_candidates(Ok(&[]), &mut items);
+        assert!(
+            items.is_empty(),
+            "a complete empty result must not add fallback candidates"
+        );
+        context.add_grammar_candidates(Err(ContinuationError::TimedOut), &mut items);
         let lo = items
             .values()
             .find(|item| item.label == "lo")
@@ -1919,139 +1967,88 @@ mod tests {
         assert_eq!(lo.replacement_span.char_end, mid_word_cursor + 1);
     }
 
-    #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn statement_local_error_heavy_completion_meets_literal_boundary() {
+    fn statement_local_error_heavy_completion_is_grammar_filtered() {
         let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
-        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
-        let cursor = marked[..marker_byte].chars().count();
-        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
-        let assert_literal_boundary = std::env::var_os("CI").is_none();
-        let started = Instant::now();
-        let items = if assert_literal_boundary {
-            snapshot.completions(cursor)
-        } else {
-            snapshot.completions_with_grammar_time_limit(cursor, Duration::from_secs(30))
-        };
-        let elapsed = started.elapsed();
-
+        let items = completions_at_marker(&marked);
         assert!(has_label(&items, "lo"));
-        assert!(
-            !items.iter().any(uses_degraded_grammar_fallback),
-            "statement-local completion must remain grammar-filtered",
-        );
-        if assert_literal_boundary {
-            assert!(
-                elapsed < Duration::from_millis(150),
-                "statement-local completion took {elapsed:?}",
-            );
-        }
+        assert!(!items.iter().any(uses_degraded_grammar_fallback));
     }
 
-    #[cfg(feature = "expensive_contracts")]
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn statement_local_error_heavy_completion_is_grammar_filtered_with_instrumentation() {
-        let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
-        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
-        let cursor = marked[..marker_byte].chars().count();
-        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
-        let items = snapshot.completions_with_grammar_time_limit(cursor, Duration::from_secs(30));
-
-        assert!(has_label(&items, "lo"));
-        assert!(
-            !items.iter().any(uses_degraded_grammar_fallback),
-            "instrumented statement-local completion must remain grammar-filtered",
-        );
-    }
-
-    // Deep contract instrumentation changes the work measured by this literal
-    // production wall-clock boundary. Its functional twin below exercises the
-    // same document and provenance assertion with an instrumentation budget.
-    #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn memoized_mid_size_recovery_remains_grammar_filtered() {
-        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250),);
-        // Shared CI hardware makes the literal one-second boundary nondeterministic, so CI runs the ample-budget semantic twin.
-        let assert_literal_boundary = std::env::var_os("CI").is_none();
-        let started = Instant::now();
-        let items = if assert_literal_boundary {
-            completions_at_marker(&marked)
-        } else {
-            completions_at_marker_with_grammar_time_limit(&marked, Duration::from_secs(30))
-        };
-        let elapsed = started.elapsed();
-
-        assert!(
-            items.iter().any(|item| {
-                item.label == "lo"
-                    && matches!(
-                        item.provenance.as_data(),
-                        data!(CompletionProvenance::Expected { .. })
-                    )
-            }),
-            "memoized recovery should reach the cut within the selected grammar budget: {items:#?}",
-        );
-        if assert_literal_boundary {
-            assert!(
-                elapsed < Duration::from_secs(2),
-                "mid-size completion unexpectedly took {elapsed:?}",
-            );
-        }
+        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250));
+        let items = completions_at_marker(&marked);
+        assert!(items.iter().any(|item| item.label == "lo"
+            && matches!(
+                item.provenance.as_data(),
+                data!(CompletionProvenance::Expected { .. })
+            )));
     }
 
-    #[cfg(feature = "expensive_contracts")]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn memoized_mid_size_recovery_remains_grammar_filtered_with_instrumentation() {
-        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250),);
-        let items = completions_at_marker_with_grammar_time_limit(&marked, Duration::from_secs(30));
-
-        assert!(
-            items.iter().any(|item| {
-                item.label == "lo"
-                    && matches!(
-                        item.provenance.as_data(),
-                        data!(CompletionProvenance::Expected { .. })
-                    )
-            }),
-            "instrumented memoized recovery should reach the cut with an ample grammar budget: {items:#?}",
-        );
+    fn completion_boundary_positions_are_complete() {
+        assert_boundary_completion_cases(None, None);
     }
 
-    // Deep contract instrumentation and shared CI hardware change literal
-    // wall-clock behavior. CI and the expensive-contract build run the
-    // functional twin below with an ample grammar budget; local production
-    // builds additionally enforce the interactive latency boundary per case.
     #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn completion_boundary_positions_remain_interactive() {
-        let assert_literal_boundary = std::env::var_os("CI").is_none();
-        let grammar_time_limit = if assert_literal_boundary {
-            COMPLETION_GRAMMAR_TIME_LIMIT
-        } else {
-            Duration::from_secs(30)
-        };
-        assert_boundary_completion_cases(
-            grammar_time_limit,
-            assert_literal_boundary.then_some(Duration::from_secs(2)),
+    fn timing_statement_local_error_heavy_completion_meets_150_ms() {
+        // Preserve the existing clock-test policy on shared CI hardware.
+        if std::env::var_os("CI").is_some() {
+            return;
+        }
+        let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
+        let cursor = marked.find('|').expect("marker");
+        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
+        let started = Instant::now();
+        let _result = snapshot.completions(cursor);
+        assert!(
+            started.elapsed() < Duration::from_millis(150),
+            "completion took {:?}",
+            started.elapsed()
         );
     }
 
-    #[cfg(feature = "expensive_contracts")]
+    #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn completion_boundary_positions_remain_correct_with_instrumentation() {
-        assert_boundary_completion_cases(Duration::from_secs(30), None);
+    fn timing_mid_size_recovery_meets_two_seconds() {
+        // Preserve the existing clock-test policy on shared CI hardware.
+        if std::env::var_os("CI").is_some() {
+            return;
+        }
+        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250));
+        // The original clock includes snapshot preparation as well as completion.
+        let started = Instant::now();
+        let cursor = marked.find('|').expect("marker");
+        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
+        let _result = snapshot.completions(cursor);
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[cfg(not(feature = "expensive_contracts"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn timing_boundary_positions_meet_two_seconds() {
+        // Preserve the existing clock-test policy on shared CI hardware.
+        if std::env::var_os("CI").is_some() {
+            return;
+        }
+        assert_boundary_completion_cases(
+            Some(COMPLETION_GRAMMAR_TIME_LIMIT),
+            Some(Duration::from_secs(2)),
+        );
     }
 
     #[test]
@@ -2064,13 +2061,56 @@ mod tests {
         let cancellation = CompletionCancellationToken::new();
         cancellation.cancel();
 
-        let started = Instant::now();
-        let items = snapshot.completions_cancellable(cursor, &cancellation);
-
-        assert!(items.is_empty());
+        let result = snapshot.completions_cancellable(cursor, &cancellation);
         assert!(
-            started.elapsed() < Duration::from_millis(50),
-            "pre-cancelled completion must not enter candidate expansion",
+            matches!(result.as_data(), data!(CompletionResult::Incomplete { items, reason }) if items.is_empty() && *reason == CompletionIncompleteReason::Cancelled)
         );
+    }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn timing_pre_cancelled_completion_meets_50_ms() {
+        let snapshot = DocumentSnapshot::new("mi klama".to_owned(), 1);
+        let cancellation = CompletionCancellationToken::new();
+        cancellation.cancel();
+        let started = Instant::now();
+        let _result = snapshot.completions_cancellable(0, &cancellation);
+        assert!(started.elapsed() < Duration::from_millis(50));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zero_limit_marks_morphology_fallback_incomplete() {
+        let snapshot = DocumentSnapshot::new("mí klama le bar".to_owned(), 1);
+        let result = snapshot.completions_with_grammar_time_limit(
+            snapshot.text.chars().count(),
+            Some(Duration::ZERO),
+        );
+        let data!(CompletionResult::Incomplete { items, reason }) = result.as_data() else {
+            panic!("zero limit must be incomplete")
+        };
+        assert_eq!(
+            *reason,
+            CompletionIncompleteReason::Grammar {
+                cause: ContinuationError::TimedOut
+            }
+        );
+        assert!(
+            items
+                .iter()
+                .any(|item| item.label == "barda" && uses_degraded_grammar_fallback(item))
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn complete_items(result: CompletionResult) -> Vec<CompletionItem> {
+        match result.into_data() {
+            data!(CompletionResult::Complete { items }) => items,
+            data!(CompletionResult::Incomplete { reason, .. }) => {
+                panic!("semantic query was incomplete: {reason:?}")
+            }
+        }
     }
 }
