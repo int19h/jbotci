@@ -3868,13 +3868,16 @@ where
     B: EmbeddingBackend,
     F: FnMut(usize) -> bool,
 {
-    semantic_vlacku_hits_window_filtered(
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    semantic_vlacku_hits_with_identity(
         backend,
         query,
-        0,
         count,
         index_root,
-        model_key,
+        &spec,
+        current_native_corpus_identity()?,
         entry_allowed,
     )
 }
@@ -3899,8 +3902,14 @@ where
         model_key: model_key.to_owned(),
     })?;
     semantic_vlacku_hits_window_filtered_with_identity(
-        backend, query, skip, count, index_root, &spec,
-        current_native_corpus_identity()?, entry_allowed,
+        backend,
+        query,
+        skip,
+        count,
+        index_root,
+        &spec,
+        current_native_corpus_identity()?,
+        entry_allowed,
     )
 }
 
@@ -3921,7 +3930,14 @@ where
     F: FnMut(usize) -> bool,
 {
     semantic_vlacku_hits_window_filtered_with_identity(
-        backend, query, 0, count, index_root, spec, identity, entry_allowed,
+        backend,
+        query,
+        0,
+        count,
+        index_root,
+        spec,
+        identity,
+        entry_allowed,
     )
 }
 
@@ -6307,15 +6323,35 @@ mod tests {
         let allowed = |index: usize| index % 2 == 0;
         let identity = native_corpus_identity(dictionary, cll_chunks);
         let prefix = semantic_vlacku_hits_with_identity(
-            &mut FakeBackend { dimensions: 4, calls: 0 },
-            "go somewhere", 8, dir.path(), &spec, &identity, allowed,
-        ).unwrap();
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            8,
+            dir.path(),
+            &spec,
+            &identity,
+            allowed,
+        )
+        .unwrap();
         let window = semantic_vlacku_hits_window_filtered_with_identity(
-            &mut FakeBackend { dimensions: 4, calls: 0 },
-            "go somewhere", 2, 3, dir.path(), &spec, &identity, allowed,
-        ).unwrap();
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            2,
+            3,
+            dir.path(),
+            &spec,
+            &identity,
+            allowed,
+        )
+        .unwrap();
         assert_eq!(
-            window, prefix[2..5],
+            window,
+            prefix[2..5],
             "the window skips eligible hits without copying the whole prefix"
         );
 

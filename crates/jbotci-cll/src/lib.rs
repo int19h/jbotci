@@ -1469,6 +1469,23 @@ mod tests {
         let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
 
         assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
+        for (format, expected) in [
+            (CllRenderFormat::Markdown, &markdown),
+            (CllRenderFormat::Html, &html),
+        ] {
+            let exact = jbotci_budget::ByteLimit::new(expected.len()).unwrap();
+            assert_eq!(
+                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, exact)
+                    .unwrap(),
+                *expected,
+            );
+            let small = jbotci_budget::ByteLimit::new(16).unwrap();
+            assert!(matches!(
+                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, small),
+                Err(CllError::OutputLimit { .. }),
+            ));
+        }
+
         assert!(html.contains("class=\"cll-search-preview cll-status-note\""));
         assert!(html.contains(&format!(
             "<span class=\"cll-status-note-label\">{CLL_STATUS_NOTE_LABEL}</span>"
