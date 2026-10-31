@@ -34,10 +34,11 @@ use jbotci_diagnostics::{
     diagnostic_text_segments_text,
 };
 use jbotci_ide::{
-    CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, InlayOptions,
-    LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange,
-    PreparedDocumentAnalysis, SelectionRangeChain, SemanticTokenKind, StructureBracketInlayOptions,
+    COMPLETION_GRAMMAR_TIME_LIMIT, CompletionCancellationToken, CompletionDocumentationHandle,
+    CompletionItem as JbotciCompletion, CompletionKind, CompletionResult, CompletionResultData,
+    DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, InlayOptions, LineIndex,
+    MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, PreparedDocumentAnalysis,
+    SelectionRangeChain, SemanticTokenKind, StructureBracketInlayOptions,
     completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
@@ -63,16 +64,33 @@ struct ServerState {
     position_encoding: PositionEncoding,
     pull_diagnostics: bool,
     inlay_options: InlayOptions,
+    completion_grammar_time_limit: Option<Duration>,
     initialization_warnings: Vec<&'static str>,
     diagnostics_publisher: DiagnosticsPublisher,
 }
 
 #[invariant(true)]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct ServerInitializationOptions {
     inlays: Option<InlayInitializationOptions>,
     structure_inlays: Option<DecorationProfile>,
+    completion_grammar_time_limit_ms: Option<u64>,
+}
+
+impl Default for ServerInitializationOptions {
+    #[requires(true)]
+    #[ensures(ret.completion_grammar_time_limit_ms.is_some())]
+    fn default() -> Self {
+        Self {
+            inlays: None,
+            structure_inlays: None,
+            completion_grammar_time_limit_ms: Some(
+                u64::try_from(COMPLETION_GRAMMAR_TIME_LIMIT.as_millis())
+                    .expect("the default limit fits in milliseconds"),
+            ),
+        }
+    }
 }
 
 #[invariant(true)]
@@ -144,6 +162,7 @@ impl StructureBracketsInitialization {
 #[derive(Debug)]
 struct ParsedInlayInitialization {
     options: InlayOptions,
+    completion_grammar_time_limit: Option<Duration>,
     deprecation_warning: Option<&'static str>,
 }
 
@@ -541,6 +560,7 @@ impl ServerState {
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
             inlay_options: InlayOptions::default(),
+            completion_grammar_time_limit: Some(COMPLETION_GRAMMAR_TIME_LIMIT),
             initialization_warnings: Vec::new(),
             diagnostics_publisher: no_diagnostics_publisher(),
         }
@@ -561,6 +581,7 @@ impl ServerState {
         self.position_encoding = position_encoding;
         self.pull_diagnostics = pull_diagnostics;
         self.inlay_options = inlay_initialization.options;
+        self.completion_grammar_time_limit = inlay_initialization.completion_grammar_time_limit;
         self.initialization_warnings.clear();
         self.initialization_warnings
             .extend(inlay_initialization.deprecation_warning);
@@ -720,7 +741,10 @@ async fn run_server() -> Result<()> {
             .request::<request::Completion, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                async move { Ok(document_completion(documents, encoding, params).await) }
+                let grammar_time_limit = state.completion_grammar_time_limit;
+                async move {
+                    Ok(document_completion(documents, encoding, params, grammar_time_limit).await)
+                }
             })
             .request::<request::ResolveCompletionItem, _>(|_, item| async move {
                 Ok(resolve_completion_item(item))
@@ -876,6 +900,7 @@ fn initialization_inlay_options(
     let Some(initialization_options) = initialization_options else {
         return Ok(new!(ParsedInlayInitialization {
             options: InlayOptions::default(),
+            completion_grammar_time_limit: Some(COMPLETION_GRAMMAR_TIME_LIMIT),
             deprecation_warning: None,
         }));
     };
@@ -887,6 +912,9 @@ fn initialization_inlay_options(
                     format!("invalid jbotci initializationOptions: {error}"),
                 )
             })?;
+    let completion_grammar_time_limit = parsed
+        .completion_grammar_time_limit_ms
+        .map(Duration::from_millis);
     match (parsed.inlays, parsed.structure_inlays) {
         (Some(_), Some(_)) => Err(ResponseError::new(
             ErrorCode::INVALID_PARAMS,
@@ -894,6 +922,7 @@ fn initialization_inlay_options(
         )),
         (Some(inlays), None) => Ok(new!(ParsedInlayInitialization {
             options: inlays.into_options(),
+            completion_grammar_time_limit: completion_grammar_time_limit,
             deprecation_warning: None,
         })),
         (None, Some(profile)) => Ok(new!(ParsedInlayInitialization {
@@ -905,10 +934,12 @@ fn initialization_inlay_options(
                 word_boundaries: false,
                 rafsi_boundaries: false,
             },
+            completion_grammar_time_limit: completion_grammar_time_limit,
             deprecation_warning: Some(LEGACY_STRUCTURE_INLAYS_WARNING),
         })),
         (None, None) => Ok(new!(ParsedInlayInitialization {
             options: InlayOptions::default(),
+            completion_grammar_time_limit: completion_grammar_time_limit,
             deprecation_warning: None,
         })),
     }
@@ -1114,6 +1145,7 @@ async fn document_completion(
     documents: DocumentStore,
     encoding: PositionEncoding,
     params: lsp_types::CompletionParams,
+    grammar_time_limit: Option<Duration>,
 ) -> Option<CompletionResponse> {
     let position = params.text_document_position.position;
     let uri = params.text_document_position.text_document.uri;
@@ -1127,19 +1159,39 @@ async fn document_completion(
         cancellation: cancellation.clone(),
     };
     tokio::task::spawn_blocking(move || {
-        let items = snapshot.completions_cancellable(char_offset, &cancellation);
+        let result = snapshot.completions_with_grammar_time_limit_and_cancellation(
+            char_offset,
+            grammar_time_limit,
+            &cancellation,
+        );
         if cancellation.is_cancelled() {
             return None;
         }
-        let items = items
-            .into_iter()
-            .map(|item| completion_to_lsp(&snapshot, encoding, item))
-            .collect();
-        Some(CompletionResponse::Array(items))
+        Some(completion_result_to_lsp(&snapshot, encoding, result))
     })
     .await
     .ok()
     .flatten()
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(matches!(ret, CompletionResponse::List(_)))]
+fn completion_result_to_lsp(
+    snapshot: &DocumentSnapshot,
+    encoding: PositionEncoding,
+    result: CompletionResult,
+) -> CompletionResponse {
+    let (items, is_incomplete) = match result.into_data() {
+        data!(CompletionResult::Complete { items }) => (items, false),
+        data!(CompletionResult::Incomplete { items, reason: _ }) => (items, true),
+    };
+    CompletionResponse::List(lsp_types::CompletionList {
+        is_incomplete,
+        items: items
+            .into_iter()
+            .map(|item| completion_to_lsp(snapshot, encoding, item))
+            .collect(),
+    })
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1163,7 +1215,16 @@ fn completion_to_lsp(
                 description: Some(description),
             }),
         kind: Some(completion_item_kind(item.kind)),
-        detail: Some(completion_reason_detail(&item.reason)),
+        detail: Some(
+            if matches!(
+                item.provenance.as_data(),
+                data!(jbotci_ide::CompletionProvenance::GrammarUnavailable)
+            ) {
+                "morphology only: grammar completion did not finish".to_owned()
+            } else {
+                completion_reason_detail(&item.reason)
+            },
+        ),
         // With an empty prefix the client renders these two blocks exactly.
         // With typed text, VS Code's fuzzy score can dominate sortText and
         // interleave them; that is accepted client behavior.
@@ -1507,6 +1568,33 @@ fn lsp_range(range: jbotci_ide::PositionRange) -> Range {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_limit_initialization_distinguishes_default_unlimited_and_zero() {
+        let default = initialization_inlay_options(None).expect("default initialization");
+        assert_eq!(
+            default.completion_grammar_time_limit,
+            Some(COMPLETION_GRAMMAR_TIME_LIMIT)
+        );
+        let missing = initialization_inlay_options(Some(&json!({}))).expect("missing limit");
+        assert_eq!(
+            missing.completion_grammar_time_limit,
+            Some(COMPLETION_GRAMMAR_TIME_LIMIT)
+        );
+        let unlimited =
+            initialization_inlay_options(Some(&json!({"completionGrammarTimeLimitMs": null})))
+                .expect("unlimited");
+        assert_eq!(unlimited.completion_grammar_time_limit, None);
+        let zero = initialization_inlay_options(Some(&json!({"completionGrammarTimeLimitMs": 0})))
+            .expect("zero limit");
+        assert_eq!(zero.completion_grammar_time_limit, Some(Duration::ZERO));
+        assert!(
+            initialization_inlay_options(Some(&json!({"completionGrammarTimeLimitMs": -1})))
+                .is_err()
+        );
+    }
 
     #[test]
     #[requires(true)]

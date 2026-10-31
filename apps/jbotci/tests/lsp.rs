@@ -206,6 +206,23 @@ impl LspClient {
 
 #[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
 #[ensures(true)]
+fn initialize_completion(
+    client: &mut LspClient,
+    position_encoding: &str,
+    grammar_time_limit_ms: Option<u64>,
+) {
+    initialize_with_options(
+        client,
+        position_encoding,
+        true,
+        Some(json!({
+            "completionGrammarTimeLimitMs": grammar_time_limit_ms,
+        })),
+    );
+}
+
+#[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
+#[ensures(true)]
 fn initialize(client: &mut LspClient, position_encoding: &str, pull_diagnostics: bool) -> Value {
     initialize_with_options(client, position_encoding, pull_diagnostics, None)
 }
@@ -387,7 +404,7 @@ fn folding_ranges(client: &mut LspClient, uri: &str) -> Value {
 }
 
 #[requires(!uri.is_empty())]
-#[ensures(ret.is_array())]
+#[ensures(ret.is_object() && ret["isIncomplete"].is_boolean() && ret["items"].is_array())]
 fn completion(client: &mut LspClient, uri: &str, character: u64) -> Value {
     client.request(
         "textDocument/completion",
@@ -602,11 +619,12 @@ fn assert_completion_encoding(position_encoding: &str) {
     let cursor = seed_start + SEED.len() as u64;
 
     let mut client = LspClient::spawn();
-    initialize(&mut client, position_encoding, true);
+    initialize_completion(&mut client, position_encoding, None);
     open_document_text(&mut client, URI, 1, TEXT);
 
     let result = completion(&mut client, URI, cursor);
-    let item = result
+    assert_eq!(result["isIncomplete"], false);
+    let item = result["items"]
         .as_array()
         .expect("completion array")
         .iter()
@@ -1087,10 +1105,11 @@ fn completion_maps_preselection_and_two_document_local_sort_blocks() {
     const PRESELECT_TEXT: &str = "mi klama le zarci";
 
     let mut client = LspClient::spawn();
-    initialize(&mut client, "utf-16", true);
+    initialize_completion(&mut client, "utf-16", None);
     open_document_text(&mut client, ORDER_URI, 1, ORDER_TEXT);
     let ordered = completion(&mut client, ORDER_URI, ORDER_TEXT.chars().count() as u64);
-    let ordered = ordered.as_array().expect("completion array");
+    assert_eq!(ordered["isIncomplete"], false);
+    let ordered = ordered["items"].as_array().expect("completion array");
     let local = ordered
         .iter()
         .filter(|item| {
@@ -1117,7 +1136,8 @@ fn completion_maps_preselection_and_two_document_local_sort_blocks() {
     open_document_text(&mut client, PRESELECT_URI, 1, PRESELECT_TEXT);
     let cursor = PRESELECT_TEXT.find("zarci").expect("fixture word") + "zar".len();
     let items = completion(&mut client, PRESELECT_URI, cursor as u64);
-    let items = items.as_array().expect("completion array");
+    assert_eq!(items["isIncomplete"], false);
+    let items = items["items"].as_array().expect("completion array");
     let preselected = items
         .iter()
         .filter(|item| item["preselect"] == true)
@@ -1138,24 +1158,11 @@ fn error_heavy_completion_returns_before_followup_diagnostics() {
         .expect("fixture contains the completion phrase")
         + "mukti l".len();
     let mut client = LspClient::spawn();
-    initialize(&mut client, "utf-16", true);
+    initialize_completion(&mut client, "utf-16", None);
     open_document_text(&mut client, DOCUMENT_URI, 1, &text);
 
-    // Deep contract instrumentation changes the work measured by this literal
-    // production wall-clock boundary; the functional assertions below remain
-    // active in both configurations.
-    #[cfg(not(feature = "expensive_contracts"))]
-    let started = Instant::now();
     let completions = completion(&mut client, DOCUMENT_URI, cursor as u64);
-    #[cfg(not(feature = "expensive_contracts"))]
-    assert!(
-        // The 6.5 s bound allows slower debug builds to answer this error-heavy request.
-        // The assertions below also require the response and follow-up diagnostics.
-        started.elapsed() < Duration::from_millis(6_500),
-        "error-heavy LSP completion unexpectedly took {:?}",
-        started.elapsed(),
-    );
-    assert!(completions.is_array(), "completion must return a response");
+    assert_eq!(completions["isIncomplete"], false);
 
     let diagnostics = pull_diagnostics(&mut client, None);
     assert_eq!(diagnostics["kind"], "full");
@@ -1165,6 +1172,49 @@ fn error_heavy_completion_returns_before_followup_diagnostics() {
             .is_some_and(|items| !items.is_empty()),
         "the server must answer diagnostics after error-heavy completion",
     );
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn zero_completion_limit_returns_an_incomplete_morphology_list() {
+    const TEXT: &str = "mí klama le bar";
+    let mut client = LspClient::spawn();
+    initialize_completion(&mut client, "utf-16", Some(0));
+    open_document_text(&mut client, DOCUMENT_URI, 1, TEXT);
+    let result = completion(
+        &mut client,
+        DOCUMENT_URI,
+        TEXT.encode_utf16().count() as u64,
+    );
+    assert_eq!(result["isIncomplete"], true);
+    let barda = result["items"]
+        .as_array()
+        .expect("completion list")
+        .iter()
+        .find(|item| item["label"] == "barda")
+        .expect("morphology fallback includes barda");
+    assert_eq!(
+        barda["detail"],
+        "morphology only: grammar completion did not finish"
+    );
+    client.shutdown();
+}
+
+#[cfg(not(feature = "expensive_contracts"))]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn timing_error_heavy_completion_meets_6500_ms() {
+    let text = format!("{}mukti lo nu", "mi ku .i ".repeat(14));
+    let cursor = text.find("mukti lo nu").expect("fixture") + "mukti l".len();
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, DOCUMENT_URI, 1, &text);
+    let started = Instant::now();
+    let _result = completion(&mut client, DOCUMENT_URI, cursor as u64);
+    assert!(started.elapsed() < Duration::from_millis(6_500));
     client.shutdown();
 }
 
