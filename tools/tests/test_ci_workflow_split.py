@@ -67,47 +67,44 @@ class CiWorkflowSplitTests(unittest.TestCase):
             publish,
         )
 
-    def test_target_cache_saves_require_a_successful_job_and_stamp(self) -> None:
-        self.assertIn(
-            "      - name: Stamp test target cache\n"
-            "        id: target-cache-stamp\n"
-            "        if: ${{ success() && github.event_name != 'pull_request' }}\n",
-            self.test_workflow,
-        )
-        self.assertIn(
-            "      - name: Save test target cache\n"
-            "        if: ${{ success() && github.event_name != 'pull_request' "
-            "&& steps.target-cache-stamp.outcome == 'success' }}\n"
-            "        uses: actions/cache/save@v5\n",
-            self.test_workflow,
-        )
-        self.assertIn(
-            "      - name: Stamp render target cache\n"
-            "        id: target-cache-stamp\n"
-            "        if: ${{ success() }}\n",
-            self.render_workflow,
-        )
+    def test_target_cache_saves_require_a_successful_job(self) -> None:
+        for workflow, name, condition in (
+            (self.test_workflow, "test", "success() && github.event_name != 'pull_request'"),
+            (self.render_workflow, "render", "success()"),
+        ):
+            self.assertIn(
+                f"      - name: Save {name} target cache\n"
+                f"        if: ${{{{ {condition} }}}}\n"
+                "        uses: actions/cache/save@v5\n",
+                workflow,
+            )
 
-        self.assertIn(
-            "      - name: Save render target cache\n"
-            "        if: ${{ success() && steps.target-cache-stamp.outcome == 'success' }}\n"
-            "        uses: actions/cache/save@v5\n",
-            self.render_workflow,
-        )
-
-    def test_target_cache_keys_exclude_caches_saved_before_the_fix(self) -> None:
+    def test_target_cache_keys_exclude_both_backdating_designs(self) -> None:
         for workflow, name in (
             (self.test_workflow, "test"),
             (self.render_workflow, "render"),
         ):
-            self.assertEqual(workflow.count(f"jbotci-{name}-target-v2-"), 3)
+            self.assertEqual(workflow.count(f"jbotci-{name}-target-v3-"), 3)
+            self.assertNotIn(f"jbotci-{name}-target-v2-", workflow)
             self.assertNotIn(f"jbotci-{name}-target-${{{{", workflow)
+
+    def test_workflows_keep_checkout_timestamps(self) -> None:
+        self.assertFalse((REPOSITORY_ROOT / ".github/actions/cargo-cache-mtimes").exists())
+        for path in (REPOSITORY_ROOT / ".github/workflows").glob("*.yml"):
+            workflow = path.read_text(encoding="utf-8")
+            self.assertNotIn("cargo-cache-mtimes", workflow, path.name)
+            self.assertNotIn("target-cache-stamp", workflow, path.name)
+            self.assertNotIn("touch -", workflow, path.name)
+        self.assertNotIn(".github-cache/home/.dx", self.render_workflow)
+        for name in ("prepare-cli-release.yml",):
+            path = REPOSITORY_ROOT / ".github/workflows" / name
+            self.assertNotIn("actions/cache", path.read_text(encoding="utf-8"))
 
     def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
         self.assertIn(
             "      - name: Run release tooling tests\n"
             "        env:\n"
-            "          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache-mtimes\n",
+            "          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache\n",
             self.test_workflow,
         )
 
