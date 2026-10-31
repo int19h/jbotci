@@ -239,7 +239,7 @@ impl NativeLlamaEmbeddingBackend {
                     message: format!("llama.cpp tokenization failed: {source}"),
                 })
         })?;
-        let rule = jbotci_f2llm_runtime::TokenWindowRule::new(self.max_tokens_per_call)
+        let rule = jbotci_f2llm_core::TokenWindowRule::new(self.max_tokens_per_call)
             .map_err(|message| EmbeddingError::Backend { message })?;
         Ok(rule.split(&tokens, self.owned.model().token_eos()))
     }

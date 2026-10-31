@@ -217,7 +217,8 @@ This key names the native vector function, including NFC and single-sequence inf
 Every window reserves one slot for EOS, the end token. Browser windows hold at most 511 content tokens plus EOS.
 Native windows hold at most 2047 content tokens plus EOS. Neither path inserts a start token.
 The pinned GGUF files enable automatic EOS and disable automatic BOS. Native tokenization disables both automatic additions.
-The shared Rust `TokenWindowRule` appends EOS to each content window on both paths.
+The shared Rust `TokenWindowRule` in `jbotci-f2llm-core` appends EOS to each content window on both paths.
+That crate also owns weighted pooling and has no device runtime dependency.
 Empty input retains one EOS-only window. Other input never gets an EOS-only tail.
 The pooling name is `token_weighted_mean_normalized_windows` on every path.
 Each normalized window vector has a weight equal to its token count, including EOS. The final mean is normalized.

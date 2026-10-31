@@ -10,7 +10,7 @@ repository.workspace = true
 
 [features]
 default = []
-expensive_contracts = []
+expensive_contracts = ["jbotci-f2llm-core/expensive_contracts"]
 native-llama = ["dep:llama-cpp-4", "dep:llama-cpp-sys-4"]
 # Run llama.cpp on the GPU through Metal (macOS). For building embedding packs
 # on a Mac; search rankings change about as much as between two CPU builds.
@@ -28,7 +28,7 @@ jbotci-cll.workspace = true
 jbotci-dictionary.workspace = true
 jbotci-dictionary-data.workspace = true
 jbotci-embedding-inputs.workspace = true
-jbotci-f2llm-runtime.workspace = true
+jbotci-f2llm-core.workspace = true
 llama-cpp-4 = { workspace = true, optional = true }
 llama-cpp-sys-4 = { workspace = true, optional = true }
 serde.workspace = true
@@ -45,6 +45,7 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
+jbotci-f2llm-runtime.workspace = true
 jbotci-search.workspace = true
 tempfile.workspace = true
 

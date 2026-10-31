@@ -9,12 +9,13 @@ use std::time::Duration;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use futures_channel::oneshot;
+use jbotci_f2llm_core::{embedding_normalization_magnitude, normalize_validated_in_place};
 use sha2::{Digest, Sha256};
 
 use crate::core::{
     DEFAULT_MAX_SEQUENCE_LENGTH, EmbeddingVectorError, QwenByteBpeTokenizer, TokenWindow,
-    embedding_normalization_magnitude, normalize_validated_in_place, pack_token_windows,
-    q4_padded_row_stride, token_weighted_mean_normalized, validate_sha256_hex, validate_token_ids,
+    pack_token_windows, q4_padded_row_stride, token_weighted_mean_normalized, validate_sha256_hex,
+    validate_token_ids,
 };
 use crate::webgpu_manifest::{
     ArtifactManifest, ChunkedSpec, TensorSpec, TokenizerSpec, checked_rank2_shape,
