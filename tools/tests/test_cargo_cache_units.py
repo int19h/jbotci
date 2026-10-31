@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
+from unittest.mock import patch
 from pathlib import Path
 import tempfile
 import unittest
 
-from tools.cargo_cache import CacheError, prune, write_json
+from tools.cargo_cache import CacheError, prune, write_json, probe_outputs_are_scoped, registered_cargo, process_start
 
 
 class CargoUnitTests(unittest.TestCase):
@@ -108,6 +110,26 @@ class CargoUnitTests(unittest.TestCase):
         self.assertFalse((self.root / "dx").exists())
         self.assertFalse((self.root / "llama-cmake-cache").exists())
         self.assertFalse((self.root / "llcb").exists())
+
+
+    def test_probe_cannot_write_outside_its_declared_output_directory(self) -> None:
+        probe = {"arguments": ["rustc", "--out-dir", str(self.root / "release/deps")],
+                 "out_dir": str(self.root / "release/build/unit/out"), "cwd": str(self.state)}
+        self.assertFalse(probe_outputs_are_scoped(probe))
+
+    def test_probe_without_a_reported_build_script_rejects_the_save(self) -> None:
+        self.save_record()
+        write_json(self.state / "probe-unknown.json", {
+            "cargo_id": "unknown", "arguments": ["rustc", "-vV"], "out_dir": str(self.state),
+        })
+        with self.assertRaisesRegex(CacheError, "no reported unit"):
+            prune(self.root, self.state)
+
+
+    def test_registration_does_not_survive_exec_into_another_program(self) -> None:
+        write_json(self.state / f"pid-{os.getpid()}.json", {"id": "replaced", "start": process_start(os.getpid())})
+        with patch.dict(os.environ, {"JBOTCI_CARGO_CACHE_STATE": str(self.state), "JBOTCI_CARGO_REAL": "/bin/true"}):
+            self.assertIsNone(registered_cargo(os.getpid()))
 
 
 

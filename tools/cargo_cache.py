@@ -92,14 +92,81 @@ def exec_cargo(arguments: list[str]) -> None:
     os.execv(os.environ["JBOTCI_CARGO_REAL"], [os.environ["JBOTCI_CARGO_REAL"], *command])
 
 
+def registered_cargo(pid: int) -> dict | None:
+    report = state_dir() / f"pid-{pid}.json"
+    if report.is_file():
+        value = json.loads(report.read_text())
+        executable = Path(f"/proc/{pid}/exe").stat()
+        expected = Path(os.environ["JBOTCI_CARGO_REAL"]).stat()
+        if value["start"] == process_start(pid) and (executable.st_dev, executable.st_ino) == (expected.st_dev, expected.st_ino):
+            return value
+    return None
+
+
 def guard(arguments: list[str]) -> None:
     parent = os.getppid()
-    report = state_dir() / f"pid-{parent}.json"
-    if not report.is_file() or json.loads(report.read_text())["start"] != process_start(parent):
-        reject(f"Compiler parent {parent} did not report its Cargo invocation")
+    if registered_cargo(parent) is None:
+        # Build scripts such as autocfg also use RUSTC_WRAPPER for probes.
+        # Authenticate the script and its output scope after Cargo reports it.
+        fields = Path(f"/proc/{parent}/stat").read_text().rsplit(")", 1)[1].split()
+        owner = registered_cargo(int(fields[1]))
+        out_dir = os.environ.get("OUT_DIR")
+        if owner is None or not out_dir:
+            reject(f"Compiler parent {parent} did not report its Cargo invocation")
+        else:
+            executable = Path(os.readlink(f"/proc/{parent}/exe"))
+            stat = executable.stat()
+            write_json(state_dir() / f"probe-{uuid4().hex}.json", {
+                "cargo_id": owner["id"], "executable": str(executable),
+                "device": stat.st_dev, "inode": stat.st_ino,
+                "out_dir": out_dir, "arguments": arguments, "cwd": os.getcwd(),
+            })
     previous = os.environ.get("JBOTCI_CARGO_PREVIOUS_WRAPPER")
     command = [previous, *arguments] if previous else arguments
     os.execvp(command[0], command)
+
+
+def probe_outputs_are_scoped(probe: dict) -> bool:
+    arguments = probe["arguments"][1:]
+    if arguments in (["-vV"], ["-V"], ["--version"], ["--version", "--verbose"]):
+        return True
+    output_paths: list[str] = []
+    for index, argument in enumerate(arguments):
+        if argument in ("--out-dir", "-o"):
+            output_paths.append(arguments[index + 1])
+        elif argument.startswith("--out-dir="):
+            output_paths.append(argument.split("=", 1)[1])
+        elif argument in ("--emit",) or argument.startswith("--emit="):
+            value = arguments[index + 1] if argument == "--emit" else argument.split("=", 1)[1]
+            output_paths.extend(item.split("=", 1)[1] for item in value.split(",") if "=" in item)
+        elif "incremental=" in argument:
+            output_paths.append(argument.split("incremental=", 1)[1])
+    out = Path(probe["out_dir"]).resolve()
+    return bool(output_paths) and all(
+        path in ("-", "/dev/null") or (Path(probe["cwd"]) / path).resolve().is_relative_to(out)
+        for path in output_paths
+    )
+
+
+def validate_probes(state: Path, records: dict[str, dict]) -> None:
+    for path in state.glob("probe-*.json"):
+        probe = json.loads(path.read_text())
+        record = records.get(probe["cargo_id"])
+        if record is None or not probe_outputs_are_scoped(probe):
+            raise CacheError(f"Compiler probe has no reported unit or writes outside OUT_DIR: {path}")
+        messages = record["messages"]
+        packages = {message["package_id"] for message in messages
+                    if message["reason"] == "build-script-executed" and message["out_dir"] == probe["out_dir"]}
+        authenticated = False
+        for message in messages:
+            if message["reason"] != "compiler-artifact" or message["target"]["kind"] != ["custom-build"] or message["package_id"] not in packages:
+                continue
+            for filename in message["filenames"]:
+                stat = Path(filename).stat()
+                if (stat.st_dev, stat.st_ino) == (probe["device"], probe["inode"]):
+                    authenticated = True
+        if not authenticated:
+            raise CacheError(f"Compiler probe did not come from a reported build script: {path}")
 
 
 def fingerprint_for_file(path: Path, root: Path) -> Path:
@@ -215,9 +282,12 @@ def selected_units(root: Path, state: Path) -> tuple[set[Path], set[Path], int]:
     rejected = list(state.glob("rejected-*.json"))
     if rejected:
         raise CacheError("Cache save rejected: " + "; ".join(path.read_text().strip() for path in rejected))
-    records = [json.loads(path.read_text()) for path in state.glob("invocation-*.json")]
+    by_id = {path.stem.removeprefix("invocation-"): json.loads(path.read_text())
+             for path in state.glob("invocation-*.json")}
+    records = list(by_id.values())
     if not records or any(not record["complete"] for record in records):
         raise CacheError("Every Cargo invocation must finish and report its units before a cache save")
+    validate_probes(state, by_id)
     units: set[Path] = set()
     aliases: set[Path] = set()
     environment_path = state / "environment.json"

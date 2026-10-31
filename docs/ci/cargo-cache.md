@@ -31,6 +31,8 @@ The proxy preserves JSON for callers such as dx and renders diagnostics for othe
 It passes program output through after `build-finished`.
 
 A compiler guard records any Cargo process that bypasses the proxy.
+Build-script compiler probes also pass through that guard.
+The collector accepts them only from a reported script, with outputs inside its reported `OUT_DIR`.
 An incomplete invocation, unsupported command, unsupported artifact layout, or unreported compiler rejects the save.
 Expected compile failures use separate target directories, which the collector discards.
 A failed invocation for the main target directory rejects the save.

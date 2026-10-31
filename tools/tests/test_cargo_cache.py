@@ -347,5 +347,26 @@ fn main() {
 
 
 
+    def test_build_script_compiler_probes_belong_to_the_reported_run(self) -> None:
+        (self.repo / "build.rs").write_text("""
+use std::io::Write;
+fn main() {
+    let mut command = std::process::Command::new(std::env::var_os("RUSTC_WRAPPER").unwrap());
+    command.arg(std::env::var_os("RUSTC").unwrap());
+    let mut child = command.args(["--crate-name", "feature_probe", "--crate-type", "lib", "--emit=metadata", "--out-dir"])
+        .arg(std::env::var_os("OUT_DIR").unwrap()).arg("-")
+        .stdin(std::process::Stdio::piped()).spawn().unwrap();
+    child.stdin.take().unwrap().write_all(b"pub fn supported() {}\\n").unwrap();
+    assert!(child.wait().unwrap().success());
+    println!("cargo:rerun-if-changed=build.rs");
+}
+""")
+        self._commit(Version.A)
+        self._build()
+        self.assertTrue(list(self.states[-1].glob("probe-*.json")))
+        self.assertEqual(self._binary(), Version.A.value)
+
+
+
 if __name__ == "__main__":
     unittest.main()
