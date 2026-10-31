@@ -2,13 +2,16 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use fancy_regex::Regex;
 use serde::Deserialize;
 use unicode_normalization::UnicodeNormalization;
+
+pub use jbotci_f2llm_core::{
+    EmbeddingVectorError, TokenWindowRule, token_weighted_mean_normalized,
+};
 
 pub const DEFAULT_MAX_SEQUENCE_LENGTH: usize = 512;
 
@@ -199,11 +202,14 @@ impl QwenByteBpeTokenizer {
         Ok(())
     }
 
-    #[requires(max_length > 0)]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|windows| windows.iter().all(|window| !window.is_empty() && window.len() <= max_length)) || ret.is_err())]
     pub fn token_windows(&self, text: &str, max_length: usize) -> Result<Vec<Vec<u32>>, String> {
-        let ids = self.encode_untruncated(text)?;
-        Ok(ids.chunks(max_length).map(|chunk| chunk.to_vec()).collect())
+        let rule = TokenWindowRule::new(max_length)?;
+        let mut ids = self.encode_untruncated(text)?;
+        // Remove only the end token that this tokenizer appended.
+        ids.pop();
+        Ok(rule.split(&ids, self.eos_id))
     }
 
     #[requires(true)]
@@ -410,124 +416,6 @@ pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result
     ))
 }
 
-/// Typed failures for embedding-vector validation and pooling.
-#[invariant(::NoVectors { vector_count } => *vector_count == 0)]
-#[invariant(::DimensionMismatch {
-    expected_dimensions,
-    actual_dimensions,
-} => *expected_dimensions > 0 && expected_dimensions != actual_dimensions)]
-#[invariant(::NonFiniteComponent { value_bits, .. } =>
-    !f32::from_bits(*value_bits).is_finite())]
-#[invariant(::ZeroNorm { norm_bits } => f32::from_bits(*norm_bits) == 0.0)]
-#[invariant(::NonFiniteNorm { norm_bits } => !f32::from_bits(*norm_bits).is_finite())]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EmbeddingVectorError {
-    NoVectors {
-        vector_count: usize,
-    },
-    DimensionMismatch {
-        expected_dimensions: usize,
-        actual_dimensions: usize,
-    },
-    NonFiniteComponent {
-        dimension: usize,
-        value_bits: u32,
-    },
-    ZeroNorm {
-        norm_bits: u32,
-    },
-    NonFiniteNorm {
-        norm_bits: u32,
-    },
-}
-
-impl EmbeddingVectorError {
-    #[requires(true)]
-    #[ensures(ret == matches!(
-        self.as_data(),
-        data!(EmbeddingVectorError::ZeroNorm { .. })
-    ))]
-    pub fn is_zero_norm(&self) -> bool {
-        matches!(self.as_data(), data!(EmbeddingVectorError::ZeroNorm { .. }))
-    }
-}
-
-impl fmt::Display for EmbeddingVectorError {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_data() {
-            data!(EmbeddingVectorError::NoVectors { .. }) => {
-                formatter.write_str("at least one embedding vector is required for pooling")
-            }
-            data!(EmbeddingVectorError::DimensionMismatch {
-                expected_dimensions,
-                actual_dimensions,
-            }) => write!(
-                formatter,
-                "embedding vector has {actual_dimensions} dimensions, expected {expected_dimensions}"
-            ),
-            data!(EmbeddingVectorError::NonFiniteComponent {
-                dimension,
-                value_bits,
-            }) => write!(
-                formatter,
-                "embedding vector contains non-finite value {} at dimension {dimension}",
-                f32::from_bits(*value_bits)
-            ),
-            data!(EmbeddingVectorError::ZeroNorm { .. }) => {
-                formatter.write_str("embedding vector has zero norm")
-            }
-            data!(EmbeddingVectorError::NonFiniteNorm { norm_bits }) => write!(
-                formatter,
-                "embedding vector norm is non-finite: {}",
-                f32::from_bits(*norm_bits)
-            ),
-        }
-    }
-}
-
-impl std::error::Error for EmbeddingVectorError {}
-
-#[requires(expected_dimensions > 0)]
-#[ensures(ret.as_ref().is_ok_and(|magnitude| {
-    vector.len() == expected_dimensions
-        && vector.iter().all(|value| value.is_finite())
-        && magnitude.is_finite()
-        && *magnitude > 0.0
-}) || ret.is_err())]
-pub(crate) fn embedding_normalization_magnitude(
-    vector: &[f32],
-    expected_dimensions: usize,
-) -> Result<f32, EmbeddingVectorError> {
-    if vector.len() != expected_dimensions {
-        return Err(new!(EmbeddingVectorError::DimensionMismatch {
-            expected_dimensions,
-            actual_dimensions: vector.len(),
-        }));
-    }
-    for (index, value) in vector.iter().enumerate() {
-        if !value.is_finite() {
-            return Err(new!(EmbeddingVectorError::NonFiniteComponent {
-                dimension: index,
-                value_bits: value.to_bits(),
-            }));
-        }
-    }
-    let magnitude = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
-    if magnitude == 0.0 {
-        return Err(new!(EmbeddingVectorError::ZeroNorm {
-            norm_bits: magnitude.to_bits(),
-        }));
-    }
-    if !magnitude.is_finite() {
-        return Err(new!(EmbeddingVectorError::NonFiniteNorm {
-            norm_bits: magnitude.to_bits(),
-        }));
-    }
-    Ok(magnitude)
-}
-
 #[invariant(!token_ids.is_empty())]
 #[derive(Debug, Clone)]
 pub struct TokenWindow {
@@ -625,51 +513,6 @@ pub fn pack_token_windows(windows: &[TokenWindow], budget: usize) -> Vec<PackedT
     batches
 }
 
-#[requires(dimensions > 0)]
-#[ensures(ret.as_ref().is_ok_and(|vector| {
-    vector.len() == dimensions
-        && vector.iter().all(|value| value.is_finite())
-        && vector.iter().any(|value| *value != 0.0)
-}) || ret.is_err())]
-pub fn mean_pool_normalized(
-    vectors: &[Vec<f32>],
-    dimensions: usize,
-) -> Result<Vec<f32>, EmbeddingVectorError> {
-    if vectors.is_empty() {
-        return Err(new!(EmbeddingVectorError::NoVectors {
-            vector_count: vectors.len(),
-        }));
-    }
-    let mut pooled = vec![0.0; dimensions];
-    for vector in vectors {
-        embedding_normalization_magnitude(vector, dimensions)?;
-        for (index, value) in vector.iter().enumerate() {
-            pooled[index] += *value;
-        }
-    }
-    let divisor = vectors.len() as f32;
-    for value in &mut pooled {
-        *value /= divisor;
-    }
-    let magnitude = embedding_normalization_magnitude(&pooled, dimensions)?;
-    normalize_validated_in_place(&mut pooled, magnitude);
-    Ok(pooled)
-}
-
-#[requires(!vector.is_empty())]
-#[requires(vector.iter().all(|value| value.is_finite()))]
-#[requires(vector.iter().any(|value| *value != 0.0))]
-#[requires(magnitude.is_finite() && magnitude > 0.0)]
-#[ensures(
-    vector.iter().all(|value| value.is_finite())
-        && vector.iter().any(|value| *value != 0.0)
-)]
-pub(crate) fn normalize_validated_in_place(vector: &mut [f32], magnitude: f32) {
-    for value in &mut *vector {
-        *value /= magnitude;
-    }
-}
-
 #[requires(true)]
 #[ensures(ret.len() == 256)]
 fn bytes_to_unicode() -> [String; 256] {
@@ -742,51 +585,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn mean_pool_normalizes_after_averaging() {
-        let pooled =
-            mean_pool_normalized(&[vec![1.0, 0.0], vec![0.0, 1.0]], 2).expect("valid pooling");
-        let expected = 1.0 / 2.0_f32.sqrt();
-        assert!((pooled[0] - expected).abs() < 1e-6);
-        assert!((pooled[1] - expected).abs() < 1e-6);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn mean_pool_rejects_exact_window_cancellation() {
-        let error = mean_pool_normalized(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
-            .expect_err("cancelling windows must not produce a successful zero embedding");
-
-        assert!(error.is_zero_norm());
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn mean_pool_rejects_empty_misdimensioned_and_non_finite_inputs() {
-        assert!(
-            mean_pool_normalized(&[], 2)
-                .unwrap_err()
-                .to_string()
-                .contains("at least one")
-        );
-        assert!(
-            mean_pool_normalized(&[vec![1.0]], 2)
-                .unwrap_err()
-                .to_string()
-                .contains("1 dimensions, expected 2")
-        );
-        assert!(
-            mean_pool_normalized(&[vec![1.0, f32::INFINITY]], 2)
-                .unwrap_err()
-                .to_string()
-                .contains("non-finite value")
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn tokenizer_matches_byte_bpe_goldens() {
         let tokenizer = tiny_tokenizer();
         assert_eq!(tokenizer.encode_untruncated("hello").unwrap(), vec![8, 999]);
@@ -811,10 +609,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tokenizer_windows_preserve_single_final_eos() {
+    fn tokenizer_windows_end_each_window_with_eos() {
         let tokenizer = tiny_tokenizer();
+        assert!(tokenizer.token_windows("hello", 0).is_err());
+        assert!(tokenizer.token_windows("hello", 1).is_err());
         let windows = tokenizer.token_windows("hello world!", 3).unwrap();
-        assert_eq!(windows, vec![vec![8, 9, 16], vec![20, 999]]);
+        assert_eq!(windows, vec![vec![8, 9, 999], vec![16, 20, 999]]);
     }
 
     #[test]
@@ -895,26 +695,6 @@ mod tests {
         assert!(validate_token_ids(&[0, 1, 2], 3).is_ok());
         let error = validate_token_ids(&[0, 3], 3).unwrap_err();
         assert!(error.contains("outside vocab size 3"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn embedding_vectors_must_be_finite_and_non_zero() {
-        assert_eq!(
-            embedding_normalization_magnitude(&[0.0, 1.0], 2).unwrap(),
-            1.0
-        );
-        let zero_error = embedding_normalization_magnitude(&[0.0, -0.0], 2).unwrap_err();
-        assert!(zero_error.is_zero_norm());
-        let nan_error = embedding_normalization_magnitude(&[1.0, f32::NAN], 2).unwrap_err();
-        assert_eq!(
-            nan_error,
-            new!(EmbeddingVectorError::NonFiniteComponent {
-                dimension: 1,
-                value_bits: f32::NAN.to_bits(),
-            })
-        );
     }
 
     #[requires(true)]

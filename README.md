@@ -212,8 +212,19 @@ Use separate source, scratch index, and output directories.
 Native reuse requires matching GGUF bytes, model identity, window size and scheme, pooling, dimensions, and normalized f32le dot-product vectors.
 The native manifest records the GGUF SHA-256, window and pooling parameters, and build provenance.
 Native manifests and checkpoints also require the `vector_space` field.
-Its current value is `jbotci-native-f2llm-q4-k-m-windowed-2048-v2`, from `F2LLM_NATIVE_VECTOR_SPACE_KEY`.
+Its current value is `jbotci-native-f2llm-q4-k-m-windowed-2048-v3`, from `F2LLM_NATIVE_VECTOR_SPACE_KEY`.
 This key names the native vector function, including NFC and single-sequence inference.
+Every window reserves one slot for EOS, the end token. Browser windows hold at most 511 content tokens plus EOS.
+Native windows hold at most 2047 content tokens plus EOS. Neither path inserts a start token.
+The pinned GGUF files enable automatic EOS and disable automatic BOS. Native tokenization disables both automatic additions.
+The shared Rust `TokenWindowRule` in `jbotci-f2llm-core` appends EOS to each content window on both paths.
+That crate also owns weighted pooling and has no device runtime dependency.
+Empty input retains one EOS-only window. Other input never gets an EOS-only tail.
+The pooling name is `token_weighted_mean_normalized_windows` on every path.
+Each normalized window vector has a weight equal to its token count, including EOS. The final mean is normalized.
+The browser vector-space key is `jbotci-browser-f2llm-q4-f16-windowed-512-v3`. The runtime version is `0.4.0`.
+The Python pack artifact version is `f2llm-vector-pack-windowed-ca-v3`.
+A v2 manifest, pack, or checkpoint cannot supply rows or resume.
 Search, row reuse, and checkpoint resume require this exact key. Missing keys are stale, even with legacy adoption.
 The pack ID includes this key. The corpus input format describes rendered text and stays at `v0`.
 The corpus fingerprints therefore stay unchanged when only the vector function changes.

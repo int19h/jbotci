@@ -1348,6 +1348,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pooling strategy is a closed wire-format selector with no payload",
     ),
     (
+        "crates/jbotci-f2llm-runtime/src/pack.rs:Pooling::TokenWeightedMeanNormalizedWindows",
+        "pooling strategy is a closed wire-format selector with no payload",
+    ),
+    (
         "crates/jbotci-f2llm-runtime/src/pack.rs:VectorElementType::F16Le",
         "vector element type is a closed wire-format selector with no payload",
     ),

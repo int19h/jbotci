@@ -18,7 +18,8 @@ from transformers import AutoTokenizer
 
 SCHEMA_VERSION = 2
 RUNTIME = "jbotci-webgpu-f2llm"
-RUNTIME_VERSION = "0.2.0"
+RUNTIME_VERSION = "0.4.0"
+PUBLISHED_ARTIFACT_VERSION = "0.2.0"
 MODEL_ID = "codefuse-ai/F2LLM-v2-80M"
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 MODEL_REVISION = "f4a16a11c9f5c8c7e22694653de6ce75430f4538"
@@ -36,7 +37,7 @@ class Case:
     name: str
     kind: str
     input: str
-    expected_token_count: int | None = None
+    expected_content_token_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -84,11 +85,11 @@ def main() -> None:
         token_windows(case.input, tokenizer, args.max_sequence_length) for case in cases
     ]
     for case, windows in zip(cases, case_windows, strict=True):
-        token_count = sum(len(window) for window in windows)
-        if case.expected_token_count is not None and token_count != case.expected_token_count:
+        token_count = sum(len(window) - 1 for window in windows)
+        if case.expected_content_token_count is not None and token_count != case.expected_content_token_count:
             raise ValueError(
                 f"{case.name} token count mismatch: "
-                f"expected {case.expected_token_count}, got {token_count}"
+                f"expected {case.expected_content_token_count}, got {token_count}"
             )
 
     references = [
@@ -129,6 +130,7 @@ def main() -> None:
                 "token_ids": [
                     int(token_id) for window in windows for token_id in window
                 ],
+                "content_token_count": sum(len(window) - 1 for window in windows),
                 "token_count": sum(len(window) for window in windows),
                 "windows": [
                     [int(token_id) for token_id in window] for window in windows
@@ -179,7 +181,8 @@ def main() -> None:
         "dimensions": args.dimensions,
         "max_sequence_length": args.max_sequence_length,
         "window_pooling": "last-token",
-        "pooling": "mean_normalized_windows",
+        "window_rule": "max_length-minus-one-content-then-eos",
+        "pooling": "token_weighted_mean_normalized_windows",
         "normalized": True,
         "cosine_threshold": args.cosine_threshold,
         "execution": {
@@ -196,7 +199,7 @@ def main() -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate F2LLM 0.2.0 windowing goldens from immutable published "
+            "Generate F2LLM 0.4.0 windowing goldens from immutable published "
             "ONNX and WebGPU manifests."
         )
     )
@@ -257,13 +260,13 @@ def build_cases(tokenizer) -> list[Case]:
         Case("batch-last-slot", "batch-boundary", "last item in the first batch"),
         Case("batch-next-slot", "batch-boundary", "first item in the second batch"),
     ]
-    for token_count in (511, 512, 513):
+    for token_count in (510, 511, 512, 1021, 1022, 1023):
         cases.append(
             Case(
-                f"token-length-{token_count}",
+                f"content-length-{token_count}",
                 "token-boundary",
                 exact_token_count_input(tokenizer, token_count),
-                expected_token_count=token_count,
+                expected_content_token_count=token_count,
             )
         )
     cases.append(
@@ -271,15 +274,15 @@ def build_cases(tokenizer) -> list[Case]:
             "multi-window-1025",
             "multi-window",
             exact_token_count_input(tokenizer, 1025),
-            expected_token_count=1025,
+            expected_content_token_count=1025,
         )
     )
     return cases
 
 
 def exact_token_count_input(tokenizer, token_count: int) -> str:
-    if token_count <= 1:
-        raise ValueError("exact token count must leave room for the appended EOS token")
+    if token_count <= 0:
+        raise ValueError("content token count must be positive")
     unit_ids = tokenizer("a", add_special_tokens=False, truncation=False)["input_ids"]
     separated_unit_ids = tokenizer(" a", add_special_tokens=False, truncation=False)[
         "input_ids"
@@ -289,11 +292,11 @@ def exact_token_count_input(tokenizer, token_count: int) -> str:
             "the pinned tokenizer no longer maps `a` and ` a` to one token; "
             "the explicit boundary construction must be reviewed"
         )
-    text = " ".join("a" for _ in range(token_count - 1))
+    text = " ".join("a" for _ in range(token_count))
     actual = tokenizer(text, add_special_tokens=False, truncation=False)["input_ids"]
-    if len(actual) + 1 != token_count:
+    if len(actual) != token_count:
         raise ValueError(
-            f"explicit boundary construction produced {len(actual) + 1} tokens, "
+            f"explicit boundary construction produced {len(actual)} content tokens, "
             f"expected {token_count}"
         )
     return text
@@ -306,14 +309,14 @@ def token_windows(text: str, tokenizer, max_sequence_length: int) -> list[np.nda
     eos_token_id = tokenizer.eos_token_id
     if eos_token_id is None:
         raise ValueError("F2LLM tokenizer does not expose eos_token_id")
-    token_ids.append(int(eos_token_id))
+    if max_sequence_length <= 1:
+        raise ValueError("embedding window length must exceed one token")
+    capacity = max_sequence_length - 1
     return [
-        np.asarray(
-            token_ids[start : start + max_sequence_length],
-            dtype=np.int64,
-        )
-        for start in range(0, len(token_ids), max_sequence_length)
+        np.asarray(token_ids[start:start + capacity] + [int(eos_token_id)], dtype=np.int64)
+        for start in range(0, max(1, len(token_ids)), capacity)
     ]
+
 
 
 def validate_batch_boundary_cases(
@@ -343,12 +346,17 @@ def encode_windows(
     references: list[WindowReference],
     case_count: int,
 ) -> tuple[list[np.ndarray], dict[tuple[int, int], np.ndarray], list[dict[str, object]]]:
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 4
+    options.inter_op_num_threads = 1
     session = ort.InferenceSession(
         str(args.q4_onnx),
+        sess_options=options,
         providers=["CPUExecutionProvider"],
     )
     input_names = {item.name for item in session.get_inputs()}
     vectors_by_case: list[list[np.ndarray]] = [[] for _ in range(case_count)]
+    token_counts_by_case: list[list[int]] = [[] for _ in range(case_count)]
     vectors_by_window: dict[tuple[int, int], np.ndarray] = {}
     execution_batches = []
     for batch_index, (start, batch) in enumerate(
@@ -373,6 +381,7 @@ def encode_windows(
         batch_references = []
         for reference, row in zip(batch, rows, strict=True):
             vectors_by_case[reference.case_index].append(row)
+            token_counts_by_case[reference.case_index].append(len(reference.token_ids))
             vectors_by_window[(reference.case_index, reference.window_index)] = row
             batch_references.append(
                 {
@@ -390,8 +399,8 @@ def encode_windows(
             }
         )
     pooled = [
-        mean_pool_normalized(window_vectors, args.dimensions)
-        for window_vectors in vectors_by_case
+        token_weighted_mean_normalized(window_vectors, token_counts, args.dimensions)
+        for window_vectors, token_counts in zip(vectors_by_case, token_counts_by_case, strict=True)
     ]
     return pooled, vectors_by_window, execution_batches
 
@@ -451,8 +460,9 @@ def normalize(values: np.ndarray) -> np.ndarray:
     return values / norms
 
 
-def mean_pool_normalized(
+def token_weighted_mean_normalized(
     window_vectors: list[np.ndarray],
+    token_counts: list[int],
     dimensions: int,
 ) -> np.ndarray:
     if not window_vectors:
@@ -462,7 +472,10 @@ def mean_pool_normalized(
         raise ValueError(
             f"embedding dimension mismatch: expected {dimensions}, got {stacked.shape[1]}"
         )
-    mean = stacked.mean(axis=0, dtype=np.float32).reshape(1, dimensions)
+    if len(token_counts) != len(window_vectors) or any(count <= 0 for count in token_counts):
+        raise ValueError("window token counts must be positive and match the vectors")
+    weights = np.asarray(token_counts, dtype=np.float32)
+    mean = ((stacked * weights[:, None]).sum(axis=0, dtype=np.float32) / weights.sum(dtype=np.float32)).reshape(1, dimensions)
     return normalize(mean)[0]
 
 
@@ -475,7 +488,7 @@ def validate_onnx_manifest(
     expected = {
         "schema_version": 1,
         "runtime": "jbotci-onnxruntime-web-f2llm",
-        "artifact_version": RUNTIME_VERSION,
+        "artifact_version": PUBLISHED_ARTIFACT_VERSION,
         "model_key": args.model_key,
         "source_model": args.model,
         "model_url": "model_q4.onnx",
@@ -499,7 +512,7 @@ def validate_artifact_manifest(
     expected = {
         "schema_version": 1,
         "runtime": RUNTIME,
-        "artifact_version": RUNTIME_VERSION,
+        "artifact_version": PUBLISHED_ARTIFACT_VERSION,
         "model_key": args.model_key,
         "source_model": args.model,
         "max_sequence_length": args.max_sequence_length,

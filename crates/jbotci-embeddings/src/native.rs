@@ -225,7 +225,7 @@ fn clear_all_sequences(context: &mut LlamaContext<'static>) -> Result<(), Embedd
 impl NativeLlamaEmbeddingBackend {
     /// Tokenize `input` and split it into windows of at most one call's
     /// token budget, exactly as `embed` does.
-    #[requires(!input.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|windows| !windows.is_empty()) || ret.is_err())]
     fn token_windows(
         &self,
@@ -234,20 +234,14 @@ impl NativeLlamaEmbeddingBackend {
         let tokens = crate::tokenize_native_input(input, |normalized| {
             self.owned
                 .model()
-                .str_to_token(normalized, AddBos::Always)
+                .str_to_token(normalized, AddBos::Never)
                 .map_err(|source| EmbeddingError::Backend {
                     message: format!("llama.cpp tokenization failed: {source}"),
                 })
         })?;
-        if tokens.is_empty() {
-            return Err(EmbeddingError::Backend {
-                message: "cannot embed an empty token sequence".to_owned(),
-            });
-        }
-        Ok(tokens
-            .chunks(self.max_tokens_per_call.max(1))
-            .map(<[_]>::to_vec)
-            .collect())
+        let rule = jbotci_f2llm_core::TokenWindowRule::new(self.max_tokens_per_call)
+            .map_err(|message| EmbeddingError::Backend { message })?;
+        Ok(rule.split(&tokens, self.owned.model().token_eos()))
     }
 }
 
@@ -585,6 +579,52 @@ fn global_backend() -> Result<&'static LlamaBackend, EmbeddingError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires the pinned 80M GGUF file"]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_and_browser_windows_match_for_pinned_80m_tokenizer() {
+        let path = std::env::var_os("JBOTCI_F2LLM_80M_TOKENIZER_GGUF").expect("80M GGUF path");
+        let spec = model_spec("f2llm-v2-80m-q4-k-m-320").unwrap();
+        assert_eq!(
+            crate::sha256_hex_file(Path::new(&path)).unwrap(),
+            spec.native_sha256
+        );
+        let mut backend = NativeLlamaEmbeddingBackend::load(&spec, Path::new(&path)).unwrap();
+        assert!(!backend.owned.model().get_vocab().get_add_bos());
+        assert!(backend.owned.model().add_eos_token());
+        assert_eq!(backend.owned.model().token_eos().0, 151645);
+        let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../../jbotci-f2llm-runtime/testdata/tokenizer/pinned.json"
+        ))
+        .unwrap();
+        let browser = jbotci_f2llm_runtime::QwenByteBpeTokenizer::from_compact_json(
+            &serde_json::to_vec(&fixture["tokenizer"]).unwrap(),
+        )
+        .unwrap();
+        for max_length in [8, 512, 2048] {
+            backend.max_tokens_per_call = max_length;
+            for case in fixture["cases"].as_array().unwrap() {
+                let text = case["text"].as_str().unwrap();
+                let native = backend
+                    .token_windows(text)
+                    .unwrap()
+                    .into_iter()
+                    .map(|w| {
+                        w.into_iter()
+                            .map(|token| token.0 as u32)
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    native,
+                    browser.token_windows(text, max_length).unwrap(),
+                    "{text:?}, {max_length}"
+                );
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]

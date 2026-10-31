@@ -4,7 +4,7 @@ import test from "node:test";
 
 globalThis.self = globalThis;
 const {
-  f32ToF16Bits, f16ToF32, requireVector, normalize, meanPoolNormalized,
+  f32ToF16Bits, f16ToF32, requireVector, normalize, tokenWeightedMeanNormalized,
   F2LlmOnnxWasmRuntime, readCorpusVectors, validatedVectorStore,
   rankHits, rankHitsFromScores,
 } = await import("../assets/embedding-worker.js");
@@ -52,8 +52,8 @@ test("CPU fallback rejects invalid ONNX output before it becomes an embedding", 
     });
     await assert.rejects(runtime.embedText("example"), /dimension|finite|positive/);
   }
-  assert.throws(() => meanPoolNormalized([Float32Array.of(1, 0), Float32Array.of(-1, 0)], 2), /positive/);
-  assert.throws(() => meanPoolNormalized([Float32Array.of(0, 0)], 2), /positive/);
+  assert.throws(() => tokenWeightedMeanNormalized([Float32Array.of(1, 0), Float32Array.of(-1, 0)], [1, 1], 2), /positive/);
+  assert.throws(() => tokenWeightedMeanNormalized([Float32Array.of(0, 0)], [1], 2), /positive/);
 });
 
 function vectorBuffer(vector, elementType) {
@@ -109,4 +109,22 @@ test("GPU ranking rejects non-finite scores even for filtered rows", () => {
     assert.throws(() => rankHitsFromScores([1], items, limit, []), /score count/);
     assert.deepEqual(rankHitsFromScores([0, 1], items, limit, ["gismu"]), [{ id: 1, score: 1 }]);
   }
+});
+
+test("CPU fallback weights a short tail by its count including EOS", async () => {
+  const windows = [Array(512).fill(7), [7, 151645]];
+  windows[0][511] = 151645;
+  let row = 0;
+  const seen = [];
+  const runtime = new F2LlmOnnxWasmRuntime({
+    ort: { Tensor: class { constructor(type, data) { this.data = data; } } },
+    session: { inputNames: ["input_ids"], run: async (feeds) => {
+      seen.push(Array.from(feeds.input_ids.data, Number));
+      return { embedding: { dims: [1, 2], data: row++ === 0 ? [1, 0] : [0, 1] } };
+    } },
+    tokenizer: { tokenWindows: () => windows }, dimensions: 2, maxSequenceLength: 512,
+  });
+  const pooled = await runtime.embedText("full window and short tail");
+  assert.ok(Math.abs(pooled[1] / pooled[0] - 2 / 512) < 1e-7);
+  assert.ok(seen.every((window) => window.at(-1) === 151645));
 });

@@ -1,0 +1,22 @@
+[package]
+name = "jbotci-f2llm-core"
+description = "Shared F2LLM window and pooling rules without a device runtime."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+expensive_contracts = []
+
+[dependencies]
+bityzba.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true

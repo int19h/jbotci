@@ -6,7 +6,7 @@ use crate::Sha256Digest;
 
 const PROVENANCE: &str = include_str!("../testdata/goldens/provenance.json");
 const CURRENT_80M: &[u8] =
-    include_bytes!("../testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json");
+    include_bytes!("../testdata/goldens/current-v0.4.0/f2llm-v2-80m-q4-320/goldens.json");
 const LEGACY_GENERATOR: &[u8] =
     include_bytes!("../../../tools/f2llm-oracles/legacy-v0.1.0/generate-f2llm-goldens.py");
 const LEGACY_ORCHESTRATOR: &[u8] =
@@ -200,10 +200,10 @@ fn vendored_legacy_bytes_are_bound_to_generator_and_artifact_digests() {
 fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
     let provenance: Value = serde_json::from_str(PROVENANCE).expect("provenance JSON");
     let current_fixture = &provenance["current_fixture"];
-    assert_eq!(current_fixture["runtime_version"], "0.2.0");
+    assert_eq!(current_fixture["runtime_version"], "0.4.0");
     assert_eq!(
         current_fixture["golden_path"],
-        "crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json"
+        "crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.4.0/f2llm-v2-80m-q4-320/goldens.json"
     );
     assert_eq!(
         current_fixture["generator_path"],
@@ -235,10 +235,10 @@ fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
     let golden: Value = serde_json::from_slice(CURRENT_80M).expect("current golden JSON");
     assert_eq!(golden["schema_version"], 2);
     assert_eq!(golden["runtime"], "jbotci-webgpu-f2llm");
-    assert_eq!(golden["runtime_version"], "0.2.0");
+    assert_eq!(golden["runtime_version"], "0.4.0");
     assert_eq!(golden["dimensions"], 320);
     assert_eq!(golden["max_sequence_length"], 512);
-    assert_eq!(golden["pooling"], "mean_normalized_windows");
+    assert_eq!(golden["pooling"], "token_weighted_mean_normalized_windows");
     assert_eq!(
         Sha256Digest::of_bytes(CURRENT_GENERATOR).as_str(),
         golden["reference"]["generator"]["sha256"]
@@ -267,7 +267,7 @@ fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
     );
 
     let cases = golden["cases"].as_array().expect("cases");
-    assert_eq!(cases.len(), 13);
+    assert_eq!(cases.len(), 16);
     let mut actual_windows = Vec::new();
     for (case_index, case) in cases.iter().enumerate() {
         let input = case["input"].as_str().expect("case input");
@@ -290,6 +290,7 @@ fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
             let window = window.as_array().expect("window");
             assert!(!window.is_empty());
             assert!(window.len() <= 512);
+            assert_eq!(window.last().and_then(Value::as_u64), Some(151645));
             actual_windows.push((case_index, window_index));
         }
 
@@ -338,15 +339,15 @@ fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
             .chars()
             .any(|character| !character.is_ascii())
     );
-    for token_count in [511_u64, 512, 513] {
+    for token_count in [510_u64, 511, 512, 1021, 1022, 1023] {
         assert_eq!(
-            by_name(&format!("token-length-{token_count}"))["token_count"],
+            by_name(&format!("content-length-{token_count}"))["content_token_count"],
             token_count
         );
     }
     assert_eq!(
         by_name("multi-window-1025")["window_token_counts"],
-        serde_json::json!([512, 512, 1])
+        serde_json::json!([512, 512, 4])
     );
 
     let execution = &golden["execution"];
@@ -370,5 +371,27 @@ fn current_80m_oracle_covers_window_and_batch_boundaries_with_verified_bytes() {
     assert_eq!(
         batches[1]["windows"].as_array().expect("second batch")[0],
         serde_json::json!({"case_index": 8, "window_index": 0})
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn historical_02_golden_and_generator_keep_their_original_bytes() {
+    let provenance: Value = serde_json::from_str(PROVENANCE).unwrap();
+    let old = &provenance["historical_fixture_02"];
+    assert_eq!(
+        Sha256Digest::of_bytes(include_bytes!(
+            "../testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json"
+        ))
+        .as_str(),
+        old["golden_sha256"].as_str().unwrap()
+    );
+    assert_eq!(
+        Sha256Digest::of_bytes(include_bytes!(
+            "../../../tools/f2llm-oracles/legacy-v0.2.0/generate-f2llm-goldens.py"
+        ))
+        .as_str(),
+        old["generator_sha256"].as_str().unwrap()
     );
 }
