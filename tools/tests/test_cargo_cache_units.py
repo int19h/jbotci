@@ -133,6 +133,33 @@ class CargoUnitTests(unittest.TestCase):
         ])
         self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["errors"], 0)
 
+    def test_explicit_thread_exit_closes_strace_unknown_placeholder(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([
+            b'1 clone3({flags=CLONE_THREAD}, 88) = 2\n',
+            b'2 ???( <unfinished ...>\n',
+            b'2 +++ exited with 0 +++\n',
+            b'1 +++ exited with 0 +++\n',
+        ])
+        self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["errors"], 0)
+
+    def test_unknown_placeholder_without_exit_still_fails_closed(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([b'1 ???( <unfinished ...>\n'])
+        self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["errors"], 1)
+
+    def test_killed_process_cannot_finish_a_pending_file_read(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([
+            b'1 openat(AT_FDCWD, "pipe", O_RDONLY <unfinished ...>\n',
+            b'1 +++ killed by SIGKILL +++\n',
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events, [{"event": "complete", "errors": 0}])
+
 
 if __name__ == "__main__":
     unittest.main()

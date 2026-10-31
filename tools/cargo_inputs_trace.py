@@ -113,6 +113,12 @@ class Parser:
             else:
                 self.waiting.setdefault(pid, []).append(line)
                 return
+        if re.fullmatch(r"\+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+", body):
+            # strace can show an unfinished syscall when a thread exits.
+            # An explicit exit proves that the operation cannot return or read.
+            self.pending.pop(pid, None)
+            self.fork_states.pop(pid, None)
+            return
         if "<unfinished ...>" in body:
             self.pending[pid] = body.split("<unfinished ...>", 1)[0]
             if re.match(r"(?:clone3?|fork|vfork)\(", body):
@@ -233,7 +239,7 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
         reader.start()
         try:
             process = subprocess.Popen([
-                "strace", "-f", "--seccomp-bpf", "-qq", "-v", "-s", "1048576", "-yy",
+                "strace", "-f", "--seccomp-bpf", "-q", "-v", "-s", "1048576", "-yy",
                 "-e", "trace=execve,clone,clone3,fork,vfork,chdir,open,openat,openat2",
                 "-o", f"/dev/fd/{write_fd}", "--", *command,
             ], cwd=workspace, pass_fds=(write_fd,))
