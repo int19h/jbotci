@@ -471,8 +471,10 @@ class IncrementalEmbeddingPacksTest(unittest.TestCase):
         manifest = pack.read_json(fixture)
         manifest['artifact_version'] = validator.ARTIFACT_VERSION
         manifest['vector_space_key'] = validator.VECTOR_SPACE_KEY
+        manifest['pooling'] = validator.POOLING
         for runtime in manifest['compatible_query_runtimes']:
             runtime['version'] = validator.RUNTIME_VERSION
+            runtime['pooling'] = validator.POOLING
         args = types.SimpleNamespace(model_key=manifest['model_key'], max_sequence_length=manifest['max_sequence_length'],
                                      dimensions=manifest['dimensions'], include_wasm_runtime=False, vector_space_key=validator.VECTOR_SPACE_KEY)
         corpus = {'inputFormatVersion': manifest['input_format_version'], 'inputHash': manifest['input_hash']}
