@@ -25,7 +25,7 @@ jobs:
       - name: Run release tooling tests
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache
-        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cargo_cache_units tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
 
   cargo-test:
     name: Cargo tests
@@ -44,7 +44,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3 zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -78,16 +78,24 @@ jobs:
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
 
-      # Keep checkout timestamps so Cargo rebuilds local sources after a restore.
       - name: Restore test target cache
         id: target-cache
         uses: actions/cache/restore@v5
         with:
           path: .github-cache/cargo-target/test
-          key: jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          key: jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-test-target-v3-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+            jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-test-target-v4-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+
+      - name: Restore Cargo source timestamps
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: ${{ env.CARGO_TARGET_DIR }}
+
+      - name: Collect every Cargo invocation
+        run: python3 tools/cargo_cache.py install "${RUNNER_TEMP}/cargo-provenance"
 
       - name: Run workspace tests with import feature
         run: cargo test -r --workspace --features jbotci-dictionary/import
@@ -112,6 +120,13 @@ jobs:
         with:
           path: .github-cache/cargo
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+      - name: Prune and stamp checked Cargo units
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: stamp
+          target-dir: ${{ env.CARGO_TARGET_DIR }}
 
       # Save compiled artifacts only after the job succeeds.
       - name: Save test target cache

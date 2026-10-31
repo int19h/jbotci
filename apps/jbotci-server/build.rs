@@ -38,6 +38,7 @@ fn emit_build_tag() {
 #[ensures(ret.as_ref().is_none_or(|commit| is_git_commit_hash(commit)))]
 fn current_git_commit() -> Option<String> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").ok()?;
+    emit_git_rerun_paths(&manifest_dir);
     let output = Command::new("git")
         .arg("-C")
         .arg(&manifest_dir)
@@ -56,4 +57,22 @@ fn current_git_commit() -> Option<String> {
 #[ensures(ret == (value.len() == 40 && value.chars().all(|character| character.is_ascii_hexdigit())))]
 fn is_git_commit_hash(value: &str) -> bool {
     value.len() == 40 && value.chars().all(|character| character.is_ascii_hexdigit())
+}
+
+#[requires(!manifest_dir.is_empty())]
+#[ensures(true)]
+fn emit_git_rerun_paths(manifest_dir: &str) {
+    for name in ["HEAD", "packed-refs", "refs"] {
+        let output = Command::new("git")
+            .args(["-C", manifest_dir, "rev-parse", "--git-path", name])
+            .output()
+            .expect("failed to find Git build inputs");
+        if output.status.success() {
+            let path = String::from_utf8(output.stdout).expect("Git path must use UTF-8");
+            let path = std::path::Path::new(manifest_dir).join(path.trim());
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
 }
