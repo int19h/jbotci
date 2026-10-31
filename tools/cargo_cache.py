@@ -270,11 +270,24 @@ def prune_profiles(profiles: list[Path], units: set[Path], aliases: set[Path]) -
 
 def prune(root: Path, state: Path) -> dict[str, int]:
     units, aliases, invocations = selected_units(root, state)
-    removed = prune_profiles([path.parent for path in root.rglob(".fingerprint")], units, aliases)
-    # These old native caches have no Cargo unit identity.
-    for name in ("llama-cmake-cache", "llcb"):
-        remove(root / name)
+    profiles = {path.parent for path in root.rglob(".fingerprint")}
+    removed = prune_profiles(list(profiles), units, aliases)
+    prune_other_outputs(root, profiles)
     return {"invocations": invocations, "selected_units": len(units), "removed_units": removed}
+
+
+def prune_other_outputs(directory: Path, profiles: set[Path]) -> None:
+    # DX bundles and native side caches do not have a Cargo unit identity.
+    # Retain only profile trees and their ancestors, plus Cargo's version data.
+    if not directory.exists():
+        return
+    for path in directory.iterdir():
+        if path in profiles:
+            continue
+        if any(profile.is_relative_to(path) for profile in profiles):
+            prune_other_outputs(path, profiles)
+        elif path.name not in (".rustc_info.json", "CACHEDIR.TAG", ".cache-commit"):
+            remove(path)
 
 
 def main() -> int:

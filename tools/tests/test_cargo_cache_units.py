@@ -98,6 +98,18 @@ class CargoUnitTests(unittest.TestCase):
             prune(self.root, self.state)
 
 
+    def test_outputs_without_a_cargo_unit_are_discarded(self) -> None:
+        self.save_record()
+        for name in ("dx/bundle/old.wasm", "llama-cmake-cache/old.a", "llcb/old.dll"):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+        prune(self.root, self.state)
+        self.assertFalse((self.root / "dx").exists())
+        self.assertFalse((self.root / "llama-cmake-cache").exists())
+        self.assertFalse((self.root / "llcb").exists())
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -36,6 +36,7 @@ Expected compile failures use separate target directories, which the collector d
 A failed invocation for the main target directory rejects the save.
 The collector retains the union of selected units from all successful invocations.
 It removes unselected fingerprints, dependency files, build directories, and root aliases.
+It also removes DX bundles and other outputs that have no Cargo unit identity.
 CI disables and removes incremental directories because their session hashes differ from Cargo unit hashes.
 
 The native build watches its original C++ tree, patches, shim, helper, wrapper, and prebuilt input directory.
