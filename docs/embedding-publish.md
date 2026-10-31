@@ -85,6 +85,47 @@ Four data uploads can run together.
 Manifests and catalogs run in order after all required data comparisons pass.
 A failed batch prevents its later manifests and catalogs from publication.
 
+## Pre-publish live check
+
+The release coordinator runs `verify-r2-object` before publication against one uncompressed object and one Brotli object.
+The command reads R2 and never uploads, deletes, or repairs an object.
+Its verifier has no upload method.
+It uses the same pinned Wrangler installation, account, credential handling, and read-back proof as publication.
+Set `JBOTCI_R2_WRANGLER_DIR` and `CLOUDFLARE_ACCOUNT_ID` as described above.
+
+Use the built `xtask-full` binary for these examples.
+Replace the uppercase arguments with the selected bucket, keys, and local paths.
+`--file` names the original uncompressed file.
+The command selects its valid `.br` sibling when present, exactly as the publish planner does.
+`--brotli-file` requires that exact sibling, so a missing sibling cannot silently select an unencoded file.
+A different path or an invalid Brotli pair fails before R2 access.
+
+Run the positive uncompressed check with a local file that has no `.br` sibling:
+
+```sh
+xtask-full verify-r2-object --bucket BUCKET --key IDENTITY_KEY --file IDENTITY_FILE
+```
+
+Run the positive Brotli check with the original file and its valid sibling:
+
+```sh
+xtask-full verify-r2-object --bucket BUCKET --key BROTLI_KEY --file BROTLI_FILE --brotli-file BROTLI_FILE.br
+```
+
+Each JSON report includes the selected upload file and four facts: stored size, stored MD5, encoding, and body SHA-256.
+Each fact reports `matched` or `mismatched`.
+Both positive checks must report four matches and exit zero.
+An unavailable read-back reports mismatches with a reason that the proof is unavailable.
+Any mismatch exits nonzero without changing R2.
+The Brotli proof compares the encoded bytes with the local `.br` file.
+
+Prepare separate wrong local files for the negative checks.
+For identity, use a different uncompressed file without a `.br` sibling.
+For Brotli, use a different original file and its matching valid `.br` sibling.
+Run the same commands with those local paths and the same remote keys.
+Both negative checks must fail and report mismatched facts.
+A malformed local Brotli pair fails local validation before the read-back and does not test the live proof.
+
 ## Skip unchanged data
 
 The default mode uploads and reads back every object, as before.

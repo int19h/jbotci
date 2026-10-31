@@ -355,21 +355,43 @@ pub(super) fn stored_byte_proof(
     if live.key != object.object_key {
         bail!("stored object key differs from the upload");
     }
-    let http = live
-        .http_metadata
-        .as_ref()
-        .context("missing stored HTTP metadata")?;
-    // R2 omits contentEncoding when unset. Within a present metadata object, absence means no encoding.
-    // That matches only an unencoded upload. Other missing proof fields remain errors.
-    if http.content_encoding.as_deref() == Some("")
-        || http.content_encoding.as_deref() != object.content_encoding
-    {
+    let encoding = live.stored_encoding()?;
+    if encoding != object.content_encoding {
         bail!("stored Content-Encoding differs from the upload");
     }
-    let size = live.size.context("missing stored size")?;
-    let etag = live.etag.as_deref().context("missing stored ETag")?;
-    let md5 = plain_md5(etag).context("stored ETag is not a plain 32-hex-digit MD5")?;
+    let size = live.stored_size()?;
+    let md5 = live.stored_md5()?;
     Ok(LocalProof { size, md5 })
+}
+
+impl LiveMetadata {
+    #[requires(true)]
+    #[ensures(ret.as_ref().map_or(true, |size| self.size == Some(*size)))]
+    pub(super) fn stored_size(&self) -> Result<u64> {
+        self.size.context("missing stored size")
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().map_or(true, |md5| self.etag.as_deref().and_then(plain_md5) == Some(*md5)))]
+    pub(super) fn stored_md5(&self) -> Result<[u8; 16]> {
+        let etag = self.etag.as_deref().context("missing stored ETag")?;
+        plain_md5(etag).context("stored ETag is not a plain 32-hex-digit MD5")
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().map_or(true, |encoding| *encoding != Some("")))]
+    pub(super) fn stored_encoding(&self) -> Result<Option<&str>> {
+        let http = self
+            .http_metadata
+            .as_ref()
+            .context("missing stored HTTP metadata")?;
+        // R2 omits contentEncoding when unset. A present metadata object then proves no stored encoding.
+        let encoding = http.content_encoding.as_deref();
+        if encoding == Some("") {
+            bail!("stored Content-Encoding is empty");
+        }
+        Ok(encoding)
+    }
 }
 
 #[requires(true)]

@@ -235,6 +235,7 @@ struct Cli {
 #[invariant(::F2LlmGoldenGate(..) => true)]
 #[invariant(::F2LlmWasmExportGate(..) => true)]
 #[invariant(::DistServer(..) => true)]
+#[invariant(::VerifyR2Object(..) => true)]
 #[invariant(::PublishWebEmbeddingsR2(..) => true)]
 #[invariant(::PublishF2LlmWebgpuR2(..) => true)]
 #[invariant(::PublishGgufEmbeddingsR2(..) => true)]
@@ -280,6 +281,8 @@ enum Command {
     #[command(name = "f2llm-wasm-export-gate")]
     F2LlmWasmExportGate(F2LlmWasmExportGateArgs),
     DistServer(DistServerArgs),
+    /// Compare one live R2 object with local files without changing R2.
+    VerifyR2Object(VerifyR2ObjectArgs),
     PublishWebEmbeddingsR2(PublishWebEmbeddingsR2Args),
     #[command(name = "publish-f2llm-webgpu-r2")]
     PublishF2LlmWebgpuR2(PublishF2LlmWebgpuR2Args),
@@ -903,6 +906,66 @@ struct DistServerArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct VerifyR2ObjectArgs {
+    #[arg(long)]
+    bucket: String,
+    #[arg(long)]
+    key: String,
+    /// Original local file. A valid .br sibling takes precedence, as in publication.
+    #[arg(long)]
+    file: PathBuf,
+    /// Require this exact .br sibling of the original file.
+    #[arg(long)]
+    brotli_file: Option<PathBuf>,
+}
+
+impl VerifyR2ObjectArgs {
+    #[requires(true)]
+    #[ensures(true)]
+    fn object(&self) -> Result<R2UploadObject> {
+        if self.bucket.trim().is_empty() || self.key.trim().is_empty() {
+            bail!("R2 bucket and key must not be empty");
+        }
+        let key = normalize_relative_object_key(&self.key)?;
+        let selected = select_r2_local_file(&self.file)?;
+        if let Some(required) = &self.brotli_file {
+            if selected.content_encoding != Some("br")
+                || required.canonicalize()? != selected.local_path.canonicalize()?
+            {
+                bail!("--brotli-file must name the valid .br sibling of --file");
+            }
+        }
+        let data!(R2LocalFile {
+            local_path,
+            content_encoding
+        }) = selected.into_data();
+        Ok(R2UploadObject::from_data(data!(R2UploadObject {
+            local_path: local_path,
+            object_key: key.clone(),
+            content_type: r2_content_type(&key),
+            content_encoding: content_encoding,
+            cache_control: r2_cache_control(&key),
+        })))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn verify_r2_object(args: VerifyR2ObjectArgs) -> Result<()> {
+    let object = args.object()?;
+    // This capability has no upload method. It uses the publisher's read-back proof directly.
+    let reader = r2_publish::Verifier::from_env()?;
+    reader.verify_existing(&args.bucket, &object, |facts| {
+        println!(
+            "{}",
+            serde_json::json!({"bucket": args.bucket.trim(), "key": object.object_key,
+            "file": object.local_path, "content_encoding": object.content_encoding, "facts": facts})
+        );
+    })
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct PublishWebEmbeddingsR2Args {
     #[command(flatten)]
     publication: r2_skip::Options,
@@ -1458,6 +1521,7 @@ fn main() -> Result<()> {
         Command::F2LlmGoldenGate(args) => f2llm_golden_gate(args),
         Command::F2LlmWasmExportGate(args) => f2llm_wasm_export_gate(args),
         Command::DistServer(args) => dist_server(args),
+        Command::VerifyR2Object(args) => verify_r2_object(args),
         Command::PublishWebEmbeddingsR2(args) => publish_web_embeddings_r2(args),
         Command::PublishF2LlmWebgpuR2(args) => publish_f2llm_webgpu_r2(args),
         Command::PublishGgufEmbeddingsR2(args) => publish_gguf_embeddings_r2(args),
@@ -5167,20 +5231,10 @@ fn r2_upload_object_for_key(
 ) -> Result<R2UploadObject> {
     let relative_key = normalize_relative_object_key(relative_key)?;
     let local_uncompressed = object_key_local_path(build_root, &relative_key)?;
-    if !local_uncompressed.is_file() {
-        bail!(
-            "web embedding upload object `{}` does not exist under `{}`",
-            relative_key,
-            build_root.display()
-        );
-    }
-    let brotli_path = brotli_sidecar_path(&local_uncompressed)?;
-    let (local_path, content_encoding) = if brotli_path.is_file() {
-        jbotci_embeddings::validate_brotli_sibling(&local_uncompressed)?;
-        (brotli_path, Some("br"))
-    } else {
-        (local_uncompressed, None)
-    };
+    let data!(R2LocalFile {
+        local_path,
+        content_encoding
+    }) = select_r2_local_file(&local_uncompressed)?.into_data();
     Ok(R2UploadObject::from_data(data!(R2UploadObject {
         local_path: local_path,
         content_type: r2_content_type(&relative_key),
@@ -5188,6 +5242,34 @@ fn r2_upload_object_for_key(
         cache_control: r2_cache_control(&relative_key),
         object_key: format!("{prefix}/{relative_key}"),
     })))
+}
+
+#[invariant(content_encoding.is_none() || *content_encoding == Some("br"))]
+struct R2LocalFile {
+    local_path: PathBuf,
+    content_encoding: Option<&'static str>,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().map_or(true, |selected| selected.content_encoding.is_some() || selected.local_path == original))]
+fn select_r2_local_file(original: &Path) -> Result<R2LocalFile> {
+    if !original.is_file() {
+        bail!(
+            "local R2 source file `{}` does not exist",
+            original.display()
+        );
+    }
+    let brotli = brotli_sidecar_path(original)?;
+    let (local_path, content_encoding) = if brotli.is_file() {
+        jbotci_embeddings::validate_brotli_sibling(original)?;
+        (brotli, Some("br"))
+    } else {
+        (original.to_path_buf(), None)
+    };
+    Ok(new!(R2LocalFile {
+        local_path: local_path,
+        content_encoding: content_encoding
+    }))
 }
 
 #[requires(!prefix.trim().is_empty())]
@@ -15403,6 +15485,46 @@ mod tests {
             let mut values = vec![0.0; self.dimensions];
             values[usize::from(sha256_hex(input.as_bytes()).as_bytes()[0]) % self.dimensions] = 1.0;
             Ok(jbotci_embeddings::QueryEmbedding { values })
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r2_read_only_command_parses_and_rejects_upload_flags() {
+        let cli = Cli::try_parse_from([
+            "xtask-full",
+            "verify-r2-object",
+            "--bucket",
+            "assets",
+            "--key",
+            "packs/items.json",
+            "--file",
+            "items.json",
+            "--brotli-file",
+            "items.json.br",
+        ])
+        .unwrap();
+        let Command::VerifyR2Object(args) = cli.command else {
+            panic!("wrong command")
+        };
+        assert_eq!(args.file, PathBuf::from("items.json"));
+        assert_eq!(args.brotli_file, Some(PathBuf::from("items.json.br")));
+        for flag in ["--force", "--remote", "--skip-unchanged", "--overwrite"] {
+            assert!(
+                Cli::try_parse_from([
+                    "xtask-full",
+                    "verify-r2-object",
+                    "--bucket",
+                    "assets",
+                    "--key",
+                    "x",
+                    "--file",
+                    "x",
+                    flag
+                ])
+                .is_err()
+            );
         }
     }
 
