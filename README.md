@@ -12,7 +12,7 @@ this README, the license, and the third-party notices.
 Verify the archive before extracting it. On Linux, for example:
 
 ```sh
-version=0.1.0 # replace with the release version you downloaded
+version=0.2.0 # replace with the release version you downloaded
 archive="jbotci-${version}-x86_64-unknown-linux-musl.tar.gz"
 grep -F "  ${archive}" SHA256SUMS | sha256sum --check -
 tar -xzf "${archive}"
@@ -37,6 +37,9 @@ cargo build --release --locked -p jbotci
 
 The executable is written to `target/release/jbotci` (or
 `target/release/jbotci.exe` on Windows).
+
+The CLI 0.2.0 release workflow uses Rust 1.99.1 for all five targets.
+The minimum supported Rust version remains 1.95.
 
 ## Screenshots
 

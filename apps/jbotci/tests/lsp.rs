@@ -253,6 +253,7 @@ fn initialize_with_options(
         params["initializationOptions"] = initialization_options;
     }
     let result = client.request("initialize", params);
+    assert_eq!(result["serverInfo"]["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(
         result["capabilities"]["positionEncoding"],
         position_encoding
