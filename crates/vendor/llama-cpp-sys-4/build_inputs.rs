@@ -1,5 +1,12 @@
 use std::path::Path;
 
+/// Track original headers, not files that this build script writes itself.
+pub fn emit_header_input(filename: &str, output: &Path) {
+    if !Path::new(filename).starts_with(output) {
+        println!("cargo:rerun-if-changed={filename}");
+    }
+}
+
 /// Replace copied inputs and native outputs whenever Cargo reruns the script.
 pub fn prepare_native_source(source: &Path, destination: &Path, cmake_output: &Path) {
     println!("cargo:rerun-if-changed={}", source.display());

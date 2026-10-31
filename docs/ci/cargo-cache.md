@@ -56,6 +56,9 @@ Each job also requires the checkout's tracked content to stay unchanged while it
 
 The native script declares the full C++ tree, patches, shim, wrapper, and build helper.
 Each native script rerun replaces copied sources and native outputs.
+Bindgen tracks original and system headers.
+It does not register headers under this run's `OUT_DIR` as external inputs.
+Those copied headers are outputs of the run, and their original tree and patches already supply the input records.
 The UI and server declare Git inputs for their build tags in local builds.
 Cached CI jobs supply `JBOTCI_GIT_COMMIT` for every Cargo call.
 The scripts then use that value without reading Git files.

@@ -321,12 +321,16 @@ class CargoCacheTests(unittest.TestCase):
         helper = (ROOT / "crates/vendor/llama-cpp-sys-4/build_inputs.rs").read_text()
         if not self.watch_native_tree:
             helper = helper.replace("source.display()", 'source.join("CMakeLists.txt").display()')
+        (self.repo / "external.h").write_text("// external header input\n")
         (self.repo / "build_inputs.rs").write_text(helper)
         (self.repo / "build.rs").write_text("""
 mod build_inputs;
 fn main() {
     let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
     build_inputs::prepare_native_source(std::path::Path::new("native"), &out.join("native"), &out);
+    build_inputs::emit_header_input(out.join("native/version.cpp").to_str().unwrap(), &out);
+    build_inputs::emit_header_input("external.h", &out);
+    std::fs::read("external.h").unwrap();
     assert!(std::process::Command::new("c++").args(["-c", "-o"]).arg(out.join("version.o"))
         .arg(out.join("native/version.cpp")).status().unwrap().success());
     assert!(std::process::Command::new("ar").arg("crs").arg(out.join("libversion.a"))
@@ -342,6 +346,8 @@ fn main() {
         self._run(["git", "commit", "-m", "Add native fixture for #951", "-m", COAUTHOR])
         self._build()
         self.assertEqual(self._binary(), "1")
+        fresh = self._run(["cargo", "build", "--offline", "--verbose", "--profile", self.profile, "-j", "8"])
+        self.assertIn("Fresh cache-audit", fresh.stderr)
         saved = self._snapshot()
         cpp.write_text('extern "C" int version() { return 2; }\n')
         self._run(["git", "commit", "-am", "Edit native source for #951", "-m", COAUTHOR])
@@ -351,6 +357,9 @@ fn main() {
         cpp.write_text('extern "C" int version() { return 3; }\n')
         self._run(["cargo", "build", "--offline", "--profile", self.profile, "-j", "8"])
         self.assertEqual(self._binary(), "3")
+        (self.repo / "external.h").write_text("// changed external header\n")
+        changed = self._run(["cargo", "build", "--offline", "--verbose", "--profile", self.profile, "-j", "8"])
+        self.assertIn("Compiling cache-audit", changed.stderr)
 
 
 

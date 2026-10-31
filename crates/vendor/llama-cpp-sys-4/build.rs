@@ -5,6 +5,26 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
+#[derive(Debug)]
+struct NativeInputCallbacks {
+    output: PathBuf,
+    cargo: bindgen::CargoCallbacks,
+}
+
+impl bindgen::callbacks::ParseCallbacks for NativeInputCallbacks {
+    fn header_file(&self, filename: &str) {
+        build_inputs::emit_header_input(filename, &self.output);
+    }
+
+    fn include_file(&self, filename: &str) {
+        build_inputs::emit_header_input(filename, &self.output);
+    }
+
+    fn read_env_var(&self, key: &str) {
+        bindgen::callbacks::ParseCallbacks::read_env_var(&self.cargo, key);
+    }
+}
+
 macro_rules! debug_log {
     ($($arg:tt)*) => {
         if std::env::var("BUILD_DEBUG").is_ok() {
@@ -1381,7 +1401,10 @@ fn main() {
             "-I{}",
             Path::new(&manifest_dir).join("mtp_shim").display()
         ))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(NativeInputCallbacks {
+            output: out_dir.clone(),
+            cargo: bindgen::CargoCallbacks::new(),
+        }))
         .derive_partialeq(true)
         // Do not derive PartialEq on types that contain function-pointer fields.
         // Deriving PartialEq on those triggers the
