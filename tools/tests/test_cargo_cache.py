@@ -401,6 +401,15 @@ fn main() {
             with self.assertRaisesRegex(cargo_inputs.InputError, "Cannot record the input contract.*unsupported dep-info"):
                 self._build()
 
+    def test_a_flag_name_in_an_undeclared_input_does_not_hide_its_read(self) -> None:
+        (self.repo / "O_DIRECTORY").write_text("undeclared input")
+        (self.repo / "build.rs").write_text(
+            'fn main() { println!("cargo:rerun-if-changed=build.rs"); '
+            'std::fs::read("O_DIRECTORY").unwrap(); }\n')
+        self._commit(Version.A)
+        with self.assertRaisesRegex(cargo_inputs.InputError, "Undeclared input.*O_DIRECTORY"):
+            self._build()
+
     def test_a_build_cannot_rewrite_tracked_inputs_even_with_the_same_bytes(self) -> None:
         (self.repo / "build.rs").write_text(
             'fn main() { println!("cargo:rerun-if-changed=build.rs"); '
