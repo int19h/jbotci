@@ -11,13 +11,14 @@ import onnxruntime as ort
 from transformers import AutoTokenizer
 
 
+ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v2"
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 RUNTIME = "jbotci-webgpu-f2llm"
-RUNTIME_VERSION = "0.2.0"
+RUNTIME_VERSION = "0.3.0"
 WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
-WASM_RUNTIME_VERSION = "0.2.0"
+WASM_RUNTIME_VERSION = "0.3.0"
 POOLING = "mean_normalized_windows"
-VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v1"
+VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v2"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
 DEFAULT_Q4_ONNX = (
@@ -41,16 +42,7 @@ def main() -> None:
     validate_manifest(manifest, corpus, args)
     pack_root = manifest_path.parent
 
-    tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else Path(args.q4_onnx).parent.parent
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
-    session_options = ort.SessionOptions()
-    if args.threads is not None:
-        session_options.intra_op_num_threads = args.threads
-    session = ort.InferenceSession(
-        str(args.q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
-    )
-
-    comparisons = []
+    loaded = []
     for corpus_manifest in manifest["corpora"]:
         corpus_id = corpus_manifest["corpus_id"]
         source_key, id_field, hash_field = CORPORA[corpus_id]
@@ -62,6 +54,20 @@ def main() -> None:
         items = read_json(items_path)
         vectors = read_vectors(vector_path, corpus_manifest["row_count"], args.dimensions)
         validate_corpus_manifest(corpus_manifest, docs, items, vectors, corpus[hash_field], id_field, args.dimensions)
+        loaded.append((corpus_manifest, docs, vectors))
+
+    tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else Path(args.q4_onnx).parent.parent
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
+    session_options = ort.SessionOptions()
+    if args.threads is not None:
+        session_options.intra_op_num_threads = args.threads
+    session = ort.InferenceSession(
+        str(args.q4_onnx), sess_options=session_options, providers=["CPUExecutionProvider"]
+    )
+
+    comparisons = []
+    for corpus_manifest, docs, vectors in loaded:
+        corpus_id = corpus_manifest["corpus_id"]
         for row in sample_rows(corpus_manifest["row_count"], args.sample_rows):
             expected = embed_texts([docs[row]["input"]], tokenizer, session, args.dimensions, args.max_sequence_length)[0]
             actual = vectors[row].astype(np.float32)
@@ -72,7 +78,7 @@ def main() -> None:
                 "row": row,
                 "cosine": cosine,
             })
-            if cosine < args.threshold:
+            if not np.isfinite(cosine) or cosine < args.threshold:
                 raise AssertionError(
                     f"{corpus_id} row {row} cosine {cosine:.6f} is below threshold {args.threshold:.6f}"
                 )
@@ -136,7 +142,9 @@ def catalog_vector_space(catalog: dict[str, object], model_key: str, vector_spac
 def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], args: argparse.Namespace) -> None:
     expected = {
         "schema_version": 1,
+        "artifact_version": ARTIFACT_VERSION,
         "model_key": args.model_key,
+        "vector_space_key": args.vector_space_key,
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["inputHash"],
         "max_sequence_length": args.max_sequence_length,
@@ -212,7 +220,9 @@ def read_vectors(path: Path, row_count: int, dimensions: int) -> np.ndarray:
     expected = row_count * dimensions * 2
     if len(data) != expected:
         raise AssertionError(f"{path} byte length mismatch: expected {expected}, got {len(data)}")
-    return np.frombuffer(data, dtype="<f2").reshape(row_count, dimensions)
+    vectors = np.frombuffer(data, dtype="<f2").reshape(row_count, dimensions)
+    validate_vectors(vectors, dimensions)
+    return vectors
 
 
 def embed_texts(
@@ -284,10 +294,21 @@ def last_token_pool(hidden: np.ndarray, attention_mask: np.ndarray) -> np.ndarra
     return hidden[rows, lengths - 1, :]
 
 
+def validate_vectors(values: np.ndarray, dimensions: int) -> np.ndarray:
+    if values.ndim != 2 or dimensions <= 0 or values.shape[1] != dimensions:
+        raise AssertionError("embedding dimensions differ")
+    finite_rows = np.isfinite(values).all(axis=1)
+    norms = np.linalg.norm(values.astype(np.float64), axis=1, keepdims=True)
+    valid = finite_rows & np.isfinite(norms[:, 0]) & (norms[:, 0] > 0)
+    invalid = np.flatnonzero(~valid)
+    if len(invalid):
+        raise AssertionError(f"invalid embedding row {int(invalid[0])}: components and norm must be finite, with a positive norm")
+    return norms
+
+
 def normalize(values: np.ndarray) -> np.ndarray:
-    norms = np.linalg.norm(values, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    return values / norms
+    norms = validate_vectors(values, values.shape[1])
+    return (values / norms).astype(np.float32)
 
 
 def mean_pool_normalized(window_vectors: list[np.ndarray], dimensions: int) -> np.ndarray:

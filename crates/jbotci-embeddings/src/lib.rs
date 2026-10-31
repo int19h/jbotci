@@ -10,7 +10,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{
+    contract_trait, data, ensures, expensive_invariant, expensive_requires, invariant, new,
+    requires,
+};
 use directories::ProjectDirs;
 use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaSearchWindow,
@@ -36,6 +39,7 @@ pub const EMBEDDING_INDEX_DIR_ENV: &str = "JBOTCI_EMBEDDING_INDEX_DIR";
 pub const EMBEDDING_MODEL_DIR_ENV: &str = "JBOTCI_EMBEDDING_MODEL_DIR";
 pub const HF_ENDPOINT_ENV: &str = "HF_ENDPOINT";
 pub const HF_TOKEN_ENV: &str = "HF_TOKEN";
+pub const F2LLM_NATIVE_VECTOR_SPACE_KEY: &str = "jbotci-native-f2llm-q4-k-m-windowed-2048-v2";
 pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
@@ -270,6 +274,32 @@ pub struct CorpusManifest {
     pub shards: Vec<VectorShardManifest>,
 }
 
+/// This identity names the native processing rules independently of corpus text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+#[invariant(true)]
+pub struct NativeVectorSpaceKey(String);
+
+#[requires(true)]
+#[ensures(ret.0 == F2LLM_NATIVE_VECTOR_SPACE_KEY)]
+fn native_vector_space_key() -> NativeVectorSpaceKey {
+    NativeVectorSpaceKey(F2LLM_NATIVE_VECTOR_SPACE_KEY.to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() == (key.0 == F2LLM_NATIVE_VECTOR_SPACE_KEY))]
+fn validate_native_vector_space(key: &NativeVectorSpaceKey) -> Result<(), EmbeddingError> {
+    if key.0 != F2LLM_NATIVE_VECTOR_SPACE_KEY {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "native vector space `{}` differs from `{F2LLM_NATIVE_VECTOR_SPACE_KEY}`. Rebuild with --force",
+                key.0
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// GGUF bytes also contain the effective tokenizer. These parameters complete
 /// the vector function together with the manifest's model and vector format.
 /// Backend versions and execution providers remain provenance only.
@@ -287,7 +317,8 @@ pub struct NativeVectorParameters {
 fn native_vector_parameters() -> NativeVectorParameters {
     new!(NativeVectorParameters {
         window_size: NATIVE_MAX_WINDOW_TOKENS,
-        window_scheme: "gguf-special-tokens-then-nonoverlapping-windows-v1".to_owned(),
+        window_scheme: "nfc-gguf-special-tokens-then-single-sequence-nonoverlapping-windows-v2"
+            .to_owned(),
         pooling: "token-weighted-mean-of-normalized-last-token-windows".to_owned(),
     })
 }
@@ -321,6 +352,7 @@ pub struct CorpusRowCounts {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct EmbeddingPackManifest {
+    pub vector_space: NativeVectorSpaceKey,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -372,6 +404,7 @@ struct EmbeddingBuildRow<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 struct NativePartialBuildCheckpoint {
+    vector_space: NativeVectorSpaceKey,
     schema_version: u32,
     source: String,
     pack_id: String,
@@ -437,6 +470,7 @@ struct LoadedCorpusCacheKey {
 #[invariant(row_count
     .checked_mul(*dimensions)
     .is_some_and(|expected| values.len() == expected))]
+#[expensive_invariant(values.chunks_exact(*dimensions).all(|row| validate_vector(row, *dimensions).is_ok()))]
 #[derive(Debug, Clone)]
 struct LoadedCorpus<T> {
     items: Vec<T>,
@@ -445,8 +479,8 @@ struct LoadedCorpus<T> {
     dimensions: usize,
 }
 
+#[invariant(score.is_finite())]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct VectorHit {
     pub row_index: usize,
     pub score: f32,
@@ -474,18 +508,6 @@ pub trait EmbeddingBackend {
     #[requires(!input.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|embedding| !embedding.values.is_empty()) || ret.is_err())]
     fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError>;
-
-    /// Embed several inputs, returning one embedding per input in order.
-    ///
-    /// Pack builds embed tens of thousands of short inputs, and a backend
-    /// that can process several of them in one model call does so here. The
-    /// default embeds them one at a time, so a backend without that ability
-    /// behaves exactly as before.
-    #[requires(inputs.iter().all(|input| !input.is_empty()))]
-    #[ensures(ret.as_ref().is_ok_and(|embeddings| embeddings.len() == inputs.len()) || ret.is_err())]
-    fn embed_batch(&mut self, inputs: &[&str]) -> Result<Vec<QueryEmbedding>, EmbeddingError> {
-        inputs.iter().map(|input| self.embed(input)).collect()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -852,14 +874,57 @@ fn sha256_hex_file_with_progress(
     Ok(lowercase_hex(hasher.finalize()))
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub fn normalize_vector(values: &mut [f32]) {
-    let magnitude = values.iter().map(|value| value * value).sum::<f32>().sqrt();
-    if magnitude > 0.0 {
-        for value in values {
-            *value /= magnitude;
+/// Return the norm only for a finite, nonzero vector of the expected dimension.
+#[requires(dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|norm| norm.is_finite() && *norm > 0.0) || ret.is_err())]
+pub fn validate_vector(values: &[f32], dimensions: usize) -> Result<f64, EmbeddingError> {
+    if values.len() != dimensions {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: dimensions,
+            actual: values.len(),
+        });
+    }
+    let mut squared_norm = 0.0_f64;
+    for &value in values {
+        if !value.is_finite() {
+            return Err(EmbeddingError::Backend {
+                message: "embedding contains a non-finite component".to_owned(),
+            });
         }
+        squared_norm += f64::from(value) * f64::from(value);
+    }
+    let norm = squared_norm.sqrt();
+    if !norm.is_finite() || norm <= 0.0 {
+        return Err(EmbeddingError::Backend {
+            message: "embedding norm must be finite and positive".to_owned(),
+        });
+    }
+    Ok(norm)
+}
+
+#[requires(dimensions > 0)]
+#[ensures(ret.is_err() || values.len() == dimensions)]
+pub fn normalize_vector(values: &mut [f32], dimensions: usize) -> Result<(), EmbeddingError> {
+    let norm = validate_vector(values, dimensions)?;
+    for value in values.iter_mut() {
+        *value = (f64::from(*value) / norm) as f32;
+    }
+    Ok(())
+}
+
+/// Native tokenization follows the pinned tokenizer's NFC rule.
+#[cfg(any(test, feature = "native-llama"))]
+#[requires(!input.is_empty())]
+#[ensures(true)]
+fn tokenize_native_input<T>(
+    input: &str,
+    tokenize: impl FnOnce(&str) -> Result<T, EmbeddingError>,
+) -> Result<T, EmbeddingError> {
+    use unicode_normalization::{UnicodeNormalization, is_nfc};
+    if is_nfc(input) {
+        tokenize(input)
+    } else {
+        tokenize(&input.nfc().collect::<String>())
     }
 }
 
@@ -874,20 +939,24 @@ pub fn dot_product(left: &[f32], right: &[f32]) -> f32 {
 
 #[requires(dimensions > 0)]
 #[requires(values.len() % dimensions == 0)]
-#[ensures(ret.len() <= row_count)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= row_count) || ret.is_err())]
 pub fn top_vector_hits(
     values: &[f32],
     dimensions: usize,
     query: &[f32],
     row_count: usize,
     limit: usize,
-) -> Vec<VectorHit> {
+) -> Result<Vec<VectorHit>, EmbeddingError> {
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
+    }
     top_vector_hits_by_row(values, dimensions, query, row_count, limit, |_| true)
 }
 
 #[requires(dimensions > 0)]
 #[requires(values.len() % dimensions == 0)]
-#[ensures(ret.len() <= row_count)]
+#[expensive_requires(values.chunks_exact(dimensions).all(|row| validate_vector(row, dimensions).is_ok()))]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= row_count) || ret.is_err())]
 fn top_vector_hits_by_row<F>(
     values: &[f32],
     dimensions: usize,
@@ -895,54 +964,40 @@ fn top_vector_hits_by_row<F>(
     row_count: usize,
     limit: usize,
     mut row_allowed: F,
-) -> Vec<VectorHit>
+) -> Result<Vec<VectorHit>, EmbeddingError>
 where
     F: FnMut(usize) -> bool,
 {
-    if query.len() != dimensions || limit == 0 {
-        return Vec::new();
-    }
+    validate_vector(query, dimensions)?;
     let effective_row_count = row_count.min(values.len() / dimensions);
-    let mut hits = if limit >= effective_row_count {
-        values
-            .chunks_exact(dimensions)
-            .take(effective_row_count)
-            .enumerate()
-            .filter(|(row_index, _)| row_allowed(*row_index))
-            .map(|(row_index, vector)| VectorHit {
-                row_index,
-                score: dot_product(vector, query),
-            })
-            .collect::<Vec<_>>()
-    } else {
-        let mut hits = Vec::with_capacity(limit);
-        for (row_index, vector) in values
-            .chunks_exact(dimensions)
-            .take(effective_row_count)
-            .enumerate()
-        {
-            if !row_allowed(row_index) {
-                continue;
-            }
-            let candidate = VectorHit {
-                row_index,
-                score: dot_product(vector, query),
-            };
-            if hits.len() < limit {
-                hits.push(candidate);
-                continue;
-            }
-            if let Some(worst_index) = worst_vector_hit_index(&hits)
-                && compare_vector_hits_best_first(&candidate, &hits[worst_index]) == Ordering::Less
-            {
-                hits[worst_index] = candidate;
-            }
+    let mut hits = Vec::with_capacity(limit.min(effective_row_count));
+    for (row_index, vector) in values
+        .chunks_exact(dimensions)
+        .take(effective_row_count)
+        .enumerate()
+    {
+        if !row_allowed(row_index) || limit == 0 {
+            continue;
         }
-        hits
-    };
+        let score = dot_product(vector, query);
+        if !score.is_finite() {
+            return Err(EmbeddingError::Backend {
+                message: "embedding similarity is not finite".to_owned(),
+            });
+        }
+        let candidate = new!(VectorHit { row_index, score });
+        if hits.len() < limit {
+            hits.push(candidate);
+            continue;
+        }
+        if let Some(worst_index) = worst_vector_hit_index(&hits)
+            && compare_vector_hits_best_first(&candidate, &hits[worst_index]) == Ordering::Less
+        {
+            hits[worst_index] = candidate;
+        }
+    }
     hits.sort_by(compare_vector_hits_best_first);
-    hits.truncate(limit);
-    hits
+    Ok(hits)
 }
 
 #[requires(true)]
@@ -951,7 +1006,7 @@ fn compare_vector_hits_best_first(left: &VectorHit, right: &VectorHit) -> Orderi
     right
         .score
         .partial_cmp(&left.score)
-        .unwrap_or(Ordering::Equal)
+        .expect("VectorHit requires finite scores")
         .then_with(|| left.row_index.cmp(&right.row_index))
 }
 
@@ -1224,6 +1279,9 @@ pub fn write_vector_shards(
     dimensions: usize,
     shard_target_bytes: NonZeroUsize,
 ) -> Result<Vec<VectorShardManifest>, EmbeddingError> {
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
+    }
     fs::create_dir_all(corpus_dir).map_err(|source| EmbeddingError::Io {
         context: format!("failed to create `{}`", corpus_dir.display()),
         source,
@@ -1278,6 +1336,9 @@ fn write_vector_chunk_file(
     values: &[f32],
     dimensions: usize,
 ) -> Result<VectorShardManifest, EmbeddingError> {
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
+    }
     fs::create_dir_all(corpus_dir).map_err(|source| EmbeddingError::Io {
         context: format!("failed to create `{}`", corpus_dir.display()),
         source,
@@ -1382,6 +1443,9 @@ pub fn read_vector_shards(
             ),
         });
     }
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
+    }
     Ok(values)
 }
 
@@ -1425,6 +1489,9 @@ fn read_native_partial_vector_shard(
                 shard.row_count * dimensions
             ),
         });
+    }
+    for row in values.chunks_exact(dimensions) {
+        validate_vector(row, dimensions)?;
     }
     Ok(values)
 }
@@ -1520,7 +1587,7 @@ pub fn deterministic_pack_id(
     let parameters = native_vector_parameters();
     let identity = sha256_hex_bytes(
         format!(
-            "{model_sha256}:{}:{}:{}",
+            "{F2LLM_NATIVE_VECTOR_SPACE_KEY}:{model_sha256}:{}:{}:{}",
             parameters.window_size, parameters.window_scheme, parameters.pooling
         )
         .as_bytes(),
@@ -1603,6 +1670,7 @@ fn initial_native_partial_checkpoint(
     cll_rows: usize,
 ) -> NativePartialBuildCheckpoint {
     NativePartialBuildCheckpoint {
+        vector_space: native_vector_space_key(),
         schema_version: NATIVE_PARTIAL_BUILD_SCHEMA_VERSION,
         source: NATIVE_PARTIAL_BUILD_SOURCE.to_owned(),
         pack_id: pack_id.to_owned(),
@@ -1694,7 +1762,8 @@ fn native_partial_header_matches(
     cll_fingerprint: &str,
     cll_rows: usize,
 ) -> bool {
-    checkpoint.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION
+    validate_native_vector_space(&checkpoint.vector_space).is_ok()
+        && checkpoint.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION
         && checkpoint.source == NATIVE_PARTIAL_BUILD_SOURCE
         && checkpoint.pack_id == pack_id
         && checkpoint.model_key == spec.model_key
@@ -2160,7 +2229,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
 
 /// Build with a source that already passed all reuse checks.
 /// Model bytes and vector format define identity. Backend versions and hardware
-/// are provenance: full builds also vary with batching, padding and query hosts.
+/// remain provenance. The identity records model bytes and processing rules.
 #[requires(spec.dimensions > 0)]
 #[requires(reusable_source.is_none() || model_sha256.as_deref() == Some(spec.native_sha256.as_str()))]
 #[requires(reusable_source.as_ref().is_none_or(|source| source.manifest.model_key == spec.model_key && source.manifest.model_revision == spec.model_revision && source.manifest.dimensions == spec.dimensions))]
@@ -2373,6 +2442,7 @@ pub fn build_embedding_pack_with_reuse<B: EmbeddingBackend>(
     ));
     let row_counts = vec![dictionary_counts, cll_counts];
     let manifest = EmbeddingPackManifest {
+        vector_space: native_vector_space_key(),
         model_sha256,
         build_provenance: Some(NativeBuildProvenance {
             llama_backend: if cfg!(feature = "metal") {
@@ -2639,42 +2709,17 @@ where
             continue;
         }
 
-        // Rows whose input already has a vector in the previous pack reuse it;
-        // the rest are embedded together, so a backend that batches can share
-        // model calls across the whole chunk. Progress therefore advances a
-        // chunk at a time (about a minute per chunk on a slow CPU), which the
-        // checkpoint granularity already implies.
-        let reused = chunk_rows
-            .iter()
-            .map(|row| reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions)))
-            .collect::<Vec<_>>();
-        let fresh_inputs = chunk_rows
-            .iter()
-            .zip(&reused)
-            .filter(|(_, reused)| reused.is_none())
-            .map(|(row, _)| row.input.as_str())
-            .collect::<Vec<_>>();
-        counts.embedded += fresh_inputs.len();
-        counts.reused += row_count - fresh_inputs.len();
-        let mut fresh = backend.embed_batch(&fresh_inputs)?.into_iter();
         let mut values = Vec::with_capacity(row_count * dimensions);
-        for reused in reused {
-            match reused {
-                Some(reusable) => values.extend_from_slice(reusable),
-                None => {
-                    let mut embedding = fresh
-                        .next()
-                        .expect("embed_batch returns one embedding per input")
-                        .values;
-                    if embedding.len() != dimensions {
-                        return Err(EmbeddingError::DimensionMismatch {
-                            expected: dimensions,
-                            actual: embedding.len(),
-                        });
-                    }
-                    normalize_vector(&mut embedding);
-                    values.extend_from_slice(&embedding);
-                }
+        for row in chunk_rows {
+            if let Some(reusable) =
+                reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions))
+            {
+                validate_vector(reusable, dimensions)?;
+                values.extend_from_slice(reusable);
+                counts.reused += 1;
+            } else {
+                values.extend(embed_for_dimensions(backend, &row.input, dimensions)?);
+                counts.embedded += 1;
             }
             *completed_rows = completed_rows.saturating_add(1);
             emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
@@ -3047,6 +3092,7 @@ fn validate_native_pack_manifest(
     cll_rows: usize,
     purpose: NativePackValidation,
 ) -> Result<(), EmbeddingError> {
+    validate_native_vector_space(&manifest.vector_space)?;
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
@@ -3074,7 +3120,7 @@ fn validate_native_pack_manifest(
     }
     match &manifest.vector_parameters {
         Some(parameters) if parameters != &native_vector_parameters() => return Err(EmbeddingError::InvalidIndex {
-            message: "embedding pack window or pooling differs. Rebuild with --force".to_owned(),
+            message: "embedding pack preprocessing, window, or pooling differs. Rebuild with --force".to_owned(),
         }),
         None if purpose != NativePackValidation::LegacyRows => return Err(EmbeddingError::InvalidIndex {
             message: "legacy pack requires --adopt-legacy-pack with --reuse-index-dir, or rebuild with --force".to_owned(),
@@ -3094,7 +3140,7 @@ fn validate_native_pack_manifest(
             ),
         });
     }
-    if purpose == NativePackValidation::CurrentCorpus
+    if purpose != NativePackValidation::ReusableRows
         && manifest.input_format_version != spec.input_format_version
     {
         return Err(EmbeddingError::InvalidIndex {
@@ -3296,6 +3342,7 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     let manifest_path = path.join("manifest.json");
     require_index_file(&manifest_path, "embedding pack manifest")?;
     let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
+    validate_native_vector_space(&manifest.vector_space)?;
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
@@ -3593,11 +3640,6 @@ where
         });
     }
     let values = read_vector_shards(pack_dir, corpus, dimensions)?;
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(EmbeddingError::InvalidIndex {
-            message: "reuse vectors must be finite".to_owned(),
-        });
-    }
     let mut rows_by_input_hash: HashMap<String, Vec<f32>> = HashMap::new();
     for (row_index, item) in items.iter().enumerate() {
         let hash = input_hash(item);
@@ -3774,6 +3816,17 @@ fn embed_query_for_dimensions<B: EmbeddingBackend>(
     query: &str,
     dimensions: usize,
 ) -> Result<Vec<f32>, EmbeddingError> {
+    embed_for_dimensions(backend, &build_retrieval_query_input(query), dimensions)
+}
+
+#[requires(dimensions > 0)]
+#[requires(!input.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|values| values.len() == dimensions) || ret.is_err())]
+fn embed_for_dimensions<B: EmbeddingBackend>(
+    backend: &mut B,
+    input: &str,
+    dimensions: usize,
+) -> Result<Vec<f32>, EmbeddingError> {
     let actual = backend.dimensions()?;
     if actual != dimensions {
         return Err(EmbeddingError::DimensionMismatch {
@@ -3781,14 +3834,8 @@ fn embed_query_for_dimensions<B: EmbeddingBackend>(
             actual,
         });
     }
-    let mut values = backend.embed(&build_retrieval_query_input(query))?.values;
-    if values.len() != dimensions {
-        return Err(EmbeddingError::DimensionMismatch {
-            expected: dimensions,
-            actual: values.len(),
-        });
-    }
-    normalize_vector(&mut values);
+    let mut values = backend.embed(input)?.values;
+    normalize_vector(&mut values, dimensions)?;
     Ok(values)
 }
 
@@ -3868,7 +3915,7 @@ where
                 .get(row_index)
                 .is_some_and(|item| entry_allowed(item.entry_index))
         },
-    );
+    )?;
     Ok(hits
         .into_iter()
         .filter_map(|hit| {
@@ -3965,7 +4012,7 @@ fn semantic_cukta_output_with_identity<B: EmbeddingBackend>(
                 .and_then(|item| chunks.get(item.chunk_index))
                 .is_some_and(|chunk| chunk_allowed(chunk, targets))
         },
-    );
+    )?;
     let mut matches = Vec::new();
     // Where in the whole ranking this hit sits, so a match names its place in
     // the results rather than its place on the page.
@@ -3990,6 +4037,7 @@ fn semantic_cukta_output_with_identity<B: EmbeddingBackend>(
             break;
         }
         matches.push(CllSearchMatch {
+            chunk_index: item.chunk_index,
             rank: ranked,
             similarity: Some(hit.score),
             chunk: chunk.clone(),
@@ -4215,7 +4263,7 @@ mod tests {
                 f32::from(byte) + index as f32
             })
             .collect::<Vec<_>>();
-        normalize_vector(&mut values);
+        normalize_vector(&mut values, dimensions).unwrap();
         values
     }
 
@@ -4264,6 +4312,266 @@ mod tests {
         EmbeddingModelSpec {
             dimensions: 4,
             ..EmbeddingModelSpec::default_f2llm()
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_tokenization_composes_query_and_document_inputs() {
+        for (composed, decomposed) in [
+            (
+                build_retrieval_query_input("café"),
+                build_retrieval_query_input("cafe\u{301}"),
+            ),
+            (
+                build_retrieval_document_input("café", "café"),
+                build_retrieval_document_input("cafe\u{301}", "cafe\u{301}"),
+            ),
+        ] {
+            let expected = tokenize_native_input(&composed, |input| {
+                assert!(std::ptr::eq(input.as_ptr(), composed.as_ptr()));
+                Ok(input.as_bytes().to_vec())
+            })
+            .unwrap();
+            let actual =
+                tokenize_native_input(&decomposed, |input| Ok(input.as_bytes().to_vec())).unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[contract_trait]
+    impl EmbeddingBackend for QueryEmbedding {
+        #[requires(true)]
+        #[ensures(ret.as_ref().is_ok_and(|dimensions| *dimensions > 0) || ret.is_err())]
+        fn dimensions(&self) -> Result<usize, EmbeddingError> {
+            if self.values.is_empty() {
+                return Err(EmbeddingError::Backend {
+                    message: "test vector is empty".to_owned(),
+                });
+            }
+            Ok(self.values.len())
+        }
+        #[requires(!input.is_empty())]
+        #[ensures(ret.as_ref().is_ok_and(|embedding| !embedding.values.is_empty()) || ret.is_err())]
+        fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
+            self.dimensions()?;
+            Ok(self.clone())
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_vectors_fail_inference_pack_loading_and_ranking() {
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..1];
+        let spec = test_embedding_spec();
+        for invalid in [vec![0.0; 4], vec![f32::NAN; 4], vec![f32::INFINITY; 4]] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut backend = QueryEmbedding {
+                values: invalid.clone(),
+            };
+            assert!(normalize_vector(&mut invalid.clone(), 4).is_err());
+            assert!(embed_for_dimensions(&mut backend, "document", 4).is_err());
+            assert!(embed_query_for_dimensions(&mut backend, "query", 4).is_err());
+            assert!(
+                build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false)
+                    .is_err()
+            );
+            assert!(top_vector_hits(&invalid, 4, &[1., 0., 0., 0.], 1, 1).is_err());
+            let path = dir.path().join("invalid.f32");
+            let bytes = invalid
+                .iter()
+                .flat_map(|v| v.to_le_bytes())
+                .collect::<Vec<_>>();
+            fs::write(&path, &bytes).unwrap();
+            let corpus = CorpusManifest {
+                corpus_id: CUKTA_CORPUS_ID.to_owned(),
+                input_format_version: spec.input_format_version.clone(),
+                fingerprint: "test".to_owned(),
+                row_count: 1,
+                dimensions: 4,
+                items_url: "items.json".to_owned(),
+                items_sha256: "unused".to_owned(),
+                shards: vec![VectorShardManifest {
+                    url: "invalid.f32".to_owned(),
+                    byte_len: bytes.len() as u64,
+                    sha256: sha256_hex_bytes(&bytes),
+                }],
+            };
+            assert!(read_vector_shards(dir.path(), &corpus, 4).is_err());
+        }
+        assert!(top_vector_hits(&[1., 0.], 2, &[1.], 1, 1).is_err());
+        assert!(top_vector_hits(&[f32::MAX, f32::MAX], 2, &[f32::MAX, f32::MAX], 1, 1).is_err());
+        let hits = top_vector_hits(&[0., 1.], 2, &[1., 0.], 1, 1).unwrap();
+        assert_eq!(hits[0].score, 0.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_hits_keep_distinct_indices_for_equal_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunk = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[0];
+        let chunks = vec![chunk.clone(), chunk.clone()];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            &chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let result = semantic_cukta_output_with_identity(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &chunks,
+            "grammar",
+            CuktaSearchWindow::first(2),
+            CuktaTargetFilter::default(),
+            dir.path(),
+            &spec,
+            &native_corpus_identity(&dictionary, &chunks),
+        )
+        .unwrap();
+        assert_eq!(
+            result
+                .matches
+                .iter()
+                .map(|hit| hit.chunk_index)
+                .collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert_eq!(result.matches[0].chunk, result.matches[1].chunk);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stale_native_vector_spaces_cannot_supply_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let dictionary = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
+        let chunks = &jbotci_cll::embedded_cll_site().unwrap().search_chunks[..2];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            &dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let (root, original) = read_latest_pack_manifest(dir.path(), &spec.model_key).unwrap();
+        let identity = native_corpus_identity(&dictionary, chunks);
+        load_pack_for_identity(dir.path(), &spec, &identity).unwrap();
+        validate_native_reuse_source(dir.path(), &spec).unwrap();
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+            let mut manifest = serde_json::to_value(&original).unwrap();
+            if let Some(key) = key {
+                manifest["vector_space"] = serde_json::json!(key);
+            } else {
+                manifest.as_object_mut().unwrap().remove("vector_space");
+            }
+            write_json_file(&root.join("manifest.json"), &manifest).unwrap();
+            assert!(load_pack_for_identity(dir.path(), &spec, &identity).is_err());
+            assert!(validate_pack_dir(&root).is_err());
+            for adopt in [false, true] {
+                assert!(
+                    validate_native_reuse_source_with_adoption(dir.path(), &spec, adopt).is_err()
+                );
+            }
+            assert!(
+                reuse_existing_embedding_pack_with_progress(
+                    &dictionary,
+                    chunks,
+                    dir.path(),
+                    &spec,
+                    &mut |_| {},
+                )
+                .is_err()
+            );
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            assert!(
+                build_embedding_pack(&mut backend, &dictionary, chunks, dir.path(), &spec, false,)
+                    .is_err()
+            );
+            assert_eq!(backend.calls, 0);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stale_native_vector_spaces_cannot_resume_checkpoints() {
+        let dir = tempfile::tempdir().unwrap();
+        let pack_root = native_work_pack_root(dir.path());
+        let spec = test_embedding_spec();
+        let checkpoint = initial_native_partial_checkpoint(
+            &spec,
+            Some(&spec.native_sha256),
+            "pack",
+            4,
+            "dictionary",
+            0,
+            "cll",
+            2,
+        );
+        let path = native_partial_checkpoint_path(dir.path());
+        write_native_partial_checkpoint(&path, &checkpoint).unwrap();
+        assert!(
+            load_compatible_native_partial_checkpoint(
+                dir.path(),
+                &pack_root,
+                &spec,
+                Some(&spec.native_sha256),
+                "pack",
+                4,
+                "dictionary",
+                0,
+                "cll",
+                2,
+            )
+            .is_some()
+        );
+        for key in [Some("jbotci-native-f2llm-q4-k-m-windowed-2048-v1"), None] {
+            let mut value = serde_json::to_value(&checkpoint).unwrap();
+            if let Some(key) = key {
+                value["vector_space"] = serde_json::json!(key);
+            } else {
+                value.as_object_mut().unwrap().remove("vector_space");
+            }
+            write_json_file(&path, &value).unwrap();
+            assert!(
+                load_compatible_native_partial_checkpoint(
+                    dir.path(),
+                    &pack_root,
+                    &spec,
+                    Some(&spec.native_sha256),
+                    "pack",
+                    4,
+                    "dictionary",
+                    0,
+                    "cll",
+                    2,
+                )
+                .is_none()
+            );
         }
     }
 
@@ -4766,6 +5074,7 @@ mod tests {
     #[ensures(ret.dimensions == 4)]
     fn sample_pack_manifest() -> EmbeddingPackManifest {
         EmbeddingPackManifest {
+            vector_space: native_vector_space_key(),
             model_sha256: None,
             build_provenance: None,
             legacy_adoption: None,
@@ -4932,13 +5241,13 @@ mod tests {
     #[ensures(true)]
     fn vectors_rank_by_dot_product_then_row_index() {
         let values = vec![1.0, 0.0, 0.8, 0.6, 1.0, 0.0];
-        let hits = top_vector_hits(&values, 2, &[1.0, 0.0], 3, 3);
+        let hits = top_vector_hits(&values, 2, &[1.0, 0.0], 3, 3).unwrap();
         assert_eq!(
             hits.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
             [0, 2, 1]
         );
 
-        let limited_hits = top_vector_hits(&values, 2, &[1.0, 0.0], 3, 2);
+        let limited_hits = top_vector_hits(&values, 2, &[1.0, 0.0], 3, 2).unwrap();
         assert_eq!(
             limited_hits
                 .iter()
@@ -4954,7 +5263,8 @@ mod tests {
     fn filtered_vectors_rank_before_allocating_full_result_set() {
         let values = vec![1.0, 0.0, 0.7, 0.0, 0.9, 0.0, 0.8, 0.0];
         let hits =
-            top_vector_hits_by_row(&values, 2, &[1.0, 0.0], 4, 2, |row_index| row_index != 0);
+            top_vector_hits_by_row(&values, 2, &[1.0, 0.0], 4, 2, |row_index| row_index != 0)
+                .unwrap();
         assert_eq!(
             hits.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
             [2, 3]
@@ -6141,7 +6451,7 @@ mod tests {
             let values = (0..entries.len())
                 .map(|row| (entries.len() - row) as f32)
                 .collect::<Vec<_>>();
-            let unfiltered = top_vector_hits(&values, 1, &[1.0], entries.len(), window);
+            let unfiltered = top_vector_hits(&values, 1, &[1.0], entries.len(), window).unwrap();
             assert!(
                 unfiltered
                     .iter()
@@ -6153,7 +6463,8 @@ mod tests {
             let filtered =
                 top_vector_hits_by_row(&values, 1, &[1.0], entries.len(), window, |row| {
                     dictionary_entry_passes_vlacku_entry_filters(entries[row], &options)
-                });
+                })
+                .unwrap();
             assert_eq!(
                 filtered.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
                 (window..2 * window).collect::<Vec<_>>()
@@ -6599,7 +6910,7 @@ mod tests {
     fn native_parameters_keep_the_wire_shape_and_reject_invalid_records() {
         let expected = serde_json::json!({
             "window_size": 2048,
-            "window_scheme": "gguf-special-tokens-then-nonoverlapping-windows-v1",
+            "window_scheme": "nfc-gguf-special-tokens-then-single-sequence-nonoverlapping-windows-v2",
             "pooling": "token-weighted-mean-of-normalized-last-token-windows",
         });
         assert_eq!(

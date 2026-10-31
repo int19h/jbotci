@@ -110,7 +110,7 @@ const GGUF_MODEL_KEYS: &[&str] = &[
     GGUF_DEFAULT_MODEL_KEY,
     GGUF_0_6B_MODEL_KEY,
 ];
-const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
+const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v2";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
 const DEFAULT_WIKI_SOURCE_URL: &str = "https://mw.lojban.org";
@@ -134,6 +134,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "80m",
         model_key: F2LLM_80M_MODEL_KEY,
         model_id: F2LLM_80M_MODEL_ID,
+        model_revision: "f4a16a11c9f5c8c7e22694653de6ce75430f4538",
         q4_onnx_relative: F2LLM_80M_Q4_ONNX_RELATIVE,
         dimensions: F2LLM_80M_DIMENSIONS,
         parameters_millions: 80,
@@ -145,6 +146,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "160m",
         model_key: F2LLM_160M_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-160M",
+        model_revision: "60229594f9498ae44c553f1f8cebf32559bc8577",
         q4_onnx_relative: "f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 640,
         parameters_millions: 160,
@@ -156,6 +158,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "330m",
         model_key: F2LLM_330M_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-330M",
+        model_revision: "e76f54804b54782f5bed93c09f63201e38a1a99b",
         q4_onnx_relative: "f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 896,
         parameters_millions: 330,
@@ -167,6 +170,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "0.6b",
         model_key: F2LLM_0_6B_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-0.6B",
+        model_revision: "2b4159091278275a3b00d2c39095754d59d7d7de",
         q4_onnx_relative: "f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 1024,
         parameters_millions: 600,
@@ -183,6 +187,7 @@ struct F2LlmAssetSpec {
     id: &'static str,
     model_key: &'static str,
     model_id: &'static str,
+    model_revision: &'static str,
     q4_onnx_relative: &'static str,
     dimensions: usize,
     /// Model size in millions of parameters. The parallel vector build starts
@@ -640,6 +645,8 @@ struct BuildF2LlmWebgpuModelArgs {
     #[arg(long, default_value = F2LLM_80M_MODEL_ID)]
     model_id: String,
     #[arg(long)]
+    source_revision: Option<String>,
+    #[arg(long)]
     model_root: Option<PathBuf>,
     #[arg(
         long,
@@ -764,6 +771,8 @@ struct BuildF2LlmWebgpuVectorsArgs {
     model_id: String,
     #[arg(long, default_value_t = F2LLM_80M_DIMENSIONS)]
     dimensions: usize,
+    #[arg(long)]
+    revision: Option<String>,
     #[arg(long)]
     include_wasm_runtime: bool,
     #[arg(long)]
@@ -2657,6 +2666,11 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
         .arg(&args.model_key)
         .arg("--source-model")
         .arg(&args.model_id)
+        .arg("--source-revision")
+        .arg(f2llm_source_revision(
+            &args.model_key,
+            args.source_revision.as_deref(),
+        )?)
         .arg("--out")
         .arg(&out_dir)
         .arg("--shard-size")
@@ -2708,6 +2722,7 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.batch_size,
         &args.model_key,
         &args.model_id,
+        args.revision.as_deref(),
         args.dimensions,
         args.include_wasm_runtime,
         existing_output,
@@ -4121,6 +4136,26 @@ fn resolve_f2llm_spec_q4_onnx(
 }
 
 #[requires(!model_key.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|revision| !revision.is_empty()) || ret.is_err())]
+fn f2llm_source_revision<'a>(model_key: &str, explicit: Option<&'a str>) -> Result<&'a str> {
+    if let Some(revision) = explicit {
+        if revision.trim().is_empty() {
+            bail!("source revision must not be empty");
+        }
+        return Ok(revision);
+    }
+    F2LLM_MODEL_SPECS
+        .iter()
+        .find(|spec| spec.model_key == model_key)
+        .map(|spec| spec.model_revision)
+        .with_context(|| {
+            format!(
+                "no pinned source revision for F2LLM model `{model_key}`; pass an explicit revision"
+            )
+        })
+}
+
+#[requires(!model_key.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
 fn resolve_f2llm_q4_onnx(
     q4_onnx: Option<&Path>,
@@ -4234,6 +4269,7 @@ fn build_all_f2llm_webgpu_assets(
             f2llm_artifact_root: None,
             model_key: spec.model_key.to_owned(),
             model_id: spec.model_id.to_owned(),
+            source_revision: Some(spec.model_revision.to_owned()),
             model_root: None,
             out_dir: f2llm_model_artifact_out_dir(&model_stage, spec),
             stage: None,
@@ -4269,6 +4305,7 @@ fn build_all_f2llm_webgpu_assets(
             batch_size,
             spec.model_key,
             spec.model_id,
+            Some(spec.model_revision),
             spec.dimensions,
             spec.include_wasm_runtime,
             // Completed intermediate parts can coexist with unfinished models.
@@ -4533,9 +4570,10 @@ fn build_f2llm_onnx_fallback_asset(
         &serde_json::json!({
             "schema_version": 1,
             "runtime": "jbotci-onnxruntime-web-f2llm",
-            "artifact_version": "0.2.0",
+            "artifact_version": "0.3.0",
             "model_key": spec.model_key,
             "source_model": spec.model_id,
+            "source_revision": spec.model_revision,
             "model_url": "model_q4.onnx",
             "model_byte_length": bytes.len(),
             "model_sha256": sha256_hex(&bytes),
@@ -4569,6 +4607,7 @@ fn run_f2llm_vector_builder(
     batch_size: usize,
     model_key: &str,
     model_id: &str,
+    revision: Option<&str>,
     dimensions: usize,
     include_wasm_runtime: bool,
     existing_output: ExistingOutput,
@@ -4595,6 +4634,8 @@ fn run_f2llm_vector_builder(
         .arg(model_key)
         .arg("--model-id")
         .arg(model_id)
+        .arg("--revision")
+        .arg(f2llm_source_revision(model_key, revision)?)
         .arg("--dimensions")
         .arg(dimensions.to_string())
         .arg("--vector-space-key")
@@ -15353,6 +15394,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn source_revisions_are_explicit_for_registered_and_custom_models() {
+        for spec in F2LLM_MODEL_SPECS {
+            assert_eq!(
+                f2llm_source_revision(spec.model_key, None).unwrap(),
+                spec.model_revision
+            );
+            assert_eq!(spec.model_revision.len(), 40);
+        }
+        assert!(f2llm_source_revision("custom-model", None).is_err());
+        assert_eq!(
+            f2llm_source_revision("custom-model", Some("custom-revision")).unwrap(),
+            "custom-revision"
+        );
+        assert!(f2llm_source_revision("custom-model", Some(" ")).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn native_xtask_keeps_setup_checkpoint_and_promotes_only_success() {
         let root = std::env::temp_dir().join(format!("native-xtask-resume-{}", std::process::id()));
         remove_path_if_exists(&root).unwrap();
@@ -15578,8 +15638,10 @@ root = Path(__file__).parent
 args = sys.argv[1:]
 def value(flag): return args[args.index(flag) + 1]
 if 'export-webgpu-from-onnx-q4.py' in args[0]:
+    assert len(value('--source-revision')) == 40
     Path(value('--out')).mkdir(parents=True, exist_ok=True)
 elif 'build-vector-pack.py' in args[0]:
+    assert len(value('--revision')) == 40
     assert '--keep-work' in args
     out = Path(value('--out'))
     work = Path(str(out) + '.partial')

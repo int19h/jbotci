@@ -209,6 +209,12 @@ Use separate source, scratch index, and output directories.
 
 Native reuse requires matching GGUF bytes, model identity, window size and scheme, pooling, dimensions, and normalized f32le dot-product vectors.
 The native manifest records the GGUF SHA-256, window and pooling parameters, and build provenance.
+Native manifests and checkpoints also require the `vector_space` field.
+Its current value is `jbotci-native-f2llm-q4-k-m-windowed-2048-v2`, from `F2LLM_NATIVE_VECTOR_SPACE_KEY`.
+This key names the native vector function, including NFC and single-sequence inference.
+Search, row reuse, and checkpoint resume require this exact key. Missing keys are stale, even with legacy adoption.
+The pack ID includes this key. The corpus input format describes rendered text and stays at `v0`.
+The corpus fingerprints therefore stay unchanged when only the vector function changes.
 Changes to the llama backend or llama.cpp version do not block reuse for packs that record the GGUF hash.
 Legacy adoption also requires the recorded runtime name to match.
 Runtime version changes do not block reuse or resume.

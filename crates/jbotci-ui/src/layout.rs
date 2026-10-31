@@ -2943,15 +2943,11 @@ pub(super) fn native_embedding_cukta_search_json(
         .matches
         .into_iter()
         .map(|hit| {
-            let chunk_index = chunks
-                .iter()
-                .position(|chunk| chunk == &hit.chunk)
-                .ok_or_else(|| "native CLL semantic search returned an unknown chunk".to_owned())?;
             let score = hit.similarity.ok_or_else(|| {
                 "native CLL semantic search returned a hit without similarity".to_owned()
             })?;
             Ok(serde_json::json!({
-                "id": chunk_index,
+                "id": hit.chunk_index,
                 "score": score,
             }))
         })
