@@ -34,7 +34,6 @@ class CargoCacheTests(unittest.TestCase):
         self.case = Path(temporary.name)
         self.repo = self.case / "source"
         self.repo.mkdir()
-        self.origin = self.case / "origin.git"
         identity = uuid4().hex
         # An owned profile isolates snapshots without another Cargo target directory.
         self.profile = f"cache-{identity}"
@@ -50,14 +49,9 @@ class CargoCacheTests(unittest.TestCase):
             GIT_CONFIG_GLOBAL=str(global_config),
             GIT_CONFIG_NOSYSTEM="1",
         )
-        self._run(
-            ["git", "init", "--bare", "--initial-branch=main", "--object-format=sha1", str(self.origin)],
-            cwd=self.case,
-        )
         self._run(["git", "init", "--initial-branch=main", "--object-format=sha1"])
         self._run(["git", "config", "user.name", "Cache regression"])
         self._run(["git", "config", "user.email", "cache-regression@example.invalid"])
-        self._run(["git", "remote", "add", "origin", str(self.origin)])
         (self.repo / "src").mkdir()
         (self.repo / "Cargo.toml").write_text(
             '[package]\nname = "cache-audit"\nversion = "0.1.0"\nedition = "2021"\n'
@@ -67,17 +61,11 @@ class CargoCacheTests(unittest.TestCase):
         self._write_source(Version.A)
         self._run(["cargo", "generate-lockfile", "--offline"])
 
-    def _run(
-        self,
-        arguments: list[str],
-        *,
-        cwd: Path | None = None,
-        extra_env: dict[str, str] | None = None,
-    ) -> subprocess.CompletedProcess[str]:
+    def _run(self, arguments: list[str]) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             arguments,
-            cwd=cwd or self.repo,
-            env=self.env | (extra_env or {}),
+            cwd=self.repo,
+            env=self.env,
             capture_output=True,
             text=True,
         )
@@ -96,7 +84,6 @@ class CargoCacheTests(unittest.TestCase):
         self._run(["git", "add", "."])
         self._run(["git", "commit", "-m", f"Build {version.value} for #951", "-m", COAUTHOR])
         commit = self._run(["git", "rev-parse", "HEAD"]).stdout.strip()
-        self._run(["git", "push", "origin", "HEAD:refs/heads/main"])
         return commit
 
     def _build(self, *selection: str) -> str:
