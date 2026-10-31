@@ -68,8 +68,6 @@ jobs:
     container:
       image: ${{ needs.build-image.outputs.image }}
     env:
-      CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
-      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
       CARGO_INCREMENTAL: "0"
       JBOTCI_GIT_COMMIT: ${{ github.sha }}
       JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
@@ -83,6 +81,15 @@ jobs:
         shell: bash
         run: printf 'JBOTCI_INPUT_SESSION=%s/cargo-inputs\n' "${RUNNER_TEMP}" >> "${GITHUB_ENV}"
 
+      - name: Set container build paths
+        shell: bash
+        run: |
+          {
+            printf 'CARGO_HOME=%s/.github-cache/cargo\n' "${GITHUB_WORKSPACE}"
+            printf 'CARGO_TARGET_DIR=%s/.github-cache/cargo-target/test\n' "${GITHUB_WORKSPACE}"
+            printf 'GIT_CONFIG_GLOBAL=%s/jbotci-gitconfig\n' "${RUNNER_TEMP}"
+          } >> "${GITHUB_ENV}"
+
       - name: Install build dependencies
         run: |
           apt-get update
@@ -93,6 +100,19 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      - name: Trust the checked-out repositories
+        shell: bash
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}/vendor/cll"
+          git -C "${GITHUB_WORKSPACE}" ls-files --recurse-submodules -z > /dev/null
+          for repository in "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/vendor/cll"; do
+            git -C "${repository}" rev-parse --verify HEAD
+            git -C "${repository}" rev-parse --git-path HEAD
+            git -C "${repository}" rev-parse --git-common-dir
+            git -C "${repository}" config --show-origin --list > /dev/null
+          done
 
       - name: Install Node.js
         uses: actions/setup-node@v6

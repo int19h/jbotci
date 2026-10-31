@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -72,6 +73,67 @@ class CiWorkflowSplitTests(unittest.TestCase):
                         environment_file.read_text(),
                         f"JBOTCI_INPUT_SESSION={runner_temp}/cargo-inputs\n",
                     )
+
+    def test_cached_container_paths_follow_runtime_workspace(self) -> None:
+        for workflow, lane in ((self.test_workflow, "test"), (self.render_workflow, "deploy")):
+            with self.subTest(lane=lane), tempfile.TemporaryDirectory() as temporary:
+                step = workflow.split("      - name: Set container build paths\n", 1)[1].split("\n      - name:", 1)[0]
+                command = textwrap.dedent(step.split("        run: |\n", 1)[1])
+                workspace = Path(temporary) / "container workspace"
+                environment_file = Path(temporary) / "github-env"
+                subprocess.run(
+                    ["bash", "-e", "-c", command],
+                    env={**os.environ, "GITHUB_WORKSPACE": str(workspace), "RUNNER_TEMP": temporary,
+                         "GITHUB_ENV": str(environment_file)},
+                    check=True,
+                )
+                exported = dict(line.split("=", 1) for line in environment_file.read_text().splitlines())
+                self.assertEqual(exported["CARGO_HOME"], str(workspace / ".github-cache/cargo"))
+                self.assertEqual(exported["CARGO_TARGET_DIR"], str(workspace / f".github-cache/cargo-target/{lane}"))
+                self.assertEqual(exported["GIT_CONFIG_GLOBAL"], str(Path(temporary) / "jbotci-gitconfig"))
+                if lane == "deploy":
+                    self.assertEqual(exported["DIOXUS_HOME"], str(workspace / ".github-cache/home"))
+                    self.assertEqual(exported["DIOXUS_CLI_ROOT"], str(workspace / ".github-cache/dioxus-cli/0.7.9"))
+
+    def test_git_trust_covers_checkout_and_submodule_after_home_change(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkout = root / "checkout with spaces"
+            source = root / "submodule-source"
+            environment = {**os.environ, "GIT_CONFIG_GLOBAL": str(root / "gitconfig"), "GIT_CONFIG_NOSYSTEM": "1"}
+            for repository in (source, checkout):
+                subprocess.run(["git", "init", "-q", str(repository)], env=environment, check=True)
+                (repository / "input").write_text("tracked input")
+                subprocess.run(["git", "-C", str(repository), "add", "input"], env=environment, check=True)
+                subprocess.run(
+                    ["git", "-C", str(repository), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                     "commit", "-qm", "fixture"], env=environment, check=True,
+                )
+            subprocess.run(
+                ["git", "-C", str(checkout), "-c", "protocol.file.allow=always", "submodule", "add", "-q",
+                 str(source), "vendor/cll"], env=environment, check=True,
+            )
+            environment.update({"GIT_TEST_ASSUME_DIFFERENT_OWNER": "1", "GITHUB_WORKSPACE": str(checkout)})
+            rejected = subprocess.run(
+                ["git", "-C", str(checkout), "ls-files", "--recurse-submodules"], env=environment,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("dubious ownership", rejected.stderr)
+            for workflow in (self.test_workflow, self.render_workflow):
+                step_name = "      - name: Trust the checked-out repositories\n"
+                self.assertLess(workflow.index(step_name), workflow.index("tools.cargo_inputs begin"))
+                step = workflow.split(step_name, 1)[1].split("\n      - name:", 1)[0]
+                command = textwrap.dedent(step.split("        run: |\n", 1)[1])
+                subprocess.run(["bash", "-e", "-c", command], env=environment, capture_output=True, check=True)
+            changed_home = {**environment, "HOME": str(root / "other-home")}
+            subprocess.run(
+                ["git", "-C", str(checkout), "ls-files", "--recurse-submodules"],
+                env=changed_home, capture_output=True, check=True,
+            )
+            trusted = subprocess.check_output(["git", "config", "--global", "--get-all", "safe.directory"],
+                                              env=changed_home, text=True).splitlines()
+            self.assertEqual(set(trusted), {str(checkout), str(checkout / "vendor/cll")})
 
     def test_pr_workflow_keeps_regular_tests_without_deployment_gates(self) -> None:
         self.assertIn("CARGO_BUILD_JOBS: 1", self.test_workflow)

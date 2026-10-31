@@ -9,6 +9,10 @@ The CLI release workflow never restores a target cache.
 Both cached jobs export `JBOTCI_INPUT_SESSION` through `GITHUB_ENV` before their first Cargo step.
 Every later step receives the session path under `RUNNER_TEMP`.
 The job environment does not use the unavailable `runner` context.
+Cargo paths use the container's runtime `GITHUB_WORKSPACE`, which also contains the cache action paths.
+One `GIT_CONFIG_GLOBAL` file under `RUNNER_TEMP` keeps Git trust unchanged when Render changes `HOME`.
+It trusts only the exact checkout and `vendor/cll` paths.
+The trust step exercises recursive file listing and Git metadata reads before Cargo work.
 
 The CLI release tooling job installs actionlint 1.7.12 and compares the archive with its pinned SHA-256 before extraction.
 It runs actionlint on every workflow with ShellCheck enabled.
