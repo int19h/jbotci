@@ -22,6 +22,9 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
+      - name: Install input tracing
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends strace
+
       - name: Run release tooling tests
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache
@@ -50,6 +53,7 @@ jobs:
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
       CARGO_INCREMENTAL: "0"
+      JBOTCI_GIT_COMMIT: ${{ github.sha }}
       JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
       JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       NODE_VERSION: 24.14.0
@@ -128,7 +132,7 @@ jobs:
         run: python3 -m tools.cargo_inputs save
 
       - name: Save cargo home cache
-        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        if: ${{ success() && github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: .github-cache/cargo

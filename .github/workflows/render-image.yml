@@ -41,6 +41,7 @@ jobs:
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/deploy
       CARGO_INCREMENTAL: "0"
+      JBOTCI_GIT_COMMIT: ${{ github.sha }}
       JBOTCI_INPUT_SESSION: ${{ runner.temp }}/cargo-inputs
       JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       DIOXUS_HOME: ${{ github.workspace }}/.github-cache/home

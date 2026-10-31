@@ -103,6 +103,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
             self.assertIn("image: ${{ needs.build-image.outputs.image }}", workflow)
             self.assertIn("tools.cargo_cache_identity identity", workflow)
             self.assertIn("python3 strace zstd", workflow)
+            self.assertIn("      JBOTCI_GIT_COMMIT: ${{ github.sha }}", workflow)
         self.assertNotIn(".github-cache/home/.dx", self.render_workflow)
         release = REPOSITORY_ROOT / ".github/workflows/prepare-cli-release.yml"
         self.assertNotIn("actions/cache", release.read_text())

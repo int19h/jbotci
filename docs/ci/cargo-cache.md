@@ -28,6 +28,8 @@ A script without a file declaration uses its whole package directory, without Gi
 Records also bind dependency records by SHA-256.
 An unbuilt consumer cannot acquire a new dependency record after another unit rebuilds.
 Dependency changes invalidate every affected variant, including variants that the current job does not select.
+If several profiles share the same Cargo fingerprint, the record binds every match.
+This conservative dependency set avoids a guess about the producing profile.
 
 Each record has a format version and an integrity hash.
 Workspace input paths are relative to the checkout.
@@ -40,10 +42,13 @@ It never invalidates changed content through a comparison between two runners' c
 There is no source commit stamp.
 
 CI traces its existing builds rather than adding another cold build.
-`strace -f` follows build scripts, compiler processes, and nested Cargo or dx commands.
+`strace -f --seccomp-bpf` follows build scripts, compiler processes, and nested Cargo or dx commands.
+The kernel filter stops the tracer only for the requested system calls.
+It avoids tracing every read, write, and memory mapping during compilation and linking.
 The check compares repository file reads with each unit's declared input set.
 It excludes test execution, immutable registry source, system files, and owned target output from this contract.
 A deliberate undeclared read fails the regression fixture.
+An unreadable input record for a workspace or vendored unit fails the contract check.
 The trace parser retains only file paths and unit metadata.
 It never stores raw command arguments or the full environment.
 An abbreviated or incomplete trace rejects the check.
@@ -51,7 +56,10 @@ Each job also requires the checkout's tracked content to stay unchanged while it
 
 The native script declares the full C++ tree, patches, shim, wrapper, and build helper.
 Each native script rerun replaces copied sources and native outputs.
-The UI and server declare Git inputs for their build tags.
+The UI and server declare Git inputs for their build tags in local builds.
+Cached CI jobs supply `JBOTCI_GIT_COMMIT` for every Cargo call.
+The scripts then use that value without reading Git files.
+Per-job checkout credentials therefore do not invalidate otherwise unchanged units.
 The dictionary and CLL scripts declare their source data and edition metadata.
 The contract scanner declares the source trees that it scans.
 `option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL")` already appears in rustc's environment dependencies.

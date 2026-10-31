@@ -60,6 +60,14 @@ class Layout:
     target: Path
     profiles: tuple[Path, ...] | None = None
 
+    def __post_init__(self) -> None:
+        if not self.workspace.is_absolute() or not self.target.is_absolute():
+            raise InputError("Workspace and target paths must be absolute")
+        if self.workspace.is_relative_to(self.target):
+            raise InputError("The target directory must not contain the checkout")
+        if self.profiles and any(not path.is_relative_to(self.target) or path == self.target for path in self.profiles):
+            raise InputError("Each selected profile must stay inside the target directory")
+
     def path_key(self, path: Path) -> str:
         path = Path(os.path.abspath(path))
         cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")).absolute()
@@ -143,11 +151,12 @@ def dependency_keys(unit: Unit, units: dict[str, Unit]) -> tuple[str, ...]:
     result: set[str] = set()
     for dependency in unit.metadata["deps"]:
         candidates = [other for other in units.values() if other.cargo_hash == dependency[3]]
-        same_profile = [other for other in candidates if other.profile == unit.profile]
-        candidates = same_profile or candidates
-        if len(candidates) != 1:
-            raise InputError(f"A dependency of {unit.key} does not identify one unit")
-        result.add(candidates[0].key)
+        if not candidates:
+            raise InputError(f"A dependency of {unit.key} has no unit record")
+        # Cargo can share a fingerprint across profiles. Bind every match rather
+        # than guess which profile produced the dependency. Extra edges only
+        # invalidate more units; they cannot hide a changed dependency.
+        result.update(candidate.key for candidate in candidates)
     return tuple(sorted(result))
 
 
@@ -248,6 +257,7 @@ def file_snapshot(path: Path, cache: dict[Path, dict] | None = None) -> dict:
 def expand_directory(path: Path, target: Path) -> list[Path]:
     files: list[Path] = []
     visited: set[Path] = set()
+    skip_target = not path.resolve().is_relative_to(target)
 
     def walk(directory: Path) -> None:
         real = directory.resolve()
@@ -255,7 +265,7 @@ def expand_directory(path: Path, target: Path) -> list[Path]:
             raise InputError("A declared input directory contains a symlink cycle")
         visited.add(real)
         for child in sorted(directory.iterdir()):
-            if child.name == ".git" or child.resolve().is_relative_to(target):
+            if child.name == ".git" or (skip_target and child.resolve().is_relative_to(target)):
                 continue
             if child.is_dir():
                 walk(child)
@@ -273,6 +283,7 @@ def directory_snapshot(layout: Layout, root: Path) -> dict:
     # Include empty directories and directory symlinks, not only regular files.
     entries: dict[str, str | None] = {}
     visited: set[Path] = set()
+    skip_target = not root.resolve().is_relative_to(layout.target)
 
     def walk(path: Path) -> None:
         real = path.resolve()
@@ -281,7 +292,7 @@ def directory_snapshot(layout: Layout, root: Path) -> dict:
         visited.add(real)
         entries[layout.path_key(path)] = os.readlink(path) if path.is_symlink() else None
         for child in sorted(path.iterdir()):
-            if child.name == ".git" or child.resolve().is_relative_to(layout.target):
+            if child.name == ".git" or (skip_target and child.resolve().is_relative_to(layout.target)):
                 continue
             if child.is_dir():
                 walk(child)
@@ -462,17 +473,18 @@ def journals(session: Path) -> tuple[dict[str, dict], dict[str, set[str]], set[s
     writes: set[str] = set()
     for path in session.glob("trace-*.jsonl"):
         completed = False
-        for line in path.read_text().splitlines():
-            event = json.loads(line)
-            if event["event"] == "unit":
-                descriptors[event["unit"]] = event
-            elif event["event"] == "open":
-                if event["write"]:
-                    writes.add(event["path"])
-                if event.get("read", not event["write"]) and event["unit"]:
-                    reads.setdefault(event["unit"], set()).add(event["path"])
-            elif event["event"] == "complete":
-                completed = event["errors"] == 0
+        with path.open() as stream:
+            for line in stream:
+                event = json.loads(line)
+                if event["event"] == "unit":
+                    descriptors[event["unit"]] = event
+                elif event["event"] == "open":
+                    if event["write"]:
+                        writes.add(event["path"])
+                    if event.get("read", not event["write"]) and event["unit"]:
+                        reads.setdefault(event["unit"], set()).add(event["path"])
+                elif event["event"] == "complete":
+                    completed = event["errors"] == 0
         if not completed:
             raise InputError("The input trace did not finish without errors")
     return descriptors, reads, writes
@@ -557,7 +569,11 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
                 continue
             try:
                 record = make_record(layout, unit, descriptors[key], snapshots)
-            except (OSError, KeyError, ValueError, StopIteration, InputError):
+            except (OSError, KeyError, ValueError, StopIteration, InputError) as error:
+                package = Path(descriptors[key]["package"])
+                cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")).absolute()
+                if package.is_relative_to(layout.workspace) and not package.is_relative_to(cargo_home):
+                    raise InputError(f"Cannot record the input contract for {key}: {error}") from error
                 unknown.add(key)
                 continue
             check_reads(layout, unit, record, reads.get(key, set()))
@@ -615,6 +631,10 @@ def main() -> int:
     parser.add_argument("--session", type=Path, default=os.environ.get("JBOTCI_INPUT_SESSION"))
     parser.add_argument("command", nargs=argparse.REMAINDER)
     arguments = parser.parse_args()
+    if arguments.target is None:
+        parser.error("Set CARGO_TARGET_DIR or pass --target before the mode")
+    if arguments.mode != "restore" and arguments.session is None:
+        parser.error("Set JBOTCI_INPUT_SESSION or pass --session before the mode")
     target = arguments.target
     if arguments.mode == "trace":
         target = Path(json.loads((arguments.session / "session.json").read_text())["target"])

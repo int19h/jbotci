@@ -180,8 +180,15 @@ class Parser:
         if not body.startswith(("open(", "openat(", "openat2(")):
             return
         result = re.search(r"= (\d+)<(.*)>\s*$", body)
-        if not result or "O_DIRECTORY" in body:
+        if not result:
             return
+        _, filename_end = string_at(body)
+        flags = body[filename_end:result.start()]
+        if re.search(r"\bO_DIRECTORY\b", flags):
+            return
+        access = re.search(r"\bO_(RDONLY|WRONLY|RDWR)\b", flags)
+        if access is None:
+            raise TraceError("Unknown file access mode in an input trace")
         opened = result[2]
         if opened.endswith(" (deleted)"):
             opened = opened[:-10]
@@ -189,12 +196,11 @@ class Parser:
             return
         if Path(opened).is_relative_to(self.target):
             return
-        writing = "O_WRONLY" in body or "O_RDWR" in body
+        writing = access[1] in ("WRONLY", "RDWR")
         if process.unit is None and not writing:
             return
         self.emit({"event": "open", "unit": process.unit, "path": opened,
-                   "write": "O_WRONLY" in body or "O_RDWR" in body,
-                   "read": "O_WRONLY" not in body})
+                   "write": writing, "read": access[1] != "WRONLY"})
 
     def feed(self, stream) -> None:
         for raw in stream:
@@ -217,7 +223,7 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
         reader.start()
         try:
             process = subprocess.Popen([
-                "strace", "-f", "-qq", "-v", "-s", "1048576", "-yy",
+                "strace", "-f", "--seccomp-bpf", "-qq", "-v", "-s", "1048576", "-yy",
                 "-e", "trace=execve,clone,clone3,fork,vfork,chdir,open,openat,openat2",
                 "-o", f"/dev/fd/{write_fd}", "--", *command,
             ], cwd=workspace, pass_fds=(write_fd,))

@@ -102,7 +102,8 @@ fn emit_git_rerun_paths() {
         let fields: Vec<_> = configuration.stdout.split(|byte| *byte == 0).collect();
         for pair in fields.chunks_exact(2) {
             if let Some(raw) = pair[0].strip_prefix(b"file:") {
-                let path = Path::new(&manifest_dir).join(String::from_utf8_lossy(raw).as_ref());
+                let path = Path::new(&manifest_dir)
+                    .join(std::str::from_utf8(raw).expect("Git input paths must use UTF-8"));
                 if path.is_file() {
                     println!("cargo:rerun-if-changed={}", path.display());
                 }

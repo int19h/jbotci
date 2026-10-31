@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from tools import cargo_inputs as c
-from tools.cargo_inputs_trace import Parser, string_at
+from tools.cargo_inputs_trace import Parser, Process, string_at
 
 
 class CargoUnitTests(unittest.TestCase):
@@ -30,6 +30,27 @@ class CargoUnitTests(unittest.TestCase):
         for key in ("workspace:../secret", "target:/outside", "unknown:foo"):
             with self.assertRaises(c.InputError):
                 self.layout.path(key)
+
+    def test_target_cannot_contain_the_checkout(self) -> None:
+        for target in (self.workspace, self.root):
+            with self.assertRaisesRegex(c.InputError, "must not contain"):
+                c.Layout(self.workspace, target)
+
+    def test_identical_dependency_fingerprints_bind_all_profiles(self) -> None:
+        first = c.Unit("debug/child", self.layout.target / "debug/.fingerprint/child-a", "lib-child", c.Kind.COMPILE, {"deps": []}, 42)
+        second = c.Unit("release/child", self.layout.target / "release/.fingerprint/child-b", "lib-child", c.Kind.COMPILE, {"deps": []}, 42)
+        parent = c.Unit("release/parent", self.layout.target / "release/.fingerprint/parent-c", "lib-parent", c.Kind.COMPILE,
+                        {"deps": [[0, "child", False, 42]]}, 43)
+        units = {unit.key: unit for unit in (first, second, parent)}
+        self.assertEqual(c.dependency_keys(parent, units), (first.key, second.key))
+
+    def test_declared_target_directory_includes_its_files(self) -> None:
+        directory = self.layout.target / "generated"
+        directory.mkdir(parents=True)
+        path = directory / "input"
+        path.write_text("generated input")
+        self.assertEqual(c.expand_directory(directory, self.layout.target), [path])
+        self.assertEqual(c.directory_snapshot(self.layout, directory)["files"], ["target:generated/input"])
 
     def test_directory_membership_catches_added_and_deleted_files(self) -> None:
         directory = self.workspace / "data"
@@ -78,6 +99,19 @@ class CargoUnitTests(unittest.TestCase):
         parser = Parser(self.workspace, self.layout.target, output)
         parser.feed([b'1 execve("/bin/true", ["true", "secret-argument"], ["GH_TOKEN=secret-token"]) = 0\n'])
         self.assertNotIn("secret", output.getvalue())
+
+    def test_trace_reads_flag_names_in_filenames_as_filenames(self) -> None:
+        for name in ("O_DIRECTORY", "O_WRONLY", "O_RDWR"):
+            output = io.StringIO()
+            parser = Parser(self.workspace, self.layout.target, output)
+            parser.processes[1] = Process(str(self.workspace), "unit")
+            path = self.workspace / name
+            parser.feed([f'1 openat(AT_FDCWD, "{path}", O_RDONLY|O_CLOEXEC) = 3<{path}>\n'.encode()])
+            events = [json.loads(line) for line in output.getvalue().splitlines()]
+            self.assertEqual(events[0]["event"], "open")
+            self.assertTrue(events[0]["read"])
+            self.assertFalse(events[0]["write"])
+            self.assertEqual(events[-1]["errors"], 0)
 
     def test_trace_handles_child_exec_before_parent_clone_returns(self) -> None:
         output = io.StringIO()

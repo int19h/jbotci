@@ -11,6 +11,7 @@ import sys
 import tempfile
 import json
 import unittest
+from unittest.mock import patch
 from uuid import uuid4
 
 
@@ -236,6 +237,9 @@ class CargoCacheTests(unittest.TestCase):
         self.assertEqual(self._binary(), Version.B.value)
 
     def test_build_script_regenerates_output_from_changed_input(self) -> None:
+        manifest = self.repo / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + "\n[features]\nextra = []\n")
+        (self.repo / "build-mode").write_text("extra\n")
         (self.repo / "build.rs").write_text(
             'fn main() {\n'
             ' println!("cargo:rerun-if-changed=version.txt");\n'
@@ -249,11 +253,17 @@ class CargoCacheTests(unittest.TestCase):
         source.write_text(Version.A.value)
         self._run(["git", "add", "."])
         self._run(["git", "commit", "-m", "Add build inputs for #951", "-m", COAUTHOR])
-        self._build()
+        self._build("--features", "extra")
         self.assertEqual(self._binary(), Version.A.value)
         source.write_text(Version.B.value)
+        (self.repo / "build-mode").write_text("default\n")
         self._run(["git", "commit", "-am", "Change build input for #951", "-m", COAUTHOR])
         self._build()
+        self.assertEqual(self._binary(), Version.B.value)
+        (self.repo / "build-mode").write_text("extra\n")
+        self._run(["git", "commit", "-am", "Select the old script variant for #951", "-m", COAUTHOR])
+        self._run(["git", "checkout-index", "--all", "--force"])
+        self._build("--features", "extra")
         self.assertEqual(self._binary(), Version.B.value)
 
     def test_fresh_units_keep_their_fingerprint_mtimes(self) -> None:
@@ -338,6 +348,9 @@ fn main() {
         self._restore(saved)
         self._build()
         self.assertEqual(self._binary(), "2")
+        cpp.write_text('extern "C" int version() { return 3; }\n')
+        self._run(["cargo", "build", "--offline", "--profile", self.profile, "-j", "8"])
+        self.assertEqual(self._binary(), "3")
 
 
 
@@ -380,6 +393,21 @@ fn main() {
             'fn main() { println!("cargo:rerun-if-changed=build.rs"); std::fs::read_to_string("secret.txt").unwrap(); }\n')
         self._commit(Version.A)
         with self.assertRaisesRegex(cargo_inputs.InputError, "Undeclared input.*secret.txt"):
+            self._build()
+
+    def test_unreadable_workspace_dep_info_fails_the_contract_check(self) -> None:
+        self._commit(Version.A)
+        with patch.object(cargo_inputs, "encoded_environment", side_effect=cargo_inputs.InputError("unsupported dep-info")):
+            with self.assertRaisesRegex(cargo_inputs.InputError, "Cannot record the input contract.*unsupported dep-info"):
+                self._build()
+
+    def test_a_build_cannot_rewrite_tracked_inputs_even_with_the_same_bytes(self) -> None:
+        (self.repo / "build.rs").write_text(
+            'fn main() { println!("cargo:rerun-if-changed=build.rs"); '
+            'let source = std::fs::read("src/main.rs").unwrap(); '
+            'std::fs::write("src/main.rs", source).unwrap(); }\n')
+        self._commit(Version.A)
+        with self.assertRaisesRegex(cargo_inputs.InputError, "A build changed a tracked checkout input"):
             self._build()
 
     def test_option_env_is_a_rustc_environment_dependency(self) -> None:
