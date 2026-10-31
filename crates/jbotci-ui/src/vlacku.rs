@@ -166,7 +166,7 @@ impl VlackuControlsState {
     /// flag left set in another layout does not open anything. Reads both signals,
     /// so a caller that runs in an effect is re-run when either changes.
     #[requires(true)]
-    #[ensures(ret -> self.layout.peek().is_compact())]
+    #[ensures(ret == (self.layout.peek().is_compact() && *self.filters_open.peek()))]
     pub(super) fn dropdown_is_open(&self) -> bool {
         self.layout.read().is_compact() && *self.filters_open.read()
     }
