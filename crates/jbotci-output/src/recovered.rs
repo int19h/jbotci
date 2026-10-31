@@ -382,6 +382,7 @@ impl Serialize for RecoveredMorphologyProjection<'_> {
                     MorphologyError::UnterminatedZoiQuote { .. } => {
                         "morphology.unterminated-zoi-quote"
                     }
+                    MorphologyError::DialectExpansion(_) => "morphology.dialect-expansion-limit",
                     MorphologyError::SourceSpan(_) => "morphology.source-span",
                 };
                 let text = self
@@ -458,6 +459,7 @@ impl std::fmt::Display for MorphologyExpectation<'_> {
             MorphologyError::UnterminatedZoiQuote { delimiter, .. } => {
                 write!(formatter, "closing delimiter `{delimiter}`")
             }
+            MorphologyError::DialectExpansion(failure) => write!(formatter, "{failure}"),
             MorphologyError::SourceSpan(_) => formatter.write_str("valid source span"),
         }
     }
@@ -1239,6 +1241,59 @@ mod tests {
             .expect("recovered syntax bracket source fragments"),
             Vec::new()
         );
+    }
+
+    // The streamed recovery projection and the tree projection both name every
+    // morphology error variant; a dialect expansion failure must render with the
+    // same code and message on both paths.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_json_renders_dialect_expansion_failures() {
+        let formula = format!("({})", "(mi -> mi mi) ".repeat(12).trim_end());
+        let options = jbotci_morphology::MorphologyOptions::default()
+            .try_with_dialect_definition(
+                &jbotci_dialect::parse_dialect_definition(&formula).expect("formula parses"),
+            )
+            .expect("formula compiles");
+        let source = "mi do mi";
+        let recovered =
+            jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+                source, &options, None,
+            );
+        assert_eq!(recovered.errors.len(), 2);
+        assert!(
+            recovered
+                .errors
+                .iter()
+                .all(|error| matches!(error, MorphologyError::DialectExpansion(_))),
+            "{:?}",
+            recovered.errors
+        );
+        let json: Value = serde_json::from_str(
+            &compact_recovered_morphology_json_string_with_options(
+                &recovered,
+                source,
+                JsonRenderOptions::default(),
+            )
+            .expect("morphology JSON"),
+        )
+        .expect("valid morphology JSON");
+        let items = json.as_array().expect("morphology sequence");
+        assert_eq!(items.len(), 3);
+        for (item, error_index, span) in [(&items[0], 0, [0, 2]), (&items[2], 1, [6, 8])] {
+            assert_eq!(item["Error"]["span"], serde_json::json!(span));
+            assert_eq!(item["Error"]["error_index"], error_index);
+            assert_eq!(
+                item["Error"]["diagnostic_code"],
+                "morphology.dialect-expansion-limit"
+            );
+            assert_eq!(
+                item["Error"]["expected"],
+                serde_json::json!([recovered.errors[error_index].to_string()])
+            );
+        }
+        assert_eq!(items[1]["PlainWord"]["Cmavo"]["phonemes"], "do");
     }
 
     #[requires(true)]
