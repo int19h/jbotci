@@ -254,10 +254,9 @@ def file_snapshot(path: Path, cache: dict[Path, dict] | None = None) -> dict:
     return value
 
 
-def expand_directory(path: Path, target: Path) -> list[Path]:
+def expand_directory(path: Path, target: Path, package_default: bool = False) -> list[Path]:
     files: list[Path] = []
     visited: set[Path] = set()
-    skip_target = not path.resolve().is_relative_to(target)
 
     def walk(directory: Path) -> None:
         real = directory.resolve()
@@ -265,7 +264,7 @@ def expand_directory(path: Path, target: Path) -> list[Path]:
             raise InputError("A declared input directory contains a symlink cycle")
         visited.add(real)
         for child in sorted(directory.iterdir()):
-            if child.name == ".git" or (skip_target and child.resolve().is_relative_to(target)):
+            if package_default and (child.name == ".git" or child.resolve().is_relative_to(target)):
                 continue
             if child.is_dir():
                 walk(child)
@@ -278,12 +277,11 @@ def expand_directory(path: Path, target: Path) -> list[Path]:
     return files
 
 
-def directory_snapshot(layout: Layout, root: Path) -> dict:
-    files = expand_directory(root, layout.target)
+def directory_snapshot(layout: Layout, root: Path, package_default: bool = False) -> dict:
+    files = expand_directory(root, layout.target, package_default)
     # Include empty directories and directory symlinks, not only regular files.
     entries: dict[str, str | None] = {}
     visited: set[Path] = set()
-    skip_target = not root.resolve().is_relative_to(layout.target)
 
     def walk(path: Path) -> None:
         real = path.resolve()
@@ -292,13 +290,14 @@ def directory_snapshot(layout: Layout, root: Path) -> dict:
         visited.add(real)
         entries[layout.path_key(path)] = os.readlink(path) if path.is_symlink() else None
         for child in sorted(path.iterdir()):
-            if child.name == ".git" or (skip_target and child.resolve().is_relative_to(layout.target)):
+            if package_default and (child.name == ".git" or child.resolve().is_relative_to(layout.target)):
                 continue
             if child.is_dir():
                 walk(child)
         visited.remove(real)
     walk(root)
-    return {"files": sorted(layout.path_key(path) for path in files), "directories": entries}
+    return {"files": sorted(layout.path_key(path) for path in files), "directories": entries,
+            "package_default": package_default}
 
 
 def load_record(unit: Unit) -> dict:
@@ -322,7 +321,7 @@ def inputs_match(layout: Layout, record: dict, snapshots: dict[Path, dict] | Non
             if not HASH.fullmatch(value["sha256"]) or file_snapshot(layout.path(key), snapshots) != value:
                 return False
         for key, members in record["directories"].items():
-            current = directory_snapshot(layout, layout.path(key))
+            current = directory_snapshot(layout, layout.path(key), members["package_default"])
             if current != members:
                 return False
         return True
@@ -510,13 +509,14 @@ def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Pa
         output = (unit.profile / "build" / unit.directory.name / "output").read_text()
         declared = [line.split("=", 1)[1] for line in output.splitlines()
                     if line.startswith(("cargo:rerun-if-changed=", "cargo::rerun-if-changed="))]
-        if not declared:
+        package_default = not declared
+        if package_default:
             declared = [str(package)]
         for value in declared:
             path = Path(os.path.abspath(package / value))
             if path.is_dir():
-                files = expand_directory(path, layout.target)
-                directories[layout.path_key(path)] = directory_snapshot(layout, path)
+                files = expand_directory(path, layout.target, package_default)
+                directories[layout.path_key(path)] = directory_snapshot(layout, path, package_default)
                 paths.extend(files)
             else:
                 paths.append(path)

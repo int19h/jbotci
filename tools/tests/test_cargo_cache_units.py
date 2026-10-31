@@ -52,6 +52,15 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(c.expand_directory(directory, self.layout.target), [path])
         self.assertEqual(c.directory_snapshot(self.layout, directory)["files"], ["target:generated/input"])
 
+    def test_explicit_directory_keeps_target_and_git_children(self) -> None:
+        layout = c.Layout(self.workspace, self.workspace / "target")
+        layout.target.mkdir()
+        (layout.target / "input").write_text("generated input")
+        (self.workspace / ".git").write_text("repository pointer")
+        self.assertEqual(c.directory_snapshot(layout, self.workspace)["files"],
+                         ["target:input", "workspace:.git"])
+        self.assertEqual(c.directory_snapshot(layout, self.workspace, package_default=True)["files"], [])
+
     def test_directory_membership_catches_added_and_deleted_files(self) -> None:
         directory = self.workspace / "data"
         directory.mkdir()
