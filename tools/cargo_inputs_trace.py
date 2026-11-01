@@ -100,7 +100,10 @@ class Parser:
         self.errors = 0
 
     def emit(self, event: dict) -> None:
-        self.output.write(json.dumps(event, ensure_ascii=True) + "\n")
+        encoded = json.dumps(event, ensure_ascii=True)
+        self.output.write(encoded + "\n")
+        if event["event"] in ("trace-error", "incomplete-processes"):
+            print(f"Input trace error: {encoded}", file=sys.stderr)
 
     def consume(self, line: str) -> None:
         match = re.match(r"\s*(\d+)\s+(.*)", line)

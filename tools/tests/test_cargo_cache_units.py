@@ -1,6 +1,7 @@
 """Exercise damaged records, directory membership, and declaration checks."""
 from __future__ import annotations
 
+from contextlib import redirect_stderr
 import io
 import json
 import os
@@ -107,6 +108,25 @@ class CargoUnitTests(unittest.TestCase):
         output = io.StringIO()
         parser = Parser(self.workspace, self.layout.target, output)
         parser.feed([b'1 execve("/bin/true", ["true", "secret-argument"], ["GH_TOKEN=secret-token"]) = 0\n'])
+        self.assertNotIn("secret", output.getvalue())
+
+    def test_trace_errors_report_only_sanitized_events(self) -> None:
+        output = io.StringIO()
+        diagnostic = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        with redirect_stderr(diagnostic):
+            parser.feed([
+                b'1 execve("/bin/true", ["secret-argument"...], ["GH_TOKEN=secret-token"]) = 0\n',
+                b'1 openat(AT_FDCWD, "secret-path", O_RDONLY <unfinished ...>\n',
+            ])
+        self.assertEqual(parser.errors, 2)
+        events = [json.loads(line.removeprefix("Input trace error: "))
+                  for line in diagnostic.getvalue().splitlines()]
+        self.assertEqual([event["event"] for event in events],
+                         ["trace-error", "incomplete-processes"])
+        self.assertEqual(events[0]["operation"], "execve")
+        self.assertEqual(events[1]["pending"]["1"]["operation"], "openat")
+        self.assertNotIn("secret", diagnostic.getvalue())
         self.assertNotIn("secret", output.getvalue())
 
     def test_trace_reads_flag_names_in_filenames_as_filenames(self) -> None:
