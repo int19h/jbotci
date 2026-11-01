@@ -65,9 +65,11 @@ jobs:
             exit 1
           fi
           version="${versions[0]}"
-          echo "sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          echo "tag=v${version}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "sha=${GITHUB_SHA}"
+            echo "version=${version}"
+            echo "tag=v${version}"
+          } >> "${GITHUB_OUTPUT}"
           echo "Preparing jbotci ${version} from ${GITHUB_SHA}"
 
       - name: Require successful Test push run for the exact commit
@@ -108,7 +110,7 @@ jobs:
           conclusion="$(jq -r '.conclusion // ""' <<< "${latest}")"
           if [[ "${status}" != "completed" || "${conclusion}" != "success" ]]; then
             echo "Latest Test push run for ${GITHUB_SHA} is status=${status}, conclusion=${conclusion}" >&2
-            echo "$(jq -r '.html_url' <<< "${latest}")" >&2
+            jq -r '.html_url' <<< "${latest}" >&2
             exit 1
           fi
           echo "Accepted successful Test run $(jq -r '.html_url' <<< "${latest}")"

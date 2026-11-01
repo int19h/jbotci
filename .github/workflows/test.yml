@@ -22,33 +22,97 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
+      - name: Install workflow tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake shellcheck strace
+
+      - name: Install pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "${archive}" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' \
+            8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
+            "${archive}" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/actionlint-bin"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/actionlint-bin" actionlint
+          echo "${RUNNER_TEMP}/actionlint-bin" >> "${GITHUB_PATH}"
+
+      - name: Lint every workflow
+        run: actionlint -shellcheck=shellcheck
+
       - name: Run release tooling tests
-        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache
+        run: python3 -m unittest tools.tests.test_ci_workflow_split tools.tests.test_cargo_cache tools.tests.test_cargo_cache_units tools.tests.test_cargo_cache_identity tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
+
+  build-image:
+    name: Resolve immutable build image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Resolve the image manifest
+        id: image
+        run: python3 -m tools.cargo_cache_identity resolve-image rust:1-bookworm
 
   cargo-test:
     name: Cargo tests
+    needs: build-image
     runs-on: ubuntu-latest
     container:
-      image: rust:1-bookworm
+      image: ${{ needs.build-image.outputs.image }}
     env:
-      CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
-      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
+      CARGO_INCREMENTAL: "0"
+      JBOTCI_GIT_COMMIT: ${{ github.sha }}
+      JBOTCI_BUILD_IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
       NODE_VERSION: 24.14.0
       # Serial compilation is required: at exact head d08d0a798f, two-way concurrency exceeded
       # the 16 GB runner twice and exited 137 while compiling `jbotci-syntax`.
       CARGO_BUILD_JOBS: 1
       RUSTUP_HOME: /usr/local/rustup
     steps:
+      - name: Set the input session path
+        shell: bash
+        run: printf 'JBOTCI_INPUT_SESSION=%s/cargo-inputs\n' "${RUNNER_TEMP}" >> "${GITHUB_ENV}"
+
+      - name: Set container build paths
+        shell: bash
+        run: |
+          {
+            printf 'CARGO_HOME=%s/cargo-home\n' "${RUNNER_TEMP}"
+            printf 'CARGO_TARGET_DIR=%s/cargo-target/test\n' "${RUNNER_TEMP}"
+            printf 'GIT_CONFIG_GLOBAL=%s/jbotci-gitconfig\n' "${RUNNER_TEMP}"
+          } >> "${GITHUB_ENV}"
+
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3 strace zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
         uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      - name: Trust the checked-out repositories
+        shell: bash
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}/vendor/cll"
+          git -C "${GITHUB_WORKSPACE}" ls-files --recurse-submodules -z > /dev/null
+          for repository in "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/vendor/cll"; do
+            git -C "${repository}" rev-parse --verify HEAD
+            git -C "${repository}" rev-parse --git-path HEAD
+            git -C "${repository}" rev-parse --git-common-dir
+            git -C "${repository}" config --show-origin --list > /dev/null
+          done
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -60,18 +124,18 @@ jobs:
           node --version
           npm --version
 
-      - name: Capture Rust version
-        id: rustc
-        run: |
-          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
-          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
-          echo "Rust cache version: ${rustc_version}"
+      - name: Mark the start of Cargo work
+        run: python3 -m tools.cargo_inputs begin
+
+      - name: Identify the build environment
+        id: build-environment
+        run: python3 -m tools.cargo_cache_identity identity "${JBOTCI_BUILD_IMAGE_DIGEST}"
 
       - name: Restore cargo home cache
         id: cargo-home-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: jbotci-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
@@ -80,23 +144,19 @@ jobs:
         id: target-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/cargo-target/test
-          key: jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          path: ${{ env.CARGO_TARGET_DIR }}
+          key: jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
-            jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+            jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-
 
-      - name: Normalize test target cache mtimes
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: restore
-          target-dir: .github-cache/cargo-target/test
+      - name: Check restored unit inputs
+        run: python3 -m tools.cargo_inputs restore
 
       - name: Run workspace tests with import feature
-        run: cargo test -r --workspace --features jbotci-dictionary/import
+        run: python3 -m tools.cargo_inputs trace -- cargo test -r --workspace --features jbotci-dictionary/import
 
       - name: Run fixture tests
-        run: cargo run -r -p xtask-full -- fixture-test --profile all
+        run: python3 -m tools.cargo_inputs trace -- cargo run -r -p xtask-full -- fixture-test --profile all
 
       - name: Assert native application graphs contain no wgpu
         run: |
@@ -109,23 +169,20 @@ jobs:
             exit 1
           fi
 
-      - name: Stamp test target cache
-        if: ${{ success() && github.event_name != 'pull_request' }}
-        uses: ./.github/actions/cargo-cache-mtimes
-        with:
-          mode: stamp
-          target-dir: .github-cache/cargo-target/test
+      - name: Check declarations and record built unit inputs
+        run: python3 -m tools.cargo_inputs save
 
       - name: Save cargo home cache
-        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        if: ${{ success() && github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
+      # Save compiled artifacts only after the job succeeds.
       - name: Save test target cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        if: ${{ success() && github.event_name != 'pull_request' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/cargo-target/test
+          path: ${{ env.CARGO_TARGET_DIR }}
           key: ${{ steps.target-cache.outputs.cache-primary-key }}

@@ -5,6 +5,26 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
+#[derive(Debug)]
+struct NativeInputCallbacks {
+    output: PathBuf,
+    cargo: bindgen::CargoCallbacks,
+}
+
+impl bindgen::callbacks::ParseCallbacks for NativeInputCallbacks {
+    fn header_file(&self, filename: &str) {
+        build_inputs::emit_header_input(filename, &self.output);
+    }
+
+    fn include_file(&self, filename: &str) {
+        build_inputs::emit_header_input(filename, &self.output);
+    }
+
+    fn read_env_var(&self, key: &str) {
+        bindgen::callbacks::ParseCallbacks::read_env_var(&self.cargo, key);
+    }
+}
+
 macro_rules! debug_log {
     ($($arg:tt)*) => {
         if std::env::var("BUILD_DEBUG").is_ok() {
@@ -70,6 +90,7 @@ fn configure_libclang_path(target: &str) {
 }
 
 fn latest_child_dir(parent: &Path) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", parent.display());
     let mut dirs = fs::read_dir(parent)
         .ok()?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -188,30 +209,6 @@ fn bindgen_system_include_dirs(target: &str) -> Vec<PathBuf> {
     }
     dirs.extend(windows_sdk_include_dirs());
     dirs
-}
-
-/// Compute a short hash over the contents of all `*.patch` files in `patches_dir`.
-/// Returns an empty string when the directory does not exist or contains no patches.
-fn patches_hash(patches_dir: &Path) -> String {
-    if !patches_dir.is_dir() {
-        return String::new();
-    }
-    let mut entries: Vec<_> = std::fs::read_dir(patches_dir)
-        .map(|rd| rd.filter_map(|e| e.ok()).map(|e| e.path()).collect())
-        .unwrap_or_default();
-    entries.sort();
-    let mut hasher_val: u64 = 0xcbf29ce484222325; // FNV-1a offset basis
-    for path in &entries {
-        if path.extension().map(|e| e == "patch").unwrap_or(false) {
-            if let Ok(bytes) = std::fs::read(path) {
-                for &b in &bytes {
-                    hasher_val ^= b as u64;
-                    hasher_val = hasher_val.wrapping_mul(0x100000001b3);
-                }
-            }
-        }
-    }
-    format!("{:016x}", hasher_val)
 }
 
 /// Resolve the patch binary.
@@ -539,69 +536,9 @@ fn apply_patches(patches_dir: &Path, dst: &Path) {
     }
 }
 
-/// Return a string that uniquely identifies the current state of the llama.cpp
-/// submodule so we know when a re-copy is needed.
-///
-/// Priority:
-/// 1. The commit hash from the submodule's git HEAD (most precise).
-/// 2. The mtime of `CMakeLists.txt` (fallback for non-git trees).
-fn llama_src_version(src: &Path, patches_dir: &Path) -> String {
-    let ph = patches_hash(patches_dir);
-    // In a git submodule the `.git` entry is a *file* whose content is:
-    //   gitdir: ../../.git/modules/llama-cpp-sys-4/llama.cpp
-    let git_file = src.join(".git");
-    if git_file.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&git_file) {
-            if let Some(rel) = text.strip_prefix("gitdir:").map(str::trim) {
-                let head_path = git_file.parent().unwrap().join(rel).join("HEAD");
-                if let Ok(head) = std::fs::read_to_string(&head_path) {
-                    // HEAD is either a commit hash or "ref: refs/heads/…"
-                    let head = head.trim();
-                    if head.starts_with("ref:") {
-                        // Resolve the ref to the actual commit hash.
-                        let ref_path = head.strip_prefix("ref:").map(str::trim).unwrap_or(head);
-                        let commit_path = git_file.parent().unwrap().join(rel).join(ref_path);
-                        if let Ok(hash) = std::fs::read_to_string(commit_path) {
-                            return format!("{}:{}", hash.trim(), ph);
-                        }
-                    }
-                    return format!("{}:{}", head, ph);
-                }
-            }
-        }
-    }
-    // Fallback: modification time of the top-level CMakeLists.txt.
-    let base = src
-        .join("CMakeLists.txt")
-        .metadata()
-        .and_then(|m| m.modified())
-        .map(|t| format!("{t:?}"))
-        .unwrap_or_else(|_| "unknown".to_owned());
-    // Mix in patch contents so that updating patches forces a re-copy+re-patch.
-    format!("{}:{}", base, patches_hash(patches_dir))
-}
-
-/// Copy a directory tree.  This runs on the *host*, so cfg!(unix/windows) is correct here.
-/// Always perform a real copy. Using hardlinks is unsafe here because
-/// build-time patch application mutates files in the copied tree.
-fn copy_folder(src: &Path, dst: &Path) {
-    std::fs::create_dir_all(dst).expect("Failed to create dst directory");
-    if cfg!(unix) {
-        std::process::Command::new("cp")
-            .arg("-rf")
-            .arg(src)
-            .arg(dst.parent().unwrap())
-            .status()
-            .expect("Failed to execute cp command");
-    } else if cfg!(windows) {
-        std::process::Command::new("robocopy.exe")
-            .arg("/e")
-            .arg(src)
-            .arg(dst)
-            .status()
-            .expect("Failed to execute robocopy command");
-    }
-}
+#[path = "build_inputs.rs"]
+mod build_inputs;
+use build_inputs::prepare_native_source;
 
 /// Extract library names from the build output directory.
 ///
@@ -1040,6 +977,7 @@ fn cmake_system_processor(target: &str) -> String {
 /// Find a direct child directory of `parent` whose name matches `name`
 /// case-insensitively.  Returns the actual path on disk.
 fn find_child_dir_ci(parent: &Path, name: &str) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", parent.display());
     let lower = name.to_ascii_lowercase();
     std::fs::read_dir(parent)
         .ok()?
@@ -1055,6 +993,7 @@ fn find_child_dir_ci(parent: &Path, name: &str) -> Option<PathBuf> {
 
 /// Find a file inside `dir` whose name matches `name` case-insensitively.
 fn find_file_ci(dir: &Path, name: &str) -> Option<PathBuf> {
+    println!("cargo:rerun-if-changed={}", dir.display());
     let lower = name.to_ascii_lowercase();
     std::fs::read_dir(dir)
         .ok()?
@@ -1126,6 +1065,7 @@ fn find_file_recursive(dir: &Path, name: &str, max_depth: u32) -> Option<PathBuf
         return None;
     }
     let lower = name.to_ascii_lowercase();
+    println!("cargo:rerun-if-changed={}", dir.display());
     let entries: Vec<_> = std::fs::read_dir(dir)
         .ok()?
         .filter_map(|e| e.ok())
@@ -1214,6 +1154,7 @@ fn find_vulkan_sdk_windows() -> Option<PathBuf> {
     // 3. Scan the default install directory C:\VulkanSDK\<version>.
     let vulkan_base = PathBuf::from("C:\\VulkanSDK");
     if vulkan_base.is_dir() {
+        println!("cargo:rerun-if-changed={}", vulkan_base.display());
         let mut versions: Vec<PathBuf> = std::fs::read_dir(&vulkan_base)
             .ok()
             .into_iter()
@@ -1291,6 +1232,33 @@ fn setup_prebuilt_env() -> Option<PathBuf> {
 
 fn main() {
     let start_time = std::time::Instant::now();
+    println!("cargo:rerun-if-changed=build_inputs.rs");
+    for name in [
+        "LLAMA_BUILD_SHARED_LIBS",
+        "LLAMA_LIB_PROFILE",
+        "LLAMA_STATIC_CRT",
+        "VULKAN_SDK",
+        "CMAKE_OSX_SYSROOT",
+        "CMAKE_SYSROOT",
+        "GGML_CPU_ARM_ARCH",
+        "ANDROID_NDK",
+        "LLAMA_NO_SCCACHE",
+        "SCCACHE_PATH",
+        "CMAKE_VERBOSE",
+        "BUILD_DEBUG",
+        "MINGW_PREFIX",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "LOCALAPPDATA",
+        "VCToolsInstallDir",
+        "WindowsSdkDir",
+        "WindowsSDKVersion",
+        "PATH",
+        "CC",
+        "CXX",
+    ] {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
 
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
@@ -1343,63 +1311,6 @@ fn main() {
         out_dir.clone()
     };
 
-    // ── Shared CMake build cache (non-Windows) ────────────────────────────────
-    // Cargo assigns a different OUT_DIR hash for every distinct feature
-    // combination, so toggling --features q1 lands in a brand-new empty dir
-    // and forces a full CMake rebuild (~10 min).  To avoid this we redirect
-    // the CMake install/build tree to a shared directory keyed by:
-    //   <source-commit> + <active C++ feature flags>
-    // so that different Cargo OUT_DIRs that represent the same C++ build can
-    // share the compiled artefacts.  The OUT_DIR is still used for bindgen
-    // output and the source copy; only the CMake build tree is shared.
-    //
-    // Skip on Windows because the MAX_PATH workaround already handles this
-    // with a short target-directory path derived from OUT_DIR.
-    let cmake_out_dir: PathBuf = if !target.contains("windows") {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        // Source version is the submodule commit + patches hash, already
-        // computed later; recompute it here so we can use it as the cache key.
-        let src_ver = {
-            let patches_dir_tmp = Path::new(&manifest_dir).join("patches");
-            llama_src_version(&llama_src, &patches_dir_tmp)
-        };
-        // C++ feature flags that affect the compiled output.
-        let cpp_features = format!(
-            "cuda={},metal={},vulkan={},webgpu={},blas={},opencl={},hip={},openmp={},rpc={},q1={},mtmd={},native={},shared={}",
-            cfg!(feature = "cuda"),
-            cfg!(feature = "metal"),
-            cfg!(feature = "vulkan"),
-            cfg!(feature = "webgpu"),
-            cfg!(feature = "blas"),
-            cfg!(feature = "opencl"),
-            cfg!(feature = "hip"),
-            cfg!(feature = "openmp"),
-            cfg!(feature = "rpc"),
-            cfg!(feature = "q1"),
-            cfg!(feature = "mtmd"),
-            cfg!(feature = "native"),
-            build_shared_libs,
-        );
-        let mut hasher = DefaultHasher::new();
-        src_ver.hash(&mut hasher);
-        cpp_features.hash(&mut hasher);
-        target.hash(&mut hasher);
-        let hash = hasher.finish();
-        // Place the shared cmake dir in the Cargo target directory so it is
-        // cleaned by `cargo clean` and lives alongside other build artefacts.
-        let shared = target_dir
-            .parent() // target/<profile> → target
-            .unwrap_or(&target_dir)
-            .join("llama-cmake-cache")
-            .join(format!("{:016x}", hash));
-        std::fs::create_dir_all(&shared).expect("failed to create shared cmake cache dir");
-        debug_log!("Shared cmake dir: {}", shared.display());
-        shared
-    } else {
-        cmake_out_dir // Windows already set above
-    };
-
     debug_log!("HOST: {}", host);
     debug_log!("TARGET: {}", target);
     debug_log!("CROSS_COMPILING: {}", is_cross);
@@ -1408,83 +1319,54 @@ fn main() {
     debug_log!("OUT_DIR: {}", out_dir.display());
     debug_log!("BUILD_SHARED: {}", build_shared_libs);
 
-    // ── Source copy with version tracking ────────────────────────────────────
-    // The copy only ran when the OUT_DIR was fresh, so updating the submodule
-    // (which adds/removes files like ggml-cpu/) would silently use stale data.
-    // We now store the current submodule HEAD (plus a hash of any local patches)
-    // in a sentinel file and re-copy+re-patch whenever either changes.
+    // A script rerun always starts from the current native inputs. Cargo keeps
+    // this unit's outputs between runs, so a timestamp or HEAD sentinel cannot
+    // prove that the copied source still matches a local edit.
     let patches_dir = Path::new(&manifest_dir).join("patches");
-    let sentinel = out_dir.join(".llama-src-version");
-    let current_version = llama_src_version(&llama_src, &patches_dir);
-    let stored_version = std::fs::read_to_string(&sentinel).unwrap_or_default();
-    let needs_copy = !llama_dst.exists() || stored_version.trim() != current_version.trim();
-    if needs_copy {
-        if llama_dst.exists() {
-            debug_log!("Source version changed — removing stale OUT_DIR copy");
-            std::fs::remove_dir_all(&llama_dst).ok();
-        }
-        debug_log!("Copy {} to {}", llama_src.display(), llama_dst.display());
-        copy_folder(&llama_src, &llama_dst);
-
-        // Apply local patches (only those gated by active Cargo features).
-        let staged_dir = out_dir.join("patches-active");
-        std::fs::create_dir_all(&staged_dir).ok();
-        let mut staged_any = false;
-
-        if cfg!(feature = "q1") {
-            let q1_patch = patches_dir.join("0001-q1-quantization.patch");
-            if q1_patch.exists() {
-                std::fs::copy(&q1_patch, staged_dir.join("0001-q1-quantization.patch"))
-                    .expect("failed to stage q1 patch");
-                staged_any = true;
-            }
-        }
-
-        if cfg!(feature = "vulkan") {
-            let spirv_patch = patches_dir.join("0002-vulkan-spirv-headers-sdk.patch");
-            if spirv_patch.exists() {
-                std::fs::copy(
-                    &spirv_patch,
-                    staged_dir.join("0002-vulkan-spirv-headers-sdk.patch"),
-                )
-                .expect("failed to stage vulkan SPIRV-Headers patch");
-                staged_any = true;
-            }
-        }
-
-        if staged_any {
-            apply_patches(&staged_dir, &llama_dst);
-        }
-        std::fs::write(&sentinel, &current_version)
-            .expect("failed to write source version sentinel");
+    println!("cargo:rerun-if-changed={}", patches_dir.display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        Path::new(&manifest_dir).join("mtp_shim").display()
+    );
+    prepare_native_source(&llama_src, &llama_dst, &cmake_out_dir);
+    // Apply local patches (only those gated by active Cargo features).
+    let staged_dir = out_dir.join("patches-active");
+    if staged_dir.exists() {
+        std::fs::remove_dir_all(&staged_dir).expect("failed to remove staged native patches");
     }
-    // Tell cargo to rerun when the submodule HEAD changes.
-    // In a git submodule, llama.cpp/.git is a file pointing at the real HEAD.
-    let submodule_git = llama_src.join(".git");
-    if submodule_git.is_file() {
-        // .git file contains "gitdir: ../../.git/modules/llama-cpp-sys-4/llama.cpp"
-        if let Ok(contents) = std::fs::read_to_string(&submodule_git) {
-            if let Some(gitdir) = contents.strip_prefix("gitdir:").map(|s| s.trim()) {
-                let head = submodule_git.parent().unwrap().join(gitdir).join("HEAD");
-                if head.exists() {
-                    println!("cargo:rerun-if-changed={}", head.display());
-                }
-            }
+    std::fs::create_dir_all(&staged_dir).expect("failed to create native patch directory");
+    let mut staged_any = false;
+
+    if cfg!(feature = "q1") {
+        let q1_patch = patches_dir.join("0001-q1-quantization.patch");
+        if q1_patch.exists() {
+            std::fs::copy(&q1_patch, staged_dir.join("0001-q1-quantization.patch"))
+                .expect("failed to stage q1 patch");
+            staged_any = true;
         }
     }
-    // Rerun when any patch file is added, removed, or modified.
-    if patches_dir.is_dir() {
-        println!("cargo:rerun-if-changed={}", patches_dir.display());
+
+    if cfg!(feature = "vulkan") {
+        let spirv_patch = patches_dir.join("0002-vulkan-spirv-headers-sdk.patch");
+        if spirv_patch.exists() {
+            std::fs::copy(
+                &spirv_patch,
+                staged_dir.join("0002-vulkan-spirv-headers-sdk.patch"),
+            )
+            .expect("failed to stage vulkan SPIRV-Headers patch");
+            staged_any = true;
+        }
+    }
+
+    if staged_any {
+        apply_patches(&staged_dir, &llama_dst);
     }
     // Speed up build
     // TODO: Audit that the environment access only happens in single-threaded code.
     unsafe {
         env::set_var(
             "CMAKE_BUILD_PARALLEL_LEVEL",
-            std::thread::available_parallelism()
-                .unwrap()
-                .get()
-                .to_string(),
+            env::var("NUM_JOBS").expect("Cargo must set NUM_JOBS"),
         )
     };
 
@@ -1519,7 +1401,10 @@ fn main() {
             "-I{}",
             Path::new(&manifest_dir).join("mtp_shim").display()
         ))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(NativeInputCallbacks {
+            output: out_dir.clone(),
+            cargo: bindgen::CargoCallbacks::new(),
+        }))
         .derive_partialeq(true)
         // Do not derive PartialEq on types that contain function-pointer fields.
         // Deriving PartialEq on those triggers the
@@ -1568,6 +1453,7 @@ fn main() {
         .opaque_type("std::.*");
 
     for include_dir in bindgen_system_include_dirs(&target) {
+        println!("cargo:rerun-if-changed={}", include_dir.display());
         builder = builder
             .clang_arg("-isystem")
             .clang_arg(include_dir.display().to_string());
@@ -1657,6 +1543,7 @@ fn main() {
     }
 
     if let Ok(prebuilt_dir_raw) = env::var("LLAMA_PREBUILT_DIR") {
+        println!("cargo:rerun-if-changed={prebuilt_dir_raw}");
         let prebuilt_dir = PathBuf::from(&prebuilt_dir_raw);
         if prebuilt_dir.exists() {
             let use_shared_libs = env::var("LLAMA_PREBUILT_SHARED")
@@ -1777,11 +1664,11 @@ fn main() {
         debug_log!("Ninja detected, using Ninja generator for CMake");
         config.generator("Ninja");
         // Enable Ninja's parallel build with all available cores
-        let parallel = std::thread::available_parallelism().unwrap().get();
+        let parallel = env::var("NUM_JOBS").expect("Cargo must set NUM_JOBS");
         config.build_arg(format!("-j{}", parallel));
     } else {
         // If not Ninja, explicitly set parallel jobs for Make
-        let parallel = std::thread::available_parallelism().unwrap().get();
+        let parallel = env::var("NUM_JOBS").expect("Cargo must set NUM_JOBS");
         config.build_arg(format!("-j{}", parallel));
     }
 
