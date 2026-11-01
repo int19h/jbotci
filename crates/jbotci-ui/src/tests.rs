@@ -4090,9 +4090,11 @@ fn vlacku_vote_filter_control_and_state_share_one_value() {
         draft_slot.set(Some(draft));
         committed_slot.set(Some(committed));
         let state = draft.read().web_state();
+        let controls = VlackuControlsState::use_new();
         render_vlacku_controls(
             draft,
             committed,
+            controls,
             &state,
             &vlacku_word_type_options(&state.word_types),
         )
@@ -4153,6 +4155,348 @@ fn vlacku_vote_filter_control_and_state_share_one_value() {
             .next()
             .unwrap();
         assert!(button.contains("disabled"), "{button}");
+    }
+}
+
+/// What a rendered controls test starts from.
+#[invariant(true)]
+#[derive(Clone)]
+struct VlackuControlsFixture {
+    layout: VlackuControlsLayout,
+    filters_open: bool,
+    state: VlackuWebState,
+}
+
+/// The HTML of the vlacku controls in the given layout.
+#[requires(true)]
+#[ensures(ret.contains("class=\"dictionary-form\""))]
+fn render_vlacku_controls_fixture(fixture: VlackuControlsFixture) -> String {
+    let mut dom = VirtualDom::new(|| {
+        let fixture = consume_context::<VlackuControlsFixture>();
+        let committed = use_signal({
+            let state = fixture.state.clone();
+            move || state
+        });
+        let draft = use_signal(|| VlackuDraftState::from_state(committed.read().clone()));
+        let controls = VlackuControlsState {
+            layout: use_signal(move || fixture.layout),
+            filters_open: use_signal(move || fixture.filters_open),
+        };
+        let state = draft.read().web_state();
+        render_vlacku_controls(
+            draft,
+            committed,
+            controls,
+            &state,
+            &vlacku_word_type_options(&state.word_types),
+        )
+    })
+    .with_root_context(fixture);
+    dom.rebuild_in_place();
+    dioxus::ssr::render(&dom)
+}
+
+/// The live controls and the hidden probes, which come after them in the form.
+#[requires(true)]
+#[ensures(true)]
+fn split_vlacku_controls_html(html: &str) -> (&str, &str) {
+    html.split_once("<div class=\"vlacku-controls-probes\"")
+        .expect("the form renders its fit probes")
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_controls_layout_resolver_prefers_single_row_then_split_rows_then_compact() {
+    use VlackuControlsLayout::{Compact, SingleRow, SplitRows};
+    assert_eq!(
+        vlacku_controls_layout_from_probe_fits(|layout| layout == SingleRow),
+        SingleRow
+    );
+    // The widest candidate that fits wins, even when a narrower one fits too.
+    assert_eq!(vlacku_controls_layout_from_probe_fits(|_| true), SingleRow);
+    assert_eq!(
+        vlacku_controls_layout_from_probe_fits(|layout| layout == SplitRows),
+        SplitRows
+    );
+    assert_eq!(vlacku_controls_layout_from_probe_fits(|_| false), Compact);
+    // `Compact` has no probe and is what is left, so it is never what is asked.
+    assert_eq!(
+        vlacku_controls_layout_from_probe_fits(|layout| layout == Compact),
+        Compact
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_controls_layout_from_metrics_compares_exactly() {
+    use VlackuControlsLayout::{Compact, SingleRow, SplitRows};
+    let metrics = |available_width, single_row, split_rows| {
+        try_new!(VlackuControlsMetrics {
+            available_width: available_width,
+            single_row_required_width: single_row,
+            split_rows_required_width: split_rows,
+        })
+        .expect("positive finite widths")
+    };
+    // A probe that needs exactly what there is fits.
+    assert_eq!(
+        vlacku_controls_layout_from_metrics(metrics(688.0, 688.0, 340.0)),
+        SingleRow
+    );
+    // Part of a pixel short is not a fit: nothing is rounded or tolerated.
+    assert_eq!(
+        vlacku_controls_layout_from_metrics(metrics(687.99, 688.0, 340.0)),
+        SplitRows
+    );
+    assert_eq!(
+        vlacku_controls_layout_from_metrics(metrics(340.0, 688.0, 340.0)),
+        SplitRows
+    );
+    assert_eq!(
+        vlacku_controls_layout_from_metrics(metrics(339.99, 688.0, 340.0)),
+        Compact
+    );
+    // A layout is never chosen because a width is missing: widths that are not
+    // measurements are not metrics at all.
+    for bad in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        assert!(
+            try_new!(VlackuControlsMetrics {
+                available_width: bad,
+                single_row_required_width: 688.0,
+                split_rows_required_width: 340.0,
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(VlackuControlsMetrics {
+                available_width: 340.0,
+                single_row_required_width: bad,
+                split_rows_required_width: 340.0,
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(VlackuControlsMetrics {
+                available_width: 340.0,
+                single_row_required_width: 688.0,
+                split_rows_required_width: bad,
+            })
+            .is_err()
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_controls_layout_change_closes_the_dropdown_when_compact_is_left() {
+    use VlackuControlsLayout::{Compact, SingleRow, SplitRows};
+    let slot = Rc::new(Cell::new(None::<VlackuControlsState>));
+    let mut dom = VirtualDom::new(|| {
+        let slot = consume_context::<Rc<Cell<Option<VlackuControlsState>>>>();
+        slot.set(Some(VlackuControlsState::use_new()));
+        rsx! {}
+    })
+    .with_root_context(slot.clone());
+    dom.rebuild_in_place();
+    let controls = slot.get().expect("mounted controls state");
+    dom.in_scope(ScopeId::ROOT, || {
+        update_vlacku_controls_layout(controls, Compact);
+        let mut open = controls.filters_open;
+        open.set(true);
+        // Measuring again and finding the same layout leaves the dropdown alone.
+        update_vlacku_controls_layout(controls, Compact);
+        assert!(*controls.filters_open.peek());
+        update_vlacku_controls_layout(controls, SplitRows);
+        assert_eq!(*controls.layout.peek(), SplitRows);
+        assert!(!*controls.filters_open.peek());
+        open.set(true);
+        update_vlacku_controls_layout(controls, SingleRow);
+        assert!(!*controls.filters_open.peek());
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_dropdown_is_open_only_in_the_compact_layout() {
+    let slot = Rc::new(Cell::new(None::<VlackuControlsState>));
+    let mut dom = VirtualDom::new(|| {
+        let slot = consume_context::<Rc<Cell<Option<VlackuControlsState>>>>();
+        slot.set(Some(VlackuControlsState::use_new()));
+        rsx! {}
+    })
+    .with_root_context(slot.clone());
+    dom.rebuild_in_place();
+    let controls = slot.get().expect("mounted controls state");
+    dom.in_scope(ScopeId::ROOT, || {
+        let mut open = controls.filters_open;
+        let mut layout = controls.layout;
+        assert!(!controls.dropdown_is_open());
+        // A flag left set in a layout that has no dropdown opens nothing.
+        open.set(true);
+        for other in [
+            VlackuControlsLayout::SingleRow,
+            VlackuControlsLayout::SplitRows,
+        ] {
+            layout.set(other);
+            assert!(!controls.dropdown_is_open());
+        }
+        layout.set(VlackuControlsLayout::Compact);
+        assert!(controls.dropdown_is_open());
+        controls.close_filters();
+        assert!(!controls.dropdown_is_open());
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_filters_changed_follows_the_defaults() {
+    let default = VlackuWebState::default();
+    assert!(!vlacku_filters_changed(&default));
+    assert!(vlacku_filters_changed(&VlackuWebState {
+        min_votes: new!(jbotci_web_core::VlackuVoteFilter::Any),
+        ..default.clone()
+    }));
+    assert!(vlacku_filters_changed(&VlackuWebState {
+        word_types: vec!["gismu".to_owned()],
+        ..default
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_controls_render_one_live_copy_and_probes_without_ids() {
+    for layout in [
+        VlackuControlsLayout::SingleRow,
+        VlackuControlsLayout::SplitRows,
+        VlackuControlsLayout::Compact,
+    ] {
+        let html = render_vlacku_controls_fixture(VlackuControlsFixture {
+            layout,
+            filters_open: false,
+            state: VlackuWebState::default(),
+        });
+        let (live, probes) = split_vlacku_controls_html(&html);
+        assert!(
+            live.contains(&format!("class=\"dictionary-controls {}\"", layout.class())),
+            "{layout:?}: {live}"
+        );
+        // The mode selector is one labelled group of four pressed-state buttons.
+        assert_eq!(
+            live.matches("role=\"group\" aria-label=\"Dictionary search mode\"")
+                .count(),
+            1
+        );
+        assert_eq!(live.matches("aria-pressed=").count(), 4);
+        assert_eq!(live.matches("aria-pressed=\"true\"").count(), 1);
+        assert_eq!(live.matches("data-label=").count(), 4);
+        // The two bracket groups.
+        assert!(live.contains("mode-toggle-subgroup is-similar"));
+        assert!(live.contains("mode-toggle-subgroup is-exact"));
+        // Ids stay unique: only the live copy has any.
+        assert_eq!(live.matches("id=\"vlacku-vote-filter-caption\"").count(), 1);
+        assert_eq!(live.matches("id=\"vlacku-filter-panel\"").count(), 1);
+        assert_eq!(live.matches("aria-labelledby=").count(), 1);
+        assert!(!probes.contains(" id=\""), "{probes}");
+        assert!(!probes.contains("aria-labelledby"), "{probes}");
+        assert!(probes.contains("aria-hidden=\"true\""));
+        // Both measured candidates have a probe, and the layout that needs no
+        // width has none.
+        assert!(probes.contains("vlacku-controls-probe is-single-row"));
+        assert!(probes.contains("vlacku-controls-probe is-split-rows"));
+        assert!(!probes.contains("is-compact"));
+        // The elements are in the order they are shown in, so that tabbing
+        // follows what is on screen: the stepper first in the row layouts, the
+        // word types first in the dropdown. The Filters button is there for the
+        // compact layout only.
+        assert_eq!(
+            live.find("class=\"vote-filter\"").unwrap()
+                < live.find("class=\"word-type-grid\"").unwrap(),
+            !layout.is_compact()
+        );
+        assert_eq!(
+            live.contains("class=\"vote-filter-divider\""),
+            !layout.is_compact()
+        );
+        assert_eq!(
+            live.contains("class=\"filters-button\""),
+            layout.is_compact()
+        );
+        // Closed, the panel has no open mark.
+        assert!(!live.contains("is-open"));
+        // Dismissal is by listeners on the document, not by an element laid over
+        // the page.
+        assert!(!live.contains("scrim"));
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_filters_button_reports_state_and_hidden_changes() {
+    let render = |filters_open, state| {
+        let html = render_vlacku_controls_fixture(VlackuControlsFixture {
+            layout: VlackuControlsLayout::Compact,
+            filters_open,
+            state,
+        });
+        split_vlacku_controls_html(&html).0.to_owned()
+    };
+    let default = VlackuWebState::default();
+    let closed = render(false, default.clone());
+    assert!(closed.contains("aria-label=\"Filters\""), "{closed}");
+    assert!(closed.contains("aria-expanded=\"false\""));
+    assert!(closed.contains("aria-controls=\"vlacku-filter-panel\""));
+    assert!(!closed.contains("filters-badge"));
+    assert!(!closed.contains("is-open"));
+
+    let open = render(true, default.clone());
+    assert!(open.contains("aria-expanded=\"true\""));
+    assert!(open.contains("dictionary-filter-panel is-open"));
+    assert!(!open.contains("scrim"));
+
+    // A filter that is not at its default is hidden in the dropdown, so the
+    // button says so, by a badge and by its accessible name.
+    for changed in [
+        VlackuWebState {
+            min_votes: new!(jbotci_web_core::VlackuVoteFilter::Any),
+            ..default.clone()
+        },
+        VlackuWebState {
+            word_types: vec!["lujvo".to_owned()],
+            ..default.clone()
+        },
+    ] {
+        let html = render(false, changed);
+        assert!(html.contains("aria-label=\"Filters (changed)\""), "{html}");
+        assert!(html.contains("filters-badge"));
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_open_flag_does_not_open_the_panel_outside_compact() {
+    for layout in [
+        VlackuControlsLayout::SingleRow,
+        VlackuControlsLayout::SplitRows,
+    ] {
+        let html = render_vlacku_controls_fixture(VlackuControlsFixture {
+            layout,
+            filters_open: true,
+            state: VlackuWebState::default(),
+        });
+        let live = split_vlacku_controls_html(&html).0;
+        assert!(!live.contains("is-open"), "{live}");
+        // Dismissal is by listeners on the document, not by an element laid over
+        // the page.
+        assert!(!live.contains("scrim"));
+        assert!(!live.contains("filters-button"));
     }
 }
 

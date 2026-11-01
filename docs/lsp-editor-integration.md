@@ -158,9 +158,26 @@ The dictionary supplies normalized prefix ranges through its sorted word index.
 Foreign quotation payloads receive no completion, while unrestricted word quotations use an unfiltered word list.
 
 The grammar query has a one-second time limit.
-If grammar information is unavailable, completion uses morphology-valid candidates.
-The result records the source of each candidate.
-Cancellation can stop a completion worker.
+The syntax API separates complete expectations from timeout and recovery-limit errors.
+A complete empty list means that the grammar offers no continuation.
+The IDE returns `CompletionResult::Complete` or `CompletionResult::Incomplete`, with candidates inside each variant.
+Callers must match the variant before they can use its candidates.
+
+If grammar work stops early, the IDE retains morphology-valid candidates and reports the cause through `CompletionIncompleteReason`.
+A cancelled IDE query returns Incomplete with no candidates.
+The result also records the source of each candidate.
+The LSP drops results from cancelled requests.
+
+The LSP always returns a `CompletionList`.
+It sets `isIncomplete` to `true` when grammar work stops early, so clients can request completion on the next keystroke.
+Fallback items say `morphology only: grammar completion did not finish` in their detail text.
+Complete lists set `isIncomplete` to `false`.
+
+Clients can set `initializationOptions.completionGrammarTimeLimitMs` to an unsigned millisecond count.
+An omitted value uses the one-second default.
+An explicit `null` disables the limit, and zero reports an immediate timeout.
+Semantic tests pass `null` explicitly, and timeout tests pass zero.
+Timing tests remain separate from semantic tests and keep their existing thresholds and CI activation rules.
 
 The adapter inserts bare words without automatic pause periods.
 It assigns completion kinds and reason text.

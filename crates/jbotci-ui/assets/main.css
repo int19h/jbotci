@@ -3168,23 +3168,9 @@ body::-webkit-scrollbar-thumb:hover,
   align-items: flex-end;
 }
 
-.dictionary-page .dictionary-mode-control,
-.dictionary-page .dictionary-word-type-control {
-  min-width: 0;
-}
-
 .dictionary-page .dictionary-mode-control {
+  min-width: 0;
   flex: 0 0 auto;
-}
-
-.dictionary-page .dictionary-word-type-control {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  row-gap: 0.6rem;
-  flex: 0 0 auto;
-  max-width: 100%;
-  justify-content: flex-start;
 }
 
 .dictionary-page .mode-toggle-row {
@@ -7217,20 +7203,126 @@ body::-webkit-scrollbar-thumb:hover,
   }
 }
 
-.dictionary-page .vote-filter {
-  display: grid;
-  justify-items: start;
-  gap: 0.12rem;
-  align-self: center;
-  transform: translateY(0.425rem);
+/* Vlacku filter controls.
+
+   One stylesheet serves three arrangements, chosen by measurement and named by a
+   class on the controls: `is-single-row`, `is-split-rows` and `is-compact`. The
+   hidden probes are the controls in `is-single-row` and `is-split-rows`, sized to
+   `max-content`, so every rule below that depends on the arrangement applies to
+   the probe exactly as it does to the live controls, which is what makes a probe's
+   width the width the live arrangement needs. No width appears here. */
+/* The form is one column that is as wide as the form, never wider. A column that
+   sized itself to its content would let the controls report as available the
+   width they themselves need, and the measurement would then always fit. */
+.dictionary-page.vlacku-page .dictionary-form {
+  grid-template-columns: minmax(0, 1fr);
 }
+
+.dictionary-page.vlacku-page .dictionary-controls {
+  /* Shared by the bracket labels and the min-votes caption, so the gap between a
+     label and the control under it cannot drift apart. */
+  --vlacku-label-gap: 0.12rem;
+  --vlacku-label-inset-top: 0.33rem;
+  --vlacku-mode-padding-inline: 0.55rem;
+  position: relative;
+  justify-content: flex-start;
+  gap: 0.9rem 0.75rem;
+}
+
+.dictionary-page.vlacku-page .dictionary-controls.is-split-rows,
+.dictionary-page.vlacku-page .dictionary-controls.is-compact {
+  --vlacku-mode-padding-inline: 0.4rem;
+}
+
+/* The mode selector: two bracket groups. */
+.dictionary-page .mode-selector-wrap.vlacku-mode-selector {
+  grid-template-columns: max-content max-content;
+  column-gap: 0;
+  row-gap: var(--vlacku-label-gap);
+}
+
+.dictionary-page .vlacku-mode-selector .mode-bracket-label,
 .dictionary-page .vote-filter-caption {
+  padding: var(--vlacku-label-inset-top) 0 0;
   color: var(--app-muted);
   font-size: 0.68rem;
   line-height: 1;
   text-transform: uppercase;
-  padding-bottom: 0.33rem;
 }
+
+.dictionary-page .vlacku-mode-selector .mode-bracket-label {
+  grid-row: 1;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-bracket-label.is-similar,
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-similar {
+  grid-column: 1;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-bracket-label.is-exact,
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-exact {
+  grid-column: 2;
+}
+
+/* Each group is as wide as its wider button, and only that: the two groups are
+   drawn as one segmented control, so the second has no left border. */
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup {
+  grid-row: 2;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-2);
+  overflow: hidden;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-similar {
+  border-radius: 9px 0 0 9px;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-exact {
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup .dictionary-mode-toggle {
+  display: inline-grid;
+  justify-items: center;
+  min-width: 0;
+  padding-inline: var(--vlacku-mode-padding-inline);
+  border-right: 1px solid var(--app-border);
+  border-radius: 0;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-similar .dictionary-mode-toggle:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.dictionary-page .vlacku-mode-selector .mode-toggle-subgroup.is-exact .dictionary-mode-toggle:last-child {
+  border-right: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Reserve the bold width of the label in every button: the selected button is
+   bold, and a width that changed with the selection would move the controls and
+   change what the probes measure. */
+.dictionary-page .vlacku-mode-selector .dictionary-mode-toggle::after {
+  content: attr(data-label);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 700;
+}
+
+/* The min-votes stepper. */
+.dictionary-page .vote-filter {
+  display: grid;
+  justify-items: center;
+  gap: var(--vlacku-label-gap);
+  align-self: flex-end;
+}
+
 .dictionary-page .vote-filter-stepper {
   display: inline-flex;
   border: 1px solid var(--app-border);
@@ -7238,11 +7330,12 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--app-surface-2);
   overflow: hidden;
 }
+
 .dictionary-page .vote-filter-step {
   font: inherit;
   font-size: 0.88rem;
   padding: 0.32rem 0;
-  inline-size: 1.9rem;
+  inline-size: 1.25rem;
   border: 0;
   background: transparent;
   color: var(--app-text);
@@ -7250,30 +7343,34 @@ body::-webkit-scrollbar-thumb:hover,
   user-select: none;
   touch-action: manipulation;
 }
+
 .dictionary-page .vote-filter-step.is-decrease { border-right: 1px solid var(--app-border); }
 .dictionary-page .vote-filter-step.is-increase { border-left: 1px solid var(--app-border); }
 .dictionary-page .vote-filter-step:hover:not(:disabled) { background: var(--app-surface-3); }
 .dictionary-page .vote-filter-step:disabled { color: var(--app-muted); opacity: 0.62; cursor: default; }
+
+/* The longest values are "+20", "-11" and "any". */
 .dictionary-page .vote-filter-value {
   font-size: 0.88rem;
-  inline-size: calc(3.5ch + 0.7rem);
+  inline-size: calc(3ch + 0.5rem);
   box-sizing: border-box;
-  padding: 0.32rem 0.35rem;
+  padding: 0.32rem 0.25rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
   background: var(--app-surface-0);
   color: var(--app-text);
   font-weight: 700;
 }
+
 .dictionary-page .vote-filter-value.is-any { color: var(--app-muted); font-weight: 400; }
 .dictionary-page .vote-filter-value:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--app-focus); }
+
 .dictionary-page .vote-filter-divider {
   width: 1px;
   align-self: stretch;
-  margin: 0 0.6rem;
   background: var(--app-border-strong);
-  transform: translateY(0.425rem);
 }
+
 .dictionary-page .dictionary-empty-action {
   color: var(--app-link);
   text-decoration: underline;
@@ -7282,26 +7379,171 @@ body::-webkit-scrollbar-thumb:hover,
   font: inherit;
   cursor: pointer;
 }
-@media (max-width: 760px) {
-  .dictionary-page .vote-filter {
-    flex-basis: 100%;
-    grid-auto-flow: column;
-    align-items: center;
-    justify-content: start;
-    column-gap: 0.5rem;
-    transform: none;
-  }
-  .dictionary-page .vote-filter-caption { padding-bottom: 0; }
-  .dictionary-page .vote-filter-divider { display: none; }
-}
+
 @media (pointer: coarse) {
-  .dictionary-page .vote-filter-step { inline-size: 2.75rem; min-block-size: 2.75rem; }
-  .dictionary-page .vote-filter-value {
-    min-block-size: 2.75rem;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
   .dictionary-page .dictionary-empty-action { min-block-size: 2.75rem; }
+}
+
+/* The filter panel is the stepper, its divider and the word types. Outside the
+   compact arrangement it takes no box of its own, so they are laid out as part of
+   the controls. */
+.dictionary-page .dictionary-filter-panel {
+  display: contents;
+}
+
+/* One row: mode selector, stepper, and the word types at the right edge. */
+.dictionary-page.vlacku-page .dictionary-controls.is-single-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.dictionary-page .is-single-row .vote-filter-divider {
+  margin-inline-start: auto;
+  transform: translateY(0.425rem);
+}
+
+.dictionary-page .is-single-row .word-type-grid {
+  transform: translateY(0.425rem);
+}
+
+/* Two rows: mode selector and stepper, then the word types. */
+.dictionary-page.vlacku-page .dictionary-controls.is-split-rows {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  justify-content: start;
+  align-items: end;
+}
+
+.dictionary-page .is-split-rows .vote-filter-divider {
+  display: none;
+}
+
+.dictionary-page .is-split-rows .word-type-grid {
+  grid-column: 1 / -1;
+  transform: none;
+}
+
+/* The mode selector and a Filters button; the rest is in a dropdown. */
+.dictionary-page.vlacku-page .dictionary-controls.is-compact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+/* The same height as the mode buttons: the button has the buttons' font, padding
+   and border, and a strut as tall as a line of that font keeps the icon from
+   deciding the height. */
+.dictionary-page .filters-button {
+  position: relative;
+  z-index: 20;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  /* Stays at the right edge when the row has no room and it wraps. */
+  margin-inline-start: auto;
+  inline-size: 2.25rem;
+  padding: 0.32rem 0;
+  border: 1px solid var(--app-border);
+  border-radius: 9px;
+  background: var(--app-surface-2);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dictionary-page .filters-button::before {
+  content: "\200b";
+  grid-area: 1 / 1;
+}
+
+.dictionary-page .filters-icon {
+  grid-area: 1 / 1;
+  inline-size: 1.1em;
+  block-size: 1.1em;
+}
+
+.dictionary-page .filters-button:hover { background: var(--app-surface-3); }
+
+.dictionary-page .filters-button[aria-expanded="true"] {
+  background: var(--dictionary-tooltip-bg);
+  box-shadow: inset 0 0 0 1px var(--app-border-strong);
+}
+
+.dictionary-page .filters-button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--app-focus);
+}
+
+/* A filter that differs from its default is hidden in the dropdown, so the button
+   says so. */
+.dictionary-page .filters-badge {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  inline-size: 0.42rem;
+  block-size: 0.42rem;
+  border-radius: 50%;
+  background: var(--app-link);
+}
+
+.dictionary-page .is-compact .dictionary-filter-panel {
+  display: none;
+}
+
+/* The dropdown spans the controls. The word types come first; the stepper is
+   below them at the right, with its caption to the left. The compact panel has
+   no divider element, and its children are in the order they are shown in. */
+.dictionary-page .is-compact .dictionary-filter-panel.is-open {
+  display: grid;
+  grid-template-columns: max-content;
+  justify-content: center;
+  justify-items: stretch;
+  gap: 0.6rem;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  left: 0;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 10px;
+  background: var(--app-surface-1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.dictionary-page .is-compact .dictionary-filter-panel.is-open .word-type-grid {
+  transform: none;
+}
+
+.dictionary-page .is-compact .dictionary-filter-panel.is-open .vote-filter {
+  grid-auto-flow: column;
+  justify-self: end;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+.dictionary-page .is-compact .dictionary-filter-panel.is-open .vote-filter-caption {
+  padding: 0;
+}
+
+/* The fit probes: the controls in each candidate arrangement, off screen, with
+   the width the arrangement needs. Fixed, so that a probe wider than the page
+   cannot make the page scroll. */
+.vlacku-controls-probes {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+  z-index: -1;
+}
+
+.dictionary-page.vlacku-page .dictionary-controls.vlacku-controls-probe {
+  width: max-content;
+  flex-wrap: nowrap;
 }

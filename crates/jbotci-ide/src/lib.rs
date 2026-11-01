@@ -9,11 +9,13 @@ pub use line_index::{
     LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, TextOffsets,
 };
 pub use snapshot::{
-    CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
-    CompletionItem, CompletionKind, CompletionProvenance, DecorationProfile, DiagnosticSnapshot,
-    DocumentSnapshot, FoldingRange, HoverContent, IncrementalAnalysisTimings,
-    IncrementalDiagnosticGate, Inlay, InlayKind, InlayOptions, PreparedDocumentAnalysis,
-    RawBracketsOptions, ResolvedDiagnostic, ResolvedLabel, SelectionRangeChain, SemanticToken,
-    SemanticTokenKind, StructureBracketInlayOptions, StructureConstructFilter, StructureInlay,
-    StructureInlayKind, WordAt, completion_documentation_markdown,
+    COMPLETION_GRAMMAR_TIME_LIMIT, CompletionCancellationToken, CompletionDocumentationHandle,
+    CompletionIncompleteReason, CompletionInterpretation, CompletionItem, CompletionKind,
+    CompletionProvenance, CompletionProvenanceData, CompletionResult, CompletionResultData,
+    DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, FoldingRange, HoverContent,
+    IncrementalAnalysisTimings, IncrementalDiagnosticGate, Inlay, InlayKind, InlayOptions,
+    PreparedDocumentAnalysis, RawBracketsOptions, ResolvedDiagnostic, ResolvedLabel,
+    SelectionRangeChain, SemanticToken, SemanticTokenKind, StructureBracketInlayOptions,
+    StructureConstructFilter, StructureInlay, StructureInlayKind, WordAt,
+    completion_documentation_markdown,
 };

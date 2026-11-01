@@ -25,10 +25,10 @@ use vec1::Vec1;
 
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, TokenIdentity};
 use crate::{
-    ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
-    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxParseEntry,
-    SyntaxRecoveryParse, SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token,
-    WithIndicators, WithIndicatorsData,
+    ContinuationError, ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse,
+    RecoveredSyntaxParseAttempt, SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt,
+    SyntaxParseEntry, SyntaxRecoveryParse, SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData,
+    SyntaxWarning, Token, WithIndicators, WithIndicatorsData,
 };
 
 mod baseline_quantifier;
@@ -3666,18 +3666,18 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|items| items.iter().all(|item| !item.tokens.is_empty())) || ret.is_err())]
 pub(crate) fn expected_continuations(
     words: &[WordLike],
     options: &ParseOptions,
     time_limit: Option<Duration>,
-) -> Vec<SyntaxExpectation> {
+) -> Result<Vec<SyntaxExpectation>, ContinuationError> {
     if time_limit.is_some_and(|duration| duration.is_zero()) {
-        return Vec::new();
+        return Err(ContinuationError::TimedOut);
     }
     let time_limit = time_limit.map(ContinuationTimeLimit::new);
     if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-        return Vec::new();
+        return Err(ContinuationError::TimedOut);
     }
     let cut_byte = words
         .last()
@@ -3710,7 +3710,7 @@ pub(crate) fn expected_continuations(
         mut continuation_expectations,
     }) = tracked_attempt.into_data();
     if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-        return Vec::new();
+        return Err(ContinuationError::TimedOut);
     }
     let failure = match result {
         Ok(_) => unreachable!("the completion sentinel cannot satisfy the root EOF parser"),
@@ -3718,7 +3718,7 @@ pub(crate) fn expected_continuations(
     };
     if syntax_error_start(&failure.public_error) == cut_byte {
         continuation_expectations.extend(syntax_error_expectations(&failure.public_error));
-        return continuation_expectations;
+        return Ok(continuation_expectations);
     }
     let recovered = recover_after_strict_failure(
         SyntaxParseEntry::Text,
@@ -3733,13 +3733,15 @@ pub(crate) fn expected_continuations(
     let data!(RecoveryParseOutcome {
         recovered: _,
         continuation_expectations,
-        continuation_cut_reached: _,
+        continuation_cut_reached,
         continuation_time_limit_exhausted,
     }) = recovered.into_data();
     if continuation_time_limit_exhausted {
-        Vec::new()
+        Err(ContinuationError::TimedOut)
+    } else if !continuation_cut_reached {
+        Err(ContinuationError::RecoveryLimit)
     } else {
-        continuation_expectations
+        Ok(continuation_expectations)
     }
 }
 

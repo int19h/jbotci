@@ -154,7 +154,7 @@ pub(super) fn cukta_edition_layout_key(snapshot: &CuktaPageSnapshot) -> CuktaEdi
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn use_cukta_edition_row_observer(fit: CuktaEditionReleaseFitState) -> impl Fn() + Copy {
-    let mut observer = use_signal(|| None::<CuktaEditionRowObserver>);
+    let mut observer = use_signal(|| None::<ElementResizeObserver>);
     use_drop(move || {
         if let Some(attached) = observer.write().take() {
             attached.disconnect();

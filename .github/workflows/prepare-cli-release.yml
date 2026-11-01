@@ -171,15 +171,15 @@ jobs:
             --env EXPECTED_BINDGEN_TARGET="${{ matrix.bindgen_target }}" \
             --env EXPECTED_RUST_HOST="${{ matrix.target }}" \
             --env EXPECTED_UNAME="${{ matrix.uname }}" \
-            --env RUSTUP_TOOLCHAIN=1.96.0 \
+            --env RUSTUP_TOOLCHAIN=1.99.1 \
             --volume "${GITHUB_WORKSPACE}:/work:ro" \
             --volume "${build_root}:/out" \
             --workdir /work \
-            rust:1.96.0-alpine3.24 \
+            rust:1.99.1-alpine3.24 \
             sh -euc '
               test "$(uname -m)" = "${EXPECTED_UNAME}"
               rustc_version="$(rustc -vV)"
-              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^release: //p")" = "1.96.0"
+              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^release: //p")" = "1.99.1"
               test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^host: //p")" = "${EXPECTED_RUST_HOST}"
               apk add --no-cache \
                 binutils \
@@ -291,6 +291,8 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
     steps:
       - name: Check out the dispatch commit
         uses: actions/checkout@v6
@@ -304,6 +306,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ needs.preflight.outputs.sha }}"
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUSTUP_TOOLCHAIN}" --profile minimal
+          test "$(rustc --version)" = "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
 
       - name: Build jbotci
         shell: bash
@@ -342,6 +351,8 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
     steps:
       - name: Check out the dispatch commit
         uses: actions/checkout@v6
@@ -356,6 +367,18 @@ jobs:
           $actualSha = (git rev-parse HEAD).Trim()
           if ($actualSha -ne "${{ needs.preflight.outputs.sha }}") {
             throw "Checkout resolved to $actualSha"
+          }
+
+      - name: Install pinned Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install $env:RUSTUP_TOOLCHAIN --profile minimal
+          if ($LASTEXITCODE -ne 0) {
+            throw "Rust toolchain installation failed"
+          }
+          $rustVersion = (rustc --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or $rustVersion -ne "rustc 1.99.1 (58cf8f9c3 2026-10-13)") {
+            throw "Unexpected Rust compiler: $rustVersion"
           }
 
       - name: Build jbotci
