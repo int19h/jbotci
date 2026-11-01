@@ -53,12 +53,12 @@ jobs:
         shell: bash
         run: |
           {
-            printf 'CARGO_HOME=%s/.github-cache/cargo\n' "${GITHUB_WORKSPACE}"
-            printf 'CARGO_TARGET_DIR=%s/.github-cache/cargo-target/deploy\n' "${GITHUB_WORKSPACE}"
+            printf 'CARGO_HOME=%s/cargo-home\n' "${RUNNER_TEMP}"
+            printf 'CARGO_TARGET_DIR=%s/cargo-target/deploy\n' "${RUNNER_TEMP}"
             printf 'GIT_CONFIG_GLOBAL=%s/jbotci-gitconfig\n' "${RUNNER_TEMP}"
-            printf 'DIOXUS_HOME=%s/.github-cache/home\n' "${GITHUB_WORKSPACE}"
-            printf 'DIOXUS_CLI_ROOT=%s/.github-cache/dioxus-cli/0.7.9\n' "${GITHUB_WORKSPACE}"
-            printf 'DIOXUS_CLI_TARGET_DIR=%s/.github-cache/cargo-target/dioxus-cli-0.7.9\n' "${GITHUB_WORKSPACE}"
+            printf 'DIOXUS_HOME=%s/dioxus-home\n' "${RUNNER_TEMP}"
+            printf 'DIOXUS_CLI_ROOT=%s/dioxus-cli/0.7.9\n' "${RUNNER_TEMP}"
+            printf 'DIOXUS_CLI_TARGET_DIR=%s/cargo-target/dioxus-cli-0.7.9\n' "${RUNNER_TEMP}"
           } >> "${GITHUB_ENV}"
 
       - name: Install build dependencies
@@ -106,7 +106,7 @@ jobs:
         id: cargo-home-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: jbotci-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
@@ -115,15 +115,14 @@ jobs:
         id: dioxus-cli-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          path: ${{ env.DIOXUS_CLI_ROOT }}
           key: jbotci-dx-v2-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.build-environment.outputs.key }}
 
       - name: Restore render target cache
         id: target-cache
         uses: actions/cache/restore@v5
         with:
-          path: |
-            .github-cache/cargo-target/deploy
+          path: ${{ env.CARGO_TARGET_DIR }}
           key: jbotci-render-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
             jbotci-render-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-
@@ -211,14 +210,14 @@ jobs:
         if: ${{ success() && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
       - name: Save Dioxus CLI cache
         if: ${{ success() && steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          path: ${{ env.DIOXUS_CLI_ROOT }}
           key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
 
       # Save compiled artifacts only after the job succeeds.
@@ -226,8 +225,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/cache/save@v5
         with:
-          path: |
-            .github-cache/cargo-target/deploy
+          path: ${{ env.CARGO_TARGET_DIR }}
           key: ${{ steps.target-cache.outputs.cache-primary-key }}
 
   f2llm-native-lavapipe:

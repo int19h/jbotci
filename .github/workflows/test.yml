@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install workflow tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck strace
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake shellcheck strace
 
       - name: Install pinned actionlint
         shell: bash
@@ -85,8 +85,8 @@ jobs:
         shell: bash
         run: |
           {
-            printf 'CARGO_HOME=%s/.github-cache/cargo\n' "${GITHUB_WORKSPACE}"
-            printf 'CARGO_TARGET_DIR=%s/.github-cache/cargo-target/test\n' "${GITHUB_WORKSPACE}"
+            printf 'CARGO_HOME=%s/cargo-home\n' "${RUNNER_TEMP}"
+            printf 'CARGO_TARGET_DIR=%s/cargo-target/test\n' "${RUNNER_TEMP}"
             printf 'GIT_CONFIG_GLOBAL=%s/jbotci-gitconfig\n' "${RUNNER_TEMP}"
           } >> "${GITHUB_ENV}"
 
@@ -135,7 +135,7 @@ jobs:
         id: cargo-home-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: jbotci-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             jbotci-cargo-home-${{ runner.os }}-
@@ -144,7 +144,7 @@ jobs:
         id: target-cache
         uses: actions/cache/restore@v5
         with:
-          path: .github-cache/cargo-target/test
+          path: ${{ env.CARGO_TARGET_DIR }}
           key: jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
             jbotci-test-target-v5-${{ runner.os }}-${{ steps.build-environment.outputs.key }}-${{ hashFiles('Cargo.lock') }}-
@@ -176,7 +176,7 @@ jobs:
         if: ${{ success() && github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/cargo
+          path: ${{ env.CARGO_HOME }}
           key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
 
       # Save compiled artifacts only after the job succeeds.
@@ -184,5 +184,5 @@ jobs:
         if: ${{ success() && github.event_name != 'pull_request' }}
         uses: actions/cache/save@v5
         with:
-          path: .github-cache/cargo-target/test
+          path: ${{ env.CARGO_TARGET_DIR }}
           key: ${{ steps.target-cache.outputs.cache-primary-key }}

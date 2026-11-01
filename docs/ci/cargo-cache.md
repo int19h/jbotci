@@ -9,7 +9,9 @@ The CLI release workflow never restores a target cache.
 Both cached jobs export `JBOTCI_INPUT_SESSION` through `GITHUB_ENV` before their first Cargo step.
 Every later step receives the session path under `RUNNER_TEMP`.
 The job environment does not use the unavailable `runner` context.
-Cargo paths use the container's runtime `GITHUB_WORKSPACE`, which also contains the cache action paths.
+Cargo and DX paths use the container's `RUNNER_TEMP`, outside the checkout.
+The cache actions use those exported paths.
+Copied native sources cannot discover the checkout as a parent Git repository.
 One `GIT_CONFIG_GLOBAL` file under `RUNNER_TEMP` keeps Git trust unchanged when Render changes `HOME`.
 It trusts only the exact checkout and `vendor/cll` paths.
 The trust step exercises recursive file listing and Git metadata reads before Cargo work.

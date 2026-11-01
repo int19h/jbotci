@@ -74,7 +74,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
                         f"JBOTCI_INPUT_SESSION={runner_temp}/cargo-inputs\n",
                     )
 
-    def test_cached_container_paths_follow_runtime_workspace(self) -> None:
+    def test_cached_container_paths_follow_runtime_temp_directory(self) -> None:
         for workflow, lane in ((self.test_workflow, "test"), (self.render_workflow, "deploy")):
             with self.subTest(lane=lane), tempfile.TemporaryDirectory() as temporary:
                 step = workflow.split("      - name: Set container build paths\n", 1)[1].split("\n      - name:", 1)[0]
@@ -88,12 +88,57 @@ class CiWorkflowSplitTests(unittest.TestCase):
                     check=True,
                 )
                 exported = dict(line.split("=", 1) for line in environment_file.read_text().splitlines())
-                self.assertEqual(exported["CARGO_HOME"], str(workspace / ".github-cache/cargo"))
-                self.assertEqual(exported["CARGO_TARGET_DIR"], str(workspace / f".github-cache/cargo-target/{lane}"))
+                self.assertEqual(exported["CARGO_HOME"], str(Path(temporary) / "cargo-home"))
+                self.assertEqual(exported["CARGO_TARGET_DIR"], str(Path(temporary) / f"cargo-target/{lane}"))
                 self.assertEqual(exported["GIT_CONFIG_GLOBAL"], str(Path(temporary) / "jbotci-gitconfig"))
+                for variable in ("CARGO_HOME", "CARGO_TARGET_DIR"):
+                    self.assertFalse(Path(exported[variable]).is_relative_to(workspace))
+                    self.assertEqual(workflow.count(f"path: ${{{{ env.{variable} }}}}"), 2)
                 if lane == "deploy":
-                    self.assertEqual(exported["DIOXUS_HOME"], str(workspace / ".github-cache/home"))
-                    self.assertEqual(exported["DIOXUS_CLI_ROOT"], str(workspace / ".github-cache/dioxus-cli/0.7.9"))
+                    self.assertEqual(exported["DIOXUS_HOME"], str(Path(temporary) / "dioxus-home"))
+                    self.assertEqual(exported["DIOXUS_CLI_ROOT"], str(Path(temporary) / "dioxus-cli/0.7.9"))
+                    self.assertEqual(workflow.count("path: ${{ env.DIOXUS_CLI_ROOT }}"), 2)
+
+    def test_native_cmake_cannot_discover_the_checkout_from_cache_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "checkout"
+            runner_temp = root / "runner-temp"
+            runner_temp.mkdir()
+            environment = {**os.environ, "GIT_CONFIG_GLOBAL": str(root / "gitconfig"), "GIT_CONFIG_NOSYSTEM": "1"}
+            subprocess.run(["git", "init", "-q", str(workspace)], env=environment, check=True)
+            (workspace / "input").write_text("tracked source")
+            subprocess.run(["git", "-C", str(workspace), "add", "input"], env=environment, check=True)
+            subprocess.run(
+                ["git", "-C", str(workspace), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                 "commit", "-qm", "fixture"], env=environment, check=True,
+            )
+            script = root / "probe.cmake"
+            script.write_text('include("${INPUT_SCRIPT}")\nmessage(STATUS "NATIVE_COMMIT=${BUILD_COMMIT}")\n')
+            command = ["cmake", "-DCMAKE_DISABLE_FIND_PACKAGE_Git=ON",
+                       f"-DINPUT_SCRIPT={REPOSITORY_ROOT}/crates/vendor/llama-cpp-sys-4/llama.cpp/cmake/build-info.cmake",
+                       "-P", str(script)]
+            old_cache = workspace / ".github-cache/native-source"
+            old_cache.mkdir(parents=True)
+            old = subprocess.run(command, cwd=old_cache, env=environment, capture_output=True, text=True, check=True)
+            self.assertNotIn("NATIVE_COMMIT=unknown", old.stdout)
+            for workflow in (self.test_workflow, self.render_workflow):
+                with self.subTest(workflow=workflow.splitlines()[0]):
+                    step = workflow.split("      - name: Set container build paths\n", 1)[1].split("\n      - name:", 1)[0]
+                    setup = textwrap.dedent(step.split("        run: |\n", 1)[1])
+                    environment_file = root / "github-env"
+                    environment_file.write_text("")
+                    subprocess.run(
+                        ["bash", "-e", "-c", setup],
+                        env={**environment, "GITHUB_WORKSPACE": str(workspace), "RUNNER_TEMP": str(runner_temp),
+                             "GITHUB_ENV": str(environment_file)}, check=True,
+                    )
+                    exported = dict(line.split("=", 1) for line in environment_file.read_text().splitlines())
+                    native_source = Path(exported["CARGO_TARGET_DIR"]) / "native-source"
+                    native_source.mkdir(parents=True)
+                    result = subprocess.run(command, cwd=native_source, env={**environment, **exported},
+                                            capture_output=True, text=True, check=True)
+                    self.assertIn("NATIVE_COMMIT=unknown", result.stdout)
 
     def test_git_trust_covers_checkout_and_submodule_after_home_change(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
