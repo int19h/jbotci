@@ -3523,18 +3523,6 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     Ok(())
 }
 
-#[requires(!model_key.is_empty())]
-#[ensures(true)]
-pub fn load_latest_pack(
-    index_root: &Path,
-    model_key: &str,
-) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
-    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
-        model_key: model_key.to_owned(),
-    })?;
-    load_pack_for_identity(index_root, &spec, current_native_corpus_identity()?)
-}
-
 #[invariant(dictionary_fingerprint.len() == 64 && dictionary_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
 #[invariant(cll_fingerprint.len() == 64 && cll_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
 #[derive(Debug, Clone)]
@@ -3581,6 +3569,8 @@ fn current_native_corpus_identity() -> Result<&'static NativeCorpusIdentity, Emb
         })
 }
 
+// Whole-pack identity is a test oracle for setup and explicit reuse, never a search gate.
+#[cfg(test)]
 #[requires(spec.dimensions > 0)]
 #[ensures(true)]
 fn load_pack_for_identity(
@@ -7271,9 +7261,11 @@ mod tests {
             assert_eq!(cll_result.is_err(), !stale_dictionary);
             assert_eq!(backend.calls, usize::from(stale_dictionary));
         }
-        // The public loader and desktop status use the actual compiled corpus,
-        // which also refuses this small, stale pack.
-        assert!(load_latest_pack(dir.path(), &spec.model_key).is_err());
+        // Whole-pack setup validation still refuses this small, stale fixture.
+        assert!(
+            load_pack_for_identity(dir.path(), &spec, current_native_corpus_identity().unwrap())
+                .is_err()
+        );
         let identity = native_corpus_identity(&dictionary, chunks);
         for changed_spec in [
             EmbeddingModelSpec {

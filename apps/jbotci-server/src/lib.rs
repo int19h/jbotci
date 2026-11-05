@@ -12,6 +12,8 @@ mod policy;
 mod work;
 
 mod discord;
+#[cfg(test)]
+mod embedding_tests;
 mod mcp;
 
 pub use discord::register_discord_commands_from_env;
@@ -37,7 +39,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires, try_new};
+use bityzba::{contract_trait, ensures, invariant, new, requires, try_new};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
@@ -47,7 +49,7 @@ use jbotci_cll::{
     CuktaSearchOutput, CuktaSearchWindow, CuktaTargetFilter, cll_search_all_chunks,
     embedded_cll_site,
 };
-use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
+use jbotci_embeddings::{DictionarySemanticHit, EmbeddingError, model_spec};
 use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_entry_filters};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaExportFormat, GentufaWebRequest, MANIFEST_ASSET_PATH,
@@ -373,25 +375,7 @@ impl EmbeddingJob {
                 // Dropped with the job, so the delivery it stands for outlives
                 // every caller that gave up while this ran.
                 let _keepalive = keepalive;
-                let result = loaded_embedding_service(cache)
-                    .map_err(SemanticSearchError::unavailable)
-                    .and_then(|service| {
-                        let dictionary = jbotci_dictionary_data::english();
-                        service
-                            .semantic_vlacku_hits_window_filtered(
-                                query.as_str(),
-                                options.skip,
-                                count.get(),
-                                |entry_index| {
-                                    dictionary.entries().get(entry_index).is_some_and(|entry| {
-                                        dictionary_entry_passes_vlacku_entry_filters(
-                                            entry, &options,
-                                        )
-                                    })
-                                },
-                            )
-                            .map_err(|error| SemanticSearchError::failed(error.to_string()))
-                    });
+                let result = run_semantic_vlacku_hits(cache, &query, count, &options);
                 let _ = reply.send(result);
             }
             Self::CuktaSearch {
@@ -402,20 +386,7 @@ impl EmbeddingJob {
                 keepalive,
             } => {
                 let _keepalive = keepalive;
-                let result = embedded_cll_site()
-                    .map_err(|error| SemanticSearchError::failed(error.to_string()))
-                    .and_then(|site| {
-                        let service = loaded_embedding_service(cache)
-                            .map_err(SemanticSearchError::unavailable)?;
-                        service
-                            .semantic_cukta_output(
-                                cll_search_all_chunks(site),
-                                query.as_str(),
-                                window,
-                                targets,
-                            )
-                            .map_err(|error| SemanticSearchError::failed(error.to_string()))
-                    });
+                let result = run_semantic_cukta_search(cache, &query, window, targets);
                 let _ = reply.send(result);
             }
         }
@@ -434,6 +405,87 @@ struct ServerEmbeddingModelKey {
     value: String,
 }
 
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct EmbeddingSearchPaths {
+    model_dir: Option<PathBuf>,
+    index_dir: Option<PathBuf>,
+}
+
+// Replace model loading and inference in offline tests without replacing the server cache or corpus proofs.
+#[contract_trait]
+trait ServerEmbeddingSearch: std::fmt::Debug + Sized {
+    #[requires(!model_key.trim().is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|service| service.model_key() == model_key) || ret.is_err())]
+    fn load(model_key: &str, paths: &EmbeddingSearchPaths) -> Result<Self>;
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn model_key(&self) -> &str;
+
+    #[requires(!query.trim().is_empty())]
+    #[requires(count > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count) || ret.is_err())]
+    fn semantic_vlacku_hits_window_filtered<F: FnMut(usize) -> bool>(
+        &mut self,
+        query: &str,
+        skip: usize,
+        count: usize,
+        entry_allowed: F,
+    ) -> std::result::Result<Vec<DictionarySemanticHit>, EmbeddingError>;
+
+    #[requires(!query.trim().is_empty())]
+    #[ensures(true)]
+    fn semantic_cukta_output(
+        &mut self,
+        chunks: &[jbotci_cll::CllSearchChunk],
+        query: &str,
+        window: CuktaSearchWindow,
+        targets: CuktaTargetFilter,
+    ) -> std::result::Result<CuktaSearchOutput, EmbeddingError>;
+}
+
+#[contract_trait]
+impl ServerEmbeddingSearch for ToolEmbeddingSearchService {
+    fn load(model_key: &str, paths: &EmbeddingSearchPaths) -> Result<Self> {
+        Ok(ToolEmbeddingSearchService::load(
+            model_key,
+            paths.model_dir.clone(),
+            paths.index_dir.clone(),
+        )?)
+    }
+
+    fn model_key(&self) -> &str {
+        ToolEmbeddingSearchService::model_key(self)
+    }
+
+    fn semantic_vlacku_hits_window_filtered<F: FnMut(usize) -> bool>(
+        &mut self,
+        query: &str,
+        skip: usize,
+        count: usize,
+        entry_allowed: F,
+    ) -> std::result::Result<Vec<DictionarySemanticHit>, EmbeddingError> {
+        ToolEmbeddingSearchService::semantic_vlacku_hits_window_filtered(
+            self,
+            query,
+            skip,
+            count,
+            entry_allowed,
+        )
+    }
+
+    fn semantic_cukta_output(
+        &mut self,
+        chunks: &[jbotci_cll::CllSearchChunk],
+        query: &str,
+        window: CuktaSearchWindow,
+        targets: CuktaTargetFilter,
+    ) -> std::result::Result<CuktaSearchOutput, EmbeddingError> {
+        ToolEmbeddingSearchService::semantic_cukta_output(self, chunks, query, window, targets)
+    }
+}
+
 impl ServerEmbeddingModelKey {
     #[requires(true)]
     #[ensures(!ret.trim().is_empty())]
@@ -446,10 +498,17 @@ impl ServerEmbeddingModelKey {
 #[invariant(::Loaded { .. } => true)]
 #[invariant(::Unavailable { .. } => true)]
 #[derive(Debug)]
-enum EmbeddingSearchCache {
-    Unloaded { model_key: ServerEmbeddingModelKey },
-    Loaded { service: ToolEmbeddingSearchService },
-    Unavailable { error: CachedEmbeddingError },
+enum EmbeddingSearchCache<S: ServerEmbeddingSearch = ToolEmbeddingSearchService> {
+    Unloaded {
+        model_key: ServerEmbeddingModelKey,
+        paths: EmbeddingSearchPaths,
+    },
+    Loaded {
+        service: S,
+    },
+    Unavailable {
+        error: CachedEmbeddingError,
+    },
 }
 
 impl ToolServices {
@@ -743,10 +802,10 @@ fn embedding_job_runner(
 /// `Loaded` or permanently `Unavailable` with the reason.
 #[requires(true)]
 #[ensures(!matches!(cache, EmbeddingSearchCache::Unloaded { .. }))]
-fn ensure_embedding_service_loaded(cache: &mut EmbeddingSearchCache) {
-    if let EmbeddingSearchCache::Unloaded { model_key } = cache {
+fn ensure_embedding_service_loaded<S: ServerEmbeddingSearch>(cache: &mut EmbeddingSearchCache<S>) {
+    if let EmbeddingSearchCache::Unloaded { model_key, paths } = cache {
         let model_key = model_key.clone();
-        *cache = match load_server_embedding_search_service(model_key.as_str()) {
+        *cache = match load_server_embedding_search_service::<S>(model_key.as_str(), paths) {
             Ok(service) => EmbeddingSearchCache::Loaded { service },
             Err(error) => EmbeddingSearchCache::Unavailable {
                 error: new!(CachedEmbeddingError {
@@ -763,9 +822,9 @@ fn ensure_embedding_service_loaded(cache: &mut EmbeddingSearchCache) {
 /// The loaded embedding service, or the cached reason it is unavailable.
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|message| !message.trim().is_empty()))]
-fn loaded_embedding_service(
-    cache: &mut EmbeddingSearchCache,
-) -> std::result::Result<&mut ToolEmbeddingSearchService, String> {
+fn loaded_embedding_service<S: ServerEmbeddingSearch>(
+    cache: &mut EmbeddingSearchCache<S>,
+) -> std::result::Result<&mut S, String> {
     ensure_embedding_service_loaded(cache);
     match cache {
         EmbeddingSearchCache::Loaded { service } => Ok(service),
@@ -774,6 +833,46 @@ fn loaded_embedding_service(
             unreachable!("embedding search cache is initialized")
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.get()) || ret.is_err())]
+fn run_semantic_vlacku_hits<S: ServerEmbeddingSearch>(
+    cache: &mut EmbeddingSearchCache<S>,
+    query: &SearchQuery,
+    count: NonZeroUsize,
+    options: &VlackuSearchOptions,
+) -> std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError> {
+    let service = loaded_embedding_service(cache).map_err(SemanticSearchError::unavailable)?;
+    let dictionary = jbotci_dictionary_data::english();
+    service
+        .semantic_vlacku_hits_window_filtered(
+            query.as_str(),
+            options.skip,
+            count.get(),
+            |entry_index| {
+                dictionary.entries().get(entry_index).is_some_and(|entry| {
+                    dictionary_entry_passes_vlacku_entry_filters(entry, options)
+                })
+            },
+        )
+        .map_err(|error| SemanticSearchError::failed(error.to_string()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn run_semantic_cukta_search<S: ServerEmbeddingSearch>(
+    cache: &mut EmbeddingSearchCache<S>,
+    query: &SearchQuery,
+    window: CuktaSearchWindow,
+    targets: CuktaTargetFilter,
+) -> std::result::Result<CuktaSearchOutput, SemanticSearchError> {
+    let site =
+        embedded_cll_site().map_err(|error| SemanticSearchError::failed(error.to_string()))?;
+    let service = loaded_embedding_service(cache).map_err(SemanticSearchError::unavailable)?;
+    service
+        .semantic_cukta_output(cll_search_all_chunks(site), query.as_str(), window, targets)
+        .map_err(|error| SemanticSearchError::failed(error.to_string()))
 }
 
 #[requires(true)]
@@ -837,17 +936,22 @@ fn embedding_search_cache_from_startup(
     startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
 ) -> EmbeddingSearchCache {
     match startup {
-        Ok(model_key) => EmbeddingSearchCache::Unloaded { model_key },
+        Ok(model_key) => EmbeddingSearchCache::Unloaded {
+            model_key,
+            paths: EmbeddingSearchPaths::default(),
+        },
         Err(error) => EmbeddingSearchCache::Unavailable { error },
     }
 }
 
 #[requires(!model_key.trim().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|service| service.model_key() == model_key) || ret.is_err())]
-fn load_server_embedding_search_service(model_key: &str) -> Result<ToolEmbeddingSearchService> {
-    let service = ToolEmbeddingSearchService::load(model_key, None, None)?;
-    load_latest_pack(service.index_root(), service.model_key())?;
-    Ok(service)
+fn load_server_embedding_search_service<S: ServerEmbeddingSearch>(
+    model_key: &str,
+    paths: &EmbeddingSearchPaths,
+) -> Result<S> {
+    // The native loader proves the model. Each search proves its own corpus, so a stale peer cannot disable the service.
+    S::load(model_key, paths)
 }
 
 #[derive(Debug, Clone, Serialize)]

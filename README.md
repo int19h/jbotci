@@ -258,6 +258,7 @@ Older local indexes without a byte proof rebuild when no published pack can supp
 Each client tracks dictionary and CLL availability separately.
 Search requires the selected corpus to match its current identity and pass its byte proof.
 A stale dictionary does not block CLL search, and stale CLL does not block dictionary search.
+The server keeps its model service available when one corpus is stale.
 The browser saves each corpus as it finishes, even if the other download fails.
 Published pack formats, catalogs, IDs, and corpus pins stay unchanged.
 Existing packs work without a new publish. Older clients keep their existing download behavior.
