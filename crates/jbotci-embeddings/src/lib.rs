@@ -1,6 +1,8 @@
 //! Native and web embedding model, vector-pack, and semantic search support.
 
 mod client_corpus;
+#[cfg(all(test, feature = "native-llama"))]
+mod setup_tests;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
@@ -2783,7 +2785,13 @@ pub fn reuse_existing_embedding_pack_with_progress(
     let pack_dir = if expected_dir.join("manifest.json").is_file() {
         expected_dir
     } else if catalog_path(index_root)?.is_file() {
-        read_latest_pack_manifest(index_root, &spec.model_key)?.0
+        let (latest_dir, latest_manifest) = read_latest_pack_manifest(index_root, &spec.model_key)?;
+        // A valid older catalog is a source for file reuse, not a failed current installation.
+        // Read it first so a corrupt catalog still reports its integrity error.
+        if latest_manifest.pack_id != pack_id {
+            return Ok(None);
+        }
+        latest_dir
     } else {
         return Ok(None);
     };
@@ -4537,7 +4545,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn per_corpus_native_setup_downloads_only_changed_files() {
+    fn per_corpus_native_file_installer_downloads_only_changed_files() {
         let source = tempfile::tempdir().unwrap();
         let target = tempfile::tempdir().unwrap();
         let mut original = sample_pack_manifest();
@@ -7064,16 +7072,15 @@ mod tests {
         );
         assert_eq!(backend.calls, 0);
         assert!(validate_native_reuse_source(dir.path(), &other).is_err());
-        assert!(
-            reuse_existing_embedding_pack_with_progress(
-                &dictionary,
-                chunks,
-                dir.path(),
-                &other,
-                &mut |_| {}
-            )
-            .is_err()
+        // An older or other-model catalog entry declines the shortcut and leads to a verified download.
+        let result = reuse_existing_embedding_pack_with_progress(
+            &dictionary,
+            chunks,
+            dir.path(),
+            &other,
+            &mut |_| {},
         );
+        assert!(matches!(result, Ok(None)));
     }
 
     #[test]

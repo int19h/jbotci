@@ -17,9 +17,9 @@ export function configureTestStore(db) {
   const runtime = ${JSON.stringify(runtime)};
   modelCatalog = { defaultDesktopModelKey: 'test', models: { test: {
     modelKey: 'test', remoteVectorPacks: true, dimensions: 2, vectorElementType: 'f32le', localVectorSpaceKey: 'space',
-    outputPooling: 'mean', maxSequenceLength: 512, customRuntime: runtime,
+    outputPooling: 'mean', maxSequenceLength: 512, customRuntime: runtime, preferredRuntime: runtime, minFreeBytesByDtype: {}, modelSizeEstimates: {},
   } } };
-  activeModelKey = 'test'; selectedModelKey = 'test'; modelRuntime = { ...runtime, modelIdentity: identity };
+  activeModelKey = 'test'; selectedModelKey = 'test'; modelRuntime = { ...runtime, modelKey: 'test', modelIdentity: identity };
   dbPromise = Promise.resolve(db);
   f2llmRuntimeModule = async () => ({ jbotciF2LlmQueryInput: value => value });
   ensureModel = async () => ({});
@@ -31,7 +31,7 @@ export function countVectorHashes() {
   sha256Hex = async bytes => { if (bytes.byteLength === 8) count++; return original(bytes); };
   return () => count;
 }
-export { search, getBinary, loadRemotePackIfAvailable };
+export { setup, search, getBinary, loadRemotePackIfAvailable };
 `;
   return import(`data:text/javascript;base64,${Buffer.from(source + harness + `\n// worker ${Math.random()}`).toString("base64")}`);
 }
@@ -73,7 +73,10 @@ class Transaction {
   objectStore(name) {
     assert.ok(this.names.includes(name));
     return {
-      get: key => this.enqueue(() => structuredClone(this.maps.get(name).get(key))),
+      get: key => this.enqueue(() => {
+        this.db.onGet?.(name, key);
+        return structuredClone(this.maps.get(name).get(key));
+      }),
       getAll: () => this.enqueue(() => {
         const values = [...this.maps.get(name).values()].map(value => structuredClone(value));
         this.db.afterReferenceRead?.();
@@ -127,7 +130,7 @@ async function install(w, db, data, previous, info, fetches = []) {
 
 function remoteFixture(data, failCorpus = null) {
   const doc = { inputHash: "new", inputFormatVersion: "format", dictionaryHash: data[0].manifest.input_hash,
-    cllHash: data[1].manifest.input_hash, dictionary: [{}], cll: [{}] };
+    cllHash: data[1].manifest.input_hash, modelKey: "test", modelRevision: "revision", dictionary: [{ id: 0, input: "dictionary", inputHash: data[0].manifest.input_hash }], cll: [{ id: 0, input: "CLL", inputHash: data[1].manifest.input_hash }] };
   const remote = { schema_version: 1, model_key: "test", model_revision: identity.modelRevision, q4_onnx_sha256: identity.modelSha256,
     input_hash: "new", input_format_version: "format", dimensions: 2, element_type: "f32le", normalized: true,
     distance: "dot", vector_space_key: "space", pooling: "mean", max_window_tokens: 512, pack_id: "new",
@@ -151,7 +154,11 @@ for (const changed of ["vlacku-en", "cukta-cll"]) {
     for (const id of ["vlacku-en", "cukta-cll"]) await install(w, db, corpus(id), null, packInfo());
     const remote = remoteFixture([corpus("vlacku-en", Number(changed === "vlacku-en")), corpus("cukta-cll", Number(changed === "cukta-cll"))]);
     const oldFetch = globalThis.fetch; globalThis.fetch = remote.fetch;
-    try { assert.equal((await w.loadRemotePackIfAvailable(remote.doc, "https://fixture.invalid")).loaded, true); }
+    try {
+      const result = await w.setup(JSON.stringify(remote.doc), "https://fixture.invalid", false, false);
+      assert.equal(result.corpora["vlacku-en"], "verified-current");
+      assert.equal(result.corpora["cukta-cll"], "verified-current");
+    }
     finally { globalThis.fetch = oldFetch; }
     assert.deepEqual(remote.fetched.sort(), [`https://fixture.invalid/packs/new/${changed}/items.json`, `https://fixture.invalid/packs/new/${changed}/vectors.f32`].sort());
   });
@@ -162,7 +169,11 @@ test("a finished corpus survives interruption of the other corpus", async () => 
   for (const id of ["vlacku-en", "cukta-cll"]) await install(w, db, corpus(id), null, packInfo());
   const remote = remoteFixture([corpus("vlacku-en", 1), corpus("cukta-cll", 1)], "cukta-cll");
   const oldFetch = globalThis.fetch; globalThis.fetch = remote.fetch;
-  try { await assert.rejects(w.loadRemotePackIfAvailable(remote.doc, "https://fixture.invalid"), /interrupted/); }
+  try {
+    const result = await w.setup(JSON.stringify(remote.doc), "https://fixture.invalid", false, false);
+    assert.equal(result.corpora["vlacku-en"], "verified-current");
+    assert.equal(result.corpora["cukta-cll"], "stale");
+  }
   finally { globalThis.fetch = oldFetch; }
   const live = { inputHash: "new", inputFormatVersion: "format", corpora: { "vlacku-en": { inputHash: "vlacku-en-1", rowCount: 1 }, "cukta-cll": { inputHash: "cukta-cll-1", rowCount: 1 } } };
   assert.equal((await w.search(live, "vlacku-en", "query", 1, "[]", false)).hits.length, 1);
@@ -172,15 +183,24 @@ for (const damage of ["wrong-vector", "wrong-items", "missing-vector", "missing-
   test(`a ${damage} store cannot authorize reuse`, async () => {
     const w = await worker(); const db = new Database(); w.configureTestStore(db);
     const data = corpus("vlacku-en");
-    const old = await install(w, db, data, null, packInfo());
+    const old = await install(w, db, data, null, packInfo("new"));
+    await install(w, db, corpus("cukta-cll"), null, packInfo("new"));
     if (damage === "wrong-items") { const bad = data.raw.slice(0); new Uint8Array(bad)[0] ^= 1; db.maps.get("blobs").set(old.rawItemsKey, bad); }
     if (damage === "wrong-vector") { const bad = data.vectors.slice(0); new Uint8Array(bad)[0] ^= 1; db.maps.get("blobs").set(old.shards[0].key, bad); }
     if (damage === "missing-vector" || damage === "partly-evicted") db.maps.get("blobs").delete(old.shards[0].key);
     if (damage === "missing-items" || damage === "partly-evicted") db.maps.get("blobs").delete(old.rawItemsKey);
-    const fetches = [];
-    await install(w, db, data, old, packInfo("new"), fetches);
-    assert.equal(fetches.includes("root/vlacku-en/vectors.f32"), ["wrong-vector", "missing-vector", "partly-evicted"].includes(damage));
-    assert.equal(fetches.includes("root/vlacku-en/items.json"), ["wrong-items", "missing-items", "partly-evicted"].includes(damage));
+    // The pack ID already matches the catalog. Setup must still inspect the bytes.
+    const remote = remoteFixture([data, corpus("cukta-cll")]);
+    const oldFetch = globalThis.fetch; globalThis.fetch = remote.fetch;
+    try {
+      const result = await w.setup(JSON.stringify(remote.doc), "https://fixture.invalid", false, false);
+      assert.equal(result.corpora["vlacku-en"], "verified-current");
+      assert.equal(result.corpora["cukta-cll"], "verified-current");
+    } finally { globalThis.fetch = oldFetch; }
+    const expected = [];
+    if (["wrong-vector", "missing-vector", "partly-evicted"].includes(damage)) expected.push("https://fixture.invalid/packs/new/vlacku-en/vectors.f32");
+    if (["wrong-items", "missing-items", "partly-evicted"].includes(damage)) expected.push("https://fixture.invalid/packs/new/vlacku-en/items.json");
+    assert.deepEqual(remote.fetched.sort(), expected.sort());
   });
 }
 
@@ -200,6 +220,29 @@ test("legacy vectors are hashed once while raw items are obtained without recons
   assert.deepEqual(fetches, ["root/vlacku-en/items.json"]);
   assert.equal(result.record.vectorSha256, data.manifest.vector_sha256);
   assert.equal(result.record.itemsSha256, data.manifest.items_sha256);
+});
+
+test("public setup migrates legacy bytes once even when the pack ID already matches", async () => {
+  const w = await worker(); const db = new Database(); w.configureTestStore(db);
+  for (const id of ["vlacku-en", "cukta-cll"]) await install(w, db, corpus(id), null, packInfo("new"));
+  const legacy = db.maps.get("meta").get("pack:test").corpora["vlacku-en"];
+  const oldKey = "remote/test/old/vlacku-en/vectors.f32";
+  db.maps.get("blobs").set(oldKey, db.maps.get("blobs").get(legacy.shards[0].key));
+  legacy.shards = [{ key: oldKey, byteLen: 8 }];
+  delete legacy.rawItemsKey; delete legacy.itemsSha256; delete legacy.vectorSha256;
+  let oldReads = 0;
+  db.onGet = (store, key) => { if (store === "blobs" && key === oldKey) oldReads++; };
+  const remote = remoteFixture([corpus("vlacku-en"), corpus("cukta-cll")]);
+  const oldFetch = globalThis.fetch; globalThis.fetch = remote.fetch;
+  try {
+    for (let update = 0; update < 2; update++) {
+      const result = await w.setup(JSON.stringify(remote.doc), "https://fixture.invalid", false, false);
+      assert.equal(result.corpora["vlacku-en"], "verified-current");
+      assert.equal(result.corpora["cukta-cll"], "verified-current");
+      assert.equal(oldReads, 1);
+    }
+  } finally { globalThis.fetch = oldFetch; }
+  assert.deepEqual(remote.fetched, ["https://fixture.invalid/packs/new/vlacku-en/items.json"]);
 });
 
 for (const stale of ["vlacku-en", "cukta-cll"]) {
@@ -223,19 +266,26 @@ for (const stale of ["vlacku-en", "cukta-cll"]) {
   });
 }
 
-test("partial OPFS eviction falls back to a real download through the worker store reader", async () => {
+test("public setup repairs partial OPFS eviction", async () => {
   const w = await worker(); const db = new Database(); w.configureTestStore(db);
   const data = corpus("vlacku-en");
-  const old = await install(w, db, data, null, packInfo());
+  for (const id of ["vlacku-en", "cukta-cll"]) await install(w, db, corpus(id), null, packInfo("new"));
+  const old = db.maps.get("meta").get("pack:test").corpora["vlacku-en"];
   old.shards = [{ key: "remote/test/old/vlacku-en/vectors.f32", byteLen: 8 }];
   db.maps.get("meta").set("blobMeta", { [old.shards[0].key]: { storage: "opfs", byteLen: 8 } });
-  navigator.storage.getDirectory = async () => ({ getDirectoryHandle: async () => { throw new Error("evicted OPFS directory"); } });
-  const fetched = [];
+  let opfsAttempts = 0;
+  navigator.storage.getDirectory = async () => ({ getDirectoryHandle: async () => {
+    opfsAttempts++; throw new Error("evicted OPFS directory");
+  } });
+  const remote = remoteFixture([data, corpus("cukta-cll")]);
+  const oldFetch = globalThis.fetch; globalThis.fetch = remote.fetch;
   try {
-    await w.installRemoteCorpus(data.manifest, manifest, old, "root",
-      async url => { fetched.push(url); return data.raw; }, async url => { fetched.push(url); return data.vectors; }, w.getBinary);
-  } finally { delete navigator.storage.getDirectory; }
-  assert.deepEqual(fetched, ["root/vlacku-en/vectors.f32"]);
+    const result = await w.setup(JSON.stringify(remote.doc), "https://fixture.invalid", false, false);
+    assert.equal(result.corpora["vlacku-en"], "verified-current");
+    assert.equal(result.corpora["cukta-cll"], "verified-current");
+  } finally { globalThis.fetch = oldFetch; delete navigator.storage.getDirectory; }
+  assert.equal(opfsAttempts, 1);
+  assert.deepEqual(remote.fetched, ["https://fixture.invalid/packs/new/vlacku-en/vectors.f32"]);
 });
 
 test("two workers publish and collect content without deleting referenced bytes", async () => {
