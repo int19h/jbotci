@@ -4594,3 +4594,27 @@ fn native_vlacku_wrapper_filters_before_the_ranking_limit() {
         assert!(response["voteFilterProbe"].is_null());
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn embedding_corpus_states_remain_independent_in_status() {
+    let state = embedding_settings_from_json(
+        r#"{"status":"needs-update","corpora":{"vlacku-en":"stale","cukta-cll":"verified-current"}}"#,
+        "",
+    );
+    assert_eq!(state.corpora["vlacku-en"], EmbeddingCorpusState::Stale);
+    assert_eq!(
+        state.corpora["cukta-cll"],
+        EmbeddingCorpusState::VerifiedCurrent
+    );
+    let state = embedding_settings_from_json(
+        r#"{"status":"needs-update","corpora":{"vlacku-en":"unknown","cukta-cll":"verified-current"}}"#,
+        "",
+    );
+    assert_eq!(state.corpora["vlacku-en"], EmbeddingCorpusState::Stale);
+    assert_eq!(
+        state.corpora["cukta-cll"],
+        EmbeddingCorpusState::VerifiedCurrent
+    );
+}

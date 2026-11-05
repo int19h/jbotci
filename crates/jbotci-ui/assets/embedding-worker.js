@@ -41,6 +41,7 @@ let dbPromise = null;
 let setupInProgress = false;
 let debugLoggingEnabled = false;
 const vectorCache = new Map();
+const downloadingCorpora = new Set();
 
 function logInfo(message, detail = null) {
   if (!debugLoggingEnabled) {
@@ -498,12 +499,15 @@ async function status(corpusIdentityJson = null, setupActive = false) {
     : packCompatibilityIssue(pack, corpusIdentity);
   const storedModelRuntime = activeStoredModelRuntime(modelRuntime || await getModelMeta("modelRuntime"));
   const indexBytes = await packIndexBytes(pack);
+  const states = {};
+  for (const id of ["vlacku-en", "cukta-cll"]) states[id] = (await corpusState(pack, corpusIdentity, id)).kind;
   const display = statusDisplay(meta, pack, setupActive, compatibilityIssue);
   if (display.rewriteStoredStatus) {
     await updateStatus(display.status, display.detail, display.progress);
   }
   return {
     status: display.status,
+    corpora: states,
     detail: display.detail,
     modelBytes: modelBytesForRuntime(storedModelRuntime || spec.preferredRuntime),
     indexBytes,
@@ -611,6 +615,7 @@ async function removeSelectedModel() {
       current.continue();
     };
   });
+  await collectContentGarbage();
   await removeBlobMetaForModel(spec.modelKey);
   if (navigator.storage?.getDirectory) {
     const root = await navigator.storage.getDirectory();
@@ -646,17 +651,14 @@ async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJso
     };
   }
   const corpusIdentity = normalizeCorpusIdentity(corpusIdentityJson);
-  const compatibilityIssue = packCompatibilityIssue(pack, corpusIdentity);
-  if (compatibilityIssue !== null) {
-    return searchPackCompatibilityError(compatibilityIssue);
+  const state = await corpusState(pack, corpusIdentity, corpusId);
+  if (!(state instanceof VerifiedCorpus)) {
+    const response = searchPackCompatibilityError(state.reason || { field: "corpus", corpusId });
+    response.message = `${corpusId} semantic search is unavailable. Update this corpus in Settings.`;
+    response.error.message = response.message;
+    return response;
   }
-  const corpus = pack.corpora?.[corpusId];
-  if (!corpus) {
-    return {
-      hits: [],
-      message: `The cached embedding pack does not contain ${corpusId}.`,
-    };
-  }
+  const corpus = state;
   if (kindFilters.length > 0 && !corpusSupportsKindFilters(corpus)) {
     return {
       hits: [],
@@ -1249,6 +1251,29 @@ async function embedTexts(texts, progressContext = null) {
   return output;
 }
 
+async function persistLocalCorpus(context, record) {
+  const byKey = new Map(record.shards.map((shard) => [shard.key, shard]));
+  const vectors = await storedCorpusBytes(record, async (key) => {
+    const shard = byKey.get(key);
+    if (!shard?.sha256) throw new Error("local shard has no byte proof");
+    const bytes = await getBinary(key);
+    await verifySha256(bytes, shard.sha256, "local shard");
+    return bytes;
+  });
+  const rawItems = new TextEncoder().encode(JSON.stringify(record.items)).buffer;
+  const itemsSha256 = await sha256Hex(rawItems);
+  const vectorSha256 = await sha256Hex(vectors);
+  const stored = { ...record, itemsFormat: "local", itemsSha256, vectorSha256,
+    rawItemsKey: contentBlobKey(itemsSha256), state: "verified-current",
+    shards: [{ key: contentBlobKey(vectorSha256), byteLen: vectors.byteLength }] };
+  const spec = activeModelSpec();
+  await commitCorpus({ source: "browser", modelKey: spec.modelKey, modelIdentity: context.modelIdentity,
+    packId: context.packId, inputHash: context.inputHash, inputFormatVersion: context.inputFormatVersion,
+    vectorSpaceKey: context.vectorSpaceKey, pooling: spec.outputPooling, maxWindowTokens: spec.maxSequenceLength,
+    runtime: context.runtime, compatibleQueryRuntimes: [context.runtime] }, stored, rawItems, vectors);
+  return stored;
+}
+
 async function buildLocalPack(corpus) {
   const spec = activeModelSpec();
   if (corpus.modelKey !== spec.modelKey) {
@@ -1268,7 +1293,8 @@ async function buildLocalPack(corpus) {
     elementType,
   };
   const existing = activeModelPack(await getModelMeta("pack"));
-  if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
+  if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)
+      && await Promise.all(Object.values(existing.corpora).map((stored) => proveStoredCorpus(stored))).then(() => true, () => false)) {
     logInfo("existing browser-local vector pack is already current", {
       pack: packSummary(existing),
     });
@@ -1304,20 +1330,7 @@ async function buildLocalPack(corpus) {
     reusablePack?.corpora?.["cukta-cll"] || null,
     partialBuild?.corpora?.["cukta-cll"] || null,
   );
-  await putModelMeta("pack", {
-    source: "browser",
-    packId,
-    modelKey: spec.modelKey,
-    modelIdentity: modelRuntime.modelIdentity,
-    inputHash: corpus.inputHash,
-    inputFormatVersion: corpus.inputFormatVersion,
-    vectorSpaceKey,
-    pooling: spec.outputPooling,
-    maxWindowTokens: spec.maxSequenceLength,
-    runtime,
-    compatibleQueryRuntimes: [runtime],
-    corpora,
-  });
+  // Each completed corpus is already published by persistLocalCorpus.
   logInfo("browser-local vector pack ready", {
     packId,
     vectorSpaceKey,
@@ -1357,8 +1370,14 @@ async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusabl
   for (let rowStart = 0, chunkIndex = 0; rowStart < docs.length; rowStart += chunkRows, chunkIndex += 1) {
     const rowCount = Math.min(chunkRows, docs.length - rowStart);
     const reusableShard = reusablePartialShards.get(rowStart);
-    if (reusableShard && reusableShard.rowCount === rowCount) {
-      await readVectorShard({ dimensions: spec.dimensions, elementType }, reusableShard);
+    let reusableBytes = null;
+    if (reusableShard?.sha256 && reusableShard.rowCount === rowCount) {
+      try {
+        reusableBytes = await readVectorShard({ dimensions: spec.dimensions, elementType }, reusableShard);
+        await verifySha256(reusableBytes, reusableShard.sha256, "local partial shard");
+      } catch (_) { reusableBytes = null; }
+    }
+    if (reusableBytes !== null) {
       shards.push(reusableShard);
       reused += rowCount;
       await updateStatus(
@@ -1410,8 +1429,10 @@ async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusabl
       elementType,
     );
     const vectorBuffer = localVectorStoreBuffer(vectors);
+    const sha256 = await sha256Hex(vectorBuffer);
     await putBinary(vectorKey, vectorBuffer);
     const shard = {
+      sha256,
       key: vectorKey,
       byteLen: vectorBuffer.byteLength,
       rowStart,
@@ -1439,7 +1460,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusabl
     `Embedded ${corpusId}: ${docs.length} of ${docs.length} rows.`,
     progressValue("index", corpusId, docs.length, docs.length),
   );
-  return {
+  return persistLocalCorpus(buildContext, {
     corpusId,
     inputHash,
     rowCount: docs.length,
@@ -1452,7 +1473,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusabl
       inputHash: doc.inputHash,
     })),
     shards,
-  };
+  });
 }
 
 async function embedLocalRows(docs, rows, vectors, elementType, progressContext) {
@@ -1595,6 +1616,7 @@ function reusablePartialShardsByStart(
     }
     shards.set(rowStart, {
       key: shard.key,
+      sha256: shard.sha256,
       byteLen: shard.byteLen,
       rowStart,
       rowCount: shardRowCount,
@@ -1617,6 +1639,7 @@ async function putLocalBuildCheckpoint(context, corpus) {
       chunkRows: corpus.chunkRows,
       shards: corpus.shards.map((shard) => ({
         key: shard.key,
+        sha256: shard.sha256,
         byteLen: shard.byteLen,
         rowStart: shard.rowStart,
         rowCount: shard.rowCount,
@@ -1646,11 +1669,12 @@ async function reusableRowsByInputHash(corpus) {
   if (!corpus || corpus.dimensions !== spec.dimensions || !Array.isArray(corpus.items)) {
     return rows;
   }
-  const vectors = await readCorpusVectors(corpus).catch(() => null);
+  const verified = await proveStoredCorpus(corpus).catch(() => null);
+  const vectors = verified ? await readCorpusVectors(verified).catch(() => null) : null;
   if (!vectors || vectors.length < corpus.items.length * spec.dimensions) {
     return rows;
   }
-  for (const item of corpus.items) {
+  for (const item of verified.items) {
     if (typeof item.inputHash !== "string" || item.inputHash.length === 0) {
       continue;
     }
@@ -1661,6 +1685,174 @@ async function reusableRowsByInputHash(corpus) {
     rows.set(item.inputHash, vectors.slice(row * spec.dimensions, (row + 1) * spec.dimensions));
   }
   return rows;
+}
+
+// Only this module's successful byte proof can create a searchable corpus.
+const corpusProofToken = Symbol("verified corpus");
+class VerifiedCorpus {
+  #bytes;
+  constructor(token, record, items, bytes) {
+    if (token !== corpusProofToken) throw new Error("corpus byte proof is required");
+    Object.assign(this, record, { kind: "verified-current", items: Object.freeze(items.map((item) => Object.freeze({ ...item }))) });
+    this.shards = Object.freeze(record.shards.map((shard) => Object.freeze({ ...shard })));
+    this.#bytes = bytes.slice(0);
+    Object.freeze(this);
+  }
+  read(key) {
+    if (this.shards.length !== 1 || this.shards[0].key !== key) throw new Error("unknown verified corpus blob");
+    return this.#bytes.slice(0);
+  }
+}
+
+class AbsentCorpus { kind = "absent"; }
+class DownloadingCorpus { kind = "downloading"; }
+class StaleCorpus {
+  kind = "stale";
+  constructor(reason) { this.reason = reason; }
+}
+
+async function storedCorpusBytes(record, read = getBinary) {
+  const buffers = [];
+  let length = 0;
+  for (const shard of record.shards || []) {
+    const bytes = await read(shard.key);
+    if (bytes.byteLength !== shard.byteLen) throw new Error("missing or damaged corpus vector blob");
+    buffers.push(bytes);
+    length += bytes.byteLength;
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const buffer of buffers) { bytes.set(new Uint8Array(buffer), offset); offset += buffer.byteLength; }
+  return bytes.buffer;
+}
+
+async function proveStoredCorpus(record, read = getBinary) {
+  if (!record?.rawItemsKey || !record.itemsSha256 || !record.vectorSha256) {
+    throw new Error("stored corpus requires a verified update");
+  }
+  const [raw, bytes] = await Promise.all([read(record.rawItemsKey), storedCorpusBytes(record, read)]);
+  await verifySha256(raw, record.itemsSha256, "stored corpus items");
+  await verifySha256(bytes, record.vectorSha256, "stored corpus vectors");
+  const parsed = parseJsonBytes(raw, "stored corpus items");
+  const items = record.itemsFormat === "local" ? parsed : normalizeRemoteItems(parsed, record.corpusId);
+  if (!Array.isArray(items) || items.length !== record.rowCount) throw new Error("stored corpus items have the wrong row count");
+  validateVectorBytes(bytes, record.dimensions, record.elementType);
+  const expected = record.rowCount * record.dimensions * bytesPerVectorElement(record.elementType);
+  if (bytes.byteLength !== expected) throw new Error("stored corpus vectors have the wrong row count");
+  // Content records always hold one complete vector blob, including migrated local shards.
+  return new VerifiedCorpus(corpusProofToken, record, items, bytes);
+}
+
+async function corpusState(pack, identity, corpusId, read = getBinary) {
+  const record = pack?.corpora?.[corpusId];
+  if (downloadingCorpora.has(`${activeModelSpec().modelKey}:${corpusId}`)) return new DownloadingCorpus();
+  if (!record) return new AbsentCorpus();
+  const issue = packCompatibilityIssue(pack, identity, corpusId);
+  if (issue) return new StaleCorpus(issue);
+  if (record.state === "downloading") return new DownloadingCorpus();
+  try { return await proveStoredCorpus(record, read); }
+  catch (error) { return new StaleCorpus({ field: "byte-proof", corpusId, detail: errorMessage(error) }); }
+}
+
+function contentBlobKey(hash) {
+  if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error("invalid corpus content SHA-256");
+  return `content/sha256/${hash}`;
+}
+
+function referencedContentKeys(records) {
+  const keys = new Set();
+  for (const record of records) {
+    for (const corpus of Object.values(record?.corpora || {})) {
+      if (corpus.rawItemsKey) keys.add(corpus.rawItemsKey);
+      for (const shard of corpus.shards || []) keys.add(shard.key);
+    }
+  }
+  return keys;
+}
+
+function collectContentInTransaction(tx) {
+  const records = tx.objectStore(META_STORE).getAll();
+  records.onsuccess = () => {
+    const references = referencedContentKeys(records.result);
+    const store = tx.objectStore(BLOB_STORE);
+    const cursor = store.openKeyCursor();
+    cursor.onsuccess = () => {
+      const current = cursor.result;
+      if (!current) return;
+      if (String(current.key).startsWith("content/sha256/") && !references.has(current.key)) store.delete(current.key);
+      current.continue();
+    };
+  };
+}
+
+async function collectContentGarbage(db = null) {
+  db ||= await openDb();
+  // Both stores share one read-write transaction. Another tab cannot add a reference between the check and deletion.
+  await transaction(db, [META_STORE, BLOB_STORE], "readwrite", collectContentInTransaction);
+}
+
+async function commitCorpus(packInfo, record, rawItems, vectors, db = null) {
+  db ||= await openDb();
+  const modelKey = packInfo.modelKey;
+  const key = modelMetaKey("pack", modelKey);
+  let pack;
+  await transaction(db, [META_STORE, BLOB_STORE], "readwrite", (tx) => {
+    const meta = tx.objectStore(META_STORE);
+    const current = meta.get(key);
+    current.onsuccess = () => {
+      const old = current.result;
+      const compatible = old?.vectorSpaceKey === packInfo.vectorSpaceKey
+        && modelIdentityCompatibilityIssue(packInfo.modelIdentity, old.modelIdentity) === null;
+      pack = { ...packInfo, corpora: { ...(compatible ? old.corpora : {}), [record.corpusId]: record } };
+      const blobs = tx.objectStore(BLOB_STORE);
+      blobs.put(rawItems, record.rawItemsKey);
+      blobs.put(vectors, record.shards[0].key);
+      meta.put(pack, key);
+      // Hashing finished before the transaction. Blob publication, references, and collection are atomic across tabs.
+      collectContentInTransaction(tx);
+    };
+  });
+  return pack;
+}
+
+async function installRemoteCorpus(corpusManifest, manifest, previous, packBase, fetchItems, fetchVectors, read = getBinary) {
+  const itemsHash = corpusManifest.items_sha256;
+  const vectorHash = corpusManifest.vector_sha256;
+  let raw = null;
+  if (previous?.rawItemsKey) {
+    try {
+      raw = await read(previous.rawItemsKey);
+      await verifySha256(raw, itemsHash, "reused corpus items");
+    } catch (_) { raw = null; }
+  }
+  // Legacy packs kept only normalized items. Fetch their raw JSON once rather than guessing its original encoding.
+  if (raw === null) {
+    raw = await fetchItems(`${packBase}/${corpusManifest.items_url}`);
+    await verifySha256(raw, itemsHash, corpusManifest.items_url);
+  }
+  const items = parseJsonBytes(raw, corpusManifest.items_url);
+  if (!Array.isArray(items) || items.length !== corpusManifest.row_count) throw new Error("remote corpus items have the wrong row count");
+  let vectors = null;
+  if (previous && previous.inputHash === corpusManifest.input_hash
+    && previous.rowCount === corpusManifest.row_count && previous.dimensions === corpusManifest.dimensions
+    && previous.elementType === manifest.element_type) {
+    try {
+      vectors = await storedCorpusBytes(previous, read);
+      await verifySha256(vectors, vectorHash, "reused corpus vectors");
+    } catch (_) { vectors = null; }
+  }
+  if (vectors === null) {
+    vectors = await fetchVectors(`${packBase}/${corpusManifest.vector_url}`);
+    await verifySha256(vectors, vectorHash, corpusManifest.vector_url);
+  }
+  if (vectors.byteLength !== corpusManifest.vector_byte_len) throw new Error("remote corpus vectors have the wrong size");
+  validateVectorBytes(vectors, corpusManifest.dimensions, manifest.element_type);
+  const record = { corpusId: corpusManifest.corpus_id, inputHash: corpusManifest.input_hash,
+    rowCount: corpusManifest.row_count, dimensions: corpusManifest.dimensions, elementType: manifest.element_type,
+    items: normalizeRemoteItems(items, corpusManifest.corpus_id), itemsFormat: "remote",
+    itemsSha256: itemsHash, vectorSha256: vectorHash, rawItemsKey: contentBlobKey(itemsHash),
+    shards: [{ key: contentBlobKey(vectorHash), byteLen: vectors.byteLength }], state: "verified-current" };
+  return { record, rawItems: raw, vectors };
 }
 
 async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
@@ -1705,118 +1897,33 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     manifestUrl,
     manifest: manifestSummary(manifest),
   });
-  const manifestIssue = manifestCompatibilityIssue(manifest, corpus, runtime);
+  const manifestIssue = manifestCompatibilityIssue(manifest, corpus, runtime, modelRuntime?.modelIdentity, spec, false);
   if (manifestIssue !== null) {
     return remoteMiss("manifest-incompatible", manifestIssue);
   }
   const existing = activeModelPack(await getModelMeta("pack"));
-  if (
-    existing?.source === "remote"
-    && existing.packId === manifest.pack_id
-    && existing.inputHash === corpus.inputHash
-    && existing.vectorSpaceKey === manifest.vector_space_key
-    && packCompatibleWithRuntime(existing, runtime)
-  ) {
-    logInfo("existing remote vector pack is already current", {
-      pack: packSummary(existing),
-    });
-    return remoteHit();
-  }
-  vectorCache.clear();
   const packBase = manifestUrl.replace(/\/manifest\.json$/, "");
-  const totalVectorBytes = remotePackVectorBytes(manifest);
-  let downloadedVectorBytes = 0;
-  const corpora = {};
-  for (const corpusManifest of manifest.corpora || []) {
-    const corpusIssue = corpusManifestCompatibilityIssue(corpusManifest, corpus);
-    if (corpusIssue !== null) {
-      return remoteMiss("corpus-manifest-incompatible", corpusIssue);
-    }
-    logInfo("remote corpus pack accepted", {
-      corpusId: corpusManifest.corpus_id,
-      inputHash: shortHash(corpusManifest.input_hash),
-      rowCount: corpusManifest.row_count,
-      dimensions: corpusManifest.dimensions,
-      itemsUrl: `${packBase}/${corpusManifest.items_url}`,
-      vectorUrl: `${packBase}/${corpusManifest.vector_url}`,
-      vectorByteLen: corpusManifest.vector_byte_len,
-    });
-    await updateStatus(
-      "downloading-index",
-      `Downloading ${corpusManifest.corpus_id} vector pack.`,
-      progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
-    );
-    const itemsUrl = `${packBase}/${corpusManifest.items_url}`;
-    logInfo("fetching remote corpus items", {
-      corpusId: corpusManifest.corpus_id,
-      url: itemsUrl,
-    });
-    const itemBytes = await fetchArrayBuffer(itemsUrl, "remote corpus items");
-    await verifySha256(itemBytes, corpusManifest.items_sha256, corpusManifest.items_url);
-    const items = parseJsonBytes(itemBytes, corpusManifest.items_url);
-    if (!Array.isArray(items) || items.length !== corpusManifest.row_count) {
-      throw new Error(`remote items ${corpusManifest.items_url} have the wrong row count`);
-    }
-    const vectorUrl = `${packBase}/${corpusManifest.vector_url}`;
-    logInfo("fetching remote corpus vectors", {
-      corpusId: corpusManifest.corpus_id,
-      url: vectorUrl,
-      expectedBytes: corpusManifest.vector_byte_len,
-    });
-    const bytes = await fetchArrayBufferWithProgress(vectorUrl, async (loaded) => {
-      await updateStatus(
-        "downloading-index",
-        `Downloading ${corpusManifest.corpus_id} vectors.`,
-        progressValue(
-          "index",
-          corpusManifest.corpus_id,
-          downloadedVectorBytes + loaded,
-          totalVectorBytes,
-        ),
-      );
-    });
-    if (bytes.byteLength !== corpusManifest.vector_byte_len) {
-      throw new Error(`remote vector file ${corpusManifest.vector_url} has the wrong size`);
-    }
-    await verifySha256(bytes, corpusManifest.vector_sha256, corpusManifest.vector_url);
-    const vectorExtension = manifest.element_type === "f16le" ? "f16" : "f32";
-    const key = `remote/${spec.modelKey}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.${vectorExtension}`;
-    await putBinary(key, bytes);
-    logInfo("cached remote corpus vectors", {
-      corpusId: corpusManifest.corpus_id,
-      key,
-      bytes: bytes.byteLength,
-    });
-    downloadedVectorBytes += bytes.byteLength;
-    corpora[corpusManifest.corpus_id] = {
-      corpusId: corpusManifest.corpus_id,
-      inputHash: corpusManifest.input_hash,
-      rowCount: corpusManifest.row_count,
-      dimensions: corpusManifest.dimensions,
-      elementType: manifest.element_type,
-      items: normalizeRemoteItems(items, corpusManifest.corpus_id),
-      shards: [{ key, byteLen: bytes.byteLength }],
-    };
+  const info = { source: "remote", packId: manifest.pack_id, modelKey: spec.modelKey,
+    modelIdentity: manifestModelIdentity(manifest), inputHash: manifest.input_hash,
+    inputFormatVersion: manifest.input_format_version, vectorSpaceKey: manifest.vector_space_key,
+    pooling: manifest.pooling, maxWindowTokens: manifest.max_window_tokens, runtime,
+    compatibleQueryRuntimes: manifest.compatible_query_runtimes || [] };
+  let installed = false;
+  for (const entry of manifest.corpora || []) {
+    if (corpusManifestCompatibilityIssue(entry, corpus) !== null) continue;
+    await updateStatus("downloading-index", `Checking ${entry.corpus_id} vector pack.`);
+    const downloadKey = `${spec.modelKey}:${entry.corpus_id}`;
+    downloadingCorpora.add(downloadKey);
+    try {
+      const result = await installRemoteCorpus(entry, manifest, existing?.corpora?.[entry.corpus_id], packBase,
+        (url) => fetchArrayBuffer(url, "remote corpus items"),
+        (url) => fetchArrayBufferWithProgress(url, async () => {}));
+      await commitCorpus(info, result.record, result.rawItems, result.vectors);
+    } finally { downloadingCorpora.delete(downloadKey); }
+    installed = true;
+    vectorCache.clear();
   }
-  const pack = {
-    source: "remote",
-    packId: manifest.pack_id,
-    modelKey: spec.modelKey,
-    modelIdentity: manifestModelIdentity(manifest),
-    inputHash: manifest.input_hash,
-    inputFormatVersion: manifest.input_format_version,
-    vectorSpaceKey: manifest.vector_space_key,
-    pooling: manifest.pooling,
-    maxWindowTokens: manifest.max_window_tokens,
-    runtime,
-    compatibleQueryRuntimes: manifest.compatible_query_runtimes || [],
-    corpora,
-  };
-  await putModelMeta("pack", pack);
-  logInfo("remote vector pack ready", {
-    pack: packSummary(pack),
-  });
-  return remoteHit();
+  return installed ? remoteHit() : remoteMiss("no-current-corpus");
 }
 
 function selectCatalogVectorSpace(catalog, runtime) {
@@ -1883,7 +1990,7 @@ function manifestSummary(manifest) {
   };
 }
 
-function manifestCompatibilityIssue(manifest, corpus, runtime, identity = modelRuntime?.modelIdentity, spec = activeModelSpec()) {
+function manifestCompatibilityIssue(manifest, corpus, runtime, identity = modelRuntime?.modelIdentity, spec = activeModelSpec(), requireCombinedHash = true) {
   if (!identity) return { field: "modelIdentity", expected: "loaded query model", actual: null };
   const modelIssue = modelIdentityCompatibilityIssue(manifestModelIdentity(manifest), identity);
   if (modelIssue !== null) return modelIssue;
@@ -1901,6 +2008,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime, identity = modelR
     ["pooling", manifest.pooling, spec.outputPooling],
     ["max_window_tokens", manifest.max_window_tokens, spec.maxSequenceLength],
   ]) {
+    if (field === "input_hash" && !requireCombinedHash) continue;
     if (actual !== expected) {
       return {
         field,
@@ -2031,8 +2139,8 @@ function activeModelPack(pack) {
   return pack?.modelKey === activeModelSpec().modelKey ? pack : null;
 }
 
-function packCompatibilityIssue(pack, corpusIdentity) {
-  const corpusIssue = packCorpusCompatibilityIssue(pack, corpusIdentity);
+function packCompatibilityIssue(pack, corpusIdentity, selectedCorpusId = null) {
+  const corpusIssue = packCorpusCompatibilityIssue(pack, corpusIdentity, selectedCorpusId);
   if (corpusIssue !== null) {
     return corpusIssue;
   }
@@ -2053,7 +2161,7 @@ function packCompatibilityIssue(pack, corpusIdentity) {
       };
     }
   }
-  for (const corpusId of ["vlacku-en", "cukta-cll"]) {
+  for (const corpusId of selectedCorpusId ? [selectedCorpusId] : ["vlacku-en", "cukta-cll"]) {
     const corpus = pack.corpora[corpusId];
     if (corpus.dimensions !== spec.dimensions) {
       return {
@@ -2075,7 +2183,7 @@ function packCompatibilityIssue(pack, corpusIdentity) {
   return null;
 }
 
-function packCorpusCompatibilityIssue(pack, corpusIdentity) {
+function packCorpusCompatibilityIssue(pack, corpusIdentity, selectedCorpusId = null) {
   if (!pack || !corpusIdentity) {
     return {
       field: "pack",
@@ -2087,6 +2195,7 @@ function packCorpusCompatibilityIssue(pack, corpusIdentity) {
     ["inputHash", pack.inputHash, corpusIdentity.inputHash],
     ["inputFormatVersion", pack.inputFormatVersion, corpusIdentity.inputFormatVersion],
   ]) {
+    if (field === "inputHash" && selectedCorpusId !== null) continue;
     if (actual !== expected) {
       return {
         field,
@@ -2095,7 +2204,7 @@ function packCorpusCompatibilityIssue(pack, corpusIdentity) {
       };
     }
   }
-  for (const corpusId of ["vlacku-en", "cukta-cll"]) {
+  for (const corpusId of selectedCorpusId ? [selectedCorpusId] : ["vlacku-en", "cukta-cll"]) {
     const actual = pack.corpora?.[corpusId];
     const expected = corpusIdentity.corpora?.[corpusId];
     if (!actual || !expected) {
@@ -2174,6 +2283,8 @@ function packCompatibleWithRuntime(pack, runtime) {
 
 function cachedPackMatchesCorpus(pack, corpus, runtime, vectorSpaceKey) {
   return pack?.source === "browser"
+    && Object.values(pack.corpora || {}).length === 2
+    && Object.values(pack.corpora).every((corpus) => corpus.rawItemsKey && corpus.itemsSha256 && corpus.vectorSha256)
     && pack.modelKey === activeModelSpec().modelKey
     && pack.inputHash === corpus.inputHash
     && pack.inputFormatVersion === corpus.inputFormatVersion
@@ -2450,6 +2561,7 @@ function looksLikeHtmlResponse(response, text) {
 }
 
 async function readCorpusVectors(corpus, readBinary = getBinary) {
+  if (corpus instanceof VerifiedCorpus) readBinary = (key) => corpus.read(key);
   const cacheKey = corpusVectorCacheKey(corpus);
   const cached = vectorCache.get(cacheKey);
   if (cached) {
@@ -2801,6 +2913,7 @@ async function readVectorShard(corpus, shard, readBinary = getBinary) {
 }
 
 function validatedVectorStore(corpus, readBinary = getBinary) {
+  if (corpus instanceof VerifiedCorpus) readBinary = (key) => corpus.read(key);
   return async (key) => {
     const shard = corpus.shards.find((item) => item.key === key);
     if (!shard) throw new Error("unknown vector shard");
@@ -3074,6 +3187,8 @@ async function removeOpfsDirectory(root, path) {
 }
 
 export {
+  installRemoteCorpus, commitCorpus, collectContentGarbage, referencedContentKeys, contentBlobKey,
+  proveStoredCorpus, corpusState, VerifiedCorpus, StaleCorpus, AbsentCorpus, DownloadingCorpus,
   localVectorPackId,
   cachedFetchArrayBuffer,
   loadOnnxModelBytes,

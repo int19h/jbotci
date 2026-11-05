@@ -3311,7 +3311,9 @@ pub(super) fn native_embedding_status_json_result() -> Result<String, String> {
         .map(|metadata| metadata.len())
         .unwrap_or(0);
     let model_present = model_path.is_file() && model_bytes == spec.native_size_bytes;
-    let pack_result = jbotci_embeddings::load_latest_pack(&index_root, &model_key);
+    let pack_result = jbotci_embeddings::read_latest_pack_manifest(&index_root, &model_key);
+    let corpora = jbotci_embeddings::corpus_availability(&index_root, &model_key)
+        .map_err(|error| error.to_string())?;
     let index_bytes = pack_result
         .as_ref()
         .ok()
@@ -3336,8 +3338,14 @@ pub(super) fn native_embedding_status_json_result() -> Result<String, String> {
                 model_bytes, spec.native_size_bytes
             ),
         )
-    } else if let Err(error) = &pack_result {
-        ("missing-index", error.to_string())
+    } else if !corpora
+        .values()
+        .any(|state| *state == jbotci_embeddings::CorpusAvailability::VerifiedCurrent)
+    {
+        (
+            "missing-index",
+            "Update the embedding corpora before searching.".to_owned(),
+        )
     } else {
         (
             "ready",
@@ -3353,6 +3361,7 @@ pub(super) fn native_embedding_status_json_result() -> Result<String, String> {
         "modelDtype": "Q4_K_M",
         "modelDevice": "llama.cpp",
         "indexBytes": index_bytes,
+        "corpora": corpora,
         "status": status,
         "detail": detail,
     });
@@ -3918,6 +3927,18 @@ pub(super) fn embedding_settings_from_json(
         .and_then(serde_json::Value::as_u64)
         .map(|percent| percent.min(100) as u8);
     EmbeddingSettingsState {
+        corpora: ["vlacku-en", "cukta-cll"]
+            .into_iter()
+            .map(|id| {
+                let state = value
+                    .get("corpora")
+                    .and_then(|states| states.get(id))
+                    .map_or(EmbeddingCorpusState::Absent, |state| {
+                        serde_json::from_value(state.clone()).unwrap_or(EmbeddingCorpusState::Stale)
+                    });
+                (id.to_owned(), state)
+            })
+            .collect(),
         selected_model_key,
         selected_model_label,
         effective_model_key,
@@ -3996,6 +4017,7 @@ pub(super) fn embedding_settings_error_state(
         detail
     };
     EmbeddingSettingsState {
+        corpora: previous.corpora.clone(),
         selected_model_key: previous.selected_model_key.clone(),
         selected_model_label: previous.selected_model_label.clone(),
         effective_model_key: previous.effective_model_key.clone(),

@@ -539,9 +539,23 @@ struct EmbeddingModelOption {
     label: &'static str,
 }
 
+#[invariant(::Absent => true)]
+#[invariant(::Downloading => true)]
+#[invariant(::VerifiedCurrent => true)]
+#[invariant(::Stale => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum EmbeddingCorpusState {
+    Absent,
+    Downloading,
+    VerifiedCurrent,
+    Stale,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct EmbeddingSettingsState {
+    corpora: std::collections::BTreeMap<String, EmbeddingCorpusState>,
     selected_model_key: String,
     selected_model_label: String,
     effective_model_key: String,
@@ -985,6 +999,7 @@ impl Default for EmbeddingSettingsState {
             selected_model_label,
             webgpu_available: None,
             status: "unknown".to_owned(),
+            corpora: std::collections::BTreeMap::new(),
             detail: "Checking embedding storage.".to_owned(),
             model_size: "unknown".to_owned(),
             index_size: "unknown".to_owned(),

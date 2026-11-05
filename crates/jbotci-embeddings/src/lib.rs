@@ -3636,8 +3636,8 @@ pub fn corpus_availability(
     ]))
 }
 
-/// Read untrusted metadata for export or explicit reuse. Search must use
-/// `load_latest_pack`, which also requires the pinned model and live corpora.
+/// Read untrusted metadata for export or explicit reuse. Search requires the
+/// selected corpus capability, which proves its identity and bytes separately.
 #[requires(!model_key.is_empty())]
 #[ensures(true)]
 pub fn read_latest_pack_manifest(

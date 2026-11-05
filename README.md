@@ -239,8 +239,31 @@ Setup reports reused, embedded, and resumed row counts for each corpus.
 Use `jbotci setup --embedding --report-json PATH` to save this report as JSON.
 The xtask reads this separate report. Published manifests omit build counts.
 A resumed pack therefore has the same files as a full build when the vectors match.
+Client updates reuse corpus files only after a SHA-256 comparison of their stored bytes.
+An update that changes only CLL keeps the dictionary files, and the reverse also applies.
+Native setup copies matching items files and vector shards from any pack in the local index.
+It compares the copied bytes with the new manifest before it accepts them.
+Browser updates compare both the raw items and the vectors with the new manifest.
+Missing or damaged files download again.
+
+The browser stores raw items and vectors under their SHA-256 keys in IndexedDB.
+Pack records share these blobs across models when their bytes match.
+One transaction writes each finished corpus, its blobs, and its references.
+The same transaction removes blobs that no pack record references.
+IndexedDB serializes these transactions across tabs, so collection cannot race with a new reference.
+The old cache kept only normalized items, so its first update downloads raw items once.
+That update hashes the old vectors and keeps them when they match.
+Older local indexes without a byte proof rebuild when no published pack can supply the proof.
+
+Each client tracks dictionary and CLL availability separately.
+Search requires the selected corpus to match its current identity and pass its byte proof.
+A stale dictionary does not block CLL search, and stale CLL does not block dictionary search.
+The browser saves each corpus as it finishes, even if the other download fails.
+Published pack formats, catalogs, IDs, and corpus pins stay unchanged.
+Existing packs work without a new publish. Older clients keep their existing download behavior.
+
 Native search refuses stale model or corpus identities before it resolves stored row indices.
-Search compares dictionary and CLL fingerprints and row counts with the current corpora.
+Search compares the selected corpus fingerprint and row count with the current corpus.
 It also compares vector dimensions and the full vector function, including the pinned GGUF SHA-256.
 The search backend compares the GGUF file with its pinned hash once when it loads the model.
 If an explicit source is unusable, setup fails.
