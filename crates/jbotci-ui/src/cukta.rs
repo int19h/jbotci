@@ -1766,9 +1766,17 @@ pub(super) fn render_cll_block(
             alt,
         } => {
             let asset_src = cll_asset_href(base_path, src);
+            // Only art known to be pure black ink may be recolored by a theme;
+            // an unknown file is shown as it is.
+            let art = cll_known_media(cll_media_file_name(src))
+                .map_or(CllMediaArt::Picture, |media| media.art);
+            let img_class = match art {
+                CllMediaArt::Ink => "cll-media-ink",
+                CllMediaArt::Picture => "cll-media-picture",
+            };
             rsx! {
                 figure { id: id.clone().unwrap_or_default(), class: "cll-media",
-                    img { src: "{asset_src}", alt: "{alt}" }
+                    img { class: img_class, src: "{asset_src}", alt: "{alt}" }
                     if let Some(title) = title {
                         figcaption {
                             for inline in title.iter() {
@@ -2971,16 +2979,44 @@ pub(super) fn restore_cukta_toc_scroll() {
 #[ensures(true)]
 pub(super) fn restore_cukta_toc_scroll() {}
 
+/// How a known CLL picture is drawn.
+///
+/// The CLL ships its chapter art as pure black ink on a transparent background:
+/// every visible pixel is `(0, 0, 0)`, and only alpha varies. A night theme can
+/// recolor such ink without touching its anti-aliasing. Other media, such as the
+/// book's logo, are full-color pictures that must be shown unchanged. The test
+/// `known_cll_media_art_matches_the_shipped_pixels` decodes every asset and
+/// holds this classification to the pixels.
+#[invariant(true)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CllMediaArt {
+    Ink,
+    Picture,
+}
+
+/// A media file that the app ships, with its bundled URL and its kind of art.
+#[invariant(!href.is_empty())]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CllKnownMedia {
+    pub(super) href: String,
+    pub(super) art: CllMediaArt,
+}
+
+/// The file name that a CLL `imagedata` reference names, without its directory.
+#[requires(true)]
+#[ensures(ret.len() <= src.len())]
+pub(super) fn cll_media_file_name(src: &str) -> &str {
+    src.trim_start_matches("assets/media/")
+        .trim_start_matches("media/")
+        .trim_start_matches("assets/cll/media/")
+        .trim_start_matches("cll/media/")
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn cll_asset_href(base_path: &str, src: &str) -> String {
-    let media_name = src
-        .trim_start_matches("assets/media/")
-        .trim_start_matches("media/")
-        .trim_start_matches("assets/cll/media/")
-        .trim_start_matches("cll/media/");
-    if let Some(href) = cll_known_media_href(media_name) {
-        return href;
+    if let Some(media) = cll_known_media(cll_media_file_name(src)) {
+        return media.href.clone();
     }
     format!(
         "{}/assets/cll/{}",
@@ -2990,34 +3026,38 @@ pub(super) fn cll_asset_href(base_path: &str, src: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub(super) fn cll_known_media_href(file_name: &str) -> Option<String> {
-    match file_name {
-        "chapter-2-diagram.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_2_DIAGRAM}")),
-        "chapter-about.png" => Some(format!("{CLL_MEDIA_CHAPTER_ABOUT}")),
-        "chapter-abstractions.png" => Some(format!("{CLL_MEDIA_CHAPTER_ABSTRACTIONS}")),
-        "chapter-anaphoric-cmavo.png" => Some(format!("{CLL_MEDIA_CHAPTER_ANAPHORIC_CMAVO}")),
-        "chapter-attitudinals.png" => Some(format!("{CLL_MEDIA_CHAPTER_ATTITUDINALS}")),
-        "chapter-catalogue.png" => Some(format!("{CLL_MEDIA_CHAPTER_CATALOGUE}")),
-        "chapter-connectives.png" => Some(format!("{CLL_MEDIA_CHAPTER_CONNECTIVES}")),
-        "chapter-grammars.png" => Some(format!("{CLL_MEDIA_CHAPTER_GRAMMARS}")),
-        "chapter-letterals.png" => Some(format!("{CLL_MEDIA_CHAPTER_LETTERALS}")),
-        "chapter-lujvo.png" => Some(format!("{CLL_MEDIA_CHAPTER_LUJVO}")),
-        "chapter-mekso.png" => Some(format!("{CLL_MEDIA_CHAPTER_MEKSO}")),
-        "chapter-morphology.png" => Some(format!("{CLL_MEDIA_CHAPTER_MORPHOLOGY}")),
-        "chapter-negation.png" => Some(format!("{CLL_MEDIA_CHAPTER_NEGATION}")),
-        "chapter-phonology.png" => Some(format!("{CLL_MEDIA_CHAPTER_PHONOLOGY}")),
-        "chapter-quantifiers.png" => Some(format!("{CLL_MEDIA_CHAPTER_QUANTIFIERS}")),
-        "chapter-relative-clauses.png" => Some(format!("{CLL_MEDIA_CHAPTER_RELATIVE_CLAUSES}")),
-        "chapter-selbri.png" => Some(format!("{CLL_MEDIA_CHAPTER_SELBRI}")),
-        "chapter-structure.png" => Some(format!("{CLL_MEDIA_CHAPTER_STRUCTURE}")),
-        "chapter-sumti.png" => Some(format!("{CLL_MEDIA_CHAPTER_SUMTI}")),
-        "chapter-sumti-tcita.png" => Some(format!("{CLL_MEDIA_CHAPTER_SUMTI_TCITA}")),
-        "chapter-tenses.png" => Some(format!("{CLL_MEDIA_CHAPTER_TENSES}")),
-        "chapter-tour.png" => Some(format!("{CLL_MEDIA_CHAPTER_TOUR}")),
-        "logo.png" => Some(format!("{CLL_MEDIA_LOGO}")),
-        _ => None,
-    }
+#[ensures(ret.as_ref().is_none_or(|media| !media.href.is_empty()))]
+pub(super) fn cll_known_media(file_name: &str) -> Option<CllKnownMedia> {
+    let (asset, art) = match file_name {
+        "chapter-2-diagram.svg.png" => (CLL_MEDIA_CHAPTER_2_DIAGRAM, CllMediaArt::Ink),
+        "chapter-about.png" => (CLL_MEDIA_CHAPTER_ABOUT, CllMediaArt::Ink),
+        "chapter-abstractions.png" => (CLL_MEDIA_CHAPTER_ABSTRACTIONS, CllMediaArt::Ink),
+        "chapter-anaphoric-cmavo.png" => (CLL_MEDIA_CHAPTER_ANAPHORIC_CMAVO, CllMediaArt::Ink),
+        "chapter-attitudinals.png" => (CLL_MEDIA_CHAPTER_ATTITUDINALS, CllMediaArt::Ink),
+        "chapter-catalogue.png" => (CLL_MEDIA_CHAPTER_CATALOGUE, CllMediaArt::Ink),
+        "chapter-connectives.png" => (CLL_MEDIA_CHAPTER_CONNECTIVES, CllMediaArt::Ink),
+        "chapter-grammars.png" => (CLL_MEDIA_CHAPTER_GRAMMARS, CllMediaArt::Ink),
+        "chapter-letterals.png" => (CLL_MEDIA_CHAPTER_LETTERALS, CllMediaArt::Ink),
+        "chapter-lujvo.png" => (CLL_MEDIA_CHAPTER_LUJVO, CllMediaArt::Ink),
+        "chapter-mekso.png" => (CLL_MEDIA_CHAPTER_MEKSO, CllMediaArt::Ink),
+        "chapter-morphology.png" => (CLL_MEDIA_CHAPTER_MORPHOLOGY, CllMediaArt::Ink),
+        "chapter-negation.png" => (CLL_MEDIA_CHAPTER_NEGATION, CllMediaArt::Ink),
+        "chapter-phonology.png" => (CLL_MEDIA_CHAPTER_PHONOLOGY, CllMediaArt::Ink),
+        "chapter-quantifiers.png" => (CLL_MEDIA_CHAPTER_QUANTIFIERS, CllMediaArt::Ink),
+        "chapter-relative-clauses.png" => (CLL_MEDIA_CHAPTER_RELATIVE_CLAUSES, CllMediaArt::Ink),
+        "chapter-selbri.png" => (CLL_MEDIA_CHAPTER_SELBRI, CllMediaArt::Ink),
+        "chapter-structure.png" => (CLL_MEDIA_CHAPTER_STRUCTURE, CllMediaArt::Ink),
+        "chapter-sumti.png" => (CLL_MEDIA_CHAPTER_SUMTI, CllMediaArt::Ink),
+        "chapter-sumti-tcita.png" => (CLL_MEDIA_CHAPTER_SUMTI_TCITA, CllMediaArt::Ink),
+        "chapter-tenses.png" => (CLL_MEDIA_CHAPTER_TENSES, CllMediaArt::Ink),
+        "chapter-tour.png" => (CLL_MEDIA_CHAPTER_TOUR, CllMediaArt::Ink),
+        "logo.png" => (CLL_MEDIA_LOGO, CllMediaArt::Picture),
+        _ => return None,
+    };
+    Some(new!(CllKnownMedia {
+        href: format!("{asset}"),
+        art: art,
+    }))
 }
 
 #[requires(true)]
@@ -3101,6 +3141,120 @@ pub(super) fn set_cukta_state_immediate(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// True when every visible pixel of a PNG is pure black, so that only alpha
+    /// carries the drawing. That is the exact property `CllMediaArt::Ink` needs.
+    ///
+    /// Samples keep their full bit depth: a 16-bit sample counts as black only
+    /// when both of its bytes are zero, so a value such as `0x0001` is not
+    /// rounded down to black.
+    #[requires(true)]
+    #[ensures(true)]
+    fn png_is_pure_black_ink(bytes: &[u8]) -> bool {
+        let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+        decoder.set_transformations(png::Transformations::EXPAND);
+        let mut reader = decoder.read_info().expect("CLL media is a readable PNG");
+        let mut buffer = vec![0; reader.output_buffer_size().expect("bounded PNG size")];
+        let frame = reader.next_frame(&mut buffer).expect("CLL media decodes");
+        let pixels = &buffer[..frame.buffer_size()];
+        let channels = match frame.color_type {
+            png::ColorType::Rgba => 4,
+            png::ColorType::GrayscaleAlpha => 2,
+            // Without an alpha channel, the background is opaque, so the
+            // picture cannot be recolored as ink.
+            png::ColorType::Rgb | png::ColorType::Grayscale | png::ColorType::Indexed => {
+                return false;
+            }
+        };
+        let sample_bytes = match frame.bit_depth {
+            png::BitDepth::Sixteen => 2,
+            _ => 1,
+        };
+        pixels.chunks_exact(channels * sample_bytes).all(|pixel| {
+            let (color, alpha) = pixel.split_at((channels - 1) * sample_bytes);
+            alpha.iter().all(|byte| *byte == 0) || color.iter().all(|byte| *byte == 0)
+        })
+    }
+
+    /// Encodes one-pixel 16-bit PNG fixtures for the ink classifier.
+    #[requires(!samples.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn sixteen_bit_png(color_type: png::ColorType, samples: &[u16]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, 1, 1);
+            encoder.set_color(color_type);
+            encoder.set_depth(png::BitDepth::Sixteen);
+            let mut writer = encoder.write_header().expect("PNG header");
+            let data: Vec<u8> = samples
+                .iter()
+                .flat_map(|sample| sample.to_be_bytes())
+                .collect();
+            writer.write_image_data(&data).expect("PNG data");
+        }
+        bytes
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ink_classifier_keeps_the_low_byte_of_sixteen_bit_samples() {
+        let rgba = png::ColorType::Rgba;
+        let gray_alpha = png::ColorType::GrayscaleAlpha;
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0, 0, 0, 0xffff]
+        )));
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            gray_alpha,
+            &[0, 0x8000]
+        )));
+        // A fully transparent pixel carries no ink, whatever its color.
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0xffff, 0, 0, 0]
+        )));
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0x0001, 0, 0, 0xffff]
+        )));
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            gray_alpha,
+            &[0x0001, 0xffff]
+        )));
+        // Alpha with only its low byte set is still visible.
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0x0100, 0, 0, 0x0001]
+        )));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn known_cll_media_art_matches_the_shipped_pixels() {
+        let media_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/cll/media");
+        let mut checked = 0;
+        for entry in std::fs::read_dir(&media_dir).expect("CLL media directory") {
+            let path = entry.expect("media entry").path();
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("UTF-8 media name");
+            let media = cll_known_media(file_name).unwrap_or_else(|| {
+                panic!("{file_name} ships with the app but has no entry in cll_known_media")
+            });
+            let ink = png_is_pure_black_ink(&std::fs::read(&path).expect("media bytes"));
+            assert_eq!(
+                media.art == CllMediaArt::Ink,
+                ink,
+                "{file_name}: classified as {:?}, but its pixels say ink = {ink}",
+                media.art
+            );
+            checked += 1;
+        }
+        assert!(checked > 0, "no CLL media found in {}", media_dir.display());
+    }
 
     #[requires(!label.is_empty())]
     #[ensures(ret.label == label)]

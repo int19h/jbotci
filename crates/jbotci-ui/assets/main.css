@@ -5630,22 +5630,6 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--app-link);
 }
 
-.cll-page .cll-media {
-  margin: 0.7rem 0;
-  padding: 0.5rem;
-  background: color-mix(in srgb, var(--app-surface-1) 72%, var(--app-surface-0));
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  width: max-content;
-  max-width: 100%;
-}
-
-.cll-page .cll-media img {
-  display: block;
-  max-width: min(100%, 360px);
-  height: auto;
-}
-
 .cll-page .cll-example {
   margin: 0.72rem 0;
   padding: 0.58rem 0.68rem;
@@ -6061,7 +6045,11 @@ body::-webkit-scrollbar-thumb:hover,
   --app-link-hover: #154a75;
   --app-accent: #1f5f96;
   --app-accent-contrast: #fffdf8;
-  --cll-media-bg: #fffdf8;
+  /* Pure white, so that the media frame stands out from the #fffdf8 page
+   * surface. Before CLL v1.3.6 the art itself was opaque white, which hid the
+   * frame color; the new transparent art shows it. */
+  --cll-media-bg: #ffffff;
+  --cll-media-ink-filter: none;
   --ebnf-operator: #645545;
   --ebnf-hash: #7a22b9;
   --ebnf-terminal: #0d6a3f;
@@ -6078,7 +6066,12 @@ body::-webkit-scrollbar-thumb:hover,
   --app-link-hover: #ffe3bf;
   --app-accent: #d48743;
   --app-accent-contrast: #18130f;
-  --cll-media-bg: #fffdf8;
+  /* The CLL chapter art is pure black ink on transparency, so it can sit on
+   * the dark page: invert turns the ink white, and sepia with brightness warms
+   * and dims it toward the night text color. Full-color pictures keep their
+   * own colors, because only .cll-media-ink images use this filter. */
+  --cll-media-bg: #221a14;
+  --cll-media-ink-filter: invert(1) sepia(0.15) brightness(0.9);
   --ebnf-operator: #d7c9b6;
   --ebnf-hash: #ff88bc;
   --ebnf-terminal: #91efaa;
@@ -6094,7 +6087,8 @@ body::-webkit-scrollbar-thumb:hover,
     --app-link-hover: #ffe3bf;
     --app-accent: #d48743;
     --app-accent-contrast: #18130f;
-    --cll-media-bg: #fffdf8;
+    --cll-media-bg: #221a14;
+    --cll-media-ink-filter: invert(1) sepia(0.15) brightness(0.9);
     --ebnf-operator: #d7c9b6;
     --ebnf-hash: #ff88bc;
     --ebnf-terminal: #91efaa;
@@ -6857,6 +6851,7 @@ body::-webkit-scrollbar-thumb:hover,
 .cll-page .cll-media {
   margin: 0.68rem 0;
   display: inline-block;
+  width: max-content;
   max-width: 100%;
   padding: 0.3rem;
   border-radius: 8px;
@@ -6865,11 +6860,23 @@ body::-webkit-scrollbar-thumb:hover,
   box-sizing: border-box;
 }
 
+/* The CLL art is high resolution (v1.3.6 ships pictures over 1300px wide), so
+ * its natural size is far larger than it should appear. Cap the height at half
+ * of the viewport, and let the width follow from the aspect ratio; max-width
+ * still keeps a picture inside a narrow column. dvh tracks the visible
+ * viewport on mobile browsers and in the installed app; vh is the fallback. */
 .cll-page .cll-media img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 6px;
   display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 50vh;
+  max-height: 50dvh;
+  border-radius: 6px;
+}
+
+.cll-page .cll-media img.cll-media-ink {
+  filter: var(--cll-media-ink-filter);
 }
 
 .cll-page .cll-ebnf {
