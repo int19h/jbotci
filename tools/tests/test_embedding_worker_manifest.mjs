@@ -42,7 +42,10 @@ assert.equal(packCompatibleWithRuntime(oldPack, releaseRuntime), false);
 assert.equal(cachedPackMatchesCorpus(oldPack, corpus, releaseRuntime, releaseSpace), false);
 const context = { ...corpus, modelIdentity: identity, runtime: releaseRuntime, vectorSpaceKey: releaseSpace, packId: "pack" };
 assert.equal(partialLocalBuildCompatible({ ...oldPack, source: "browser-partial", packId: "pack" }, context), false);
-const currentPack = { ...oldPack, vectorSpaceKey: releaseSpace, compatibleQueryRuntimes: [releaseRuntime], pooling: "token_weighted_mean_normalized_windows" };
+// These are proof references for the metadata pre-filter. The corpus tests exercise the actual byte proof.
+const proofReferences = { rawItemsKey: "items", itemsSha256: "a".repeat(64), vectorSha256: "b".repeat(64) };
+const currentPack = { ...oldPack, vectorSpaceKey: releaseSpace, compatibleQueryRuntimes: [releaseRuntime], pooling: "token_weighted_mean_normalized_windows",
+  corpora: { "vlacku-en": proofReferences, "cukta-cll": proofReferences } };
 assert.equal(cachedPackMatchesCorpus(currentPack, corpus, releaseRuntime, releaseSpace), true);
 const previousSpace = "jbotci-browser-f2llm-q4-f16-windowed-512-v2";
 const previousPack = { ...currentPack, vectorSpaceKey: previousSpace };

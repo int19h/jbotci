@@ -1236,6 +1236,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "rafsi claim standing is a closed selector over official and experimental gismu claims",
     ),
     (
+        "crates/jbotci-embeddings/src/client_corpus.rs:CorpusState::Absent",
+        "This state has no payload. It records that no compatible pack exists.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/client_corpus.rs:CorpusState::VerifiedCurrent",
+        "VerifiedCorpus already proves identity and bytes and owns a validated LoadedCorpus. The variant adds no further constraint.",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Backend",
         "embedding error variant carries only an already formatted backend diagnostic message",
     ),
@@ -1274,6 +1282,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::UnsupportedModel",
         "embedding error variant carries the unsupported model key for rendering",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusAvailability::Absent",
+        "This availability state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusAvailability::Downloading",
+        "This availability state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusAvailability::Stale",
+        "This availability state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:CorpusAvailability::VerifiedCurrent",
+        "This availability state is a unit selector with no data to constrain.",
     ),
     (
         "crates/jbotci-embeddings/src/lib.rs:NativePackValidation::CurrentCorpus",
@@ -2638,6 +2662,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Vlacku",
         "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:EmbeddingCorpusState::Absent",
+        "This serialized UI state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:EmbeddingCorpusState::Downloading",
+        "This serialized UI state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:EmbeddingCorpusState::Stale",
+        "This serialized UI state is a unit selector with no data to constrain.",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:EmbeddingCorpusState::VerifiedCurrent",
+        "This serialized UI state is a unit selector with no data to constrain.",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Available",

@@ -1,5 +1,9 @@
 //! Native and web embedding model, vector-pack, and semantic search support.
 
+mod client_corpus;
+#[cfg(all(test, feature = "native-llama"))]
+mod setup_tests;
+
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::env;
@@ -2781,7 +2785,13 @@ pub fn reuse_existing_embedding_pack_with_progress(
     let pack_dir = if expected_dir.join("manifest.json").is_file() {
         expected_dir
     } else if catalog_path(index_root)?.is_file() {
-        read_latest_pack_manifest(index_root, &spec.model_key)?.0
+        let (latest_dir, latest_manifest) = read_latest_pack_manifest(index_root, &spec.model_key)?;
+        // A valid older catalog is a source for file reuse, not a failed current installation.
+        // Read it first so a corrupt catalog still reports its integrity error.
+        if latest_manifest.pack_id != pack_id {
+            return Ok(None);
+        }
+        latest_dir
     } else {
         return Ok(None);
     };
@@ -2909,21 +2919,25 @@ pub fn download_precomputed_embedding_pack_with_progress(
         source,
     })?;
     write_json_file(&work_pack_root.join("manifest.json"), &manifest)?;
-    let remote_paths = native_pack_remote_paths(&manifest)?;
     let mut download_buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
-    for relative_path in remote_paths {
-        let url = remote_pack_child_url(base_url, &model.manifest_url, &relative_path)?;
-        let destination = work_pack_root.join(&relative_path);
-        download_url_to_file_with_progress(
-            &url,
-            &destination,
-            SetupProgressPhase::DownloadingIndex,
-            "Downloading precomputed index",
-            &format!("Downloading {relative_path}."),
-            &mut download_buffer,
-            progress,
-        )?;
-    }
+    install_native_files(
+        &manifest,
+        index_root,
+        &work_pack_root,
+        |relative_path, destination| {
+            let url = remote_pack_child_url(base_url, &model.manifest_url, relative_path)?;
+            download_url_to_file_with_progress(
+                &url,
+                destination,
+                SetupProgressPhase::DownloadingIndex,
+                "Downloading precomputed index",
+                &format!("Downloading {relative_path}."),
+                &mut download_buffer,
+                progress,
+            )?;
+            Ok(())
+        },
+    )?;
     progress(SetupProgress::indeterminate(
         SetupProgressPhase::ValidatingIndex,
         "validate",
@@ -3067,6 +3081,123 @@ fn native_pack_remote_paths(
     Ok(paths.into_iter().collect())
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn install_native_files(
+    manifest: &EmbeddingPackManifest,
+    index_root: &Path,
+    work_root: &Path,
+    mut download: impl FnMut(&str, &Path) -> Result<(), EmbeddingError>,
+) -> Result<(), EmbeddingError> {
+    let candidates = local_pack_file_candidates(index_root);
+    for relative_path in native_pack_remote_paths(manifest)? {
+        let expected =
+            manifest_file_sha256(manifest, &relative_path).expect("paths come from the manifest");
+        let destination = work_root.join(&relative_path);
+        if candidates
+            .get(expected)
+            .is_some_and(|paths| copy_verified_local_file(paths, &destination, expected))
+        {
+            continue;
+        }
+        download(&relative_path, &destination)?;
+    }
+    Ok(())
+}
+
+/// Local bytes are candidates only. The destination is hashed after copying so a changing source cannot authorize reuse.
+#[requires(true)]
+#[ensures(true)]
+fn copy_verified_local_file(
+    candidates: &[PathBuf],
+    destination: &Path,
+    expected_sha256: &str,
+) -> bool {
+    for source in candidates {
+        if source == destination {
+            continue;
+        }
+        if ensure_parent_dir(destination).is_err() {
+            return false;
+        }
+        if fs::copy(source, destination).is_ok()
+            && sha256_hex_file(destination).is_ok_and(|actual| actual == expected_sha256)
+        {
+            return true;
+        }
+        let _ = fs::remove_file(destination);
+    }
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn local_pack_file_candidates(index_root: &Path) -> HashMap<String, Vec<PathBuf>> {
+    let mut candidates: HashMap<String, Vec<PathBuf>> = HashMap::new();
+    let Ok(models) = fs::read_dir(index_root.join(INDEX_BASE_VERSION).join("models")) else {
+        return candidates;
+    };
+    for model in models.flatten() {
+        if !model.file_type().is_ok_and(|kind| kind.is_dir()) {
+            continue;
+        }
+        let Ok(packs) = fs::read_dir(model.path().join("packs")) else {
+            continue;
+        };
+        for pack in packs.flatten() {
+            if !pack.file_type().is_ok_and(|kind| kind.is_dir()) {
+                continue;
+            }
+            let Ok(manifest) =
+                read_json_file::<EmbeddingPackManifest>(&pack.path().join("manifest.json"))
+            else {
+                continue;
+            };
+            for corpus in &manifest.corpora {
+                for (relative, digest) in std::iter::once((&corpus.items_url, &corpus.items_sha256))
+                    .chain(
+                        corpus
+                            .shards
+                            .iter()
+                            .map(|shard| (&shard.url, &shard.sha256)),
+                    )
+                {
+                    if let Ok(relative) = safe_pack_data_relative_path(relative) {
+                        candidates
+                            .entry(digest.clone())
+                            .or_default()
+                            .push(pack.path().join(relative));
+                    }
+                }
+            }
+        }
+    }
+    candidates
+}
+
+#[requires(!relative.is_empty())]
+#[ensures(true)]
+fn manifest_file_sha256<'a>(
+    manifest: &'a EmbeddingPackManifest,
+    relative: &str,
+) -> Option<&'a str> {
+    for corpus in &manifest.corpora {
+        if safe_pack_data_relative_path(&corpus.items_url)
+            .is_ok_and(|path| path == Path::new(relative))
+        {
+            return Some(&corpus.items_sha256);
+        }
+        for shard in &corpus.shards {
+            if safe_pack_data_relative_path(&shard.url)
+                .is_ok_and(|path| path == Path::new(relative))
+            {
+                return Some(&shard.sha256);
+            }
+        }
+    }
+    None
+}
+
 #[invariant(::CurrentCorpus => true)]
 #[invariant(::ReusableRows => true)]
 #[invariant(::LegacyRows => true)]
@@ -3089,6 +3220,46 @@ fn validate_native_pack_manifest(
     dictionary_rows: usize,
     cll_fingerprint: &str,
     cll_rows: usize,
+    purpose: NativePackValidation,
+) -> Result<(), EmbeddingError> {
+    validate_native_model_manifest(manifest, spec, purpose)?;
+    if manifest.pack_id != expected_pack_id {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "embedding pack id `{}` does not match expected `{expected_pack_id}`",
+                manifest.pack_id
+            ),
+        });
+    }
+    let input_format = if purpose == NativePackValidation::CurrentCorpus {
+        &spec.input_format_version
+    } else {
+        &manifest.input_format_version
+    };
+    let dictionary = manifest_corpus(manifest, VLACKU_CORPUS_ID)?;
+    validate_native_corpus_manifest(
+        dictionary,
+        dictionary_fingerprint,
+        dictionary_rows,
+        spec.dimensions,
+        input_format,
+    )?;
+    let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
+    validate_native_corpus_manifest(
+        cll,
+        cll_fingerprint,
+        cll_rows,
+        spec.dimensions,
+        input_format,
+    )?;
+    Ok(())
+}
+
+#[requires(spec.dimensions > 0)]
+#[ensures(true)]
+fn validate_native_model_manifest(
+    manifest: &EmbeddingPackManifest,
+    spec: &EmbeddingModelSpec,
     purpose: NativePackValidation,
 ) -> Result<(), EmbeddingError> {
     validate_native_vector_space(&manifest.vector_space)?;
@@ -3131,14 +3302,6 @@ fn validate_native_pack_manifest(
             message: "embedding pack requires two distinct corpora".to_owned(),
         });
     }
-    if manifest.pack_id != expected_pack_id {
-        return Err(EmbeddingError::InvalidIndex {
-            message: format!(
-                "embedding pack id `{}` does not match expected `{expected_pack_id}`",
-                manifest.pack_id
-            ),
-        });
-    }
     if purpose != NativePackValidation::ReusableRows
         && manifest.input_format_version != spec.input_format_version
     {
@@ -3171,28 +3334,19 @@ fn validate_native_pack_manifest(
             message: "legacy reuse runtime differs".to_owned(),
         });
     }
-    let input_format = if purpose == NativePackValidation::CurrentCorpus {
-        &spec.input_format_version
-    } else {
-        &manifest.input_format_version
-    };
-    let dictionary = manifest_corpus(manifest, VLACKU_CORPUS_ID)?;
-    validate_native_corpus_manifest(
-        dictionary,
-        dictionary_fingerprint,
-        dictionary_rows,
-        spec.dimensions,
-        input_format,
-    )?;
-    let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
-    validate_native_corpus_manifest(
-        cll,
-        cll_fingerprint,
-        cll_rows,
-        spec.dimensions,
-        input_format,
-    )?;
     Ok(())
+}
+
+// A corpus search must not depend on the other corpus's fingerprint or the combined pack id.
+#[requires(spec.dimensions > 0)]
+#[ensures(true)]
+pub(crate) fn load_model_pack_for_search(
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
+    let (pack_dir, manifest) = read_latest_pack_manifest(index_root, &spec.model_key)?;
+    validate_native_model_manifest(&manifest, spec, NativePackValidation::CurrentCorpus)?;
+    Ok((pack_dir, manifest))
 }
 
 #[requires(dimensions > 0)]
@@ -3369,21 +3523,9 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     Ok(())
 }
 
-#[requires(!model_key.is_empty())]
-#[ensures(true)]
-pub fn load_latest_pack(
-    index_root: &Path,
-    model_key: &str,
-) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
-    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
-        model_key: model_key.to_owned(),
-    })?;
-    load_pack_for_identity(index_root, &spec, current_native_corpus_identity()?)
-}
-
 #[invariant(dictionary_fingerprint.len() == 64 && dictionary_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
 #[invariant(cll_fingerprint.len() == 64 && cll_fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NativeCorpusIdentity {
     dictionary_fingerprint: String,
     dictionary_rows: usize,
@@ -3427,6 +3569,8 @@ fn current_native_corpus_identity() -> Result<&'static NativeCorpusIdentity, Emb
         })
 }
 
+// Whole-pack identity is a test oracle for setup and explicit reuse, never a search gate.
+#[cfg(test)]
 #[requires(spec.dimensions > 0)]
 #[ensures(true)]
 fn load_pack_for_identity(
@@ -3455,8 +3599,43 @@ fn load_pack_for_identity(
     Ok((pack_dir, manifest))
 }
 
-/// Read untrusted metadata for export or explicit reuse. Search must use
-/// `load_latest_pack`, which also requires the pinned model and live corpora.
+#[invariant(::Absent => true)]
+#[invariant(::Downloading => true)]
+#[invariant(::VerifiedCurrent => true)]
+#[invariant(::Stale => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CorpusAvailability {
+    Absent,
+    Downloading,
+    VerifiedCurrent,
+    Stale,
+}
+
+#[requires(!model_key.is_empty())]
+#[ensures(ret.as_ref().map_or(true, |states| states.len() == 2))]
+pub fn corpus_availability(
+    index_root: &Path,
+    model_key: &str,
+) -> Result<std::collections::BTreeMap<String, CorpusAvailability>, EmbeddingError> {
+    let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+        model_key: model_key.to_owned(),
+    })?;
+    let identity = current_native_corpus_identity()?;
+    Ok(std::collections::BTreeMap::from([
+        (
+            VLACKU_CORPUS_ID.to_owned(),
+            client_corpus::dictionary(index_root, &spec, identity).availability(),
+        ),
+        (
+            CUKTA_CORPUS_ID.to_owned(),
+            client_corpus::cll(index_root, &spec, identity).availability(),
+        ),
+    ]))
+}
+
+/// Read untrusted metadata for export or explicit reuse. Search requires the
+/// selected corpus capability, which proves its identity and bytes separately.
 #[requires(!model_key.is_empty())]
 #[ensures(true)]
 pub fn read_latest_pack_manifest(
@@ -3679,26 +3858,6 @@ fn dictionary_corpus_cache()
 fn cll_corpus_cache()
 -> &'static Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<CllEmbeddingItem>>>> {
     CLL_CORPUS_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == manifest.dimensions) || ret.is_err())]
-fn load_cached_dictionary_corpus(
-    pack_dir: &Path,
-    manifest: &EmbeddingPackManifest,
-    corpus: &CorpusManifest,
-) -> Result<Arc<LoadedCorpus<DictionaryEmbeddingItem>>, EmbeddingError> {
-    load_cached_corpus(dictionary_corpus_cache(), pack_dir, manifest, corpus)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == manifest.dimensions) || ret.is_err())]
-fn load_cached_cll_corpus(
-    pack_dir: &Path,
-    manifest: &EmbeddingPackManifest,
-    corpus: &CorpusManifest,
-) -> Result<Arc<LoadedCorpus<CllEmbeddingItem>>, EmbeddingError> {
-    load_cached_corpus(cll_corpus_cache(), pack_dir, manifest, corpus)
 }
 
 #[requires(true)]
@@ -3958,10 +4117,9 @@ where
     B: EmbeddingBackend,
     F: FnMut(usize) -> bool,
 {
-    let (pack_dir, manifest) = load_pack_for_identity(index_root, spec, identity)?;
-    let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
-    let loaded = load_cached_dictionary_corpus(&pack_dir, &manifest, corpus)?;
-    let query_embedding = embed_query_for_dimensions(backend, query, manifest.dimensions)?;
+    let loaded =
+        client_corpus::dictionary(index_root, spec, identity).require_current(&spec.model_key)?;
+    let query_embedding = embed_query_for_dimensions(backend, query, loaded.dimensions)?;
     let items = &loaded.items;
     let hits = top_vector_hits_by_row(
         &loaded.values,
@@ -4048,10 +4206,8 @@ fn semantic_cukta_output_with_identity<B: EmbeddingBackend>(
             has_more: false,
         });
     }
-    let (pack_dir, manifest) = load_pack_for_identity(index_root, spec, identity)?;
-    let corpus = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
-    let loaded = load_cached_cll_corpus(&pack_dir, &manifest, corpus)?;
-    let query_embedding = embed_query_for_dimensions(backend, query, manifest.dimensions)?;
+    let loaded = client_corpus::cll(index_root, spec, identity).require_current(&spec.model_key)?;
+    let query_embedding = embed_query_for_dimensions(backend, query, loaded.dimensions)?;
     // The ranking has to reach the end of the window, and one further to
     // know whether anything follows it. What is ranked is a row and a score;
     // the book's text is copied below, for the window alone.
@@ -4374,6 +4530,200 @@ mod tests {
             dimensions: 4,
             ..EmbeddingModelSpec::default_f2llm()
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn per_corpus_native_file_installer_downloads_only_changed_files() {
+        let source = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        let mut original = sample_pack_manifest();
+        let template = original.corpora[0].clone();
+        original.corpora = [VLACKU_CORPUS_ID, CUKTA_CORPUS_ID]
+            .into_iter()
+            .map(|id| CorpusManifest {
+                corpus_id: id.to_owned(),
+                items_url: format!("corpora/{id}/items.json"),
+                shards: vec![VectorShardManifest {
+                    url: format!("corpora/{id}/vectors.f32"),
+                    byte_len: 0,
+                    sha256: "0".repeat(64),
+                }],
+                ..template.clone()
+            })
+            .collect();
+        let old = pack_root(source.path(), "model", "old");
+        let mut original_bytes = HashMap::new();
+        for corpus in &mut original.corpora {
+            let items = format!("{} items", corpus.corpus_id).into_bytes();
+            let vectors = format!("{} vectors", corpus.corpus_id).into_bytes();
+            corpus.items_sha256 = sha256_hex_bytes(&items);
+            corpus.shards[0].sha256 = sha256_hex_bytes(&vectors);
+            original_bytes.insert(corpus.items_url.clone(), items);
+            original_bytes.insert(corpus.shards[0].url.clone(), vectors);
+        }
+        for (path, bytes) in &original_bytes {
+            let path = old.join(path);
+            ensure_parent_dir(&path).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        write_json_file(&old.join("manifest.json"), &original).unwrap();
+        for changed in [VLACKU_CORPUS_ID, CUKTA_CORPUS_ID] {
+            for damage in ["none", "missing", "corrupt"] {
+                let mut desired = original.clone();
+                let mut bytes = original_bytes.clone();
+                for corpus in &mut desired.corpora {
+                    if corpus.corpus_id == changed {
+                        for path in [&corpus.items_url, &corpus.shards[0].url] {
+                            bytes.get_mut(path).unwrap().push(b'!');
+                        }
+                        corpus.items_sha256 = sha256_hex_bytes(&bytes[&corpus.items_url]);
+                        corpus.shards[0].sha256 = sha256_hex_bytes(&bytes[&corpus.shards[0].url]);
+                    }
+                }
+                let unchanged = original
+                    .corpora
+                    .iter()
+                    .find(|corpus| corpus.corpus_id != changed)
+                    .unwrap();
+                let broken_path = old.join(&unchanged.shards[0].url);
+                if damage == "missing" {
+                    fs::remove_file(&broken_path).unwrap();
+                }
+                if damage == "corrupt" {
+                    let mut wrong = original_bytes[&unchanged.shards[0].url].clone();
+                    wrong[0] ^= 1;
+                    fs::write(&broken_path, wrong).unwrap();
+                }
+                let mut fetched = Vec::new();
+                install_native_files(
+                    &desired,
+                    source.path(),
+                    target.path(),
+                    |path, destination| {
+                        fetched.push(path.to_owned());
+                        ensure_parent_dir(destination)?;
+                        fs::write(destination, &bytes[path]).map_err(|source| EmbeddingError::Io {
+                            context: "stub download".to_owned(),
+                            source,
+                        })
+                    },
+                )
+                .unwrap();
+                assert_eq!(
+                    fetched.len(),
+                    if damage != "none" { 3 } else { 2 },
+                    "{changed}/{damage}: {fetched:?}"
+                );
+                for path in native_pack_remote_paths(&desired).unwrap() {
+                    assert_eq!(fs::read(target.path().join(&path)).unwrap(), bytes[&path]);
+                }
+                fs::write(&broken_path, &original_bytes[&unchanged.shards[0].url]).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn per_corpus_search_ignores_only_the_other_stale_fingerprint() {
+        let dir = tempfile::tempdir().unwrap();
+        let dictionary = jbotci_dictionary_data::english();
+        let site = jbotci_cll::embedded_cll_site().unwrap();
+        let chunks = &site.search_chunks[..4];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            dictionary,
+            chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .unwrap();
+        let identity = native_corpus_identity(dictionary, chunks);
+        for stale_dictionary in [false, true] {
+            let live = if stale_dictionary {
+                identity
+                    .clone()
+                    .with_data(data! { dictionary_fingerprint: "f".repeat(64) })
+            } else {
+                identity
+                    .clone()
+                    .with_data(data! { cll_fingerprint: "f".repeat(64) })
+            };
+            let mut backend = FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            };
+            let dictionary_result = semantic_vlacku_hits_with_identity(
+                &mut backend,
+                "test",
+                1,
+                dir.path(),
+                &spec,
+                &live,
+                |_| true,
+            );
+            assert_eq!(dictionary_result.is_ok(), !stale_dictionary);
+            if let Err(error) = dictionary_result {
+                assert!(error.to_string().contains(VLACKU_CORPUS_ID));
+            }
+            let result = semantic_cukta_output_with_identity(
+                &mut backend,
+                chunks,
+                "test",
+                CuktaSearchWindow::first(1),
+                CuktaTargetFilter {
+                    sections: true,
+                    paragraphs: true,
+                    examples: true,
+                },
+                dir.path(),
+                &spec,
+                &live,
+            );
+            assert_eq!(result.is_ok(), stale_dictionary);
+            if let Err(error) = result {
+                assert!(error.to_string().contains(CUKTA_CORPUS_ID));
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn per_corpus_local_reuse_requires_the_copied_file_hash() {
+        let source = tempfile::tempdir().unwrap();
+        let destination = tempfile::tempdir().unwrap();
+        let good = source.path().join("good");
+        let bad = source.path().join("bad");
+        fs::write(&good, b"verified bytes").unwrap();
+        fs::write(&bad, b"modified bytes").unwrap();
+        assert_eq!(
+            fs::metadata(&good).unwrap().len(),
+            fs::metadata(&bad).unwrap().len()
+        );
+        let digest = sha256_hex_file(&good).unwrap();
+        let target = destination.path().join("target");
+        assert!(!copy_verified_local_file(
+            &[bad, source.path().join("evicted")],
+            &target,
+            &digest
+        ));
+        assert!(!target.exists());
+        assert!(copy_verified_local_file(&[good.clone()], &target, &digest));
+        assert_eq!(fs::read(&target).unwrap(), b"verified bytes");
+        fs::write(&good, b"modified bytes").unwrap();
+        assert_eq!(
+            fs::read(&target).unwrap(),
+            b"verified bytes",
+            "reuse must not share mutable source storage"
+        );
     }
 
     #[test]
@@ -6712,16 +7062,15 @@ mod tests {
         );
         assert_eq!(backend.calls, 0);
         assert!(validate_native_reuse_source(dir.path(), &other).is_err());
-        assert!(
-            reuse_existing_embedding_pack_with_progress(
-                &dictionary,
-                chunks,
-                dir.path(),
-                &other,
-                &mut |_| {}
-            )
-            .is_err()
+        // An older or other-model catalog entry declines the shortcut and leads to a verified download.
+        let result = reuse_existing_embedding_pack_with_progress(
+            &dictionary,
+            chunks,
+            dir.path(),
+            &other,
+            &mut |_| {},
         );
+        assert!(matches!(result, Ok(None)));
     }
 
     #[test]
@@ -6835,7 +7184,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn search_rejects_changed_or_reordered_corpora_before_query_embedding() {
+    fn search_rejects_only_changed_or_reordered_corpus_before_query_embedding() {
         let dir = tempfile::tempdir().unwrap();
         let entries = &jbotci_dictionary_data::english().entries()[..2];
         let dictionary = Dictionary::from_static_slices(entries, &[], &[], &[], &[], &[], &[], 0);
@@ -6868,13 +7217,13 @@ mod tests {
                 .with_data(data! { text: "changed passage".to_owned() }),
             chunks[1].clone(),
         ];
-        for (live_entries, live_chunks) in [
-            (reversed_entries.as_slice(), chunks),
-            (changed_entries.as_slice(), chunks),
-            (&entries[..1], chunks),
-            (entries, reversed_chunks.as_slice()),
-            (entries, changed_chunks.as_slice()),
-            (entries, &chunks[..1]),
+        for (live_entries, live_chunks, stale_dictionary) in [
+            (reversed_entries.as_slice(), chunks, true),
+            (changed_entries.as_slice(), chunks, true),
+            (&entries[..1], chunks, true),
+            (entries, reversed_chunks.as_slice(), false),
+            (entries, changed_chunks.as_slice(), false),
+            (entries, &chunks[..1], false),
         ] {
             let live_dictionary =
                 Dictionary::from_static_slices(live_entries, &[], &[], &[], &[], &[], &[], 0);
@@ -6883,36 +7232,40 @@ mod tests {
                 dimensions: 4,
                 calls: 0,
             };
-            assert!(
-                semantic_vlacku_hits_with_identity(
-                    &mut backend,
-                    "query",
-                    1,
-                    dir.path(),
-                    &spec,
-                    &identity,
-                    |_| panic!("no stale row filter")
-                )
-                .is_err()
+            // Each mutation changes exactly one corpus. Its peer must still reach query embedding.
+            let dictionary_result = semantic_vlacku_hits_with_identity(
+                &mut backend,
+                "query",
+                1,
+                dir.path(),
+                &spec,
+                &identity,
+                |_| {
+                    assert!(!stale_dictionary, "no stale row filter");
+                    true
+                },
             );
-            assert!(
-                semantic_cukta_output_with_identity(
-                    &mut backend,
-                    live_chunks,
-                    "query",
-                    CuktaSearchWindow::first(1),
-                    CuktaTargetFilter::default(),
-                    dir.path(),
-                    &spec,
-                    &identity
-                )
-                .is_err()
+            assert_eq!(dictionary_result.is_err(), stale_dictionary);
+            assert_eq!(backend.calls, usize::from(!stale_dictionary));
+            backend.calls = 0;
+            let cll_result = semantic_cukta_output_with_identity(
+                &mut backend,
+                live_chunks,
+                "query",
+                CuktaSearchWindow::first(1),
+                CuktaTargetFilter::default(),
+                dir.path(),
+                &spec,
+                &identity,
             );
-            assert_eq!(backend.calls, 0);
+            assert_eq!(cll_result.is_err(), !stale_dictionary);
+            assert_eq!(backend.calls, usize::from(stale_dictionary));
         }
-        // The public loader and desktop status use the actual compiled corpus,
-        // which also refuses this small, stale pack.
-        assert!(load_latest_pack(dir.path(), &spec.model_key).is_err());
+        // Whole-pack setup validation still refuses this small, stale fixture.
+        assert!(
+            load_pack_for_identity(dir.path(), &spec, current_native_corpus_identity().unwrap())
+                .is_err()
+        );
         let identity = native_corpus_identity(&dictionary, chunks);
         for changed_spec in [
             EmbeddingModelSpec {

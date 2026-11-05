@@ -482,7 +482,11 @@ impl NativeEmbeddingSearchService {
         index_dir: Option<PathBuf>,
     ) -> Result<Self, EmbeddingError> {
         let index_root = index_dir.map(Ok).unwrap_or_else(default_index_root)?;
-        crate::load_latest_pack(&index_root, model_key)?;
+        let spec =
+            crate::model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
+                model_key: model_key.to_owned(),
+            })?;
+        crate::load_model_pack_for_search(&index_root, &spec)?;
         let backend = load_backend_for_search(model_key, model_dir)?;
         Ok(Self {
             model_key: model_key.to_owned(),
