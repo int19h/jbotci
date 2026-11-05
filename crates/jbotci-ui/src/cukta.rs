@@ -3144,26 +3144,89 @@ mod tests {
 
     /// True when every visible pixel of a PNG is pure black, so that only alpha
     /// carries the drawing. That is the exact property `CllMediaArt::Ink` needs.
+    ///
+    /// Samples keep their full bit depth: a 16-bit sample counts as black only
+    /// when both of its bytes are zero, so a value such as `0x0001` is not
+    /// rounded down to black.
     #[requires(true)]
     #[ensures(true)]
     fn png_is_pure_black_ink(bytes: &[u8]) -> bool {
         let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-        decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+        decoder.set_transformations(png::Transformations::EXPAND);
         let mut reader = decoder.read_info().expect("CLL media is a readable PNG");
         let mut buffer = vec![0; reader.output_buffer_size().expect("bounded PNG size")];
         let frame = reader.next_frame(&mut buffer).expect("CLL media decodes");
         let pixels = &buffer[..frame.buffer_size()];
-        match frame.color_type {
-            png::ColorType::Rgba => pixels
-                .chunks_exact(4)
-                .all(|pixel| pixel[3] == 0 || pixel[..3] == [0, 0, 0]),
-            png::ColorType::GrayscaleAlpha => pixels
-                .chunks_exact(2)
-                .all(|pixel| pixel[1] == 0 || pixel[0] == 0),
+        let channels = match frame.color_type {
+            png::ColorType::Rgba => 4,
+            png::ColorType::GrayscaleAlpha => 2,
             // Without an alpha channel, the background is opaque, so the
             // picture cannot be recolored as ink.
-            png::ColorType::Rgb | png::ColorType::Grayscale | png::ColorType::Indexed => false,
+            png::ColorType::Rgb | png::ColorType::Grayscale | png::ColorType::Indexed => {
+                return false;
+            }
+        };
+        let sample_bytes = match frame.bit_depth {
+            png::BitDepth::Sixteen => 2,
+            _ => 1,
+        };
+        pixels.chunks_exact(channels * sample_bytes).all(|pixel| {
+            let (color, alpha) = pixel.split_at((channels - 1) * sample_bytes);
+            alpha.iter().all(|byte| *byte == 0) || color.iter().all(|byte| *byte == 0)
+        })
+    }
+
+    /// Encodes one-pixel 16-bit PNG fixtures for the ink classifier.
+    #[requires(!samples.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn sixteen_bit_png(color_type: png::ColorType, samples: &[u16]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, 1, 1);
+            encoder.set_color(color_type);
+            encoder.set_depth(png::BitDepth::Sixteen);
+            let mut writer = encoder.write_header().expect("PNG header");
+            let data: Vec<u8> = samples
+                .iter()
+                .flat_map(|sample| sample.to_be_bytes())
+                .collect();
+            writer.write_image_data(&data).expect("PNG data");
         }
+        bytes
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ink_classifier_keeps_the_low_byte_of_sixteen_bit_samples() {
+        let rgba = png::ColorType::Rgba;
+        let gray_alpha = png::ColorType::GrayscaleAlpha;
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0, 0, 0, 0xffff]
+        )));
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            gray_alpha,
+            &[0, 0x8000]
+        )));
+        // A fully transparent pixel carries no ink, whatever its color.
+        assert!(png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0xffff, 0, 0, 0]
+        )));
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0x0001, 0, 0, 0xffff]
+        )));
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            gray_alpha,
+            &[0x0001, 0xffff]
+        )));
+        // Alpha with only its low byte set is still visible.
+        assert!(!png_is_pure_black_ink(&sixteen_bit_png(
+            rgba,
+            &[0x0100, 0, 0, 0x0001]
+        )));
     }
 
     #[test]
