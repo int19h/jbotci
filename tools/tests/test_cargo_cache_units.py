@@ -8,9 +8,10 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools import cargo_inputs as c
-from tools.cargo_inputs_trace import Parser, Process, string_at
+from tools.cargo_inputs_trace import Parser, Process, process_snapshot, string_at
 
 
 class CargoUnitTests(unittest.TestCase):
@@ -179,6 +180,147 @@ class CargoUnitTests(unittest.TestCase):
         ])
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events, [{"event": "complete", "errors": 0}])
+
+    def test_group_exit_before_clone_result_closes_only_teardown_events(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        # This ordering comes from the native thread-exit reproduction. The
+        # process exits during clone3, so strace never reports the new thread ID.
+        parser.feed([
+            b'1 execve("/fixture/exit-thread", ["exit-thread"], []) = 0\n',
+            b'1 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID}, 88 <unfinished ...>\n',
+            b'2 ???( <unfinished ...>\n',
+            b'1 <... clone3 resumed> <unfinished ...>) = ?\n',
+            b'2 <... ??? resumed>) = ?\n',
+            b'1 +++ exited with 0 +++\n',
+            b'2 +++ exited with 0 +++\n',
+        ])
+        self.assertEqual(parser.errors, 0)
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        proof = next(event for event in events if event["event"] == "unattributed-exit")
+        self.assertEqual(proof["pid"], 2)
+        self.assertEqual(proof["teardown_events"], 2)
+        self.assertEqual(events[-1], {"event": "complete", "errors": 0})
+        self.assertEqual(parser.waiting, {})
+        session = self.root / "session"
+        session.mkdir()
+        (session / "trace-race.jsonl").write_text(output.getvalue())
+        self.assertEqual(c.journals(session), ({}, {}, set()))
+
+    def test_unknown_exited_process_with_a_file_open_still_fails_closed(self) -> None:
+        output = io.StringIO()
+        diagnostic = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output,
+                        inspect_process=lambda pid: {"parent": 7, "exe": "/fixture/helper",
+                                                     "cmdline": {"arguments": "<redacted>", "argument_count": 1}})
+        with redirect_stderr(diagnostic):
+            parser.feed([
+                b'1 execve("/bin/true", ["true"], []) = 0\n',
+                b'2<helper> execve("/fixture/helper", ["helper", "secret-argument"], ["TOKEN=secret-token"]) = 0\n',
+                b'2<helper> openat(AT_FDCWD, "secret-file", O_RDONLY) = 3</source/secret-file>\n',
+                b'2<helper> +++ exited with 0 +++\n',
+                b'1 +++ exited with 0 +++\n',
+            ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        failure = next(event for event in events if event["event"] == "incomplete-processes")
+        self.assertEqual(events[-1]["errors"], 1)
+        self.assertEqual(failure["waiting"], [2])
+        identity = failure["waiting_processes"]["2"]
+        self.assertEqual(identity["exe"], "/fixture/helper")
+        self.assertEqual(identity["parent"], 7)
+        self.assertEqual(identity["cmdline"], {"arguments": "<redacted>", "argument_count": 1})
+        self.assertNotIn("secret", diagnostic.getvalue())
+        self.assertNotIn("secret", output.getvalue())
+        session = self.root / "session"
+        session.mkdir()
+        (session / "trace-incomplete.jsonl").write_text(output.getvalue())
+        with self.assertRaisesRegex(c.InputError, "did not finish without errors"):
+            c.journals(session)
+
+    def test_child_open_and_exit_before_clone_return_replay_in_parent_context(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output,
+                        inspect_process=lambda pid: {"parent": 99, "exe": "/unrelated"})
+        parser.processes[1] = Process(str(self.workspace), "producing-unit")
+        parser.feed([
+            b'1 clone(child_stack=NULL, flags=SIGCHLD <unfinished ...>\n',
+            b'2 openat(AT_FDCWD, "/source/input", O_RDONLY) = 3</source/input>\n',
+            b'2 +++ exited with 0 +++\n',
+            b'1 <... clone resumed>) = 2\n',
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        opened = next(event for event in events if event["event"] == "open")
+        self.assertEqual(opened["unit"], "producing-unit")
+        self.assertEqual(opened["path"], "/source/input")
+        self.assertEqual(parser.processes[2].parent, 1)
+        self.assertEqual(events[-1]["errors"], 0)
+
+    def test_unknown_teardown_without_an_exit_remains_incomplete(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        with redirect_stderr(io.StringIO()):
+            parser.feed([b'1 chdir("/source") = 0\n', b'2 ???( <unfinished ...>\n'])
+        self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["errors"], 1)
+
+    def test_unsplit_teardown_and_exit_only_have_no_input_operations(self) -> None:
+        for teardown in ([], [b'2 ???() = ?\n']):
+            with self.subTest(teardown=teardown):
+                output = io.StringIO()
+                parser = Parser(self.workspace, self.layout.target, output)
+                parser.feed([b'1 chdir("/source") = 0\n', *teardown,
+                             b'2 +++ exited with 0 +++\n'])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                proof = next(event for event in events if event["event"] == "unattributed-exit")
+                self.assertEqual(proof["teardown_events"], len(teardown))
+                self.assertEqual(events[-1]["errors"], 0)
+
+    def test_other_unknown_operations_cannot_use_the_teardown_exception(self) -> None:
+        for operation in (b'2 ???(42) = ?\n', b'2 chdir("/source") = 0\n',
+                          b'2 openat(AT_FDCWD, "input", O_RDONLY) = -1 ENOENT\n'):
+            with self.subTest(operation=operation):
+                output = io.StringIO()
+                parser = Parser(self.workspace, self.layout.target, output)
+                with redirect_stderr(io.StringIO()):
+                    parser.feed([b'1 chdir("/source") = 0\n', operation,
+                                 b'2 +++ exited with 0 +++\n'])
+                self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["errors"], 1)
+
+    def test_process_identity_inherits_parent_without_retaining_arguments(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([
+            b'1<parent> execve("/bin/parent", ["parent", "secret-argument"], []) = 0\n',
+            b'1<parent> clone(child_stack=NULL, flags=SIGCHLD) = 2<parent>\n',
+            b'2<parent> ???( <unfinished ...>\n',
+            b'2<parent> +++ exited with 0 +++\n',
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        child = next(event for event in events if event["event"] == "process" and event["pid"] == 2)
+        self.assertEqual(child["parent"], 1)
+        self.assertEqual(child["exe"], "/bin/parent")
+        self.assertEqual(child["cmdline"]["argument_count"], 1)
+        self.assertNotIn("secret", output.getvalue())
+
+    def test_live_process_snapshot_discards_argument_values(self) -> None:
+        with patch("tools.cargo_inputs_trace.Path.read_text", return_value="PPid:\t7\nTgid:\t2\n"), \
+             patch("tools.cargo_inputs_trace.os.readlink", return_value="/bin/helper"), \
+             patch("tools.cargo_inputs_trace.Path.read_bytes", return_value=b"helper\0secret-token\0"):
+            identity = process_snapshot(2)
+        self.assertEqual(identity["parent"], 7)
+        self.assertEqual(identity["tgid"], 2)
+        self.assertEqual(identity["exe"], "/bin/helper")
+        self.assertEqual(identity["cmdline"], {"arguments": "<redacted>", "argument_count": 1})
+        self.assertNotIn("secret", json.dumps(identity))
+
+    def test_pending_operation_diagnostics_do_not_contain_resumed_arguments(self) -> None:
+        output = io.StringIO()
+        diagnostic = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        with redirect_stderr(diagnostic):
+            parser.feed([b'1 <... execve resumed> ["secret-argument"] <unfinished ...>\n'])
+        self.assertNotIn("secret", diagnostic.getvalue())
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[0]["pending"]["1"]["operation"], "execve")
 
 
 if __name__ == "__main__":

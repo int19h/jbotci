@@ -64,9 +64,24 @@ The check compares repository file reads with each unit's declared input set.
 It excludes test execution, immutable registry source, system files, and owned target output from this contract.
 A deliberate undeclared read fails the regression fixture.
 An unreadable input record for a workspace or vendored unit fails the contract check.
-The trace parser retains only file paths and unit metadata.
-It never stores raw command arguments or the full environment.
-An abbreviated or incomplete trace rejects the check.
+The trace parser retains file paths, unit metadata, and process identities.
+It records the executable, parent PID, and argument count without argument values or environment values.
+Strace's `-Y` option supplies process names, including names for short-lived threads.
+For an unknown PID, the reader also attempts a live `/proc` snapshot for diagnostics.
+Unavailable identity fields remain null. These snapshots never determine a Cargo unit's ownership.
+Only reported fork results supply the parent context for input accounting.
+An incomplete-process error prints these identities and any interrupted parent forks from the journal.
+
+A process-wide exit can interrupt a clone before strace reports the new thread ID.
+The new thread then emits only teardown placeholders and a termination event.
+The parser closes that PID only if every buffered event matches those exact forms.
+Its journal records the accepted placeholders and the explicit termination as `unattributed-exit`.
+It never discards an exec, directory change, file open, or other unknown operation through this rule.
+Those events remain buffered until the reported parent context arrives.
+
+An abbreviated or genuinely incomplete trace still fails CI and prevents a cache save.
+An undeclared read must fail the input contract, even when the tests pass.
+Missing coverage cannot establish that contract, so CI does not replace this failure with a cache warning.
 Each job also requires the checkout's tracked content to stay unchanged while it builds.
 
 The native script declares the full C++ tree, patches, shim, wrapper, and build helper.
