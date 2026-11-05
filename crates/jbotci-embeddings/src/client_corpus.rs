@@ -3,7 +3,8 @@
 use super::*;
 
 #[invariant(::Absent => true)]
-#[invariant(::Stale => true)]
+// A missing compatible pack is Absent, rather than a stale installed corpus.
+#[invariant(::Stale { error } => !matches!(error, EmbeddingError::MissingCompatiblePack { .. }))]
 #[invariant(::VerifiedCurrent => true)]
 pub(super) enum CorpusState<T> {
     Absent,
@@ -30,10 +31,10 @@ impl<T> CorpusState<T> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn availability(&self) -> CorpusAvailability {
-        match self {
-            Self::Absent => CorpusAvailability::Absent,
-            Self::Stale { .. } => CorpusAvailability::Stale,
-            Self::VerifiedCurrent { .. } => CorpusAvailability::VerifiedCurrent,
+        match self.as_data() {
+            data!(CorpusState::Absent) => CorpusAvailability::Absent,
+            data!(CorpusState::Stale { .. }) => CorpusAvailability::Stale,
+            data!(CorpusState::VerifiedCurrent { .. }) => CorpusAvailability::VerifiedCurrent,
         }
     }
 
@@ -43,12 +44,12 @@ impl<T> CorpusState<T> {
         self,
         model_key: &str,
     ) -> Result<VerifiedCorpus<T>, EmbeddingError> {
-        match self {
-            Self::VerifiedCurrent { corpus } => Ok(corpus),
-            Self::Absent => Err(EmbeddingError::MissingCompatiblePack {
+        match self.into_data() {
+            data!(CorpusState::VerifiedCurrent { corpus }) => Ok(corpus),
+            data!(CorpusState::Absent) => Err(EmbeddingError::MissingCompatiblePack {
                 model_key: model_key.to_owned(),
             }),
-            Self::Stale { error } => Err(error),
+            data!(CorpusState::Stale { error }) => Err(error),
         }
     }
 }
@@ -77,9 +78,9 @@ fn load<T: DeserializeOwned>(
         Ok(VerifiedCorpus { loaded })
     })();
     match result {
-        Ok(corpus) => CorpusState::VerifiedCurrent { corpus },
-        Err(EmbeddingError::MissingCompatiblePack { .. }) => CorpusState::Absent,
-        Err(error) => CorpusState::Stale { error },
+        Ok(corpus) => new!(CorpusState::VerifiedCurrent { corpus }),
+        Err(EmbeddingError::MissingCompatiblePack { .. }) => new!(CorpusState::Absent),
+        Err(error) => new!(CorpusState::Stale { error }),
     }
 }
 
@@ -115,4 +116,38 @@ pub(super) fn cll(
         identity.cll_rows,
         cll_corpus_cache(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_pack_cannot_be_constructed_as_a_stale_corpus() {
+        let missing = bityzba::try_new!(CorpusState::<DictionaryEmbeddingItem>::Stale {
+            error: EmbeddingError::MissingCompatiblePack {
+                model_key: DEFAULT_MODEL_KEY.to_owned()
+            },
+        });
+        assert!(missing.is_err());
+        let stale = bityzba::try_new!(CorpusState::<DictionaryEmbeddingItem>::Stale {
+            error: EmbeddingError::InvalidIndex {
+                message: "corpus fingerprint mismatch".to_owned()
+            },
+        })
+        .unwrap();
+        assert_eq!(stale.availability(), CorpusAvailability::Stale);
+        assert!(matches!(
+            stale.require_current(DEFAULT_MODEL_KEY),
+            Err(EmbeddingError::InvalidIndex { .. })
+        ));
+        let absent = new!(CorpusState::<DictionaryEmbeddingItem>::Absent);
+        assert_eq!(absent.availability(), CorpusAvailability::Absent);
+        assert!(matches!(
+            absent.require_current(DEFAULT_MODEL_KEY),
+            Err(EmbeddingError::MissingCompatiblePack { .. })
+        ));
+    }
 }

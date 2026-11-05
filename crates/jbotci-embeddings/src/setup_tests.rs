@@ -87,7 +87,9 @@ impl Drop for PackServer {
     fn drop(&mut self) {
         self.stop.store(true, AtomicOrdering::Release);
         let _ = TcpStream::connect(self.address);
-        self.worker.take().unwrap().join().unwrap();
+        if let Some(worker) = self.worker.take() {
+            worker.join().unwrap();
+        }
     }
 }
 

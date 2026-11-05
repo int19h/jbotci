@@ -8,6 +8,26 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/embedding_tests.rs:FixtureService",
+        "The fixture uses a validated model key and a nonzero backend dimension. Any index path can produce a normal load error.",
+    ),
+    (
+        "apps/jbotci-server/src/embedding_tests.rs:UnitBackend",
+        "NonZeroUsize enforces positive dimensions. The call counter accepts any usize and has no relation to the dimension count.",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchPaths",
+        "Each optional path selects an explicit location or the environment default. Missing locations are reported by the loader.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/client_corpus.rs:VerifiedCorpus",
+        "LoadedCorpus enforces vector shape and item counts. The private constructor supplies identity and byte proofs, with no additional field relation.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:PackServer",
+        "The fixture owns socket and thread resources. A missing worker is a valid stopped state, and cleanup accepts it.",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:AttachmentText",
         "The serializer borrows any list of already validated attachments.",
     ),

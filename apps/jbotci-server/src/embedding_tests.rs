@@ -33,7 +33,7 @@ impl EmbeddingBackend for UnitBackend {
 #[invariant(true)]
 #[derive(Debug)]
 struct FixtureService {
-    model_key: String,
+    model_key: ServerEmbeddingModelKey,
     index_root: PathBuf,
     backend: UnitBackend,
 }
@@ -43,7 +43,9 @@ impl ServerEmbeddingSearch for FixtureService {
     fn load(model_key: &str, paths: &EmbeddingSearchPaths) -> Result<Self> {
         let spec = model_spec(model_key).expect("fixture model");
         Ok(Self {
-            model_key: model_key.to_owned(),
+            model_key: new!(ServerEmbeddingModelKey {
+                value: model_key.to_owned()
+            }),
             index_root: paths.index_dir.clone().expect("fixture index"),
             backend: UnitBackend {
                 dimensions: NonZeroUsize::new(spec.dimensions).unwrap(),
@@ -53,7 +55,7 @@ impl ServerEmbeddingSearch for FixtureService {
     }
 
     fn model_key(&self) -> &str {
-        &self.model_key
+        self.model_key.as_str()
     }
 
     fn semantic_vlacku_hits_window_filtered<F: FnMut(usize) -> bool>(
@@ -69,7 +71,7 @@ impl ServerEmbeddingSearch for FixtureService {
             skip,
             count,
             &self.index_root,
-            &self.model_key,
+            self.model_key.as_str(),
             entry_allowed,
         )
     }
@@ -88,7 +90,7 @@ impl ServerEmbeddingSearch for FixtureService {
             window,
             targets,
             &self.index_root,
-            &self.model_key,
+            self.model_key.as_str(),
         )
     }
 }
