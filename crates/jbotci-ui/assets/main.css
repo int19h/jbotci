@@ -6046,6 +6046,7 @@ body::-webkit-scrollbar-thumb:hover,
   --app-accent: #1f5f96;
   --app-accent-contrast: #fffdf8;
   --cll-media-bg: #fffdf8;
+  --cll-media-ink-filter: none;
   --ebnf-operator: #645545;
   --ebnf-hash: #7a22b9;
   --ebnf-terminal: #0d6a3f;
@@ -6062,7 +6063,12 @@ body::-webkit-scrollbar-thumb:hover,
   --app-link-hover: #ffe3bf;
   --app-accent: #d48743;
   --app-accent-contrast: #18130f;
-  --cll-media-bg: #fffdf8;
+  /* The CLL chapter art is pure black ink on transparency, so it can sit on
+   * the dark page: invert turns the ink white, and sepia with brightness warms
+   * and dims it toward the night text color. Full-color pictures keep their
+   * own colors, because only .cll-media-ink images use this filter. */
+  --cll-media-bg: #221a14;
+  --cll-media-ink-filter: invert(1) sepia(0.15) brightness(0.9);
   --ebnf-operator: #d7c9b6;
   --ebnf-hash: #ff88bc;
   --ebnf-terminal: #91efaa;
@@ -6078,7 +6084,8 @@ body::-webkit-scrollbar-thumb:hover,
     --app-link-hover: #ffe3bf;
     --app-accent: #d48743;
     --app-accent-contrast: #18130f;
-    --cll-media-bg: #fffdf8;
+    --cll-media-bg: #221a14;
+    --cll-media-ink-filter: invert(1) sepia(0.15) brightness(0.9);
     --ebnf-operator: #d7c9b6;
     --ebnf-hash: #ff88bc;
     --ebnf-terminal: #91efaa;
@@ -6863,6 +6870,10 @@ body::-webkit-scrollbar-thumb:hover,
   max-height: 50vh;
   max-height: 50dvh;
   border-radius: 6px;
+}
+
+.cll-page .cll-media img.cll-media-ink {
+  filter: var(--cll-media-ink-filter);
 }
 
 .cll-page .cll-ebnf {
