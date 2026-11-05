@@ -7187,7 +7187,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn search_rejects_changed_or_reordered_corpora_before_query_embedding() {
+    fn search_rejects_only_changed_or_reordered_corpus_before_query_embedding() {
         let dir = tempfile::tempdir().unwrap();
         let entries = &jbotci_dictionary_data::english().entries()[..2];
         let dictionary = Dictionary::from_static_slices(entries, &[], &[], &[], &[], &[], &[], 0);
@@ -7220,13 +7220,13 @@ mod tests {
                 .with_data(data! { text: "changed passage".to_owned() }),
             chunks[1].clone(),
         ];
-        for (live_entries, live_chunks) in [
-            (reversed_entries.as_slice(), chunks),
-            (changed_entries.as_slice(), chunks),
-            (&entries[..1], chunks),
-            (entries, reversed_chunks.as_slice()),
-            (entries, changed_chunks.as_slice()),
-            (entries, &chunks[..1]),
+        for (live_entries, live_chunks, stale_dictionary) in [
+            (reversed_entries.as_slice(), chunks, true),
+            (changed_entries.as_slice(), chunks, true),
+            (&entries[..1], chunks, true),
+            (entries, reversed_chunks.as_slice(), false),
+            (entries, changed_chunks.as_slice(), false),
+            (entries, &chunks[..1], false),
         ] {
             let live_dictionary =
                 Dictionary::from_static_slices(live_entries, &[], &[], &[], &[], &[], &[], 0);
@@ -7235,32 +7235,34 @@ mod tests {
                 dimensions: 4,
                 calls: 0,
             };
-            assert!(
-                semantic_vlacku_hits_with_identity(
-                    &mut backend,
-                    "query",
-                    1,
-                    dir.path(),
-                    &spec,
-                    &identity,
-                    |_| panic!("no stale row filter")
-                )
-                .is_err()
+            // Each mutation changes exactly one corpus. Its peer must still reach query embedding.
+            let dictionary_result = semantic_vlacku_hits_with_identity(
+                &mut backend,
+                "query",
+                1,
+                dir.path(),
+                &spec,
+                &identity,
+                |_| {
+                    assert!(!stale_dictionary, "no stale row filter");
+                    true
+                },
             );
-            assert!(
-                semantic_cukta_output_with_identity(
-                    &mut backend,
-                    live_chunks,
-                    "query",
-                    CuktaSearchWindow::first(1),
-                    CuktaTargetFilter::default(),
-                    dir.path(),
-                    &spec,
-                    &identity
-                )
-                .is_err()
+            assert_eq!(dictionary_result.is_err(), stale_dictionary);
+            assert_eq!(backend.calls, usize::from(!stale_dictionary));
+            backend.calls = 0;
+            let cll_result = semantic_cukta_output_with_identity(
+                &mut backend,
+                live_chunks,
+                "query",
+                CuktaSearchWindow::first(1),
+                CuktaTargetFilter::default(),
+                dir.path(),
+                &spec,
+                &identity,
             );
-            assert_eq!(backend.calls, 0);
+            assert_eq!(cll_result.is_err(), !stale_dictionary);
+            assert_eq!(backend.calls, usize::from(stale_dictionary));
         }
         // The public loader and desktop status use the actual compiled corpus,
         // which also refuses this small, stale pack.
