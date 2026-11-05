@@ -74,7 +74,11 @@ class Transaction {
     assert.ok(this.names.includes(name));
     return {
       get: key => this.enqueue(() => structuredClone(this.maps.get(name).get(key))),
-      getAll: () => this.enqueue(() => [...this.maps.get(name).values()].map(value => structuredClone(value))),
+      getAll: () => this.enqueue(() => {
+        const values = [...this.maps.get(name).values()].map(value => structuredClone(value));
+        this.db.afterReferenceRead?.();
+        return values;
+      }),
       put: (value, key) => this.enqueue(() => this.maps.get(name).set(key, structuredClone(value))),
       delete: key => this.enqueue(() => {
         if (name === "blobs") {
@@ -249,4 +253,23 @@ test("two workers publish and collect content without deleting referenced bytes"
   await new Promise(resolve => { const tx = db.transaction(["meta"], "readwrite"); tx.objectStore("meta").delete("pack:other"); tx.oncomplete = resolve; });
   await a.collectContentGarbage(db);
   assert.equal(db.maps.get("blobs").has(old.shards[0].key), false);
+
+  // Force publication after the reference snapshot. A split read/delete collector
+  // lets the writer run first, then deletes its now-referenced blob.
+  const incoming = corpus("vlacku-en", 2);
+  const next = await b.installRemoteCorpus(incoming.manifest, manifest, null, "root",
+    async () => incoming.raw, async () => incoming.vectors);
+  db.maps.get("blobs").set(next.record.rawItemsKey, next.rawItems);
+  db.maps.get("blobs").set(next.record.shards[0].key, next.vectors);
+  let publication;
+  db.afterReferenceRead = () => {
+    db.afterReferenceRead = null;
+    publication = b.commitCorpus(packInfo("concurrent", "racer"), next.record, next.rawItems, next.vectors, db);
+  };
+  await a.collectContentGarbage(db);
+  assert.ok(publication, "the concurrent writer must run");
+  await publication;
+  assert.ok(db.maps.get("blobs").has(next.record.rawItemsKey));
+  assert.ok(db.maps.get("blobs").has(next.record.shards[0].key));
+  assert.deepEqual(db.illegalDeletes, []);
 });
