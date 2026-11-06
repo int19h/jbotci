@@ -9,6 +9,12 @@ import re
 import subprocess
 import sys
 import threading
+from typing import Callable
+
+
+LINE = re.compile(r"\s*(\d+)(?:<([^>]*)>)?\s+(.*)")
+EXIT = re.compile(r"\+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+")
+TEARDOWN = re.compile(r"(?:\?\?\?\(\s*<unfinished \.\.\.>|<\.\.\. \?\?\? resumed>\)\s*=\s*\?|\?\?\?\(\)\s*=\s*\?)")
 
 
 class TraceError(Exception):
@@ -20,6 +26,34 @@ class Process:
     cwd: str
     unit: str | None = None
     via_dx: bool = False
+    parent: int | None = None
+    exe: str | None = None
+    argument_count: int | None = None
+
+    def identity(self) -> dict:
+        return {"parent": self.parent, "exe": self.exe,
+                "cmdline": {"arguments": "<redacted>", "argument_count": self.argument_count}}
+
+
+def process_snapshot(pid: int) -> dict:
+    """Capture diagnostic evidence while the tracee exists, without retaining arguments."""
+    root = Path(f"/proc/{pid}")
+    result: dict = {"source": "proc-snapshot"}
+    try:
+        status = dict(line.split(":", 1) for line in (root / "status").read_text().splitlines())
+        result.update(parent=int(status["PPid"]), tgid=int(status["Tgid"]))
+        result["exe"] = os.readlink(root / "exe")
+        command = (root / "cmdline").read_bytes().rstrip(b"\0")
+        result["cmdline"] = {"arguments": "<redacted>",
+                             "argument_count": max(0, len(command.split(b"\0")) - 1) if command else None}
+    except (OSError, KeyError, ValueError):
+        pass
+    return result
+
+
+def operation_name(body: str) -> str:
+    match = re.match(r"(?:<\.\.\. )?([a-zA-Z0-9_]+|\?\?\?)(?:\(| resumed>)", body)
+    return match[1] if match else "unknown"
 
 
 def string_at(text: str, start: int = 0) -> tuple[str, int]:
@@ -89,7 +123,8 @@ def extra_filename(arguments: list[str]) -> str | None:
 
 
 class Parser:
-    def __init__(self, workspace: Path, target: Path, output):
+    def __init__(self, workspace: Path, target: Path, output,
+                 inspect_process: Callable[[int], dict] | None = None):
         self.workspace = workspace
         self.target = target
         self.output = output
@@ -97,6 +132,9 @@ class Parser:
         self.pending: dict[int, str] = {}
         self.fork_states: dict[int, Process] = {}
         self.waiting: dict[int, list[str]] = {}
+        self.identities: dict[int, dict] = {}
+        self.interrupted_forks: list[dict] = []
+        self.inspect_process = inspect_process
         self.errors = 0
 
     def emit(self, event: dict) -> None:
@@ -106,21 +144,52 @@ class Parser:
             print(f"Input trace error: {encoded}", file=sys.stderr)
 
     def consume(self, line: str) -> None:
-        match = re.match(r"\s*(\d+)\s+(.*)", line)
+        match = LINE.fullmatch(line)
         if not match:
             return
-        pid, body = int(match[1]), match[2]
+        pid, name, body = int(match[1]), match[2], match[3]
+        identity = self.identities.setdefault(pid, {"exe": None, "cmdline": None, "parent": None})
+        if name:
+            identity["comm"] = name
         if pid not in self.processes:
             if not self.processes:
                 self.processes[pid] = Process(str(self.workspace))
             else:
+                if pid not in self.waiting and self.inspect_process is not None:
+                    identity.update(self.inspect_process(pid))
+                    self.emit({"event": "process", "pid": pid, **identity})
+                if body.startswith("execve(") and body.endswith("= 0"):
+                    executable, end = string_at(body)
+                    arguments, _ = array_at(body, end)
+                    identity.update(exe=executable, cmdline={"arguments": "<redacted>",
+                                                           "argument_count": max(0, len(arguments) - 1)})
+                    self.emit({"event": "process", "pid": pid, **identity})
+                if EXIT.fullmatch(body) and all(
+                    TEARDOWN.fullmatch(LINE.fullmatch(buffered)[3])
+                    for buffered in self.waiting.get(pid, [])
+                ):
+                    # A dying thread can have no reported clone result. Retain the
+                    # proof that every observed event is teardown, with no exec,
+                    # directory change, or file open. Any other event stays queued.
+                    self.emit({"event": "unattributed-exit", "pid": pid, **identity,
+                               "teardown_events": len(self.waiting.get(pid, [])),
+                               "observed_teardown": [LINE.fullmatch(buffered)[3]
+                                                     for buffered in self.waiting.get(pid, [])],
+                               "termination": body})
+                    self.waiting.pop(pid, None)
+                    return
                 self.waiting.setdefault(pid, []).append(line)
                 return
-        if re.fullmatch(r"\+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+", body):
+        if EXIT.fullmatch(body):
             # strace can show an unfinished syscall when a thread exits.
             # An explicit exit proves that the operation cannot return or read.
             self.pending.pop(pid, None)
-            self.fork_states.pop(pid, None)
+            fork = self.fork_states.pop(pid, None)
+            if fork is not None:
+                event = {"event": "interrupted-fork", "pid": pid, **fork.identity(),
+                         "comm": identity.get("comm")}
+                self.interrupted_forks.append(event)
+                self.emit(event)
             return
         if "<unfinished ...>" in body:
             self.pending[pid] = body.split("<unfinished ...>", 1)[0]
@@ -135,10 +204,12 @@ class Parser:
                 return
         process = self.processes.setdefault(pid, Process(str(self.workspace)))
         if re.match(r"(?:clone3?|fork|vfork)\(", body):
-            child = re.search(r"= (\d+)\s*$", body)
+            child = re.search(r"= (\d+)(?:<[^>]*>)?\s*$", body)
             if child:
                 child_pid = int(child[1])
-                self.processes[child_pid] = self.fork_states.pop(pid, replace(process))
+                self.processes[child_pid] = replace(self.fork_states.pop(pid, process), parent=pid)
+                self.identities.setdefault(child_pid, {}).update(self.processes[child_pid].identity(), source="journal")
+                self.emit({"event": "process", "pid": child_pid, **self.identities[child_pid]})
                 for buffered in self.waiting.pop(child_pid, []):
                     self.consume(buffered)
             return
@@ -150,6 +221,10 @@ class Parser:
             executable, end = string_at(body)
             arguments, end = array_at(body, end)
             environment, _ = array_at(body, end)
+            process.exe = executable
+            process.argument_count = max(0, len(arguments) - 1)
+            identity.update(process.identity(), source="journal")
+            self.emit({"event": "process", "pid": pid, **identity})
             # Never retain the raw environment or arguments in the journal.
             env = dict(item.split("=", 1) for item in environment if "=" in item)
             if Path(executable).name == "dx":
@@ -219,7 +294,7 @@ class Parser:
             except (TraceError, ValueError, SyntaxError, IndexError, KeyError, OSError) as error:
                 # A raw line can contain credentials. Record no part of it.
                 self.errors += 1
-                match = re.match(rb"\s*(\d+)\s+(\w+)\(", raw)
+                match = re.match(rb"\s*(\d+)(?:<[^>]*>)?\s+(\w+)\(", raw)
                 self.emit({"event": "trace-error", "pid": int(match[1]) if match else None,
                            "operation": match[2].decode("ascii") if match else "resumed",
                            "unit": self.processes.get(int(match[1]), Process(str(self.workspace))).unit if match else None,
@@ -228,8 +303,10 @@ class Parser:
             self.errors += len(self.pending) + len(self.waiting)
             self.emit({"event": "incomplete-processes",
                        "pending": {pid: {"unit": self.processes[pid].unit,
-                                         "operation": body.split("(", 1)[0]} for pid, body in self.pending.items()},
-                       "waiting": list(self.waiting)})
+                                         "operation": operation_name(body)} for pid, body in self.pending.items()},
+                       "waiting": list(self.waiting),
+                       "waiting_processes": {pid: self.identities[pid] for pid in self.waiting},
+                       "interrupted_forks": self.interrupted_forks})
         self.emit({"event": "complete", "errors": self.errors})
 
 
@@ -237,12 +314,12 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
-        parser = Parser(workspace, target, output)
+        parser = Parser(workspace, target, output, inspect_process=process_snapshot)
         reader = threading.Thread(target=parser.feed, args=(stream,))
         reader.start()
         try:
             process = subprocess.Popen([
-                "strace", "-f", "--seccomp-bpf", "-q", "-v", "-s", "1048576", "-yy",
+                "strace", "-f", "--seccomp-bpf", "-q", "-v", "-s", "1048576", "-yy", "-Y",
                 "-e", "trace=execve,clone,clone3,fork,vfork,chdir,open,openat,openat2",
                 "-o", f"/dev/fd/{write_fd}", "--", *command,
             ], cwd=workspace, pass_fds=(write_fd,))
