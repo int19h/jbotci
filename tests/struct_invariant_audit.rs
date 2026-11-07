@@ -1212,6 +1212,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pronunciation annotation pairs original and derived chars inside the strict syllabifier; constructors enforce valid annotated values",
     ),
     (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionBodyCount",
+        "test-only guard stores the previous body-count cap, and every u64 is a valid saved cap",
+    ),
+    (
         "crates/jbotci-orthography/src/lib.rs:NormalizedLatinChar",
         "orthography conversion helper stores a normalized character plus stress flag",
     ),
