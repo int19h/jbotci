@@ -1212,8 +1212,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pronunciation annotation pairs original and derived chars inside the strict syllabifier; constructors enforce valid annotated values",
     ),
     (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:CacheSlotAccount",
+        "slot counter stored beside the recognizer cache, and every u64 is a valid stored count",
+    ),
+    (
         "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionBodyCount",
         "test-only guard stores the previous body-count cap, and every u64 is a valid saved cap",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:SyllableStepCount",
+        "test-only guard stores the previous syllable-step cap, and every u64 is a valid saved cap",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionSlotPeak",
+        "test-only guard stores the previous slot-peak watermark, and every u64 is a valid saved peak",
     ),
     (
         "crates/jbotci-orthography/src/lib.rs:NormalizedLatinChar",

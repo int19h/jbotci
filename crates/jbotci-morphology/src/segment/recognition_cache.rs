@@ -1,19 +1,28 @@
 //! Packrat tables for the morphology recognizers that call one another.
 //!
-//! The tables store the first result of each recognizer. Recursive calls move
-//! the start index forward, so a call does not re-enter its own key before
-//! that result is stored. A stored result is therefore the same value the body
-//! would have returned, and nothing is cut off by depth, steps, or time.
+//! A stored result is the value the body returned. Nothing is cut off by
+//! depth, steps, or time. A recognizer does not call itself on the same key
+//! before the result is stored. A later call to the same function either uses
+//! a later start, an earlier end, or it runs after the first call has stored
+//! its result. The tables do not record an in-progress mark. `get` returns
+//! `None` both before the body runs and while the body is still running.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 
-use bityzba::{data, invariant, new, requires};
+use bityzba::{invariant, new, requires};
+
+use super::FuhivlaHeadPolicy;
 
 #[cfg(test)]
 thread_local! {
     static BODY_COUNT: Cell<u64> = const { Cell::new(0) };
     static BODY_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
+    static SYLLABLE_STEPS: Cell<u64> = const { Cell::new(0) };
+    static SYLLABLE_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
+    static LIVE_SLOTS: Cell<u64> = const { Cell::new(0) };
+    static PEAK_SLOTS: Cell<u64> = const { Cell::new(0) };
 }
 
 #[requires(true)]
@@ -35,6 +44,27 @@ fn note_recognition_body() {
             panic!(
                 "morphology recognition executed {next} memoized bodies, above the polynomial cap {cap}"
             );
+        }
+    }
+}
+
+/// Counts one index visited by the descending syllable scan.
+///
+/// The cap is a test assertion, like [`note_recognition_body`]. Production
+/// builds do not read it, and it is not a limit on the scan.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn note_syllable_step() {
+    #[cfg(test)]
+    {
+        let next = SYLLABLE_STEPS.with(|count| {
+            let next = count.get().saturating_add(1);
+            count.set(next);
+            next
+        });
+        let cap = SYLLABLE_CAP.with(|cap| cap.get());
+        if next > cap {
+            panic!("syllable scan visited {next} indexes, above the polynomial cap {cap}");
         }
     }
 }
@@ -83,139 +113,119 @@ impl Drop for RecognitionBodyCount {
     }
 }
 
-#[requires(char_count < usize::MAX)]
-#[requires((char_count + 1).checked_mul(char_count + 1).is_some())]
-#[ensures(ret == (char_count + 1) * (char_count + 1))]
-fn span_area(char_count: usize) -> usize {
-    let stride = char_count + 1;
-    stride * stride
-}
-
-#[requires(len > 0)]
-#[ensures(ret.len() == len)]
-#[ensures(ret.iter().all(|slot| slot.get().is_none()))]
-fn empty_bool_slots(len: usize) -> Vec<Cell<Option<bool>>> {
-    (0..len).map(|_| Cell::new(None)).collect()
-}
-
-#[requires(len > 0)]
-#[ensures(ret.len() == len)]
-#[ensures(ret.iter().all(|slot| slot.borrow().is_none()))]
-fn empty_head_slots(len: usize) -> Vec<RefCell<Option<Vec<usize>>>> {
-    (0..len).map(|_| RefCell::new(None)).collect()
-}
-
-/// `(start, end)` results. `start <= end < stride`, and slot `(end, start)` is
-/// `end * stride + start`. `None` means the body has not run.
-#[invariant(*stride > 0)]
-#[invariant(stride.checked_mul(*stride) == Some(slots.len()))]
+/// Test guard for the syllable-scan counter.
+#[cfg(test)]
+#[invariant(true)]
 #[derive(Debug)]
-struct DenseBoolTable {
-    stride: usize,
-    slots: Vec<Cell<Option<bool>>>,
+pub(crate) struct SyllableStepCount {
+    previous_cap: u64,
 }
 
-impl DenseBoolTable {
-    #[requires(char_count < usize::MAX)]
-    #[requires((char_count + 1).checked_mul(char_count + 1).is_some())]
-    #[ensures(ret.stride == char_count + 1)]
-    #[ensures(ret.slots.len() == ret.stride * ret.stride)]
-    fn new(char_count: usize) -> Self {
-        let stride = char_count + 1;
-        Self::from_data(data!(DenseBoolTable {
-            stride,
-            slots: empty_bool_slots(span_area(char_count)),
-        }))
+#[cfg(test)]
+impl SyllableStepCount {
+    #[requires(true)]
+    #[ensures(ret.get() == 0)]
+    pub(crate) fn begin(cap: u64) -> Self {
+        let previous_cap = SYLLABLE_CAP.with(|cap_cell| {
+            let previous = cap_cell.get();
+            cap_cell.set(cap);
+            previous
+        });
+        SYLLABLE_STEPS.with(|count| count.set(0));
+        Self { previous_cap }
     }
 
-    #[requires(start <= end && end < self.stride)]
+    #[requires(true)]
     #[ensures(true)]
-    fn get(&self, start: usize, end: usize) -> Option<bool> {
-        self.slots[end * self.stride + start].get()
-    }
-
-    #[requires(start <= end && end < self.stride)]
-    #[ensures(self.get(start, end) == Some(value))]
-    fn set(&self, start: usize, end: usize, value: bool) {
-        self.slots[end * self.stride + start].set(Some(value));
+    pub(crate) fn get(&self) -> u64 {
+        SYLLABLE_STEPS.with(|count| count.get())
     }
 }
 
-/// Two results for one `(start, end)`, selected by a flag in `0..2`.
+#[cfg(test)]
+impl Drop for SyllableStepCount {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let previous_cap = self.previous_cap;
+        SYLLABLE_CAP.with(|cap| cap.set(previous_cap));
+        SYLLABLE_STEPS.with(|count| count.set(0));
+    }
+}
+
+/// Test guard for the live hash-map capacity of every cache on this thread.
 ///
-/// The flag is the initial-rafsi bit, the y-policy bit, or the fu'ivla head
-/// policy. The caller owns that mapping.
-#[invariant(*stride > 0)]
-#[invariant(stride.checked_mul(*stride).and_then(|area| area.checked_mul(2)) == Some(slots.len()))]
+/// `begin` sets the peak watermark to the capacity already live, and `get`
+/// returns the high-water mark after that. Drop restores the previous
+/// watermark. It does not zero the live total, because a cache created
+/// outside the guard is still alive.
+#[cfg(test)]
+#[invariant(true)]
 #[derive(Debug)]
-struct DenseFlagTable {
-    stride: usize,
-    slots: Vec<Cell<Option<bool>>>,
+pub(crate) struct RecognitionSlotPeak {
+    previous_peak: u64,
 }
 
-impl DenseFlagTable {
-    #[requires(char_count < usize::MAX)]
-    #[requires((char_count + 1).checked_mul(char_count + 1).and_then(|area| area.checked_mul(2)).is_some())]
-    #[ensures(ret.stride == char_count + 1)]
-    #[ensures(ret.slots.len() == ret.stride * ret.stride * 2)]
-    fn new(char_count: usize) -> Self {
-        let stride = char_count + 1;
-        let slots = span_area(char_count)
-            .checked_mul(2)
-            .expect("flag-table size checked by the precondition");
-        Self::from_data(data!(DenseFlagTable {
-            stride,
-            slots: empty_bool_slots(slots),
-        }))
-    }
-
-    #[requires(start <= end && end < self.stride && flag < 2)]
+#[cfg(test)]
+impl RecognitionSlotPeak {
+    #[requires(true)]
     #[ensures(true)]
-    fn get(&self, start: usize, end: usize, flag: usize) -> Option<bool> {
-        self.slots[(end * self.stride + start) * 2 + flag].get()
+    pub(crate) fn begin() -> Self {
+        let previous_peak = PEAK_SLOTS.with(|peak| {
+            let previous = peak.get();
+            let live = LIVE_SLOTS.with(|live| live.get());
+            peak.set(live);
+            previous
+        });
+        Self { previous_peak }
     }
 
-    #[requires(start <= end && end < self.stride && flag < 2)]
-    #[ensures(self.get(start, end, flag) == Some(value))]
-    fn set(&self, start: usize, end: usize, flag: usize, value: bool) {
-        self.slots[(end * self.stride + start) * 2 + flag].set(Some(value));
-    }
-}
-
-/// Head-end lists. `None` means the body has not run, and `Some` of an empty
-/// list is a computed empty result. Those two states have to stay distinct.
-#[invariant(*stride > 0)]
-#[invariant(stride.checked_mul(*stride) == Some(slots.len()))]
-#[derive(Debug)]
-struct DenseHeadTable {
-    stride: usize,
-    slots: Vec<RefCell<Option<Vec<usize>>>>,
-}
-
-impl DenseHeadTable {
-    #[requires(char_count < usize::MAX)]
-    #[requires((char_count + 1).checked_mul(char_count + 1).is_some())]
-    #[ensures(ret.stride == char_count + 1)]
-    #[ensures(ret.slots.len() == ret.stride * ret.stride)]
-    fn new(char_count: usize) -> Self {
-        let stride = char_count + 1;
-        Self::from_data(data!(DenseHeadTable {
-            stride,
-            slots: empty_head_slots(span_area(char_count)),
-        }))
-    }
-
-    #[requires(start <= end && end < self.stride)]
+    #[requires(true)]
     #[ensures(true)]
-    fn get(&self, start: usize, end: usize) -> Option<Vec<usize>> {
-        self.slots[end * self.stride + start].borrow().clone()
+    pub(crate) fn get(&self) -> u64 {
+        PEAK_SLOTS.with(|peak| peak.get())
     }
+}
 
-    #[requires(start <= end && end < self.stride)]
-    #[ensures(self.get(start, end).is_some())]
-    fn set(&self, start: usize, end: usize, value: &[usize]) {
-        *self.slots[end * self.stride + start].borrow_mut() = Some(value.to_vec());
+#[cfg(test)]
+impl Drop for RecognitionSlotPeak {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let previous_peak = self.previous_peak;
+        PEAK_SLOTS.with(|peak| peak.set(previous_peak));
     }
+}
+
+#[invariant(start <= end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SpanKey {
+    start: usize,
+    end: usize,
+}
+
+#[invariant(start <= end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct InitialRafsiKey {
+    start: usize,
+    end: usize,
+    has_initial_rafsi: bool,
+}
+
+#[invariant(start <= end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct YPolicyKey {
+    start: usize,
+    end: usize,
+    allows_y: bool,
+}
+
+#[invariant(start <= end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct FuhivlaHeadKey {
+    start: usize,
+    end: usize,
+    policy: FuhivlaHeadPolicy,
 }
 
 #[invariant(prefix_start <= prefix_end && prefix_end <= end)]
@@ -245,121 +255,207 @@ struct IndicatorBoundaryKey {
 
 /// Memoized results for every recognizer in the stressed-word cycle.
 ///
+/// Every table is a hash map. `new` stores no keys and allocates no square.
+/// A map grows only when a body stores a key, so the memory of one cache is
+/// proportional to the entries that run fills. The time bounds in this comment
+/// are expected time: hash map lookup and insert are expected constant time,
+/// not a worst-case bound.
+///
 /// `chars.len()` is not bounded. `Grammar::candidate_end` walks forward until
-/// it sees a word separator, and `classify_word` sizes one cache to the whole
-/// comma-stripped string. A candidate can be as long as the input.
+/// it sees a word separator, and one cache is sized to that whole span. The
+/// span can be as long as the input. Callers reuse one cache across the
+/// suffixes of an unspaced span, so a long run does not keep a cache per
+/// suffix.
 ///
-/// Two-index tables stay dense. One `Option<bool>` slot is 1 byte, and the
-/// sixteen byte-tables (ten plain spans and three two-slot flags) are 28,224
-/// bytes at n = 41, the reported word, about 1.0 MB at n = 256, 16 MB at
-/// n = 1024, and 256 MB at n = 4096. A head-end slot is `Option<Vec<usize>>`
-/// (24 bytes). The two head tables are 84,672 bytes at n = 41, about 3.0 MB
-/// at n = 256, 48 MB at n = 1024, and 768 MB at n = 4096. The worst case below
-/// already cannot finish for an n of a few hundred, so a dense square is the
-/// compact layout for the keys this cycle fills. An unbounded token of several
-/// thousand characters would make the squares large, and that allocation is
-/// the cost of indexing the candidate the lexer actually has.
+/// Key space for a candidate of `n` characters, with `m = n + 1`:
 ///
-/// Three-index and four-index results are sparse. One dense three-index byte
-/// table is 74,088 bytes at n = 41, 16 MB at n = 256, and 1 GB at n = 1024.
-/// One dense four-index table is 3.0 MB at n = 41, 99 MB at n = 100, and 4 GB
-/// at n = 256. An eager cube would allocate more memory than a run that long
-/// can use. The maps store only keys whose bodies have run.
+/// - Two-index keys are `O(m^2)`. The plain maps are `cmavo_word`,
+///   `lojban_word`, `brivla_word`, `lujvo_slice`, `fuhivla_shape`,
+///   `experimental_cgv`, `slinkuhi`, `rafsi_string_starts`, `post_word`,
+///   `indicator_cmavo_starts`, `brivla_head_ends`, and `fuhivla_head_ends`.
+/// - `lujvo_from` adds `has_initial_rafsi`, `fuhivla_shape_y` adds `allows_y`,
+///   and `fuhivla_head_policy` adds `FuhivlaHeadPolicy`. Each flag has a
+///   constant number of values, so those maps are still `O(m^2)`.
+/// - Three-index keys are `O(m^3)`: `rafsi_string_from`, `rafsi_string_ending`,
+///   and `cmavo_post_word`.
+/// - Four-index keys are `O(m^4)`: `indicator_boundary`.
 ///
-/// Worst-case time is O(n^6). Each body runs once per key. Two-index keys are
-/// O(n^2) and three-index keys are O(n^3). The heavy body is
-/// `rafsi_string_from_with_cache`: the greedy scan takes O(n) steps, and each
-/// step asks whether a nucleus is stressed. That walk keeps a cursor stack and
-/// tests membership in a vector, so one check is O(n^2) on a consonant run and
-/// one body is O(n^3). O(n^3) keys times an O(n^3) body is O(n^6).
-/// `coda_ends` returns the current index and at most the next index, so the
-/// consonantal-chain recursion inside a fu'ivla head parse has one successor
-/// and is O(n) per call. Head parses are two-index keys, so they are inside
-/// this bound. The bound counts bodies, not a cutoff: every key still returns
-/// the body's own answer.
-#[invariant(char_count.checked_add(1) == Some(cmavo_word.stride))]
-#[invariant(cmavo_word.stride == lojban_word.stride
-    && cmavo_word.stride == brivla_word.stride
-    && cmavo_word.stride == lujvo_slice.stride
-    && cmavo_word.stride == slinkuhi.stride
-    && cmavo_word.stride == rafsi_string_starts.stride
-    && cmavo_word.stride == indicator_cmavo_starts.stride
-    && cmavo_word.stride == post_word.stride
-    && cmavo_word.stride == fuhivla_shape.stride
-    && cmavo_word.stride == experimental_cgv.stride
-    && cmavo_word.stride == brivla_head_ends.stride
-    && cmavo_word.stride == fuhivla_head_ends.stride
-    && cmavo_word.stride == lujvo_from.stride
-    && cmavo_word.stride == fuhivla_shape_y.stride
-    && cmavo_word.stride == fuhivla_head_policy.stride)]
-#[invariant(cmavo_word.stride.checked_mul(cmavo_word.stride) == Some(cmavo_word.slots.len()))]
-#[invariant(lojban_word.slots.len() == cmavo_word.slots.len()
-    && brivla_word.slots.len() == cmavo_word.slots.len()
-    && lujvo_slice.slots.len() == cmavo_word.slots.len()
-    && slinkuhi.slots.len() == cmavo_word.slots.len()
-    && rafsi_string_starts.slots.len() == cmavo_word.slots.len()
-    && indicator_cmavo_starts.slots.len() == cmavo_word.slots.len()
-    && post_word.slots.len() == cmavo_word.slots.len()
-    && fuhivla_shape.slots.len() == cmavo_word.slots.len()
-    && experimental_cgv.slots.len() == cmavo_word.slots.len()
-    && brivla_head_ends.slots.len() == cmavo_word.slots.len()
-    && fuhivla_head_ends.slots.len() == cmavo_word.slots.len())]
-#[invariant(lujvo_from.stride.checked_mul(lujvo_from.stride).and_then(|area| area.checked_mul(2)) == Some(lujvo_from.slots.len()))]
-#[invariant(fuhivla_shape_y.slots.len() == lujvo_from.slots.len())]
-#[invariant(fuhivla_head_policy.slots.len() == lujvo_from.slots.len())]
+/// Each memoized body runs once per key.
+///
+/// `rafsi_string_from_with_cache` is the heavy memoized body. Its greedy scan
+/// takes `O(n)` steps, and each step calls `nucleus_is_stressed_in_context`.
+/// That walk keeps a cursor stack and tests membership in a vector, so one
+/// check is `O(n^2)` on a consonant run and one body is `O(n^3)`. `O(n^3)`
+/// three-index keys times an `O(n^3)` body is expected `O(n^6)`.
+///
+/// These helpers are not memoized:
+///
+/// - `initial_rafsi_ends_until_with_cache` calls
+///   `extended_rafsi_ends_until_with_cache` once, then the y-rafsi ends, then
+///   the y-less ends. A y-less end has a fixed shape, so that branch calls
+///   `any_extended_rafsi_starts_until_with_cache` a bounded number of extra
+///   times. The extended walk below can make one call `O(n^2)`. The
+///   `lujvo_from` body calls this once per two-index key.
+/// - `extended_rafsi_ends_until_with_cache` walks the fu'ivla rafsi bases and
+///   the memoized brivla head ends. One base can run an `O(n)` syllable scan,
+///   and there can be `O(n)` bases, so one call can be `O(n^2)`. Across
+///   `O(n^2)` `lujvo_from` keys that part is expected `O(n^4)`.
+/// - `any_extended_rafsi_starts_until_with_cache` calls the memoized fu'ivla
+///   shape test, then the unmemoized extended walk, then
+///   `stressed_extended_rafsi_ends_until_with_cache`, which loops over `O(n)`
+///   ends. On a span of `lo` the stressed-brivla and stressed-fu'ivla shape
+///   checks fail in constant time because those shapes require `'` or `y`.
+///   On a span that matches, the syllable scans make one call `O(n^2)`. A
+///   caller that does this for every two-index key pays expected `O(n^4)` in
+///   that branch.
+/// - `lujvo_core_part_ranges_until` calls the memoized fu'ivla shape test and
+///   scans for one stressed split. The split scan can call the extended-rafsi
+///   checks, so one call can be `O(n^2)`. The `lujvo_from` body calls it once.
+/// - `coda_ends`, `starts_any_syllable`, and `consonantal_syllable_ends` scan
+///   from the index down to the end of the candidate. The onset check looks
+///   at a bounded initial and one nucleus, so one scan is `O(end - index)`.
+///   `consonantal_chain_then_final` still follows one successor per step. One
+///   chain is `O(n^2)` when those scans are not memoized across calls.
+/// - `lujvo_part_ranges_from_with_cache` is an unmemoized branching recursion
+///   with a `failure` side effect. It has no proven polynomial bound.
+///
+/// The bounds count work. They are not a cutoff. Every key still returns the
+/// body's own answer.
+#[invariant(*char_count < usize::MAX)]
 #[derive(Debug)]
 pub(crate) struct MorphologyRecognitionCache {
     pub(crate) char_count: usize,
-    lujvo_from: DenseFlagTable,
-    cmavo_word: DenseBoolTable,
-    lojban_word: DenseBoolTable,
-    brivla_word: DenseBoolTable,
-    lujvo_slice: DenseBoolTable,
-    fuhivla_shape_y: DenseFlagTable,
-    fuhivla_shape: DenseBoolTable,
-    fuhivla_head_policy: DenseFlagTable,
-    experimental_cgv: DenseBoolTable,
-    fuhivla_head_ends: DenseHeadTable,
-    brivla_head_ends: DenseHeadTable,
-    slinkuhi: DenseBoolTable,
-    rafsi_string_starts: DenseBoolTable,
+    /// Drop hook for the test slot counter.
+    ///
+    /// The cache wrapper cannot implement `Drop`. Its invariant generates
+    /// `into_data`, and that moves the inner value out of the wrapper.
+    accounted: CacheSlotAccount,
+    lujvo_from: RefCell<HashMap<InitialRafsiKey, bool>>,
+    cmavo_word: RefCell<HashMap<SpanKey, bool>>,
+    lojban_word: RefCell<HashMap<SpanKey, bool>>,
+    brivla_word: RefCell<HashMap<SpanKey, bool>>,
+    lujvo_slice: RefCell<HashMap<SpanKey, bool>>,
+    fuhivla_shape_y: RefCell<HashMap<YPolicyKey, bool>>,
+    fuhivla_shape: RefCell<HashMap<SpanKey, bool>>,
+    fuhivla_head_policy: RefCell<HashMap<FuhivlaHeadKey, bool>>,
+    experimental_cgv: RefCell<HashMap<SpanKey, bool>>,
+    fuhivla_head_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    brivla_head_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    slinkuhi: RefCell<HashMap<SpanKey, bool>>,
+    rafsi_string_starts: RefCell<HashMap<SpanKey, bool>>,
     rafsi_string_from: RefCell<HashMap<LookaheadKey, bool>>,
     rafsi_string_ending: RefCell<HashMap<LookaheadKey, bool>>,
-    rafsi_string_lookahead: RefCell<HashMap<LookaheadKey, bool>>,
-    post_word: DenseBoolTable,
-    indicator_cmavo_starts: DenseBoolTable,
+    post_word: RefCell<HashMap<SpanKey, bool>>,
+    indicator_cmavo_starts: RefCell<HashMap<SpanKey, bool>>,
     cmavo_post_word: RefCell<HashMap<PrefixEndKey, bool>>,
     indicator_boundary: RefCell<HashMap<IndicatorBoundaryKey, bool>>,
 }
 
 impl MorphologyRecognitionCache {
-    #[requires(char_count < usize::MAX && (char_count + 1).checked_mul(char_count + 1).and_then(|area| area.checked_mul(2)).is_some())]
+    #[requires(char_count < usize::MAX)]
     #[ensures(ret.char_count == char_count)]
-    #[ensures(ret.cmavo_word.stride == char_count + 1)]
+    #[ensures(ret.allocated_slots_for_contract() == 0)]
     pub(crate) fn new(char_count: usize) -> Self {
-        Self::from_data(data!(MorphologyRecognitionCache {
-            char_count,
-            lujvo_from: DenseFlagTable::new(char_count),
-            cmavo_word: DenseBoolTable::new(char_count),
-            lojban_word: DenseBoolTable::new(char_count),
-            brivla_word: DenseBoolTable::new(char_count),
-            lujvo_slice: DenseBoolTable::new(char_count),
-            fuhivla_shape_y: DenseFlagTable::new(char_count),
-            fuhivla_shape: DenseBoolTable::new(char_count),
-            fuhivla_head_policy: DenseFlagTable::new(char_count),
-            experimental_cgv: DenseBoolTable::new(char_count),
-            fuhivla_head_ends: DenseHeadTable::new(char_count),
-            brivla_head_ends: DenseHeadTable::new(char_count),
-            slinkuhi: DenseBoolTable::new(char_count),
-            rafsi_string_starts: DenseBoolTable::new(char_count),
+        let cache = new!(MorphologyRecognitionCache {
+            char_count: char_count,
+            accounted: CacheSlotAccount::new(),
+            lujvo_from: RefCell::new(HashMap::new()),
+            cmavo_word: RefCell::new(HashMap::new()),
+            lojban_word: RefCell::new(HashMap::new()),
+            brivla_word: RefCell::new(HashMap::new()),
+            lujvo_slice: RefCell::new(HashMap::new()),
+            fuhivla_shape_y: RefCell::new(HashMap::new()),
+            fuhivla_shape: RefCell::new(HashMap::new()),
+            fuhivla_head_policy: RefCell::new(HashMap::new()),
+            experimental_cgv: RefCell::new(HashMap::new()),
+            fuhivla_head_ends: RefCell::new(HashMap::new()),
+            brivla_head_ends: RefCell::new(HashMap::new()),
+            slinkuhi: RefCell::new(HashMap::new()),
+            rafsi_string_starts: RefCell::new(HashMap::new()),
             rafsi_string_from: RefCell::new(HashMap::new()),
             rafsi_string_ending: RefCell::new(HashMap::new()),
-            rafsi_string_lookahead: RefCell::new(HashMap::new()),
-            post_word: DenseBoolTable::new(char_count),
-            indicator_cmavo_starts: DenseBoolTable::new(char_count),
+            post_word: RefCell::new(HashMap::new()),
+            indicator_cmavo_starts: RefCell::new(HashMap::new()),
             cmavo_post_word: RefCell::new(HashMap::new()),
             indicator_boundary: RefCell::new(HashMap::new()),
-        }))
+        });
+        cache.sync_accounted();
+        cache
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sync_accounted(&self) {
+        // Capacity is the number of hash slots, not the number of stored
+        // keys. The live total is what a test compares with the old dense
+        // squares. Production builds do not read it.
+        #[cfg(test)]
+        {
+            let next = self.total_capacity();
+            let previous = self.accounted.slots.get();
+            self.accounted.slots.set(next);
+            LIVE_SLOTS.with(|live| {
+                let updated = live.get().saturating_sub(previous).saturating_add(next);
+                live.set(updated);
+                PEAK_SLOTS.with(|peak| {
+                    if updated > peak.get() {
+                        peak.set(updated);
+                    }
+                });
+            });
+        }
+    }
+
+    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(true)]
+    fn total_capacity(&self) -> u64 {
+        #[requires(true)]
+        #[ensures(ret == u64::try_from(table.borrow().capacity()).unwrap_or(u64::MAX))]
+        fn slots<K, V>(table: &RefCell<HashMap<K, V>>) -> u64 {
+            u64::try_from(table.borrow().capacity()).unwrap_or(u64::MAX)
+        }
+        slots(&self.lujvo_from)
+            .saturating_add(slots(&self.cmavo_word))
+            .saturating_add(slots(&self.lojban_word))
+            .saturating_add(slots(&self.brivla_word))
+            .saturating_add(slots(&self.lujvo_slice))
+            .saturating_add(slots(&self.fuhivla_shape_y))
+            .saturating_add(slots(&self.fuhivla_shape))
+            .saturating_add(slots(&self.fuhivla_head_policy))
+            .saturating_add(slots(&self.experimental_cgv))
+            .saturating_add(slots(&self.fuhivla_head_ends))
+            .saturating_add(slots(&self.brivla_head_ends))
+            .saturating_add(slots(&self.slinkuhi))
+            .saturating_add(slots(&self.rafsi_string_starts))
+            .saturating_add(slots(&self.rafsi_string_from))
+            .saturating_add(slots(&self.rafsi_string_ending))
+            .saturating_add(slots(&self.post_word))
+            .saturating_add(slots(&self.indicator_cmavo_starts))
+            .saturating_add(slots(&self.cmavo_post_word))
+            .saturating_add(slots(&self.indicator_boundary))
+    }
+
+    /// Empty maps have capacity 0. The ensures on `new` uses this in every
+    /// build, including ones that do not keep the test counter.
+    #[requires(true)]
+    #[ensures(true)]
+    fn allocated_slots_for_contract(&self) -> u64 {
+        #[cfg(test)]
+        {
+            self.total_capacity()
+        }
+        #[cfg(not(test))]
+        {
+            0
+        }
+    }
+
+    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(ret == self.total_capacity())]
+    pub(crate) fn allocated_slots(&self) -> u64 {
+        self.total_capacity()
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -370,8 +466,12 @@ impl MorphologyRecognitionCache {
         end: usize,
         has_initial_rafsi: bool,
     ) -> Option<bool> {
-        self.lujvo_from
-            .get(index, end, usize::from(has_initial_rafsi))
+        let key = new!(InitialRafsiKey {
+            start: index,
+            end: end,
+            has_initial_rafsi: has_initial_rafsi,
+        });
+        self.lujvo_from.borrow().get(&key).copied()
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -384,66 +484,80 @@ impl MorphologyRecognitionCache {
         result: bool,
     ) {
         note_recognition_body();
-        self.lujvo_from
-            .set(index, end, usize::from(has_initial_rafsi), result);
+        let key = new!(InitialRafsiKey {
+            start: index,
+            end: end,
+            has_initial_rafsi: has_initial_rafsi,
+        });
+        self.lujvo_from.borrow_mut().insert(key, result);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn cmavo_word(&self, start: usize, end: usize) -> Option<bool> {
-        self.cmavo_word.get(start, end)
+        span_get(&self.cmavo_word, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.cmavo_word(start, end) == Some(value))]
     pub(crate) fn record_cmavo_word(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.cmavo_word.set(start, end, value);
+        span_set(&self.cmavo_word, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn lojban_word(&self, start: usize, end: usize) -> Option<bool> {
-        self.lojban_word.get(start, end)
+        span_get(&self.lojban_word, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.lojban_word(start, end) == Some(value))]
     pub(crate) fn record_lojban_word(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.lojban_word.set(start, end, value);
+        span_set(&self.lojban_word, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn brivla_word(&self, start: usize, end: usize) -> Option<bool> {
-        self.brivla_word.get(start, end)
+        span_get(&self.brivla_word, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.brivla_word(start, end) == Some(value))]
     pub(crate) fn record_brivla_word(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.brivla_word.set(start, end, value);
+        span_set(&self.brivla_word, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn lujvo_slice(&self, start: usize, end: usize) -> Option<bool> {
-        self.lujvo_slice.get(start, end)
+        span_get(&self.lujvo_slice, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.lujvo_slice(start, end) == Some(value))]
     pub(crate) fn record_lujvo_slice(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.lujvo_slice.set(start, end, value);
+        span_set(&self.lujvo_slice, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn fuhivla_shape_y(&self, start: usize, end: usize, allows_y: bool) -> Option<bool> {
-        self.fuhivla_shape_y.get(start, end, usize::from(allows_y))
+        let key = new!(YPolicyKey {
+            start: start,
+            end: end,
+            allows_y: allows_y,
+        });
+        self.fuhivla_shape_y.borrow().get(&key).copied()
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -456,113 +570,144 @@ impl MorphologyRecognitionCache {
         value: bool,
     ) {
         note_recognition_body();
-        self.fuhivla_shape_y
-            .set(start, end, usize::from(allows_y), value);
+        let key = new!(YPolicyKey {
+            start: start,
+            end: end,
+            allows_y: allows_y,
+        });
+        self.fuhivla_shape_y.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn fuhivla_shape(&self, start: usize, end: usize) -> Option<bool> {
-        self.fuhivla_shape.get(start, end)
+        span_get(&self.fuhivla_shape, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.fuhivla_shape(start, end) == Some(value))]
     pub(crate) fn record_fuhivla_shape(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.fuhivla_shape.set(start, end, value);
+        span_set(&self.fuhivla_shape, start, end, value);
+        self.sync_accounted();
     }
 
-    /// `policy_index` is 0 for the standard fu'ivla head and 1 for the
-    /// experimental consonant-glide-vowel head.
-    #[requires(start <= end && end <= self.char_count && policy_index < 2)]
+    #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn fuhivla_head_policy(
         &self,
         start: usize,
         end: usize,
-        policy_index: usize,
+        policy: FuhivlaHeadPolicy,
     ) -> Option<bool> {
-        self.fuhivla_head_policy.get(start, end, policy_index)
+        let key = new!(FuhivlaHeadKey {
+            start: start,
+            end: end,
+            policy: policy,
+        });
+        self.fuhivla_head_policy.borrow().get(&key).copied()
     }
 
-    #[requires(start <= end && end <= self.char_count && policy_index < 2)]
-    #[ensures(self.fuhivla_head_policy(start, end, policy_index) == Some(value))]
+    #[requires(start <= end && end <= self.char_count)]
+    #[ensures(self.fuhivla_head_policy(start, end, policy) == Some(value))]
     pub(crate) fn record_fuhivla_head_policy(
         &self,
         start: usize,
         end: usize,
-        policy_index: usize,
+        policy: FuhivlaHeadPolicy,
         value: bool,
     ) {
         note_recognition_body();
-        self.fuhivla_head_policy
-            .set(start, end, policy_index, value);
+        let key = new!(FuhivlaHeadKey {
+            start: start,
+            end: end,
+            policy: policy,
+        });
+        self.fuhivla_head_policy.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn experimental_cgv(&self, start: usize, end: usize) -> Option<bool> {
-        self.experimental_cgv.get(start, end)
+        span_get(&self.experimental_cgv, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.experimental_cgv(start, end) == Some(value))]
     pub(crate) fn record_experimental_cgv(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.experimental_cgv.set(start, end, value);
+        span_set(&self.experimental_cgv, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(true)]
-    pub(crate) fn fuhivla_head_ends(&self, index: usize, end: usize) -> Option<Vec<usize>> {
-        self.fuhivla_head_ends.get(index, end)
+    pub(crate) fn fuhivla_head_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
+        head_get(&self.fuhivla_head_ends, index, end)
     }
 
     #[requires(index <= end && end <= self.char_count)]
-    #[ensures(self.fuhivla_head_ends(index, end).is_some())]
-    pub(crate) fn record_fuhivla_head_ends(&self, index: usize, end: usize, value: &[usize]) {
+    #[ensures(self.fuhivla_head_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    pub(crate) fn record_fuhivla_head_ends(
+        &self,
+        index: usize,
+        end: usize,
+        value: &[usize],
+    ) -> Rc<[usize]> {
         note_recognition_body();
-        self.fuhivla_head_ends.set(index, end, value);
+        let stored = head_set(&self.fuhivla_head_ends, index, end, value);
+        self.sync_accounted();
+        stored
     }
 
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(true)]
-    pub(crate) fn brivla_head_ends(&self, index: usize, end: usize) -> Option<Vec<usize>> {
-        self.brivla_head_ends.get(index, end)
+    pub(crate) fn brivla_head_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
+        head_get(&self.brivla_head_ends, index, end)
     }
 
     #[requires(index <= end && end <= self.char_count)]
-    #[ensures(self.brivla_head_ends(index, end).is_some())]
-    pub(crate) fn record_brivla_head_ends(&self, index: usize, end: usize, value: &[usize]) {
+    #[ensures(self.brivla_head_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    pub(crate) fn record_brivla_head_ends(
+        &self,
+        index: usize,
+        end: usize,
+        value: &[usize],
+    ) -> Rc<[usize]> {
         note_recognition_body();
-        self.brivla_head_ends.set(index, end, value);
+        let stored = head_set(&self.brivla_head_ends, index, end, value);
+        self.sync_accounted();
+        stored
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn slinkuhi(&self, start: usize, end: usize) -> Option<bool> {
-        self.slinkuhi.get(start, end)
+        span_get(&self.slinkuhi, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.slinkuhi(start, end) == Some(value))]
     pub(crate) fn record_slinkuhi(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.slinkuhi.set(start, end, value);
+        span_set(&self.slinkuhi, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn rafsi_string_starts(&self, start: usize, end: usize) -> Option<bool> {
-        self.rafsi_string_starts.get(start, end)
+        span_get(&self.rafsi_string_starts, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.rafsi_string_starts(start, end) == Some(value))]
     pub(crate) fn record_rafsi_string_starts(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.rafsi_string_starts.set(start, end, value);
+        span_set(&self.rafsi_string_starts, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
@@ -574,9 +719,9 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
     ) -> Option<bool> {
         let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
+            start: start,
+            end: end,
+            lookahead_end: lookahead_end,
         });
         self.rafsi_string_from.borrow().get(&key).copied()
     }
@@ -592,11 +737,12 @@ impl MorphologyRecognitionCache {
     ) {
         note_recognition_body();
         let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
+            start: start,
+            end: end,
+            lookahead_end: lookahead_end,
         });
         self.rafsi_string_from.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
@@ -608,9 +754,9 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
     ) -> Option<bool> {
         let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
+            start: start,
+            end: end,
+            lookahead_end: lookahead_end,
         });
         self.rafsi_string_ending.borrow().get(&key).copied()
     }
@@ -626,71 +772,40 @@ impl MorphologyRecognitionCache {
     ) {
         note_recognition_body();
         let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
+            start: start,
+            end: end,
+            lookahead_end: lookahead_end,
         });
         self.rafsi_string_ending.borrow_mut().insert(key, value);
-    }
-
-    #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
-    #[ensures(true)]
-    pub(crate) fn rafsi_string_lookahead(
-        &self,
-        start: usize,
-        end: usize,
-        lookahead_end: usize,
-    ) -> Option<bool> {
-        let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
-        });
-        self.rafsi_string_lookahead.borrow().get(&key).copied()
-    }
-
-    #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
-    #[ensures(self.rafsi_string_lookahead(start, end, lookahead_end) == Some(value))]
-    pub(crate) fn record_rafsi_string_lookahead(
-        &self,
-        start: usize,
-        end: usize,
-        lookahead_end: usize,
-        value: bool,
-    ) {
-        note_recognition_body();
-        let key = new!(LookaheadKey {
-            start,
-            end,
-            lookahead_end
-        });
-        self.rafsi_string_lookahead.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
 
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn post_word(&self, index: usize, end: usize) -> Option<bool> {
-        self.post_word.get(index, end)
+        span_get(&self.post_word, index, end)
     }
 
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.post_word(index, end) == Some(value))]
     pub(crate) fn record_post_word(&self, index: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.post_word.set(index, end, value);
+        span_set(&self.post_word, index, end, value);
+        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn indicator_cmavo_starts(&self, start: usize, end: usize) -> Option<bool> {
-        self.indicator_cmavo_starts.get(start, end)
+        span_get(&self.indicator_cmavo_starts, start, end)
     }
 
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.indicator_cmavo_starts(start, end) == Some(value))]
     pub(crate) fn record_indicator_cmavo_starts(&self, start: usize, end: usize, value: bool) {
         note_recognition_body();
-        self.indicator_cmavo_starts.set(start, end, value);
+        span_set(&self.indicator_cmavo_starts, start, end, value);
+        self.sync_accounted();
     }
 
     #[requires(prefix_start <= prefix_end && prefix_end <= end && end <= self.char_count)]
@@ -702,9 +817,9 @@ impl MorphologyRecognitionCache {
         end: usize,
     ) -> Option<bool> {
         let key = new!(PrefixEndKey {
-            prefix_start,
-            prefix_end,
-            end
+            prefix_start: prefix_start,
+            prefix_end: prefix_end,
+            end: end,
         });
         self.cmavo_post_word.borrow().get(&key).copied()
     }
@@ -720,11 +835,12 @@ impl MorphologyRecognitionCache {
     ) {
         note_recognition_body();
         let key = new!(PrefixEndKey {
-            prefix_start,
-            prefix_end,
-            end
+            prefix_start: prefix_start,
+            prefix_end: prefix_end,
+            end: end,
         });
         self.cmavo_post_word.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
 
     #[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= self.char_count)]
@@ -737,10 +853,10 @@ impl MorphologyRecognitionCache {
         end: usize,
     ) -> Option<bool> {
         let key = new!(IndicatorBoundaryKey {
-            prefix_start,
-            prefix_end,
-            index,
-            end
+            prefix_start: prefix_start,
+            prefix_end: prefix_end,
+            index: index,
+            end: end,
         });
         self.indicator_boundary.borrow().get(&key).copied()
     }
@@ -757,40 +873,97 @@ impl MorphologyRecognitionCache {
     ) {
         note_recognition_body();
         let key = new!(IndicatorBoundaryKey {
-            prefix_start,
-            prefix_end,
-            index,
-            end
+            prefix_start: prefix_start,
+            prefix_end: prefix_end,
+            index: index,
+            end: end,
         });
         self.indicator_boundary.borrow_mut().insert(key, value);
+        self.sync_accounted();
     }
+}
 
-    #[cfg(test)]
-    #[requires((self.char_count + 1).checked_mul(self.char_count + 1).is_some())]
-    #[ensures(true)]
-    pub(crate) fn assert_dense_layout(&self) {
-        let stride = self.char_count + 1;
-        let area = stride * stride;
-        assert_eq!(self.cmavo_word.stride, stride);
-        assert_eq!(self.cmavo_word.slots.len(), area);
-        assert_eq!(self.lojban_word.slots.len(), area);
-        assert_eq!(self.brivla_word.slots.len(), area);
-        assert_eq!(self.lujvo_slice.slots.len(), area);
-        assert_eq!(self.slinkuhi.slots.len(), area);
-        assert_eq!(self.rafsi_string_starts.slots.len(), area);
-        assert_eq!(self.indicator_cmavo_starts.slots.len(), area);
-        assert_eq!(self.post_word.slots.len(), area);
-        assert_eq!(self.fuhivla_shape.slots.len(), area);
-        assert_eq!(self.experimental_cgv.slots.len(), area);
-        assert_eq!(self.brivla_head_ends.slots.len(), area);
-        assert_eq!(self.fuhivla_head_ends.slots.len(), area);
-        assert_eq!(self.lujvo_from.slots.len(), area * 2);
-        assert_eq!(self.fuhivla_shape_y.slots.len(), area * 2);
-        assert_eq!(self.fuhivla_head_policy.slots.len(), area * 2);
-        assert!(self.rafsi_string_from.borrow().is_empty());
-        assert!(self.rafsi_string_ending.borrow().is_empty());
-        assert!(self.rafsi_string_lookahead.borrow().is_empty());
-        assert!(self.cmavo_post_word.borrow().is_empty());
-        assert!(self.indicator_boundary.borrow().is_empty());
+/// Owns the slot count so the cache wrapper can stay free of `Drop`.
+///
+/// Every stored count is a valid account. The type exists only to subtract
+/// that count from the test live total when the cache goes away.
+#[invariant(true)]
+#[derive(Debug)]
+struct CacheSlotAccount {
+    slots: Cell<u64>,
+}
+
+impl CacheSlotAccount {
+    #[requires(true)]
+    #[ensures(ret.slots.get() == 0)]
+    fn new() -> Self {
+        Self {
+            slots: Cell::new(0),
+        }
     }
+}
+
+impl Drop for CacheSlotAccount {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        #[cfg(test)]
+        {
+            let previous = self.slots.get();
+            LIVE_SLOTS.with(|live| {
+                live.set(live.get().saturating_sub(previous));
+            });
+        }
+    }
+}
+
+#[requires(start <= end)]
+#[ensures(true)]
+fn span_get(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize) -> Option<bool> {
+    let key = new!(SpanKey {
+        start: start,
+        end: end,
+    });
+    table.borrow().get(&key).copied()
+}
+
+#[requires(start <= end)]
+#[ensures(span_get(table, start, end) == Some(value))]
+fn span_set(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize, value: bool) {
+    let key = new!(SpanKey {
+        start: start,
+        end: end,
+    });
+    table.borrow_mut().insert(key, value);
+}
+
+#[requires(start <= end)]
+#[ensures(true)]
+fn head_get(
+    table: &RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    start: usize,
+    end: usize,
+) -> Option<Rc<[usize]>> {
+    let key = new!(SpanKey {
+        start: start,
+        end: end,
+    });
+    table.borrow().get(&key).cloned()
+}
+
+#[requires(start <= end)]
+#[ensures(head_get(table, start, end).is_some_and(|ends| ends.len() == value.len()))]
+fn head_set(
+    table: &RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    start: usize,
+    end: usize,
+    value: &[usize],
+) -> Rc<[usize]> {
+    let stored = Rc::<[usize]>::from(value);
+    let key = new!(SpanKey {
+        start: start,
+        end: end,
+    });
+    table.borrow_mut().insert(key, Rc::clone(&stored));
+    stored
 }

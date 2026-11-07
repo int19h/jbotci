@@ -1,4 +1,7 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
+use std::rc::Rc;
 
 use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
@@ -195,6 +198,13 @@ struct Segmenter<'a> {
     /// boundaries must stay independent of the permissive tier.
     permissive_boundaries_enabled: bool,
     trace: TraceRecorder,
+    /// One recognition region for the current unspaced span.
+    ///
+    /// `lojban_word_starts_at` calls back into this search on the suffix.
+    /// A separate cache for every suffix stays alive with its parents and
+    /// repeats that suffix at every later word start. The region holds one
+    /// cache for the span and the word found at each source index.
+    word_regions: RefCell<Vec<ActiveWordRegion>>,
 }
 
 #[invariant(word_snapshot.as_ref().is_none_or(|words| words.len() == *word_count))]
@@ -293,6 +303,86 @@ fn segment_needs_recovery_word_snapshot(segment: &[WordLike]) -> bool {
     )
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RegionFrame {
+    /// The open region already covers this suffix.
+    Reused,
+    /// This call started the span. Later words in the span reuse it.
+    PushedKeep,
+    /// Normalization of this suffix differs from the parent region.
+    /// Drop the region when this call returns so the parent stays intact.
+    PushedDrop,
+}
+
+#[invariant(true)]
+#[invariant(::Done(candidate) => candidate.as_ref().is_none_or(|word| word.end > 0 && !word.phonemes.is_empty()))]
+#[derive(Debug, Clone)]
+enum WordStartMemo {
+    Running,
+    /// `None` is a finished index that is not a word.
+    /// `Some` is a finished word, and that word consumed input.
+    Done(Option<StreamingWordCandidate>),
+}
+
+/// The outermost normalized span and the recognizer cache for its suffixes.
+///
+/// A suffix reuses the region only when its stripped characters are the
+/// parent's stripped tail. Normalization can insert or rewrite characters, and
+/// a suffix that does not match gets its own region.
+#[invariant(source_start < source_end)]
+#[invariant(cache.borrow().char_count == stripped_chars.len())]
+#[invariant(stripped_chars.len() == normalized.stripped_chars.len())]
+#[invariant(normalized.source_char_count == *source_end - *source_start)]
+#[derive(Debug)]
+struct ActiveWordRegion {
+    source_start: usize,
+    source_end: usize,
+    normalized: NormalizedCandidate,
+    stripped_chars: Rc<[char]>,
+    /// Interior mutability keeps the validated region on the stack.
+    /// The wrapper has no mutable field access.
+    cache: RefCell<MorphologyRecognitionCache>,
+    memo: RefCell<HashMap<usize, WordStartMemo>>,
+}
+
+#[requires(start <= candidate_end)]
+#[ensures(true)]
+fn region_accepts_suffix(
+    region: &ActiveWordRegion,
+    start: usize,
+    candidate_end: usize,
+    normalized: &NormalizedCandidate,
+) -> bool {
+    if candidate_end != region.source_end
+        || start < region.source_start
+        || start > region.source_end
+    {
+        return false;
+    }
+    let local = start - region.source_start;
+    let Some(offset) = region
+        .normalized
+        .source_stripped_char_ends
+        .get(local)
+        .copied()
+    else {
+        return false;
+    };
+    region
+        .stripped_chars
+        .get(offset..)
+        .is_some_and(|suffix| suffix == normalized.stripped_chars.as_slice())
+}
+
+#[requires(start >= region.source_start)]
+#[requires(start - region.source_start <= region.normalized.source_char_count)]
+#[ensures(ret <= region.stripped_chars.len())]
+fn shared_stripped_offset(region: &ActiveWordRegion, start: usize) -> usize {
+    let local = start - region.source_start;
+    region.normalized.source_stripped_char_ends[local]
+}
+
 impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(ret.index == 0)]
@@ -315,6 +405,7 @@ impl<'a> Segmenter<'a> {
             ignored_probe: None,
             permissive_boundaries_enabled: options.permissive_lexer,
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
+            word_regions: RefCell::new(Vec::new()),
         }
     }
 
@@ -1017,16 +1108,155 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        let mut cache = MorphologyRecognitionCache::new(normalized.stripped_chars.len());
+        let frame = self.open_word_region(start, candidate_end, normalized);
+        if let Some(cached) = self.finished_word_start(start) {
+            self.close_word_region(frame);
+            return cached;
+        }
+        self.mark_word_start_running(start);
+        let result = self.streaming_word_candidate_uncached(start, candidate_end, normalized);
+        self.store_word_start(start, result.clone());
+        self.close_word_region(frame);
+        result
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_word_candidate_uncached(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<StreamingWordCandidate> {
         if let Some(candidate) = self.streaming_cmevla_candidate(start, candidate_end, normalized) {
             return Some(candidate);
         }
-        if let Some(candidate) =
-            self.streaming_cmavo_candidate(start, candidate_end, normalized, &mut cache)
-        {
+        if let Some(candidate) = self.streaming_cmavo_candidate(start, candidate_end, normalized) {
             return Some(candidate);
         }
-        self.streaming_brivla_candidate(start, candidate_end, normalized, &mut cache)
+        self.streaming_brivla_candidate(start, candidate_end, normalized)
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(self.word_regions.borrow().last().is_some())]
+    fn open_word_region(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> RegionFrame {
+        let reuse =
+            self.word_regions.borrow().last().is_some_and(|region| {
+                region_accepts_suffix(region, start, candidate_end, normalized)
+            });
+        if reuse {
+            return RegionFrame::Reused;
+        }
+        // A parent search is still on this stack. Leave its region in place
+        // and cover this call with a region that drops when the call returns.
+        // Otherwise the previous span is finished, and this call starts a new one.
+        let busy = self.word_regions.borrow().iter().any(|region| {
+            region
+                .memo
+                .borrow()
+                .values()
+                .any(|state| matches!(state.as_data(), data!(WordStartMemo::Running)))
+        });
+        if !busy {
+            self.word_regions.borrow_mut().clear();
+        }
+        self.push_word_region(start, candidate_end, normalized);
+        if busy {
+            RegionFrame::PushedDrop
+        } else {
+            RegionFrame::PushedKeep
+        }
+    }
+
+    #[requires(start < candidate_end)]
+    #[ensures(self.word_regions.borrow().last().is_some_and(|region| {
+        region.source_start == start && region.source_end == candidate_end
+    }))]
+    fn push_word_region(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) {
+        let stripped_chars: Rc<[char]> = Rc::from(normalized.stripped_chars.as_slice());
+        let cache = MorphologyRecognitionCache::new(stripped_chars.len());
+        let region = new!(ActiveWordRegion {
+            source_start: start,
+            source_end: candidate_end,
+            normalized: normalized.clone(),
+            stripped_chars: stripped_chars,
+            cache: RefCell::new(cache),
+            memo: RefCell::new(HashMap::new()),
+        });
+        self.word_regions.borrow_mut().push(region);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn close_word_region(&self, frame: RegionFrame) {
+        if matches!(frame, RegionFrame::PushedDrop) {
+            self.word_regions.borrow_mut().pop();
+        }
+    }
+
+    /// `Some` means this source index already finished inside the open region.
+    /// The inner value is the word, or `None` when the index is not a word.
+    #[requires(true)]
+    #[ensures(true)]
+    fn finished_word_start(&self, start: usize) -> Option<Option<StreamingWordCandidate>> {
+        let regions = self.word_regions.borrow();
+        let region = regions.last().expect("word region");
+        match region.memo.borrow().get(&start).map(WordStartMemo::as_data) {
+            Some(data!(WordStartMemo::Done(result))) => Some(result.clone()),
+            Some(data!(WordStartMemo::Running)) => {
+                panic!("word-start recognition re-entered source index {start}")
+            }
+            None => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn mark_word_start_running(&self, start: usize) {
+        let regions = self.word_regions.borrow();
+        let region = regions.last().expect("word region");
+        region
+            .memo
+            .borrow_mut()
+            .insert(start, new!(WordStartMemo::Running));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn store_word_start(&self, start: usize, result: Option<StreamingWordCandidate>) {
+        let regions = self.word_regions.borrow();
+        let region = regions.last().expect("word region");
+        region
+            .memo
+            .borrow_mut()
+            .insert(start, new!(WordStartMemo::Done(result)));
+    }
+
+    #[requires(!self.word_regions.borrow().is_empty())]
+    #[ensures(true)]
+    fn with_shared_cache<R>(
+        &self,
+        start: usize,
+        normalized: &NormalizedCandidate,
+        body: impl FnOnce(&[char], usize, &mut MorphologyRecognitionCache) -> R,
+    ) -> R {
+        let regions = self.word_regions.borrow();
+        let region = regions.last().expect("word region");
+        let offset = shared_stripped_offset(region, start);
+        let stripped = Rc::clone(&region.stripped_chars);
+        debug_assert_eq!(&stripped[offset..], normalized.stripped_chars.as_slice());
+        let mut cache = region.cache.borrow_mut();
+        body(&stripped, offset, &mut cache)
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -1036,7 +1266,6 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-        cache: &mut MorphologyRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
             let normalized_prefix = normalized.slice_to_source_end(end - start)?;
@@ -1049,15 +1278,19 @@ impl<'a> Segmenter<'a> {
             ) {
                 return None;
             }
-            let stripped_end = normalized.stripped_end_to_source_end(end - start)?;
+            let local_stripped_end = normalized.stripped_end_to_source_end(end - start)?;
             let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
-            let (kind, phonemes) = crate::segment::classify_word_with_cache(
-                normalized_prefix,
-                normalized_prefix_chars,
-                &normalized.stripped_chars,
-                stripped_end,
-                cache,
-            )?;
+            let (kind, phonemes) =
+                self.with_shared_cache(start, normalized, |stripped, offset, cache| {
+                    crate::segment::classify_word_with_cache(
+                        normalized_prefix,
+                        normalized_prefix_chars,
+                        stripped,
+                        offset,
+                        offset + local_stripped_end,
+                        cache,
+                    )
+                })?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
                 return None;
             }
@@ -1141,30 +1374,30 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-        cache: &mut MorphologyRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
         let full_candidate = normalized.slice_to_source_end(candidate_end - start)?;
-        let stripped_end = normalized.stripped_end_to_source_end(candidate_end - start)?;
+        let local_stripped_end = normalized.stripped_end_to_source_end(candidate_end - start)?;
         let full_candidate_chars =
             normalized.normalized_chars_to_source_end(candidate_end - start)?;
-        if crate::segment::is_cmevla_text(&full_candidate)
-            || crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
-                &normalized.stripped_chars,
-                0,
-                stripped_end,
+        let blocks_brivla = self.with_shared_cache(start, normalized, |stripped, offset, cache| {
+            crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
+                stripped,
+                offset,
+                offset + local_stripped_end,
                 cache,
-            )
-            || crate::segment::classify_word_with_cache(
+            ) || crate::segment::classify_word_with_cache(
                 full_candidate,
                 full_candidate_chars,
-                &normalized.stripped_chars,
-                stripped_end,
+                stripped,
+                offset,
+                offset + local_stripped_end,
                 cache,
             )
             .is_some_and(|(kind, _)| {
                 matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
             })
-        {
+        });
+        if crate::segment::is_cmevla_text(full_candidate) || blocks_brivla {
             return None;
         }
         if full_candidate
