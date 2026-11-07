@@ -1340,6 +1340,146 @@ async fn static_or_spa(
     plain_response(StatusCode::NOT_FOUND, "not found")
 }
 
+/// How the SPA head is filled for one request.
+///
+/// `RouteOnly` is fixed by the route. `Computed` adds a parse, a generation,
+/// or a search, and that work holds a compute permit.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PageMetadataMode {
+    RouteOnly,
+    Computed,
+}
+
+#[requires(true)]
+#[ensures(browser_document_navigation(headers) -> matches!(ret, PageMetadataMode::RouteOnly))]
+#[ensures(
+    matches!(route, WebRoute::Cukta(_) | WebRoute::Settings) -> matches!(ret, PageMetadataMode::RouteOnly)
+)]
+fn page_metadata_mode(headers: &HeaderMap, route: &WebRoute) -> PageMetadataMode {
+    if browser_document_navigation(headers) {
+        // A browser document navigation parses the submitted text in the
+        // client, so the head only needs the route title and the default
+        // description. The owner approved this classification on 2026-11-07.
+        // Link unfurlers and crawlers do not send Fetch Metadata headers, so
+        // they still receive the computed preview. A bot that sends the
+        // headers gets this shorter head. A browser that omits them gets the
+        // computed metadata, as before.
+        return PageMetadataMode::RouteOnly;
+    }
+    // Cukta and settings metadata is fully determined by the route.
+    // `build_computed_page_meta` returns that same value, so a compute permit
+    // would only queue the request behind unrelated work.
+    match route {
+        WebRoute::Cukta(_) | WebRoute::Settings => PageMetadataMode::RouteOnly,
+        WebRoute::Gentufa(_) | WebRoute::Gimfihi(_) | WebRoute::Vlacku(_) => {
+            PageMetadataMode::Computed
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == (fetch_metadata_equals(headers, "sec-fetch-mode", "navigate")
+    && fetch_metadata_equals(headers, "sec-fetch-dest", "document")))]
+fn browser_document_navigation(headers: &HeaderMap) -> bool {
+    fetch_metadata_equals(headers, "sec-fetch-mode", "navigate")
+        && fetch_metadata_equals(headers, "sec-fetch-dest", "document")
+}
+
+#[requires(!name.is_empty() && !expected.is_empty())]
+#[ensures(
+    ret == headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case(expected))
+)]
+fn fetch_metadata_equals(headers: &HeaderMap, name: &'static str, expected: &str) -> bool {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case(expected))
+}
+
+#[requires(true)]
+#[ensures(ret.projection.get() == policy.tool_limits().render.projection.get())]
+fn spa_head_render_limits(policy: &ServerPolicy) -> jbotci_output::budget::RenderLimits {
+    let render = policy.tool_limits().render;
+    jbotci_output::budget::RenderLimits::new(
+        jbotci_output::budget::ByteLimit::new(render.text.get().min(render.projection.get()))
+            .expect("positive text and response limits"),
+        render.projection,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn render_spa_head_off_runtime(
+    html: String,
+    origin: Option<String>,
+    meta: PageMeta,
+    limits: jbotci_output::budget::RenderLimits,
+) -> std::result::Result<String, WorkError> {
+    // The splice is bounded by the render limits, and it still walks the
+    // document. It runs on the blocking pool and does not take a compute
+    // permit, so a stuck parse cannot delay a page that needs no parse.
+    match tokio::task::spawn_blocking(move || {
+        apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits)
+    })
+    .await
+    {
+        Ok(rendered) => rendered,
+        Err(_join_error) => Err(WorkError::Panicked {
+            lane: WorkLane::Compute,
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spa_index_html_response(body: Body) -> Response<Body> {
+    let mut response = asset_response(StatusCode::OK, "/index.html", None, body);
+    append_spa_index_vary(response.headers_mut());
+    response
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn route_only_spa_index_response(
+    state: &AppState,
+    html: &str,
+    origin: Option<String>,
+    route: &WebRoute,
+) -> std::result::Result<Response<Body>, WorkError> {
+    let meta = jbotci_web_core::build_route_page_meta(&state.base_path, route);
+    let limits = spa_head_render_limits(&state.tool_services.execution.policy);
+    let rendered = render_spa_head_off_runtime(html.to_owned(), origin, meta, limits).await?;
+    Ok(spa_index_html_response(execution::owned_body(
+        rendered.into_bytes(),
+        None,
+    )))
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn computed_spa_index_response(
+    state: &AppState,
+    html: String,
+    origin: Option<String>,
+    route: WebRoute,
+    deadline: Instant,
+) -> std::result::Result<Response<Body>, WorkError> {
+    let context = state.tool_services.execution.admit(Some(deadline)).await?;
+    let meta = (state.page_meta_builder)(state.base_path.clone(), route, context.clone()).await?;
+    let limits = spa_head_render_limits(&context.execution.policy);
+    let rendered = context
+        .run(move || apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits))
+        .await??;
+    Ok(spa_index_html_response(execution::owned_body(
+        rendered.into_bytes(),
+        Some(context),
+    )))
+}
+
 #[requires(true)]
 #[ensures(true)]
 async fn spa_index_response(
@@ -1351,7 +1491,7 @@ async fn spa_index_response(
     let Some(bytes) = load_index_html_bytes(state).await else {
         return Ok(None);
     };
-    let html = String::from_utf8_lossy(&bytes);
+    let html = String::from_utf8_lossy(&bytes).into_owned();
     let logical_path = strip_base_path(uri.path(), &state.base_path).unwrap_or_else(|| {
         if uri.path().starts_with('/') {
             uri.path().to_owned()
@@ -1367,25 +1507,31 @@ async fn spa_index_response(
             &error.to_string(),
         )));
     }
-    let context = state.tool_services.execution.admit(Some(deadline)).await?;
-    let meta = (state.page_meta_builder)(state.base_path.clone(), route, context.clone()).await?;
-    let render = context.execution.policy.tool_limits().render;
-    let limits = jbotci_output::budget::RenderLimits::new(
-        jbotci_output::budget::ByteLimit::new(render.text.get().min(render.projection.get()))
-            .expect("positive text and response limits"),
-        render.projection,
-    );
-    let html = html.into_owned();
     let origin = request_origin(headers);
-    let rendered = context
-        .run(move || apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits))
-        .await??;
-    Ok(Some(asset_response(
-        StatusCode::OK,
-        "/index.html",
-        None,
-        execution::owned_body(rendered.into_bytes(), Some(context)),
-    )))
+    match page_metadata_mode(headers, &route) {
+        PageMetadataMode::RouteOnly => route_only_spa_index_response(state, &html, origin, &route)
+            .await
+            .map(Some),
+        PageMetadataMode::Computed => {
+            match computed_spa_index_response(
+                state,
+                html.clone(),
+                origin.clone(),
+                route.clone(),
+                deadline,
+            )
+            .await
+            {
+                Ok(response) => Ok(Some(response)),
+                Err(error) => {
+                    report_spa_metadata_task_failure(uri.path(), &error);
+                    route_only_spa_index_response(state, &html, origin, &route)
+                        .await
+                        .map(Some)
+                }
+            }
+        }
+    }
 }
 
 #[requires(true)]
@@ -1486,11 +1632,17 @@ async fn run_page_meta_task(
 
 #[requires(request_path.starts_with('/'))]
 #[ensures(true)]
-fn page_meta_task_failure_response(request_path: &str, error: &WorkError) -> Response<Body> {
-    // The public response intentionally omits panic and task internals. The
-    // server-side report keeps the affected route path (but not its possibly
-    // sensitive query) together with Tokio's panic/cancellation diagnosis.
+fn report_spa_metadata_task_failure(request_path: &str, error: &WorkError) {
+    // The public response omits panic and task internals. This line keeps the
+    // route path and the diagnosis. `request_path` is `Uri::path`, so the
+    // query is not included.
     eprintln!("SPA metadata task failed for request path `{request_path}`: {error}");
+}
+
+#[requires(request_path.starts_with('/'))]
+#[ensures(true)]
+fn page_meta_task_failure_response(request_path: &str, error: &WorkError) -> Response<Body> {
+    report_spa_metadata_task_failure(request_path, error);
     execution::work_error_response(error.clone())
 }
 
@@ -1662,6 +1814,34 @@ fn asset_response(
         .expect("asset response builder is valid")
 }
 
+#[requires(
+    !token.is_empty()
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+)]
+#[ensures(
+    headers
+        .get(VARY)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| vary_mentions_token(value, token))
+)]
+fn append_vary_token(headers: &mut HeaderMap, token: &'static str) {
+    match headers.get(VARY).and_then(|value| value.to_str().ok()) {
+        Some(value) if vary_mentions_token(value, token) => {}
+        Some(value) => {
+            let merged = format!("{value}, {token}");
+            headers.insert(
+                VARY,
+                HeaderValue::from_str(&merged).expect("merged Vary header is valid"),
+            );
+        }
+        None => {
+            headers.insert(VARY, HeaderValue::from_static(token));
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(
     headers
@@ -1670,27 +1850,39 @@ fn asset_response(
         .is_some_and(vary_mentions_accept_encoding)
 )]
 fn append_accept_encoding_vary(headers: &mut HeaderMap) {
-    match headers.get(VARY).and_then(|value| value.to_str().ok()) {
-        Some(value) if vary_mentions_accept_encoding(value) => {}
-        Some(value) => {
-            let merged = format!("{value}, Accept-Encoding");
-            headers.insert(
-                VARY,
-                HeaderValue::from_str(&merged).expect("merged Vary header is valid"),
-            );
-        }
-        None => {
-            headers.insert(VARY, HeaderValue::from_static("Accept-Encoding"));
-        }
-    }
+    append_vary_token(headers, "Accept-Encoding");
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn vary_mentions_accept_encoding(value: &str) -> bool {
+#[ensures(
+    headers.get(VARY).and_then(|value| value.to_str().ok()).is_some_and(
+        |value| {
+            vary_mentions_accept_encoding(value)
+                && vary_mentions_token(value, "Sec-Fetch-Mode")
+                && vary_mentions_token(value, "Sec-Fetch-Dest")
+        }
+    )
+)]
+fn append_spa_index_vary(headers: &mut HeaderMap) {
+    // Both the route-only head and the computed head depend on these request
+    // headers, so a cache must not reuse one variant for the other.
+    append_accept_encoding_vary(headers);
+    append_vary_token(headers, "Sec-Fetch-Mode");
+    append_vary_token(headers, "Sec-Fetch-Dest");
+}
+
+#[requires(true)]
+#[ensures(ret == value.split(',').any(|name| name.trim().eq_ignore_ascii_case(token)))]
+fn vary_mentions_token(value: &str, token: &str) -> bool {
     value
         .split(',')
-        .any(|name| name.trim().eq_ignore_ascii_case("accept-encoding"))
+        .any(|name| name.trim().eq_ignore_ascii_case(token))
+}
+
+#[requires(true)]
+#[ensures(ret == vary_mentions_token(value, "accept-encoding"))]
+fn vary_mentions_accept_encoding(value: &str) -> bool {
+    vary_mentions_token(value, "accept-encoding")
 }
 
 #[requires(true)]
@@ -1874,7 +2066,7 @@ mod tests {
         ToolGimfihiSource,
     };
     use jbotci_web_core::parse_gentufa_for_web;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use tower::ServiceExt;
 
     #[invariant(default.is_finite())]
@@ -1986,6 +2178,11 @@ mod tests {
         )
     }
 
+    static BLOCKING_PAGE_META_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static COUNTING_PAGE_META_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static PAGE_META_BUILDER_TEST: std::sync::LazyLock<tokio::sync::Mutex<()>> =
+        std::sync::LazyLock::new(|| tokio::sync::Mutex::new(()));
+
     #[requires(true)]
     #[ensures(true)]
     fn panicking_page_meta_builder(
@@ -1996,6 +2193,43 @@ mod tests {
         Box::pin(run_page_meta_task(context, || -> PageMeta {
             panic!("deterministic metadata worker failure")
         }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn blocking_page_meta_builder(
+        _base_path: String,
+        _route: WebRoute,
+        context: AdmittedWorkContext,
+    ) -> PageMetaFuture {
+        BLOCKING_PAGE_META_CALLS.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move {
+            // Hold the admitted permit until the caller drops this future.
+            let _permit = context;
+            std::future::pending::<PageMetaTaskResult>().await
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn counting_page_meta_builder(
+        base_path: String,
+        route: WebRoute,
+        context: AdmittedWorkContext,
+    ) -> PageMetaFuture {
+        COUNTING_PAGE_META_CALLS.fetch_add(1, Ordering::SeqCst);
+        production_page_meta_builder(base_path, route, context)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.work.compute_workers == 1 && ret.work.compute_queue == 0)]
+    fn single_compute_permit_policy() -> ServerPolicy {
+        let policy = ServerPolicy::default();
+        let work = policy.work.with_data(bityzba::data! {
+            compute_workers: 1,
+            compute_queue: 0,
+        });
+        policy.with_data(bityzba::data! { work: work })
     }
 
     #[requires(true)]
@@ -2574,10 +2808,7 @@ mod tests {
         )
         .with_data(bityzba::data! {tool_services: services, discord: None});
         let app = router_with_state(Arc::new(state));
-        for uri in [
-            "/jbotci/gentufa.png?text=mi+klama",
-            "/jbotci/vlacku?query=klama",
-        ] {
+        for uri in ["/jbotci/gentufa.png?text=mi+klama"] {
             let response = app
                 .clone()
                 .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -2590,6 +2821,25 @@ mod tests {
                 "The server is busy. Try again later."
             );
         }
+        // The dictionary page's computed metadata cannot get a permit. The
+        // SPA still answers, with the route-only head, and the stuck job
+        // keeps the only permit.
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/vlacku?query=klama")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+        assert!(body.contains("<title>klama - jbotci vlacku</title>"));
+        assert!(body.contains("Exact lookup for"));
+        assert!(!body.contains("comes/goes"));
+        assert_eq!(execution.governor.snapshot().compute_active, 1);
         let response = app
             .clone()
             .oneshot(
@@ -4628,7 +4878,7 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn metadata_worker_panic_returns_sanitized_500() {
+    async fn metadata_worker_panic_serves_route_only_without_leaking() {
         let app = router_with_page_meta_builder(
             test_config(test_static_dir()),
             panicking_page_meta_builder,
@@ -4643,10 +4893,311 @@ mod tests {
             .await
             .expect("response");
 
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_spa_index_vary(&response);
         let body = response_text(response).await;
-        assert_eq!(body, crate::error::ServerErrorCode::Failed.message());
+        assert_route_only_gentufa(&body);
         assert!(!body.contains("deterministic metadata worker failure"));
+        assert!(!body.contains(crate::error::ServerErrorCode::Failed.message()));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn browser_navigation_skips_the_metadata_builder_and_permit() {
+        let _guard = PAGE_META_BUILDER_TEST.lock().await;
+        BLOCKING_PAGE_META_CALLS.store(0, Ordering::SeqCst);
+        let state = Arc::new(AppState::new(
+            test_config(test_static_dir()),
+            blocking_page_meta_builder,
+            single_compute_permit_policy(),
+        ));
+        let app = router_with_state(Arc::clone(&state));
+        let response = tokio::time::timeout(
+            Duration::from_secs(1),
+            app.clone().oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header("sec-fetch-mode", " NAVIGATE ")
+                    .header("sec-fetch-dest", "Document")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        )
+        .await
+        .expect("browser navigation waited on metadata")
+        .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            0
+        );
+        assert_spa_index_vary(&response);
+        let body = response_text(response).await;
+        assert_route_only_gentufa(&body);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn route_only_pages_do_not_admit_compute_work() {
+        let _guard = PAGE_META_BUILDER_TEST.lock().await;
+        BLOCKING_PAGE_META_CALLS.store(0, Ordering::SeqCst);
+        let state = Arc::new(AppState::new(
+            test_config(test_static_dir()),
+            blocking_page_meta_builder,
+            single_compute_permit_policy(),
+        ));
+        let app = router_with_state(Arc::clone(&state));
+        for uri in ["/jbotci/cukta/index", "/jbotci/settings"] {
+            let response = tokio::time::timeout(
+                Duration::from_secs(1),
+                app.clone().oneshot(
+                    Request::builder()
+                        .uri(uri)
+                        .body(Body::empty())
+                        .expect("request"),
+                ),
+            )
+            .await
+            .expect("route-only page waited on metadata")
+            .expect("response");
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+            assert_spa_index_vary(&response);
+            let body = response_text(response).await;
+            if uri.ends_with("/settings") {
+                assert!(body.contains("<title>Settings</title>"), "{body}");
+            } else {
+                assert!(
+                    body.contains("<title>jbotci CLL - CLL index</title>"),
+                    "{body}"
+                );
+            }
+        }
+        assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            0
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn gentufa_without_fetch_metadata_calls_the_metadata_builder() {
+        let _guard = PAGE_META_BUILDER_TEST.lock().await;
+        COUNTING_PAGE_META_CALLS.store(0, Ordering::SeqCst);
+        let app = router_with_page_meta_builder(
+            test_config(test_static_dir()),
+            counting_page_meta_builder,
+        );
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header(HOST, "example.test")
+                    .header("x-forwarded-proto", "https")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(COUNTING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
+        assert_spa_index_vary(&response);
+        let body = response_text(response).await;
+        assert!(body.contains("name=\"twitter:card\" content=\"summary_large_image\""));
+        assert!(body.contains("gentufa.png?text=mi+klama"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn stuck_compute_permit_still_serves_navigation_and_gentufa_fallback() {
+        let _guard = PAGE_META_BUILDER_TEST.lock().await;
+        BLOCKING_PAGE_META_CALLS.store(0, Ordering::SeqCst);
+        let state = Arc::new(AppState::new(
+            test_config(test_static_dir()),
+            blocking_page_meta_builder,
+            single_compute_permit_policy(),
+        ));
+        let app = router_with_state(Arc::clone(&state));
+        let stuck = tokio::spawn(
+            app.clone().oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        );
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stuck metadata builder was not called");
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            1
+        );
+
+        let navigated = tokio::time::timeout(
+            Duration::from_secs(1),
+            app.clone().oneshot(
+                Request::builder()
+                    .uri("/jbotci/settings")
+                    .header("sec-fetch-mode", "navigate")
+                    .header("sec-fetch-dest", "document")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        )
+        .await
+        .expect("browser navigation waited behind the stuck job")
+        .expect("response");
+        assert_eq!(navigated.status(), StatusCode::OK);
+        assert_spa_index_vary(&navigated);
+        let navigated_body = response_text(navigated).await;
+        assert!(navigated_body.contains("<title>Settings</title>"));
+        assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            1
+        );
+
+        let fallback = tokio::time::timeout(
+            Duration::from_secs(1),
+            app.oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        )
+        .await
+        .expect("non-browser gentufa waited behind the stuck job")
+        .expect("response");
+        assert_eq!(fallback.status(), StatusCode::OK);
+        assert_spa_index_vary(&fallback);
+        let fallback_body = response_text(fallback).await;
+        assert_route_only_gentufa(&fallback_body);
+        assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            1
+        );
+        stuck.abort();
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn partial_or_other_fetch_metadata_still_computes_page_metadata() {
+        let app = router(test_config(test_static_dir()));
+        let requests = [
+            Request::builder()
+                .uri("/jbotci/gentufa?text=mi+klama")
+                .header(HOST, "example.test")
+                .header("x-forwarded-proto", "https")
+                .header("sec-fetch-mode", "navigate")
+                .body(Body::empty())
+                .expect("request"),
+            Request::builder()
+                .uri("/jbotci/gentufa?text=mi+klama")
+                .header(HOST, "example.test")
+                .header("x-forwarded-proto", "https")
+                .header("sec-fetch-dest", "document")
+                .body(Body::empty())
+                .expect("request"),
+            Request::builder()
+                .uri("/jbotci/gentufa?text=mi+klama")
+                .header(HOST, "example.test")
+                .header("x-forwarded-proto", "https")
+                .header("sec-fetch-mode", "navigate")
+                .header("sec-fetch-dest", "iframe")
+                .body(Body::empty())
+                .expect("request"),
+            Request::builder()
+                .uri("/jbotci/gentufa?text=mi+klama")
+                .header(HOST, "example.test")
+                .header("x-forwarded-proto", "https")
+                .header("sec-fetch-mode", "no-cors")
+                .header("sec-fetch-dest", "document")
+                .body(Body::empty())
+                .expect("request"),
+        ];
+        for request in requests {
+            let response = app.clone().oneshot(request).await.expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_spa_index_vary(&response);
+            let body = response_text(response).await;
+            assert!(
+                body.contains("name=\"twitter:card\" content=\"summary_large_image\""),
+                "{body}"
+            );
+            assert!(body.contains("gentufa.png?text=mi+klama"), "{body}");
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_spa_index_vary(response: &Response<Body>) {
+        let vary = response
+            .headers()
+            .get(VARY)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("");
+        for token in ["Accept-Encoding", "Sec-Fetch-Mode", "Sec-Fetch-Dest"] {
+            assert!(
+                vary.split(',')
+                    .any(|name| name.trim().eq_ignore_ascii_case(token)),
+                "Vary `{vary}` is missing `{token}`"
+            );
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_route_only_gentufa(body: &str) {
+        assert!(body.contains("<title>mi klama - jbotci gentufa</title>"));
+        assert!(body.contains(
+            "Parse Lojban text into bracketed blocks, table rows, and reference arrows."
+        ));
+        assert!(body.contains("name=\"twitter:card\" content=\"summary\""));
+        assert!(!body.contains("summary_large_image"));
+        assert!(!body.contains("og:image"));
+        assert!(!body.contains("gentufa.png"));
     }
 
     #[tokio::test]
@@ -4788,7 +5339,7 @@ mod tests {
                     .clone()
                     .with_data(bityzba::data! { diagram: diagram }),
             );
-            for path in ["gentufa.png", "gentufa.svg", "gentufa"] {
+            for path in ["gentufa.png", "gentufa.svg"] {
                 let response = app
                     .clone()
                     .oneshot(
@@ -4813,6 +5364,30 @@ mod tests {
                     crate::error::ServerErrorCode::OutputLimit.message()
                 );
             }
+            // The page head uses the same diagram limit. When that render
+            // fails, the SPA is still served, without the social image the
+            // limit rejected.
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/jbotci/gentufa?text=lo+nanmu+cu+klama")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "gentufa page bypassed {diagram:?}"
+            );
+            let body = response_text(response).await;
+            assert!(body.contains("<title>lo nanmu cu klama - jbotci gentufa</title>"));
+            assert!(body.contains(
+                "Parse Lojban text into bracketed blocks, table rows, and reference arrows."
+            ));
+            assert!(!body.contains("og:image"), "{diagram:?}");
+            assert!(!body.contains("gentufa.png"), "{diagram:?}");
         }
         std::fs::remove_dir_all(public_dir).unwrap();
     }
