@@ -1412,30 +1412,16 @@ fn spa_head_render_limits(policy: &ServerPolicy) -> jbotci_output::budget::Rende
 }
 
 #[requires(true)]
-#[ensures(true)]
-async fn render_spa_head_off_runtime(
-    html: String,
-    origin: Option<String>,
-    meta: PageMeta,
-    limits: jbotci_output::budget::RenderLimits,
-) -> std::result::Result<String, WorkError> {
-    // The splice is bounded by the render limits, and it still walks the
-    // document. It runs on the blocking pool and does not take a compute
-    // permit, so a stuck parse cannot delay a page that needs no parse.
-    match tokio::task::spawn_blocking(move || {
-        apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits)
-    })
-    .await
-    {
-        Ok(rendered) => rendered,
-        Err(_join_error) => Err(WorkError::Panicked {
-            lane: WorkLane::Compute,
-        }),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
+#[ensures(ret.status() == StatusCode::OK)]
+#[ensures(
+    ret.headers().get(VARY).and_then(|value| value.to_str().ok()).is_some_and(
+        |value| {
+            vary_mentions_accept_encoding(value)
+                && vary_mentions_token(value, "Sec-Fetch-Mode")
+                && vary_mentions_token(value, "Sec-Fetch-Dest")
+        }
+    )
+)]
 fn spa_index_html_response(body: Body) -> Response<Body> {
     let mut response = asset_response(StatusCode::OK, "/index.html", None, body);
     append_spa_index_vary(response.headers_mut());
@@ -1450,9 +1436,29 @@ async fn route_only_spa_index_response(
     origin: Option<String>,
     route: &WebRoute,
 ) -> std::result::Result<Response<Body>, WorkError> {
-    let meta = jbotci_web_core::build_route_page_meta(&state.base_path, route);
+    let base_path = state.base_path.clone();
+    let route = route.clone();
+    let html = html.to_owned();
     let limits = spa_head_render_limits(&state.tool_services.execution.policy);
-    let rendered = render_spa_head_off_runtime(html.to_owned(), origin, meta, limits).await?;
+    // The splice is bounded by the render limits, and it still walks the
+    // document. It runs on the blocking pool and does not take a compute
+    // permit, so a stuck parse cannot delay a page that needs no parse.
+    // The Cukta route loads the whole embedded CLL on first use. The
+    // route-only metadata is built in this same blocking job so that load
+    // stays off the async runtime.
+    let rendered = match tokio::task::spawn_blocking(move || {
+        let meta = jbotci_web_core::build_route_page_meta(&base_path, &route);
+        apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits)
+    })
+    .await
+    {
+        Ok(rendered) => rendered?,
+        Err(_join_error) => {
+            return Err(WorkError::Panicked {
+                lane: WorkLane::Compute,
+            });
+        }
+    };
     Ok(spa_index_html_response(execution::owned_body(
         rendered.into_bytes(),
         None,
@@ -1525,9 +1531,16 @@ async fn spa_index_response(
                 Ok(response) => Ok(Some(response)),
                 Err(error) => {
                     report_spa_metadata_task_failure(uri.path(), &error);
-                    route_only_spa_index_response(state, &html, origin, &route)
-                        .await
-                        .map(Some)
+                    // The render limits are the operator's bound. If the
+                    // route-only head exceeds them, this `?` returns the work
+                    // error. The server must not send the raw template with
+                    // no bound.
+                    let mut response =
+                        route_only_spa_index_response(state, &html, origin, &route).await?;
+                    response
+                        .extensions_mut()
+                        .insert(delivery::DegradedRouteOnlyPage);
+                    Ok(Some(response))
                 }
             }
         }
@@ -2230,6 +2243,21 @@ mod tests {
             compute_queue: 0,
         });
         policy.with_data(bityzba::data! { work: work })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.work.compute_workers == 1 && ret.work.compute_queue == 1)]
+    #[ensures(ret.deadline == Duration::from_millis(200))]
+    fn queued_short_deadline_policy() -> ServerPolicy {
+        let policy = ServerPolicy::default();
+        let work = policy.work.with_data(bityzba::data! {
+            compute_workers: 1,
+            compute_queue: 1,
+        });
+        policy.with_data(bityzba::data! {
+            work: work,
+            deadline: Duration::from_millis(200),
+        })
     }
 
     #[requires(true)]
@@ -5079,6 +5107,24 @@ mod tests {
         assert_spa_index_vary(&navigated);
         let navigated_body = response_text(navigated).await;
         assert!(navigated_body.contains("<title>Settings</title>"));
+        let gentufa_navigation = tokio::time::timeout(
+            Duration::from_secs(1),
+            app.clone().oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header("sec-fetch-mode", "navigate")
+                    .header("sec-fetch-dest", "document")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        )
+        .await
+        .expect("browser gentufa navigation waited behind the stuck job")
+        .expect("response");
+        assert_eq!(gentufa_navigation.status(), StatusCode::OK);
+        assert_spa_index_vary(&gentufa_navigation);
+        let gentufa_body = response_text(gentufa_navigation).await;
+        assert_route_only_gentufa(&gentufa_body);
         assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
         assert_eq!(
             state
@@ -5107,6 +5153,79 @@ mod tests {
         assert_spa_index_vary(&fallback);
         let fallback_body = response_text(fallback).await;
         assert_route_only_gentufa(&fallback_body);
+        assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state
+                .tool_services
+                .execution
+                .governor
+                .snapshot()
+                .compute_active,
+            1
+        );
+        stuck.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn queued_compute_deadline_serves_degraded_route_only_page() {
+        let _guard = PAGE_META_BUILDER_TEST.lock().await;
+        BLOCKING_PAGE_META_CALLS.store(0, Ordering::SeqCst);
+        let state = Arc::new(AppState::new(
+            test_config(test_static_dir()),
+            blocking_page_meta_builder,
+            queued_short_deadline_policy(),
+        ));
+        let app = router_with_state(Arc::clone(&state));
+        let stuck = tokio::spawn(
+            app.clone().oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        );
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst) == 0
+                || state
+                    .tool_services
+                    .execution
+                    .governor
+                    .snapshot()
+                    .compute_active
+                    != 1
+            {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stuck metadata builder did not take the compute permit");
+
+        let started = std::time::Instant::now();
+        let response = tokio::time::timeout(
+            Duration::from_secs(2),
+            app.oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            ),
+        )
+        .await
+        .expect("queued gentufa did not return after the deadline")
+        .expect("response");
+        let elapsed = started.elapsed();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(
+            elapsed >= Duration::from_millis(200),
+            "queued request returned in {elapsed:?}, before the 200 ms deadline"
+        );
+        assert_spa_index_vary(&response);
+        let body = response_text(response).await;
+        assert_route_only_gentufa(&body);
+        assert!(!body.contains("work_deadline_exceeded"), "{body}");
         assert_eq!(BLOCKING_PAGE_META_CALLS.load(Ordering::SeqCst), 1);
         assert_eq!(
             state

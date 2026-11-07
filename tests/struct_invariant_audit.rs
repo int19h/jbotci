@@ -60,6 +60,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Any absolute time is a valid deadline, including one that already expired.",
     ),
     (
+        "apps/jbotci-server/src/delivery.rs:DegradedRouteOnlyPage",
+        "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
+    ),
+    (
         "crates/jbotci-budget/src/json_text.rs:OnceText",
         "The test tracks how often a text value is serialized.",
     ),
