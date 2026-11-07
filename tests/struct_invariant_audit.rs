@@ -60,6 +60,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Any absolute time is a valid deadline, including one that already expired.",
     ),
     (
+        "apps/jbotci-server/src/delivery.rs:DegradedRouteOnlyPage",
+        "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
+    ),
+    (
         "crates/jbotci-budget/src/json_text.rs:OnceText",
         "The test tracks how often a text value is serialized.",
     ),
@@ -1210,6 +1214,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/segment.rs:PronunciationChar",
         "pronunciation annotation pairs original and derived chars inside the strict syllabifier; constructors enforce valid annotated values",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:SyllableFlags",
+        "one index stores two independent syllable flags, and every pair of bools is a valid result",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:CacheSlotAccount",
+        "slot counter stored beside the recognizer cache, and every u64 is a valid stored count",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionBodyCount",
+        "test-only guard stores the previous body-count cap, and every u64 is a valid saved cap",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:SyllableStepCount",
+        "test-only guard stores the previous syllable-step cap, and every u64 is a valid saved cap",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionSlotPeak",
+        "test-only guard stores the previous slot-peak watermark, and every u64 is a valid saved peak",
     ),
     (
         "crates/jbotci-orthography/src/lib.rs:NormalizedLatinChar",
