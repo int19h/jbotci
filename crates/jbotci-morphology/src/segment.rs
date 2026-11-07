@@ -5855,14 +5855,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fuhivla_head_miss_shares_the_brivla_allocation() {
-        let cache = MorphologyRecognitionCache::new(4);
-        let ends: Rc<[usize]> = Rc::from([0usize, 2]);
-        let stored = cache.record_fuhivla_head_ends_shared(0, 4, Rc::clone(&ends));
-        let loaded = cache
-            .fuhivla_head_ends(0, 4)
-            .unwrap_or_else(|| panic!("stored head list is missing"));
-        assert!(Rc::ptr_eq(&stored, &ends));
-        assert!(Rc::ptr_eq(&loaded, &ends));
+        let chars = ['z'];
+        let mut cache = MorphologyRecognitionCache::new(chars.len());
+        let shared = fuhivla_head_ends_until_with_cache(&chars, 0, chars.len(), &mut cache);
+        let brivla = cache
+            .brivla_head_ends(0, chars.len())
+            .unwrap_or_else(|| panic!("brivla head list is missing"));
+        let fuhivla = cache
+            .fuhivla_head_ends(0, chars.len())
+            .unwrap_or_else(|| panic!("fuhivla head list is missing"));
+        assert!(Rc::ptr_eq(&shared, &brivla));
+        assert!(Rc::ptr_eq(&fuhivla, &brivla));
     }
 
     /// The pre-scan recurrence, counted at each entry to `coda_ends`.

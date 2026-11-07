@@ -306,7 +306,16 @@ struct IndicatorBoundaryKey {
 ///   `cvv_rafsi_unstressed`.
 /// - Four-index keys are `O(m^4)`: `indicator_boundary`.
 ///
-/// Each memoized body runs once per key.
+/// Those sizes are the key domains: every index combination a map can store.
+/// A run stores the keys it reaches. In the measured families that reached
+/// set stays quadratic. A stress-context span is one nucleus or one rafsi.
+/// A `cmavo_post_word` prefix is one dictionary cmavo. An
+/// `indicator_boundary` prefix is one indicator cmavo, and its index is the
+/// next non-comma position. `rafsi_string_from` and `rafsi_string_ending`
+/// are reached with the span end as the lookahead. The domain of those maps
+/// stays cubic or quartic. The entries one run writes do not fill that domain.
+///
+/// Each memoized body runs once per reached key.
 ///
 /// `lujvo_part_ranges_from_with_cache` is memoized on
 /// `(index, end, has_initial_rafsi)`. The stored value is the range list and
