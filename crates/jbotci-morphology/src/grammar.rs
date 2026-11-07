@@ -6,7 +6,7 @@ use jbotci_source::{SourceId, SourceSpan};
 
 use crate::cmavo::QuoteOpenerKind;
 use crate::segment::{
-    LujvoRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
+    MorphologyRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
     next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
     text_chars,
 };
@@ -1017,7 +1017,7 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        let mut cache = LujvoRecognitionCache::new(normalized.stripped_chars.len());
+        let mut cache = MorphologyRecognitionCache::new(normalized.stripped_chars.len());
         if let Some(candidate) = self.streaming_cmevla_candidate(start, candidate_end, normalized) {
             return Some(candidate);
         }
@@ -1036,7 +1036,7 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-        cache: &mut LujvoRecognitionCache,
+        cache: &mut MorphologyRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
             let normalized_prefix = normalized.slice_to_source_end(end - start)?;
@@ -1141,7 +1141,7 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-        cache: &mut LujvoRecognitionCache,
+        cache: &mut MorphologyRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
         let full_candidate = normalized.slice_to_source_end(candidate_end - start)?;
         let stripped_end = normalized.stripped_end_to_source_end(candidate_end - start)?;
