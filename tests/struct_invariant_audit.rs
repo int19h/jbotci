@@ -1216,6 +1216,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pronunciation annotation pairs original and derived chars inside the strict syllabifier; constructors enforce valid annotated values",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:SyllableFlags",
+        "one index stores two independent syllable flags, and every pair of bools is a valid result",
+    ),
+    (
         "crates/jbotci-morphology/src/segment/recognition_cache.rs:CacheSlotAccount",
         "slot counter stored beside the recognizer cache, and every u64 is a valid stored count",
     ),

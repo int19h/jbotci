@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use bityzba::{invariant, new, requires};
 
-use super::FuhivlaHeadPolicy;
+use super::{FuhivlaHeadPolicy, LujvoParseFailure, LujvoPartRange};
 
 #[cfg(test)]
 thread_local! {
@@ -244,6 +244,26 @@ struct LookaheadKey {
     lookahead_end: usize,
 }
 
+#[invariant(start <= end && end <= context_end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct StressContextKey {
+    start: usize,
+    end: usize,
+    context_end: usize,
+}
+
+/// Ranges from one `lujvo_part_ranges_from_with_cache` call, plus the
+/// greatest-index failure that call recorded on its own.
+///
+/// The failure is the subtree's own maximum. A hit merges it into the caller.
+/// It does not include a failure the caller already held.
+#[invariant(ranges.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+#[derive(Debug, Clone)]
+pub(super) struct LujvoPartRangeMemo {
+    pub(super) ranges: Option<Rc<[LujvoPartRange]>>,
+    pub(super) failure: Option<LujvoParseFailure>,
+}
+
 #[invariant(prefix_start <= prefix_end && prefix_end <= index && index <= end)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct IndicatorBoundaryKey {
@@ -272,52 +292,47 @@ struct IndicatorBoundaryKey {
 /// - Two-index keys are `O(m^2)`. The plain maps are `cmavo_word`,
 ///   `lojban_word`, `brivla_word`, `lujvo_slice`, `fuhivla_shape`,
 ///   `experimental_cgv`, `slinkuhi`, `rafsi_string_starts`, `post_word`,
-///   `indicator_cmavo_starts`, `brivla_head_ends`, and `fuhivla_head_ends`.
-/// - `lujvo_from` adds `has_initial_rafsi`, `fuhivla_shape_y` adds `allows_y`,
-///   and `fuhivla_head_policy` adds `FuhivlaHeadPolicy`. Each flag has a
-///   constant number of values, so those maps are still `O(m^2)`.
+///   `indicator_cmavo_starts`, `brivla_head_ends`, `fuhivla_head_ends`,
+///   `initial_rafsi_ends`, `extended_rafsi_ends`, `any_extended_rafsi_starts`,
+///   `fuhivla_rafsi_base_ends`, `stressed_extended_rafsi_ends`,
+///   `nucleus_has_implicit_stress`, `stress_tail_reaches_boundary`, and
+///   `greedy_rafsi_chain`.
+/// - `lujvo_from` and `lujvo_part_ranges` add `has_initial_rafsi`,
+///   `fuhivla_shape_y` adds `allows_y`, and `fuhivla_head_policy` adds
+///   `FuhivlaHeadPolicy`. Each flag has a constant number of values, so those
+///   maps are still `O(m^2)`.
 /// - Three-index keys are `O(m^3)`: `rafsi_string_from`, `rafsi_string_ending`,
-///   and `cmavo_post_word`.
+///   `cmavo_post_word`, `nucleus_is_stressed`, `y_less_rafsi_unstressed`, and
+///   `cvv_rafsi_unstressed`.
 /// - Four-index keys are `O(m^4)`: `indicator_boundary`.
 ///
 /// Each memoized body runs once per key.
 ///
-/// `rafsi_string_from_with_cache` is the heavy memoized body. Its greedy scan
-/// takes `O(n)` steps, and each step calls `nucleus_is_stressed_in_context`.
-/// That walk keeps a cursor stack and tests membership in a vector, so one
-/// check is `O(n^2)` on a consonant run and one body is `O(n^3)`. `O(n^3)`
-/// three-index keys times an `O(n^3)` body is expected `O(n^6)`.
+/// `lujvo_part_ranges_from_with_cache` is memoized on
+/// `(index, end, has_initial_rafsi)`. The stored value is the range list and
+/// the greatest-index failure that call recorded. A hit merges that failure
+/// into the caller with the same greater-index rule. The bound is the key
+/// space. One body runs per key, and that body reads the memoized initial
+/// rafsi list.
 ///
-/// These helpers are not memoized:
+/// `greedy_rafsi_chain` stores the greedy y-less cursors for
+/// `(start, lookahead)`. `rafsi_string_from_with_cache` reads the cursor that
+/// the same walk reaches for its own `end`. One chain is built per pair. A
+/// later word end with that lookahead does not repeat the greedy steps.
 ///
-/// - `initial_rafsi_ends_until_with_cache` calls
-///   `extended_rafsi_ends_until_with_cache` once, then the y-rafsi ends, then
-///   the y-less ends. A y-less end has a fixed shape, so that branch calls
-///   `any_extended_rafsi_starts_until_with_cache` a bounded number of extra
-///   times. The extended walk below can make one call `O(n^2)`. The
-///   `lujvo_from` body calls this once per two-index key.
-/// - `extended_rafsi_ends_until_with_cache` walks the fu'ivla rafsi bases and
-///   the memoized brivla head ends. One base can run an `O(n)` syllable scan,
-///   and there can be `O(n)` bases, so one call can be `O(n^2)`. Across
-///   `O(n^2)` `lujvo_from` keys that part is expected `O(n^4)`.
-/// - `any_extended_rafsi_starts_until_with_cache` calls the memoized fu'ivla
-///   shape test, then the unmemoized extended walk, then
-///   `stressed_extended_rafsi_ends_until_with_cache`, which loops over `O(n)`
-///   ends. On a span of `lo` the stressed-brivla and stressed-fu'ivla shape
-///   checks fail in constant time because those shapes require `'` or `y`.
-///   On a span that matches, the syllable scans make one call `O(n^2)`. A
-///   caller that does this for every two-index key pays expected `O(n^4)` in
-///   that branch.
-/// - `lujvo_core_part_ranges_until` calls the memoized fu'ivla shape test and
-///   scans for one stressed split. The split scan can call the extended-rafsi
-///   checks, so one call can be `O(n^2)`. The `lujvo_from` body calls it once.
-/// - `coda_ends`, `starts_any_syllable`, and `consonantal_syllable_ends` scan
-///   from the index down to the end of the candidate. The onset check looks
-///   at a bounded initial and one nucleus, so one scan is `O(end - index)`.
-///   `consonantal_chain_then_final` still follows one successor per step. One
-///   chain is `O(n^2)` when those scans are not memoized across calls.
-/// - `lujvo_part_ranges_from_with_cache` is an unmemoized branching recursion
-///   with a `failure` side effect. It has no proven polynomial bound.
+/// `nucleus_is_stressed_in_context`, `y_less_rafsi_is_unstressed_in_context`,
+/// and `cvv_rafsi_is_unstressed_in_context` are three-index keys.
+/// `nucleus_has_implicit_stress` and `stress_tail_reaches_boundary` are
+/// two-index keys. A coda query visits the syllabic-consonant run its flags
+/// depend on, then stops. On `lo` that run is one character. A long run still
+/// visits each character of the run once per uncached query.
+/// `consonantal_chain_then_final` and `consonantal_chain_then_onset` follow
+/// one successor per step. One chain takes `O(n)` steps, and each step scans
+/// only its own run. A run as long as the candidate makes one chain `O(n^2)`.
+///
+/// The initial, extended, and stressed rafsi lists are memoized on their full
+/// arguments. One body runs per key. The body walks those arguments once and
+/// then reads the other memoized tables.
 ///
 /// The bounds count work. They are not a cutoff. Every key still returns the
 /// body's own answer.
@@ -349,6 +364,18 @@ pub(crate) struct MorphologyRecognitionCache {
     indicator_cmavo_starts: RefCell<HashMap<SpanKey, bool>>,
     cmavo_post_word: RefCell<HashMap<PrefixEndKey, bool>>,
     indicator_boundary: RefCell<HashMap<IndicatorBoundaryKey, bool>>,
+    initial_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    extended_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    any_extended_rafsi_starts: RefCell<HashMap<SpanKey, bool>>,
+    fuhivla_rafsi_base_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    stressed_extended_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    nucleus_has_implicit_stress: RefCell<HashMap<SpanKey, bool>>,
+    stress_tail_reaches_boundary: RefCell<HashMap<SpanKey, bool>>,
+    greedy_rafsi_chain: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    lujvo_part_ranges: RefCell<HashMap<InitialRafsiKey, LujvoPartRangeMemo>>,
+    nucleus_is_stressed: RefCell<HashMap<StressContextKey, bool>>,
+    y_less_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
+    cvv_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
 }
 
 impl MorphologyRecognitionCache {
@@ -378,6 +405,18 @@ impl MorphologyRecognitionCache {
             indicator_cmavo_starts: RefCell::new(HashMap::new()),
             cmavo_post_word: RefCell::new(HashMap::new()),
             indicator_boundary: RefCell::new(HashMap::new()),
+            initial_rafsi_ends: RefCell::new(HashMap::new()),
+            extended_rafsi_ends: RefCell::new(HashMap::new()),
+            any_extended_rafsi_starts: RefCell::new(HashMap::new()),
+            fuhivla_rafsi_base_ends: RefCell::new(HashMap::new()),
+            stressed_extended_rafsi_ends: RefCell::new(HashMap::new()),
+            nucleus_has_implicit_stress: RefCell::new(HashMap::new()),
+            stress_tail_reaches_boundary: RefCell::new(HashMap::new()),
+            greedy_rafsi_chain: RefCell::new(HashMap::new()),
+            lujvo_part_ranges: RefCell::new(HashMap::new()),
+            nucleus_is_stressed: RefCell::new(HashMap::new()),
+            y_less_rafsi_unstressed: RefCell::new(HashMap::new()),
+            cvv_rafsi_unstressed: RefCell::new(HashMap::new()),
         });
         cache.sync_accounted();
         cache
@@ -406,7 +445,6 @@ impl MorphologyRecognitionCache {
         }
     }
 
-    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     fn total_capacity(&self) -> u64 {
@@ -434,21 +472,26 @@ impl MorphologyRecognitionCache {
             .saturating_add(slots(&self.indicator_cmavo_starts))
             .saturating_add(slots(&self.cmavo_post_word))
             .saturating_add(slots(&self.indicator_boundary))
+            .saturating_add(slots(&self.initial_rafsi_ends))
+            .saturating_add(slots(&self.extended_rafsi_ends))
+            .saturating_add(slots(&self.any_extended_rafsi_starts))
+            .saturating_add(slots(&self.fuhivla_rafsi_base_ends))
+            .saturating_add(slots(&self.stressed_extended_rafsi_ends))
+            .saturating_add(slots(&self.nucleus_has_implicit_stress))
+            .saturating_add(slots(&self.stress_tail_reaches_boundary))
+            .saturating_add(slots(&self.greedy_rafsi_chain))
+            .saturating_add(slots(&self.lujvo_part_ranges))
+            .saturating_add(slots(&self.nucleus_is_stressed))
+            .saturating_add(slots(&self.y_less_rafsi_unstressed))
+            .saturating_add(slots(&self.cvv_rafsi_unstressed))
     }
 
-    /// Empty maps have capacity 0. The ensures on `new` uses this in every
-    /// build, including ones that do not keep the test counter.
+    /// Empty maps have capacity 0. The ensures on `new` evaluates this in
+    /// every build, so the postcondition is the real slot total.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret == self.total_capacity())]
     fn allocated_slots_for_contract(&self) -> u64 {
-        #[cfg(test)]
-        {
-            self.total_capacity()
-        }
-        #[cfg(not(test))]
-        {
-            0
-        }
+        self.total_capacity()
     }
 
     #[cfg(test)]
@@ -660,6 +703,29 @@ impl MorphologyRecognitionCache {
         let stored = head_set(&self.fuhivla_head_ends, index, end, value);
         self.sync_accounted();
         stored
+    }
+
+    /// Store `ends` itself. The fu'ivla miss path that copies a brivla head
+    /// list uses this so both tables keep one allocation.
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(Rc::ptr_eq(&ret, &ends))]
+    #[ensures(self.fuhivla_head_ends(index, end).is_some_and(|stored| Rc::ptr_eq(&stored, &ends)))]
+    pub(crate) fn record_fuhivla_head_ends_shared(
+        &self,
+        index: usize,
+        end: usize,
+        ends: Rc<[usize]>,
+    ) -> Rc<[usize]> {
+        note_recognition_body();
+        let key = new!(SpanKey {
+            start: index,
+            end: end,
+        });
+        self.fuhivla_head_ends
+            .borrow_mut()
+            .insert(key, Rc::clone(&ends));
+        self.sync_accounted();
+        Rc::clone(&ends)
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -881,6 +947,271 @@ impl MorphologyRecognitionCache {
         self.indicator_boundary.borrow_mut().insert(key, value);
         self.sync_accounted();
     }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn initial_rafsi_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
+        head_get(&self.initial_rafsi_ends, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.initial_rafsi_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    pub(crate) fn record_initial_rafsi_ends(&self, index: usize, end: usize, value: &[usize]) {
+        note_recognition_body();
+        head_set(&self.initial_rafsi_ends, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn extended_rafsi_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
+        head_get(&self.extended_rafsi_ends, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.extended_rafsi_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    pub(crate) fn record_extended_rafsi_ends(&self, index: usize, end: usize, value: &[usize]) {
+        note_recognition_body();
+        head_set(&self.extended_rafsi_ends, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn any_extended_rafsi_starts(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.any_extended_rafsi_starts, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.any_extended_rafsi_starts(index, end) == Some(value))]
+    pub(crate) fn record_any_extended_rafsi_starts(&self, index: usize, end: usize, value: bool) {
+        note_recognition_body();
+        span_set(&self.any_extended_rafsi_starts, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn fuhivla_rafsi_base_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
+        head_get(&self.fuhivla_rafsi_base_ends, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.fuhivla_rafsi_base_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    pub(crate) fn record_fuhivla_rafsi_base_ends(&self, index: usize, end: usize, value: &[usize]) {
+        note_recognition_body();
+        head_set(&self.fuhivla_rafsi_base_ends, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn stressed_extended_rafsi_ends(
+        &self,
+        index: usize,
+        end: usize,
+    ) -> Option<Rc<[usize]>> {
+        head_get(&self.stressed_extended_rafsi_ends, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(
+        self.stressed_extended_rafsi_ends(index, end)
+            .is_some_and(|ends| ends.len() == value.len())
+    )]
+    pub(crate) fn record_stressed_extended_rafsi_ends(
+        &self,
+        index: usize,
+        end: usize,
+        value: &[usize],
+    ) {
+        note_recognition_body();
+        head_set(&self.stressed_extended_rafsi_ends, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn nucleus_has_implicit_stress(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.nucleus_has_implicit_stress, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.nucleus_has_implicit_stress(index, end) == Some(value))]
+    pub(crate) fn record_nucleus_has_implicit_stress(&self, index: usize, end: usize, value: bool) {
+        note_recognition_body();
+        span_set(&self.nucleus_has_implicit_stress, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn stress_tail_reaches_boundary(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.stress_tail_reaches_boundary, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.stress_tail_reaches_boundary(index, end) == Some(value))]
+    pub(crate) fn record_stress_tail_reaches_boundary(
+        &self,
+        index: usize,
+        end: usize,
+        value: bool,
+    ) {
+        note_recognition_body();
+        span_set(&self.stress_tail_reaches_boundary, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(start <= lookahead_end && lookahead_end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn greedy_rafsi_chain(
+        &self,
+        start: usize,
+        lookahead_end: usize,
+    ) -> Option<Rc<[usize]>> {
+        head_get(&self.greedy_rafsi_chain, start, lookahead_end)
+    }
+
+    #[requires(start <= lookahead_end && lookahead_end <= self.char_count)]
+    #[ensures(
+        self.greedy_rafsi_chain(start, lookahead_end)
+            .is_some_and(|chain| chain.len() == value.len())
+    )]
+    #[ensures(ret.len() == value.len())]
+    pub(crate) fn record_greedy_rafsi_chain(
+        &self,
+        start: usize,
+        lookahead_end: usize,
+        value: &[usize],
+    ) -> Rc<[usize]> {
+        note_recognition_body();
+        let stored = head_set(&self.greedy_rafsi_chain, start, lookahead_end, value);
+        self.sync_accounted();
+        stored
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(super) fn lujvo_part_ranges(
+        &self,
+        index: usize,
+        end: usize,
+        has_initial_rafsi: bool,
+    ) -> Option<LujvoPartRangeMemo> {
+        let key = new!(InitialRafsiKey {
+            start: index,
+            end: end,
+            has_initial_rafsi: has_initial_rafsi,
+        });
+        self.lujvo_part_ranges.borrow().get(&key).cloned()
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[requires(ranges.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+    #[ensures(self.lujvo_part_ranges(index, end, has_initial_rafsi).is_some())]
+    pub(super) fn record_lujvo_part_ranges(
+        &self,
+        index: usize,
+        end: usize,
+        has_initial_rafsi: bool,
+        ranges: Option<Rc<[LujvoPartRange]>>,
+        failure: Option<LujvoParseFailure>,
+    ) {
+        note_recognition_body();
+        let key = new!(InitialRafsiKey {
+            start: index,
+            end: end,
+            has_initial_rafsi: has_initial_rafsi,
+        });
+        let memo = new!(LujvoPartRangeMemo {
+            ranges: ranges,
+            failure: failure,
+        });
+        self.lujvo_part_ranges.borrow_mut().insert(key, memo);
+        self.sync_accounted();
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn nucleus_is_stressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+    ) -> Option<bool> {
+        stress_get(&self.nucleus_is_stressed, start, end, context_end)
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(self.nucleus_is_stressed(start, end, context_end) == Some(value))]
+    pub(crate) fn record_nucleus_is_stressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+        value: bool,
+    ) {
+        note_recognition_body();
+        stress_set(&self.nucleus_is_stressed, start, end, context_end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn y_less_rafsi_unstressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+    ) -> Option<bool> {
+        stress_get(&self.y_less_rafsi_unstressed, start, end, context_end)
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(self.y_less_rafsi_unstressed(start, end, context_end) == Some(value))]
+    pub(crate) fn record_y_less_rafsi_unstressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+        value: bool,
+    ) {
+        note_recognition_body();
+        stress_set(
+            &self.y_less_rafsi_unstressed,
+            start,
+            end,
+            context_end,
+            value,
+        );
+        self.sync_accounted();
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn cvv_rafsi_unstressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+    ) -> Option<bool> {
+        stress_get(&self.cvv_rafsi_unstressed, start, end, context_end)
+    }
+
+    #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
+    #[ensures(self.cvv_rafsi_unstressed(start, end, context_end) == Some(value))]
+    pub(crate) fn record_cvv_rafsi_unstressed(
+        &self,
+        start: usize,
+        end: usize,
+        context_end: usize,
+        value: bool,
+    ) {
+        note_recognition_body();
+        stress_set(&self.cvv_rafsi_unstressed, start, end, context_end, value);
+        self.sync_accounted();
+    }
 }
 
 /// Owns the slot count so the cache wrapper can stay free of `Drop`.
@@ -925,6 +1256,39 @@ fn span_get(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize) -
         end: end,
     });
     table.borrow().get(&key).copied()
+}
+
+#[requires(start <= end && end <= context_end)]
+#[ensures(true)]
+fn stress_get(
+    table: &RefCell<HashMap<StressContextKey, bool>>,
+    start: usize,
+    end: usize,
+    context_end: usize,
+) -> Option<bool> {
+    let key = new!(StressContextKey {
+        start: start,
+        end: end,
+        context_end: context_end,
+    });
+    table.borrow().get(&key).copied()
+}
+
+#[requires(start <= end && end <= context_end)]
+#[ensures(stress_get(table, start, end, context_end) == Some(value))]
+fn stress_set(
+    table: &RefCell<HashMap<StressContextKey, bool>>,
+    start: usize,
+    end: usize,
+    context_end: usize,
+    value: bool,
+) {
+    let key = new!(StressContextKey {
+        start: start,
+        end: end,
+        context_end: context_end,
+    });
+    table.borrow_mut().insert(key, value);
 }
 
 #[requires(start <= end)]
