@@ -1147,7 +1147,8 @@ impl<'a> Segmenter<'a> {
     ///
     /// Cache construction is about 10 KB of stack. The cmavo search that
     /// follows keeps this function's caller on the stack once per word.
-    /// Returning first drops that frame before the search recurses.
+    /// Returning first drops that frame before the search recurses. wasm32
+    /// keeps that chain on the host stack, so the frame must not accumulate.
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(self.word_regions.borrow().last().is_some())]
@@ -1412,7 +1413,7 @@ impl<'a> Segmenter<'a> {
     /// The inner `None` means this span is not a cmavo. The shape check is
     /// about 10 KB of stack. A chain of `lo` keeps one search frame per word.
     /// This function returns before that search, so the 10 KB frame does not
-    /// accumulate.
+    /// accumulate on the host stack. wasm32 cannot grow that stack.
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|done| {
@@ -2373,11 +2374,24 @@ impl<'a> Segmenter<'a> {
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
     fn lojban_word_starts_at(&self, index: usize) -> bool {
-        let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
-            return false;
+        let recognize = || {
+            let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
+                return false;
+            };
+            self.streaming_word_candidate(index, candidate_end, &normalized)
+                .is_some()
         };
-        self.streaming_word_candidate(index, candidate_end, &normalized)
-            .is_some()
+        // One unspaced cmavo chain keeps this call on the stack once per word.
+        // Grow the native stack when less than 64 KiB remains. wasm32 has no
+        // auxiliary stack, so the same call stays on the host stack.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            recognize()
+        }
     }
 
     /// Normalize one candidate, then return.
@@ -2385,9 +2399,10 @@ impl<'a> Segmenter<'a> {
     /// A cmavo boundary calls `lojban_word_starts_at` on the next word, and
     /// that call stays on the stack until the rest of the chain resolves.
     /// One chain of `lo` is one frame per word. The normalizer frame is about
-    /// 10 KB. Leaving it in `lojban_word_starts_at` overflows the 8 MB thread
-    /// stack at 800 words. This function owns that frame and returns before
-    /// the next word is recognized.
+    /// 10 KB. This function owns that frame and returns before the next word
+    /// is recognized, so the frame does not stay on the chain. wasm32 keeps
+    /// the chain on the host stack. A native target grows the stack in
+    /// `lojban_word_starts_at`.
     #[inline(never)]
     #[requires(index <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|(word_index, candidate_end, candidate)| {

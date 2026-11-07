@@ -4267,31 +4267,48 @@ fn cmavo_post_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    if let Some(result) = cache.cmavo_post_word(prefix_start, prefix_end, end) {
-        return result;
-    }
-    let result = match next_non_comma_index(chars, prefix_end) {
-        None => true,
-        Some(index) if index >= end => true,
-        Some(index) => {
-            if starts_with_pause_required_nucleus(chars, index)
-                && !indicator_cmavo_boundary_slice_with_cache(
-                    chars,
-                    prefix_start,
-                    prefix_end,
-                    index,
-                    end,
-                    cache,
-                )
-            {
-                false
-            } else {
-                lojban_word_slice_with_cache(chars, index, end, cache)
-            }
+    // `mut` is used on wasm32, where the closure is called in place. Native
+    // code moves the closure into `stacker::maybe_grow`.
+    #[allow(unused_mut)]
+    let mut recognize = || {
+        if let Some(result) = cache.cmavo_post_word(prefix_start, prefix_end, end) {
+            return result;
         }
+        let result = match next_non_comma_index(chars, prefix_end) {
+            None => true,
+            Some(index) if index >= end => true,
+            Some(index) => {
+                if starts_with_pause_required_nucleus(chars, index)
+                    && !indicator_cmavo_boundary_slice_with_cache(
+                        chars,
+                        prefix_start,
+                        prefix_end,
+                        index,
+                        end,
+                        cache,
+                    )
+                {
+                    false
+                } else {
+                    lojban_word_slice_with_cache(chars, index, end, cache)
+                }
+            }
+        };
+        cache.record_cmavo_post_word(prefix_start, prefix_end, end, result);
+        result
     };
-    cache.record_cmavo_post_word(prefix_start, prefix_end, end, result);
-    result
+    // The post-word check calls `lojban_word` on the next word and stays on
+    // the stack until that word returns. Grow the native stack when less than
+    // 64 KiB remains. wasm32 has no auxiliary stack, so the call stays on the
+    // host stack.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        recognize()
+    }
 }
 
 #[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= chars.len())]
@@ -4364,15 +4381,31 @@ fn lojban_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    if let Some(result) = cache.lojban_word(start, end) {
-        return result;
+    // `mut` is used on wasm32, where the closure is called in place. Native
+    // code moves the closure into `stacker::maybe_grow`.
+    #[allow(unused_mut)]
+    let mut recognize = || {
+        if let Some(result) = cache.lojban_word(start, end) {
+            return result;
+        }
+        let result = start < end
+            && (is_cmevla_slice(chars, start, end)
+                || cmavo_word_slice_with_cache(chars, start, end, cache)
+                || brivla_word_slice_with_cache(chars, start, end, cache));
+        cache.record_lojban_word(start, end, result);
+        result
+    };
+    // Classifying one word calls back into `cmavo_word` for the same span and
+    // for each later word. Grow the native stack when less than 64 KiB remains.
+    // wasm32 has no auxiliary stack, so the call stays on the host stack.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
     }
-    let result = start < end
-        && (is_cmevla_slice(chars, start, end)
-            || cmavo_word_slice_with_cache(chars, start, end, cache)
-            || brivla_word_slice_with_cache(chars, start, end, cache));
-    cache.record_lojban_word(start, end, result);
-    result
+    #[cfg(target_arch = "wasm32")]
+    {
+        recognize()
+    }
 }
 
 #[cfg(test)]
@@ -4392,22 +4425,39 @@ fn cmavo_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    if let Some(result) = cache.cmavo_word(start, end) {
-        return result;
-    }
-    let result = if start >= end
-        || is_cmevla_slice(chars, start, end)
-        || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
-    {
-        false
-    } else {
-        ((start + 1)..=end).any(|word_end| {
-            is_cmavo_slice(chars, start, word_end)
-                && cmavo_post_word_slice_with_cache(chars, start, word_end, end, cache)
-        })
+    // `mut` is used on wasm32, where the closure is called in place. Native
+    // code moves the closure into `stacker::maybe_grow`.
+    #[allow(unused_mut)]
+    let mut recognize = || {
+        if let Some(result) = cache.cmavo_word(start, end) {
+            return result;
+        }
+        let result = if start >= end
+            || is_cmevla_slice(chars, start, end)
+            || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
+        {
+            false
+        } else {
+            ((start + 1)..=end).any(|word_end| {
+                is_cmavo_slice(chars, start, word_end)
+                    && cmavo_post_word_slice_with_cache(chars, start, word_end, end, cache)
+            })
+        };
+        cache.record_cmavo_word(start, end, result);
+        result
     };
-    cache.record_cmavo_word(start, end, result);
-    result
+    // Each accepted cmavo calls `cmavo_post_word`, which recognizes the next
+    // word before this call returns. Grow the native stack when less than 64
+    // KiB remains. wasm32 has no auxiliary stack, so the call stays on the
+    // host stack.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        recognize()
+    }
 }
 
 #[cfg(test)]
@@ -5747,25 +5797,58 @@ mod tests {
         }
     }
 
-    /// 800 copies of `lo` is 1,600 characters.
+    /// 3,200 copies of `lo`, then 800 copies of `lo'a`, on a 256 KiB thread.
     ///
-    /// The cmavo chain used to keep a 10 KB frame per word and aborted on the
-    /// 8 MB main stack. The test thread has a smaller stack, so this runs on
-    /// an 8 MB thread, the same budget as the CLI main thread. The words stay
-    /// `cmavo:lo`.
+    /// A Rust stack overflow aborts the process. The segmentation runs in a
+    /// child process, so an abort fails this test and leaves the test binary
+    /// alive. Native morphology grows the stack at each per-word call. On the
+    /// head before that growth, this child aborts.
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     #[requires(true)]
     #[ensures(true)]
-    fn repeated_lo_chain_of_800_words_finishes() {
-        let handle = std::thread::Builder::new()
-            .stack_size(8 * 1024 * 1024)
-            .spawn(|| display_words(&"lo".repeat(800)))
+    fn long_unspaced_cmavo_chain_finishes_on_a_small_stack() {
+        const CHILD: &str = "JBOTCI_MORPHOLOGY_SMALL_STACK_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let lo = segment_on_small_stack("lo".repeat(3_200));
+            assert_eq!(lo.len(), 3_200);
+            assert!(lo.iter().all(|word| word == "cmavo:lo"));
+            let loa = segment_on_small_stack("lo'a".repeat(800));
+            assert_eq!(loa.len(), 800);
+            assert!(loa.iter().all(|word| word == "cmavo:lo'a"));
+            return;
+        }
+        let exe = std::env::current_exe().unwrap_or_else(|error| panic!("{error}"));
+        let output = std::process::Command::new(exe)
+            .args([
+                "--exact",
+                "segment::tests::long_unspaced_cmavo_chain_finishes_on_a_small_stack",
+                "--test-threads=1",
+            ])
+            .env(CHILD, "1")
+            .output()
             .unwrap_or_else(|error| panic!("{error}"));
-        let words = handle
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success()
+                && stdout.contains("long_unspaced_cmavo_chain_finishes_on_a_small_stack"),
+            "small-stack child status: {}\n{stdout}\n{stderr}",
+            output.status
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[requires(!input.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn segment_on_small_stack(input: String) -> Vec<String> {
+        let handle = std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(move || display_words(&input))
+            .unwrap_or_else(|error| panic!("{error}"));
+        handle
             .join()
-            .unwrap_or_else(|_| panic!("lo chain thread panicked"));
-        assert_eq!(words.len(), 800);
-        assert!(words.iter().all(|word| word == "cmavo:lo"));
+            .unwrap_or_else(|_| panic!("small-stack thread panicked"))
     }
 
     #[test]
