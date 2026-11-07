@@ -328,8 +328,10 @@ enum WordStartMemo {
 /// The outermost normalized span and the recognizer cache for its suffixes.
 ///
 /// A suffix reuses the region only when its stripped characters are the
-/// parent's stripped tail. Normalization can insert or rewrite characters, and
-/// a suffix that does not match gets its own region.
+/// parent's stripped tail and `permissive_boundaries_enabled` still matches.
+/// The word search reads that flag in `candidate_end`. Normalization can
+/// insert or rewrite characters, and a suffix that does not match gets its
+/// own region.
 #[invariant(source_start < source_end)]
 #[invariant(cache.borrow().char_count == stripped_chars.len())]
 #[invariant(stripped_chars.len() == normalized.stripped_chars.len())]
@@ -338,6 +340,7 @@ enum WordStartMemo {
 struct ActiveWordRegion {
     source_start: usize,
     source_end: usize,
+    permissive_boundaries_enabled: bool,
     normalized: NormalizedCandidate,
     stripped_chars: Rc<[char]>,
     /// Interior mutability keeps the validated region on the stack.
@@ -353,8 +356,10 @@ fn region_accepts_suffix(
     start: usize,
     candidate_end: usize,
     normalized: &NormalizedCandidate,
+    permissive_boundaries_enabled: bool,
 ) -> bool {
-    if candidate_end != region.source_end
+    if region.permissive_boundaries_enabled != permissive_boundaries_enabled
+        || candidate_end != region.source_end
         || start < region.source_start
         || start > region.source_end
     {
@@ -1120,6 +1125,7 @@ impl<'a> Segmenter<'a> {
         result
     }
 
+    #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
     fn streaming_word_candidate_uncached(
@@ -1137,6 +1143,12 @@ impl<'a> Segmenter<'a> {
         self.streaming_brivla_candidate(start, candidate_end, normalized)
     }
 
+    /// Build or reuse the region, then return.
+    ///
+    /// Cache construction is about 10 KB of stack. The cmavo search that
+    /// follows keeps this function's caller on the stack once per word.
+    /// Returning first drops that frame before the search recurses.
+    #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(self.word_regions.borrow().last().is_some())]
     fn open_word_region(
@@ -1145,10 +1157,15 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> RegionFrame {
-        let reuse =
-            self.word_regions.borrow().last().is_some_and(|region| {
-                region_accepts_suffix(region, start, candidate_end, normalized)
-            });
+        let reuse = self.word_regions.borrow().last().is_some_and(|region| {
+            region_accepts_suffix(
+                region,
+                start,
+                candidate_end,
+                normalized,
+                self.permissive_boundaries_enabled,
+            )
+        });
         if reuse {
             return RegionFrame::Reused;
         }
@@ -1173,9 +1190,12 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[inline(never)]
     #[requires(start < candidate_end)]
     #[ensures(self.word_regions.borrow().last().is_some_and(|region| {
-        region.source_start == start && region.source_end == candidate_end
+        region.source_start == start
+            && region.source_end == candidate_end
+            && region.permissive_boundaries_enabled == self.permissive_boundaries_enabled
     }))]
     fn push_word_region(
         &self,
@@ -1188,6 +1208,7 @@ impl<'a> Segmenter<'a> {
         let region = new!(ActiveWordRegion {
             source_start: start,
             source_end: candidate_end,
+            permissive_boundaries_enabled: self.permissive_boundaries_enabled,
             normalized: normalized.clone(),
             stripped_chars: stripped_chars,
             cache: RefCell::new(cache),
@@ -1259,6 +1280,7 @@ impl<'a> Segmenter<'a> {
         body(&stripped, offset, &mut cache)
     }
 
+    #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
     fn streaming_brivla_candidate(
@@ -1343,6 +1365,7 @@ impl<'a> Segmenter<'a> {
         self.post_word_at(end)
     }
 
+    #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
     fn streaming_cmevla_candidate(
@@ -1367,6 +1390,7 @@ impl<'a> Segmenter<'a> {
         })
     }
 
+    #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
     fn streaming_cmavo_candidate(
@@ -1375,10 +1399,44 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        let full_candidate = normalized.slice_to_source_end(candidate_end - start)?;
-        let local_stripped_end = normalized.stripped_end_to_source_end(candidate_end - start)?;
-        let full_candidate_chars =
-            normalized.normalized_chars_to_source_end(candidate_end - start)?;
+        // The shape check returns before the prefix search. The search is the
+        // call that chains to the next word, so it must not keep that frame.
+        if let Some(done) = self.cmavo_candidate_prescan(start, candidate_end, normalized) {
+            return done;
+        }
+        self.streaming_cmavo_splits(start, candidate_end, normalized)
+    }
+
+    /// `Some` finishes the cmavo search. `None` means the prefix search still runs.
+    ///
+    /// The inner `None` means this span is not a cmavo. The shape check is
+    /// about 10 KB of stack. A chain of `lo` keeps one search frame per word.
+    /// This function returns before that search, so the 10 KB frame does not
+    /// accumulate.
+    #[inline(never)]
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|done| {
+        done.as_ref()
+            .is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())
+    }))]
+    fn cmavo_candidate_prescan(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<Option<StreamingWordCandidate>> {
+        let Some(full_candidate) = normalized.slice_to_source_end(candidate_end - start) else {
+            return Some(None);
+        };
+        let Some(local_stripped_end) = normalized.stripped_end_to_source_end(candidate_end - start)
+        else {
+            return Some(None);
+        };
+        let Some(full_candidate_chars) =
+            normalized.normalized_chars_to_source_end(candidate_end - start)
+        else {
+            return Some(None);
+        };
         let blocks_brivla = self.with_shared_cache(start, normalized, |stripped, offset, cache| {
             crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
                 stripped,
@@ -1398,20 +1456,31 @@ impl<'a> Segmenter<'a> {
             })
         });
         if crate::segment::is_cmevla_text(full_candidate) || blocks_brivla {
-            return None;
+            return Some(None);
         }
         if full_candidate
             .chars()
             .all(|value| matches!(value, 'y' | 'ý'))
             && let Some(phonemes) = crate::segment::parse_cmavo_form(&full_candidate)
         {
-            return Some(new!(StreamingWordCandidate {
+            return Some(Some(new!(StreamingWordCandidate {
                 end: candidate_end,
                 kind: WordKind::Cmavo,
                 phonemes: phonemes,
-            }));
+            })));
         }
+        None
+    }
 
+    #[inline(never)]
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    fn streaming_cmavo_splits(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
             let normalized_prefix = normalized.slice_to_source_end(end - start)?;
             let phonemes = crate::segment::parse_cmavo_form(normalized_prefix)?;
@@ -2304,15 +2373,37 @@ impl<'a> Segmenter<'a> {
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
     fn lojban_word_starts_at(&self, index: usize) -> bool {
+        let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
+            return false;
+        };
+        self.streaming_word_candidate(index, candidate_end, &normalized)
+            .is_some()
+    }
+
+    /// Normalize one candidate, then return.
+    ///
+    /// A cmavo boundary calls `lojban_word_starts_at` on the next word, and
+    /// that call stays on the stack until the rest of the chain resolves.
+    /// One chain of `lo` is one frame per word. The normalizer frame is about
+    /// 10 KB. Leaving it in `lojban_word_starts_at` overflows the 8 MB thread
+    /// stack at 800 words. This function owns that frame and returns before
+    /// the next word is recognized.
+    #[inline(never)]
+    #[requires(index <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|(word_index, candidate_end, candidate)| {
+        *word_index >= index
+            && *word_index < *candidate_end
+            && *candidate_end <= self.chars.len()
+            && candidate.source_char_count == *candidate_end - *word_index
+    }))]
+    fn normalized_word_start(&self, index: usize) -> Option<(usize, usize, NormalizedCandidate)> {
         let index = self.skip_commas_index(index);
         if index >= self.chars.len() || self.is_word_separator_at(index) {
-            return false;
+            return None;
         }
         let candidate_end = self.candidate_end(index);
-        self.checked_normalized_candidate(index, candidate_end)
-            .as_ref()
-            .and_then(|normalized| self.streaming_word_candidate(index, candidate_end, normalized))
-            .is_some()
+        let normalized = self.checked_normalized_candidate(index, candidate_end)?;
+        Some((index, candidate_end, normalized))
     }
 
     #[requires(index <= self.chars.len())]
