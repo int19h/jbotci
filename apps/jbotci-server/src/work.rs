@@ -559,7 +559,7 @@ mod tests {
         let (saw_tx, saw_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
         let slow = governor.run_compute(
-            Instant::now() + Duration::from_secs(5),
+            Instant::now() + Duration::from_millis(500),
             move |cancellation| {
                 while !cancellation.is_cancelled() {
                     std::thread::sleep(Duration::from_millis(5));
@@ -630,7 +630,7 @@ mod tests {
         // a long sleep.
         let (saw_tx, saw_rx) = mpsc::channel();
         let result = governor.run_compute(
-            Instant::now() + Duration::from_secs(5),
+            Instant::now() + Duration::from_millis(500),
             move |cancellation| {
                 loop {
                     if cancellation.is_cancelled() {

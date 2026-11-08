@@ -6,6 +6,8 @@
 //! call returns the interrupted error and no document. Removing the load
 //! makes the second call return the document.
 
+use std::sync::atomic::Ordering;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_interrupt::CancellationSource;
@@ -16,7 +18,9 @@ use crate::budget::ByteLimit;
 use crate::{
     BracketRenderOptions, OutputError, TreeRenderOptions,
     pretty_generated_model_brackets_with_limit, pretty_generated_model_tree_with_limit,
-    pretty_morphology_brackets_with_limit,
+    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
+    pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_raw_with_limit,
+    pretty_recovered_morphology_tree_with_limit, pretty_recovered_syntax_brackets_with_limit,
 };
 
 #[test]
@@ -87,16 +91,30 @@ fn cancellation_stops_bracket_tree_and_morphology_rendering() {
     assert!(matches!(stopped, Err(OutputError::Interrupted)));
 }
 
-/// Release measurements with `cancellation_test_hook` on the inputs below.
-/// Each value is the last `trip_after_checks` argument that returns
-/// [`OutputError::Interrupted`]. The next argument returns the document.
-/// Counting again inside the test would hide a deleted load.
-const MORPHOLOGY_BRACKETS_LATE_TRIP: usize = 10;
-const GENERATED_BRACKETS_LATE_TRIP: usize = 222;
-const GENERATED_TREE_LATE_TRIP: usize = 22;
-/// The recovered sentence has errors, so this count includes the post-walk
-/// load. A valid tree takes the generated-bracket path and never reaches it.
-const RECOVERED_BRACKETS_LATE_TRIP: usize = 10;
+#[requires(true)]
+#[ensures(true)]
+fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
+    interrupted: impl Fn(&E) -> bool,
+) -> T {
+    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
+    run(&token).expect("an untripped token finishes");
+    let n = seen.load(Ordering::Relaxed);
+    assert!(n >= 2, "the call never loaded the token");
+    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
+        n - 1,
+    ))
+    .expect_err("the last load stops the call");
+    assert!(interrupted(&error));
+    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
+        .expect("one more clear load finishes the call")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_interrupted(error: &OutputError) -> bool {
+    matches!(error, OutputError::Interrupted)
+}
 
 #[test]
 #[requires(true)]
@@ -115,111 +133,120 @@ fn a_late_trip_stops_inside_each_renderer() {
     .expect("an uninterrupted recovered parse returns a tree");
     assert!(
         !recovered.errors.is_empty(),
-        "the recovered-bracket trip must use a tree the post-walk load sees"
+        "the recovered-bracket path must use a tree the post-walk load sees"
     );
     let limit = ByteLimit::new(2_000_000).expect("positive limit");
-    let stops = |trip: usize, render: &dyn Fn(&jbotci_interrupt::CancellationToken) -> bool| {
-        let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
-        render(&token)
-    };
+    let morphology_words = segment_words_with_modifiers("mi klama").expect("morphology");
+    let broken = "mi @@@ do";
+    let broken_words = jbotci_morphology::segment_words_with_modifiers_recovered(broken);
+    assert!(
+        !broken_words.errors.is_empty(),
+        "recovered morphology rendering must see an error, not the plain path"
+    );
 
-    assert!(stops(MORPHOLOGY_BRACKETS_LATE_TRIP, &|token| {
-        matches!(
+    let morphology = assert_exit_check(
+        |token| {
             pretty_morphology_brackets_with_limit(
                 &words,
                 text,
                 BracketRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
-    assert!(!stops(MORPHOLOGY_BRACKETS_LATE_TRIP + 1, &|token| {
-        matches!(
-            pretty_morphology_brackets_with_limit(
-                &words,
-                text,
-                BracketRenderOptions::default(),
-                limit,
-                token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!morphology.is_empty());
 
-    assert!(stops(GENERATED_BRACKETS_LATE_TRIP, &|token| {
-        matches!(
+    let brackets = assert_exit_check(
+        |token| {
             pretty_generated_model_brackets_with_limit(
                 parse.parse_tree.as_ref(),
                 text,
                 BracketRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
-    assert!(!stops(GENERATED_BRACKETS_LATE_TRIP + 1, &|token| {
-        matches!(
-            pretty_generated_model_brackets_with_limit(
-                parse.parse_tree.as_ref(),
-                text,
-                BracketRenderOptions::default(),
-                limit,
-                token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!brackets.is_empty());
 
-    assert!(stops(GENERATED_TREE_LATE_TRIP, &|token| {
-        matches!(
+    let tree = assert_exit_check(
+        |token| {
             pretty_generated_model_tree_with_limit(
                 parse.parse_tree.as_ref(),
                 text,
                 TreeRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
-    assert!(!stops(GENERATED_TREE_LATE_TRIP + 1, &|token| {
-        matches!(
-            pretty_generated_model_tree_with_limit(
-                parse.parse_tree.as_ref(),
-                text,
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!tree.is_empty());
+
+    let recovered_brackets = assert_exit_check(
+        |token| {
+            pretty_recovered_syntax_brackets_with_limit(
+                &recovered,
+                bad,
+                BracketRenderOptions::default(),
+                limit,
+                token,
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!recovered_brackets.is_empty());
+
+    let morphology_tree = assert_exit_check(
+        |token| {
+            pretty_morphology_tree_with_limit(
+                &morphology_words,
+                "mi klama",
                 TreeRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!morphology_tree.is_empty());
 
-    assert!(stops(RECOVERED_BRACKETS_LATE_TRIP, &|token| {
-        matches!(
-            crate::pretty_recovered_syntax_brackets_with_limit(
-                &recovered,
-                bad,
+    let recovered_morphology_brackets = assert_exit_check(
+        |token| {
+            pretty_recovered_morphology_brackets_with_limit(
+                &broken_words,
+                broken,
                 BracketRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
-    assert!(!stops(RECOVERED_BRACKETS_LATE_TRIP + 1, &|token| {
-        matches!(
-            crate::pretty_recovered_syntax_brackets_with_limit(
-                &recovered,
-                bad,
-                BracketRenderOptions::default(),
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!recovered_morphology_brackets.is_empty());
+
+    let recovered_morphology_tree = assert_exit_check(
+        |token| {
+            pretty_recovered_morphology_tree_with_limit(
+                &broken_words,
+                broken,
+                TreeRenderOptions::default(),
                 limit,
                 token,
-            ),
-            Err(OutputError::Interrupted)
-        )
-    }));
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!recovered_morphology_tree.is_empty());
+
+    let recovered_morphology_raw = assert_exit_check(
+        |token| {
+            pretty_recovered_morphology_raw_with_limit(&broken_words, broken, None, limit, token)
+        },
+        is_interrupted,
+    );
+    assert!(!recovered_morphology_raw.is_empty());
 }

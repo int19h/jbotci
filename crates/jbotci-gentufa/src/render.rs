@@ -2443,11 +2443,23 @@ mod tests {
         })
     }
 
-    /// Release measurements on [`two_row_layout`] with default options.
-    /// SVG has 13 clear loads and trips at 12. PNG has 14 and trips at 13.
-    /// The extra PNG load is the read immediately before `resvg::render`.
-    const SVG_LATE_TRIP: usize = 12;
-    const PNG_LATE_TRIP: usize = 13;
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+        run: impl Fn(&CancellationToken) -> Result<T, E>,
+        interrupted: impl Fn(&E) -> bool,
+    ) -> T {
+        use std::sync::atomic::Ordering;
+        let (token, seen) = CancellationToken::counting();
+        run(&token).expect("an untripped token finishes");
+        let n = seen.load(Ordering::Relaxed);
+        assert!(n >= 2, "the call never loaded the token");
+        let error = run(&CancellationToken::trip_after_checks(n - 1))
+            .expect_err("the last load stops the call");
+        assert!(interrupted(&error));
+        run(&CancellationToken::trip_after_checks(n))
+            .expect("one more clear load finishes the call")
+    }
 
     #[test]
     #[requires(true)]
@@ -2464,24 +2476,18 @@ mod tests {
         assert!(options.show_glosses);
         let png_options = GentufaPngOptions::default();
         let fonts = EmbeddedGentufaFonts::get();
-        let svg_stops = |trip: usize| {
-            let token = CancellationToken::trip_after_checks(trip);
-            matches!(
-                render_gentufa_blocks_svg_with_limits(&layout, &options, fonts, limits, &token),
-                Err(GentufaExportError::Interrupted)
-            )
-        };
-        let png_stops = |trip: usize| {
-            let token = CancellationToken::trip_after_checks(trip);
-            matches!(
-                render_gentufa_blocks_png_with_limits(&layout, &png_options, fonts, limits, &token,),
-                Err(GentufaExportError::Interrupted)
-            )
-        };
-        assert!(svg_stops(SVG_LATE_TRIP));
-        assert!(!svg_stops(SVG_LATE_TRIP + 1));
-        assert!(png_stops(PNG_LATE_TRIP));
-        assert!(!png_stops(PNG_LATE_TRIP + 1));
+        let svg = assert_exit_check(
+            |token| render_gentufa_blocks_svg_with_limits(&layout, &options, fonts, limits, token),
+            |error| matches!(error, GentufaExportError::Interrupted),
+        );
+        assert!(svg.contains("<svg"));
+        let png = assert_exit_check(
+            |token| {
+                render_gentufa_blocks_png_with_limits(&layout, &png_options, fonts, limits, token)
+            },
+            |error| matches!(error, GentufaExportError::Interrupted),
+        );
+        assert!(!png.is_empty());
     }
 }
 

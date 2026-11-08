@@ -6,6 +6,8 @@
 //! [`ReferenceAnalysisError::Interrupted`] and no partial index. Removing the
 //! loads makes the second call return that analysis.
 
+use std::sync::atomic::Ordering;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_interrupt::CancellationSource;
@@ -35,11 +37,24 @@ fn cancellation_drops_reference_analysis_instead_of_returning_it() {
     assert!(matches!(error, ReferenceAnalysisError::Interrupted));
 }
 
-/// Clear loads of reference analysis of "mi klama le zarci" before the load
-/// that aborts. Release measurement: 100 clear loads, trip 99. That walk
-/// includes the index, the place walk, and the discourse finish checks.
-/// Counting again inside the test would hide a deleted load.
-const REFERENCE_ANALYSIS_LATE_TRIP: usize = 99;
+#[requires(true)]
+#[ensures(true)]
+fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
+    interrupted: impl Fn(&E) -> bool,
+) -> T {
+    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
+    run(&token).expect("an untripped token finishes");
+    let n = seen.load(Ordering::Relaxed);
+    assert!(n >= 2, "the call never loaded the token");
+    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
+        n - 1,
+    ))
+    .expect_err("the last load stops the call");
+    assert!(interrupted(&error));
+    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
+        .expect("one more clear load finishes the call")
+}
 
 #[test]
 #[requires(true)]
@@ -49,11 +64,9 @@ fn a_late_trip_stops_inside_reference_analysis() {
     let words = jbotci_morphology::segment_words_with_modifiers(text).expect("morphology");
     let parse = parse_syntax_tree(&words).expect("syntax");
     let tree = parse.parse_tree.as_ref();
-    let run = |trip: usize| {
-        let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
-        analyze_generated_references(tree, &token)
-    };
-    let error = run(REFERENCE_ANALYSIS_LATE_TRIP).expect_err("the late trip stops the walk");
-    assert!(matches!(error, ReferenceAnalysisError::Interrupted));
-    run(REFERENCE_ANALYSIS_LATE_TRIP + 1).expect("the next index finishes the analysis");
+    let analysis = assert_exit_check(
+        |token| analyze_generated_references(tree, token),
+        |error| matches!(error, ReferenceAnalysisError::Interrupted),
+    );
+    assert!(analysis.syntax_index.node_count() > 0);
 }

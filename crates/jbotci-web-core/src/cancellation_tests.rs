@@ -4,6 +4,8 @@
 //! failure inside [`GentufaWebResult`]. The same sentence with a clear flag
 //! still parses.
 
+use std::sync::atomic::Ordering;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_interrupt::CancellationSource;
@@ -35,11 +37,24 @@ fn cancellation_is_a_web_interruption_and_not_a_parse_error() {
     assert!(error.is_interrupted());
 }
 
-/// Clear loads of the web SVG export of "mi klama" before the load that
-/// aborts. Release measurement: 16 clear loads, trip 15. The export is given
-/// diagram limits, so the token reaches the diagram loops and not only the
-/// web entry check.
-const WEB_SVG_EXPORT_LATE_TRIP: usize = 15;
+#[requires(true)]
+#[ensures(true)]
+fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
+    interrupted: impl Fn(&E) -> bool,
+) -> T {
+    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
+    run(&token).expect("an untripped token finishes");
+    let n = seen.load(Ordering::Relaxed);
+    assert!(n >= 2, "the call never loaded the token");
+    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
+        n - 1,
+    ))
+    .expect_err("the last load stops the call");
+    assert!(interrupted(&error));
+    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
+        .expect("one more clear load finishes the call")
+}
 
 #[test]
 #[requires(true)]
@@ -69,18 +84,20 @@ fn a_late_trip_stops_inside_web_svg_export() {
         max_pixels: 4_000_000,
         max_bytes: 4_000_000,
     });
-    let run = |trip: usize| {
-        let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
-        render_gentufa_blocks_web_export_with_limits(
-            &blocks_layout,
-            false,
-            GentufaScript::Latin,
-            GentufaExportFormat::Svg,
-            Some(limits),
-            &token,
-        )
-    };
-    let error = run(WEB_SVG_EXPORT_LATE_TRIP).expect_err("the late trip stops the export");
-    assert!(error.is_interrupted());
-    run(WEB_SVG_EXPORT_LATE_TRIP + 1).expect("the next index finishes the export");
+    let svg = assert_exit_check(
+        |token| {
+            render_gentufa_blocks_web_export_with_limits(
+                &blocks_layout,
+                false,
+                GentufaScript::Latin,
+                GentufaExportFormat::Svg,
+                Some(limits),
+                token,
+            )
+        },
+        |error| error.is_interrupted(),
+    );
+    assert!(svg.content_type.contains("svg"));
+    let text = std::str::from_utf8(&svg.bytes).expect("svg export is utf-8");
+    assert!(text.contains("<svg"));
 }

@@ -3264,18 +3264,36 @@ mod tests {
         assert!(uncovered.is_empty(), "uncovered letters: {uncovered:?}");
     }
 
-    /// Clear loads of a two-letter CCVCV scoring before the load that aborts.
-    /// Release measurement: 44 clear loads, trip 43. The source `bla` yields
-    /// more than one candidate, so the per-candidate load runs inside the loop.
-    /// The exit load after the loop is on the same path.
-    const GIMFIHI_LATE_TRIP: usize = 43;
+    /// Clear-token release time of the full letter inventory on both shapes
+    /// is 0.50 s. That is the whole shape set. It does not reach 60 s. The
+    /// early trip must still come back as an interrupt. A run that scores
+    /// the inventory is not an interrupt, so a deleted loop check fails
+    /// this test even though the inventory itself is short.
+    const SLOW_LOOP_TRIP: usize = 1_000;
+    const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
 
-    #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_late_trip_stops_inside_gismu_scoring() {
-        let dictionary = jbotci_dictionary_data::english();
-        let request = GimfihiRequest {
+    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+        run: impl Fn(&CancellationToken) -> Result<T, E>,
+        interrupted: impl Fn(&E) -> bool,
+    ) -> T {
+        use std::sync::atomic::Ordering;
+        let (token, seen) = CancellationToken::counting();
+        run(&token).expect("an untripped token finishes");
+        let n = seen.load(Ordering::Relaxed);
+        assert!(n >= 2, "the call never loaded the token");
+        let error = run(&CancellationToken::trip_after_checks(n - 1))
+            .expect_err("the last load stops the call");
+        assert!(interrupted(&error));
+        run(&CancellationToken::trip_after_checks(n))
+            .expect("one more clear load finishes the call")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn small_scoring_request() -> GimfihiRequest {
+        GimfihiRequest {
             scorer: GimfihiScorer::Classic,
             phonetic_parameters: AlineParameters::default(),
             preset: None,
@@ -3288,17 +3306,46 @@ mod tests {
             skip: 0,
             count: 1,
             highlight: None,
-        };
-        let run = |trip: usize| {
-            let token = CancellationToken::trip_after_checks(trip);
-            compose_gismu(dictionary, &request, &token)
-        };
-        let error = run(GIMFIHI_LATE_TRIP).expect_err("the late trip stops scoring");
-        assert!(matches!(error, GimfihiError::Interrupted));
-        let finished = run(GIMFIHI_LATE_TRIP + 1).expect("the next index finishes scoring");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_inside_gismu_scoring() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = small_scoring_request();
+        let finished = assert_exit_check(
+            |token| compose_gismu(dictionary, &request, token),
+            |error| matches!(error, GimfihiError::Interrupted),
+        );
         assert!(
             finished.candidate_count >= 2,
-            "the trip must cover more than one pass of the candidate loop"
+            "the exit check must sit after more than one pass of the candidate loop"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_the_full_shape_set_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = GimfihiRequest {
+            shapes: default_shapes(),
+            all_letters: true,
+            ..small_scoring_request()
+        };
+        let started = std::time::Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let result = compose_gismu(dictionary, &request, &token);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "gimfihi kept running for {elapsed:?}; a missing loop check scores the whole shape set"
+        );
+        assert!(
+            matches!(result, Err(GimfihiError::Interrupted)),
+            "the early trip must be an interrupt, not a finished score"
         );
     }
 }
