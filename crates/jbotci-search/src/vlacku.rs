@@ -3677,10 +3677,10 @@ mod tests {
     const SLOW_SOUND_ZBASU_COPIES: usize = 700;
     /// Copies of `a` inside brackets in the sound-ranking test.
     ///
-    /// Release time of this bracketed IPA query with a clear token is 65.87 s.
+    /// Release time of this bracketed IPA query with a clear token is 66.08 s.
     /// Check 1,000 is in the ranking loop, after preparation. The test trips
     /// there and does not repeat that run.
-    const SLOW_BRACKETED_A_COPIES: usize = 12_000;
+    const SLOW_BRACKETED_A_COPIES: usize = 11_500;
     /// Copies of `zbasu` before the closing `y` in the vote-filter test.
     ///
     /// Release time of the vote-filter lexical scan on this query with a

@@ -849,9 +849,9 @@ impl PreparedAlineTargetInventory {
 /// That table is the long part of preparation: one target-pair row per query
 /// phone. The substitution table before it is a small fraction of the same
 /// work, and the first row here checks again. The slow bracketed ranking
-/// test uses 12_000 phones and trips at check 1_000. This gap keeps
+/// test uses 11_500 phones and trips at check 1_000. This gap keeps
 /// preparation under that many loads, so the trip is a ranking-loop load.
-const PREPARE_SOUND_CHECK_STRIDE: usize = 16;
+const PREPARE_SOUND_CHECK_STRIDE: usize = 12;
 
 /// Prepare one local sound-search query for fixed-cost scoring of target
 /// candidates.
@@ -4189,7 +4189,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn slow_bracketed_ranking_query_prepares_inside_the_trip() {
-        let phones = 12_000usize;
+        let phones = 11_500usize;
         let stride_loads = (phones - 1) / PREPARE_SOUND_CHECK_STRIDE + 1;
         let prepare_loads = 1 + stride_loads;
         assert!(
