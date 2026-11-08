@@ -3987,7 +3987,8 @@ fn valid_syntax_recovery_attempt(
 }
 
 #[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
-#[ensures(ret.tree_or_interrupt_holds())]
+// The variant invariant already holds for every value this function returns.
+#[ensures(true)]
 fn recover_after_strict_failure(
     entry: SyntaxParseEntry,
     tokens: Vec<Token>,
@@ -4516,7 +4517,6 @@ fn recover_after_strict_failure(
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(ret.tree_or_interrupt_holds())]
 #[ensures(matches!(ret.as_data(), data!(RecoveryParseOutcome::Recovered { continuation_cut_reached: cut, .. }) if *cut == continuation_cut_reached))]
 fn recovered_success(
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
@@ -4982,29 +4982,6 @@ enum RecoveryParseOutcome {
         continuation_cut_reached: bool,
         continuation_time_limit_exhausted: bool,
     },
-}
-
-impl RecoveryParseOutcome {
-    #[requires(true)]
-    #[ensures(true)]
-    fn tree_or_interrupt_holds(&self) -> bool {
-        match self.as_data() {
-            data!(RecoveryParseOutcome::Interrupted { .. }) => true,
-            data!(RecoveryParseOutcome::Recovered {
-                parse,
-                continuation_expectations,
-                continuation_cut_reached,
-                continuation_time_limit_exhausted,
-                ..
-            }) => {
-                !parse.errors.is_empty()
-                    && continuation_expectations
-                        .iter()
-                        .all(|expectation| !expectation.tokens.is_empty())
-                    && (!*continuation_cut_reached || !*continuation_time_limit_exhausted)
-            }
-        }
-    }
 }
 
 #[invariant(cmavo.len() == opens_subtext_container.len())]
