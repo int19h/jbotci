@@ -11,6 +11,10 @@ exclude = ["/tests/**", "/benches/**", "/examples/**"]
 
 [features]
 expensive_contracts = []
+# Test builds count `is_cancelled` loads and can set the flag after one of
+# them. Production builds leave this off, so `is_cancelled` stays one acquire
+# load. No normal dependency enables this feature.
+cancellation_test_hook = []
 
 [dependencies]
 bityzba.workspace = true

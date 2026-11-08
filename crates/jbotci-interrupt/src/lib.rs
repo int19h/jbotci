@@ -7,6 +7,8 @@
 //! stays clear for the life of the process.
 
 use std::fmt;
+#[cfg(feature = "cancellation_test_hook")]
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock};
 
@@ -22,6 +24,15 @@ use bityzba::{ensures, invariant, requires};
 #[derive(Debug, Clone)]
 pub struct CancellationToken {
     flag: Arc<AtomicBool>,
+    /// After this many clear loads, store the flag. The load that stores it
+    /// still returns clear, so the following load is the one that stops.
+    /// Absent on a production token. The field itself is absent unless the
+    /// test feature is on, so a production load does not branch.
+    #[cfg(feature = "cancellation_test_hook")]
+    trip_after: Option<Arc<AtomicUsize>>,
+    /// Counts clear loads. Tests read it to learn which load is last.
+    #[cfg(feature = "cancellation_test_hook")]
+    seen: Option<Arc<AtomicUsize>>,
 }
 
 impl PartialEq for CancellationToken {
@@ -53,17 +64,60 @@ impl CancellationToken {
         static FLAG: LazyLock<Arc<AtomicBool>> = LazyLock::new(|| Arc::new(AtomicBool::new(false)));
         Self {
             flag: Arc::clone(&FLAG),
+            #[cfg(feature = "cancellation_test_hook")]
+            trip_after: None,
+            #[cfg(feature = "cancellation_test_hook")]
+            seen: None,
         }
+    }
+
+    /// A token whose Nth clear load stores the flag after returning clear.
+    ///
+    /// The next load then reports cancellation. A test picks N so that load is
+    /// the checkpoint under test. Removing that load leaves the flag clear for
+    /// the return, and the test stops seeing an interrupted result.
+    #[cfg(feature = "cancellation_test_hook")]
+    #[requires(checks > 0)]
+    #[ensures(!ret.is_cancelled())]
+    pub fn trip_after_checks(checks: usize) -> Self {
+        let mut token = CancellationSource::new().token();
+        token.trip_after = Some(Arc::new(AtomicUsize::new(checks)));
+        token
+    }
+
+    /// A clear token and a counter of its clear `is_cancelled` loads.
+    #[cfg(feature = "cancellation_test_hook")]
+    #[requires(true)]
+    #[ensures(!ret.0.is_cancelled())]
+    pub fn counting() -> (Self, Arc<AtomicUsize>) {
+        let seen = Arc::new(AtomicUsize::new(0));
+        let mut token = CancellationSource::new().token();
+        token.seen = Some(Arc::clone(&seen));
+        (token, seen)
     }
 
     /// One acquire load of the shared flag.
     ///
     /// Hot loops call this and nothing else. The load is acquire so it sees a
-    /// release store from [`CancellationSource::cancel`].
+    /// release store from [`CancellationSource::cancel`]. With the test
+    /// feature off, this function is that load and nothing more.
     #[requires(true)]
     #[ensures(true)]
     pub fn is_cancelled(&self) -> bool {
-        self.flag.load(Ordering::Acquire)
+        let cancelled = self.flag.load(Ordering::Acquire);
+        #[cfg(feature = "cancellation_test_hook")]
+        if !cancelled {
+            if let Some(seen) = &self.seen {
+                seen.fetch_add(1, Ordering::Relaxed);
+            }
+            if let Some(remaining) = &self.trip_after {
+                let previous = remaining.fetch_sub(1, Ordering::Relaxed);
+                if previous == 1 {
+                    self.flag.store(true, Ordering::Release);
+                }
+            }
+        }
+        cancelled
     }
 
     /// The interrupted outcome when the flag is set, otherwise success.
@@ -107,6 +161,10 @@ impl CancellationSource {
     pub fn token(&self) -> CancellationToken {
         CancellationToken {
             flag: Arc::clone(&self.flag),
+            #[cfg(feature = "cancellation_test_hook")]
+            trip_after: None,
+            #[cfg(feature = "cancellation_test_hook")]
+            seen: None,
         }
     }
 
