@@ -328,6 +328,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                 output_terminal_width,
                 tool_context.as_deref_mut(),
                 limits,
+                cancellation,
             )
         }
         Command::Jvozba(input) => {

@@ -458,7 +458,8 @@ mod tests {
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("klama".to_owned())],
             &VlackuSearchOptions::default(),
-        );
+        )
+        .expect("the test token stays clear");
         let card = output.cards.first().expect("klama has a dictionary card");
         let markdown = render_vlacku_card_markdown(card);
 
@@ -482,7 +483,8 @@ mod tests {
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("baldakyxa'i".to_owned())],
             &VlackuSearchOptions::default(),
-        );
+        )
+        .expect("the test token stays clear");
         let card = output
             .cards
             .first()
@@ -505,7 +507,8 @@ mod tests {
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("avgadro".to_owned())],
             &VlackuSearchOptions::default(),
-        );
+        )
+        .expect("the test token stays clear");
         let card = output.cards.first().expect("avgadro has a dictionary card");
         let markdown = render_vlacku_card_markdown(card);
 

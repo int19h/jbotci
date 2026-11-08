@@ -370,7 +370,8 @@ fn dictionary_cards_for_word_like_component(word_like: &WordLike) -> Vec<VlackuC
         jbotci_dictionary_data::english(),
         &[VlackuRequest::valsi(lookup_text)],
         &hover_vlacku_options(false),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     output
         .cards
         .into_iter()
@@ -403,7 +404,8 @@ fn lujvo_hover_markdown(word: &Word) -> String {
         jbotci_dictionary_data::english(),
         &[VlackuRequest::lujvo(lookup_text.clone())],
         &hover_vlacku_options(true),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     let decomposition = morphology_lujvo_decomposition(word, &output.cards);
     let own_cards = output
         .cards
@@ -508,7 +510,8 @@ fn dictionary_cards_for_word(word: &Word) -> Vec<VlackuCard> {
         jbotci_dictionary_data::english(),
         &[VlackuRequest::valsi(word.canonical_phonemes())],
         &hover_vlacku_options(false),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     output
         .cards
         .into_iter()

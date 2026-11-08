@@ -937,6 +937,7 @@ fn vlacku_search_options(
     request: &VlackuRequest,
     skip: usize,
     count: usize,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> VlackuSearchOptions {
     let word_types = request
         .options
@@ -951,6 +952,7 @@ fn vlacku_search_options(
         count: count,
         word_types: word_types,
         decompose_lujvo: request.options.decompose_lujvo,
+        cancellation: cancellation.clone(),
     })
 }
 
@@ -976,12 +978,15 @@ async fn run_vlacku(
         // the job so they apply while it ranks. What it hands back is an
         // entry index and a score per hit; the cards come later, for one page.
         let page = request.options.page;
+        // Meaning ranking does not read the flag while it ranks. The token
+        // still rides on the options so a later card pass sees the same flag.
+        let cancellation = context.admitted.token();
         let hits = match context
             .tools
             .semantic_vlacku_hits_admitted(
                 search_query,
                 WINDOW_COUNT,
-                vlacku_search_options(&request, page.first_index(), WINDOW_LEN),
+                vlacku_search_options(&request, page.first_index(), WINDOW_LEN, &cancellation),
                 &context.admitted,
                 context.keepalive.clone(),
             )
@@ -992,14 +997,14 @@ async fn run_vlacku(
                 return semantic_failure(error).map(|reason| VlackuOutcome::Unavailable { reason });
             }
         };
-        let cancellation = context.admitted.token();
         return context
             .admitted
             .run_keeping(context.keepalive.clone(), move || {
                 // One page of cards. The ranking that produced `hits` is the
                 // embedding window, which does not read this flag mid-rank.
                 stop_if_cancelled(&cancellation)?;
-                let options = vlacku_search_options(&request, page.first_index(), WINDOW_LEN);
+                let options =
+                    vlacku_search_options(&request, page.first_index(), WINDOW_LEN, &cancellation);
                 // The hits are the ranking itself: the worker applied the
                 // reader's filters while it ranked, so what came back is what
                 // passed them, and how many came back is what says whether the
@@ -1041,13 +1046,18 @@ async fn run_vlacku(
             };
             // A dictionary search can start where the page starts, so it is
             // asked for this page's window and builds cards for that alone.
-            let options =
-                vlacku_search_options(&request, request.options.page.first_index(), WINDOW_LEN);
+            let options = vlacku_search_options(
+                &request,
+                request.options.page.first_index(),
+                WINDOW_LEN,
+                &cancellation,
+            );
             let output = run_vlacku_requests(
                 jbotci_dictionary_data::english(),
                 &[search_request],
                 &options,
-            );
+            )
+            .map_err(|_| compute_deadline())?;
             let valid_missing = output.outcome == SearchOutcome::ValidMissing
                 || (output.outcome == SearchOutcome::Found && output.cards.is_empty());
             let results = PagedResults::from_window(output.cards, request.options.page)?;

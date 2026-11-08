@@ -11,9 +11,10 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
     output_terminal_width: Option<usize>,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
-    let options = vlacku_search_options(&input)?;
+    let options = vlacku_search_options(&input, cancellation)?;
     let output = if let Some(query) = semantic_vlacku_query(&input) {
         match run_semantic_vlacku(&query, &options, tool_context) {
             Ok(output) => output,
@@ -24,6 +25,7 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
         }
     } else {
         run_vlacku_requests(jbotci_dictionary_data::english(), &input.requests, &options)
+            .map_err(|error| anyhow!(error))?
     };
     for diagnostic in &output.diagnostics {
         writeln!(stderr, "vlacku: {diagnostic}")?;
@@ -220,7 +222,10 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
+fn vlacku_search_options(
+    input: &VlackuInput,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<VlackuSearchOptions> {
     let word_types = parse_vlacku_word_types(&input.word_types)?;
     Ok(new!(VlackuSearchOptions {
         skip: 0,
@@ -229,6 +234,7 @@ fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
         min_votes: input.min_votes,
         min_similarity: input.min_similarity,
         decompose_lujvo: input.decompose_lujvo,
+        cancellation: cancellation.clone(),
     }))
 }
 

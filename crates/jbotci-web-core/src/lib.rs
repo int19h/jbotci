@@ -2932,7 +2932,8 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
             min_votes: normalized_state.min_votes.as_search_min_votes(),
             decompose_lujvo: true,
         }),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     let hidden_by_vote_filter = output.cards.is_empty()
         && output.diagnostics.is_empty()
         && normalized_state.min_votes.as_search_min_votes().is_some()
@@ -2945,6 +2946,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
                 decompose_lujvo: true,
             }),
         )
+        .expect("a caller with no deadline holds a token that stays clear")
         .cards
         .is_empty();
     let has_more = output.cards.len() > normalized_state.count;
@@ -3583,7 +3585,8 @@ pub mod blocking {
                 min_votes: state.min_votes.as_search_min_votes(),
                 decompose_lujvo: true,
             }),
-        );
+        )
+        .expect("a caller with no deadline holds a token that stays clear");
         output
             .cards
             .first()
@@ -5918,7 +5921,8 @@ fn dictionary_tooltip_search_card_for_word(word: &str) -> Option<VlackuCard> {
         jbotci_dictionary_data::english(),
         &[VlackuRequest::valsi(word.to_owned())],
         &tooltip_vlacku_options(),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     output.cards.into_iter().next()
 }
 
@@ -5936,7 +5940,8 @@ fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
         jbotci_dictionary_data::english(),
         &[VlackuRequest::rafsi(rafsi.to_owned())],
         &tooltip_vlacku_options(),
-    );
+    )
+    .expect("a caller with no deadline holds a token that stays clear");
     output.cards.into_iter().next()
 }
 
