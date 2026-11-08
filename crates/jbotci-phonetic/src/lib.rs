@@ -6,9 +6,11 @@ use std::sync::LazyLock;
 #[allow(unused_imports)]
 use bityzba::expensive_invariant;
 use bityzba::{data, invariant, new, requires};
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
-    LeadingPauseContext, LeadingPauseVowelMode, Phonemes, Word, WordKind, WordLike, WordLikeData,
-    pronunciation_syllables, segment_words_with_modifiers, word_needs_leading_pause_in_context,
+    LeadingPauseContext, LeadingPauseVowelMode, MorphologyError, MorphologyOptions, Phonemes, Word,
+    WordKind, WordLike, WordLikeData, pronunciation_syllables,
+    segment_words_with_modifiers_with_options_and_source_id, word_needs_leading_pause_in_context,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -17,6 +19,7 @@ use unicode_normalization::UnicodeNormalization;
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Morphology { .. } => true)]
+#[invariant(::Interrupted => true)]
 #[invariant(::NoPronounceableWords { .. } => true)]
 #[invariant(::UnsupportedSegment { .. } => true)]
 #[invariant(::EmptyQuery => true)]
@@ -32,6 +35,9 @@ pub enum PhoneticError {
     OutputLimit { limit: jbotci_budget::ByteLimit },
     #[error("{message}")]
     Morphology { message: String },
+    /// The cancellation flag was set during segmentation. This is not a bad query.
+    #[error("computation interrupted")]
+    Interrupted,
     #[error("no pronounceable words in `{input}`")]
     NoPronounceableWords { input: String },
     #[error("Unsupported IPA segment near `{near}` for ALINE sound search.")]
@@ -50,6 +56,14 @@ pub enum PhoneticError {
     PartialBracketedQuery,
     #[error("{message}")]
     Syllabification { message: String },
+}
+
+impl PhoneticError {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Interrupted))]
+    pub fn is_interrupted(&self) -> bool {
+        matches!(self, Self::Interrupted)
+    }
 }
 
 #[invariant(::SourceSide => true)]
@@ -1643,48 +1657,68 @@ pub const fn lojban_r_pronunciation_target() -> PronunciationTargetId {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
-pub fn sound_query_to_token_sequence(raw_query: &str) -> Result<IpaTokenSequence, PhoneticError> {
-    let ipa = sound_query_to_ipa(raw_query)?;
+pub fn sound_query_to_token_sequence(
+    raw_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<IpaTokenSequence, PhoneticError> {
+    let ipa = sound_query_to_ipa(raw_query, cancellation)?;
     tokenize_ipa_text(&ipa)
 }
 
 /// Parse a sound-search query without erasing whether it is a concrete IPA
 /// observation or a Lojban pronunciation target sequence.
+///
+/// An unbracketed query is segmented with `cancellation`. A bracketed IPA
+/// query does not segment. Callers that have no deadline pass
+/// [`CancellationToken::never`].
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.self_similarity() > 0.0) || ret.is_err())]
-pub fn sound_query_to_sequence(raw_query: &str) -> Result<SoundQuerySequence, PhoneticError> {
+pub fn sound_query_to_sequence(
+    raw_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<SoundQuerySequence, PhoneticError> {
     match bracketed_ipa_query(raw_query)? {
         Some(ipa) => {
             tokenize_ipa_text(&ipa).map(|sequence| new!(SoundQuerySequence::Concrete(sequence)))
         }
-        None => lojban_text_to_pronunciation_targets(raw_query)
+        None => lojban_text_to_pronunciation_targets(raw_query, cancellation)
             .map(|sequence| new!(SoundQuerySequence::Targets(sequence))),
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.trim().is_empty()) || ret.is_err())]
-pub fn sound_query_to_ipa(raw_query: &str) -> Result<String, PhoneticError> {
+pub fn sound_query_to_ipa(
+    raw_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<String, PhoneticError> {
     match bracketed_ipa_query(raw_query)? {
         Some(ipa) => Ok(ipa),
-        None => lojban_text_to_ipa(raw_query),
+        None => lojban_text_to_ipa(raw_query, cancellation),
     }
 }
 
+/// Render Lojban text as IPA.
+///
+/// Callers that have no deadline pass [`CancellationToken::never`]. An
+/// interrupt is [`PhoneticError::Interrupted`], not a morphology message.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.trim().is_empty()) || ret.is_err())]
-pub fn lojban_text_to_ipa(raw_text: &str) -> Result<String, PhoneticError> {
-    let words =
-        segment_words_with_modifiers(raw_text).map_err(|error| PhoneticError::Morphology {
-            message: error.to_string(),
-        })?;
+pub fn lojban_text_to_ipa(
+    raw_text: &str,
+    cancellation: &CancellationToken,
+) -> Result<String, PhoneticError> {
+    let words = segment_lojban_text(raw_text, cancellation)?;
     ipa_morphology_text(&words, raw_text)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.ipa.trim().is_empty()) || ret.is_err())]
-pub fn lojban_text_to_tokenized_ipa(raw_text: &str) -> Result<IpaTokenizedText, PhoneticError> {
-    let ipa = lojban_text_to_ipa(raw_text)?;
+pub fn lojban_text_to_tokenized_ipa(
+    raw_text: &str,
+    cancellation: &CancellationToken,
+) -> Result<IpaTokenizedText, PhoneticError> {
+    let ipa = lojban_text_to_ipa(raw_text, cancellation)?;
     let token_sequence = tokenize_ipa_text(&ipa)?;
     Ok(IpaTokenizedText {
         ipa,
@@ -1695,15 +1729,15 @@ pub fn lojban_text_to_tokenized_ipa(raw_text: &str) -> Result<IpaTokenizedText, 
 /// Convert Lojban text directly to pronunciation targets. This deliberately
 /// follows parsed phonemes instead of tokenizing the canonical display IPA,
 /// so display rendering and scoring semantics remain separate.
+///
+/// Callers that have no deadline pass [`CancellationToken::never`].
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.target_count() > 0) || ret.is_err())]
 pub fn lojban_text_to_pronunciation_targets(
     raw_text: &str,
+    cancellation: &CancellationToken,
 ) -> Result<PronunciationTargetSequence, PhoneticError> {
-    let words =
-        segment_words_with_modifiers(raw_text).map_err(|error| PhoneticError::Morphology {
-            message: error.to_string(),
-        })?;
+    let words = segment_lojban_text(raw_text, cancellation)?;
     let chunks = words
         .iter()
         .flat_map(flatten_word_like_ipa)
@@ -1718,6 +1752,31 @@ pub fn lojban_text_to_pronunciation_targets(
         Err(PhoneticError::EmptyQuery)
     } else {
         Ok(make_target_sequence(targets))
+    }
+}
+
+/// Segment Lojban text on the caller token. Other morphology failures stay
+/// morphology messages. An interrupt does not.
+#[requires(true)]
+#[ensures(matches!(ret, Ok(_) | Err(PhoneticError::Interrupted | PhoneticError::Morphology { .. })))]
+fn segment_lojban_text(
+    raw_text: &str,
+    cancellation: &CancellationToken,
+) -> Result<Vec<WordLike>, PhoneticError> {
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    segment_words_with_modifiers_with_options_and_source_id(raw_text, &options, None)
+        .map_err(phonetic_error_from_morphology)
+}
+
+#[requires(true)]
+#[ensures(error.is_interrupted() == matches!(ret, PhoneticError::Interrupted))]
+fn phonetic_error_from_morphology(error: MorphologyError) -> PhoneticError {
+    if error.is_interrupted() {
+        PhoneticError::Interrupted
+    } else {
+        PhoneticError::Morphology {
+            message: error.to_string(),
+        }
     }
 }
 
@@ -3045,6 +3104,7 @@ fn required_leading_pause_count(word: &Word, context: LeadingPauseContext) -> us
 mod tests {
     use super::*;
     use bityzba::requires;
+    use jbotci_interrupt::CancellationToken;
 
     #[requires(!candidate.is_empty())]
     #[requires(!source.is_empty())]
@@ -3373,8 +3433,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn bracketed_ipa_and_lojban_sound_queries_tokenize_to_the_same_word() {
-        let bracketed = sound_query_to_token_sequence("[ˈkla.ma]").expect("bracketed IPA");
-        let lojban = sound_query_to_token_sequence("klama").expect("Lojban query");
+        let bracketed = sound_query_to_token_sequence("[ˈkla.ma]", &CancellationToken::never())
+            .expect("bracketed IPA");
+        let lojban = sound_query_to_token_sequence("klama", &CancellationToken::never())
+            .expect("Lojban query");
 
         assert_eq!(bracketed.segment_count(), 5);
         assert_eq!(lojban.segment_count(), 5);
@@ -3604,9 +3666,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn aline_similarity_reuses_scratch_without_changing_scores() {
-        let long = sound_query_to_token_sequence("klama").expect("longer query");
-        let short = sound_query_to_token_sequence("ka").expect("shorter query");
-        let different = sound_query_to_token_sequence("coi").expect("different query");
+        let long = sound_query_to_token_sequence("klama", &CancellationToken::never())
+            .expect("longer query");
+        let short = sound_query_to_token_sequence("ka", &CancellationToken::never())
+            .expect("shorter query");
+        let different = sound_query_to_token_sequence("coi", &CancellationToken::never())
+            .expect("different query");
         let mut scratch = AlineSimilarityScratch::default();
 
         assert_eq!(
@@ -3845,11 +3910,11 @@ mod tests {
     #[ensures(true)]
     fn no_r_targets_are_bit_identical_to_concrete_scoring() {
         for text in ["klama", "abata'adj"] {
-            let concrete = lojban_text_to_tokenized_ipa(text)
+            let concrete = lojban_text_to_tokenized_ipa(text, &CancellationToken::never())
                 .expect("concrete no-r pronunciation")
                 .token_sequence;
-            let targets =
-                lojban_text_to_pronunciation_targets(text).expect("no-r pronunciation targets");
+            let targets = lojban_text_to_pronunciation_targets(text, &CancellationToken::never())
+                .expect("no-r pronunciation targets");
             let realized = targets
                 .targets()
                 .iter()
@@ -3866,11 +3931,12 @@ mod tests {
             );
         }
 
-        let concrete_candidate = lojban_text_to_tokenized_ipa("klama")
+        let concrete_candidate = lojban_text_to_tokenized_ipa("klama", &CancellationToken::never())
             .expect("concrete candidate")
             .token_sequence;
         let target_candidate =
-            lojban_text_to_pronunciation_targets("klama").expect("target candidate");
+            lojban_text_to_pronunciation_targets("klama", &CancellationToken::never())
+                .expect("target candidate");
         let source = tokenize_ipa_text("xklamah").expect("concrete source");
         for normalizer in [
             AlineNormalizer::SourceSide,
@@ -4077,8 +4143,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn renders_standard_lojban_ipa() {
-        assert_eq!(lojban_text_to_ipa("klama").expect("IPA"), "ˈkla.ma");
-        assert_eq!(lojban_text_to_ipa("coi").expect("IPA"), "ʃoj");
+        assert_eq!(
+            lojban_text_to_ipa("klama", &CancellationToken::never()).expect("IPA"),
+            "ˈkla.ma"
+        );
+        assert_eq!(
+            lojban_text_to_ipa("coi", &CancellationToken::never()).expect("IPA"),
+            "ʃoj"
+        );
     }
 }
 

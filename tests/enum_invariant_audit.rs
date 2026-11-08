@@ -2048,6 +2048,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "phonetic error variant is a closed diagnostic selector with no payload invariants",
     ),
     (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Interrupted",
+        "unit signal that the cancellation flag stopped segmentation; it carries no rejected query",
+    ),
+    (
         "crates/jbotci-phonetic/src/lib.rs:PhoneticError::MissingClosingBracket",
         "phonetic error variant is a closed diagnostic selector with no payload invariants",
     ),

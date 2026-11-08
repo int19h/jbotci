@@ -3246,8 +3246,11 @@ mod tests {
             if !candidate.chars().any(|letter| uncovered.contains(&letter)) {
                 continue;
             }
-            let rendered = jbotci_phonetic::lojban_text_to_tokenized_ipa(candidate)
-                .expect("existing renderer");
+            let rendered = jbotci_phonetic::lojban_text_to_tokenized_ipa(
+                candidate,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("existing renderer");
             let mapped = candidate
                 .chars()
                 .map(|letter| {

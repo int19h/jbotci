@@ -21,6 +21,7 @@ use jbotci_dictionary::{
     WordIndexEntry, WordType, build_owned_indexes, normalize_lookup_query,
     universal_gismu_rafsi_forms,
 };
+use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::decompose_lujvo_like;
 use jbotci_morphology::{LujvoPart, possible_short_rafsi_forms};
 use jbotci_phonetic::{
@@ -483,8 +484,11 @@ fn build_sound_index(dictionary: &ImportedDictionary) -> Vec<GeneratedSoundEntry
         .par_iter()
         .enumerate()
         .map(|(index, entry)| {
-            let tokenized = lojban_text_to_tokenized_ipa(&entry.word).ok()?;
-            let pronunciation = lojban_text_to_pronunciation_targets(&entry.word).ok()?;
+            let tokenized =
+                lojban_text_to_tokenized_ipa(&entry.word, &CancellationToken::never()).ok()?;
+            let pronunciation =
+                lojban_text_to_pronunciation_targets(&entry.word, &CancellationToken::never())
+                    .ok()?;
             Some(GeneratedSoundEntry {
                 entry_index: EntryIndex(index),
                 ipa: tokenized.ipa,

@@ -3018,7 +3018,7 @@ pub fn gimfihi_source_word_preview(word: &str) -> GimfihiSourceWordPreview {
             })
         }
         Ok(resolved) => new!(GimfihiSourceWordPreview {
-            rendered_ipa: lojban_text_to_ipa(&resolved.word).ok(),
+            rendered_ipa: lojban_text_to_ipa(&resolved.word, &CancellationToken::never()).ok(),
             error: None,
         }),
         Err(error) => new!(GimfihiSourceWordPreview {

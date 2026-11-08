@@ -764,7 +764,7 @@ fn run_single_request(
         data!(VlackuRequest::Valsi(query)) => cards_for_valsi(dictionary, query, options),
         data!(VlackuRequest::Rafsi(query)) => Ok(cards_for_rafsi(dictionary, query, options)),
         data!(VlackuRequest::Lujvo(query)) => cards_for_lujvo(dictionary, query, options),
-        data!(VlackuRequest::Sound(query)) => Ok(cards_for_sound(dictionary, query, options)),
+        data!(VlackuRequest::Sound(query)) => cards_for_sound(dictionary, query, options),
         data!(VlackuRequest::Meaning(_)) => Ok(invalid_output(
             "Semantic vlacku search requires an embedding backend.".to_owned(),
         )),
@@ -1456,10 +1456,13 @@ fn cards_for_sound(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
-    let query_sound = match sound_query_to_sequence(query) {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
+    // Query preparation segments an unbracketed Lojban query. That scan is
+    // the whole query, so it uses the caller's flag and stops before ranking.
+    let query_sound = match sound_query_to_sequence(query, &options.cancellation) {
         Ok(sequence) => sequence,
-        Err(error) => return invalid_output(error.to_string()),
+        Err(error) if error.is_interrupted() => return Err(jbotci_interrupt::Interrupted),
+        Err(error) => return Ok(invalid_output(error.to_string())),
     };
 
     let mut scratch = AlineSimilarityScratch::default();
@@ -1503,7 +1506,7 @@ fn cards_for_sound(
             )
         })
         .collect();
-    found_or_missing(cards)
+    Ok(found_or_missing(cards))
 }
 
 #[invariant(similarity.is_finite())]
@@ -3660,6 +3663,12 @@ mod tests {
     /// time is the morphology of the query. The test trips at check 1,000
     /// and does not repeat that run.
     const SLOW_ZBASU_COPIES: usize = 400;
+    /// Copies of `zbasu` before the closing `y` in the sound-mode test.
+    ///
+    /// Release time of this sound query with a clear token is 90.02 s. The
+    /// time is query segmentation, before ranking. The test trips at check
+    /// 1,000 and does not repeat that run.
+    const SLOW_SOUND_ZBASU_COPIES: usize = 700;
     /// Copies of `zbasu` before the closing `y` in the vote-filter test.
     ///
     /// Release time of the vote-filter lexical scan on this query with a
@@ -3742,6 +3751,47 @@ mod tests {
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not a missing-word card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_sound_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("{}y", "zbasu".repeat(SLOW_SOUND_ZBASU_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+        });
+        let result =
+            super::run_vlacku_requests(dictionary, &[VlackuRequest::sound(query)], &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check segments the whole sound query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not an invalid-query card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_sound_query_preparation() {
+        let dictionary = jbotci_dictionary_data::english();
+        assert_exit_check(
+            |token| {
+                super::run_vlacku_requests(
+                    dictionary,
+                    &[VlackuRequest::sound("klama".to_owned())],
+                    &options_with(token),
+                )
+            },
+            |error| matches!(error, jbotci_interrupt::Interrupted),
         );
     }
 }
