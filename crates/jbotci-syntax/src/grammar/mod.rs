@@ -2375,9 +2375,10 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
+    // `ret` is the stop decision already taken above. Repeating `parse_stop`
+    // here would load the flag a second time on every store.
     #[ensures(
-        !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue)
-            || self.recovery_enabled()
+        !ret || self.recovery_enabled()
             || self.syntax_memo.contains_key(&(rule_name, start_location))
     )]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
@@ -2391,11 +2392,11 @@ impl<'tokens> ParserState<'tokens> {
         end_location: usize,
         value: SyntaxMemoValue,
         warnings: Vec<SyntaxWarning>,
-    ) {
+    ) -> bool {
         // A child that stopped must not become a memo the rest of this attempt
         // can replay. The flag is monotonic, so refusing the insert is enough.
         if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
-            return;
+            return false;
         }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let effective_fail_token_indices = if sensitive {
@@ -2451,14 +2452,16 @@ impl<'tokens> ParserState<'tokens> {
             self.syntax_memo
                 .insert((rule_name, start_location), success);
         }
+        true
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
+    // Same as the success store: the bool is the stop decision, so this
+    // postcondition does not load the flag again.
     #[ensures(
-        !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue)
-            || self.recovery_enabled()
+        !ret || self.recovery_enabled()
             || self.syntax_failure_memo.contains_key(&(rule_name, start_location))
     )]
     pub(super) fn store_syntax_memo_failure(
@@ -2467,9 +2470,9 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
         error: SyntaxParseError<'tokens>,
-    ) {
+    ) -> bool {
         if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
-            return;
+            return false;
         }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let observations = self
@@ -2508,7 +2511,7 @@ impl<'tokens> ParserState<'tokens> {
                     .insensitive_failures
                     .insert((rule_name, start_location), failure);
             }
-            return;
+            return true;
         }
         let diagnostic_observations = self.current_strict_diagnostic_observations();
         let end_location = self.memo_failure_end_location(start_location, &error);
@@ -2524,6 +2527,7 @@ impl<'tokens> ParserState<'tokens> {
                 rule_observation_node: None,
             }),
         );
+        true
     }
 
     #[requires(!rule_name.is_empty())]
