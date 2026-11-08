@@ -497,7 +497,18 @@ impl<'a> Segmenter<'a> {
             Ok(())
         })();
         match result {
-            Ok(()) => finish_stream(acc),
+            Ok(()) => {
+                // The loop load sits after `skip_magic_noise` returns true, so
+                // the exit where that call returns false never takes it. A
+                // recognizer that only answered "no" because the flag was set
+                // during the last word also arrives here with a normal
+                // accumulator. Match the recovered path and refuse that result.
+                if self.options.cancellation.is_cancelled() {
+                    Err(MorphologyError::Interrupted)
+                } else {
+                    finish_stream(acc)
+                }
+            }
             // A fault is an invalid word. An interrupt must not be replaced by one.
             Err(error) if error.is_interrupted() => Err(error),
             Err(error) => Err(acc
@@ -687,6 +698,12 @@ impl<'a> Segmenter<'a> {
                 break;
             }
             acc.extend(self.next_segment(SegmentMode::Display)?);
+        }
+        // The loop breaks once the index is at the end, after its own load.
+        // A flag set while the last segment was recognized is still clear at
+        // that load when the recognizer only returned a negative answer.
+        if self.options.cancellation.is_cancelled() {
+            return Err(MorphologyError::Interrupted);
         }
         Ok(acc)
     }
