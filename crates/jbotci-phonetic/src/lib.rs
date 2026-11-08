@@ -844,26 +844,20 @@ impl PreparedAlineTargetInventory {
     }
 }
 
-/// Phones between cancellation loads while the expansion table is built.
-///
-/// That table is the long part of preparation: one target-pair row per query
-/// phone. The substitution table before it is a small fraction of the same
-/// work, and the first row here checks again. The slow bracketed ranking
-/// test uses 11_500 phones and trips at check 1_000. This gap keeps
-/// preparation under that many loads, so the trip is a ranking-loop load.
-const PREPARE_SOUND_CHECK_STRIDE: usize = 12;
-
 /// Prepare one local sound-search query for fixed-cost scoring of target
 /// candidates.
 ///
 /// Callers that have no deadline pass [`CancellationToken::never`]. A set
 /// flag drops the partial tables and returns [`jbotci_interrupt::Interrupted`].
+/// The expansion table is one row per query phone, and that row is the long
+/// part of this function. Each row loads the flag before it is built.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|prepared| prepared.query_len > 0) || ret.is_err())]
 pub fn prepare_sound_query(
     query: &SoundQuerySequence,
     cancellation: &CancellationToken,
 ) -> Result<PreparedAlineQuery, jbotci_interrupt::Interrupted> {
+    // A flag that is already set must not allocate the tables.
     if cancellation.is_cancelled() {
         return Err(jbotci_interrupt::Interrupted);
     }
@@ -906,10 +900,10 @@ pub fn prepare_sound_query(
     }
 
     let mut query_to_target_pair = Vec::with_capacity(target_pair_count * query_len);
-    for (query_index, query) in query_units.iter().copied().enumerate() {
-        // The rows above this phone are the whole table so far. A set flag
-        // drops them instead of ranking against a half-built query.
-        if query_index % PREPARE_SOUND_CHECK_STRIDE == 0 && cancellation.is_cancelled() {
+    for query in query_units.iter().copied() {
+        // This row is every target pair for one query phone. A set flag
+        // drops the rows already stored instead of finishing the table.
+        if cancellation.is_cancelled() {
             return Err(jbotci_interrupt::Interrupted);
         }
         for first_index in 0..target_count {
@@ -3127,7 +3121,7 @@ fn required_leading_pause_count(word: &Word, context: LeadingPauseContext) -> us
 mod tests {
     use super::*;
     use bityzba::requires;
-    use jbotci_interrupt::CancellationToken;
+    use jbotci_interrupt::{CancellationToken, assert_exit_check};
 
     #[requires(!candidate.is_empty())]
     #[requires(!source.is_empty())]
@@ -4180,21 +4174,20 @@ mod tests {
         );
     }
 
-    /// The search slow test repeats `a` this many times inside brackets.
+    /// The last load in preparation is the last expansion row.
     ///
-    /// Preparation loads once up front and then once per stride phone. That
-    /// total has to stay under the trip at check 1_000, or the trip leaves
-    /// the ranking loop.
+    /// A one-phone query still builds that row. The shared exit check proves
+    /// that the load before a finished table turns a late flag into an interrupt.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn slow_bracketed_ranking_query_prepares_inside_the_trip() {
-        let phones = 11_500usize;
-        let stride_loads = (phones - 1) / PREPARE_SOUND_CHECK_STRIDE + 1;
-        let prepare_loads = 1 + stride_loads;
-        assert!(
-            prepare_loads < 1_000,
-            "prepare loads {prepare_loads} consume the ranking trip"
+    fn a_late_trip_stops_prepare_sound_query() {
+        let query = new!(SoundQuerySequence::Concrete(
+            tokenize_ipa_text("a").expect("a is one phone")
+        ));
+        assert_exit_check(
+            |token| prepare_sound_query(&query, token),
+            |error| matches!(error, jbotci_interrupt::Interrupted),
         );
     }
 }
