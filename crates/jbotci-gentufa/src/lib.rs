@@ -56,8 +56,9 @@ pub use render::{
     DEFAULT_GENTUFA_PNG_SCALE, EmbeddedGentufaFonts, GentufaExportError, GentufaFontData,
     GentufaLimit, GentufaLimitData, GentufaPngOptions, GentufaRasterPlan, GentufaRenderLimits,
     GentufaSvgOptions, checked_svg_raster_plan, render_gentufa_blocks_png,
-    render_gentufa_blocks_png_with_limits, render_gentufa_blocks_svg,
-    render_gentufa_blocks_svg_with_limits,
+    render_gentufa_blocks_png_with_limits, render_gentufa_blocks_png_with_limits_and_cancellation,
+    render_gentufa_blocks_svg, render_gentufa_blocks_svg_with_limits,
+    render_gentufa_blocks_svg_with_limits_and_cancellation,
 };
 
 #[invariant(byte_start <= byte_end, "byte range must be ordered")]
@@ -3522,7 +3523,8 @@ mod tests {
                 byte_end,
                 ..
             } => (*byte_start, *byte_end),
-            jbotci_syntax::SyntaxError::NotImplemented => (0, 0),
+            jbotci_syntax::SyntaxError::NotImplemented
+            | jbotci_syntax::SyntaxError::Interrupted => (0, 0),
         }
     }
 

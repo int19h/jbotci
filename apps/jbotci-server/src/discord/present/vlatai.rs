@@ -53,6 +53,7 @@ pub(crate) fn render_in_scope(
         ValsiAnalysisStatus::Valid => "valid",
         ValsiAnalysisStatus::Invalid => "invalid",
         ValsiAnalysisStatus::NotSingleWord => "not a single word",
+        ValsiAnalysisStatus::Interrupted => "interrupted",
     };
     let mut status =
         text_scope.buffer_with(&text_scope.format(format_args!("vlatai · {status_word}")));
@@ -85,6 +86,14 @@ pub(crate) fn render_in_scope(
         ValsiAnalysisStatus::Invalid => {
             lines.push(text_scope.format(format_args!(
                 "**{}** — not a valid Lojban word",
+                escape_in_scope(input, text_scope)
+            )));
+        }
+        ValsiAnalysisStatus::Interrupted => {
+            // The operation returns before presentation. This arm exists so a
+            // cancelled word is never described as invalid.
+            lines.push(text_scope.format(format_args!(
+                "**{}** — interrupted",
                 escape_in_scope(input, text_scope)
             )));
         }

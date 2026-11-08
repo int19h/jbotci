@@ -192,6 +192,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "carries the delivery ticket that protects the admitted id; every ticket is valid",
     ),
     (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Interrupted",
+        "unit marker: the diagram stopped because the cancellation flag was set, and no image is returned",
+    ),
+    (
         "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Render",
         "render error carries only the renderer's message",
     ),
@@ -1592,6 +1596,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Interrupted",
+        "unit marker: layout or encoding stopped because the cancellation flag was set",
+    ),
+    (
         "crates/jbotci-gentufa/src/render.rs:GentufaExportError::InvalidSize",
         "export error variant carries no payload beyond the discriminant",
     ),
@@ -1772,6 +1780,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "DialectExpansionFailure validates the source span and the structured expansion violation.",
     ),
     (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::Interrupted",
+        "unit signal that the cancellation flag stopped morphology; it carries no rejected word",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
         "diagnostic enum records rejected parser inputs",
     ),
@@ -1818,6 +1830,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/lib.rs:OutputError::Diagnostic",
         "error wrapper carries Ariadne renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Interrupted",
+        "unit marker: rendering stopped because the cancellation flag was set, and no partial document is returned",
     ),
     (
         "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
@@ -2090,6 +2106,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:NextPlace::Numbered",
         "wraps NonZeroU8, which excludes zero by construction",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceAnalysisError::Interrupted",
+        "unit marker: the reference walk stopped because the cancellation flag was set, and the partial index is dropped",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceAnalysisError::NumberedPlaceExhausted",
@@ -2540,8 +2560,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental cmavo context carries validated Selmaho values",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxError::Interrupted",
+        "unit signal that the cancellation flag stopped the parser; it carries no syntax error",
+    ),
+    (
         "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",
         "diagnostic enum records parser error location and message",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxRecoveryParse::Interrupted",
+        "unit signal that the cancellation flag stopped a recovery parse before any tree was kept",
     ),
     (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
@@ -2732,8 +2760,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web bracket fragments mirror renderer output, including empty fallback text",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:GentufaSyntaxStop::Failed",
+        "wraps an already built gentufa error; the stop adds no further payload constraint",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaSyntaxStop::Interrupted",
+        "unit marker: web syntax preparation stopped because the cancellation flag was set",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
         "error wrapper carries parser diagnostic text without additional semantic state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Interrupted",
+        "unit marker: web morphology stopped because the cancellation flag was set, and no word list is returned",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Blank",

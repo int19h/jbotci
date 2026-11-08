@@ -14900,6 +14900,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Err(SyntaxError::NotImplemented) => {
             FacetResult::failed("syntax parser returned NotImplemented")
         }
+        Err(SyntaxError::Interrupted) => FacetResult::failed("syntax parser was interrupted"),
         Err(error @ SyntaxError::Parse { .. }) => match expectation.status {
             ExpectationStatus::Success => {
                 syntax_xfail_result(expectation, ExpectationStatus::Failure, true)

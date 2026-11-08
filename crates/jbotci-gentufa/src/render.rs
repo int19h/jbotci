@@ -5,6 +5,7 @@ use std::sync::Arc;
 use base64::display::Base64Display;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use jbotci_interrupt::CancellationToken;
 #[cfg(test)]
 use jbotci_morphology::WordKind;
 use jbotci_output::budget::{BudgetedWriter, ByteLimit, OutputBudget};
@@ -224,6 +225,7 @@ impl std::fmt::Display for GentufaLimit {
 #[invariant(::Png(_) => true)]
 #[invariant(::InvalidSize => true)]
 #[invariant(::Limit(_) => true)]
+#[invariant(::Interrupted => true)]
 pub enum GentufaExportError {
     #[error("diagram exceeds the server limit: {0}")]
     Limit(GentufaLimit),
@@ -235,6 +237,20 @@ pub enum GentufaExportError {
     Png(String),
     #[error("generated SVG has an invalid raster size")]
     InvalidSize,
+    /// The cancellation flag stopped layout or encoding. No partial image is returned.
+    #[error("computation interrupted")]
+    Interrupted,
+}
+
+/// One acquire load at a diagram checkpoint.
+#[requires(true)]
+#[ensures(ret.is_ok() || cancellation.is_cancelled())]
+fn ensure_diagram_running(cancellation: &CancellationToken) -> Result<(), GentufaExportError> {
+    if cancellation.is_cancelled() {
+        Err(GentufaExportError::Interrupted)
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -325,7 +341,14 @@ pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'static>,
 ) -> Result<String, GentufaExportError> {
     let usvg_options = usvg_options(fonts);
-    render_gentufa_blocks_svg_with_options(layout, options, fonts, &usvg_options, None)
+    render_gentufa_blocks_svg_with_options(
+        layout,
+        options,
+        fonts,
+        &usvg_options,
+        None,
+        &CancellationToken::never(),
+    )
 }
 
 #[requires(true)]
@@ -336,9 +359,11 @@ fn render_gentufa_blocks_svg_with_options<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'static>,
     usvg_options: &usvg::Options<'static>,
     byte_limit: Option<ByteLimit>,
+    cancellation: &CancellationToken,
 ) -> Result<String, GentufaExportError> {
+    ensure_diagram_running(cancellation)?;
     let mut measurer = TextMeasurer::with_limit(usvg_options, byte_limit);
-    let positioned = PositionedBlocks::new(layout, options, &mut measurer)?;
+    let positioned = PositionedBlocks::new(layout, options, &mut measurer, cancellation)?;
     let document = svg_document(
         layout,
         options,
@@ -346,6 +371,7 @@ fn render_gentufa_blocks_svg_with_options<Tooltip, ReferenceTooltip>(
         &positioned,
         &mut measurer,
         byte_limit,
+        cancellation,
     )?;
     document.to_xml_with_limit(
         byte_limit.unwrap_or(ByteLimit::new(usize::MAX).expect("positive limit")),
@@ -360,8 +386,14 @@ pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
     fonts: GentufaFontData<'static>,
 ) -> Result<Vec<u8>, GentufaExportError> {
     let usvg_options = usvg_options(fonts);
-    let svg =
-        render_gentufa_blocks_svg_with_options(layout, &options.svg, fonts, &usvg_options, None)?;
+    let svg = render_gentufa_blocks_svg_with_options(
+        layout,
+        &options.svg,
+        fonts,
+        &usvg_options,
+        None,
+        &CancellationToken::never(),
+    )?;
     let xml = roxmltree::Document::parse(&svg)
         .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
     let tree = usvg::Tree::from_xmltree(&xml, &usvg_options)
@@ -390,6 +422,29 @@ pub fn render_gentufa_blocks_svg_with_limits<T, R>(
     fonts: GentufaFontData<'static>,
     limits: GentufaRenderLimits,
 ) -> Result<String, GentufaExportError> {
+    render_gentufa_blocks_svg_with_limits_and_cancellation(
+        layout,
+        options,
+        fonts,
+        limits,
+        &CancellationToken::never(),
+    )
+}
+
+/// Render SVG until `cancellation` is set.
+///
+/// `resvg` is not called on this path. The pixel plan still runs so a cancelled
+/// layout does not return an SVG the raster cap would have refused.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|svg| svg.len() <= limits.max_bytes) || ret.is_err())]
+pub fn render_gentufa_blocks_svg_with_limits_and_cancellation<T, R>(
+    layout: &GentufaBlocksLayout<T, R>,
+    options: &GentufaSvgOptions,
+    fonts: GentufaFontData<'static>,
+    limits: GentufaRenderLimits,
+    cancellation: &CancellationToken,
+) -> Result<String, GentufaExportError> {
+    ensure_diagram_running(cancellation)?;
     limits.check_layout(layout)?;
     let options_usvg = usvg_options(fonts);
     let svg = render_gentufa_blocks_svg_with_options(
@@ -398,6 +453,7 @@ pub fn render_gentufa_blocks_svg_with_limits<T, R>(
         fonts,
         &options_usvg,
         Some(ByteLimit::new(limits.max_bytes).expect("validated diagram limit")),
+        cancellation,
     )?;
     checked_svg_raster_plan(&svg, DEFAULT_GENTUFA_PNG_SCALE, limits.max_pixels)?;
     Ok(svg)
@@ -412,6 +468,30 @@ pub fn render_gentufa_blocks_png_with_limits<T, R>(
     fonts: GentufaFontData<'static>,
     limits: GentufaRenderLimits,
 ) -> Result<Vec<u8>, GentufaExportError> {
+    render_gentufa_blocks_png_with_limits_and_cancellation(
+        layout,
+        options,
+        fonts,
+        limits,
+        &CancellationToken::never(),
+    )
+}
+
+/// Render PNG until `cancellation` is set.
+///
+/// The flag is read again immediately before `resvg::render`. That rasterizer
+/// cannot stop early; the pixel cap is what bounds the allocation, and a set
+/// flag skips the raster entirely.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|png| png.len() <= limits.max_bytes) || ret.is_err())]
+pub fn render_gentufa_blocks_png_with_limits_and_cancellation<T, R>(
+    layout: &GentufaBlocksLayout<T, R>,
+    options: &GentufaPngOptions,
+    fonts: GentufaFontData<'static>,
+    limits: GentufaRenderLimits,
+    cancellation: &CancellationToken,
+) -> Result<Vec<u8>, GentufaExportError> {
+    ensure_diagram_running(cancellation)?;
     limits.check_layout(layout)?;
     let options_usvg = usvg_options(fonts);
     let svg = render_gentufa_blocks_svg_with_options(
@@ -420,6 +500,7 @@ pub fn render_gentufa_blocks_png_with_limits<T, R>(
         fonts,
         &options_usvg,
         Some(ByteLimit::new(limits.max_bytes).expect("validated diagram limit")),
+        cancellation,
     )?;
     let xml = roxmltree::Document::parse(&svg)
         .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
@@ -432,6 +513,7 @@ pub fn render_gentufa_blocks_png_with_limits<T, R>(
         options.scale,
         limits.max_pixels,
     )?;
+    ensure_diagram_running(cancellation)?;
     let mut pixmap =
         tiny_skia::Pixmap::new(plan.width, plan.height).ok_or(GentufaExportError::InvalidSize)?;
     resvg::render(
@@ -677,22 +759,41 @@ impl PositionedBlocks {
         layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
         options: &GentufaSvgOptions,
         measurer: &mut TextMeasurer,
+        cancellation: &CancellationToken,
     ) -> Result<Self, GentufaExportError> {
         let column_count = layout.max_col.max(1);
         let row_count = layout.max_row.max(1);
         let mut column_widths = vec![MIN_COLUMN_WIDTH; column_count];
-        grow_columns_for_blocks(&mut column_widths, &layout.blocks, options, measurer)?;
+        grow_columns_for_blocks(
+            &mut column_widths,
+            &layout.blocks,
+            options,
+            measurer,
+            cancellation,
+        )?;
         let mut row_heights = vec![ROW_COMPACT_HEIGHT; row_count];
-        grow_rows_for_leaf_labels(&mut row_heights, &layout.blocks, options, measurer)?;
+        grow_rows_for_leaf_labels(
+            &mut row_heights,
+            &layout.blocks,
+            options,
+            measurer,
+            cancellation,
+        )?;
         grow_rows_for_references(
             &mut row_heights,
             &column_widths,
             &layout.blocks,
             options,
             measurer,
+            cancellation,
         )?;
         let gloss_row_height = if options.show_glosses {
-            Some(gloss_row_height(&layout.blocks, options, measurer)?)
+            Some(gloss_row_height(
+                &layout.blocks,
+                options,
+                measurer,
+                cancellation,
+            )?)
         } else {
             None
         };
@@ -755,10 +856,12 @@ fn grow_rows_for_leaf_labels<Tooltip, ReferenceTooltip>(
     blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
+    cancellation: &CancellationToken,
 ) -> Result<(), GentufaExportError> {
     let mut sorted = blocks.iter().collect::<Vec<_>>();
     sorted.sort_by_key(|block| (block_bottom_row(block), block.row));
     for block in sorted {
+        ensure_diagram_running(cancellation)?;
         let bottom_row = block_bottom_row(block);
         if bottom_row >= row_heights.len() {
             continue;
@@ -798,10 +901,12 @@ fn grow_rows_for_references<Tooltip, ReferenceTooltip>(
     blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
+    cancellation: &CancellationToken,
 ) -> Result<(), GentufaExportError> {
     let mut sorted = blocks.iter().collect::<Vec<_>>();
     sorted.sort_by_key(|block| (block_bottom_row(block), block.row));
     for block in sorted {
+        ensure_diagram_running(cancellation)?;
         let bottom_row = block_bottom_row(block);
         if bottom_row >= row_heights.len() {
             continue;
@@ -989,9 +1094,11 @@ fn gloss_row_height<Tooltip, ReferenceTooltip>(
     blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
+    cancellation: &CancellationToken,
 ) -> Result<f32, GentufaExportError> {
     let mut height = GLOSS_ROW_HEIGHT;
     for block in blocks.iter().filter(|block| block.is_leaf) {
+        ensure_diagram_running(cancellation)?;
         if let Some(gloss) = block_gloss_text(block) {
             let measured = measurer.measure(gloss, TextRole::Gloss, options.script)?;
             height = height.max(measured.height + BLOCK_PADDING * 2.0);
@@ -1007,10 +1114,12 @@ fn grow_columns_for_blocks<Tooltip, ReferenceTooltip>(
     blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
+    cancellation: &CancellationToken,
 ) -> Result<(), GentufaExportError> {
     let mut sorted = blocks.iter().collect::<Vec<_>>();
     sorted.sort_by_key(|block| block.col_span);
     for block in sorted {
+        ensure_diagram_running(cancellation)?;
         if block.col >= column_widths.len() {
             continue;
         }
@@ -1188,6 +1297,7 @@ fn svg_document<Tooltip, ReferenceTooltip>(
     positioned: &PositionedBlocks,
     measurer: &mut TextMeasurer,
     byte_limit: Option<ByteLimit>,
+    cancellation: &CancellationToken,
 ) -> Result<SvgDocument, GentufaExportError> {
     let budget = byte_limit.map(SvgBudget::new);
     let mut root = SvgElement::new_with_budget(SvgTag::Svg, budget.clone());
@@ -1221,6 +1331,7 @@ fn svg_document<Tooltip, ReferenceTooltip>(
     background.attr("fill", "#ffffff");
     root.child(background);
     for block in &layout.blocks {
+        ensure_diagram_running(cancellation)?;
         root.child(block_element(
             block,
             options,
@@ -1231,6 +1342,7 @@ fn svg_document<Tooltip, ReferenceTooltip>(
     }
     if options.show_glosses {
         for block in layout.blocks.iter().filter(|block| block.is_leaf) {
+            ensure_diagram_running(cancellation)?;
             if block_gloss_text(block).is_some() {
                 root.child(gloss_element(block, options, positioned, budget.clone()));
             }
@@ -1987,8 +2099,14 @@ mod tests {
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let blocks = vec![test_gentufa_block(0, 1, 0)];
 
-        grow_rows_for_leaf_labels(&mut row_heights, &blocks, &options, &mut measurer)
-            .expect("row growth");
+        grow_rows_for_leaf_labels(
+            &mut row_heights,
+            &blocks,
+            &options,
+            &mut measurer,
+            &CancellationToken::never(),
+        )
+        .expect("row growth");
 
         assert!(row_heights[0] > ROW_COMPACT_HEIGHT);
         let label_size = measurer
@@ -2047,6 +2165,7 @@ mod tests {
             &blocks,
             &options,
             &mut measurer,
+            &CancellationToken::never(),
         )
         .expect("row growth");
 
@@ -2070,6 +2189,7 @@ mod tests {
             &blocks,
             &options,
             &mut measurer,
+            &CancellationToken::never(),
         )
         .expect("row growth");
 
@@ -2093,6 +2213,7 @@ mod tests {
             &blocks,
             &options,
             &mut measurer,
+            &CancellationToken::never(),
         )
         .expect("row growth");
 
@@ -2116,6 +2237,7 @@ mod tests {
             &blocks,
             &options,
             &mut measurer,
+            &CancellationToken::never(),
         )
         .expect("row growth");
 
@@ -2139,6 +2261,7 @@ mod tests {
             &blocks,
             &options,
             &mut measurer,
+            &CancellationToken::never(),
         )
         .expect("row growth");
 
@@ -2295,6 +2418,48 @@ mod tests {
     #[ensures(ret.is_some())]
     fn occurrence(value: usize) -> Option<NonZeroUsize> {
         NonZeroUsize::new(value)
+    }
+
+    /// A flag set before layout must not return an SVG. The same block with a
+    /// clear flag does. The pixel cap still bounds a raster that cannot stop
+    /// inside `resvg`; this test is the flag, not that cap.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cancellation_stops_svg_export_before_it_returns_a_document() {
+        let layout = new!(GentufaBlocksLayout {
+            blocks: vec![test_gentufa_block(0, 1, 0)],
+            max_col: 1,
+            max_row: 1,
+        });
+        let limits = new!(GentufaRenderLimits {
+            max_blocks: 8,
+            max_columns: 8,
+            max_pixels: 4_000_000,
+            max_bytes: 4_000_000,
+        });
+        let options = GentufaSvgOptions::default();
+        let fonts = EmbeddedGentufaFonts::get();
+        let svg = render_gentufa_blocks_svg_with_limits_and_cancellation(
+            &layout,
+            &options,
+            fonts,
+            limits,
+            &CancellationToken::never(),
+        )
+        .expect("a clear flag renders svg");
+        assert!(svg.contains("<svg"));
+
+        let source = jbotci_interrupt::CancellationSource::new();
+        source.cancel();
+        let stopped = render_gentufa_blocks_svg_with_limits_and_cancellation(
+            &layout,
+            &options,
+            fonts,
+            limits,
+            &source.token(),
+        );
+        assert!(matches!(stopped, Err(GentufaExportError::Interrupted)));
     }
 }
 

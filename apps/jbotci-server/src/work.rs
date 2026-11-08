@@ -3,10 +3,12 @@
 //! Two lanes bound the blocking pool: `compute` (analysis and rendering) and
 //! `fetch` (attachment downloads). Each lane has a fixed number of permits and
 //! a bounded waiting queue. A permit is *moved into* the blocking worker and
-//! released only when the worker exits, so an awaiter that gives up (deadline)
-//! never frees the slot early: timing out stops the wait, not the work, and
-//! the lane stays honest about how much work is really running. Preflight caps
-//! on input size and result counts are what keep individual jobs short.
+//! released only when the worker exits, so an awaiter that gives up never
+//! frees the slot early. When a deadline passes, the server sets that job's
+//! cancellation flag. The job stops at its next check and returns, and the
+//! permit returns with that exit. The lane stays honest about work that is
+//! still running. Fetch transfers are bounded by the time left on their own
+//! deadline. Preflight caps still bound input size and result counts.
 
 use std::fmt;
 use std::sync::Arc;
@@ -77,8 +79,9 @@ pub(crate) enum WorkError {
     WaitTimedOut {
         lane: WorkLane,
     },
-    /// The worker did not finish before the deadline; it keeps running (and
-    /// its permit) until it exits on its own.
+    /// The worker did not finish before the deadline. The deadline sets the
+    /// job's cancellation flag. The worker stops at its next check, then
+    /// exits, and only then releases its permit.
     TimedOut {
         lane: WorkLane,
     },
@@ -175,7 +178,9 @@ impl Lane {
     /// Run `job` on the blocking pool under one of this lane's permits.
     /// `keepalive` is carried into the worker and dropped when the job ends,
     /// so a caller that gave up waiting does not release anything the running
-    /// work still stands for.
+    /// work still stands for. The job receives a cancellation token. This
+    /// function sets that token when `deadline` passes. The permit stays with
+    /// the worker until `job` returns.
     #[requires(true)]
     #[ensures(true)]
     async fn run<T, F>(
@@ -186,10 +191,14 @@ impl Lane {
     ) -> Result<T, WorkError>
     where
         T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
     {
         let lane = self.kind;
         let permit = self.acquire(deadline).await?;
+        // One flag for this job. Dropping the source does not set it, so a
+        // job that finishes on time is not cancelled by this value going away.
+        let source = jbotci_interrupt::CancellationSource::new();
+        let token = source.token();
         let handle = tokio::task::spawn_blocking(move || {
             // The permit and whatever the caller tied to this work live
             // exactly as long as the worker.
@@ -198,19 +207,29 @@ impl Lane {
             // The blocking pool has a queue of its own, and a caller that
             // already gave up cannot be told about a late result. Starting
             // expensive work here would only burn a worker, so check the
-            // deadline once more at the moment the job really starts. Work
-            // that has begun is never abandoned: the permit stays with it.
+            // deadline once more at the moment the job really starts. A job
+            // that has begun keeps the permit until it returns.
             if Instant::now() >= deadline {
                 return None;
             }
-            Some(job())
+            let value = job(token.clone());
+            trace_permit_release(&token, deadline);
+            Some(value)
         });
         match tokio::time::timeout_at(deadline, handle).await {
             Ok(Ok(Some(value))) if Instant::now() < deadline => Ok(value),
-            Ok(Ok(Some(_value))) => Err(WorkError::TimedOut { lane }),
+            // A result that lands as the deadline passes is still a timeout.
+            // Set the flag so a job that has not returned yet stops.
+            Ok(Ok(Some(_value))) => {
+                source.cancel();
+                Err(WorkError::TimedOut { lane })
+            }
             Ok(Ok(None)) => Err(WorkError::WaitTimedOut { lane }),
             Ok(Err(_join)) => Err(WorkError::Panicked { lane }),
-            Err(_elapsed) => Err(WorkError::TimedOut { lane }),
+            Err(_elapsed) => {
+                source.cancel();
+                Err(WorkError::TimedOut { lane })
+            }
         }
     }
 
@@ -303,7 +322,7 @@ impl WorkGovernor {
     pub(crate) async fn run_compute<T, F>(&self, deadline: Instant, job: F) -> Result<T, WorkError>
     where
         T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
     {
         self.compute.run(deadline, None, job).await
     }
@@ -320,7 +339,7 @@ impl WorkGovernor {
     ) -> Result<T, WorkError>
     where
         T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
     {
         self.compute.run(deadline, keepalive, job).await
     }
@@ -332,7 +351,7 @@ impl WorkGovernor {
     pub(crate) async fn run_fetch<T, F>(&self, deadline: Instant, job: F) -> Result<T, WorkError>
     where
         T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
     {
         self.fetch.run(deadline, None, job).await
     }
@@ -349,7 +368,7 @@ impl WorkGovernor {
     ) -> Result<T, WorkError>
     where
         T: Send + 'static,
-        F: FnOnce() -> T + Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
     {
         self.fetch.run(deadline, keepalive, job).await
     }
@@ -380,7 +399,7 @@ mod tests {
         let governor = governor(1, 0);
         assert_eq!(
             governor
-                .run_compute(Instant::now() + Duration::from_secs(1), || 1)
+                .run_compute(Instant::now() + Duration::from_secs(1), |_| 1)
                 .await,
             Ok(1)
         );
@@ -388,7 +407,7 @@ mod tests {
         let busy_governor = Arc::clone(&governor);
         let busy = tokio::spawn(async move {
             busy_governor
-                .run_compute(Instant::now() + Duration::from_secs(5), move || {
+                .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
                     let _ = release_rx.recv();
                     2
                 })
@@ -403,7 +422,7 @@ mod tests {
         assert_eq!(governor.snapshot().compute_active, 1);
         assert_eq!(
             governor
-                .run_compute(Instant::now() + Duration::from_secs(1), || 3)
+                .run_compute(Instant::now() + Duration::from_secs(1), |_| 3)
                 .await,
             Err(WorkError::Overloaded {
                 lane: WorkLane::Compute
@@ -438,7 +457,7 @@ mod tests {
                 let started = Arc::clone(&started);
                 tokio::spawn(async move {
                     governor
-                        .run_compute(Instant::now() + Duration::from_secs(30), move || {
+                        .run_compute(Instant::now() + Duration::from_secs(30), move |_| {
                             started.fetch_add(1, Ordering::SeqCst);
                             release_rx.recv().expect("release");
                             "occupied"
@@ -460,7 +479,7 @@ mod tests {
             );
             let counter = Arc::clone(&ran);
             let queued = governor
-                .run_compute(Instant::now() + Duration::from_millis(30), move || {
+                .run_compute(Instant::now() + Duration::from_millis(30), move |_| {
                     counter.fetch_add(1, Ordering::SeqCst);
                     "queued"
                 })
@@ -502,7 +521,7 @@ mod tests {
         let ran = Arc::new(AtomicUsize::new(0));
         let counter = Arc::clone(&ran);
         let result = governor
-            .run_compute(Instant::now(), move || {
+            .run_compute(Instant::now(), move |_| {
                 counter.fetch_add(1, Ordering::SeqCst);
                 1
             })
@@ -533,12 +552,16 @@ mod tests {
     #[ensures(true)]
     async fn a_timed_out_worker_keeps_its_permit_until_it_exits() {
         let governor = governor(1, 4);
-        let (release_tx, release_rx) = mpsc::channel::<()>();
-        // The worker blocks until told to finish.
-        let slow = governor.run_compute(Instant::now() + Duration::from_millis(50), move || {
-            let _ = release_rx.recv();
-            "slow"
-        });
+        // The worker watches the flag, then stays a little longer so the
+        // caller can observe that the permit is still held after the timeout.
+        let slow =
+            governor.run_compute(Instant::now() + Duration::from_millis(50), |cancellation| {
+                while !cancellation.is_cancelled() {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                std::thread::sleep(Duration::from_millis(300));
+                "slow"
+            });
         assert_eq!(
             slow.await,
             Err(WorkError::TimedOut {
@@ -551,10 +574,10 @@ mod tests {
             "the permit is still held"
         );
 
-        // A second job cannot start while the abandoned worker holds the only
+        // A second job cannot start while this worker still holds the only
         // permit: it waits until its own deadline and reports that.
         let blocked = governor
-            .run_compute(Instant::now() + Duration::from_millis(50), || "second")
+            .run_compute(Instant::now() + Duration::from_millis(50), |_| "second")
             .await;
         assert_eq!(
             blocked,
@@ -563,22 +586,69 @@ mod tests {
             })
         );
 
-        release_tx.send(()).expect("worker still waiting");
-        // Once the worker exits the permit returns and new work runs.
+        // The worker exits on its own once the post-cancel pause ends.
         let mut ran = Err(WorkError::TimedOut {
             lane: WorkLane::Compute,
         });
         for _ in 0..50 {
             ran = governor
-                .run_compute(Instant::now() + Duration::from_millis(200), || "third")
+                .run_compute(Instant::now() + Duration::from_millis(200), |_| "third")
                 .await;
             if ran.is_ok() {
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
         assert_eq!(ran, Ok("third"));
         assert_eq!(governor.snapshot().compute_active, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_cancelled_worker_returns_its_permit_shortly_after_the_deadline() {
+        let governor = governor(1, 4);
+        let deadline = Instant::now() + Duration::from_millis(80);
+        // Without the check this loop runs for about ten seconds.
+        let result = governor
+            .run_compute(deadline, |cancellation| {
+                for _ in 0..500 {
+                    if cancellation.is_cancelled() {
+                        return "stopped";
+                    }
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                "finished"
+            })
+            .await;
+        assert_eq!(
+            result,
+            Err(WorkError::TimedOut {
+                lane: WorkLane::Compute
+            })
+        );
+        for _ in 0..100 {
+            if governor.snapshot().compute_active == 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let released = Instant::now();
+        assert_eq!(
+            governor.snapshot().compute_active,
+            0,
+            "the permit came back"
+        );
+        assert!(
+            released.saturating_duration_since(deadline) < Duration::from_secs(2),
+            "the permit came back shortly after the deadline"
+        );
+        assert_eq!(
+            governor
+                .run_compute(Instant::now() + Duration::from_secs(2), |_| "second")
+                .await,
+            Ok("second")
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -591,7 +661,7 @@ mod tests {
             let governor = Arc::clone(&governor);
             tokio::spawn(async move {
                 governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), move || {
+                    .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
                         let _ = release_rx.recv();
                     })
                     .await
@@ -609,7 +679,7 @@ mod tests {
             let governor = Arc::clone(&governor);
             tokio::spawn(async move {
                 governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), || "waited")
+                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "waited")
                     .await
             })
         };
@@ -622,7 +692,7 @@ mod tests {
         assert_eq!(governor.snapshot().compute_waiting, 1);
         // The queue holds one waiter; the next arrival is refused at once.
         let refused = governor
-            .run_compute(Instant::now() + Duration::from_secs(5), || "refused")
+            .run_compute(Instant::now() + Duration::from_secs(5), |_| "refused")
             .await;
         assert_eq!(
             refused,
@@ -654,7 +724,7 @@ mod tests {
             let governor = Arc::clone(&governor);
             tokio::spawn(async move {
                 governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), move || {
+                    .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
                         let _ = release_rx.recv();
                     })
                     .await
@@ -670,7 +740,7 @@ mod tests {
             let governor = Arc::clone(&governor);
             tokio::spawn(async move {
                 governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), || "never")
+                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "never")
                     .await
             })
         };
@@ -700,7 +770,7 @@ mod tests {
             let governor = Arc::clone(&governor);
             tokio::spawn(async move {
                 governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), || "admitted")
+                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "admitted")
                     .await
             })
         };
@@ -716,7 +786,7 @@ mod tests {
     async fn panicking_workers_release_their_permit() {
         let governor = governor(1, 1);
         let result = governor
-            .run_compute(Instant::now() + Duration::from_secs(5), || -> u8 {
+            .run_compute(Instant::now() + Duration::from_secs(5), |_| -> u8 {
                 panic!("deterministic worker failure")
             })
             .await;
@@ -729,7 +799,7 @@ mod tests {
         assert_eq!(governor.snapshot().compute_active, 0);
         assert_eq!(
             governor
-                .run_fetch(Instant::now() + Duration::from_secs(5), || 7)
+                .run_fetch(Instant::now() + Duration::from_secs(5), |_| 7)
                 .await,
             Ok(7)
         );
@@ -749,11 +819,29 @@ struct CompletedWork<T> {
     _lease: WorkLease,
 }
 
+/// Record how long after `deadline` a cancelled worker released its permit.
+///
+/// Set `JBOTCI_WORK_TRACE` to print one line. The permit drops when the
+/// worker closure returns, which is where this is called. The variable is
+/// off unless a measurement run sets it, so production stays quiet.
+#[requires(true)]
+#[ensures(true)]
+fn trace_permit_release(cancellation: &jbotci_interrupt::CancellationToken, deadline: Instant) {
+    if cancellation.is_cancelled() && std::env::var_os("JBOTCI_WORK_TRACE").is_some() {
+        let late = Instant::now().saturating_duration_since(deadline);
+        eprintln!(
+            "jbotci work trace: permit release {} ms after deadline",
+            late.as_millis()
+        );
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) async fn run_admitted<T, F>(
     lease: WorkLease,
     deadline: Instant,
+    cancellation: &jbotci_interrupt::CancellationSource,
     job: F,
 ) -> Result<T, WorkError>
 where
@@ -761,36 +849,55 @@ where
     F: FnOnce() -> T + Send + 'static,
 {
     if Instant::now() >= deadline {
+        // The sleeper may not have been polled yet. Set the flag before
+        // returning so a worker that already started still stops.
+        cancellation.cancel();
         return Err(WorkError::TimedOut {
             lane: WorkLane::Compute,
         });
     }
+    let token = cancellation.token();
+    let flag = cancellation.clone();
     let handle = tokio::task::spawn_blocking(move || {
         if Instant::now() >= deadline {
+            flag.cancel();
             None
         } else {
+            let value = job();
+            trace_permit_release(&token, deadline);
             Some(CompletedWork {
-                value: job(),
+                value,
                 _lease: lease,
             })
         }
     });
     match tokio::time::timeout_at(deadline, handle).await {
+        // A job that returns while the caller's deadline still has time is a
+        // result, even when the flag is already set. Error delivery extends
+        // the deadline of a later encode, and that encode must still finish.
         Ok(Ok(Some(completed))) if Instant::now() < deadline => Ok(completed.value),
-        Ok(Ok(Some(_completed))) => Err(WorkError::TimedOut {
-            lane: WorkLane::Compute,
-        }),
+        Ok(Ok(Some(_completed))) => {
+            cancellation.cancel();
+            Err(WorkError::TimedOut {
+                lane: WorkLane::Compute,
+            })
+        }
         Ok(Ok(None)) => Err(WorkError::TimedOut {
             lane: WorkLane::Compute,
         }),
+        // A panic is a worker failure. A cancellation returns a normal value
+        // and does not reach this arm.
         Ok(Err(error)) => {
             eprintln!("server compute worker failed: {error}");
             Err(WorkError::Panicked {
                 lane: WorkLane::Compute,
             })
         }
-        Err(_) => Err(WorkError::TimedOut {
-            lane: WorkLane::Compute,
-        }),
+        Err(_) => {
+            cancellation.cancel();
+            Err(WorkError::TimedOut {
+                lane: WorkLane::Compute,
+            })
+        }
     }
 }

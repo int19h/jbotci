@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::generated_model::{
@@ -443,12 +444,16 @@ pub struct ReferenceEdge {
 
 #[invariant(true)]
 #[invariant(::NumberedPlaceExhausted { .. } => true)]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ReferenceAnalysisError {
     #[error("syntax index did not contain the root text node")]
     MissingRootNode,
     #[error("cannot assign another numbered place after place 255")]
     NumberedPlaceExhausted { frame: SelbriPlaceFrameId },
+    /// The cancellation flag stopped the walk. No partial analysis is returned.
+    #[error("computation interrupted")]
+    Interrupted,
 }
 
 #[derive(Debug)]
@@ -464,6 +469,15 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
     #[ensures(true)]
     pub fn analyze(syntax: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
         analyze_generated_references(syntax)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn analyze_with_cancellation(
+        syntax: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        analyze_generated_references_with_cancellation(syntax, cancellation)
     }
 
     #[requires(true)]
@@ -484,10 +498,31 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
 pub fn analyze_generated_references<'tree>(
     syntax: &'tree GeneratedTextSyntax,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
-    let syntax_index = GeneratedSyntaxIndex::new(syntax)?;
-    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax)?;
-    let discourse_references =
-        DiscourseReferences::analyze_generated(&syntax_index, &place_analysis, syntax);
+    analyze_generated_references_with_cancellation(syntax, &CancellationToken::never())
+}
+
+/// Index the tree and walk places and discourse references until `cancellation` is set.
+///
+/// A set flag returns [`ReferenceAnalysisError::Interrupted`] and drops the
+/// partial index, place frames, and edges. Those values live only in this call.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0) || ret.is_err())]
+pub fn analyze_generated_references_with_cancellation<'tree>(
+    syntax: &'tree GeneratedTextSyntax,
+    cancellation: &CancellationToken,
+) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
+    // A flag that is already set must not start the index walk.
+    if cancellation.is_cancelled() {
+        return Err(ReferenceAnalysisError::Interrupted);
+    }
+    let syntax_index = GeneratedSyntaxIndex::new_with_cancellation(syntax, cancellation)?;
+    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax, cancellation)?;
+    let discourse_references = DiscourseReferences::analyze_generated(
+        &syntax_index,
+        &place_analysis,
+        syntax,
+        cancellation,
+    )?;
     Ok(GeneratedReferenceAnalysis {
         syntax_index,
         place_analysis,
@@ -514,8 +549,9 @@ impl PlaceAnalysis {
     fn analyze_generated<'tree>(
         index: &GeneratedSyntaxIndex<'tree>,
         syntax: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
     ) -> Result<Self, ReferenceAnalysisError> {
-        let mut builder = GeneratedPlaceAnalysisBuilder::new(index);
+        let mut builder = GeneratedPlaceAnalysisBuilder::new(index, cancellation);
         GeneratedSyntaxTreeWalkable::walk_with(syntax, &mut builder);
         builder.finish()
     }
@@ -991,8 +1027,12 @@ impl DiscourseReferences {
         index: &GeneratedSyntaxIndex<'tree>,
         places: &PlaceAnalysis,
         syntax: &'tree GeneratedTextSyntax,
-    ) -> Self {
-        let mut builder = GeneratedDiscourseReferenceBuilder::new(index, places);
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        if cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        let mut builder = GeneratedDiscourseReferenceBuilder::new(index, places, cancellation);
         GeneratedSyntaxTreeWalkable::walk_with(syntax, &mut builder);
         builder.finish()
     }
@@ -1021,12 +1061,13 @@ struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     // The generated walker returns (). Keep its first error for finish().
     error: Option<ReferenceAnalysisError>,
     cursor_blocking_assignments: HashSet<SumtiPlaceAssignmentId>,
+    cancellation: CancellationToken,
 }
 
 impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.frames.is_empty())]
-    fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
+    fn new(index: &'index GeneratedSyntaxIndex<'tree>, cancellation: &CancellationToken) -> Self {
         Self {
             index,
             frames: Vec::new(),
@@ -1040,6 +1081,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             next_place_after_linked_arguments_by_frame: HashMap::new(),
             error: None,
             cursor_blocking_assignments: HashSet::new(),
+            cancellation: cancellation.clone(),
         }
     }
 
@@ -3101,6 +3143,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     where
         N: GeneratedSyntaxTreeWalkable<'tree> + ?Sized,
     {
+        // One acquire load per node. A set flag stops descent, so the rest of
+        // the tree is not turned into place frames.
+        if self.cancellation.is_cancelled() {
+            self.error = Some(ReferenceAnalysisError::Interrupted);
+            return;
+        }
         if self.error.is_none() {
             GeneratedSyntaxTreeWalkable::walk_with(node, self);
         }
@@ -4230,8 +4278,28 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()) || ret.is_err())]
     pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
-        let mut builder = GeneratedSyntaxIndexBuilder::new();
+        Self::new_with_cancellation(root, &CancellationToken::never())
+    }
+
+    /// Index `root`, stopping further mutation once `cancellation` is set.
+    ///
+    /// `visit_in_order` cannot abort, so a flag set mid-walk still visits the
+    /// remaining nodes. Those visits do not record nodes. The partial index is
+    /// dropped and the caller receives [`ReferenceAnalysisError::Interrupted`].
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()) || ret.is_err())]
+    fn new_with_cancellation(
+        root: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        if cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        let mut builder = GeneratedSyntaxIndexBuilder::new(cancellation);
         root.visit_in_order(&mut builder);
+        if builder.cancelled {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
         let root_ref = root
             .as_node_ref()
             .ok_or(ReferenceAnalysisError::MissingRootNode)?;
@@ -4294,17 +4362,24 @@ struct GeneratedSyntaxIndexBuilder<'tree> {
     by_ref: HashMap<GeneratedSyntaxNodeRef<'tree>, RawSyntaxNodeId>,
     stack: Vec<RawSyntaxNodeId>,
     leaf_index: usize,
+    cancellation: CancellationToken,
+    cancelled: bool,
+    /// Enters that happened after the flag was set. Their exits only unwind this count.
+    skipped: usize,
 }
 
 impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(ret.nodes.is_empty())]
-    fn new() -> Self {
+    fn new(cancellation: &CancellationToken) -> Self {
         Self {
             nodes: Vec::new(),
             by_ref: HashMap::new(),
             stack: Vec::new(),
             leaf_index: 0,
+            cancellation: cancellation.clone(),
+            cancelled: false,
+            skipped: 0,
         }
     }
 
@@ -4332,6 +4407,11 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
+        if self.cancelled || self.skipped > 0 || self.cancellation.is_cancelled() {
+            self.cancelled = true;
+            self.skipped += 1;
+            return;
+        }
         let id = RawSyntaxNodeId(self.nodes.len());
         let parent = self.stack.last().copied();
         let metadata = new!(SyntaxNodeMetadata {
@@ -4353,6 +4433,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn exit_node(&mut self, node: Self::Node) {
+        if self.skipped > 0 {
+            self.skipped -= 1;
+            return;
+        }
         let Some(id) = self.stack.pop() else {
             return;
         };
@@ -4365,6 +4449,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
+        if self.cancelled || self.skipped > 0 || self.cancellation.is_cancelled() {
+            self.cancelled = true;
+            return;
+        }
         match atom {
             GeneratedSyntaxAtomRef::Token(token) => {
                 for span in token.source_spans() {
@@ -4740,12 +4828,18 @@ struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     pending_next_utterance_sources: Vec<RawSyntaxNodeId>,
     current_bridi_frames: Vec<SelbriPlaceFrameId>,
     relative_heads: Vec<SumtiNodeId>,
+    cancellation: CancellationToken,
+    stopped: bool,
 }
 
 impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.edges.is_empty())]
-    fn new(index: &'index GeneratedSyntaxIndex<'tree>, places: &'index PlaceAnalysis) -> Self {
+    fn new(
+        index: &'index GeneratedSyntaxIndex<'tree>,
+        places: &'index PlaceAnalysis,
+        cancellation: &CancellationToken,
+    ) -> Self {
         Self {
             index,
             places,
@@ -4774,14 +4868,24 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             pending_next_utterance_sources: Vec::new(),
             current_bridi_frames: Vec::new(),
             relative_heads: Vec::new(),
+            cancellation: cancellation.clone(),
+            stopped: false,
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(mut self) -> DiscourseReferences {
+    fn finish(mut self) -> Result<DiscourseReferences, ReferenceAnalysisError> {
+        // A cancelled walk must not flush partial utterance state into edges
+        // that a caller could read as a finished analysis.
+        if self.stopped || self.cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
         self.flush_unresolved_pending_next_utterance_sources();
-        DiscourseReferences { edges: self.edges }
+        if self.cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        Ok(DiscourseReferences { edges: self.edges })
     }
 
     #[requires(true)]
@@ -6583,6 +6687,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     where
         N: GeneratedSyntaxTreeWalkable<'tree> + ?Sized,
     {
+        if self.stopped || self.cancellation.is_cancelled() {
+            self.stopped = true;
+            return;
+        }
         GeneratedSyntaxTreeWalkable::walk_with(node, self);
     }
 

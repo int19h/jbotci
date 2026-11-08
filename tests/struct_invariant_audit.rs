@@ -64,6 +64,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
     ),
     (
+        "apps/jbotci-server/src/execution.rs:AdmissionCancellation",
+        "The source and the deadline sleeper are one admission. A clear flag and a set flag are both valid, and dropping the value does not change the flag.",
+    ),
+    (
         "crates/jbotci-budget/src/json_text.rs:OnceText",
         "The test tracks how often a text value is serialized.",
     ),

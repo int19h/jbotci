@@ -468,6 +468,10 @@ pub(crate) fn classify_word_with_cache(
     stripped_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Option<(WordKind, String)> {
+    if cache.is_cancelled() {
+        return None;
+    }
+
     let stripped_prefix = &stripped_chars[stripped_start..stripped_end];
     if stripped_prefix.is_empty() {
         return None;
@@ -771,6 +775,13 @@ fn analyze_lujvo_part_ranges_chars_with_cache(
     chars: &[char],
     cache: &mut MorphologyRecognitionCache,
 ) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
+    if cache.is_cancelled() {
+        return Err(LujvoParseFailure::new(
+            0,
+            LujvoParseExpectation::InitialOrStandaloneFinalRafsi,
+        ));
+    }
+
     let mut failure = None;
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
         record_lujvo_failure(&mut failure, 0, false);
@@ -2539,6 +2550,10 @@ fn lujvo_from_until_with_cache(
     has_initial_rafsi: bool,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.lujvo_from(index, end, has_initial_rafsi) {
         return result;
     }
@@ -2575,6 +2590,10 @@ fn lujvo_part_ranges_from_with_cache(
     failure: &mut Option<LujvoParseFailure>,
     cache: &mut MorphologyRecognitionCache,
 ) -> Option<Vec<LujvoPartRange>> {
+    if cache.is_cancelled() {
+        return None;
+    }
+
     if let Some(memo) = cache.lujvo_part_ranges(index, end, has_initial_rafsi) {
         merge_lujvo_failure(failure, memo.failure);
         return memo.ranges.as_ref().map(|ranges| ranges.to_vec());
@@ -2938,6 +2957,10 @@ pub(crate) fn starts_with_cvcy_lujvo_chars_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     let Some(base_end) = cvc_rafsi_end(chars, index) else {
         return false;
     };
@@ -2989,6 +3012,10 @@ fn initial_rafsi_ends_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Vec<usize> {
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+
     if let Some(ends) = cache.initial_rafsi_ends(index, end) {
         return ends.to_vec();
     }
@@ -3025,6 +3052,10 @@ fn any_extended_rafsi_starts_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.any_extended_rafsi_starts(index, end) {
         return result;
     }
@@ -3045,6 +3076,10 @@ fn stressed_extended_rafsi_ends_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Vec<usize> {
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+
     if let Some(ends) = cache.stressed_extended_rafsi_ends(index, end) {
         return ends.to_vec();
     }
@@ -3064,6 +3099,10 @@ fn extended_rafsi_ends_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Vec<usize> {
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+
     if let Some(ends) = cache.extended_rafsi_ends(index, end) {
         return ends.to_vec();
     }
@@ -3101,6 +3140,10 @@ fn stressed_initial_rafsi_short_final_split_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Option<usize> {
+    if cache.is_cancelled() {
+        return None;
+    }
+
     (start + 1..end).rev().find(|split| {
         is_short_final_rafsi_slice(chars, *split, end)
             && stressed_initial_rafsi_slice_with_cache(chars, start, *split, cache)
@@ -3116,6 +3159,10 @@ fn stressed_initial_rafsi_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     stressed_extended_rafsi_slice_with_cache(chars, start, end, cache)
         || stressed_y_rafsi_slice(chars, start, end)
         || stressed_y_less_rafsi_slice(chars, start, end)
@@ -3130,6 +3177,10 @@ fn stressed_extended_rafsi_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     stressed_brivla_rafsi_slice_with_cache(chars, start, end, cache)
         || stressed_fuhivla_rafsi_slice_with_cache(chars, start, end, cache)
 }
@@ -3157,6 +3208,10 @@ fn stressed_brivla_rafsi_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if end < start + 3
         || chars.get(end - 2) != Some(&'\'')
         || !chars.get(end - 1).is_some_and(|value| is_y(*value))
@@ -3184,6 +3239,10 @@ fn stressed_fuhivla_rafsi_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if end < start + 2 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
         return false;
     }
@@ -3219,6 +3278,10 @@ fn fuhivla_rafsi_base_ends_until_with_cache(
     lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Vec<usize> {
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+
     if let Some(ends) = cache.fuhivla_rafsi_base_ends(index, lookahead_end) {
         return ends.to_vec();
     }
@@ -3244,6 +3307,10 @@ fn fuhivla_rafsi_base_slice_with_cache(
     lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if start >= end
         || chars[start..end].iter().any(|value| is_y(*value))
         || unstressed_syllable_ends_for_fuhivla(chars, start, end).is_empty()
@@ -3268,6 +3335,10 @@ fn brivla_head_ends_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Rc<[usize]> {
+    if cache.is_cancelled() {
+        return Rc::from([]);
+    }
+
     if let Some(ends) = cache.brivla_head_ends(index, end) {
         return ends;
     }
@@ -3293,6 +3364,10 @@ fn fuhivla_head_ends_until_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Rc<[usize]> {
+    if cache.is_cancelled() {
+        return Rc::from([]);
+    }
+
     if let Some(ends) = cache.fuhivla_head_ends(index, end) {
         return ends;
     }
@@ -3337,6 +3412,10 @@ fn slinkuhi_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.slinkuhi(start, end) {
         return result;
     }
@@ -3365,6 +3444,10 @@ fn rafsi_string_starts_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.rafsi_string_starts(start, end) {
         return result;
     }
@@ -3393,6 +3476,10 @@ fn rafsi_string_slice_for_lookahead_with_cache(
     lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     // The lookahead span is already the third key of `rafsi_string_from`.
     // A second table stored the same bool again.
     rafsi_string_from_with_cache(chars, start, end, lookahead_end, cache)
@@ -3408,6 +3495,10 @@ fn rafsi_string_from_with_cache(
     lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.rafsi_string_from(start, end, lookahead_end) {
         return result;
     }
@@ -3732,6 +3823,10 @@ fn rafsi_string_ending_with_cache(
     lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.rafsi_string_ending(start, end, lookahead_end) {
         return result;
     }
@@ -3853,6 +3948,10 @@ fn post_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.post_word(index, end) {
         return result;
     }
@@ -4178,6 +4277,10 @@ fn is_fuhivla_shape_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     is_fuhivla_shape_slice_with_y_policy_with_cache(chars, start, end, false, cache)
 }
 
@@ -4197,6 +4300,10 @@ fn fuhivla_shape_slice_rejected_by_y_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     start < end
         && chars[start..end].iter().any(|value| is_y(*value))
         && is_fuhivla_shape_slice_with_y_policy_with_cache(chars, start, end, true, cache)
@@ -4212,6 +4319,10 @@ fn is_fuhivla_shape_slice_with_y_policy_with_cache(
     allows_y: bool,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.fuhivla_shape_y(start, end, allows_y) {
         return result;
     }
@@ -4251,6 +4362,10 @@ fn has_blocking_cmavo_prefix_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if start >= end {
         return false;
     }
@@ -4267,6 +4382,10 @@ fn cmavo_post_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     // `mut` is used on wasm32, where the closure is called in place. Native
     // code moves the closure into `stacker::maybe_grow`.
     #[allow(unused_mut)]
@@ -4322,6 +4441,10 @@ fn indicator_cmavo_boundary_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.indicator_boundary(prefix_start, prefix_end, index, end) {
         return result;
     }
@@ -4341,6 +4464,10 @@ fn indicator_cmavo_starts_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.indicator_cmavo_starts(start, end) {
         return result;
     }
@@ -4381,6 +4508,10 @@ fn lojban_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     // `mut` is used on wasm32, where the closure is called in place. Native
     // code moves the closure into `stacker::maybe_grow`.
     #[allow(unused_mut)]
@@ -4425,6 +4556,10 @@ fn cmavo_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     // `mut` is used on wasm32, where the closure is called in place. Native
     // code moves the closure into `stacker::maybe_grow`.
     #[allow(unused_mut)]
@@ -4477,6 +4612,10 @@ fn brivla_word_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.brivla_word(start, end) {
         return result;
     }
@@ -4505,6 +4644,10 @@ fn is_lujvo_slice_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.lujvo_slice(start, end) {
         return result;
     }
@@ -4660,6 +4803,10 @@ fn invalid_vowel_initial_fuhivla_shape_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     chars
         .get(start)
         .is_some_and(|value| is_vowel(*value) || matches!(value, 'ĭ' | 'ŭ'))
@@ -4675,6 +4822,10 @@ fn parse_fuhivla_shape_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.fuhivla_shape(start, end) {
         return result;
     }
@@ -4698,6 +4849,10 @@ fn parse_experimental_cgv_fuhivla_shape_with_cache(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.experimental_cgv(start, end) {
         return result;
     }
@@ -4729,6 +4884,10 @@ fn parse_fuhivla_shape_with_head_policy_with_cache(
     head_policy: FuhivlaHeadPolicy,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
+    if cache.is_cancelled() {
+        return false;
+    }
+
     if let Some(result) = cache.fuhivla_head_policy(start, end, head_policy) {
         return result;
     }
@@ -4761,6 +4920,10 @@ fn fuhivla_head_ends_for_fuhivla_with_cache(
     head_policy: FuhivlaHeadPolicy,
     cache: &mut MorphologyRecognitionCache,
 ) -> Rc<[usize]> {
+    if cache.is_cancelled() {
+        return Rc::from([]);
+    }
+
     match head_policy {
         FuhivlaHeadPolicy::Standard => fuhivla_head_ends_until_with_cache(chars, start, end, cache),
         FuhivlaHeadPolicy::ExperimentalCgv => {

@@ -213,6 +213,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
         stdin_text,
         None,
         None,
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -231,7 +232,14 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
     stdin_text: Option<&str>,
     mut tool_context: Option<&mut ToolExecutionContext<'_>>,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
+    // Commands whose own loops are bounded by a result cap still refuse to
+    // start after the flag is set. Morphology, syntax, and rendering read the
+    // same flag inside their loops.
+    if cancellation.is_cancelled() {
+        return Err(jbotci_interrupt::Interrupted.into());
+    }
     match command {
         Command::Vlasei(input) => run_vlasei(
             input,
@@ -241,10 +249,15 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             diagnostic_terminal_width,
             stdin_text,
             limits,
+            cancellation,
         ),
-        Command::Vlatai(input) => {
-            run_vlatai(input, stdout, color_policy, diagnostic_terminal_width)
-        }
+        Command::Vlatai(input) => run_vlatai(
+            input,
+            stdout,
+            color_policy,
+            diagnostic_terminal_width,
+            cancellation,
+        ),
         Command::Gentufa(mut input) => {
             let glyphs = cli_glyph_style(input.ascii);
             let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
@@ -289,6 +302,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                 },
                 stdin_text,
                 limits,
+                cancellation,
             )
         }
         Command::Mulgau(input) => {

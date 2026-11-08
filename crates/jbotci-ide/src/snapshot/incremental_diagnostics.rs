@@ -499,6 +499,8 @@ fn confirmed_tree_tokens(parse: &SyntaxRecoveryParse) -> Vec<Token> {
             tokens.extend(runs.into_inner().into_iter().flatten().cloned());
             tokens
         }
+        // No confirmed tokens: the cancellation flag stopped the parse.
+        SyntaxRecoveryParseData::Interrupted => Vec::new(),
     };
     tokens.sort_by_key(token_byte_start);
     tokens

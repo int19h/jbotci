@@ -67,6 +67,9 @@ impl TreeCompletionContext {
                     .extend(skipped_visitor.suffix_consistent_cmavo);
                 visitor.collector
             }
+            // An interrupted parse has no tree. The LSP does not set the flag;
+            // this arm keeps a cancelled result from being read as a partial tree.
+            SyntaxRecoveryParseData::Interrupted => collector,
         };
         collector.finish()
     }

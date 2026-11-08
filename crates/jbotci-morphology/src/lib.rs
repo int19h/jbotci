@@ -47,6 +47,9 @@ mod surface;
 mod syntax_eq;
 pub mod tree;
 
+#[cfg(test)]
+mod cancellation_tests;
+
 use std::{cell::OnceCell, fmt, num::NonZeroUsize, sync::Arc};
 
 use bityzba::{contract_trait, data, invariant, new, requires, try_new};
@@ -56,6 +59,7 @@ use jbotci_diagnostics::{
     TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, DialectFeature};
+use jbotci_interrupt::CancellationToken;
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::ser::{SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
@@ -214,6 +218,10 @@ pub struct MorphologyOptions {
     pub max_recovery_errors: NonZeroUsize,
     #[serde(default)]
     pub trace: TraceOptions,
+    /// Cooperative stop flag. Serde omits it: a saved options value has no
+    /// deadline, and the default token is never cancelled.
+    #[serde(skip, default)]
+    pub cancellation: CancellationToken,
 }
 
 impl Default for MorphologyOptions {
@@ -231,6 +239,7 @@ impl Default for MorphologyOptions {
             max_recovery_errors: NonZeroUsize::new(20)
                 .expect("the default recovery error cap is non-zero"),
             trace: TraceOptions::disabled(),
+            cancellation: CancellationToken::never(),
         }
     }
 }
@@ -288,6 +297,16 @@ impl MorphologyOptions {
             ..self
         }
     }
+
+    /// Replace the stop flag. Callers without a deadline pass [`CancellationToken::never`].
+    #[requires(true)]
+    #[ensures(ret.cancellation == *cancellation)]
+    pub fn with_cancellation(self, cancellation: &CancellationToken) -> Self {
+        MorphologyOptions {
+            cancellation: cancellation.clone(),
+            ..self
+        }
+    }
 }
 
 #[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
@@ -314,6 +333,18 @@ pub struct RecoveredMorphologySegmentation {
     /// at diagnostic anchors. The regions remain ordered and disjoint.
     pub error_regions: Vec<SourceSpan>,
     pub warnings: Vec<MorphologyWarning>,
+}
+
+impl RecoveredMorphologySegmentation {
+    /// True when this call was stopped and the word list was discarded.
+    ///
+    /// A cancelled segmentation is not a reader error. Callers match this
+    /// before they turn `errors` into diagnostics.
+    #[requires(true)]
+    #[ensures(ret == self.errors.iter().any(MorphologyError::is_interrupted))]
+    pub fn was_interrupted(&self) -> bool {
+        self.errors.iter().any(MorphologyError::is_interrupted)
+    }
 }
 
 #[invariant(trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
@@ -371,13 +402,14 @@ fn recovered_morphology_words_disjoint_from_error_regions(
 }
 
 #[requires(true)]
-#[ensures(ret.is_none() == matches!(error, MorphologyError::SourceSpan(_)))]
+#[ensures(ret.is_none() == matches!(error, MorphologyError::SourceSpan(_) | MorphologyError::Interrupted))]
 fn morphology_error_recovery_start(error: &MorphologyError) -> Option<usize> {
     match error {
         MorphologyError::Invalid { char_start, .. } => Some(*char_start),
         MorphologyError::UnterminatedZoiQuote { char_offset, .. } => Some(*char_offset),
         MorphologyError::DialectExpansion(failure) => Some(failure.span.char_start),
-        MorphologyError::SourceSpan(_) => None,
+        // An interrupt has no source position. Recovery must not resume after it.
+        MorphologyError::Interrupted | MorphologyError::SourceSpan(_) => None,
     }
 }
 
@@ -407,7 +439,8 @@ pub struct ValsiAnalysis {
 
 #[invariant(matches!(status, ValsiAnalysisStatus::Valid) == word.is_some())]
 #[invariant(matches!(status, ValsiAnalysisStatus::Valid) == classification.is_some())]
-#[invariant(matches!(status, ValsiAnalysisStatus::Invalid) == error.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::Invalid) == error.as_ref().is_some_and(|error| !error.is_interrupted()))]
+#[invariant(matches!(status, ValsiAnalysisStatus::Interrupted) == error.as_ref().is_some_and(|error| error.is_interrupted()))]
 #[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) == (word.is_none() && classification.is_none() && error.is_none()))]
 #[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) || words.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -433,6 +466,7 @@ define_string_enum_metadata! {
     pub enum ValsiAnalysisStatus {
         Valid => ("VALID", "valid"),
         Invalid => ("INVALID", "invalid"),
+        Interrupted => ("INTERRUPTED", "interrupted"),
         NotSingleWord => ("NOT_SINGLE_WORD", "not-single-word"),
     }
 }
@@ -2197,6 +2231,7 @@ impl MorphologyErrorDetail {
 
 #[invariant(true)]
 #[invariant(::Invalid => true)]
+#[invariant(::Interrupted => true)]
 #[invariant(::UnterminatedZoiQuote => true)]
 #[invariant(::SourceSpan(_) => true)]
 #[invariant(::DialectExpansion(_) => true)]
@@ -2213,6 +2248,9 @@ pub enum MorphologyError {
         context: Option<MorphologyContext>,
         detail: Option<MorphologyErrorDetail>,
     },
+    /// The cancellation flag was set. This is not an invalid word.
+    #[error("computation interrupted")]
+    Interrupted,
     #[error("unterminated ZOI quote, expected closing delimiter `{delimiter}`")]
     UnterminatedZoiQuote {
         char_offset: usize,
@@ -2224,6 +2262,12 @@ pub enum MorphologyError {
 }
 
 impl MorphologyError {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Interrupted))]
+    pub fn is_interrupted(&self) -> bool {
+        matches!(self, Self::Interrupted)
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
     pub fn to_diagnostic(
@@ -2305,6 +2349,24 @@ impl MorphologyError {
                     "morphology.source-span".to_owned(),
                     "invalid source span".to_owned(),
                     vec![DiagnosticLabel::new(span, error.to_string(), true)],
+                    Vec::new(),
+                    None,
+                ))
+            }
+            // Last resort if a caller forgot to match `is_interrupted` first.
+            // The code is not an invalid-word code.
+            Self::Interrupted => {
+                let span = source_span_from_char_offsets(source_id, source, 0, 0)?;
+                Ok(Diagnostic::new(
+                    DiagnosticSeverity::Error,
+                    DiagnosticPhase::Morphology,
+                    "morphology.interrupted".to_owned(),
+                    "computation interrupted".to_owned(),
+                    vec![DiagnosticLabel::new(
+                        span,
+                        "computation interrupted".to_owned(),
+                        true,
+                    )],
                     Vec::new(),
                     None,
                 ))
@@ -2452,7 +2514,7 @@ pub fn segment_words_with_modifiers_recovered(input: &str) -> RecoveredMorpholog
 
 #[requires(true)]
 #[ensures(ret.input == input)]
-#[ensures(matches!(ret.result.status, ValsiAnalysisStatus::Valid | ValsiAnalysisStatus::Invalid | ValsiAnalysisStatus::NotSingleWord))]
+#[ensures(matches!(ret.result.status, ValsiAnalysisStatus::Valid | ValsiAnalysisStatus::Invalid | ValsiAnalysisStatus::Interrupted | ValsiAnalysisStatus::NotSingleWord))]
 pub fn analyze_valsi_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -2482,6 +2544,13 @@ pub fn analyze_valsi_with_options_and_source_id(
             classification: None,
             error: None,
             words: words,
+        }),
+        Err(error) if error.is_interrupted() => new!(ValsiAnalysisResult {
+            status: ValsiAnalysisStatus::Interrupted,
+            word: None,
+            classification: None,
+            error: Some(error),
+            words: Vec::new(),
         }),
         Err(error) => new!(ValsiAnalysisResult {
             status: ValsiAnalysisStatus::Invalid,

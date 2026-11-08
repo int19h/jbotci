@@ -1706,6 +1706,7 @@ fn run_tool_command_with_context(
         None,
         tool_context,
         None,
+        &jbotci_interrupt::CancellationToken::never(),
     )?;
     let stderr =
         String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
@@ -2070,8 +2071,28 @@ pub fn run_tool_gentufa_with_limits(
     request: ToolGentufaRequest,
     limits: &ToolExecutionLimits,
 ) -> Result<ToolRenderedOutput> {
+    run_tool_gentufa_with_limits_and_cancellation(
+        request,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_gentufa_with_limits_and_cancellation(
+    request: ToolGentufaRequest,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
     let content_type = request.format.content_type();
-    run_tool_command_with_limits(Command::from(request), Some(content_type), None, limits)
+    run_tool_command_with_limits(
+        Command::from(request),
+        Some(content_type),
+        None,
+        limits,
+        cancellation,
+    )
 }
 
 #[requires(true)]
@@ -2080,8 +2101,28 @@ pub fn run_tool_vlasei_with_limits(
     request: ToolVlaseiRequest,
     limits: &ToolExecutionLimits,
 ) -> Result<ToolRenderedOutput> {
+    run_tool_vlasei_with_limits_and_cancellation(
+        request,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_vlasei_with_limits_and_cancellation(
+    request: ToolVlaseiRequest,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
     let content_type = request.format.content_type();
-    run_tool_command_with_limits(Command::from(request), Some(content_type), None, limits)
+    run_tool_command_with_limits(
+        Command::from(request),
+        Some(content_type),
+        None,
+        limits,
+        cancellation,
+    )
 }
 
 #[requires(true)]
@@ -2099,8 +2140,38 @@ pub fn run_tool_cukta_with_limits(
             limits.entries,
         )?;
     }
+    run_tool_cukta_with_limits_and_cancellation(
+        request,
+        context,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_cukta_with_limits_and_cancellation(
+    request: ToolCuktaRequest,
+    context: Option<&mut ToolExecutionContext<'_>>,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
+    if matches!(request.mode, ToolCuktaMode::Word | ToolCuktaMode::Meaning) {
+        check_tool_count(
+            request
+                .count
+                .unwrap_or(jbotci_cll::DEFAULT_CUKTA_CLI_RESULT_COUNT),
+            limits.entries,
+        )?;
+    }
     let content_type = request.format.content_type();
-    run_tool_command_with_limits(Command::from(request), Some(content_type), context, limits)
+    run_tool_command_with_limits(
+        Command::from(request),
+        Some(content_type),
+        context,
+        limits,
+        cancellation,
+    )
 }
 
 #[requires(true)]
@@ -2116,11 +2187,34 @@ pub fn run_tool_vlacku_with_limits(
             .unwrap_or(jbotci_search::vlacku::DEFAULT_VLACKU_RESULT_COUNT),
         limits.entries,
     )?;
+    run_tool_vlacku_with_limits_and_cancellation(
+        request,
+        context,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_vlacku_with_limits_and_cancellation(
+    request: ToolVlackuRequest,
+    context: Option<&mut ToolExecutionContext<'_>>,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
+    check_tool_count(
+        request
+            .count
+            .unwrap_or(jbotci_search::vlacku::DEFAULT_VLACKU_RESULT_COUNT),
+        limits.entries,
+    )?;
     run_tool_command_with_limits(
         Command::try_from(request)?,
         Some(TEXT_PLAIN_CONTENT_TYPE),
         context,
         limits,
+        cancellation,
     )
 }
 
@@ -2131,6 +2225,33 @@ pub fn run_tool_gimfihi_with_limits(
     word_kind: GimfihiSourceWordKind,
     limits: &ToolExecutionLimits,
 ) -> Result<ToolRenderedOutput> {
+    run_tool_gimfihi_with_limits_and_cancellation(
+        request,
+        word_kind,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn run_tool_gimfihi_command_with_cancellation(
+    command: Command,
+    content_type: &'static str,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
+    run_tool_command_with_limits(command, Some(content_type), None, limits, cancellation)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_gimfihi_with_limits_and_cancellation(
+    request: ToolGimfihiRequest,
+    word_kind: GimfihiSourceWordKind,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
     check_tool_count(
         request
             .count
@@ -2139,7 +2260,7 @@ pub fn run_tool_gimfihi_with_limits(
     )?;
     let content_type = request.format.content_type();
     let command = Command::try_from(ToolGimfihiCommandInput { request, word_kind })?;
-    run_tool_command_with_limits(command, Some(content_type), None, limits)
+    run_tool_gimfihi_command_with_cancellation(command, content_type, limits, cancellation)
 }
 
 #[requires(true)]
@@ -2149,6 +2270,7 @@ fn run_tool_command_with_limits(
     content_type: Option<&'static str>,
     context: Option<&mut ToolExecutionContext<'_>>,
     limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<ToolRenderedOutput> {
     use jbotci_output::budget::{ByteLimit, OutputBudget};
     let text = OutputBudget::new(limits.render.text);
@@ -2174,6 +2296,7 @@ fn run_tool_command_with_limits(
         None,
         context,
         Some(limits),
+        cancellation,
     )?;
     let stderr = stderr
         .into_string()
@@ -2192,6 +2315,20 @@ pub fn run_tool_jvozba_with_limits(
     request: ToolJvozbaRequest,
     limits: &ToolExecutionLimits,
 ) -> Result<ToolRenderedOutput> {
+    run_tool_jvozba_with_limits_and_cancellation(
+        request,
+        limits,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn run_tool_jvozba_with_limits_and_cancellation(
+    request: ToolJvozbaRequest,
+    limits: &ToolExecutionLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<ToolRenderedOutput> {
     if request.parts.len() > limits.jvozba.max_pieces {
         bail!("The requested compound has too many parts for the execution limit.");
     }
@@ -2200,5 +2337,84 @@ pub fn run_tool_jvozba_with_limits(
         Some(TEXT_PLAIN_CONTENT_TYPE),
         None,
         limits,
+        cancellation,
     )
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use std::num::NonZeroUsize;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    #[allow(unused_imports)]
+    use bityzba::{ensures, new, requires};
+    use jbotci_interrupt::CancellationSource;
+    use jbotci_jvozba::JvozbaBuildLimits;
+    use jbotci_output::budget::{ByteLimit, RenderLimits};
+
+    use super::{
+        ToolExecutionLimits, ToolGentufaFormat, ToolGentufaRequest,
+        run_tool_gentufa_with_limits_and_cancellation,
+    };
+
+    /// Same family as the syntax cancellation test. The tool boundary must
+    /// surface that stop as [`jbotci_interrupt::Interrupted`], which the server
+    /// downcasts. It must not be a rendered syntax error.
+    const LO_COPIES: usize = 700;
+    const CANCEL_AFTER: Duration = Duration::from_millis(200);
+    const MUST_STOP_WITHIN: Duration = Duration::from_secs(4);
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cancellation_is_a_typed_tool_error() {
+        // These request and limit types carry only the audited no-op invariant.
+        let request = ToolGentufaRequest {
+            text: "lo".repeat(LO_COPIES),
+            format: ToolGentufaFormat::Brackets,
+            dialect: None,
+            show_defs: false,
+            show_spans: false,
+            show_refs: Some(false),
+            show_elided: false,
+            show_glosses: false,
+            show_compounds: false,
+            decompose_lujvo: false,
+            indent: None,
+        };
+        let bytes = ByteLimit::new(8_000_000).expect("positive limit");
+        let limits = ToolExecutionLimits {
+            render: RenderLimits::new(bytes, bytes),
+            entries: NonZeroUsize::new(8).expect("positive count"),
+            jvozba: JvozbaBuildLimits::unlimited(),
+            diagram: new!(jbotci_gentufa::GentufaRenderLimits {
+                max_blocks: 64,
+                max_columns: 64,
+                max_pixels: 4_000_000,
+                max_bytes: 4_000_000,
+            }),
+        };
+        let source = CancellationSource::new();
+        let token = source.token();
+        let canceller = thread::spawn(move || {
+            thread::sleep(CANCEL_AFTER);
+            source.cancel();
+        });
+        let started = Instant::now();
+        let error = run_tool_gentufa_with_limits_and_cancellation(request, &limits, &token)
+            .expect_err("a stopped gentufa call must not return a document");
+        let elapsed = started.elapsed();
+        canceller.join().expect("canceller");
+        assert!(
+            elapsed < MUST_STOP_WITHIN,
+            "gentufa kept running for {elapsed:?} after the flag was set"
+        );
+        assert!(
+            error
+                .downcast_ref::<jbotci_interrupt::Interrupted>()
+                .is_some(),
+            "the tool error must be the typed interruption, not a rendered diagnostic: {error}"
+        );
+    }
 }

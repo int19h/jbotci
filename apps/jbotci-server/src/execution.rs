@@ -40,11 +40,40 @@ impl ServerExecution {
     ) -> Result<AdmittedWorkContext, WorkError> {
         let deadline = self.deadline(earlier)?;
         let lease = self.governor.acquire_compute(deadline).await?;
+        // One flag for every job under this admission. The sleeper sets it
+        // when `deadline` passes. The last clone of the context aborts the
+        // sleeper; dropping it does not clear or set the flag.
+        let source = jbotci_interrupt::CancellationSource::new();
+        let sleeper_source = source.clone();
+        let sleeper = tokio::spawn(async move {
+            tokio::time::sleep_until(deadline).await;
+            sleeper_source.cancel();
+        });
         Ok(new!(AdmittedWorkContext {
             execution: Arc::clone(self),
             lease,
             deadline,
+            cancellation: Arc::new(AdmissionCancellation { source, sleeper }),
         }))
+    }
+}
+
+/// The owner of one admission's cancellation flag, and the task that sets it.
+#[invariant(true)]
+#[derive(Debug)]
+struct AdmissionCancellation {
+    source: jbotci_interrupt::CancellationSource,
+    sleeper: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for AdmissionCancellation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        // Abort only the wait. A flag that was already set stays set, and a
+        // flag that is still clear stays clear: a finished admission must not
+        // cancel a token a caller copied out.
+        self.sleeper.abort();
     }
 }
 
@@ -54,8 +83,22 @@ pub(crate) struct AdmittedWorkContext {
     pub(crate) execution: Arc<ServerExecution>,
     pub(crate) lease: WorkLease,
     pub(crate) deadline: Instant,
+    cancellation: Arc<AdmissionCancellation>,
 }
 impl AdmittedWorkContext {
+    /// The flag this admission's jobs check. It stays clear until the deadline.
+    #[requires(true)]
+    #[ensures(!ret.is_cancelled() || self.cancellation.source.is_cancelled())]
+    pub(crate) fn token(&self) -> jbotci_interrupt::CancellationToken {
+        self.cancellation.source.token()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn cancellation_source(&self) -> &jbotci_interrupt::CancellationSource {
+        &self.cancellation.source
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub(crate) async fn run<T, F>(&self, job: F) -> Result<T, WorkError>
@@ -63,7 +106,13 @@ impl AdmittedWorkContext {
         T: Send + 'static,
         F: FnOnce() -> T + Send + 'static,
     {
-        run_admitted(self.lease.clone(), self.deadline, job).await
+        run_admitted(
+            self.lease.clone(),
+            self.deadline,
+            self.cancellation_source(),
+            job,
+        )
+        .await
     }
 }
 
@@ -184,6 +233,25 @@ impl AdmittedWorkContext {
 #[ensures(true)]
 pub(crate) fn operation_error_code(error: &anyhow::Error) -> Option<ServerErrorCode> {
     for cause in error.chain() {
+        // A cancellation is the deadline, not a user error and not a crash.
+        // The response stays the canonical deadline body and status.
+        if cause
+            .downcast_ref::<jbotci_interrupt::Interrupted>()
+            .is_some()
+            || cause
+                .downcast_ref::<jbotci_web_core::WebComputeError>()
+                .is_some_and(|error| error.is_interrupted())
+            || cause
+                .downcast_ref::<jbotci_output::OutputError>()
+                .is_some_and(|error| matches!(error, jbotci_output::OutputError::Interrupted))
+            || cause
+                .downcast_ref::<jbotci_gentufa::GentufaExportError>()
+                .is_some_and(|error| {
+                    matches!(error, jbotci_gentufa::GentufaExportError::Interrupted)
+                })
+        {
+            return Some(ServerErrorCode::Deadline);
+        }
         if cause
             .downcast_ref::<jbotci_output::budget::OutputLimitError>()
             .is_some()

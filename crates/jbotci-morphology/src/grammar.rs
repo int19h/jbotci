@@ -60,6 +60,18 @@ pub(crate) fn segment_words_with_modifiers_recovered_attempt(
 ) -> RecoveredMorphologySegmentAttempt {
     let strict_attempt = Segmenter::new(input, options, source_id.clone()).segment_attempt();
     let strict_attempt = strict_attempt.into_data();
+    // Cancellation is not a reader failure. Do not start recovery, and do not
+    // keep the words recognized before the flag was set.
+    if strict_attempt
+        .result
+        .as_ref()
+        .is_err_and(MorphologyError::is_interrupted)
+    {
+        return new!(RecoveredMorphologySegmentAttempt {
+            result: interrupted_segmentation(source_id),
+            trace: strict_attempt.trace,
+        });
+    }
     if let Ok(words) = strict_attempt.result.and_then(|words| {
         crate::apply_compiled_dialect_entries(words, &options.compiled_dialect, input)
     }) {
@@ -77,6 +89,22 @@ pub(crate) fn segment_words_with_modifiers_recovered_attempt(
 
     let segmenter = Segmenter::new(input, options, source_id);
     segmenter.segment_recovered_attempt()
+}
+
+/// A cancelled segmentation is not a partial word list and not an invalid word.
+///
+/// The empty span keeps the error count aligned with the region count.
+/// Callers match [`MorphologyError::is_interrupted`] before rendering.
+#[requires(true)]
+#[ensures(ret.words.is_empty() && ret.was_interrupted() && ret.error_regions.len() == 1)]
+fn interrupted_segmentation(source_id: Option<SourceId>) -> RecoveredMorphologySegmentation {
+    let span = SourceSpan::new(source_id, 0, 0, 0, 0).expect("an empty span is ordered");
+    new!(RecoveredMorphologySegmentation {
+        words: Vec::new(),
+        errors: vec![MorphologyError::Interrupted],
+        error_regions: vec![span],
+        warnings: Vec::new(),
+    })
 }
 
 #[requires(true)]
@@ -457,6 +485,9 @@ impl<'a> Segmenter<'a> {
         let mut acc = Vec::new();
         let result: Result<(), MorphologyError> = (|| {
             while self.skip_magic_noise(true)? {
+                if self.options.cancellation.is_cancelled() {
+                    return Err(MorphologyError::Interrupted);
+                }
                 if self.index == self.chars.len() {
                     break;
                 }
@@ -467,6 +498,8 @@ impl<'a> Segmenter<'a> {
         })();
         match result {
             Ok(()) => finish_stream(acc),
+            // A fault is an invalid word. An interrupt must not be replaced by one.
+            Err(error) if error.is_interrupted() => Err(error),
             Err(error) => Err(acc
                 .into_iter()
                 .find_map(|unit| match unit {
@@ -484,10 +517,16 @@ impl<'a> Segmenter<'a> {
         let mut errors = Vec::new();
         let mut error_regions = Vec::new();
         loop {
+            if self.options.cancellation.is_cancelled() {
+                return interrupted_segmentation(self.source_id.clone());
+            }
             let checkpoint = self.recovery_checkpoint(&words);
             match self.skip_magic_noise(true) {
                 Ok(true) => {}
                 Ok(false) => break,
+                Err(error) if error.is_interrupted() => {
+                    return interrupted_segmentation(self.source_id.clone());
+                }
                 Err(error) => {
                     if !self.record_recovered_error(
                         checkpoint,
@@ -514,16 +553,22 @@ impl<'a> Segmenter<'a> {
                 }
                 Err(error) => Err(error),
             };
-            if let Err(error) = segment_result
-                && !self.record_recovered_error(
-                    checkpoint,
-                    &mut words,
-                    &mut errors,
-                    &mut error_regions,
-                    error,
-                )
-            {
-                break;
+            match segment_result {
+                Err(error) if error.is_interrupted() => {
+                    return interrupted_segmentation(self.source_id.clone());
+                }
+                Err(error) => {
+                    if !self.record_recovered_error(
+                        checkpoint,
+                        &mut words,
+                        &mut errors,
+                        &mut error_regions,
+                        error,
+                    ) {
+                        break;
+                    }
+                }
+                Ok(_) => {}
             }
         }
         self.push_ignored_characters_advice();
@@ -556,6 +601,11 @@ impl<'a> Segmenter<'a> {
             }
         }
         self.append_recovered_failures(failures, &mut errors, &mut error_regions);
+        if self.options.cancellation.is_cancelled()
+            || errors.iter().any(MorphologyError::is_interrupted)
+        {
+            return interrupted_segmentation(self.source_id.clone());
+        }
         new!(RecoveredMorphologySegmentation {
             words: surviving_words,
             errors,
@@ -629,6 +679,9 @@ impl<'a> Segmenter<'a> {
     fn segment_display(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         loop {
+            if self.options.cancellation.is_cancelled() {
+                return Err(MorphologyError::Interrupted);
+            }
             self.skip_separators();
             if self.index == self.chars.len() {
                 break;
@@ -1041,6 +1094,9 @@ impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(true)]
     fn next_plain_word(&mut self) -> Result<WordLike, MorphologyError> {
+        if self.options.cancellation.is_cancelled() {
+            return Err(MorphologyError::Interrupted);
+        }
         self.skip_separators();
         let start = self.index;
         let candidate_end = self.candidate_end(start);
@@ -1067,6 +1123,10 @@ impl<'a> Segmenter<'a> {
                 || Some(raw.to_owned()),
             );
             return self.word_with_modifiers(start, end, kind, phonemes);
+        }
+        // A cancelled search returns no candidate. That is not an unrecognized word.
+        if self.options.cancellation.is_cancelled() {
+            return Err(MorphologyError::Interrupted);
         }
 
         let error_end = self.trim_trailing_commas(start, candidate_end);
@@ -1120,6 +1180,13 @@ impl<'a> Segmenter<'a> {
         }
         self.mark_word_start_running(start);
         let result = self.streaming_word_candidate_uncached(start, candidate_end, normalized);
+        // A cancelled search did not prove that this index is not a word.
+        // Leave the per-call memo without a Done(None) answer.
+        if self.options.cancellation.is_cancelled() {
+            self.clear_word_start(start);
+            self.close_word_region(frame);
+            return None;
+        }
         self.store_word_start(start, result.clone());
         self.close_word_region(frame);
         result
@@ -1205,7 +1272,10 @@ impl<'a> Segmenter<'a> {
         normalized: &NormalizedCandidate,
     ) {
         let stripped_chars: Rc<[char]> = Rc::from(normalized.stripped_chars.as_slice());
-        let cache = MorphologyRecognitionCache::new(stripped_chars.len());
+        let cache = MorphologyRecognitionCache::with_cancellation(
+            stripped_chars.len(),
+            self.options.cancellation.clone(),
+        );
         let region = new!(ActiveWordRegion {
             source_start: start,
             source_end: candidate_end,
@@ -1264,6 +1334,17 @@ impl<'a> Segmenter<'a> {
             .insert(start, new!(WordStartMemo::Done(result)));
     }
 
+    /// Drop a Running mark that must not become a stored negative answer.
+    #[requires(true)]
+    #[ensures(true)]
+    fn clear_word_start(&self, start: usize) {
+        let regions = self.word_regions.borrow();
+        let Some(region) = regions.last() else {
+            return;
+        };
+        region.memo.borrow_mut().remove(&start);
+    }
+
     #[requires(!self.word_regions.borrow().is_empty())]
     #[ensures(true)]
     fn with_shared_cache<R>(
@@ -1290,8 +1371,13 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        ((start + 1)..=candidate_end).find_map(|end| {
-            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+        for end in (start + 1)..=candidate_end {
+            if self.options.cancellation.is_cancelled() {
+                return None;
+            }
+            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
+                continue;
+            };
             if !self.post_word_ok_for_brivla(
                 start,
                 end,
@@ -1299,11 +1385,18 @@ impl<'a> Segmenter<'a> {
                 normalized_prefix,
                 normalized,
             ) {
-                return None;
+                continue;
             }
-            let local_stripped_end = normalized.stripped_end_to_source_end(end - start)?;
-            let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
-            let (kind, phonemes) =
+            let Some(local_stripped_end) = normalized.stripped_end_to_source_end(end - start)
+            else {
+                continue;
+            };
+            let Some(normalized_prefix_chars) =
+                normalized.normalized_chars_to_source_end(end - start)
+            else {
+                continue;
+            };
+            let Some((kind, phonemes)) =
                 self.with_shared_cache(start, normalized, |stripped, offset, cache| {
                     crate::segment::classify_word_with_cache(
                         normalized_prefix,
@@ -1313,16 +1406,20 @@ impl<'a> Segmenter<'a> {
                         offset + local_stripped_end,
                         cache,
                     )
-                })?;
+                })
+            else {
+                continue;
+            };
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
-                return None;
+                continue;
             }
-            Some(new!(StreamingWordCandidate {
+            return Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: kind,
                 phonemes: phonemes,
-            }))
-        })
+            }));
+        }
+        None
     }
 
     #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
@@ -1375,20 +1472,26 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        ((start + 1)..=candidate_end).find_map(|end| {
+        for end in (start + 1)..=candidate_end {
+            if self.options.cancellation.is_cancelled() {
+                return None;
+            }
             if !self.pause_at(end) {
-                return None;
+                continue;
             }
-            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
+                continue;
+            };
             if !crate::segment::is_cmevla_text(normalized_prefix) {
-                return None;
+                continue;
             }
-            Some(new!(StreamingWordCandidate {
+            return Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: WordKind::Cmevla,
                 phonemes: crate::segment::canonicalize_word_phonemes(normalized_prefix),
-            }))
-        })
+            }));
+        }
+        None
     }
 
     #[inline(never)]
@@ -1482,18 +1585,26 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        ((start + 1)..=candidate_end).find_map(|end| {
-            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
-            let phonemes = crate::segment::parse_cmavo_form(normalized_prefix)?;
-            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
+        for end in (start + 1)..=candidate_end {
+            if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            Some(new!(StreamingWordCandidate {
+            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
+                continue;
+            };
+            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
+                continue;
+            };
+            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
+                continue;
+            }
+            return Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: WordKind::Cmavo,
                 phonemes: phonemes,
-            }))
-        })
+            }));
+        }
+        None
     }
 
     #[requires(true)]
@@ -2375,6 +2486,9 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn lojban_word_starts_at(&self, index: usize) -> bool {
         let recognize = || {
+            if self.options.cancellation.is_cancelled() {
+                return false;
+            }
             let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
                 return false;
             };

@@ -1052,7 +1052,18 @@ impl DiscordService {
         let admission = context.clone();
         let published = published.clone();
         let attachment_limit = self.attachment_limit(attachment_limit);
+        let cancellation = context.token();
         context.run(move || {
+            // Presentation is bounded by the render text limit. Read the flag
+            // first so a deadline that already passed does not start it.
+            if cancellation.is_cancelled() {
+                return Err(ResultError::Operation {
+                    error: OperationError::Work(crate::work::WorkError::TimedOut {
+                        lane: crate::work::WorkLane::Compute,
+                    }),
+                    context: admission.clone(),
+                });
+            }
             let limits = admission.execution.policy.tool_limits();
             let operation_error = |error| ResultError::Operation { error, context: admission.clone() };
             let mut rendered = match completed.outcome {
@@ -1200,7 +1211,7 @@ impl DiscordService {
                 let api = self.api.clone();
                 let bytes = self
                     .governor
-                    .run_fetch_keeping(deadline, keepalive, move || {
+                    .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                         api.fetch_attachment(&url, SOURCE_ATTACHMENT_CAP, remaining_at(deadline))
                     })
                     .await
@@ -1252,7 +1263,7 @@ impl DiscordService {
         let token = target.token.clone();
         match self
             .governor
-            .run_fetch_keeping(deadline, keepalive, move || {
+            .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                 // What is left is measured where the call is made, not where
                 // it was queued: time spent waiting for a lane belongs to the
                 // same deadline and must not be granted twice.
@@ -1282,7 +1293,7 @@ impl DiscordService {
         let payload = payload.clone();
         match self
             .governor
-            .run_fetch_keeping(deadline, keepalive, move || {
+            .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                 api.edit_original(&application_id, &token, &payload, remaining_at(deadline))
             })
             .await
@@ -1395,7 +1406,7 @@ impl DiscordService {
         let target = target.clone();
         let _ = self
             .governor
-            .run_fetch_keeping(deadline, keepalive, move || {
+            .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                 api.create_refusal_followup(
                     &target.application_id,
                     &target.token,
@@ -1431,7 +1442,7 @@ impl DiscordService {
         let target_owned = target.clone();
         let _ = self
             .governor
-            .run_fetch_keeping(deadline, keepalive, move || {
+            .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                 api.edit_original_refusal(
                     &target_owned.application_id,
                     &target_owned.token,
@@ -1496,7 +1507,7 @@ impl DiscordService {
         };
         let _ = self
             .governor
-            .run_fetch_keeping(deadline, keepalive, move || {
+            .run_fetch_keeping(deadline, keepalive, move |_cancellation| {
                 api.create_ephemeral_followup(
                     &application_id,
                     &token,
@@ -4864,7 +4875,10 @@ mod tests {
             .run_fetch_keeping(
                 Instant::now() + Duration::from_millis(100),
                 Some(keepalive.clone()),
-                move || {
+                move |_cancellation| {
+                    // An in-flight transfer ignores the flag. The HTTP call
+                    // already carries the time left on the deadline, and the
+                    // keepalive stays until this closure returns.
                     started.store(true, Ordering::Release);
                     while !held.load(Ordering::Acquire) {
                         std::thread::sleep(Duration::from_millis(5));
@@ -4898,9 +4912,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn a_delivery_stands_until_its_work_really_ends() {
-        // A handler that gives up waiting does not end the work it started:
-        // the job keeps running, and the delivery it stands for must keep
-        // standing, or the same interaction could be admitted and run again.
+        // A handler that gives up waiting does not drop the delivery the work
+        // stands for. The deadline sets the cancellation flag. The job stops
+        // at that flag, and only then does the keepalive drop. Until that
+        // return, the same interaction cannot be admitted again.
         let recent = Arc::new(RecentInteractions::new(4));
         let governor = WorkGovernor::new(Default::default());
         let id = Snowflake::parse("123456789012345678").expect("snowflake");
@@ -4909,13 +4924,17 @@ mod tests {
         };
         let ticket = Arc::new(ticket);
         let keepalive: WorkKeepalive = ticket.clone();
-        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
         let timed_out = governor
             .run_compute_keeping(
                 Instant::now() + Duration::from_millis(50),
                 Some(keepalive),
-                move || {
-                    let _ = release_rx.recv();
+                |cancellation| {
+                    while !cancellation.is_cancelled() {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    // The caller has already been told. The keepalive stays
+                    // until this function returns.
+                    std::thread::sleep(Duration::from_millis(300));
                     "done"
                 },
             )
@@ -4934,7 +4953,6 @@ mod tests {
             "a redelivery does not start the work again"
         );
 
-        release_tx.send(()).expect("the job is waiting");
         tokio::time::timeout(Duration::from_secs(2), recent.wait_until_idle())
             .await
             .unwrap();

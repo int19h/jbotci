@@ -194,8 +194,30 @@ pub fn pretty_generated_model_tree_with_limit(
     options: TreeRenderOptions,
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
+    pretty_generated_model_tree_with_limit_and_cancellation(
+        tree,
+        source,
+        options,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+/// Render the tree until `cancellation` is set.
+///
+/// A set flag returns [`OutputError::Interrupted`] and no partial document.
+/// Reference analysis that was in progress is dropped with this call.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_limit_and_cancellation(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
     let reference_analysis = if options.show_refs {
-        Some(GeneratedReferenceAnalysis::analyze(tree).map_err(OutputError::References)?)
+        Some(reference_analysis_for_tree(tree, cancellation)?)
     } else {
         None
     };
@@ -204,10 +226,17 @@ pub fn pretty_generated_model_tree_with_limit(
         .map(|analysis| &analysis.syntax_index);
     let value =
         projected_generated_syntax_tree_value_with_index(tree, source, options, syntax_index);
+    cancellation.check().map_err(|_| OutputError::Interrupted)?;
     let references = reference_analysis
         .as_ref()
         .map(|analysis| ReferenceDisplayModel::new_generated(analysis, &value, source, options));
-    render_tree_value_with_limit(&value, options, references.as_ref(), limit)
+    render_tree_value_with_limit_and_cancellation(
+        &value,
+        options,
+        references.as_ref(),
+        limit,
+        cancellation,
+    )
 }
 #[doc(hidden)]
 #[requires(true)]
@@ -239,8 +268,27 @@ pub fn generated_reference_display<'tree>(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
-    let reference_analysis =
-        GeneratedReferenceAnalysis::analyze(generated_tree).map_err(OutputError::References)?;
+    generated_reference_display_with_cancellation(
+        generated_tree,
+        source,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+/// Build the reference display until `cancellation` is set.
+///
+/// An interrupt drops the index and the display. Callers do not receive a
+/// partial marker list.
+#[requires(true)]
+#[ensures(true)]
+pub fn generated_reference_display_with_cancellation<'tree>(
+    generated_tree: &'tree GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
+    let reference_analysis = reference_analysis_for_tree(generated_tree, cancellation)?;
     let generated_value = projected_generated_syntax_tree_value_with_index(
         generated_tree,
         source,
@@ -256,6 +304,27 @@ pub fn generated_reference_display<'tree>(
     Ok(GeneratedReferenceDisplay {
         analysis: reference_analysis,
         references,
+    })
+}
+
+/// Map a cancelled reference walk to the renderer's interrupted outcome.
+///
+/// [`OutputError::References`] would present the stop as a failed analysis.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0) || ret.is_err())]
+fn reference_analysis_for_tree<'tree>(
+    tree: &'tree GeneratedTextSyntax,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<GeneratedReferenceAnalysis<'tree>, OutputError> {
+    GeneratedReferenceAnalysis::analyze_with_cancellation(tree, cancellation).map_err(|error| {
+        if matches!(
+            error,
+            jbotci_semantics::references::ReferenceAnalysisError::Interrupted
+        ) {
+            OutputError::Interrupted
+        } else {
+            OutputError::References(error)
+        }
     })
 }
 #[requires(true)]
@@ -428,12 +497,31 @@ pub(crate) fn render_tree_value_with_limit(
     references: Option<&ReferenceDisplayModel>,
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
+    render_tree_value_with_limit_and_cancellation(
+        value,
+        options,
+        references,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub(crate) fn render_tree_value_with_limit_and_cancellation(
+    value: &TreeValue,
+    options: TreeRenderOptions,
+    references: Option<&ReferenceDisplayModel>,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
     let mut renderer = TreeRenderer {
         color: options.color,
         glyphs: options.glyphs,
         indent_step: options.indent,
         show_spans: options.show_spans,
         references,
+        cancellation,
         output: OutputBudget::new(limit).writer(),
     };
     renderer
@@ -2504,13 +2592,29 @@ struct TreeRenderer<'references> {
     indent_step: Indentation,
     show_spans: bool,
     references: Option<&'references ReferenceDisplayModel>,
+    cancellation: &'references jbotci_interrupt::CancellationToken,
     output: BudgetedWriter,
 }
 
 impl TreeRenderer<'_> {
+    /// One acquire load. The writer turns it into [`OutputError::Interrupted`].
+    #[requires(true)]
+    #[ensures(ret.is_ok() || self.cancellation.is_cancelled())]
+    fn stop_if_cancelled(&self) -> std::io::Result<()> {
+        if self.cancellation.is_cancelled() {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "computation interrupted",
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn render_value(&mut self, value: &TreeValue, indent: usize) -> std::io::Result<()> {
+        self.stop_if_cancelled()?;
         match value {
             TreeValue::Node(node) => self.render_node(node, indent),
             TreeValue::Collection(items) => self.render_collection(items, indent),
@@ -2640,6 +2744,7 @@ impl TreeRenderer<'_> {
             .checked_add(self.indent_step.spaces())
             .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
         for entry in entries {
+            self.stop_if_cancelled()?;
             self.output.write_all(b"\n")?;
             self.push_indent(child_indent)?;
             if let Some(label) = entry.label {
@@ -2659,6 +2764,7 @@ impl TreeRenderer<'_> {
     #[ensures(true)]
     fn render_inline_entries(&mut self, entries: &[TreeEntry]) -> std::io::Result<()> {
         for (index, entry) in entries.iter().enumerate() {
+            self.stop_if_cancelled()?;
             if index != 0 {
                 self.output
                     .write_all(self.punctuation_token(",").as_bytes())?;
@@ -2683,6 +2789,7 @@ impl TreeRenderer<'_> {
             .checked_add(step)
             .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
         for (index, value) in items.iter().enumerate() {
+            self.stop_if_cancelled()?;
             if step == 0 {
                 if index != 0 {
                     self.output

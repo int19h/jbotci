@@ -4,6 +4,26 @@ const EMPTY_TEXT_RENDERING: &str = "Text {}";
 const GENERATED_BLOCKS_TITLE: &str = "jbotci gentufa generated syntax";
 const RECOVERED_BLOCKS_TITLE: &str = "jbotci gentufa recovered syntax";
 
+/// A cancelled render is the typed interrupt, not a broken document.
+#[requires(true)]
+#[ensures(ret.to_string() == "computation interrupted" || !ret.to_string().is_empty())]
+fn interruptible_output_error(error: jbotci_output::OutputError) -> anyhow::Error {
+    match error {
+        jbotci_output::OutputError::Interrupted => jbotci_interrupt::Interrupted.into(),
+        other => other.into(),
+    }
+}
+
+/// A cancelled diagram is the typed interrupt, not a failed export.
+#[requires(true)]
+#[ensures(ret.to_string() == "computation interrupted" || !ret.to_string().is_empty())]
+fn interruptible_export_error(error: jbotci_gentufa::GentufaExportError) -> anyhow::Error {
+    match error {
+        jbotci_gentufa::GentufaExportError::Interrupted => jbotci_interrupt::Interrupted.into(),
+        other => other.into(),
+    }
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 #[ensures(!rendered.is_empty() -> ret == rendered)]
@@ -31,6 +51,7 @@ pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
     trace: CliTraceConfig,
     stdin_text: Option<&str>,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     let output_file = input.output_file.clone();
     let rendered = render_gentufa(
@@ -42,6 +63,7 @@ pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
         trace,
         stdin_text,
         limits,
+        cancellation,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     if rendered.status == CliStatus::Success
@@ -91,6 +113,7 @@ fn analyze_gentufa_input(
     color_stderr: bool,
     trace: CliTraceConfig,
     stdin_text: Option<&str>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<GentufaAnalysis> {
     let morphology_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let syntax_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
@@ -99,7 +122,8 @@ fn analyze_gentufa_input(
     let dialect = input.dialect_definition()?;
     let mut morphology_options = MorphologyOptions::default()
         .try_with_dialect_definition(&dialect)?
-        .with_trace_options(morphology_trace_options);
+        .with_trace_options(morphology_trace_options)
+        .with_cancellation(cancellation);
     if let Some(max_errors) = input.max_errors {
         morphology_options = morphology_options.with_max_recovery_errors(max_errors.get());
     }
@@ -108,8 +132,13 @@ fn analyze_gentufa_input(
             &text,
             &morphology_options,
             Some(SourceId(source_label.clone())),
-        )
-        .into_data();
+        );
+    // Match the wrapper before `into_data`: the interrupted outcome is not a
+    // reader error, and the data view does not carry `was_interrupted`.
+    if morphology_attempt.result.was_interrupted() {
+        return Err(jbotci_interrupt::Interrupted.into());
+    }
+    let morphology_attempt = morphology_attempt.into_data();
     let morphology_trace_stderr = render_cli_trace(morphology_attempt.trace.as_ref(), color_stderr);
     let morphology = morphology_attempt.result.into_data();
     let mut diagnostics = morphology_warning_diagnostics(
@@ -135,7 +164,8 @@ fn analyze_gentufa_input(
     let mut parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
         .with_trace_options(syntax_trace_options)
-        .with_error_context_depth(input.error_context);
+        .with_error_context_depth(input.error_context)
+        .with_cancellation(cancellation);
     if let Some(max_errors) = input.max_errors {
         parse_options = parse_options.with_max_recovery_errors(max_errors.get());
     }
@@ -166,11 +196,13 @@ fn render_gentufa(
     trace: CliTraceConfig,
     stdin_text: Option<&str>,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<GentufaRendered> {
     let render_limits = tool_render_limits(limits);
     normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
     validate_gentufa_options(&input, glyphs)?;
-    let analysis = analyze_gentufa_input(&input, color_policy.stderr, trace, stdin_text)?;
+    let analysis =
+        analyze_gentufa_input(&input, color_policy.stderr, trace, stdin_text, cancellation)?;
     let data!(GentufaAnalysis {
         text,
         source_label,
@@ -227,6 +259,7 @@ fn render_gentufa(
                     glyphs,
                     phoneme_options,
                     limits,
+                    cancellation,
                 )?;
                 let parsed = parse.into_data();
                 diagnostics.extend(
@@ -256,6 +289,9 @@ fn render_gentufa(
                     stderr,
                 }));
             }
+            data!(SyntaxRecoveryParse::Interrupted) => {
+                return Err(jbotci_interrupt::Interrupted.into());
+            }
         };
     let stderr_scope = jbotci_output::budget::TextScope::new(render_limits.text);
     let mut stderr = stderr_scope.buffer_with(&morphology_trace_stderr);
@@ -284,12 +320,14 @@ fn render_gentufa(
     match input.format {
         GentufaFormat::Blocks => {
             let output_type = resolve_gentufa_blocks_output_type(&input)?;
-            let layout = generated_model_gentufa_blocks_projection(
+            let layout = generated_model_gentufa_blocks_projection_with_cancellation(
                 &generated_model,
                 &text,
                 words.as_slice(),
                 &gentufa_blocks_projection_options(&input, phoneme_options),
-            )?
+                cancellation,
+            )
+            .map_err(interruptible_output_error)?
             .into_blocks_layout();
             let stdout = render_gentufa_blocks_output(
                 &layout,
@@ -297,6 +335,7 @@ fn render_gentufa(
                 output_type,
                 GENERATED_BLOCKS_TITLE,
                 limits,
+                cancellation,
             )?;
             let stderr = stderr_scope.finish(stderr.into_piece())?;
             return Ok(new!(GentufaRendered {
@@ -306,7 +345,7 @@ fn render_gentufa(
             }));
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_brackets_with_limit(
+            let rendered = pretty_generated_model_brackets_with_limit_and_cancellation(
                 &generated_model,
                 &text,
                 BracketRenderOptions {
@@ -319,7 +358,9 @@ fn render_gentufa(
                     show_elided: input.show_elided,
                 },
                 render_limits.text,
-            )?;
+                cancellation,
+            )
+            .map_err(interruptible_output_error)?;
             writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
         }
         GentufaFormat::Raw => {
@@ -336,12 +377,14 @@ fn render_gentufa(
                 decompose_lujvo: input.decompose_lujvo,
                 show_elided: input.show_elided,
             };
-            let rendered = pretty_generated_model_tree_with_limit(
+            let rendered = pretty_generated_model_tree_with_limit_and_cancellation(
                 &generated_model,
                 &text,
                 tree_options,
                 render_limits.text,
-            )?;
+                cancellation,
+            )
+            .map_err(interruptible_output_error)?;
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Json => {
@@ -379,6 +422,7 @@ fn render_recovered_gentufa_output(
     glyphs: GlyphStyle,
     phonemes: PhonemeRenderOptions,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<Vec<u8>> {
     let render_limits = tool_render_limits(limits);
     let rendered = match input.format {
@@ -397,10 +441,11 @@ fn render_recovered_gentufa_output(
                 output_type,
                 RECOVERED_BLOCKS_TITLE,
                 limits,
+                cancellation,
             );
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_recovered_syntax_brackets_with_limit(
+            let rendered = pretty_recovered_syntax_brackets_with_limit_and_cancellation(
                 recovered,
                 source,
                 BracketRenderOptions {
@@ -413,7 +458,9 @@ fn render_recovered_gentufa_output(
                     show_elided: input.show_elided,
                 },
                 render_limits.text,
-            )?;
+                cancellation,
+            )
+            .map_err(interruptible_output_error)?;
             bounded_format(
                 format_args!("{}\n", visible_bracket_rendering(&rendered)),
                 render_limits.text,
@@ -487,6 +534,7 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
     output_type: GentufaImageOutputType,
     title: &str,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<Vec<u8>> {
     let svg_options = GentufaSvgOptions {
         show_glosses,
@@ -496,23 +544,27 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
     let fonts = EmbeddedGentufaFonts::get();
     if let Some(limits) = limits {
         return match output_type {
-            GentufaImageOutputType::Svg => {
-                Ok(jbotci_gentufa::render_gentufa_blocks_svg_with_limits(
+            GentufaImageOutputType::Svg => Ok(
+                jbotci_gentufa::render_gentufa_blocks_svg_with_limits_and_cancellation(
                     layout,
                     &svg_options,
                     fonts,
                     limits.diagram,
-                )?
-                .into_bytes())
-            }
-            GentufaImageOutputType::Png => {
-                Ok(jbotci_gentufa::render_gentufa_blocks_png_with_limits(
+                    cancellation,
+                )
+                .map_err(interruptible_export_error)?
+                .into_bytes(),
+            ),
+            GentufaImageOutputType::Png => Ok(
+                jbotci_gentufa::render_gentufa_blocks_png_with_limits_and_cancellation(
                     layout,
                     &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
                     fonts,
                     limits.diagram,
-                )?)
-            }
+                    cancellation,
+                )
+                .map_err(interruptible_export_error)?,
+            ),
         };
     }
     match output_type {
@@ -550,7 +602,14 @@ mod tests {
             phase: TracePhase::Syntax,
             limit: DEFAULT_TRACE_LIMIT,
         };
-        let analysis = analyze_gentufa_input(&input, false, trace, None).expect("analysis");
+        let analysis = analyze_gentufa_input(
+            &input,
+            false,
+            trace,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let data!(GentufaAnalysis { text, syntax, .. }) = analysis.into_data();
         let GentufaSyntaxStage::Parsed { words, parse } = syntax else {
             panic!("morphology succeeds for {args:?}");
@@ -560,11 +619,12 @@ mod tests {
         let options = gentufa_blocks_projection_options(&input, phonemes);
         match parse.into_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => {
-                generated_model_gentufa_blocks_projection(
+                generated_model_gentufa_blocks_projection_with_cancellation(
                     &parse.parse_tree,
                     &text,
                     &words,
                     &options,
+                    &jbotci_interrupt::CancellationToken::never(),
                 )
                 .expect("valid projection")
                 .into_blocks_layout()
@@ -572,6 +632,9 @@ mod tests {
             data!(SyntaxRecoveryParse::Recovered { parse }) => {
                 recovered_gentufa_blocks_projection(&parse, &text, &words, &options)
                     .into_blocks_layout()
+            }
+            data!(SyntaxRecoveryParse::Interrupted) => {
+                panic!("cli layout fixtures are not cancelled")
             }
         }
     }

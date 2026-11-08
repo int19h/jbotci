@@ -11,6 +11,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
     stdin_text: Option<&str>,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     let render_limits = tool_render_limits(limits);
     let glyphs = cli_glyph_style(input.ascii);
@@ -54,7 +55,8 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     let morphology_options = MorphologyOptions::default()
         .try_with_dialect_definition(&dialect)?
         .with_max_recovery_errors(input.max_errors.get())
-        .with_trace_options(morphology_trace_options);
+        .with_trace_options(morphology_trace_options)
+        .with_cancellation(cancellation);
     let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
         &text,
         &morphology_options,
@@ -63,6 +65,9 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     let attempt = attempt.into_data();
     let trace_stderr = render_cli_trace(attempt.trace.as_ref(), color_policy.stderr);
     let morphology = attempt.result;
+    if morphology.was_interrupted() {
+        return Err(jbotci_interrupt::Interrupted.into());
+    }
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     if !morphology.errors.is_empty() {
         if let Some(rendered) = render_recovered_vlasei_output(

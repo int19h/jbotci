@@ -204,6 +204,9 @@ pub(super) fn build_decoration_fragments(
         data!(SyntaxRecoveryParse::Recovered { parse }) => {
             pretty_recovered_syntax_bracket_source_fragments_with_options(parse, source, options)
         }
+        data!(SyntaxRecoveryParse::Interrupted) => {
+            return Vec::new();
+        }
     }
     .expect("a snapshot's recovered bracket fragments must match its source");
     let mut fragments = collect_decoration_fragments(source_fragments);
@@ -291,6 +294,7 @@ fn append_text_unit_fragments(
         data!(SyntaxRecoveryParse::Recovered { parse }) => {
             pretty_recovered_syntax_bracket_source_fragments_with_options(parse, source, options)
         }
+        data!(SyntaxRecoveryParse::Interrupted) => return,
     }
     .expect("reparsed decoration fragments must match their original source");
     for fragment in collect_decoration_fragments(source_fragments) {
@@ -549,6 +553,7 @@ mod tests {
                 match snapshot.parse.as_data() {
                     data!(SyntaxRecoveryParse::Valid { .. }) => "valid",
                     data!(SyntaxRecoveryParse::Recovered { .. }) => "recovered",
+                    data!(SyntaxRecoveryParse::Interrupted) => "interrupted",
                 },
             )
             .expect("string writes cannot fail");

@@ -106,6 +106,9 @@ fn morphology_recovery_item(
             "morphology.source-span".to_owned(),
             vec!["valid source span".to_owned()],
         ),
+        MorphologyError::Interrupted => {
+            return Err(OutputError::Recovery("computation interrupted".to_owned()));
+        }
     };
     recovery_item_from_span(
         error_index,
@@ -146,6 +149,9 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
                 expected.clone()
             },
         ),
+        SyntaxError::Interrupted => {
+            return Err(OutputError::Recovery("computation interrupted".to_owned()));
+        }
     };
     let span = recovery_item_span(item).ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no source span".to_owned())
@@ -256,7 +262,12 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
         })
         .collect();
     let value = sexpr::flatten(sexpr::node(children));
-    sexpr::render_bracketed_with_limit(&value, options, limit)
+    sexpr::render_bracketed_with_limit(
+        &value,
+        options,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
 }
 
 #[requires(true)]
@@ -384,6 +395,9 @@ impl Serialize for RecoveredMorphologyProjection<'_> {
                     }
                     MorphologyError::DialectExpansion(_) => "morphology.dialect-expansion-limit",
                     MorphologyError::SourceSpan(_) => "morphology.source-span",
+                    MorphologyError::Interrupted => {
+                        return Err(S::Error::custom("computation interrupted"));
+                    }
                 };
                 let text = self
                     .source
@@ -461,6 +475,7 @@ impl std::fmt::Display for MorphologyExpectation<'_> {
             }
             MorphologyError::DialectExpansion(failure) => write!(formatter, "{failure}"),
             MorphologyError::SourceSpan(_) => formatter.write_str("valid source span"),
+            MorphologyError::Interrupted => formatter.write_str("computation interrupted"),
         }
     }
 }
@@ -713,16 +728,51 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
     options: BracketRenderOptions,
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
+    pretty_recovered_syntax_brackets_with_limit_and_cancellation(
+        recovered,
+        source,
+        options,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+}
+
+/// Render recovered brackets until `cancellation` is set.
+///
+/// The recovered tree visitor cannot abort mid-walk. The flag is read before
+/// the walk and again when the walk returns; a set flag discards the s-expression
+/// instead of rendering it. The string writer also reads the flag at each node.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_brackets_with_limit_and_cancellation(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_generated_model_brackets_with_limit(&valid, source, options, limit);
+        return crate::pretty_generated_model_brackets_with_limit_and_cancellation(
+            &valid,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
     }
     let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
     );
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     let value = sexpr::flatten(visitor.finish()?);
-    sexpr::render_bracketed_with_limit(&value, options, limit)
+    sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
 
 /// Elision marker used wherever the bounded error-region rendering drops
@@ -1406,6 +1456,7 @@ mod tests {
     fn syntax_error_code_and_span(error: &SyntaxError) -> (&'static str, (usize, usize)) {
         match error {
             SyntaxError::NotImplemented => ("syntax.not-implemented", (0, 0)),
+            SyntaxError::Interrupted => ("syntax.interrupted", (0, 0)),
             SyntaxError::Parse {
                 kind,
                 byte_start,

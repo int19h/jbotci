@@ -9,6 +9,9 @@ pub use tree::{
 };
 
 mod grammar;
+
+#[cfg(test)]
+mod cancellation_tests;
 #[cfg(feature = "expensive_contracts")]
 #[doc(hidden)]
 pub use grammar::with_recovery_reachability_instrumentation;
@@ -27,6 +30,7 @@ use jbotci_diagnostics::{
 };
 pub use jbotci_diagnostics::{TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport};
 use jbotci_dialect::DialectDefinition;
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_tree::TreeVisitor;
@@ -437,6 +441,7 @@ fn syntax_recovery_parse_conserves_word_spans(
         data!(SyntaxRecoveryParse::Recovered { parse }) => {
             recovered_syntax_parse_conserves_word_spans(words, parse)
         }
+        data!(SyntaxRecoveryParse::Interrupted) => true,
     }
 }
 
@@ -522,6 +527,9 @@ pub struct ParseOptions {
     pub dialect: DialectDefinition,
     pub error_context_depth: usize,
     pub recovery_error_policy: SyntaxRecoveryErrorPolicy,
+    /// Cooperative stop flag. Serde omits it: saved options have no deadline.
+    #[serde(skip, default)]
+    pub cancellation: CancellationToken,
 }
 
 impl Default for ParseOptions {
@@ -533,6 +541,7 @@ impl Default for ParseOptions {
             dialect: DialectDefinition::default(),
             error_context_depth: 1,
             recovery_error_policy: SyntaxRecoveryErrorPolicy::default(),
+            cancellation: CancellationToken::never(),
         }
     }
 }
@@ -563,10 +572,17 @@ pub struct RecoveredSyntaxParseAttempt {
 
 #[invariant(::Valid => parse.warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
 #[invariant(::Recovered => !parse.errors.is_empty())]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Clone)]
 pub enum SyntaxRecoveryParse {
-    Valid { parse: SyntaxParse },
-    Recovered { parse: RecoveredSyntaxParse },
+    Valid {
+        parse: SyntaxParse,
+    },
+    Recovered {
+        parse: RecoveredSyntaxParse,
+    },
+    /// The cancellation flag stopped the parse. There is no tree and no syntax error.
+    Interrupted,
 }
 
 #[invariant(true)]
@@ -629,7 +645,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredSyntaxErrorIndexVisitor {
 fn syntax_error_byte_start(error: &SyntaxError) -> usize {
     match error {
         SyntaxError::Parse { byte_start, .. } => *byte_start,
-        SyntaxError::NotImplemented => 0,
+        SyntaxError::NotImplemented | SyntaxError::Interrupted => 0,
     }
 }
 
@@ -663,14 +679,26 @@ impl ParseOptions {
             .with_global_hard_cap(max_recovery_errors);
         self
     }
+
+    /// Replace the stop flag. Callers without a deadline pass [`CancellationToken::never`].
+    #[requires(true)]
+    #[ensures(ret.cancellation == *cancellation)]
+    pub fn with_cancellation(mut self, cancellation: &CancellationToken) -> Self {
+        self.cancellation = cancellation.clone();
+        self
+    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Parse => true)]
+#[invariant(::Interrupted => true)]
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
+    /// The cancellation flag stopped the parse. This is not a syntax error.
+    #[error("computation interrupted")]
+    Interrupted,
     #[error("syntax error at byte {byte_start}: {reason}")]
     Parse {
         kind: SyntaxErrorKind,
@@ -2208,6 +2236,26 @@ impl SyntaxError {
                     None,
                 )
                 .with_styled_notes(syntax_expected_notes(expected, expectations))
+            }
+            // Last resort if a caller forgot to match `Interrupted` first.
+            // The code is not a syntax-error code, so a later reader can still
+            // tell a cancelled parse apart from "no parse".
+            Self::Interrupted => {
+                let span = source_span_from_byte_offsets(source_id, source, 0, 0)
+                    .expect("the start of a source string is always a valid source span");
+                Diagnostic::new(
+                    DiagnosticSeverity::Error,
+                    DiagnosticPhase::Syntax,
+                    "syntax.interrupted".to_owned(),
+                    "computation interrupted".to_owned(),
+                    vec![DiagnosticLabel::new(
+                        span,
+                        "computation interrupted".to_owned(),
+                        true,
+                    )],
+                    Vec::new(),
+                    None,
+                )
             }
         }
     }
@@ -4050,6 +4098,9 @@ mod tests {
             }
             data!(SyntaxRecoveryParse::Recovered { .. }) => {
                 panic!("valid input must use the zero-conversion strict outcome")
+            }
+            data!(SyntaxRecoveryParse::Interrupted) => {
+                panic!("valid input must not be interrupted")
             }
         }
     }
