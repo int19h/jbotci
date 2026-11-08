@@ -25,6 +25,15 @@ use tokio::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct OperationDeadline(pub(crate) Instant);
 
+/// A route-only page served after the computed page failed.
+///
+/// The page is a degraded answer, in the same class as a coded refusal.
+/// [`response_delivery`] gives it the error-delivery grace those refusals
+/// already use. It is not a new policy value.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DegradedRouteOnlyPage;
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(crate) struct Connection(Arc<Mutex<DeliveryState>>);
@@ -308,7 +317,21 @@ pub(crate) async fn enforce(
     )
 }
 
-/// Only a coded refusal can use time after the operation deadline.
+/// A coded refusal, or a degraded route-only page, can use time after the
+/// operation deadline. Both use the existing error-delivery grace.
+#[requires(true)]
+#[ensures(true)]
+fn uses_error_delivery_grace(response: &Response<Body>) -> bool {
+    use crate::error::ServerErrorCode;
+    matches!(
+        response.extensions().get::<ServerErrorCode>(),
+        Some(ServerErrorCode::Busy | ServerErrorCode::Deadline)
+    ) || response
+        .extensions()
+        .get::<DegradedRouteOnlyPage>()
+        .is_some()
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn response_delivery(
@@ -316,21 +339,12 @@ fn response_delivery(
     operation_deadline: Instant,
     error_delivery: std::time::Duration,
 ) -> (Response<Body>, Instant) {
-    use crate::error::ServerErrorCode;
-    let coded_refusal = matches!(
-        response.extensions().get::<ServerErrorCode>(),
-        Some(ServerErrorCode::Busy | ServerErrorCode::Deadline)
-    );
-    if !coded_refusal && Instant::now() >= operation_deadline {
+    if !uses_error_delivery_grace(&response) && Instant::now() >= operation_deadline {
         response = crate::execution::work_error_response(crate::work::WorkError::TimedOut {
             lane: crate::work::WorkLane::Compute,
         });
     }
-    let coded_refusal = matches!(
-        response.extensions().get::<ServerErrorCode>(),
-        Some(ServerErrorCode::Busy | ServerErrorCode::Deadline)
-    );
-    let deadline = if coded_refusal {
+    let deadline = if uses_error_delivery_grace(&response) {
         operation_deadline
             .checked_add(error_delivery)
             .unwrap_or(operation_deadline)

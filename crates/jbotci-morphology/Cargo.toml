@@ -32,3 +32,8 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [lints]
 workspace = true
+
+# `stacker` grows the native stack on demand for deep morphology recursion. wasm32 has no
+# auxiliary native stack to switch to, so the recognizer skips it there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+stacker.workspace = true
