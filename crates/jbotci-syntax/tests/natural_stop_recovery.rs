@@ -146,7 +146,8 @@ fn assert_natural_stop_recovery(
     let options = ParseOptions::default();
     let strict_error = parse_syntax_tree_with_source_and_options(&words, source, &options)
         .expect_err("strict syntax rejects li followed by ka");
-    let recovered = parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+        .expect("an uninterrupted recovered parse returns a tree");
 
     assert_eq!(recovered.errors, vec![strict_error]);
     assert!(recovered.parse_tree.recovery_error_slots() >= 1);

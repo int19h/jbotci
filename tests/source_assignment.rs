@@ -71,7 +71,8 @@ fn recovered_assignment_conserves_rejected_empty_linkargs_source_spans() {
         parse_syntax_tree_with_source_and_options(&words, source, &options)
             .expect_err("an empty BE/BEI payload must not parse successfully");
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
         assert!(!recovered.errors.is_empty(), "{source}");
         let mut syntax = Vec::new();
         recovered.parse_tree.visit_source_spans(&mut |span| {

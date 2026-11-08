@@ -722,11 +722,7 @@ async fn call_tool_with_deadline(
                 execution,
                 deadline,
                 move |request, cancellation| {
-                    jbotci_cli::run_tool_jvozba_with_limits_and_cancellation(
-                        request,
-                        &limits,
-                        cancellation,
-                    )
+                    jbotci_cli::run_tool_jvozba_with_limits(request, &limits, cancellation)
                 },
             )
             .await
@@ -737,11 +733,7 @@ async fn call_tool_with_deadline(
                 execution,
                 deadline,
                 move |request, cancellation| {
-                    jbotci_cli::run_tool_vlasei_with_limits_and_cancellation(
-                        request,
-                        &limits,
-                        cancellation,
-                    )
+                    jbotci_cli::run_tool_vlasei_with_limits(request, &limits, cancellation)
                 },
             )
             .await
@@ -752,11 +744,7 @@ async fn call_tool_with_deadline(
                 execution,
                 deadline,
                 move |request, cancellation| {
-                    jbotci_cli::run_tool_gentufa_with_limits_and_cancellation(
-                        request,
-                        &limits,
-                        cancellation,
-                    )
+                    jbotci_cli::run_tool_gentufa_with_limits(request, &limits, cancellation)
                 },
             )
             .await
@@ -767,7 +755,7 @@ async fn call_tool_with_deadline(
                 execution,
                 deadline,
                 move |request, cancellation| {
-                    jbotci_cli::run_tool_gimfihi_with_limits_and_cancellation(
+                    jbotci_cli::run_tool_gimfihi_with_limits(
                         request,
                         GimfihiSourceWordKind::Ipa,
                         &limits,

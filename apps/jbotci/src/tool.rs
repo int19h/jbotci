@@ -2070,19 +2070,6 @@ fn check_tool_count(count: usize, maximum: std::num::NonZeroUsize) -> Result<()>
 pub fn run_tool_gentufa_with_limits(
     request: ToolGentufaRequest,
     limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    run_tool_gentufa_with_limits_and_cancellation(
-        request,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_gentufa_with_limits_and_cancellation(
-    request: ToolGentufaRequest,
-    limits: &ToolExecutionLimits,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<ToolRenderedOutput> {
     let content_type = request.format.content_type();
@@ -2100,19 +2087,6 @@ pub fn run_tool_gentufa_with_limits_and_cancellation(
 pub fn run_tool_vlasei_with_limits(
     request: ToolVlaseiRequest,
     limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    run_tool_vlasei_with_limits_and_cancellation(
-        request,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_vlasei_with_limits_and_cancellation(
-    request: ToolVlaseiRequest,
-    limits: &ToolExecutionLimits,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<ToolRenderedOutput> {
     let content_type = request.format.content_type();
@@ -2128,29 +2102,6 @@ pub fn run_tool_vlasei_with_limits_and_cancellation(
 #[requires(true)]
 #[ensures(true)]
 pub fn run_tool_cukta_with_limits(
-    request: ToolCuktaRequest,
-    context: Option<&mut ToolExecutionContext<'_>>,
-    limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    if matches!(request.mode, ToolCuktaMode::Word | ToolCuktaMode::Meaning) {
-        check_tool_count(
-            request
-                .count
-                .unwrap_or(jbotci_cll::DEFAULT_CUKTA_CLI_RESULT_COUNT),
-            limits.entries,
-        )?;
-    }
-    run_tool_cukta_with_limits_and_cancellation(
-        request,
-        context,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_cukta_with_limits_and_cancellation(
     request: ToolCuktaRequest,
     context: Option<&mut ToolExecutionContext<'_>>,
     limits: &ToolExecutionLimits,
@@ -2180,27 +2131,6 @@ pub fn run_tool_vlacku_with_limits(
     request: ToolVlackuRequest,
     context: Option<&mut ToolExecutionContext<'_>>,
     limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    check_tool_count(
-        request
-            .count
-            .unwrap_or(jbotci_search::vlacku::DEFAULT_VLACKU_RESULT_COUNT),
-        limits.entries,
-    )?;
-    run_tool_vlacku_with_limits_and_cancellation(
-        request,
-        context,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_vlacku_with_limits_and_cancellation(
-    request: ToolVlackuRequest,
-    context: Option<&mut ToolExecutionContext<'_>>,
-    limits: &ToolExecutionLimits,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<ToolRenderedOutput> {
     check_tool_count(
@@ -2224,32 +2154,6 @@ pub fn run_tool_gimfihi_with_limits(
     request: ToolGimfihiRequest,
     word_kind: GimfihiSourceWordKind,
     limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    run_tool_gimfihi_with_limits_and_cancellation(
-        request,
-        word_kind,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn run_tool_gimfihi_command_with_cancellation(
-    command: Command,
-    content_type: &'static str,
-    limits: &ToolExecutionLimits,
-    cancellation: &jbotci_interrupt::CancellationToken,
-) -> Result<ToolRenderedOutput> {
-    run_tool_command_with_limits(command, Some(content_type), None, limits, cancellation)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_gimfihi_with_limits_and_cancellation(
-    request: ToolGimfihiRequest,
-    word_kind: GimfihiSourceWordKind,
-    limits: &ToolExecutionLimits,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<ToolRenderedOutput> {
     check_tool_count(
@@ -2260,7 +2164,7 @@ pub fn run_tool_gimfihi_with_limits_and_cancellation(
     )?;
     let content_type = request.format.content_type();
     let command = Command::try_from(ToolGimfihiCommandInput { request, word_kind })?;
-    run_tool_gimfihi_command_with_cancellation(command, content_type, limits, cancellation)
+    run_tool_command_with_limits(command, Some(content_type), None, limits, cancellation)
 }
 
 #[requires(true)]
@@ -2308,23 +2212,10 @@ fn run_tool_command_with_limits(
         content_type,
     ))
 }
-/// Run a server compound build with an explicit expansion and output budget.
-#[requires(true)]
-#[ensures(true)]
-pub fn run_tool_jvozba_with_limits(
-    request: ToolJvozbaRequest,
-    limits: &ToolExecutionLimits,
-) -> Result<ToolRenderedOutput> {
-    run_tool_jvozba_with_limits_and_cancellation(
-        request,
-        limits,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
 
 #[requires(true)]
 #[ensures(true)]
-pub fn run_tool_jvozba_with_limits_and_cancellation(
+pub fn run_tool_jvozba_with_limits(
     request: ToolJvozbaRequest,
     limits: &ToolExecutionLimits,
     cancellation: &jbotci_interrupt::CancellationToken,
@@ -2354,8 +2245,7 @@ mod cancellation_tests {
     use jbotci_output::budget::{ByteLimit, RenderLimits};
 
     use super::{
-        ToolExecutionLimits, ToolGentufaFormat, ToolGentufaRequest,
-        run_tool_gentufa_with_limits_and_cancellation,
+        ToolExecutionLimits, ToolGentufaFormat, ToolGentufaRequest, run_tool_gentufa_with_limits,
     };
 
     /// Same family as the syntax cancellation test. The tool boundary must
@@ -2402,7 +2292,7 @@ mod cancellation_tests {
             source.cancel();
         });
         let started = Instant::now();
-        let error = run_tool_gentufa_with_limits_and_cancellation(request, &limits, &token)
+        let error = run_tool_gentufa_with_limits(request, &limits, &token)
             .expect_err("a stopped gentufa call must not return a document");
         let elapsed = started.elapsed();
         canceller.join().expect("canceller");

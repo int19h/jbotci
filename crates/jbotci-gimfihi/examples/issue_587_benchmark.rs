@@ -25,12 +25,26 @@ fn main() {
     let dictionary = jbotci_dictionary_data::english();
     let request = issue_587_request();
 
-    let warm_up = black_box(compose_gismu(dictionary, &request).expect("warm-up request"));
+    let warm_up = black_box(
+        compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("warm-up request"),
+    );
     let expected_signature = output_signature(&warm_up);
     let mut samples = Vec::with_capacity(iterations);
     for _ in 0..iterations {
         let start = Instant::now();
-        let output = black_box(compose_gismu(dictionary, &request).expect("benchmark request"));
+        let output = black_box(
+            compose_gismu(
+                dictionary,
+                &request,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("benchmark request"),
+        );
         samples.push(start.elapsed());
         assert_eq!(
             output_signature(&output),

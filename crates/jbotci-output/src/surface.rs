@@ -590,7 +590,12 @@ mod tests {
                 continue;
             }
             attempted_lujvo_count += 1;
-            let Some(decomposition) = decompose_lujvo_like(dictionary, entry.word) else {
+            let Some(decomposition) = decompose_lujvo_like(
+                dictionary,
+                entry.word,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("dictionary transliteration is not cancelled") else {
                 continue;
             };
             for segment in &decomposition.segments {

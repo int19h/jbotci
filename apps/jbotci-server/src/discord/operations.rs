@@ -33,7 +33,7 @@ use jbotci_jvozba::{
 };
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, PhonemeRenderOptions, Phonemes, ValsiAnalysisStatus,
-    normalize_lojban_input_text, segment_words_with_modifiers,
+    normalize_lojban_input_text, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_search::vlacku::{
     VlackuCard, VlackuOutcome as SearchOutcome, VlackuRequest as SearchRequest,
@@ -43,8 +43,7 @@ use jbotci_search::vlacku::{
 use jbotci_source::SourceId;
 use jbotci_web_core::{
     GentufaScript, GentufaWebError, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebViewMode, VlaseiAnalysis, VlataiReport, analyze_vlasei_with_cancellation,
-    analyze_vlatai,
+    GentufaWebViewMode, VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai,
 };
 use tokio::time::Instant;
 
@@ -69,6 +68,15 @@ const WINDOW_COUNT: NonZeroUsize = NonZeroUsize::new(WINDOW_LEN).unwrap();
 /// Source label attached to Discord diagnostics.
 pub(crate) const SOURCE_LABEL: &str = "<discord>";
 
+/// The deadline outcome when admitted compute sees the flag already set.
+#[requires(true)]
+#[ensures(matches!(ret, OperationError::Work(WorkError::TimedOut { lane: WorkLane::Compute })))]
+fn compute_deadline() -> OperationError {
+    OperationError::Work(WorkError::TimedOut {
+        lane: WorkLane::Compute,
+    })
+}
+
 /// The deadline outcome when a job sees the admission flag already set.
 #[requires(true)]
 #[ensures(ret.is_ok() || cancellation.is_cancelled())]
@@ -76,9 +84,7 @@ fn stop_if_cancelled(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<(), OperationError> {
     if cancellation.is_cancelled() {
-        Err(OperationError::Work(WorkError::TimedOut {
-            lane: WorkLane::Compute,
-        }))
+        Err(compute_deadline())
     } else {
         Ok(())
     }
@@ -811,7 +817,7 @@ fn run_gentufa(
             phonemes: PhonemeRenderOptions::default(),
         },
     };
-    let result = jbotci_web_core::parse_gentufa_for_web_with_limits_and_cancellation(
+    let result = jbotci_web_core::parse_gentufa_for_web_with_limits(
         &web_request,
         Some(limits.render),
         cancellation,
@@ -860,7 +866,7 @@ fn run_vlasei(
     request: &VlaseiRequest,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<VlaseiAnalysis, OperationError> {
-    analyze_vlasei_with_cancellation(
+    analyze_vlasei(
         request.text.as_str(),
         dialect_formula(request.dialect.as_ref()).map(str::trim),
         Some(SourceId(SOURCE_LABEL.to_owned())),
@@ -1287,27 +1293,42 @@ async fn run_cukta(
 /// builder receives, whichever kind comes first.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn jvozba_inputs(
+fn jvozba_inputs(
     request: &JvozbaRequest,
-) -> Result<Vec<JvozbaInput>, RequestValidationError> {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<Vec<JvozbaInput>, JvozbaInputError> {
     let mut inputs = Vec::new();
     let mut rest = request.parts.as_str();
     while let Some(open) = rest.find(FIXED_RAFSI_DELIMITER) {
-        push_jvozba_words(&rest[..open], &mut inputs)?;
+        push_jvozba_words(&rest[..open], &mut inputs, cancellation)?;
         let after = &rest[open + FIXED_RAFSI_DELIMITER.len_utf8()..];
         let Some(close) = after.find(FIXED_RAFSI_DELIMITER) else {
-            return Err(RequestValidationError::JvozbaParts {
-                message: format!(
-                    "a fixed rafsi opened with `{FIXED_RAFSI_DELIMITER}` was never closed; \
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: format!(
+                        "a fixed rafsi opened with `{FIXED_RAFSI_DELIMITER}` was never closed; \
                      write it as `-blo-`"
-                ),
-            });
+                    ),
+                },
+            ));
         };
-        inputs.push(JvozbaInput::FixedRafsi(fixed_rafsi_text(&after[..close])?));
+        inputs.push(JvozbaInput::FixedRafsi(
+            fixed_rafsi_text(&after[..close]).map_err(JvozbaInputError::Invalid)?,
+        ));
         rest = &after[close + FIXED_RAFSI_DELIMITER.len_utf8()..];
     }
-    push_jvozba_words(rest, &mut inputs)?;
+    push_jvozba_words(rest, &mut inputs, cancellation)?;
     Ok(inputs)
+}
+
+/// A parts field that is not a compound, or a segmentation the deadline stopped.
+#[invariant(true)]
+#[invariant(::Invalid(_) => true)]
+#[invariant(::Interrupted => true)]
+#[derive(Debug)]
+enum JvozbaInputError {
+    Invalid(RequestValidationError),
+    Interrupted,
 }
 
 /// What marks a rafsi given literally rather than looked up.
@@ -1320,20 +1341,33 @@ const FIXED_RAFSI_DELIMITER: char = '-';
 fn push_jvozba_words(
     span: &str,
     inputs: &mut Vec<JvozbaInput>,
-) -> Result<(), RequestValidationError> {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<(), JvozbaInputError> {
     if span.trim().is_empty() {
         return Ok(());
     }
-    let words = segment_words_with_modifiers(span).map_err(|error| {
-        RequestValidationError::JvozbaParts {
-            message: error.to_string(),
+    // One long piece is segmented under the admission flag. The piece cap
+    // counts pieces and does not bound this parse.
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(span, &options, None)
+    {
+        Ok(words) => words,
+        Err(error) if error.is_interrupted() => return Err(JvozbaInputError::Interrupted),
+        Err(error) => {
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: error.to_string(),
+                },
+            ));
         }
-    })?;
+    };
     for word in &words {
         let Some(text) = word_like_lookup_text(word) else {
-            return Err(RequestValidationError::JvozbaParts {
-                message: "quoted material cannot be a source word".to_owned(),
-            });
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: "quoted material cannot be a source word".to_owned(),
+                },
+            ));
         };
         inputs.push(JvozbaInput::Word(text));
     }
@@ -1381,20 +1415,36 @@ fn run_jvozba(
     // The piece cap inside `limits` bounds the build. The flag is read here
     // so a deadline that already passed does not start that build.
     stop_if_cancelled(cancellation)?;
-    let inputs = jvozba_inputs(request).map_err(OperationError::Invalid)?;
+    let inputs = match jvozba_inputs(request, cancellation) {
+        Ok(inputs) => inputs,
+        Err(JvozbaInputError::Invalid(error)) => return Err(OperationError::Invalid(error)),
+        Err(JvozbaInputError::Interrupted) => return Err(compute_deadline()),
+    };
     let mode = match request.options.target {
         JvozbaTarget::Lujvo => JvozbaMode::Lujvo,
         JvozbaTarget::Cmevla => JvozbaMode::Cmevla,
     };
     let dictionary = jbotci_dictionary_data::english();
     let result =
-        build_best_jvozba_detailed_within(mode, dictionary, &inputs, limits).map(|built| {
-            let constituents = constituents_for(dictionary, &built);
-            new!(JvozbaBuilt {
-                word: built.word.clone(),
-                constituents,
-            })
-        });
+        match build_best_jvozba_detailed_within(mode, dictionary, &inputs, limits, cancellation) {
+            Ok(built) => {
+                let constituents = match constituents_for(dictionary, &built, cancellation) {
+                    Ok(constituents) => constituents,
+                    Err(JvozbaError::Interrupted) => return Err(compute_deadline()),
+                    Err(error) => {
+                        return Err(OperationError::Internal {
+                            message: error.to_string(),
+                        });
+                    }
+                };
+                Ok(new!(JvozbaBuilt {
+                    word: built.word.clone(),
+                    constituents,
+                }))
+            }
+            Err(JvozbaError::Interrupted) => return Err(compute_deadline()),
+            Err(error) => Err(error),
+        };
     Ok(JvozbaOutcome {
         inputs,
         target: request.options.target,
@@ -1406,14 +1456,18 @@ fn run_jvozba(
 /// decomposition when it recognizes the word; otherwise the build's own
 /// segments without sources.
 #[requires(!built.word.is_empty())]
-#[ensures(!ret.is_empty() || built.segments.is_empty())]
+#[ensures(match &ret {
+    Ok(parts) => !parts.is_empty() || built.segments.is_empty(),
+    Err(error) => matches!(error, JvozbaError::Interrupted),
+})]
 fn constituents_for(
     dictionary: &jbotci_dictionary::Dictionary<'_>,
     built: &JvozbaBuildResult,
-) -> Vec<JvozbaConstituent> {
-    if let Some(decomposition) = decompose_lujvo_like(dictionary, &built.word) {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<Vec<JvozbaConstituent>, JvozbaError> {
+    if let Some(decomposition) = decompose_lujvo_like(dictionary, &built.word, cancellation)? {
         let decomposition = decomposition.into_data();
-        return decomposition
+        return Ok(decomposition
             .segments
             .into_iter()
             .map(|segment| {
@@ -1427,19 +1481,20 @@ fn constituents_for(
                     source: segment.source.map(str::to_owned),
                 })
             })
-            .collect();
-    }
-    built
-        .segments
-        .iter()
-        .map(|segment| {
-            new!(JvozbaConstituent {
-                text: segment.text.clone(),
-                is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
-                source: None,
+            .collect());
+    } else {
+        Ok(built
+            .segments
+            .iter()
+            .map(|segment| {
+                new!(JvozbaConstituent {
+                    text: segment.text.clone(),
+                    is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
+                    source: None,
+                })
             })
-        })
-        .collect()
+            .collect())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1519,8 +1574,8 @@ fn run_gimfihi(
     request: &DiscordGimfihiRequest,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<GimfihiOutcome, OperationError> {
-    // One page of candidates bounds the scorer. The flag is read here so a
-    // deadline that already passed does not start that page.
+    // The scorer ranks every candidate and keeps only this page. The flag is
+    // read once per candidate, so a deadline stops the ranking.
     stop_if_cancelled(cancellation)?;
     match gimfihi_plan(request).map_err(OperationError::Invalid)? {
         GimfihiPlan::Setup { preset } => Ok(GimfihiOutcome::Setup {
@@ -1536,13 +1591,17 @@ fn run_gimfihi(
                 .unwrap_or_default(),
         }),
         GimfihiPlan::Compose(gimfihi_request) => {
-            let output: GimfihiOutput =
-                jbotci_gimfihi::compose_gismu(jbotci_dictionary_data::english(), &gimfihi_request)
-                    .map_err(|error: GimfihiError| {
-                        OperationError::Invalid(RequestValidationError::GimfihiSources {
-                            errors: vec![error.to_string()],
-                        })
-                    })?;
+            let output: GimfihiOutput = jbotci_gimfihi::compose_gismu(
+                jbotci_dictionary_data::english(),
+                &gimfihi_request,
+                cancellation,
+            )
+            .map_err(|error: GimfihiError| match error {
+                GimfihiError::Interrupted => compute_deadline(),
+                other => OperationError::Invalid(RequestValidationError::GimfihiSources {
+                    errors: vec![other.to_string()],
+                }),
+            })?;
             // The scorer counted every candidate that passed the filters
             // while it ranked them, so the total is known exactly and is not
             // the size of what was kept.
@@ -1808,9 +1867,16 @@ mod tests {
     #[ensures(true)]
     fn ordered_parts_keep_words_and_literal_rafsi_in_the_order_written() {
         let parse = |text: &str| {
-            jvozba_inputs(&JvozbaRequest {
-                parts: SourceText::new(text).expect("parts fit"),
-                options: JvozbaOptions::default(),
+            jvozba_inputs(
+                &JvozbaRequest {
+                    parts: SourceText::new(text).expect("parts fit"),
+                    options: JvozbaOptions::default(),
+                },
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .map_err(|error| match error {
+                JvozbaInputError::Invalid(error) => error,
+                JvozbaInputError::Interrupted => panic!("the test token stays clear"),
             })
         };
         let word = |text: &str| JvozbaInput::Word(text.to_owned());
@@ -1853,9 +1919,16 @@ mod tests {
     #[ensures(true)]
     fn malformed_ordered_parts_say_what_is_wrong() {
         let parse = |text: &str| {
-            jvozba_inputs(&JvozbaRequest {
-                parts: SourceText::new(text).expect("parts fit"),
-                options: JvozbaOptions::default(),
+            jvozba_inputs(
+                &JvozbaRequest {
+                    parts: SourceText::new(text).expect("parts fit"),
+                    options: JvozbaOptions::default(),
+                },
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .map_err(|error| match error {
+                JvozbaInputError::Invalid(error) => error,
+                JvozbaInputError::Interrupted => panic!("the test token stays clear"),
             })
         };
         let message = |text: &str| match parse(text) {

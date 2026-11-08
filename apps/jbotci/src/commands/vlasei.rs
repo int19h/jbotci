@@ -157,6 +157,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     show_elided: false,
                 },
                 render_limits.text,
+                cancellation,
             )?;
             writeln!(stdout, "{rendered}")?;
         }

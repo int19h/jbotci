@@ -101,7 +101,7 @@ pub(crate) fn render_diagram(
     }
     // Lay out as SVG first: this is text measurement only, no raster
     // allocation, and it yields the dimensions the PNG pass would rasterize.
-    let svg = jbotci_web_core::render_gentufa_blocks_web_export_with_limits_and_cancellation(
+    let svg = jbotci_web_core::render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,
@@ -127,7 +127,7 @@ pub(crate) fn render_diagram(
     if byte_limit == 0 {
         return Err(DiagramError::TooManyBytes { bytes: 1, limit: 0 });
     }
-    let png = jbotci_web_core::render_gentufa_blocks_web_export_with_limits_and_cancellation(
+    let png = jbotci_web_core::render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,

@@ -3,11 +3,13 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind,
-    canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
-    ensure_cmevla_word, is_bonding_hyphen, parse_cmevla_lujvo_word_part_candidates,
-    parse_lujvo_word_parts, segment_words_with_modifiers,
+    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, MorphologyOptions, Phonemes,
+    WordKind, WordLike, canonicalize_text, choose_best_lujvo_candidate_from_parts,
+    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen,
+    parse_cmevla_lujvo_word_part_candidates,
+    segment_words_with_modifiers_with_options_and_source_id,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -77,6 +79,7 @@ pub enum JvozbaSegmentKind {
 #[invariant(::TooMuchWork { .. } => true)]
 #[invariant(::CouldNotBuildLujvo => true)]
 #[invariant(::CouldNotBuildCompound => true)]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum JvozbaError {
     #[error("jvozba requires at least two rafsi-producing inputs.")]
@@ -107,6 +110,9 @@ pub enum JvozbaError {
     CouldNotBuildLujvo,
     #[error("Could not build a valid compound from the supplied inputs.")]
     CouldNotBuildCompound,
+    /// The cancellation flag stopped morphology for one input piece.
+    #[error("computation interrupted")]
+    Interrupted,
 }
 
 /// What a refused build measured too much of.
@@ -210,8 +216,15 @@ pub fn build_best_jvozba_detailed(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     raw_inputs: &[JvozbaInput],
+    cancellation: &CancellationToken,
 ) -> Result<JvozbaBuildResult, JvozbaError> {
-    build_best_jvozba_detailed_within(mode, dictionary, raw_inputs, JvozbaBuildLimits::unlimited())
+    build_best_jvozba_detailed_within(
+        mode,
+        dictionary,
+        raw_inputs,
+        JvozbaBuildLimits::unlimited(),
+        cancellation,
+    )
 }
 
 /// Build the best word `raw_inputs` can spell, doing no more work than
@@ -225,12 +238,14 @@ pub fn build_best_jvozba_detailed_within(
     dictionary: &Dictionary<'_>,
     raw_inputs: &[JvozbaInput],
     limits: JvozbaBuildLimits,
+    cancellation: &CancellationToken,
 ) -> Result<JvozbaBuildResult, JvozbaError> {
     build_best_jvozba_with_evaluator(
         mode,
         dictionary,
         raw_inputs,
         limits,
+        cancellation,
         choose_best_lujvo_candidate_from_parts,
     )
 }
@@ -242,6 +257,7 @@ fn build_best_jvozba_with_evaluator(
     dictionary: &Dictionary<'_>,
     raw_inputs: &[JvozbaInput],
     limits: JvozbaBuildLimits,
+    cancellation: &CancellationToken,
     evaluate: impl FnOnce(
         LujvoBuildMode,
         &[Vec<LujvoBuildPart>],
@@ -250,7 +266,12 @@ fn build_best_jvozba_with_evaluator(
     let mut plans = Vec::with_capacity(raw_inputs.len().min(limits.max_pieces));
     let mut count = Some(0usize);
     for input in raw_inputs {
-        let plan = plan_expansion(dictionary, input);
+        // One piece can be long enough that morphology, not the piece cap,
+        // is the work. Stop before that segmentation when the flag is already set.
+        if cancellation.is_cancelled() {
+            return Err(JvozbaError::Interrupted);
+        }
+        let plan = plan_expansion(dictionary, input, cancellation)?;
         count = count.and_then(|count| count.checked_add(plan.piece_count()));
         // Count every occurrence for the exact refusal reason. Retain a plan
         // only while the eventual expansion can still fit the piece limit.
@@ -272,7 +293,7 @@ fn build_best_jvozba_with_evaluator(
     for plan in plans {
         plan.append_to(&mut expanded_inputs);
     }
-    let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs)?;
+    let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs, cancellation)?;
     // A short choice list can still carry long pieces, and every spelling is
     // assembled and scored in full, so the spelling's own size is bounded
     // apart from how many spellings there are.
@@ -308,10 +329,41 @@ fn build_best_jvozba_with_evaluator(
 
 #[requires(true)]
 #[ensures(true)]
-pub fn word_can_enter_jvozba_pane(dictionary: &Dictionary<'_>, word_text: &str) -> bool {
+pub fn word_can_enter_jvozba_pane(
+    dictionary: &Dictionary<'_>,
+    word_text: &str,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
     let canonical_word = canonicalize_text(word_text);
-    candidate_list_for_word(JvozbaMode::Lujvo, dictionary, false, &canonical_word).is_ok()
-        || candidate_list_for_word(JvozbaMode::Lujvo, dictionary, true, &canonical_word).is_ok()
+    if pane_candidate_available(candidate_list_for_word(
+        JvozbaMode::Lujvo,
+        dictionary,
+        false,
+        &canonical_word,
+        cancellation,
+    ))? {
+        return Ok(true);
+    }
+    pane_candidate_available(candidate_list_for_word(
+        JvozbaMode::Lujvo,
+        dictionary,
+        true,
+        &canonical_word,
+        cancellation,
+    ))
+}
+
+/// A missing rafsi is "no", and a set flag is an interrupt. The two must not share one answer.
+#[requires(true)]
+#[ensures(true)]
+fn pane_candidate_available(
+    result: Result<Vec<LujvoBuildPart>, JvozbaError>,
+) -> Result<bool, JvozbaError> {
+    match result {
+        Ok(_) => Ok(true),
+        Err(JvozbaError::Interrupted) => Err(JvozbaError::Interrupted),
+        Err(_) => Ok(false),
+    }
 }
 
 #[requires(true)]
@@ -319,28 +371,29 @@ pub fn word_can_enter_jvozba_pane(dictionary: &Dictionary<'_>, word_text: &str) 
 pub fn decompose_lujvo_like<'a>(
     dictionary: &Dictionary<'a>,
     raw_word: &str,
-) -> Option<LujvoDecomposition<'a>> {
+    cancellation: &CancellationToken,
+) -> Result<Option<LujvoDecomposition<'a>>, JvozbaError> {
     let normalized = normalize_lujvo_like_input(raw_word);
     if normalized.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    if let Some(parts) = morphology_lujvo_parts(&normalized) {
-        return decomposition_from_parts(dictionary, parts);
+    if let Some(parts) = morphology_lujvo_parts(&normalized, cancellation)? {
+        return Ok(decomposition_from_parts(dictionary, parts));
     }
 
-    if !is_cmevla_word(&normalized) {
-        return None;
+    if !is_cmevla_word(&normalized, cancellation)? {
+        return Ok(None);
     }
 
     for parts in fallback_lujvo_part_candidates(&normalized) {
         if let Some(decomposition) = decomposition_from_parts(dictionary, parts)
             && all_rafsi_segments_have_sources(&decomposition)
         {
-            return Some(decomposition);
+            return Ok(Some(decomposition));
         }
     }
-    None
+    Ok(None)
 }
 
 #[invariant(segments
@@ -414,13 +467,14 @@ impl ExpansionPlan<'_, '_> {
 fn plan_expansion<'input, 'dictionary>(
     dictionary: &Dictionary<'dictionary>,
     input: &'input JvozbaInput,
-) -> ExpansionPlan<'input, 'dictionary> {
+    cancellation: &CancellationToken,
+) -> Result<ExpansionPlan<'input, 'dictionary>, JvozbaError> {
     if let JvozbaInput::Word(text) = input
-        && let Some(decomposition) = decompose_lujvo_like(dictionary, text)
+        && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
     {
-        ExpansionPlan::Decomposed { decomposition }
+        Ok(ExpansionPlan::Decomposed { decomposition })
     } else {
-        ExpansionPlan::Plain { input }
+        Ok(ExpansionPlan::Plain { input })
     }
 }
 
@@ -430,13 +484,20 @@ fn build_candidate_lists(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     inputs: &[JvozbaInput],
+    cancellation: &CancellationToken,
 ) -> Result<Vec<Vec<LujvoBuildPart>>, JvozbaError> {
     let total_count = inputs.len();
     inputs
         .iter()
         .enumerate()
         .map(|(index, input)| {
-            candidate_list_for_input(mode, dictionary, index + 1 == total_count, input)
+            candidate_list_for_input(
+                mode,
+                dictionary,
+                index + 1 == total_count,
+                input,
+                cancellation,
+            )
         })
         .collect()
 }
@@ -448,6 +509,7 @@ fn candidate_list_for_input(
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
     input: &JvozbaInput,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
         JvozbaInput::FixedRafsi(rafsi_text) => {
@@ -462,7 +524,7 @@ fn candidate_list_for_input(
             Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text.clone()))])
         }
         JvozbaInput::Word(word_text) => {
-            candidate_list_for_word(mode, dictionary, is_last_input, word_text)
+            candidate_list_for_word(mode, dictionary, is_last_input, word_text, cancellation)
         }
     }
 }
@@ -474,14 +536,21 @@ fn candidate_list_for_word(
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
     word_text: &str,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     let canonical_word = canonicalize_text(word_text);
     let Some(entry) = dictionary.lookup_word(&canonical_word) else {
-        return non_dictionary_word_candidates(mode, is_last_input, &canonical_word).ok_or(
-            JvozbaError::NoDictionaryEntry {
+        return match non_dictionary_word_candidates(
+            mode,
+            is_last_input,
+            &canonical_word,
+            cancellation,
+        )? {
+            Some(candidates) => Ok(candidates),
+            None => Err(JvozbaError::NoDictionaryEntry {
                 offending: canonical_word,
-            },
-        );
+            }),
+        };
     };
     let listed_rafsi = entry
         .rafsi
@@ -550,29 +619,52 @@ fn candidate_list_for_word(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|candidates| !candidates.is_empty()))]
+#[ensures(match &ret {
+    Ok(Some(candidates)) => !candidates.is_empty(),
+    Ok(None) | Err(_) => true,
+})]
 fn non_dictionary_word_candidates(
     mode: JvozbaMode,
     is_last_input: bool,
     canonical_word: &str,
-) -> Option<Vec<LujvoBuildPart>> {
+    cancellation: &CancellationToken,
+) -> Result<Option<Vec<LujvoBuildPart>>, JvozbaError> {
     if mode != JvozbaMode::Lujvo || !is_last_input {
-        return None;
+        return Ok(None);
     }
-    let words = segment_words_with_modifiers(canonical_word).ok()?;
-    let [word_like] = words.as_slice() else {
-        return None;
+    let Some(words) = segment_for_jvozba(canonical_word, cancellation)? else {
+        return Ok(None);
     };
-    let word = word_like.bare_word()?;
+    let [word_like] = words.as_slice() else {
+        return Ok(None);
+    };
+    let Some(word) = word_like.bare_word() else {
+        return Ok(None);
+    };
     if !matches!(
         word.kind(),
         WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
     ) {
-        return None;
+        return Ok(None);
     }
-    Some(vec![new!(LujvoBuildPart::BrivlaCore(canonicalize_text(
-        word.phonemes().as_str(),
-    )))])
+    Ok(Some(vec![new!(LujvoBuildPart::BrivlaCore(
+        canonicalize_text(word.phonemes().as_str()),
+    ))]))
+}
+
+/// Segment one user piece. An interrupt is not "this is not a word".
+#[requires(true)]
+#[ensures(true)]
+fn segment_for_jvozba(
+    text: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Vec<WordLike>>, JvozbaError> {
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    match segment_words_with_modifiers_with_options_and_source_id(text, &options, None) {
+        Ok(words) => Ok(Some(words)),
+        Err(error) if error.is_interrupted() => Err(JvozbaError::Interrupted),
+        Err(_) => Ok(None),
+    }
 }
 
 #[requires(true)]
@@ -722,18 +814,24 @@ fn normalize_apostrophe(value: char) -> char {
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
-    if let Some(parts) = parse_lujvo_word_parts(normalized) {
-        return Some(parts);
-    }
-
-    let words = segment_words_with_modifiers(normalized).ok()?;
-    let [word_like] = words.as_slice() else {
-        return None;
+fn morphology_lujvo_parts(
+    normalized: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Vec<LujvoPart>>, JvozbaError> {
+    // `parse_lujvo_word_parts` classifies through a cache that cannot see this
+    // flag. The shared segmenter is the morphology this piece is allowed to run.
+    let Some(words) = segment_for_jvozba(normalized, cancellation)? else {
+        return Ok(None);
     };
-    let word = word_like.bare_word()?;
-    let parts = word.lujvo_parts()?;
-    Some(parts.iter().cloned().collect())
+    let [word_like] = words.as_slice() else {
+        return Ok(None);
+    };
+    let Some(word) = word_like.bare_word() else {
+        return Ok(None);
+    };
+    Ok(word
+        .lujvo_parts()
+        .map(|parts| parts.iter().cloned().collect()))
 }
 
 #[requires(true)]
@@ -790,17 +888,17 @@ fn all_rafsi_segments_have_sources(decomposition: &LujvoDecomposition<'_>) -> bo
 
 #[requires(true)]
 #[ensures(true)]
-fn is_cmevla_word(normalized: &str) -> bool {
-    let Ok(words) = segment_words_with_modifiers(normalized) else {
-        return false;
+fn is_cmevla_word(normalized: &str, cancellation: &CancellationToken) -> Result<bool, JvozbaError> {
+    let Some(words) = segment_for_jvozba(normalized, cancellation)? else {
+        return Ok(false);
     };
     let [word_like] = words.as_slice() else {
-        return false;
+        return Ok(false);
     };
     let Some(word) = word_like.bare_word() else {
-        return false;
+        return Ok(false);
     };
-    word.kind() == WordKind::Cmevla
+    Ok(word.kind() == WordKind::Cmevla)
 }
 
 #[requires(true)]
@@ -878,9 +976,15 @@ mod tests {
             .map(|_| JvozbaInput::Word("klama".to_owned()))
             .collect::<Vec<_>>();
         assert_eq!(
-            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &ordinary, bounded())
-                .expect("inside the limits")
-                .word,
+            build_best_jvozba_detailed_within(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &ordinary,
+                bounded(),
+                &jbotci_interrupt::CancellationToken::never()
+            )
+            .expect("inside the limits")
+            .word,
             "klaklaklaklaklaklaklakla"
         );
         assert!(matches!(
@@ -891,6 +995,7 @@ mod tests {
                     .map(|_| JvozbaInput::Word("klama".to_owned()))
                     .collect::<Vec<_>>(),
                 bounded(),
+                &jbotci_interrupt::CancellationToken::never()
             ),
             Err(JvozbaError::TooMuchWork {
                 measure: JvozbaWorkMeasure::Placements,
@@ -903,9 +1008,14 @@ mod tests {
             .map(|_| JvozbaInput::Word("klama".to_owned()))
             .collect::<Vec<_>>();
         let started = std::time::Instant::now();
-        let error =
-            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &explosive, bounded())
-                .expect_err("above the limits");
+        let error = build_best_jvozba_detailed_within(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &explosive,
+            bounded(),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect_err("above the limits");
         assert!(
             started.elapsed() < std::time::Duration::from_secs(5),
             "the refusal does not depend on searching"
@@ -924,7 +1034,8 @@ mod tests {
                 JvozbaMode::Cmevla,
                 dictionary,
                 &expanding,
-                bounded()
+                bounded(),
+                &jbotci_interrupt::CancellationToken::never()
             ),
             Err(JvozbaError::TooMuchWork {
                 measure: JvozbaWorkMeasure::Pieces,
@@ -970,6 +1081,7 @@ mod tests {
                 max_placements: 8192,
                 max_spelling_letters: 4,
             }),
+            &jbotci_interrupt::CancellationToken::never(),
         );
         assert!(
             matches!(
@@ -996,7 +1108,13 @@ mod tests {
             .map(|_| JvozbaInput::FixedRafsi("kla".to_owned()))
             .collect::<Vec<_>>();
         assert_eq!(
-            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &pieces, bounded()),
+            build_best_jvozba_detailed_within(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &pieces,
+                bounded(),
+                &jbotci_interrupt::CancellationToken::never()
+            ),
             Err(JvozbaError::TooMuchWork {
                 measure: JvozbaWorkMeasure::Pieces,
                 amount: 25,
@@ -1004,9 +1122,14 @@ mod tests {
             })
         );
         assert_eq!(
-            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &pieces)
-                .expect("no caller limit")
-                .word,
+            build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &pieces,
+                &jbotci_interrupt::CancellationToken::never()
+            )
+            .expect("no caller limit")
+            .word,
             "kla".repeat(25)
         );
     }
@@ -1025,7 +1148,12 @@ mod tests {
             .map(|_| JvozbaInput::Word("klama".to_owned()))
             .collect::<Vec<_>>();
         assert_eq!(
-            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &words),
+            build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &words,
+                &jbotci_interrupt::CancellationToken::never()
+            ),
             Err(JvozbaError::TooMuchWork {
                 measure: JvozbaWorkMeasure::Placements,
                 amount: u64::MAX,
@@ -1045,6 +1173,7 @@ mod tests {
                 JvozbaInput::Word("lojbo".to_owned()),
                 JvozbaInput::Word("bangu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
         assert_eq!(result.word, "jbobau");
@@ -1061,6 +1190,7 @@ mod tests {
                 JvozbaInput::Word("lojbo".to_owned()),
                 JvozbaInput::FixedRafsi("bau".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
         assert!(result.word.ends_with('s'));
@@ -1078,6 +1208,7 @@ mod tests {
                 JvozbaInput::FixedRafsi("u'u".to_owned()),
                 JvozbaInput::Word("kerlo".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect_err("candidate must be rejected by full morphology validation");
 
@@ -1095,6 +1226,7 @@ mod tests {
                 JvozbaInput::Word("fulta".to_owned()),
                 JvozbaInput::Word("ismu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
 
@@ -1113,6 +1245,7 @@ mod tests {
                 JvozbaInput::FixedRafsi("akt".to_owned()),
                 JvozbaInput::Word("iismu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
 
@@ -1131,6 +1264,7 @@ mod tests {
                 JvozbaInput::Word("gismu".to_owned()),
                 JvozbaInput::Word("iismu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
 
@@ -1150,6 +1284,7 @@ mod tests {
                 JvozbaInput::Word("nelci".to_owned()),
                 JvozbaInput::Word("iismu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
 
@@ -1168,6 +1303,7 @@ mod tests {
                 JvozbaInput::Word("jenjigu".to_owned()),
                 JvozbaInput::Word("dirce".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("jvozba result");
 
@@ -1183,6 +1319,7 @@ mod tests {
             JvozbaMode::Lujvo,
             jbotci_dictionary_data::english(),
             &[JvozbaInput::Word("jenjigu'ydi'e".to_owned())],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("expanded lujvo should provide at least two source inputs");
 
@@ -1206,6 +1343,7 @@ mod tests {
                 JvozbaInput::Word("lojbo".to_owned()),
                 JvozbaInput::Word("feklef".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect_err("missing entry");
         assert_eq!(error.to_string(), "No dictionary entry for `feklef`.");
@@ -1227,6 +1365,7 @@ mod tests {
                 JvozbaInput::Word("lojbo".to_owned()),
                 JvozbaInput::Word("lojban".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("a name built from rafsi expands");
         let from_parts = build_best_jvozba_detailed(
@@ -1237,6 +1376,7 @@ mod tests {
                 JvozbaInput::Word("logji".to_owned()),
                 JvozbaInput::Word("bangu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("the same build from the words themselves");
 
@@ -1247,8 +1387,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn decomposes_lujvo_with_exact_dictionary_final_component_source() {
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "jetcybolxada")
-            .expect("morphology-backed lujvo decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "jetcybolxada",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("morphology-backed lujvo decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1270,9 +1415,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn decomposes_lujvo_with_dictionary_backed_fuhivla_self_core_source() {
-        let decomposition =
-            decompose_lujvo_like(jbotci_dictionary_data::english(), "jenjigu'ydi'e")
-                .expect("morphology-backed lujvo decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "jenjigu'ydi'e",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("morphology-backed lujvo decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1293,8 +1442,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn decomposes_lujvo_with_r_hyphen_after_initial_cvv_rafsi() {
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "ci'artai")
-            .expect("morphology-backed lujvo decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "ci'artai",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("morphology-backed lujvo decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1315,8 +1469,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn decomposes_lujvo_with_r_initial_rafsi_without_r_hyphen() {
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "jetrok")
-            .expect("r-initial rafsi decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "jetrok",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("r-initial rafsi decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1340,8 +1499,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn decomposes_cmevla_lujvo_with_cvv_prefix_before_r_initial_cvc_rafsi() {
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "baunrok")
-            .expect("cmevla fallback decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "baunrok",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("cmevla fallback decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1364,8 +1528,13 @@ mod tests {
     fn decomposes_cmevla_lujvo_from_a_plain_rafsi_chain() {
         // The #914 case: a name built from rafsi that happen to need no
         // hyphen between them still shows the words it was built from.
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "feklat")
-            .expect("cmevla fallback decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "feklat",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("cmevla fallback decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1387,8 +1556,13 @@ mod tests {
     #[ensures(true)]
     fn a_name_that_repeats_a_word_keeps_both_occurrences_in_its_segments() {
         // `latlat` is `lat` + `lat`, and both are `mlatu`.
-        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "latlat")
-            .expect("cmevla fallback decomposition");
+        let decomposition = decompose_lujvo_like(
+            jbotci_dictionary_data::english(),
+            "latlat",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("an uninterrupted decomposition")
+        .expect("cmevla fallback decomposition");
         let surfaces = decomposition
             .segments
             .iter()
@@ -1421,6 +1595,7 @@ mod tests {
                 JvozbaInput::Word("lojbo".to_owned()),
                 JvozbaInput::Word("latlat".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("a repeated rafsi enters once per occurrence");
         let from_parts = build_best_jvozba_detailed(
@@ -1431,6 +1606,7 @@ mod tests {
                 JvozbaInput::Word("mlatu".to_owned()),
                 JvozbaInput::Word("mlatu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("the same build from the words themselves");
 
@@ -1442,6 +1618,7 @@ mod tests {
             JvozbaMode::Lujvo,
             dictionary,
             &[JvozbaInput::Word("latlat".to_owned())],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("a name of two rafsi is two inputs");
         let pair = build_best_jvozba_detailed(
@@ -1451,6 +1628,7 @@ mod tests {
                 JvozbaInput::Word("mlatu".to_owned()),
                 JvozbaInput::Word("mlatu".to_owned()),
             ],
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("the same build from the words themselves");
 
@@ -1466,7 +1644,13 @@ mod tests {
         // as `feklat` does, but `lef` is nobody's rafsi and the name is
         // therefore not a compound.
         assert!(
-            decompose_lujvo_like(jbotci_dictionary_data::english(), "feklef").is_none(),
+            decompose_lujvo_like(
+                jbotci_dictionary_data::english(),
+                "feklef",
+                &jbotci_interrupt::CancellationToken::never()
+            )
+            .expect("an uninterrupted decomposition")
+            .is_none(),
             "a segment with no source word must not yield a decomposition"
         );
     }
@@ -1508,11 +1692,17 @@ mod tests {
                 ),
             ] {
                 let evaluations = Cell::new(0);
-                let result =
-                    build_best_jvozba_with_evaluator(mode, dictionary, &inputs, limits, |_, _| {
+                let result = build_best_jvozba_with_evaluator(
+                    mode,
+                    dictionary,
+                    &inputs,
+                    limits,
+                    &jbotci_interrupt::CancellationToken::never(),
+                    |_, _| {
                         evaluations.set(evaluations.get() + 1);
                         None
-                    });
+                    },
+                );
                 assert!(
                     matches!(result, Err(JvozbaError::TooMuchWork { measure: actual, .. }) if actual == measure),
                     "{mode:?}: {result:?}"
@@ -1524,5 +1714,29 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Clear loads of `lojbo bangu` before the load that aborts.
+    /// Release measurement: 83 clear loads, trip 82. The per-piece load and
+    /// the morphology inside each piece are both on this path.
+    const JVOZBA_LATE_TRIP: usize = 82;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_inside_jvozba_and_the_next_index_builds_jbobau() {
+        let dictionary = jbotci_dictionary_data::english();
+        let inputs = [
+            JvozbaInput::Word("lojbo".to_owned()),
+            JvozbaInput::Word("bangu".to_owned()),
+        ];
+        let run = |trip: usize| {
+            let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+        };
+        let error = run(JVOZBA_LATE_TRIP).expect_err("the late trip stops the build");
+        assert!(matches!(error, JvozbaError::Interrupted));
+        let result = run(JVOZBA_LATE_TRIP + 1).expect("the next index finishes the build");
+        assert_eq!(result.word, "jbobau");
     }
 }

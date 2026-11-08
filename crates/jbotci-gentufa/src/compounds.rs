@@ -1016,7 +1016,8 @@ mod tests {
             &words,
             source,
             &jbotci_syntax::ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         assert_eq!(recovered.errors.len(), 1);
         let options = GentufaBlockOptions::default();
         let bare = recovered_generated_model_blocks_layout::<()>(

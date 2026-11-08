@@ -356,8 +356,18 @@ fn projection_selects_the_coalesced_layout_only_when_a_compound_was_applied() {
                     show_elided,
                     ..GentufaWebOptions::default()
                 };
-                let morphology = analyze_gentufa_morphology_source(source, &options).unwrap();
-                let analysis = complete_gentufa_source_analysis(source, &options, morphology);
+                let morphology = analyze_gentufa_morphology_source(
+                    source,
+                    &options,
+                    &jbotci_interrupt::CancellationToken::never(),
+                )
+                .unwrap();
+                let analysis = complete_gentufa_source_analysis(
+                    source,
+                    &options,
+                    morphology,
+                    &jbotci_interrupt::CancellationToken::never(),
+                );
                 let data!(GentufaSourceAnalysis {
                     morphology,
                     parse: recovery,
@@ -373,6 +383,7 @@ fn projection_selects_the_coalesced_layout_only_when_a_compound_was_applied() {
                     source,
                     &words,
                     &gentufa_blocks_projection_options(&options),
+                    &jbotci_interrupt::CancellationToken::never(),
                 )
                 .unwrap();
                 assert_eq!(

@@ -56,9 +56,8 @@ pub use render::{
     DEFAULT_GENTUFA_PNG_SCALE, EmbeddedGentufaFonts, GentufaExportError, GentufaFontData,
     GentufaLimit, GentufaLimitData, GentufaPngOptions, GentufaRasterPlan, GentufaRenderLimits,
     GentufaSvgOptions, checked_svg_raster_plan, render_gentufa_blocks_png,
-    render_gentufa_blocks_png_with_limits, render_gentufa_blocks_png_with_limits_and_cancellation,
-    render_gentufa_blocks_svg, render_gentufa_blocks_svg_with_limits,
-    render_gentufa_blocks_svg_with_limits_and_cancellation,
+    render_gentufa_blocks_png_with_limits, render_gentufa_blocks_svg,
+    render_gentufa_blocks_svg_with_limits,
 };
 
 #[invariant(byte_start <= byte_end, "byte range must be ordered")]
@@ -3265,7 +3264,8 @@ mod tests {
             &words,
             source,
             &jbotci_syntax::ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         assert_eq!(recovered.errors.len(), 1);
         // The model keeps one slot per abandoned construct. This offset has one slot,
         // while the bracket renderer can use more than one missing marker for that slot.
@@ -3458,7 +3458,8 @@ mod tests {
             &words,
             source,
             &jbotci_syntax::ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let layout = recovered_generated_model_blocks_layout(
             recovered.parse_tree.as_ref(),
             source,

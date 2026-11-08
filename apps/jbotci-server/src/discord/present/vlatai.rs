@@ -119,6 +119,7 @@ pub(crate) fn render_in_scope(
                         show_elided: false,
                     },
                     text_scope.limit(),
+                    &jbotci_interrupt::CancellationToken::never(),
                 );
                 let brackets = super::render_output_in_scope(brackets, text_scope);
                 lines.push(code_block_in_scope(&brackets, text_scope));

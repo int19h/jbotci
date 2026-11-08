@@ -566,7 +566,9 @@ pub struct RecoveredSyntaxParse {
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub struct RecoveredSyntaxParseAttempt {
-    pub result: RecoveredSyntaxParse,
+    /// `Err(SyntaxError::Interrupted)` when the flag stopped the parse.
+    /// A tree API cannot invent a recovered tree for that outcome.
+    pub result: Result<RecoveredSyntaxParse, SyntaxError>,
     pub trace: Option<TraceReport>,
 }
 
@@ -2781,6 +2783,8 @@ pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSynt
 pub enum ContinuationError {
     TimedOut,
     RecoveryLimit,
+    /// The cancellation flag stopped the query. This is not a recovery limit.
+    Interrupted,
 }
 
 /// Return complete expectations, including an empty list when no continuation exists.
@@ -3070,20 +3074,30 @@ fn parse_syntax_tree_with_source_and_options_attempt_inner(
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.parse_tree))]
-#[expensive_ensures(recovered_syntax_parse_conserves_word_spans(words, &ret))]
+#[expensive_ensures(match &ret {
+    Ok(recovered) => {
+        recovered.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&recovered.parse_tree)
+            && recovered_syntax_parse_conserves_word_spans(words, recovered)
+    }
+    Err(error) => matches!(error, SyntaxError::Interrupted),
+})]
 pub fn parse_syntax_tree_recovered_with_source_and_options(
     words: &[WordLike],
     source: &str,
     options: &ParseOptions,
-) -> RecoveredSyntaxParse {
+) -> Result<RecoveredSyntaxParse, SyntaxError> {
     parse_syntax_tree_recovered_with_source_and_options_attempt(words, source, options).result
 }
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.result.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.result.parse_tree))]
-#[expensive_ensures(recovered_syntax_parse_conserves_word_spans(words, &ret.result))]
+#[expensive_ensures(match &ret.result {
+    Ok(recovered) => {
+        recovered.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&recovered.parse_tree)
+            && recovered_syntax_parse_conserves_word_spans(words, recovered)
+    }
+    Err(error) => matches!(error, SyntaxError::Interrupted),
+})]
 pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,
@@ -4071,7 +4085,8 @@ mod tests {
             parse_syntax_tree_generated_model_with_source_and_options(&words, source, &options)
                 .expect("strict parse succeeds");
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
 
         assert!(recovered.errors.is_empty());
         assert_eq!(recovered.parse_tree.clone().try_into_valid(), Ok(*strict));
@@ -4117,7 +4132,8 @@ mod tests {
             .expect_err("strict syntax rejects stray ku");
 
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
 
         assert_eq!(recovered.errors, vec![strict_error]);
         assert!(matches!(
@@ -4155,7 +4171,8 @@ mod tests {
             .expect_err("strict syntax rejects the malformed relative-clause body");
 
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
         let tree = format!("{:?}", recovered.parse_tree);
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
@@ -4341,7 +4358,8 @@ mod tests {
         let strict_error = parse_syntax_tree_with_source_and_options(&words, source, &options)
             .expect_err("the description has no selbri");
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -4379,7 +4397,8 @@ mod tests {
                 &words,
                 source,
                 &ParseOptions::default(),
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
             assert!(
                 recovered_syntax_parse_conserves_word_spans(&words, &recovered),
                 "recovered syntax must account for every input token exactly once for {source:?}"
@@ -4437,7 +4456,8 @@ mod tests {
             &words,
             source,
             &ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -4468,7 +4488,8 @@ mod tests {
             &words,
             source,
             &ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -4511,7 +4532,8 @@ mod tests {
                     .with_per_statement_limit(1),
                 ..ParseOptions::default()
             },
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -4541,7 +4563,8 @@ mod tests {
             &words,
             source,
             &ParseOptions::default().with_max_recovery_errors(2),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -4590,7 +4613,8 @@ mod tests {
                 &words,
                 source,
                 &ParseOptions::default(),
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
 
             assert_eq!(recovered.errors.len(), expected_error_count, "{source:?}");
             assert!(
@@ -4624,7 +4648,8 @@ mod tests {
         let dialect = jbotci_dialect::parse_dialect_definition("(+split-number-lerfu)").unwrap();
         let options = ParseOptions::default().with_dialect_definition(&dialect);
         let recovered =
-            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
         assert_eq!(recovered.errors.len(), 1);
         assert!(recovered_syntax_parse_conserves_word_spans(
             &words, &recovered
@@ -4707,7 +4732,8 @@ mod tests {
             &words,
             source,
             &ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let mut visitor = RecoveredTokenAndErrorVisitor::default();
         generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),

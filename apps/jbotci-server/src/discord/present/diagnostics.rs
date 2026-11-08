@@ -363,7 +363,13 @@ mod tests {
     #[ensures(true)]
     fn renders_a_morphology_error_with_a_caret_excerpt() {
         let source = "mi 'klama do";
-        let analysis = analyze_vlasei(source, None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            source,
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let rendered = render_diagnostics(source, &analysis.diagnostics).expect("diagnostics");
         assert!(
             rendered.shown.starts_with("**error** `morphology."),
@@ -387,7 +393,13 @@ mod tests {
         // and whole in the complete text, and the diagnostics know they are
         // an excerpt so the assembler attaches it.
         let source = "mi 'klama do";
-        let analysis = analyze_vlasei(source, None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            source,
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let long_label = "why this word cannot start here ".repeat(20);
         let diagnostics = analysis
             .diagnostics
@@ -423,7 +435,13 @@ mod tests {
     fn long_lines_are_windowed_around_the_label() {
         let mut source = "a".repeat(200);
         source.push_str(" 'x");
-        let analysis = analyze_vlasei(&source, None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            &source,
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let rendered = render_diagnostics(&source, &analysis.diagnostics).expect("diagnostics");
         let block = rendered.shown.split("```").nth(1).expect("code block");
         for line in block.lines() {

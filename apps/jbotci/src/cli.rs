@@ -330,8 +330,10 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                 limits,
             )
         }
-        Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout, limits),
-        Command::Gimfihi(input) => run_gimfihi(input, stdout, limits),
+        Command::Jvozba(input) => {
+            run_jvozba(input, stdout, color_policy.stdout, limits, cancellation)
+        }
+        Command::Gimfihi(input) => run_gimfihi(input, stdout, limits, cancellation),
         Command::Cukta(input) => {
             run_cukta(input, stdout, stderr, tool_context.as_deref_mut(), limits)
         }

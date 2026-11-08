@@ -71,3 +71,53 @@ fn cancellation_stops_unspaced_lo_and_is_not_a_syntax_error() {
         "a stopped parse must not be reported as a recovered or failed syntax tree"
     );
 }
+
+/// Clear loads of a successful parse of "mi klama" before the load that aborts.
+/// Release measurement: 2318 clear loads, trip 2317. The post-parse `parse_stop`
+/// is on this path. A flag set during the parse returns earlier and does not
+/// show that this load is still there.
+const STRICT_PARSE_LATE_TRIP: usize = 2317;
+/// Recovered parse of "mi klama le ???": 9026 clear loads, trip 9025. The
+/// sentence has errors, so the load after the failed strict attempt and the
+/// load after the tracked attempt both run.
+const RECOVERED_PARSE_LATE_TRIP: usize = 9025;
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_late_trip_stops_after_a_successful_parse() {
+    let words = jbotci_morphology::segment_words_with_modifiers("mi klama").expect("morphology");
+    let run = |trip: usize| {
+        let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
+        super::parse_syntax_tree_with_options(
+            &words,
+            &ParseOptions::default().with_cancellation(&token),
+        )
+    };
+    let error = run(STRICT_PARSE_LATE_TRIP).expect_err("the late trip stops the parse");
+    assert!(matches!(error, super::SyntaxError::Interrupted));
+    run(STRICT_PARSE_LATE_TRIP + 1).expect("the next index finishes the parse");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_late_trip_stops_a_recovered_parse_that_has_errors() {
+    let bad = "mi klama le ???";
+    let words = jbotci_morphology::segment_words_with_modifiers(bad).expect("bad morphology");
+    let run = |trip: usize| {
+        let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
+        super::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            bad,
+            &ParseOptions::default().with_cancellation(&token),
+        )
+    };
+    let error = run(RECOVERED_PARSE_LATE_TRIP).expect_err("the late trip stops recovery");
+    assert!(matches!(error, super::SyntaxError::Interrupted));
+    let finished = run(RECOVERED_PARSE_LATE_TRIP + 1).expect("the next index finishes recovery");
+    assert!(
+        !finished.errors.is_empty(),
+        "this trip is the error path, where the second post-parse load runs"
+    );
+}

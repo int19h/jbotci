@@ -249,6 +249,12 @@ pub(crate) fn operation_error_code(error: &anyhow::Error) -> Option<ServerErrorC
                 .is_some_and(|error| {
                     matches!(error, jbotci_gentufa::GentufaExportError::Interrupted)
                 })
+            || cause
+                .downcast_ref::<jbotci_jvozba::JvozbaError>()
+                .is_some_and(|error| matches!(error, jbotci_jvozba::JvozbaError::Interrupted))
+            || cause
+                .downcast_ref::<jbotci_gimfihi::GimfihiError>()
+                .is_some_and(|error| matches!(error, jbotci_gimfihi::GimfihiError::Interrupted))
         {
             return Some(ServerErrorCode::Deadline);
         }

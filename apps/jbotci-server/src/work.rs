@@ -552,22 +552,32 @@ mod tests {
     #[ensures(true)]
     async fn a_timed_out_worker_keeps_its_permit_until_it_exits() {
         let governor = governor(1, 4);
-        // The worker watches the flag, then stays a little longer so the
-        // caller can observe that the permit is still held after the timeout.
-        let slow =
-            governor.run_compute(Instant::now() + Duration::from_millis(50), |cancellation| {
+        // The worker sends only after it reads a set flag, then waits until
+        // the test releases it. A missing read never sends, so the receive
+        // times out. A sleep cannot show that, because a loaded box and a
+        // missing read can finish inside the same wall-clock bound.
+        let (saw_tx, saw_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let slow = governor.run_compute(
+            Instant::now() + Duration::from_secs(5),
+            move |cancellation| {
                 while !cancellation.is_cancelled() {
                     std::thread::sleep(Duration::from_millis(5));
                 }
-                std::thread::sleep(Duration::from_millis(300));
+                saw_tx.send(()).expect("the test receives the flag signal");
+                let _ = release_rx.recv();
                 "slow"
-            });
+            },
+        );
         assert_eq!(
             slow.await,
             Err(WorkError::TimedOut {
                 lane: WorkLane::Compute
             })
         );
+        saw_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the worker reads the flag before it keeps the permit");
         assert_eq!(
             governor.snapshot().compute_active,
             1,
@@ -577,7 +587,7 @@ mod tests {
         // A second job cannot start while this worker still holds the only
         // permit: it waits until its own deadline and reports that.
         let blocked = governor
-            .run_compute(Instant::now() + Duration::from_millis(50), |_| "second")
+            .run_compute(Instant::now() + Duration::from_secs(2), |_| "second")
             .await;
         assert_eq!(
             blocked,
@@ -586,21 +596,27 @@ mod tests {
             })
         );
 
-        // The worker exits on its own once the post-cancel pause ends.
-        let mut ran = Err(WorkError::TimedOut {
-            lane: WorkLane::Compute,
-        });
-        for _ in 0..50 {
-            ran = governor
-                .run_compute(Instant::now() + Duration::from_millis(200), |_| "third")
-                .await;
-            if ran.is_ok() {
+        release_tx
+            .send(())
+            .expect("the worker is waiting for release");
+        let mut released = false;
+        for _ in 0..100 {
+            if governor.snapshot().compute_active == 0 {
+                released = true;
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(20)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        assert_eq!(ran, Ok("third"));
-        assert_eq!(governor.snapshot().compute_active, 0);
+        assert!(
+            released,
+            "the permit comes back after the worker is released"
+        );
+        assert_eq!(
+            governor
+                .run_compute(Instant::now() + Duration::from_secs(5), |_| "third")
+                .await,
+            Ok("third")
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -608,44 +624,47 @@ mod tests {
     #[ensures(true)]
     async fn a_cancelled_worker_returns_its_permit_shortly_after_the_deadline() {
         let governor = governor(1, 4);
-        let deadline = Instant::now() + Duration::from_millis(80);
-        // Without the check this loop runs for about ten seconds.
-        let result = governor
-            .run_compute(deadline, |cancellation| {
-                for _ in 0..500 {
+        // The loop does not end on its own. The worker sends when it reads a
+        // set flag and then returns, which releases the permit. A missing
+        // read never sends, so this receive times out instead of waiting out
+        // a long sleep.
+        let (saw_tx, saw_rx) = mpsc::channel();
+        let result = governor.run_compute(
+            Instant::now() + Duration::from_secs(5),
+            move |cancellation| {
+                loop {
                     if cancellation.is_cancelled() {
+                        saw_tx.send(()).expect("the test receives the flag signal");
                         return "stopped";
                     }
-                    std::thread::sleep(Duration::from_millis(20));
+                    std::thread::sleep(Duration::from_millis(5));
                 }
-                "finished"
-            })
-            .await;
+            },
+        );
         assert_eq!(
-            result,
+            result.await,
             Err(WorkError::TimedOut {
                 lane: WorkLane::Compute
             })
         );
+        saw_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the worker reads the flag and then returns the permit");
+        let mut released = false;
         for _ in 0..100 {
             if governor.snapshot().compute_active == 0 {
+                released = true;
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(20)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        let released = Instant::now();
-        assert_eq!(
-            governor.snapshot().compute_active,
-            0,
-            "the permit came back"
-        );
         assert!(
-            released.saturating_duration_since(deadline) < Duration::from_secs(2),
-            "the permit came back shortly after the deadline"
+            released,
+            "the permit comes back after the worker reads the flag"
         );
         assert_eq!(
             governor
-                .run_compute(Instant::now() + Duration::from_secs(2), |_| "second")
+                .run_compute(Instant::now() + Duration::from_secs(5), |_| "second")
                 .await,
             Ok("second")
         );

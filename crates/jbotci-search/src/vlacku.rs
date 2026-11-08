@@ -1043,7 +1043,12 @@ fn cards_for_lujvo(
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
-        let decomposition = decompose_lujvo_like(dictionary, query);
+        let decomposition = decompose_lujvo_like(
+            dictionary,
+            query,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("vlacku search is not cancelled");
         let candidates = match classify_exact_word(query, &normalized) {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
@@ -1563,7 +1568,14 @@ fn missing_exact_output(
         Some(classification) => {
             let decomposition = options
                 .decompose_lujvo
-                .then(|| decompose_lujvo_like(dictionary, query))
+                .then(|| {
+                    decompose_lujvo_like(
+                        dictionary,
+                        query,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
+                    .expect("vlacku search is not cancelled")
+                })
                 .flatten();
             let cards = cards_with_optional_lujvo_sources(
                 dictionary,
@@ -1639,7 +1651,13 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
                 dictionary,
                 options,
             );
-        } else if let Some(decomposition) = decompose_lujvo_like(dictionary, query) {
+        } else if let Some(decomposition) = decompose_lujvo_like(
+            dictionary,
+            query,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("vlacku search is not cancelled")
+        {
             extend_unique_candidates(
                 &mut candidates,
                 candidates_for_lujvo_decomposition(dictionary, &decomposition, options),

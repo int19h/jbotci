@@ -9,8 +9,8 @@ mod compound_tests;
 pub mod morphology_reports;
 
 pub use morphology_reports::{
-    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlasei_with_cancellation, analyze_vlatai,
-    possible_rafsi_for_gismu, vlatai_diagnostics, vlatai_not_single_word_diagnostic,
+    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai, possible_rafsi_for_gismu,
+    vlatai_diagnostics, vlatai_not_single_word_diagnostic,
 };
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -70,7 +70,7 @@ use jbotci_morphology::{
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
     DefinitionPlaceMap, GlyphStyle, OutputError, TreeRenderOptions,
-    format_definition_line_with_indexed_places, generated_reference_display_with_cancellation,
+    format_definition_line_with_indexed_places, generated_reference_display,
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
     indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
     pretty_bracket_source_fragments_with_options,
@@ -494,26 +494,13 @@ impl GentufaMorphologyAnalysis {
     }
 }
 
-#[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-pub fn analyze_gentufa_morphology_source(
-    source: &str,
-    options: &GentufaWebOptions,
-) -> Result<GentufaMorphologyAnalysis, GentufaWebError> {
-    analyze_gentufa_morphology_source_with_cancellation(
-        source,
-        options,
-        &CancellationToken::never(),
-    )
-}
-
 /// Segment `source` until `cancellation` is set.
 ///
 /// A set flag is [`GentufaWebError::Interrupted`]. It is not a dialect error
 /// and the word list from the stopped call is not returned.
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-pub fn analyze_gentufa_morphology_source_with_cancellation(
+pub fn analyze_gentufa_morphology_source(
     source: &str,
     options: &GentufaWebOptions,
     cancellation: &CancellationToken,
@@ -557,28 +544,13 @@ pub fn analyze_gentufa_morphology_source_with_cancellation(
     }))
 }
 
-#[requires(true)]
-#[ensures(ret.morphology.errors.is_empty() || ret.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
-pub fn complete_gentufa_source_analysis(
-    source: &str,
-    options: &GentufaWebOptions,
-    morphology: GentufaMorphologyAnalysis,
-) -> GentufaSourceAnalysis {
-    complete_gentufa_source_analysis_with_cancellation(
-        source,
-        options,
-        morphology,
-        &CancellationToken::never(),
-    )
-}
-
 /// Parse the segmented words until `cancellation` is set.
 ///
 /// The returned analysis may be [`SyntaxRecoveryParse::Interrupted`]. Callers
 /// match that before they render a syntax error.
 #[requires(true)]
 #[ensures(ret.morphology.errors.is_empty() || ret.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
-pub fn complete_gentufa_source_analysis_with_cancellation(
+pub fn complete_gentufa_source_analysis(
     source: &str,
     options: &GentufaWebOptions,
     morphology: GentufaMorphologyAnalysis,
@@ -694,22 +666,14 @@ pub fn analyze_gentufa_syntax_diagnostics_for_words(
 #[requires(true)]
 #[ensures(matches!(ret, GentufaWebResult::Blank) == request.text.trim().is_empty())]
 pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
-    parse_gentufa_for_web_with_limits(request, None).expect("unrestricted web rendering")
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_gentufa_for_web_with_limits(
-    request: &GentufaWebRequest,
-    limits: Option<jbotci_output::budget::RenderLimits>,
-) -> Result<GentufaWebResult, WebComputeError> {
-    parse_gentufa_for_web_with_limits_and_cancellation(request, limits, &CancellationToken::never())
+    parse_gentufa_for_web_with_limits(request, None, &jbotci_interrupt::CancellationToken::never())
+        .expect("unrestricted web rendering")
 }
 
 /// Parse and render until `cancellation` is set.
 #[requires(true)]
 #[ensures(true)]
-pub fn parse_gentufa_for_web_with_limits_and_cancellation(
+pub fn parse_gentufa_for_web_with_limits(
     request: &GentufaWebRequest,
     limits: Option<jbotci_output::budget::RenderLimits>,
     cancellation: &CancellationToken,
@@ -742,11 +706,8 @@ fn gentufa_syntax_for_web(
         return Ok(None);
     }
 
-    let morphology = match analyze_gentufa_morphology_source_with_cancellation(
-        source,
-        &request.options,
-        cancellation,
-    ) {
+    let morphology = match analyze_gentufa_morphology_source(source, &request.options, cancellation)
+    {
         Ok(morphology) => morphology,
         Err(GentufaWebError::Interrupted) => return Err(GentufaSyntaxStop::Interrupted),
         Err(error) => {
@@ -771,7 +732,7 @@ fn gentufa_syntax_for_web(
         }));
     }
 
-    Ok(Some(complete_gentufa_source_analysis_with_cancellation(
+    Ok(Some(complete_gentufa_source_analysis(
         source,
         &request.options,
         morphology,
@@ -851,7 +812,7 @@ fn valid_gentufa_result_for_web(
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let projection = match generated_model_gentufa_blocks_projection_with_cancellation(
+    let projection = match generated_model_gentufa_blocks_projection(
         &generated_model,
         source,
         words,
@@ -871,31 +832,30 @@ fn valid_gentufa_result_for_web(
         }
     };
     let bracket_options = bracket_render_options(&render_options);
-    let brackets_text =
-        match jbotci_output::pretty_generated_model_brackets_with_limit_and_cancellation(
-            &generated_model,
-            source,
-            bracket_options,
-            limits.map(|limits| limits.text).unwrap_or_else(|| {
-                jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
-            }),
-            cancellation,
-        ) {
-            Ok(text) => text,
-            Err(error) => {
-                if matches!(error, jbotci_output::OutputError::Interrupted) {
-                    return Err(WebComputeError::interrupted());
-                }
-                if matches!(error, jbotci_output::OutputError::Limit { .. }) {
-                    return Err(WebComputeError::output_limit());
-                }
-                return Ok(GentufaWebResult::Error(GentufaError {
-                    phase: Some(DiagnosticPhase::Syntax),
-                    message: error.to_string(),
-                    diagnostics,
-                }));
+    let brackets_text = match jbotci_output::pretty_generated_model_brackets_with_limit(
+        &generated_model,
+        source,
+        bracket_options,
+        limits.map(|limits| limits.text).unwrap_or_else(|| {
+            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+        }),
+        cancellation,
+    ) {
+        Ok(text) => text,
+        Err(error) => {
+            if matches!(error, jbotci_output::OutputError::Interrupted) {
+                return Err(WebComputeError::interrupted());
             }
-        };
+            if matches!(error, jbotci_output::OutputError::Limit { .. }) {
+                return Err(WebComputeError::output_limit());
+            }
+            return Ok(GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            }));
+        }
+    };
     let bracket_source_fragments = match pretty_bracket_source_fragments_with_options(
         &generated_model,
         source,
@@ -954,31 +914,30 @@ fn recovered_gentufa_success_for_web(
     )
     .unwrap_or_else(|_| source.to_owned());
     let bracket_options = bracket_render_options(&render_options);
-    let brackets_text =
-        match jbotci_output::pretty_recovered_syntax_brackets_with_limit_and_cancellation(
-            parse,
-            source,
-            bracket_options,
-            limits.map(|limits| limits.text).unwrap_or_else(|| {
-                jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
-            }),
-            cancellation,
-        ) {
-            Ok(text) => text,
-            Err(error) => {
-                if matches!(error, jbotci_output::OutputError::Interrupted) {
-                    return Err(WebComputeError::interrupted());
-                }
-                if matches!(error, jbotci_output::OutputError::Limit { .. }) {
-                    return Err(WebComputeError::output_limit());
-                }
-                return Ok(GentufaWebResult::Error(GentufaError {
-                    phase: Some(DiagnosticPhase::Syntax),
-                    message: error.to_string(),
-                    diagnostics,
-                }));
+    let brackets_text = match jbotci_output::pretty_recovered_syntax_brackets_with_limit(
+        parse,
+        source,
+        bracket_options,
+        limits.map(|limits| limits.text).unwrap_or_else(|| {
+            jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit")
+        }),
+        cancellation,
+    ) {
+        Ok(text) => text,
+        Err(error) => {
+            if matches!(error, jbotci_output::OutputError::Interrupted) {
+                return Err(WebComputeError::interrupted());
             }
-        };
+            if matches!(error, jbotci_output::OutputError::Limit { .. }) {
+                return Err(WebComputeError::output_limit());
+            }
+            return Ok(GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            }));
+        }
+    };
     let projection = recovered_gentufa_blocks_projection(
         parse,
         source,
@@ -1098,9 +1057,6 @@ fn gentufa_blocks_reference_options(options: &GentufaBlockOptions) -> TreeRender
     }
 }
 
-/// Dictionary-backed blocks projection of a valid parse. Owns the reference
-/// display (place-structure markers and their tooltips) so every surface derives
-/// it from the resolved options rather than supplying its own.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|projection| options.show_compounds || projection.coalesced.is_none()) || ret.is_err())]
 pub fn generated_model_gentufa_blocks_projection(
@@ -1108,26 +1064,9 @@ pub fn generated_model_gentufa_blocks_projection(
     source: &str,
     words: &[WordLike],
     options: &GentufaBlocksProjectionOptions,
-) -> Result<GentufaBlocksProjection, OutputError> {
-    generated_model_gentufa_blocks_projection_with_cancellation(
-        syntax,
-        source,
-        words,
-        options,
-        &CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|projection| options.show_compounds || projection.coalesced.is_none()) || ret.is_err())]
-pub fn generated_model_gentufa_blocks_projection_with_cancellation(
-    syntax: &jbotci_syntax::generated_model::TextSyntax,
-    source: &str,
-    words: &[WordLike],
-    options: &GentufaBlocksProjectionOptions,
     cancellation: &CancellationToken,
 ) -> Result<GentufaBlocksProjection, OutputError> {
-    let reference_display = generated_reference_display_with_cancellation(
+    let reference_display = generated_reference_display(
         syntax,
         source,
         gentufa_blocks_reference_options(&options.blocks),
@@ -2612,52 +2551,57 @@ pub enum WebComputeResponse {
     },
 }
 
+/// Which budget or stop produced a web compute failure.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WebComputeFailure {
+    OutputLimit,
+    Interrupted,
+    Other,
+}
+
 #[invariant(!message.is_empty())]
-#[invariant(diagram_limit.is_none() || *output_limit)]
-#[invariant(!*interrupted || (!*output_limit && diagram_limit.is_none()))]
+#[invariant(diagram_limit.is_none() || matches!(kind, WebComputeFailure::OutputLimit))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebComputeError {
-    output_limit: bool,
+    kind: WebComputeFailure,
     diagram_limit: Option<jbotci_gentufa::GentufaLimit>,
-    interrupted: bool,
     message: String,
 }
 
 impl WebComputeError {
     #[requires(true)]
-    #[ensures(ret == self.output_limit)]
+    #[ensures(ret == matches!(self.kind, WebComputeFailure::OutputLimit))]
     pub fn is_output_limit(&self) -> bool {
-        self.output_limit
+        matches!(self.kind, WebComputeFailure::OutputLimit)
     }
 
     /// The computation stopped because its cancellation flag was set.
     ///
     /// This is a deadline, not a user error and not an output-limit failure.
     #[requires(true)]
-    #[ensures(ret == self.interrupted)]
+    #[ensures(ret == matches!(self.kind, WebComputeFailure::Interrupted))]
     pub fn is_interrupted(&self) -> bool {
-        self.interrupted
+        matches!(self.kind, WebComputeFailure::Interrupted)
     }
 
     #[requires(true)]
-    #[ensures(ret.output_limit)]
+    #[ensures(matches!(ret.kind, WebComputeFailure::OutputLimit))]
     fn output_limit() -> Self {
         new!(WebComputeError {
             message: "The generated output exceeds the server limit.".to_owned(),
-            output_limit: true,
+            kind: WebComputeFailure::OutputLimit,
             diagram_limit: None,
-            interrupted: false,
         })
     }
 
     #[requires(true)]
-    #[ensures(ret.interrupted && !ret.output_limit)]
+    #[ensures(matches!(ret.kind, WebComputeFailure::Interrupted) && ret.diagram_limit.is_none())]
     fn interrupted() -> Self {
         new!(WebComputeError {
             message: "computation interrupted".to_owned(),
-            output_limit: false,
+            kind: WebComputeFailure::Interrupted,
             diagram_limit: None,
-            interrupted: true,
         })
     }
     #[requires(true)]
@@ -2700,9 +2644,8 @@ impl WebComputeError {
     fn from_message(message: String) -> Self {
         new!(WebComputeError {
             message,
-            output_limit: false,
+            kind: WebComputeFailure::Other,
             diagram_limit: None,
-            interrupted: false,
         })
     }
 }
@@ -3036,7 +2979,11 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
     let normalized = normalize_gimfihi_state(state);
     let request = gimfihi_request_from_web_state(&normalized);
     let (output, errors) = match request {
-        Ok(request) => match compose_gismu(jbotci_dictionary_data::english(), &request) {
+        Ok(request) => match compose_gismu(
+            jbotci_dictionary_data::english(),
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        ) {
             Ok(output) => (Some(output), Vec::new()),
             // IPA diagnostics are tied to one editable source row and are
             // rendered there from the same resolver. Keeping them out of the
@@ -3557,29 +3504,9 @@ fn build_settings_page_meta(base_path: &str) -> PageMeta {
 pub mod blocking {
     use super::*;
 
-    /// Page metadata including everything only a parse, a generation run or a
-    /// search can supply: the gentufa bracket preview and social image, the
-    /// gimfi'i winning candidate, and the vlacku top match's definition.
     #[requires(true)]
     #[ensures(true)]
     pub fn build_computed_page_meta_with_limits(
-        base_path: &str,
-        route: &WebRoute,
-        render: jbotci_output::budget::RenderLimits,
-        diagram: jbotci_gentufa::GentufaRenderLimits,
-    ) -> Result<PageMeta, WebComputeError> {
-        build_computed_page_meta_with_limits_and_cancellation(
-            base_path,
-            route,
-            render,
-            diagram,
-            &CancellationToken::never(),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn build_computed_page_meta_with_limits_and_cancellation(
         base_path: &str,
         route: &WebRoute,
         render: jbotci_output::budget::RenderLimits,
@@ -3602,11 +3529,7 @@ pub mod blocking {
                     phonemes: PhonemeRenderOptions::default(),
                 },
             };
-            let result = parse_gentufa_for_web_with_limits_and_cancellation(
-                &request,
-                Some(render),
-                cancellation,
-            )?;
+            let result = parse_gentufa_for_web_with_limits(&request, Some(render), cancellation)?;
             return build_gentufa_page_meta_from_result_with_limits(
                 base_path,
                 &state,
@@ -3951,31 +3874,19 @@ pub fn render_gentufa_blocks_web_export(
     script: GentufaScript,
     format: GentufaExportFormat,
 ) -> Result<GentufaWebExport, WebComputeError> {
-    render_gentufa_blocks_web_export_with_limits(layout, show_glosses, script, format, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn render_gentufa_blocks_web_export_with_limits(
-    layout: &GentufaBlocksLayout,
-    show_glosses: bool,
-    script: GentufaScript,
-    format: GentufaExportFormat,
-    limits: Option<jbotci_gentufa::GentufaRenderLimits>,
-) -> Result<GentufaWebExport, WebComputeError> {
-    render_gentufa_blocks_web_export_with_limits_and_cancellation(
+    render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         script,
         format,
-        limits,
-        &CancellationToken::never(),
+        None,
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn render_gentufa_blocks_web_export_with_limits_and_cancellation(
+pub fn render_gentufa_blocks_web_export_with_limits(
     layout: &GentufaBlocksLayout,
     show_glosses: bool,
     script: GentufaScript,
@@ -3991,15 +3902,13 @@ pub fn render_gentufa_blocks_web_export_with_limits_and_cancellation(
             let options = gentufa_svg_export_options(show_glosses, script);
             let fonts = jbotci_gentufa::EmbeddedGentufaFonts::get();
             let svg = match limits {
-                Some(limits) => {
-                    jbotci_gentufa::render_gentufa_blocks_svg_with_limits_and_cancellation(
-                        layout,
-                        &options,
-                        fonts,
-                        limits,
-                        cancellation,
-                    )
-                }
+                Some(limits) => jbotci_gentufa::render_gentufa_blocks_svg_with_limits(
+                    layout,
+                    &options,
+                    fonts,
+                    limits,
+                    cancellation,
+                ),
                 None => jbotci_gentufa::render_gentufa_blocks_svg(layout, &options, fonts),
             }
             .map_err(WebComputeError::from_export)?;
@@ -4016,15 +3925,13 @@ pub fn render_gentufa_blocks_web_export_with_limits_and_cancellation(
                 .with_data(data! { svg: gentufa_svg_export_options(show_glosses, script) });
             let fonts = jbotci_gentufa::EmbeddedGentufaFonts::get();
             let bytes = match limits {
-                Some(limits) => {
-                    jbotci_gentufa::render_gentufa_blocks_png_with_limits_and_cancellation(
-                        layout,
-                        &options,
-                        fonts,
-                        limits,
-                        cancellation,
-                    )
-                }
+                Some(limits) => jbotci_gentufa::render_gentufa_blocks_png_with_limits(
+                    layout,
+                    &options,
+                    fonts,
+                    limits,
+                    cancellation,
+                ),
                 None => jbotci_gentufa::render_gentufa_blocks_png(layout, &options, fonts),
             }
             .map_err(WebComputeError::from_export)?;
@@ -4046,31 +3953,19 @@ pub fn render_gentufa_state_web_export(
     script: GentufaScript,
     format: GentufaExportFormat,
 ) -> Result<GentufaWebExport, WebComputeError> {
-    render_gentufa_state_web_export_with_limits(state, script, format, None, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn render_gentufa_state_web_export_with_limits(
-    state: &GentufaWebState,
-    script: GentufaScript,
-    format: GentufaExportFormat,
-    render_limits: Option<jbotci_output::budget::RenderLimits>,
-    diagram_limits: Option<jbotci_gentufa::GentufaRenderLimits>,
-) -> Result<GentufaWebExport, WebComputeError> {
-    render_gentufa_state_web_export_with_limits_and_cancellation(
+    render_gentufa_state_web_export_with_limits(
         state,
         script,
         format,
-        render_limits,
-        diagram_limits,
-        &CancellationToken::never(),
+        None,
+        None,
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn render_gentufa_state_web_export_with_limits_and_cancellation(
+pub fn render_gentufa_state_web_export_with_limits(
     state: &GentufaWebState,
     script: GentufaScript,
     format: GentufaExportFormat,
@@ -4122,15 +4017,13 @@ pub fn render_gentufa_state_web_export_with_limits_and_cancellation(
     }) = analysis.into_data();
     let options = gentufa_blocks_projection_options(&request.options);
     let projection = match parse.as_data() {
-        data!(SyntaxRecoveryParse::Valid { parse }) => {
-            generated_model_gentufa_blocks_projection_with_cancellation(
-                &parse.parse_tree,
-                &state.text,
-                &morphology.words,
-                &options,
-                cancellation,
-            )
-        }
+        data!(SyntaxRecoveryParse::Valid { parse }) => generated_model_gentufa_blocks_projection(
+            &parse.parse_tree,
+            &state.text,
+            &morphology.words,
+            &options,
+            cancellation,
+        ),
         data!(SyntaxRecoveryParse::Interrupted) => Err(jbotci_output::OutputError::Interrupted),
         data!(SyntaxRecoveryParse::Recovered { parse }) => Ok(recovered_gentufa_blocks_projection(
             parse,
@@ -4153,7 +4046,7 @@ pub fn render_gentufa_state_web_export_with_limits_and_cancellation(
             render_limits,
         )
     })?;
-    render_gentufa_blocks_web_export_with_limits_and_cancellation(
+    render_gentufa_blocks_web_export_with_limits(
         &projection.into_blocks_layout(),
         state.show_glosses,
         script,
@@ -4413,6 +4306,7 @@ fn gentufa_social_image_from_success_with_limits(
         GentufaScript::Latin,
         GentufaExportFormat::Svg,
         limits,
+        &jbotci_interrupt::CancellationToken::never(),
     );
     let export = match export {
         Ok(export) => export,
@@ -5797,6 +5691,7 @@ pub fn build_vlacku_jvozba_output(
         },
         jbotci_dictionary_data::english(),
         &parsed_inputs,
+        &jbotci_interrupt::CancellationToken::never(),
     );
     match result {
         Ok(result) => VlackuJvozbaOutput::Success {
@@ -7401,7 +7296,12 @@ fn is_vlacku_word_link(value: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_word_allows_jvozba(dictionary: &Dictionary<'_>, word: &str) -> bool {
-    word_can_enter_jvozba_pane(dictionary, word)
+    word_can_enter_jvozba_pane(
+        dictionary,
+        word,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .expect("the browser token is never cancelled")
 }
 
 #[requires(true)]
@@ -7516,7 +7416,12 @@ mod tests {
             dialect: Some(chain.clone()),
             ..GentufaWebOptions::default()
         };
-        let analysis = analyze_gentufa_morphology_source("mi", &options).unwrap();
+        let analysis = analyze_gentufa_morphology_source(
+            "mi",
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .unwrap();
         assert!(analysis.morphology.words.is_empty());
         assert_eq!(analysis.diagnostics.len(), 1);
         assert_eq!(
@@ -7530,7 +7435,12 @@ mod tests {
             dialect: Some(oversized),
             ..GentufaWebOptions::default()
         };
-        let error = analyze_gentufa_morphology_source("mi", &options).unwrap_err();
+        let error = analyze_gentufa_morphology_source(
+            "mi",
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("limit is 10"));
     }
 
@@ -7982,9 +7892,18 @@ mod tests {
         const SOURCE: &str = "mi cusku zo'oi kitten";
 
         let options = GentufaWebOptions::default();
-        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
-            .expect("the built-in default dialect must compile");
-        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        let morphology = analyze_gentufa_morphology_source(
+            SOURCE,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must compile");
+        let analysis = complete_gentufa_source_analysis(
+            SOURCE,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         let expected = match analysis.parse.as_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => {
                 assert_eq!(parse.warnings.len(), 1);
@@ -8015,8 +7934,12 @@ mod tests {
     fn valid_diagnostics_order_morphology_before_generated_syntax_warnings() {
         const SOURCE: &str = "mi cusku zo'oi kitten la kuenias";
         let options = GentufaWebOptions::default();
-        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
-            .expect("the built-in default dialect must compile");
+        let morphology = analyze_gentufa_morphology_source(
+            SOURCE,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must compile");
         assert!(morphology.morphology.errors.is_empty());
         assert_eq!(
             morphology
@@ -8042,7 +7965,12 @@ mod tests {
             vec!["syntax.warning.experimental-zoh-oi-quote"],
         );
 
-        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        let analysis = complete_gentufa_source_analysis(
+            SOURCE,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         assert!(matches!(
             analysis.parse.as_data(),
             data!(SyntaxRecoveryParse::Valid { .. })
@@ -8066,8 +7994,12 @@ mod tests {
     fn warning_free_valid_source_keeps_all_diagnostic_surfaces_empty() {
         const SOURCE: &str = "mi klama";
         let options = GentufaWebOptions::default();
-        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
-            .expect("the built-in default dialect must compile");
+        let morphology = analyze_gentufa_morphology_source(
+            SOURCE,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must compile");
         assert!(morphology.diagnostics().is_empty());
         assert!(
             analyze_gentufa_syntax_diagnostics_for_words(
@@ -8080,7 +8012,12 @@ mod tests {
             .is_empty()
         );
 
-        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        let analysis = complete_gentufa_source_analysis(
+            SOURCE,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         let data!(SyntaxRecoveryParse::Valid { parse }) = analysis.parse.as_data() else {
             panic!("warning-free source must parse cleanly")
         };
@@ -8095,8 +8032,12 @@ mod tests {
     fn recovered_diagnostics_keep_errors_then_morphology_then_syntax_warnings() {
         const SOURCE: &str = "mi ku i do .i mi cusku zo'oi kitten .i la kuenias cu klama";
         let options = GentufaWebOptions::default();
-        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
-            .expect("the built-in default dialect must compile");
+        let morphology = analyze_gentufa_morphology_source(
+            SOURCE,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must compile");
         assert!(morphology.morphology.errors.is_empty());
         assert_eq!(
             morphology
@@ -8137,7 +8078,12 @@ mod tests {
         );
 
         let syntax_error_count = syntax_warning_index;
-        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        let analysis = complete_gentufa_source_analysis(
+            SOURCE,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         assert!(matches!(
             analysis.parse.as_data(),
             data!(SyntaxRecoveryParse::Recovered { .. })

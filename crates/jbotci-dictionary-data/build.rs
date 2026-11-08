@@ -537,7 +537,13 @@ fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntr
         .par_iter()
         .enumerate()
         .map(|(index, entry)| {
-            let decomposition = decompose_lujvo_like(dictionary, entry.word)?.into_data();
+            let decomposition = decompose_lujvo_like(
+                dictionary,
+                entry.word,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("dictionary build is not cancelled")?
+            .into_data();
             Some(GeneratedLujvoEntry {
                 entry_index: EntryIndex(index),
                 segments: decomposition

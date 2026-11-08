@@ -183,22 +183,6 @@ pub fn pretty_generated_model_tree_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_generated_model_tree_with_limit(
-    tree: &GeneratedTextSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    limit: ByteLimit,
-) -> Result<String, OutputError> {
-    pretty_generated_model_tree_with_limit_and_cancellation(
-        tree,
-        source,
-        options,
-        limit,
         &jbotci_interrupt::CancellationToken::never(),
     )
 }
@@ -209,7 +193,7 @@ pub fn pretty_generated_model_tree_with_limit(
 /// Reference analysis that was in progress is dropped with this call.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_generated_model_tree_with_limit_and_cancellation(
+pub fn pretty_generated_model_tree_with_limit(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
@@ -230,13 +214,7 @@ pub fn pretty_generated_model_tree_with_limit_and_cancellation(
     let references = reference_analysis
         .as_ref()
         .map(|analysis| ReferenceDisplayModel::new_generated(analysis, &value, source, options));
-    render_tree_value_with_limit_and_cancellation(
-        &value,
-        options,
-        references.as_ref(),
-        limit,
-        cancellation,
-    )
+    render_tree_value_with_limit(&value, options, references.as_ref(), limit, cancellation)
 }
 #[doc(hidden)]
 #[requires(true)]
@@ -260,29 +238,13 @@ pub fn pretty_generated_model_tree_with_reference_display(
     ))
 }
 
-#[doc(hidden)]
-#[requires(true)]
-#[ensures(true)]
-pub fn generated_reference_display<'tree>(
-    generated_tree: &'tree GeneratedTextSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
-    generated_reference_display_with_cancellation(
-        generated_tree,
-        source,
-        options,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
 /// Build the reference display until `cancellation` is set.
 ///
 /// An interrupt drops the index and the display. Callers do not receive a
 /// partial marker list.
 #[requires(true)]
 #[ensures(true)]
-pub fn generated_reference_display_with_cancellation<'tree>(
+pub fn generated_reference_display<'tree>(
     generated_tree: &'tree GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
@@ -316,7 +278,7 @@ fn reference_analysis_for_tree<'tree>(
     tree: &'tree GeneratedTextSyntax,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, OutputError> {
-    GeneratedReferenceAnalysis::analyze_with_cancellation(tree, cancellation).map_err(|error| {
+    GeneratedReferenceAnalysis::analyze(tree, cancellation).map_err(|error| {
         if matches!(
             error,
             jbotci_semantics::references::ReferenceAnalysisError::Interrupted
@@ -419,10 +381,22 @@ pub(crate) fn pretty_recovered_generated_model_tree_with_limit(
     limit: crate::budget::ByteLimit,
 ) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return pretty_generated_model_tree_with_limit(&valid, source, options, limit);
+        return pretty_generated_model_tree_with_limit(
+            &valid,
+            source,
+            options,
+            limit,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
     }
     let value = recovered_generated_model_tree_value(recovered, source, options)?;
-    render_tree_value_with_limit(&value, options, None, limit)
+    render_tree_value_with_limit(
+        &value,
+        options,
+        None,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
 }
 
 #[requires(!recovered.errors.is_empty())]
@@ -470,7 +444,13 @@ pub fn pretty_morphology_tree_with_limit(
             .map(|word_like| morphology_tree_value(word_like, source, options))
             .collect(),
     ));
-    render_tree_value_with_limit(&value, options, None, limit)
+    render_tree_value_with_limit(
+        &value,
+        options,
+        None,
+        limit,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
 }
 
 #[requires(true)]
@@ -485,6 +465,7 @@ pub(crate) fn render_tree_value_with_options(
         options,
         references,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
     .expect("unrestricted tree rendering")
 }
@@ -492,23 +473,6 @@ pub(crate) fn render_tree_value_with_options(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 pub(crate) fn render_tree_value_with_limit(
-    value: &TreeValue,
-    options: TreeRenderOptions,
-    references: Option<&ReferenceDisplayModel>,
-    limit: ByteLimit,
-) -> Result<String, OutputError> {
-    render_tree_value_with_limit_and_cancellation(
-        value,
-        options,
-        references,
-        limit,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub(crate) fn render_tree_value_with_limit_and_cancellation(
     value: &TreeValue,
     options: TreeRenderOptions,
     references: Option<&ReferenceDisplayModel>,

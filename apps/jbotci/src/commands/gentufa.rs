@@ -320,7 +320,7 @@ fn render_gentufa(
     match input.format {
         GentufaFormat::Blocks => {
             let output_type = resolve_gentufa_blocks_output_type(&input)?;
-            let layout = generated_model_gentufa_blocks_projection_with_cancellation(
+            let layout = generated_model_gentufa_blocks_projection(
                 &generated_model,
                 &text,
                 words.as_slice(),
@@ -345,7 +345,7 @@ fn render_gentufa(
             }));
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_brackets_with_limit_and_cancellation(
+            let rendered = pretty_generated_model_brackets_with_limit(
                 &generated_model,
                 &text,
                 BracketRenderOptions {
@@ -377,7 +377,7 @@ fn render_gentufa(
                 decompose_lujvo: input.decompose_lujvo,
                 show_elided: input.show_elided,
             };
-            let rendered = pretty_generated_model_tree_with_limit_and_cancellation(
+            let rendered = pretty_generated_model_tree_with_limit(
                 &generated_model,
                 &text,
                 tree_options,
@@ -445,7 +445,7 @@ fn render_recovered_gentufa_output(
             );
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_recovered_syntax_brackets_with_limit_and_cancellation(
+            let rendered = pretty_recovered_syntax_brackets_with_limit(
                 recovered,
                 source,
                 BracketRenderOptions {
@@ -544,8 +544,8 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
     let fonts = EmbeddedGentufaFonts::get();
     if let Some(limits) = limits {
         return match output_type {
-            GentufaImageOutputType::Svg => Ok(
-                jbotci_gentufa::render_gentufa_blocks_svg_with_limits_and_cancellation(
+            GentufaImageOutputType::Svg => {
+                Ok(jbotci_gentufa::render_gentufa_blocks_svg_with_limits(
                     layout,
                     &svg_options,
                     fonts,
@@ -553,18 +553,18 @@ fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
                     cancellation,
                 )
                 .map_err(interruptible_export_error)?
-                .into_bytes(),
-            ),
-            GentufaImageOutputType::Png => Ok(
-                jbotci_gentufa::render_gentufa_blocks_png_with_limits_and_cancellation(
+                .into_bytes())
+            }
+            GentufaImageOutputType::Png => {
+                Ok(jbotci_gentufa::render_gentufa_blocks_png_with_limits(
                     layout,
                     &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
                     fonts,
                     limits.diagram,
                     cancellation,
                 )
-                .map_err(interruptible_export_error)?,
-            ),
+                .map_err(interruptible_export_error)?)
+            }
         };
     }
     match output_type {
@@ -619,7 +619,7 @@ mod tests {
         let options = gentufa_blocks_projection_options(&input, phonemes);
         match parse.into_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => {
-                generated_model_gentufa_blocks_projection_with_cancellation(
+                generated_model_gentufa_blocks_projection(
                     &parse.parse_tree,
                     &text,
                     &words,

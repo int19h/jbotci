@@ -70,9 +70,18 @@ impl DocumentSnapshot {
     #[ensures(ret.text.as_ref() == ret.line_index.text())]
     pub fn new(text: String, version: i64) -> Self {
         let options = GentufaWebOptions::default();
-        let morphology = analyze_gentufa_morphology_source(&text, &options)
-            .expect("the built-in default dialect must always compile");
-        let analysis = complete_gentufa_source_analysis(&text, &options, morphology);
+        let morphology = analyze_gentufa_morphology_source(
+            &text,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must always compile");
+        let analysis = complete_gentufa_source_analysis(
+            &text,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         Self::from_analysis(Arc::from(text), version, analysis)
     }
 

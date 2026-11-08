@@ -972,7 +972,13 @@ mod tests {
             dialect: None,
             options: VlaseiOptions::default(),
         };
-        let analysis = jbotci_web_core::analyze_vlasei(&source, None, None).expect("analysis");
+        let analysis = jbotci_web_core::analyze_vlasei(
+            &source,
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let result = vlasei::render(&analysis, &request);
         assert!(
             result.shows_excerpt,
@@ -1064,7 +1070,13 @@ mod tests {
     #[ensures(true)]
     fn diagnostics_beyond_the_shown_few_travel_complete() {
         let source = "'a 'b 'c 'd 'e 'zukte";
-        let analysis = jbotci_web_core::analyze_vlasei(source, None, None).expect("analysis");
+        let analysis = jbotci_web_core::analyze_vlasei(
+            source,
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         assert!(
             analysis.diagnostics.len() > 4,
             "{} diagnostics",

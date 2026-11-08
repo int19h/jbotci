@@ -106,9 +106,7 @@ fn morphology_recovery_item(
             "morphology.source-span".to_owned(),
             vec!["valid source span".to_owned()],
         ),
-        MorphologyError::Interrupted => {
-            return Err(OutputError::Recovery("computation interrupted".to_owned()));
-        }
+        MorphologyError::Interrupted => return Err(OutputError::Interrupted),
     };
     recovery_item_from_span(
         error_index,
@@ -149,9 +147,7 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
                 expected.clone()
             },
         ),
-        SyntaxError::Interrupted => {
-            return Err(OutputError::Recovery("computation interrupted".to_owned()));
-        }
+        SyntaxError::Interrupted => return Err(OutputError::Interrupted),
     };
     let span = recovery_item_span(item).ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no source span".to_owned())
@@ -249,6 +245,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             source,
             options,
             limit,
+            &jbotci_interrupt::CancellationToken::never(),
         );
     }
     let context = brackets::BracketContext { options };
@@ -312,6 +309,7 @@ pub fn pretty_recovered_morphology_tree_with_limit(
         options,
         None,
         limit,
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -358,6 +356,11 @@ pub fn compact_recovered_morphology_json_string_with_limits(
             projection_limit,
         );
     }
+    // Serde can only report a string. Check before projection so a cancelled
+    // segmentation stays `OutputError::Interrupted` instead of a JSON error.
+    if recovered.errors.iter().any(MorphologyError::is_interrupted) {
+        return Err(OutputError::Interrupted);
+    }
     let projection = new!(RecoveredMorphologyProjection { recovered, source });
     let mut value = crate::compact_json_value_with_limit(&projection, projection_limit)?;
     json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
@@ -395,8 +398,12 @@ impl Serialize for RecoveredMorphologyProjection<'_> {
                     }
                     MorphologyError::DialectExpansion(_) => "morphology.dialect-expansion-limit",
                     MorphologyError::SourceSpan(_) => "morphology.source-span",
+                    // `compact_recovered_morphology_json_string_with_limits`
+                    // returns `OutputError::Interrupted` before serialize.
                     MorphologyError::Interrupted => {
-                        return Err(S::Error::custom("computation interrupted"));
+                        return Err(S::Error::custom(
+                            "interrupted morphology reached the JSON projection",
+                        ));
                     }
                 };
                 let text = self
@@ -717,22 +724,6 @@ pub fn pretty_recovered_syntax_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_recovered_syntax_brackets_with_limit(
-    recovered: &RecoveredSyntaxParse,
-    source: &str,
-    options: BracketRenderOptions,
-    limit: ByteLimit,
-) -> Result<String, OutputError> {
-    pretty_recovered_syntax_brackets_with_limit_and_cancellation(
-        recovered,
-        source,
-        options,
-        limit,
         &jbotci_interrupt::CancellationToken::never(),
     )
 }
@@ -744,7 +735,7 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
 /// instead of rendering it. The string writer also reads the flag at each node.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_recovered_syntax_brackets_with_limit_and_cancellation(
+pub fn pretty_recovered_syntax_brackets_with_limit(
     recovered: &RecoveredSyntaxParse,
     source: &str,
     options: BracketRenderOptions,
@@ -755,7 +746,7 @@ pub fn pretty_recovered_syntax_brackets_with_limit_and_cancellation(
         return Err(OutputError::Interrupted);
     }
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_generated_model_brackets_with_limit_and_cancellation(
+        return crate::pretty_generated_model_brackets_with_limit(
             &valid,
             source,
             options,
@@ -1264,6 +1255,7 @@ mod tests {
             source,
             &ParseOptions::default(),
         )
+        .expect("an uninterrupted recovered parse returns a tree")
     }
 
     #[test]

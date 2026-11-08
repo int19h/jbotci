@@ -7,6 +7,7 @@ pub(crate) fn run_jvozba<WOut: Write>(
     stdout: &mut WOut,
     color: bool,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     let mode = if input.cmevla {
         JvozbaMode::Cmevla
@@ -20,10 +21,14 @@ pub(crate) fn run_jvozba<WOut: Write>(
             dictionary,
             &input.sources,
             limits.jvozba,
+            cancellation,
         ),
-        None => build_best_jvozba_detailed(mode, dictionary, &input.sources),
+        None => build_best_jvozba_detailed(mode, dictionary, &input.sources, cancellation),
     }
-    .map_err(|error| anyhow!(error))?;
+    .map_err(|error| match error {
+        jbotci_jvozba::JvozbaError::Interrupted => anyhow!(jbotci_interrupt::Interrupted),
+        other => anyhow!(other),
+    })?;
     writeln!(stdout, "{}", render_jvozba_result(&result, color))?;
     Ok(CliStatus::Success)
 }

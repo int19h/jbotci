@@ -357,7 +357,12 @@ impl EmbeddingJob {
                 reply,
             } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    jbotci_cli::run_tool_cukta_with_limits(request, Some(context), &limits)
+                    jbotci_cli::run_tool_cukta_with_limits(
+                        request,
+                        Some(context),
+                        &limits,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
                 }));
             }
             Self::Vlacku {
@@ -366,7 +371,12 @@ impl EmbeddingJob {
                 reply,
             } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    jbotci_cli::run_tool_vlacku_with_limits(request, Some(context), &limits)
+                    jbotci_cli::run_tool_vlacku_with_limits(
+                        request,
+                        Some(context),
+                        &limits,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
                 }));
             }
             Self::VlackuHits {
@@ -589,12 +599,7 @@ impl ToolServices {
             let cancellation = context.token();
             context
                 .run(move || {
-                    jbotci_cli::run_tool_cukta_with_limits_and_cancellation(
-                        request,
-                        None,
-                        &limits,
-                        &cancellation,
-                    )
+                    jbotci_cli::run_tool_cukta_with_limits(request, None, &limits, &cancellation)
                 })
                 .await?
         }
@@ -636,12 +641,7 @@ impl ToolServices {
             let cancellation = context.token();
             context
                 .run(move || {
-                    jbotci_cli::run_tool_vlacku_with_limits_and_cancellation(
-                        request,
-                        None,
-                        &limits,
-                        &cancellation,
-                    )
+                    jbotci_cli::run_tool_vlacku_with_limits(request, None, &limits, &cancellation)
                 })
                 .await?
         }
@@ -1173,7 +1173,7 @@ async fn gentufa(
     let cancellation = context.token();
     let result = match context
         .run(move || {
-            jbotci_web_core::parse_gentufa_for_web_with_limits_and_cancellation(
+            jbotci_web_core::parse_gentufa_for_web_with_limits(
                 &request,
                 Some(render_limits),
                 &cancellation,
@@ -1221,7 +1221,7 @@ async fn gimfihi(
     let cancellation = context.token();
     match context
         .run(move || {
-            jbotci_cli::run_tool_gimfihi_with_limits_and_cancellation(
+            jbotci_cli::run_tool_gimfihi_with_limits(
                 request,
                 GimfihiSourceWordKind::Ipa,
                 &limits,
@@ -1611,7 +1611,7 @@ async fn gentufa_export_response(
     let cancellation = context.token();
     let task = context
         .run(move || {
-            jbotci_web_core::render_gentufa_state_web_export_with_limits_and_cancellation(
+            jbotci_web_core::render_gentufa_state_web_export_with_limits(
                 &request.state,
                 request.script,
                 format,
@@ -1647,7 +1647,7 @@ async fn build_page_meta_blocking(
     let cancellation = context.token();
     context
         .run(move || {
-            jbotci_web_core::blocking::build_computed_page_meta_with_limits_and_cancellation(
+            jbotci_web_core::blocking::build_computed_page_meta_with_limits(
                 &base_path,
                 &route,
                 limits.render,

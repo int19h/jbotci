@@ -2375,7 +2375,11 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(
+        !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue)
+            || self.recovery_enabled()
+            || self.syntax_memo.contains_key(&(rule_name, start_location))
+    )]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
     #[inline(never)]
@@ -2388,6 +2392,11 @@ impl<'tokens> ParserState<'tokens> {
         value: SyntaxMemoValue,
         warnings: Vec<SyntaxWarning>,
     ) {
+        // A child that stopped must not become a memo the rest of this attempt
+        // can replay. The flag is monotonic, so refusing the insert is enough.
+        if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
+            return;
+        }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let effective_fail_token_indices = if sensitive {
             self.effective_fail_token_indices
@@ -2447,7 +2456,11 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(
+        !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue)
+            || self.recovery_enabled()
+            || self.syntax_failure_memo.contains_key(&(rule_name, start_location))
+    )]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,
@@ -2455,6 +2468,9 @@ impl<'tokens> ParserState<'tokens> {
         context: SyntaxMemoContext,
         error: SyntaxParseError<'tokens>,
     ) {
+        if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
+            return;
+        }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let observations = self
             .recovery_memo_trial
@@ -2524,8 +2540,9 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> bool {
-        // The only interruption check in the parser. A false return does not
-        // store a failure memo: the caller rewinds the attempt.
+        // Parses stop only through `parse_stop`, including the post-parse
+        // discards. A false return does not store a failure memo: the caller
+        // rewinds the attempt, and the memo stores refuse a set flag.
         if !matches!(
             parse_stop(&self.cancellation, self.continuation_time_limit),
             ParseStop::Continue
@@ -3675,7 +3692,12 @@ pub(crate) fn parse_generated_model_syntax_entry_attempt(
 ) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
     let parsed = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
-    if options.cancellation.is_cancelled() {
+    // No completion limit is armed here. `parse_stop` still owns the read so a
+    // later limit cannot disagree with this discard.
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
         return SyntaxParseAttempt {
             result: Err(SyntaxError::Interrupted),
             trace: parsed.trace,
@@ -3716,7 +3738,7 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
     let result = match attempt.result.into_data() {
         data!(SyntaxRecoveryParse::Valid { parse }) => {
             let parse = parse.into_data();
-            new!(RecoveredSyntaxParse {
+            Ok(new!(RecoveredSyntaxParse {
                 parse_tree: Box::new(
                     generated::generated_model::recovered::TextSyntax::from_valid(
                         *parse.parse_tree,
@@ -3724,15 +3746,10 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
                 ),
                 errors: Vec::new(),
                 warnings: parse.warnings,
-            })
+            }))
         }
-        data!(SyntaxRecoveryParse::Recovered { parse }) => parse,
-        data!(SyntaxRecoveryParse::Interrupted) => {
-            // This function's return type is a tree. Cancellation is reported
-            // by `SyntaxRecoveryParse::Interrupted` on the recovery-attempt API.
-            // Callers that can be cancelled use that API.
-            panic!("a cancelled parse has no recovered tree");
-        }
+        data!(SyntaxRecoveryParse::Recovered { parse }) => Ok(parse),
+        data!(SyntaxRecoveryParse::Interrupted) => Err(SyntaxError::Interrupted),
     };
     RecoveredSyntaxParseAttempt {
         result,
@@ -3753,7 +3770,7 @@ pub(crate) fn expected_continuations(
     let time_limit = time_limit.map(ContinuationTimeLimit::new);
     match parse_stop(&options.cancellation, time_limit) {
         ParseStop::TimeLimit => return Err(ContinuationError::TimedOut),
-        ParseStop::Cancelled => return Err(ContinuationError::RecoveryLimit),
+        ParseStop::Cancelled => return Err(ContinuationError::Interrupted),
         ParseStop::Continue => {}
     }
     let cut_byte = words
@@ -3788,7 +3805,7 @@ pub(crate) fn expected_continuations(
     }) = tracked_attempt.into_data();
     match parse_stop(&options.cancellation, time_limit) {
         ParseStop::TimeLimit => return Err(ContinuationError::TimedOut),
-        ParseStop::Cancelled => return Err(ContinuationError::RecoveryLimit),
+        ParseStop::Cancelled => return Err(ContinuationError::Interrupted),
         ParseStop::Continue => {}
     }
     let failure = match result {
@@ -3819,7 +3836,9 @@ pub(crate) fn expected_continuations(
     }) = recovered.into_data();
     if continuation_time_limit_exhausted {
         Err(ContinuationError::TimedOut)
-    } else if cancelled || !continuation_cut_reached {
+    } else if cancelled {
+        Err(ContinuationError::Interrupted)
+    } else if !continuation_cut_reached {
         Err(ContinuationError::RecoveryLimit)
     } else {
         Ok(continuation_expectations)
@@ -3885,7 +3904,10 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
     let strict_attempt = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
-    if options.cancellation.is_cancelled() {
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
         return SyntaxRecoveryParseAttempt {
             result: new!(SyntaxRecoveryParse::Interrupted),
             trace: strict_attempt.trace,
@@ -3904,7 +3926,10 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
             continuation_expectations: _,
         }
     ) = tracked_attempt.into_data();
-    if options.cancellation.is_cancelled() {
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
         return SyntaxRecoveryParseAttempt {
             result: new!(SyntaxRecoveryParse::Interrupted),
             trace,
@@ -3936,7 +3961,9 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
     let recovered = recovered.expect("a recovery that was not cancelled has a parse");
     SyntaxRecoveryParseAttempt {
         result: new!(SyntaxRecoveryParse::Recovered {
-            parse: recovered.result,
+            parse: recovered
+                .result
+                .expect("a recovery that was not cancelled has a tree"),
         }),
         trace: recovered.trace,
     }
@@ -3970,7 +3997,7 @@ fn valid_syntax_recovery_attempt(
 
 #[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
 #[ensures(ret.cancelled == ret.recovered.is_none())]
-#[ensures(ret.recovered.as_ref().is_none_or(|recovered| !recovered.result.errors.is_empty()))]
+#[ensures(ret.recovered.as_ref().is_none_or(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty())))]
 #[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn recover_after_strict_failure(
     entry: SyntaxParseEntry,
@@ -4495,11 +4522,11 @@ fn recover_after_strict_failure(
     }
     new!(RecoveryParseOutcome {
         recovered: Some(RecoveredSyntaxParseAttempt {
-            result: new!(RecoveredSyntaxParse {
+            result: Ok(new!(RecoveredSyntaxParse {
                 parse_tree: Box::new(parse_tree),
                 errors,
                 warnings: Vec::new(),
-            }),
+            })),
             trace,
         }),
         continuation_expectations,
@@ -4511,7 +4538,7 @@ fn recover_after_strict_failure(
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(ret.recovered.as_ref().is_some_and(|recovered| !recovered.result.errors.is_empty()))]
+#[ensures(ret.recovered.as_ref().is_some_and(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty())))]
 #[ensures(!ret.cancelled)]
 #[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 #[ensures(ret.continuation_cut_reached == continuation_cut_reached)]
@@ -4524,11 +4551,11 @@ fn recovered_success(
 ) -> RecoveryParseOutcome {
     new!(RecoveryParseOutcome {
         recovered: Some(RecoveredSyntaxParseAttempt {
-            result: new!(RecoveredSyntaxParse {
+            result: Ok(new!(RecoveredSyntaxParse {
                 parse_tree: Box::new(parsed.text.into_owned()),
                 errors: errors.to_vec(),
                 warnings: parsed.warnings,
-            }),
+            })),
             trace,
         }),
         continuation_expectations,
@@ -4766,7 +4793,7 @@ fn classify_recovery_trial(
     attempt
         .recovered
         .as_ref()
-        .is_some_and(|recovered| !recovered.result.errors.is_empty())
+        .is_some_and(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty()))
 }))]
 fn try_final_recovery_from_current_failure<'tokens>(
     entry: SyntaxParseEntry,
@@ -7079,7 +7106,8 @@ mod tests {
             let options = ParseOptions::default();
             let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                 &words, source, &options,
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
             assert_eq!(recovered.errors.len(), 1);
             assert!(recovered.parse_tree.leading_nai.is_empty());
             assert!(recovered.parse_tree.paragraphs.is_some());
@@ -7138,7 +7166,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 assert!(recovered.errors.is_empty(), "{source}");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     let mut matching = warnings.iter().filter(|warning| warning.kind == kind);
@@ -7177,7 +7206,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     assert!(
                         !warnings.iter().any(|warning| matches!(
@@ -7217,7 +7247,8 @@ mod tests {
                     &words,
                     source,
                     &ParseOptions::default(),
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 assert!(!recovered.errors.is_empty(), "{source}");
                 assert_eq!(
                     recovered
@@ -7321,7 +7352,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     let matching: Vec<_> = warnings
                         .iter()
@@ -7346,7 +7378,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     assert!(
                         !warnings.iter().any(|warning| {
@@ -7373,7 +7406,8 @@ mod tests {
                 crate::parse_syntax_tree_with_source_and_options(&words, source, &options).unwrap();
             let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                 &words, source, &options,
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
             for warnings in [&strict.warnings, &recovered.warnings] {
                 let matching = warnings
                     .iter()
@@ -8380,6 +8414,8 @@ mod tests {
                     .as_ref()
                     .expect("unbounded recovery finishes")
                     .result
+                    .as_ref()
+                    .expect("an uninterrupted recovered parse returns a tree")
                     .errors
                     .len(),
                 14,

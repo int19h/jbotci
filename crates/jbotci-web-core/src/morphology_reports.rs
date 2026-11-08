@@ -46,29 +46,12 @@ impl VlaseiAnalysis {
     }
 }
 
-/// Segment `source` under `dialect` (a formula, or `None` for standard
-/// Lojban), keeping every recovered word and skipped region.
-#[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-pub fn analyze_vlasei(
-    source: &str,
-    dialect: Option<&str>,
-    source_id: Option<SourceId>,
-) -> Result<VlaseiAnalysis, GentufaWebError> {
-    analyze_vlasei_with_cancellation(
-        source,
-        dialect,
-        source_id,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-}
-
 /// Segment until `cancellation` is set.
 ///
 /// A set flag is [`GentufaWebError::Interrupted`] and carries no word list.
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-pub fn analyze_vlasei_with_cancellation(
+pub fn analyze_vlasei(
     source: &str,
     dialect: Option<&str>,
     source_id: Option<SourceId>,
@@ -238,13 +221,25 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlasei_reports_recovered_regions_and_diagnostics() {
-        let complete = analyze_vlasei("mi klama", None, None).expect("analysis");
+        let complete = analyze_vlasei(
+            "mi klama",
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         assert!(complete.is_complete());
         assert_eq!(complete.morphology.words.len(), 2);
         assert!(complete.diagnostics.is_empty());
 
         // An apostrophe that cannot start a word forces recovery.
-        let recovered = analyze_vlasei("mi 'klama do", None, None).expect("analysis");
+        let recovered = analyze_vlasei(
+            "mi 'klama do",
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         assert!(!recovered.is_complete());
         assert_eq!(
             recovered.morphology.error_regions.len(),
@@ -258,7 +253,12 @@ mod tests {
         );
 
         assert!(matches!(
-            analyze_vlasei("mi klama", Some("not-a-dialect(("), None),
+            analyze_vlasei(
+                "mi klama",
+                Some("not-a-dialect(("),
+                None,
+                &jbotci_interrupt::CancellationToken::never()
+            ),
             Err(GentufaWebError::Dialect(_))
         ));
     }

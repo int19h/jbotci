@@ -413,31 +413,13 @@ pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
         .map_err(|error| GentufaExportError::Png(error.to_string()))
 }
 
-/// Render SVG with limits on its model and encoded bytes.
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|svg| svg.len() <= limits.max_bytes) || ret.is_err())]
-pub fn render_gentufa_blocks_svg_with_limits<T, R>(
-    layout: &GentufaBlocksLayout<T, R>,
-    options: &GentufaSvgOptions,
-    fonts: GentufaFontData<'static>,
-    limits: GentufaRenderLimits,
-) -> Result<String, GentufaExportError> {
-    render_gentufa_blocks_svg_with_limits_and_cancellation(
-        layout,
-        options,
-        fonts,
-        limits,
-        &CancellationToken::never(),
-    )
-}
-
 /// Render SVG until `cancellation` is set.
 ///
 /// `resvg` is not called on this path. The pixel plan still runs so a cancelled
 /// layout does not return an SVG the raster cap would have refused.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|svg| svg.len() <= limits.max_bytes) || ret.is_err())]
-pub fn render_gentufa_blocks_svg_with_limits_and_cancellation<T, R>(
+pub fn render_gentufa_blocks_svg_with_limits<T, R>(
     layout: &GentufaBlocksLayout<T, R>,
     options: &GentufaSvgOptions,
     fonts: GentufaFontData<'static>,
@@ -459,24 +441,6 @@ pub fn render_gentufa_blocks_svg_with_limits_and_cancellation<T, R>(
     Ok(svg)
 }
 
-/// Plan the raster before allocation and stream the PNG through its byte limit.
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|png| png.len() <= limits.max_bytes) || ret.is_err())]
-pub fn render_gentufa_blocks_png_with_limits<T, R>(
-    layout: &GentufaBlocksLayout<T, R>,
-    options: &GentufaPngOptions,
-    fonts: GentufaFontData<'static>,
-    limits: GentufaRenderLimits,
-) -> Result<Vec<u8>, GentufaExportError> {
-    render_gentufa_blocks_png_with_limits_and_cancellation(
-        layout,
-        options,
-        fonts,
-        limits,
-        &CancellationToken::never(),
-    )
-}
-
 /// Render PNG until `cancellation` is set.
 ///
 /// The flag is read again immediately before `resvg::render`. That rasterizer
@@ -484,7 +448,7 @@ pub fn render_gentufa_blocks_png_with_limits<T, R>(
 /// flag skips the raster entirely.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|png| png.len() <= limits.max_bytes) || ret.is_err())]
-pub fn render_gentufa_blocks_png_with_limits_and_cancellation<T, R>(
+pub fn render_gentufa_blocks_png_with_limits<T, R>(
     layout: &GentufaBlocksLayout<T, R>,
     options: &GentufaPngOptions,
     fonts: GentufaFontData<'static>,
@@ -2440,7 +2404,7 @@ mod tests {
         });
         let options = GentufaSvgOptions::default();
         let fonts = EmbeddedGentufaFonts::get();
-        let svg = render_gentufa_blocks_svg_with_limits_and_cancellation(
+        let svg = render_gentufa_blocks_svg_with_limits(
             &layout,
             &options,
             fonts,
@@ -2452,7 +2416,7 @@ mod tests {
 
         let source = jbotci_interrupt::CancellationSource::new();
         source.cancel();
-        let stopped = render_gentufa_blocks_svg_with_limits_and_cancellation(
+        let stopped = render_gentufa_blocks_svg_with_limits(
             &layout,
             &options,
             fonts,
@@ -2460,6 +2424,64 @@ mod tests {
             &source.token(),
         );
         assert!(matches!(stopped, Err(GentufaExportError::Interrupted)));
+    }
+
+    /// A root above one leaf. Glosses stay on, so both gloss loops run.
+    /// Two roots, or a leaf that stops short of the bottom row, violate the
+    /// layout invariant.
+    #[requires(true)]
+    #[ensures(ret.max_row == 2 && ret.blocks.len() == 2)]
+    fn two_row_layout() -> GentufaBlocksLayout<()> {
+        let root = test_wide_nonleaf_block(0, 1, 1, 0);
+        let leaf = test_gentufa_block(1, 1, 0).with_data(data! {
+            parent_block_id: Some(root.block_id.clone()),
+        });
+        new!(GentufaBlocksLayout {
+            blocks: vec![root, leaf],
+            max_col: 1,
+            max_row: 2,
+        })
+    }
+
+    /// Release measurements on [`two_row_layout`] with default options.
+    /// SVG has 13 clear loads and trips at 12. PNG has 14 and trips at 13.
+    /// The extra PNG load is the read immediately before `resvg::render`.
+    const SVG_LATE_TRIP: usize = 12;
+    const PNG_LATE_TRIP: usize = 13;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_inside_svg_and_before_png_raster() {
+        let layout = two_row_layout();
+        let limits = new!(GentufaRenderLimits {
+            max_blocks: 8,
+            max_columns: 8,
+            max_pixels: 4_000_000,
+            max_bytes: 4_000_000,
+        });
+        let options = GentufaSvgOptions::default();
+        assert!(options.show_glosses);
+        let png_options = GentufaPngOptions::default();
+        let fonts = EmbeddedGentufaFonts::get();
+        let svg_stops = |trip: usize| {
+            let token = CancellationToken::trip_after_checks(trip);
+            matches!(
+                render_gentufa_blocks_svg_with_limits(&layout, &options, fonts, limits, &token),
+                Err(GentufaExportError::Interrupted)
+            )
+        };
+        let png_stops = |trip: usize| {
+            let token = CancellationToken::trip_after_checks(trip);
+            matches!(
+                render_gentufa_blocks_png_with_limits(&layout, &png_options, fonts, limits, &token,),
+                Err(GentufaExportError::Interrupted)
+            )
+        };
+        assert!(svg_stops(SVG_LATE_TRIP));
+        assert!(!svg_stops(SVG_LATE_TRIP + 1));
+        assert!(png_stops(PNG_LATE_TRIP));
+        assert!(!png_stops(PNG_LATE_TRIP + 1));
     }
 }
 

@@ -307,6 +307,7 @@ fn recovered_syntax_contract_fixture_range(
             &fixture.test_case.lojban,
             &syntax_options,
         )
+        .expect("an uninterrupted recovered parse returns a tree")
         .into_data();
         assert!(
             recovered.errors.is_empty(),
@@ -570,6 +571,7 @@ fn assert_recovery_reachability_equivalent(
                 source,
                 &syntax_options,
             )
+            .expect("an uninterrupted recovered parse returns a tree")
         });
     let (unfiltered, _) = jbotci_syntax::with_recovery_reachability_instrumentation(false, || {
         jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
@@ -577,6 +579,7 @@ fn assert_recovery_reachability_equivalent(
             source,
             &syntax_options,
         )
+        .expect("an uninterrupted recovered parse returns a tree")
     });
     // Compare typed contents rather than pretty-printing deeply nested trees.
     // Exhaustive patterns force this check to cover any future result fields.
@@ -1202,7 +1205,8 @@ fn recovered_syntax_first_error_fixture_range(
             &words,
             &fixture.test_case.lojban,
             &capped_options,
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         assert_eq!(
             recovered.errors.first(),
             Some(&strict),
@@ -1284,7 +1288,8 @@ fn assert_default_cap_recovered_syntax_first_error_matches_strict(source: &str) 
         .expect_err("default-cap first-error source should fail strict syntax");
     let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
         &words, source, &options,
-    );
+    )
+    .expect("an uninterrupted recovered parse returns a tree");
     assert_eq!(
         recovered.errors.first(),
         Some(&strict),
@@ -2388,7 +2393,8 @@ fn assert_recovered_syntax_expectation(
         &words,
         &test_case.lojban,
         &syntax_options,
-    );
+    )
+    .expect("an uninterrupted recovered parse returns a tree");
     let actual_status = if recovered.errors.is_empty() {
         ExpectationStatus::Success
     } else {
@@ -2485,6 +2491,7 @@ fn assert_jvozba_expectation(id: &str, expectation: &JvozbaExpectation) {
         to_jvozba_mode(expectation.mode),
         jbotci_dictionary_data::english(),
         &inputs,
+        &jbotci_interrupt::CancellationToken::never(),
     );
     match expectation.status {
         ExpectationStatus::Success => {

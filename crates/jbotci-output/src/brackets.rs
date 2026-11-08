@@ -37,29 +37,13 @@ pub(crate) fn pretty_morphology_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive limit"),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_morphology_brackets_with_limit(
-    words: &[WordLike],
-    source: &str,
-    options: BracketRenderOptions,
-    limit: ByteLimit,
-) -> Result<String, OutputError> {
-    pretty_morphology_brackets_with_limit_and_cancellation(
-        words,
-        source,
-        options,
-        limit,
         &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_morphology_brackets_with_limit_and_cancellation(
+pub fn pretty_morphology_brackets_with_limit(
     words: &[WordLike],
     source: &str,
     options: BracketRenderOptions,
@@ -91,29 +75,13 @@ pub(crate) fn pretty_generated_model_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive limit"),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_generated_model_brackets_with_limit(
-    tree: &GeneratedTextSyntax,
-    source: &str,
-    options: BracketRenderOptions,
-    limit: ByteLimit,
-) -> Result<String, OutputError> {
-    pretty_generated_model_brackets_with_limit_and_cancellation(
-        tree,
-        source,
-        options,
-        limit,
         &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-pub fn pretty_generated_model_brackets_with_limit_and_cancellation(
+pub fn pretty_generated_model_brackets_with_limit(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,

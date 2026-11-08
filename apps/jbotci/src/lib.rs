@@ -8,14 +8,12 @@ use jbotci_output::budget::{ByteLimit, OutputBudget, RenderLimits, bounded_forma
 use jbotci_output::{
     compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limits,
     compact_recovered_morphology_json_string_with_limits,
-    compact_recovered_syntax_json_string_with_limits,
-    pretty_generated_model_brackets_with_limit_and_cancellation,
-    pretty_generated_model_tree_with_limit_and_cancellation, pretty_morphology_brackets_with_limit,
+    compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
+    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
     pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
     pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
-    pretty_recovered_syntax_brackets_with_limit_and_cancellation,
-    pretty_recovered_syntax_raw_with_limit, pretty_recovered_syntax_tree_with_limit,
-    render_diagnostics_with_limit,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
+    pretty_recovered_syntax_tree_with_limit, render_diagnostics_with_limit,
 };
 
 #[requires(true)]
@@ -241,7 +239,7 @@ use jbotci_syntax::{
     parse_syntax_tree_with_recovery_with_source_and_options_attempt,
 };
 use jbotci_web_core::{
-    GentufaBlocksProjectionOptions, generated_model_gentufa_blocks_projection_with_cancellation,
+    GentufaBlocksProjectionOptions, generated_model_gentufa_blocks_projection,
     recovered_gentufa_blocks_projection,
 };
 use unicode_width::UnicodeWidthStr;

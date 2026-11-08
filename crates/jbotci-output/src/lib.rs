@@ -7,9 +7,7 @@ mod brackets;
 #[cfg(test)]
 mod cancellation_tests;
 pub use brackets::{
-    pretty_generated_model_brackets_with_limit,
-    pretty_generated_model_brackets_with_limit_and_cancellation,
-    pretty_morphology_brackets_with_limit, pretty_morphology_brackets_with_limit_and_cancellation,
+    pretty_generated_model_brackets_with_limit, pretty_morphology_brackets_with_limit,
 };
 pub mod budget;
 mod diagnostics;
@@ -63,9 +61,7 @@ pub use recovered::{
     pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
     pretty_recovered_morphology_tree_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
-    pretty_recovered_syntax_brackets_with_limit,
-    pretty_recovered_syntax_brackets_with_limit_and_cancellation,
-    pretty_recovered_syntax_brackets_with_options,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_brackets_with_options,
     pretty_recovered_syntax_error_region_brackets_with_options, pretty_recovered_syntax_raw,
     pretty_recovered_syntax_raw_with_limit, pretty_recovered_syntax_tree_with_limit,
     pretty_recovered_syntax_tree_with_options, raw_with_limit,
@@ -84,14 +80,10 @@ pub use surface::{
 };
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
+pub use tree::{GeneratedReferenceDisplay, generated_reference_display};
 pub use tree::{
-    GeneratedReferenceDisplay, generated_reference_display,
-    generated_reference_display_with_cancellation,
-};
-pub use tree::{
-    pretty_generated_model_tree_with_limit,
-    pretty_generated_model_tree_with_limit_and_cancellation,
-    pretty_generated_model_tree_with_reference_display, pretty_morphology_tree_with_limit,
+    pretty_generated_model_tree_with_limit, pretty_generated_model_tree_with_reference_display,
+    pretty_morphology_tree_with_limit,
 };
 
 #[invariant(byte_start <= byte_end, "bracket source byte range must be ordered")]
@@ -1844,6 +1836,7 @@ mod bounded_output_tests {
                     source,
                     BracketRenderOptions::default(),
                     unlimited,
+                    &jbotci_interrupt::CancellationToken::never(),
                 )
                 .unwrap(),
                 ipa_morphology_text_with_limit(&words, source, unlimited).unwrap(),
@@ -1865,6 +1858,7 @@ mod bounded_output_tests {
                             source,
                             BracketRenderOptions::default(),
                             limit,
+                            &jbotci_interrupt::CancellationToken::never(),
                         ),
                         3 => ipa_morphology_text_with_limit(&words, source, limit),
                         _ => raw_with_limit(&words, raw_indent, limit),

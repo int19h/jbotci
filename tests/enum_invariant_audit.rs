@@ -380,6 +380,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "plan carries only the optional preset",
     ),
     (
+        "apps/jbotci-server/src/discord/operations.rs:JvozbaInputError::Interrupted",
+        "unit marker: compound segmentation stopped because the cancellation flag was set",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:JvozbaInputError::Invalid",
+        "payload is a request-validation error that already carries its own invariant",
+    ),
+    (
         "apps/jbotci-server/src/discord/operations.rs:OperationError::Diagram",
         "error wraps the typed diagram error unchanged",
     ),
@@ -1648,6 +1656,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
     (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::Interrupted",
+        "unit marker: gismu scoring stopped because the cancellation flag was set, and no partial ranking is returned",
+    ),
+    (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingExplicitWeight",
         "missing custom weight is reported against normalized source input for diagnostics",
     ),
@@ -1706,6 +1718,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
         "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::Interrupted",
+        "unit marker: compound morphology stopped because the cancellation flag was set, and no partial word is returned",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoDictionaryEntry",
