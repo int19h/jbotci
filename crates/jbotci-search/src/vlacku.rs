@@ -1985,7 +1985,19 @@ fn decompose_query<'a>(
     match decompose_lujvo_like(dictionary, query, cancellation) {
         Ok(decomposition) => Ok(decomposition),
         Err(JvozbaError::Interrupted) => Err(jbotci_interrupt::Interrupted),
-        Err(error) => {
+        // Named so a new `JvozbaError` variant fails here at compile time.
+        // `decompose_lujvo_like` does not return these from a query word.
+        Err(
+            error @ (JvozbaError::RequiresAtLeastTwoInputs
+            | JvozbaError::FixedRafsiEmpty
+            | JvozbaError::NonFinalUniversalLongRafsi { .. }
+            | JvozbaError::FinalConsonant { .. }
+            | JvozbaError::NoRafsiAvailable { .. }
+            | JvozbaError::NoDictionaryEntry { .. }
+            | JvozbaError::TooMuchWork { .. }
+            | JvozbaError::CouldNotBuildLujvo
+            | JvozbaError::CouldNotBuildCompound),
+        ) => {
             unreachable!("vlacku lujvo decomposition failed without the cancellation flag: {error}")
         }
     }
