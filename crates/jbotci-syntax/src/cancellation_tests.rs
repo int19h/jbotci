@@ -6,13 +6,12 @@
 //! the parser (strict attempt and recovery trials) must observe it. The
 //! outcome is [`SyntaxRecoveryParse::Interrupted`], not a syntax error.
 
-use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use jbotci_interrupt::CancellationSource;
+use jbotci_interrupt::{CancellationSource, assert_exit_check};
 
 use super::{
     ParseOptions, SyntaxRecoveryParseData,
@@ -81,25 +80,6 @@ fn cancellation_stops_unspaced_lo_and_is_not_a_syntax_error() {
 const SLOW_LO_COPIES: usize = 320;
 const SLOW_LOOP_TRIP: usize = 1_000;
 const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
-
-#[requires(true)]
-#[ensures(true)]
-fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
-    interrupted: impl Fn(&E) -> bool,
-) -> T {
-    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
-    run(&token).expect("an untripped token finishes");
-    let n = seen.load(Ordering::Relaxed);
-    assert!(n >= 2, "the call never loaded the token");
-    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
-        n - 1,
-    ))
-    .expect_err("the last load stops the call");
-    assert!(interrupted(&error));
-    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
-        .expect("one more clear load finishes the call")
-}
 
 #[test]
 #[requires(true)]

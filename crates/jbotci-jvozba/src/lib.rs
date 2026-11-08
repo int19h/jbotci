@@ -966,6 +966,7 @@ mod tests {
     use bityzba::{ensures, requires};
 
     use super::*;
+    use jbotci_interrupt::assert_exit_check;
 
     /// The figures the Discord service uses, so the boundaries these tests
     /// pin are the ones a caller with a deadline actually applies.
@@ -1739,26 +1740,6 @@ mod tests {
     const SLOW_ZBASU_COPIES: usize = 500;
     const SLOW_LOOP_TRIP: usize = 1_000;
     const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-        run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
-        interrupted: impl Fn(&E) -> bool,
-    ) -> T {
-        use std::sync::atomic::Ordering;
-        let (token, seen) = jbotci_interrupt::CancellationToken::counting();
-        run(&token).expect("an untripped token finishes");
-        let n = seen.load(Ordering::Relaxed);
-        assert!(n >= 2, "the call never loaded the token");
-        let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
-            n - 1,
-        ))
-        .expect_err("the last load stops the call");
-        assert!(interrupted(&error));
-        run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
-            .expect("one more clear load finishes the call")
-    }
 
     #[test]
     #[requires(true)]

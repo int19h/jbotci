@@ -1947,6 +1947,7 @@ fn normalize_gismu(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jbotci_interrupt::assert_exit_check;
     use jbotci_phonetic::{AlineFeature, AlineSaliences, PronunciationTargetId};
 
     #[requires(!targets.is_empty())]
@@ -3271,24 +3272,6 @@ mod tests {
     /// this test even though the inventory itself is short.
     const SLOW_LOOP_TRIP: usize = 1_000;
     const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-        run: impl Fn(&CancellationToken) -> Result<T, E>,
-        interrupted: impl Fn(&E) -> bool,
-    ) -> T {
-        use std::sync::atomic::Ordering;
-        let (token, seen) = CancellationToken::counting();
-        run(&token).expect("an untripped token finishes");
-        let n = seen.load(Ordering::Relaxed);
-        assert!(n >= 2, "the call never loaded the token");
-        let error = run(&CancellationToken::trip_after_checks(n - 1))
-            .expect_err("the last load stops the call");
-        assert!(interrupted(&error));
-        run(&CancellationToken::trip_after_checks(n))
-            .expect("one more clear load finishes the call")
-    }
 
     #[requires(true)]
     #[ensures(true)]

@@ -2420,11 +2420,11 @@ fn is_lojban_vowel(value: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
     use std::time::{Duration, Instant};
 
     use super::*;
     use bityzba::requires;
+    use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::segment_words_with_modifiers;
 
     #[requires(true)]
@@ -3628,23 +3628,6 @@ mod tests {
     const SLOW_ZBASU_COPIES: usize = 400;
     const SLOW_LOOP_TRIP: usize = 1_000;
     const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-        run: impl Fn(&CancellationToken) -> Result<T, E>,
-        interrupted: impl Fn(&E) -> bool,
-    ) -> T {
-        let (token, seen) = CancellationToken::counting();
-        run(&token).expect("an untripped token finishes");
-        let n = seen.load(Ordering::Relaxed);
-        assert!(n >= 2, "the call never loaded the token");
-        let error = run(&CancellationToken::trip_after_checks(n - 1))
-            .expect_err("the last load stops the call");
-        assert!(interrupted(&error));
-        run(&CancellationToken::trip_after_checks(n))
-            .expect("one more clear load finishes the call")
-    }
 
     #[requires(true)]
     #[ensures(ret.cancellation == *token)]

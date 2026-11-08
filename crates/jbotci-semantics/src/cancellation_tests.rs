@@ -6,11 +6,9 @@
 //! [`ReferenceAnalysisError::Interrupted`] and no partial index. Removing the
 //! loads makes the second call return that analysis.
 
-use std::sync::atomic::Ordering;
-
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use jbotci_interrupt::CancellationSource;
+use jbotci_interrupt::{CancellationSource, assert_exit_check};
 use jbotci_syntax::parse_syntax_tree;
 
 use crate::references::{ReferenceAnalysisError, analyze_generated_references};
@@ -35,25 +33,6 @@ fn cancellation_drops_reference_analysis_instead_of_returning_it() {
     let error = analyze_generated_references(parse.parse_tree.as_ref(), &source.token())
         .expect_err("a set flag must not return an analysis");
     assert!(matches!(error, ReferenceAnalysisError::Interrupted));
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
-    interrupted: impl Fn(&E) -> bool,
-) -> T {
-    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
-    run(&token).expect("an untripped token finishes");
-    let n = seen.load(Ordering::Relaxed);
-    assert!(n >= 2, "the call never loaded the token");
-    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
-        n - 1,
-    ))
-    .expect_err("the last load stops the call");
-    assert!(interrupted(&error));
-    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
-        .expect("one more clear load finishes the call")
 }
 
 #[test]

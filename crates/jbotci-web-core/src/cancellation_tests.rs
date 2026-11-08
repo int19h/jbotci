@@ -4,11 +4,9 @@
 //! failure inside [`GentufaWebResult`]. The same sentence with a clear flag
 //! still parses.
 
-use std::sync::atomic::Ordering;
-
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use jbotci_interrupt::CancellationSource;
+use jbotci_interrupt::{CancellationSource, assert_exit_check};
 
 use crate::{GentufaWebOptions, GentufaWebRequest, parse_gentufa_for_web_with_limits};
 
@@ -35,25 +33,6 @@ fn cancellation_is_a_web_interruption_and_not_a_parse_error() {
     let error = parse_gentufa_for_web_with_limits(&request, None, &source.token())
         .expect_err("a set flag must not return a page");
     assert!(error.is_interrupted());
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
-    run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
-    interrupted: impl Fn(&E) -> bool,
-) -> T {
-    let (token, seen) = jbotci_interrupt::CancellationToken::counting();
-    run(&token).expect("an untripped token finishes");
-    let n = seen.load(Ordering::Relaxed);
-    assert!(n >= 2, "the call never loaded the token");
-    let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
-        n - 1,
-    ))
-    .expect_err("the last load stops the call");
-    assert!(interrupted(&error));
-    run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
-        .expect("one more clear load finishes the call")
 }
 
 #[test]

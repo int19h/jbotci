@@ -208,6 +208,29 @@ impl fmt::Display for Interrupted {
 
 impl std::error::Error for Interrupted {}
 
+/// Prove that the last clear load turns a late flag into an interrupt.
+///
+/// `counting` records N on a clear run. `trip_after_checks(N - 1)` must
+/// return the interrupted error. `trip_after_checks(N)` must succeed.
+/// N includes the constructor load, so a call that never loads the token
+/// fails the `N >= 2` assert.
+#[cfg(feature = "cancellation_test_hook")]
+#[requires(true)]
+#[ensures(true)]
+pub fn assert_exit_check<T: fmt::Debug, E: fmt::Debug>(
+    run: impl Fn(&CancellationToken) -> Result<T, E>,
+    interrupted: impl Fn(&E) -> bool,
+) -> T {
+    let (token, seen) = CancellationToken::counting();
+    run(&token).expect("an untripped token finishes");
+    let n = seen.load(Ordering::Relaxed);
+    assert!(n >= 2, "the call never loaded the token");
+    let error = run(&CancellationToken::trip_after_checks(n - 1))
+        .expect_err("the last load stops the call");
+    assert!(interrupted(&error));
+    run(&CancellationToken::trip_after_checks(n)).expect("one more clear load finishes the call")
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
