@@ -7,7 +7,7 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word, normalize_lojban_input_text,
+    canonicalize_text, lex_single_word_with_options, normalize_lojban_input_text,
     segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
@@ -968,6 +968,22 @@ fn letteral_lookup_text(base: &WordLike) -> Option<String> {
     Some(format!("{normalized} bu"))
 }
 
+/// The vote filter needs one plain word. Other morphology errors stay
+/// "not one word", which is what `lex_single_word` returned.
+#[requires(true)]
+#[ensures(true)]
+fn lexical_word_for_vote_filter(
+    query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Word>, jbotci_interrupt::Interrupted> {
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    match lex_single_word_with_options(query, &options) {
+        Ok(word) => Ok(word),
+        Err(error) if error.is_interrupted() => Err(jbotci_interrupt::Interrupted),
+        Err(_) => Ok(None),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn cards_for_valsi(
@@ -980,8 +996,14 @@ fn cards_for_valsi(
     }
 
     // Lookup keys discard pauses and stress. Only the original input can
-    // establish whether the vote exemption applies.
-    let lexical_word = options.min_votes.and_then(|_| lex_single_word(query));
+    // establish whether the vote exemption applies. That scan is the whole
+    // query, so it uses the caller's flag. A later lookup never gets there
+    // in time to stop a long word.
+    let lexical_word = if options.min_votes.is_some() {
+        lexical_word_for_vote_filter(query, &options.cancellation)?
+    } else {
+        None
+    };
     let Some(query) = normalize_exact_lojban_query(query) else {
         return Ok(invalid_lojban_word_output(query));
     };
@@ -3638,6 +3660,13 @@ mod tests {
     /// time is the morphology of the query. The test trips at check 1,000
     /// and does not repeat that run.
     const SLOW_ZBASU_COPIES: usize = 400;
+    /// Copies of `zbasu` before the closing `y` in the vote-filter test.
+    ///
+    /// Release time of the vote-filter lexical scan on this query with a
+    /// clear token is 103.53 s. That scan is the whole query, and it runs
+    /// before the later lookup. The test trips at check 1,000 and does not
+    /// repeat that run.
+    const SLOW_VALSI_ZBASU_COPIES: usize = 900;
     const SLOW_LOOP_TRIP: usize = 1_000;
     const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
 
@@ -3684,6 +3713,31 @@ mod tests {
         assert!(
             elapsed < SLOW_LOOP_BOUND,
             "vlacku kept running for {elapsed:?}; a missing loop check decomposes the whole query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not a missing-word card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_valsi_vote_filter_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("{}y", "zbasu".repeat(SLOW_VALSI_ZBASU_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+            min_votes: Some(1),
+        });
+        let result =
+            super::run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query)], &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check scans the whole vote-filter word"
         );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),

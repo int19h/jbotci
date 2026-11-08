@@ -25,16 +25,34 @@ use crate::{
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn lex_single_word(input: &str) -> Option<Word> {
-    let options = MorphologyOptions::default();
-    let mut segmenter = Segmenter::new(input, &options, None);
-    let word = segmenter.next_plain_word().ok()?;
+    lex_single_word_with_options(input, &MorphologyOptions::default())
+        .ok()
+        .flatten()
+}
+
+/// One plain word, or `Ok(None)` when the text is not one plain word.
+///
+/// An interrupt is not "not a word". Callers that have no deadline pass
+/// [`MorphologyOptions::default`], whose flag stays clear.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok() || ret.as_ref().err().is_some_and(MorphologyError::is_interrupted))]
+pub(crate) fn lex_single_word_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> Result<Option<Word>, MorphologyError> {
+    let mut segmenter = Segmenter::new(input, options, None);
+    let word = match segmenter.next_plain_word() {
+        Ok(word) => word,
+        Err(error) if error.is_interrupted() => return Err(error),
+        Err(_) => return Ok(None),
+    };
     segmenter.skip_separators();
     if segmenter.index != segmenter.chars.len() {
-        return None;
+        return Ok(None);
     }
     match word.into_data() {
-        data!(WordLike::PlainWord(word)) => Some(word),
-        _ => None,
+        data!(WordLike::PlainWord(word)) => Ok(Some(word)),
+        _ => Ok(None),
     }
 }
 

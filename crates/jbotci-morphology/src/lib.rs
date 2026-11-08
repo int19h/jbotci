@@ -2492,6 +2492,19 @@ pub fn lex_single_word(input: &str) -> Option<Word> {
     grammar::lex_single_word(input)
 }
 
+/// [`lex_single_word`] on the caller's morphology options.
+///
+/// The only error is cancellation. Any other recognition failure is
+/// `Ok(None)`, the same answer as [`lex_single_word`].
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok() || ret.as_ref().err().is_some_and(MorphologyError::is_interrupted))]
+pub fn lex_single_word_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> Result<Option<Word>, MorphologyError> {
+    grammar::lex_single_word_with_options(input, options)
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn segment_words_with_modifiers(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
