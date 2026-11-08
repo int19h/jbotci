@@ -100,6 +100,19 @@ fn a_late_trip_stops_display_segmentation_after_the_last_word() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn a_late_trip_stops_one_lexical_word_after_recognition() {
+    assert_exit_check(
+        |token| {
+            let options = MorphologyOptions::default().with_cancellation(token);
+            super::lex_single_word("klama", &options)
+        },
+        MorphologyError::is_interrupted,
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn a_mid_loop_trip_stops_a_long_brivla_quickly() {
     let input = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
     let started = Instant::now();

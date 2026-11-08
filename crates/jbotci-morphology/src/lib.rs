@@ -2486,23 +2486,18 @@ fn morphology_diagnostic(
 
 /// Recognize exactly one lexical word without executing quotation, erasure,
 /// attachment, or end-of-text operations. Surrounding separators are allowed.
-#[requires(true)]
-#[ensures(true)]
-pub fn lex_single_word(input: &str) -> Option<Word> {
-    grammar::lex_single_word(input)
-}
-
-/// [`lex_single_word`] on the caller's morphology options.
 ///
 /// The only error is cancellation. Any other recognition failure is
-/// `Ok(None)`, the same answer as [`lex_single_word`].
+/// `Ok(None)`. The call rechecks the flag after recognition, so a flag set
+/// during the final candidate is not a normal answer. Callers that have no
+/// deadline pass [`MorphologyOptions::default`].
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok() || ret.as_ref().err().is_some_and(MorphologyError::is_interrupted))]
-pub fn lex_single_word_with_options(
+pub fn lex_single_word(
     input: &str,
     options: &MorphologyOptions,
 ) -> Result<Option<Word>, MorphologyError> {
-    grammar::lex_single_word_with_options(input, options)
+    grammar::lex_single_word(input, options)
 }
 
 #[requires(true)]
@@ -3385,7 +3380,12 @@ mod tests {
             "fa'o",
             "lojbangirzu",
         ] {
-            assert!(lex_single_word(word).is_some(), "{word}");
+            assert!(
+                lex_single_word(word, &MorphologyOptions::default())
+                    .expect("a default token stays clear")
+                    .is_some(),
+                "{word}"
+            );
         }
         for text in [
             "",
@@ -3399,7 +3399,12 @@ mod tests {
             "klama su",
             "klama sa",
         ] {
-            assert!(lex_single_word(text).is_none(), "{text}");
+            assert!(
+                lex_single_word(text, &MorphologyOptions::default())
+                    .expect("a default token stays clear")
+                    .is_none(),
+                "{text}"
+            );
         }
     }
 

@@ -7,7 +7,7 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word_with_options, normalize_lojban_input_text,
+    canonicalize_text, lex_single_word, normalize_lojban_input_text,
     segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
@@ -969,7 +969,7 @@ fn letteral_lookup_text(base: &WordLike) -> Option<String> {
 }
 
 /// The vote filter needs one plain word. Other morphology errors stay
-/// "not one word", which is what `lex_single_word` returned.
+/// "not one word", which is `Ok(None)` from `lex_single_word`.
 #[requires(true)]
 #[ensures(true)]
 fn lexical_word_for_vote_filter(
@@ -977,7 +977,7 @@ fn lexical_word_for_vote_filter(
     cancellation: &CancellationToken,
 ) -> Result<Option<Word>, jbotci_interrupt::Interrupted> {
     let options = MorphologyOptions::default().with_cancellation(cancellation);
-    match lex_single_word_with_options(query, &options) {
+    match lex_single_word(query, &options) {
         Ok(word) => Ok(word),
         Err(error) if error.is_interrupted() => Err(jbotci_interrupt::Interrupted),
         Err(_) => Ok(None),

@@ -22,29 +22,29 @@ use crate::{
     ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
 };
 
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn lex_single_word(input: &str) -> Option<Word> {
-    lex_single_word_with_options(input, &MorphologyOptions::default())
-        .ok()
-        .flatten()
-}
-
 /// One plain word, or `Ok(None)` when the text is not one plain word.
 ///
-/// An interrupt is not "not a word". Callers that have no deadline pass
-/// [`MorphologyOptions::default`], whose flag stays clear.
+/// An interrupt is not "not a word". `next_plain_word` can return a normal
+/// answer after the flag was set during the final candidate, so this recheck
+/// is the last load before either `Ok` answer. Callers that have no deadline
+/// pass [`MorphologyOptions::default`], whose flag stays clear.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok() || ret.as_ref().err().is_some_and(MorphologyError::is_interrupted))]
-pub(crate) fn lex_single_word_with_options(
+pub(crate) fn lex_single_word(
     input: &str,
     options: &MorphologyOptions,
 ) -> Result<Option<Word>, MorphologyError> {
     let mut segmenter = Segmenter::new(input, options, None);
     let word = match segmenter.next_plain_word() {
-        Ok(word) => word,
+        Ok(word) => Some(word),
         Err(error) if error.is_interrupted() => return Err(error),
-        Err(_) => return Ok(None),
+        Err(_) => None,
+    };
+    if options.cancellation.is_cancelled() {
+        return Err(MorphologyError::Interrupted);
+    }
+    let Some(word) = word else {
+        return Ok(None);
     };
     segmenter.skip_separators();
     if segmenter.index != segmenter.chars.len() {

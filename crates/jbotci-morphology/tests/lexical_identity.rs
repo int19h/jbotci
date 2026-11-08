@@ -1,5 +1,11 @@
 use bityzba::requires;
-use jbotci_morphology::lex_single_word;
+use jbotci_morphology::{MorphologyOptions, Word, lex_single_word};
+
+#[requires(true)]
+#[ensures(true)]
+fn one_word(text: &str) -> Option<Word> {
+    lex_single_word(text, &MorphologyOptions::default()).expect("a default token stays clear")
+}
 
 #[test]
 #[requires(true)]
@@ -13,7 +19,7 @@ fn lexical_single_word_identity_preserves_written_boundaries() {
         "ло.жбан.гирзу",
         "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
     ] {
-        assert!(lex_single_word(text).is_none(), "{text}");
+        assert!(one_word(text).is_none(), "{text}");
     }
     for text in [
         ".klama.",
@@ -24,7 +30,7 @@ fn lexical_single_word_identity_preserves_written_boundaries() {
         "ложбангирзу",
         "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
     ] {
-        assert!(lex_single_word(text).is_some(), "{text}");
+        assert!(one_word(text).is_some(), "{text}");
     }
 }
 
@@ -32,7 +38,7 @@ fn lexical_single_word_identity_preserves_written_boundaries() {
 #[requires(true)]
 #[ensures(true)]
 fn lexical_single_word_identity_precedes_magic_word_fault_recovery() {
-    let marker = lex_single_word("me'oi").expect("the quote marker is one lexical word");
+    let marker = one_word("me'oi").expect("the quote marker is one lexical word");
     assert_eq!(marker.selmaho(), Some("MEhOI"));
     for text in [
         "bu si",
@@ -42,6 +48,6 @@ fn lexical_single_word_identity_precedes_magic_word_fault_recovery() {
         "zei sa klama",
         "me'oi klama",
     ] {
-        assert!(lex_single_word(text).is_none(), "{text}");
+        assert!(one_word(text).is_none(), "{text}");
     }
 }
