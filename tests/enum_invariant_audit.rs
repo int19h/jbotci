@@ -2512,6 +2512,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid ZAhO atoms",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryParseOutcome::Interrupted",
+        "an interrupted recovery holds only the optional trace; the trace report has no further constraint on this arm",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
         "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
     ),

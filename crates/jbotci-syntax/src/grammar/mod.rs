@@ -3830,22 +3830,22 @@ pub(crate) fn expected_continuations(
         Some(sentinel_index),
         time_limit,
     );
-    let data!(RecoveryParseOutcome {
-        recovered: _,
-        continuation_expectations,
-        continuation_cut_reached,
-        continuation_time_limit_exhausted,
-        cancelled,
-        trace: _,
-    }) = recovered.into_data();
-    if continuation_time_limit_exhausted {
-        Err(ContinuationError::TimedOut)
-    } else if cancelled {
-        Err(ContinuationError::Interrupted)
-    } else if !continuation_cut_reached {
-        Err(ContinuationError::RecoveryLimit)
-    } else {
-        Ok(continuation_expectations)
+    match recovered.into_data() {
+        data!(RecoveryParseOutcome::Interrupted { .. }) => Err(ContinuationError::Interrupted),
+        data!(RecoveryParseOutcome::Recovered {
+            continuation_expectations,
+            continuation_cut_reached,
+            continuation_time_limit_exhausted,
+            ..
+        }) => {
+            if continuation_time_limit_exhausted {
+                Err(ContinuationError::TimedOut)
+            } else if !continuation_cut_reached {
+                Err(ContinuationError::RecoveryLimit)
+            } else {
+                Ok(continuation_expectations)
+            }
+        }
     }
 }
 
@@ -3948,28 +3948,15 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
 
     let recovered =
         recover_after_strict_failure(entry, tokens, source, options, failure, trace, None, None);
-    let data!(RecoveryParseOutcome {
-        recovered,
-        continuation_expectations: _,
-        continuation_cut_reached: _,
-        continuation_time_limit_exhausted: _,
-        cancelled,
-        trace,
-    }) = recovered.into_data();
-    if cancelled {
-        return SyntaxRecoveryParseAttempt {
+    match recovered.into_data() {
+        data!(RecoveryParseOutcome::Interrupted { trace }) => SyntaxRecoveryParseAttempt {
             result: new!(SyntaxRecoveryParse::Interrupted),
             trace,
-        };
-    }
-    let recovered = recovered.expect("a recovery that was not cancelled has a parse");
-    SyntaxRecoveryParseAttempt {
-        result: new!(SyntaxRecoveryParse::Recovered {
-            parse: recovered
-                .result
-                .expect("a recovery that was not cancelled has a tree"),
-        }),
-        trace: recovered.trace,
+        },
+        data!(RecoveryParseOutcome::Recovered { parse, trace, .. }) => SyntaxRecoveryParseAttempt {
+            result: new!(SyntaxRecoveryParse::Recovered { parse }),
+            trace,
+        },
     }
 }
 
@@ -4000,9 +3987,7 @@ fn valid_syntax_recovery_attempt(
 }
 
 #[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
-#[ensures(ret.cancelled == ret.recovered.is_none())]
-#[ensures(ret.recovered.as_ref().is_none_or(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty())))]
-#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[ensures(ret.tree_or_interrupt_holds())]
 fn recover_after_strict_failure(
     entry: SyntaxParseEntry,
     tokens: Vec<Token>,
@@ -4503,14 +4488,7 @@ fn recover_after_strict_failure(
         ParseStop::Continue => {}
     }
     if cancelled && !continuation_time_limit_exhausted {
-        return new!(RecoveryParseOutcome {
-            recovered: None,
-            continuation_expectations: Vec::new(),
-            continuation_cut_reached: false,
-            continuation_time_limit_exhausted: false,
-            cancelled: true,
-            trace,
-        });
+        return new!(RecoveryParseOutcome::Interrupted { trace });
     }
 
     recovery_session.clear_memo();
@@ -4524,28 +4502,22 @@ fn recover_after_strict_failure(
             .last()
             .map_or_else(Vec::new, syntax_error_expectations);
     }
-    new!(RecoveryParseOutcome {
-        recovered: Some(RecoveredSyntaxParseAttempt {
-            result: Ok(new!(RecoveredSyntaxParse {
-                parse_tree: Box::new(parse_tree),
-                errors,
-                warnings: Vec::new(),
-            })),
-            trace,
+    new!(RecoveryParseOutcome::Recovered {
+        parse: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parse_tree),
+            errors,
+            warnings: Vec::new(),
         }),
+        trace,
         continuation_expectations,
         continuation_cut_reached,
         continuation_time_limit_exhausted,
-        cancelled: false,
-        trace: None,
     })
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(ret.recovered.as_ref().is_some_and(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty())))]
-#[ensures(!ret.cancelled)]
-#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[ensures(ret.continuation_cut_reached == continuation_cut_reached)]
+#[ensures(ret.tree_or_interrupt_holds())]
+#[ensures(matches!(ret.as_data(), data!(RecoveryParseOutcome::Recovered { continuation_cut_reached: cut, .. }) if *cut == continuation_cut_reached))]
 fn recovered_success(
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
     errors: &[SyntaxError],
@@ -4553,20 +4525,16 @@ fn recovered_success(
     continuation_expectations: Vec<SyntaxExpectation>,
     continuation_cut_reached: bool,
 ) -> RecoveryParseOutcome {
-    new!(RecoveryParseOutcome {
-        recovered: Some(RecoveredSyntaxParseAttempt {
-            result: Ok(new!(RecoveredSyntaxParse {
-                parse_tree: Box::new(parsed.text.into_owned()),
-                errors: errors.to_vec(),
-                warnings: parsed.warnings,
-            })),
-            trace,
+    new!(RecoveryParseOutcome::Recovered {
+        parse: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parsed.text.into_owned()),
+            errors: errors.to_vec(),
+            warnings: parsed.warnings,
         }),
+        trace,
         continuation_expectations,
         continuation_cut_reached,
         continuation_time_limit_exhausted: false,
-        cancelled: false,
-        trace: None,
     })
 }
 
@@ -4794,10 +4762,10 @@ fn classify_recovery_trial(
 #[requires(directives.len() + 1 == errors.len())]
 #[requires(errors.last().is_some_and(|error| error == &failure.public_error))]
 #[ensures(ret.as_ref().is_none_or(|attempt| {
-    attempt
-        .recovered
-        .as_ref()
-        .is_some_and(|recovered| recovered.result.as_ref().is_ok_and(|parse| !parse.errors.is_empty()))
+    matches!(
+        attempt.as_data(),
+        data!(RecoveryParseOutcome::Recovered { parse, .. }) if !parse.errors.is_empty()
+    )
 }))]
 fn try_final_recovery_from_current_failure<'tokens>(
     entry: SyntaxParseEntry,
@@ -4996,20 +4964,47 @@ enum RecoveryTrialClassification {
     },
 }
 
-#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[invariant(!*continuation_cut_reached || !*continuation_time_limit_exhausted)]
-#[invariant(*cancelled == recovered.is_none())]
-#[invariant(!*cancelled || !*continuation_time_limit_exhausted)]
-#[invariant(*cancelled || trace.is_none())]
-#[invariant(!*cancelled || continuation_expectations.is_empty())]
-struct RecoveryParseOutcome {
-    recovered: Option<RecoveredSyntaxParseAttempt>,
-    continuation_expectations: Vec<SyntaxExpectation>,
-    continuation_cut_reached: bool,
-    continuation_time_limit_exhausted: bool,
-    cancelled: bool,
-    /// Set only when `cancelled`. A finished recovery keeps its trace on `recovered`.
-    trace: Option<TraceReport>,
+/// An internal recovery either stopped on the flag or finished with a tree.
+/// The public parse API still returns `Result`. This enum is the rule that
+/// used to be stated as `cancelled == recovered.is_none()`.
+#[invariant(::Interrupted => true)]
+#[invariant(::Recovered => !parse.errors.is_empty()
+    && continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty())
+    && (!*continuation_cut_reached || !*continuation_time_limit_exhausted))]
+enum RecoveryParseOutcome {
+    Interrupted {
+        trace: Option<TraceReport>,
+    },
+    Recovered {
+        parse: RecoveredSyntaxParse,
+        trace: Option<TraceReport>,
+        continuation_expectations: Vec<SyntaxExpectation>,
+        continuation_cut_reached: bool,
+        continuation_time_limit_exhausted: bool,
+    },
+}
+
+impl RecoveryParseOutcome {
+    #[requires(true)]
+    #[ensures(true)]
+    fn tree_or_interrupt_holds(&self) -> bool {
+        match self.as_data() {
+            data!(RecoveryParseOutcome::Interrupted { .. }) => true,
+            data!(RecoveryParseOutcome::Recovered {
+                parse,
+                continuation_expectations,
+                continuation_cut_reached,
+                continuation_time_limit_exhausted,
+                ..
+            }) => {
+                !parse.errors.is_empty()
+                    && continuation_expectations
+                        .iter()
+                        .all(|expectation| !expectation.tokens.is_empty())
+                    && (!*continuation_cut_reached || !*continuation_time_limit_exhausted)
+            }
+        }
+    }
 }
 
 #[invariant(cmavo.len() == opens_subtext_container.len())]
@@ -8408,20 +8403,20 @@ mod tests {
             );
             let elapsed = started.elapsed();
 
+            let data!(RecoveryParseOutcome::Recovered {
+                parse,
+                continuation_cut_reached,
+                ..
+            }) = recovered.into_data()
+            else {
+                panic!("unbounded recovery finishes");
+            };
             assert!(
-                recovered.continuation_cut_reached,
+                continuation_cut_reached,
                 "unbounded recovery must reach the requested completion cut",
             );
             assert_eq!(
-                recovered
-                    .recovered
-                    .as_ref()
-                    .expect("unbounded recovery finishes")
-                    .result
-                    .as_ref()
-                    .expect("an uninterrupted recovered parse returns a tree")
-                    .errors
-                    .len(),
+                parse.errors.len(),
                 14,
                 "the winning recovery must retain every prior owner-document error",
             );
