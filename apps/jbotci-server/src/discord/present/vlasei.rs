@@ -27,6 +27,7 @@ pub(crate) fn render_in_scope(
     analysis: &VlaseiAnalysis,
     request: &VlaseiRequest,
     text_scope: &jbotci_output::budget::TextScope,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> RenderedResult {
     let source = request.text.as_str();
     let options = request.options;
@@ -61,7 +62,7 @@ pub(crate) fn render_in_scope(
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
-                    &jbotci_interrupt::CancellationToken::never(),
+                    cancellation,
                 )
             } else {
                 pretty_recovered_morphology_brackets_with_limit(
@@ -69,6 +70,7 @@ pub(crate) fn render_in_scope(
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             };
             let text = super::render_output_in_scope(result, text_scope);
@@ -81,6 +83,7 @@ pub(crate) fn render_in_scope(
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             } else {
                 pretty_recovered_morphology_tree_with_limit(
@@ -88,6 +91,7 @@ pub(crate) fn render_in_scope(
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             };
             let text = super::render_output_in_scope(result, text_scope);
@@ -309,7 +313,12 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
     let text_scope = jbotci_output::budget::TextScope::new(
         jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
-    let result = render_in_scope(analysis, request, &text_scope);
+    let result = render_in_scope(
+        analysis,
+        request,
+        &text_scope,
+        &jbotci_interrupt::CancellationToken::never(),
+    );
     text_scope
         .finish(String::new())
         .expect("unrestricted Discord rendering");

@@ -78,6 +78,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
             glyphs,
             phoneme_options,
             render_limits,
+            cancellation,
         )? {
             stdout.write_all(rendered.as_bytes())?;
         }
@@ -177,6 +178,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
                     show_elided: false,
                 },
                 render_limits.text,
+                cancellation,
             )?;
             writeln!(stdout, "{rendered}")?;
         }
@@ -200,6 +202,7 @@ fn render_recovered_vlasei_output(
     glyphs: GlyphStyle,
     phonemes: PhonemeRenderOptions,
     render_limits: RenderLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<Option<String>> {
     let rendered = match input.format {
         VlaseiFormat::Ipa => return Ok(None),
@@ -228,6 +231,7 @@ fn render_recovered_vlasei_output(
                 show_elided: false,
             },
             render_limits.text,
+            cancellation,
         )?,
         VlaseiFormat::Tree => pretty_recovered_morphology_tree_with_limit(
             recovered,
@@ -243,12 +247,14 @@ fn render_recovered_vlasei_output(
                 show_elided: false,
             },
             render_limits.text,
+            cancellation,
         )?,
         VlaseiFormat::Raw => pretty_recovered_morphology_raw_with_limit(
             recovered,
             source,
             input.indent,
             render_limits.text,
+            cancellation,
         )?,
     };
     if matches!(input.format, VlaseiFormat::Raw) {

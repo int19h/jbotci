@@ -182,13 +182,14 @@ fn render_in_scope(
     outcome: &ToolOutcome,
     request: &DiscordRequest,
     text_scope: &jbotci_output::budget::TextScope,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> RenderedResult {
     match (outcome, request) {
         (ToolOutcome::Gentufa(outcome), DiscordRequest::Gentufa(request)) => {
             gentufa::render_in_scope(outcome, request, text_scope)
         }
         (ToolOutcome::Vlasei(analysis), DiscordRequest::Vlasei(request)) => {
-            vlasei::render_in_scope(analysis, request, text_scope)
+            vlasei::render_in_scope(analysis, request, text_scope, cancellation)
         }
         (ToolOutcome::Vlatai(report), DiscordRequest::Vlatai(request)) => {
             vlatai::render_in_scope(report, request, text_scope)
@@ -300,9 +301,17 @@ pub(crate) fn render_with_limits(
     outcome: &ToolOutcome,
     request: &DiscordRequest,
     limits: jbotci_output::budget::RenderLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<RenderedResult, crate::work::WorkError> {
     let text_scope = jbotci_output::budget::TextScope::new(limits.text);
-    let result = render_in_scope(outcome, request, &text_scope);
+    let result = render_in_scope(outcome, request, &text_scope, cancellation);
+    // A flag set while the view was rendered is the deadline, not a message
+    // whose body says the computation stopped.
+    if cancellation.is_cancelled() {
+        return Err(crate::work::WorkError::TimedOut {
+            lane: crate::work::WorkLane::Compute,
+        });
+    }
     text_scope
         .finish(String::new())
         .map_err(|_| crate::work::WorkError::OutputLimit)?;

@@ -427,6 +427,7 @@ pub(crate) fn pretty_morphology_tree_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -437,6 +438,7 @@ pub fn pretty_morphology_tree_with_limit(
     source: &str,
     options: TreeRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let value = collapse_value(TreeValue::Collection(
         words
@@ -444,13 +446,7 @@ pub fn pretty_morphology_tree_with_limit(
             .map(|word_like| morphology_tree_value(word_like, source, options))
             .collect(),
     ));
-    render_tree_value_with_limit(
-        &value,
-        options,
-        None,
-        limit,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
+    render_tree_value_with_limit(&value, options, None, limit, cancellation)
 }
 
 #[requires(true)]

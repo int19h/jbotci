@@ -1067,7 +1067,12 @@ impl DiscordService {
             let limits = admission.execution.policy.tool_limits();
             let operation_error = |error| ResultError::Operation { error, context: admission.clone() };
             let mut rendered = match completed.outcome {
-                Ok(outcome) => render_with_limits(&outcome, &published.request, limits.render),
+                Ok(outcome) => render_with_limits(
+                    &outcome,
+                    &published.request,
+                    limits.render,
+                    &cancellation,
+                ),
                 Err(OperationError::Invalid(error)) if editable_failure => {
                     render_validation_error(&error, &published.request, limits.render.text)
                 }

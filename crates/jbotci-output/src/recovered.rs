@@ -228,6 +228,7 @@ pub fn pretty_recovered_morphology_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -238,6 +239,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
     source: &str,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
         return crate::pretty_morphology_brackets_with_limit(
@@ -245,7 +247,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             source,
             options,
             limit,
-            &jbotci_interrupt::CancellationToken::never(),
+            cancellation,
         );
     }
     let context = brackets::BracketContext { options };
@@ -259,12 +261,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
         })
         .collect();
     let value = sexpr::flatten(sexpr::node(children));
-    sexpr::render_bracketed_with_limit(
-        &value,
-        options,
-        limit,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
+    sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
 
 #[requires(true)]
@@ -279,6 +276,7 @@ pub fn pretty_recovered_morphology_tree_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -289,9 +287,16 @@ pub fn pretty_recovered_morphology_tree_with_limit(
     source: &str,
     options: TreeRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::pretty_morphology_tree_with_limit(&recovered.words, source, options, limit);
+        return crate::pretty_morphology_tree_with_limit(
+            &recovered.words,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
     }
     let values = recovered_morphology_sequence(recovered, source)?
         .into_iter()
@@ -309,7 +314,7 @@ pub fn pretty_recovered_morphology_tree_with_limit(
         options,
         None,
         limit,
-        &jbotci_interrupt::CancellationToken::never(),
+        cancellation,
     )
 }
 
@@ -2155,16 +2160,22 @@ pub fn pretty_recovered_morphology_raw_with_limit(
     source: &str,
     indent: Option<Indentation>,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    if recovered.errors.is_empty() {
-        raw_with_limit(&recovered.words, indent, limit)
+    // Debug formatting of an already-built list has no inner checkpoint.
+    // The load after it is the one a late flag must turn into an interrupt.
+    cancellation.check().map_err(|_| OutputError::Interrupted)?;
+    let rendered = if recovered.errors.is_empty() {
+        raw_with_limit(&recovered.words, indent, limit)?
     } else {
         raw_with_limit(
             &recovered_morphology_sequence(recovered, source)?,
             indent,
             limit,
-        )
-    }
+        )?
+    };
+    cancellation.check().map_err(|_| OutputError::Interrupted)?;
+    Ok(rendered)
 }
 
 #[requires(indent.is_none_or(|indent| indent.spaces() == 0))]

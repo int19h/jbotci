@@ -1830,7 +1830,14 @@ mod bounded_output_tests {
                     unlimited,
                 )
                 .unwrap(),
-                pretty_morphology_tree_with_limit(&words, source, tree_options, unlimited).unwrap(),
+                pretty_morphology_tree_with_limit(
+                    &words,
+                    source,
+                    tree_options,
+                    unlimited,
+                    &jbotci_interrupt::CancellationToken::never(),
+                )
+                .unwrap(),
                 pretty_morphology_brackets_with_limit(
                     &words,
                     source,
@@ -1852,7 +1859,13 @@ mod bounded_output_tests {
                             limit,
                             unlimited,
                         ),
-                        1 => pretty_morphology_tree_with_limit(&words, source, tree_options, limit),
+                        1 => pretty_morphology_tree_with_limit(
+                            &words,
+                            source,
+                            tree_options,
+                            limit,
+                            &jbotci_interrupt::CancellationToken::never(),
+                        ),
                         2 => pretty_morphology_brackets_with_limit(
                             &words,
                             source,

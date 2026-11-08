@@ -3535,6 +3535,7 @@ pub mod blocking {
                 &state,
                 &result,
                 Some(diagram),
+                cancellation,
             );
         }
         Ok(build_computed_page_meta(base_path, route))
@@ -4256,8 +4257,14 @@ pub fn build_gentufa_page_meta_from_result(
     state: &GentufaWebState,
     result: &GentufaWebResult,
 ) -> PageMeta {
-    build_gentufa_page_meta_from_result_with_limits(base_path, state, result, None)
-        .expect("unrestricted metadata rendering")
+    build_gentufa_page_meta_from_result_with_limits(
+        base_path,
+        state,
+        result,
+        None,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .expect("unrestricted metadata rendering")
 }
 
 #[requires(true)]
@@ -4267,6 +4274,7 @@ pub fn build_gentufa_page_meta_from_result_with_limits(
     state: &GentufaWebState,
     result: &GentufaWebResult,
     limits: Option<jbotci_gentufa::GentufaRenderLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<PageMeta, WebComputeError> {
     let state = normalize_gentufa_state(state);
     if state.text.is_empty() {
@@ -4279,9 +4287,13 @@ pub fn build_gentufa_page_meta_from_result_with_limits(
         GentufaWebResult::Error(error) => gentufa_error_metadata_description(error, &state.text),
     };
     let image = match result {
-        GentufaWebResult::Success(success) => {
-            gentufa_social_image_from_success_with_limits(base_path, &state, success, limits)?
-        }
+        GentufaWebResult::Success(success) => gentufa_social_image_from_success_with_limits(
+            base_path,
+            &state,
+            success,
+            limits,
+            cancellation,
+        )?,
         GentufaWebResult::Blank | GentufaWebResult::Error(_) => None,
     };
     Ok(page_meta(
@@ -4299,6 +4311,7 @@ fn gentufa_social_image_from_success_with_limits(
     state: &GentufaWebState,
     success: &GentufaSuccess,
     limits: Option<jbotci_gentufa::GentufaRenderLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<Option<SocialImage>, WebComputeError> {
     let export = render_gentufa_blocks_web_export_with_limits(
         &success.blocks_layout,
@@ -4306,7 +4319,7 @@ fn gentufa_social_image_from_success_with_limits(
         GentufaScript::Latin,
         GentufaExportFormat::Svg,
         limits,
-        &jbotci_interrupt::CancellationToken::never(),
+        cancellation,
     );
     let export = match export {
         Ok(export) => export,
