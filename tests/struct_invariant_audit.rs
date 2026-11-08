@@ -1116,6 +1116,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LCS scratch rows are mutable work storage whose temporary lengths are controlled by longest_common_subsequence_len_chars",
     ),
     (
+        "crates/jbotci-interrupt/src/lib.rs:CancellationToken",
+        "Both states of the shared flag are valid. The owner decides when the flag becomes set.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:CancellationSource",
+        "The source is the owner of one flag. A clear flag and a set flag are both valid owners.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:Interrupted",
+        "The value has no fields. It names one cancelled computation.",
+    ),
+    (
         "crates/jbotci-ide/src/snapshot/completion.rs:CompletionCancellationToken",
         "completion cancellation token is a shared atomic flag whose only valid state transition is enforced by cancel",
     ),
