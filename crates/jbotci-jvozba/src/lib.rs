@@ -246,7 +246,15 @@ pub fn build_best_jvozba_detailed_within(
         raw_inputs,
         limits,
         cancellation,
-        choose_best_lujvo_candidate_from_parts,
+        |mode, choices, cancellation| {
+            choose_best_lujvo_candidate_from_parts(mode, choices, cancellation).map_err(|error| {
+                if error.is_interrupted() {
+                    JvozbaError::Interrupted
+                } else {
+                    JvozbaError::CouldNotBuildLujvo
+                }
+            })
+        },
     )
 }
 
@@ -261,7 +269,8 @@ fn build_best_jvozba_with_evaluator(
     evaluate: impl FnOnce(
         LujvoBuildMode,
         &[Vec<LujvoBuildPart>],
-    ) -> Option<jbotci_morphology::LujvoCandidate>,
+        &CancellationToken,
+    ) -> Result<Option<jbotci_morphology::LujvoCandidate>, JvozbaError>,
 ) -> Result<JvozbaBuildResult, JvozbaError> {
     let mut plans = Vec::with_capacity(raw_inputs.len().min(limits.max_pieces));
     let mut count = Some(0usize);
@@ -314,7 +323,12 @@ fn build_best_jvozba_with_evaluator(
             limit: limits.max_placements,
         });
     }
-    let Some(candidate) = evaluate(mode.into(), &candidate_lists) else {
+    // The piece loop already loaded the flag. This load covers the search
+    // that scores every spelling, which is the work the piece cap does not bound.
+    if cancellation.is_cancelled() {
+        return Err(JvozbaError::Interrupted);
+    }
+    let Some(candidate) = evaluate(mode.into(), &candidate_lists, cancellation)? else {
         return Err(match mode {
             JvozbaMode::Lujvo => JvozbaError::CouldNotBuildLujvo,
             JvozbaMode::Cmevla => JvozbaError::CouldNotBuildCompound,
@@ -1698,9 +1712,9 @@ mod tests {
                     &inputs,
                     limits,
                     &jbotci_interrupt::CancellationToken::never(),
-                    |_, _| {
+                    |_, _, _| {
                         evaluations.set(evaluations.get() + 1);
-                        None
+                        Ok(None)
                     },
                 );
                 assert!(
@@ -1716,10 +1730,35 @@ mod tests {
         }
     }
 
-    /// Clear loads of `lojbo bangu` before the load that aborts.
-    /// Release measurement: 83 clear loads, trip 82. The per-piece load and
-    /// the morphology inside each piece are both on this path.
-    const JVOZBA_LATE_TRIP: usize = 82;
+    /// Copies of `zbasu` before the closing `y` in the slow-loop test.
+    ///
+    /// Release time of `build_best_jvozba_detailed` on this one word with a
+    /// clear token is 74.39 s. The build decomposes the word before it can
+    /// ask for a second piece. That decomposition is the long morphology.
+    /// The test trips at check 1,000 and does not repeat that run.
+    const SLOW_ZBASU_COPIES: usize = 500;
+    const SLOW_LOOP_TRIP: usize = 1_000;
+    const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_exit_check<T: std::fmt::Debug, E: std::fmt::Debug>(
+        run: impl Fn(&jbotci_interrupt::CancellationToken) -> Result<T, E>,
+        interrupted: impl Fn(&E) -> bool,
+    ) -> T {
+        use std::sync::atomic::Ordering;
+        let (token, seen) = jbotci_interrupt::CancellationToken::counting();
+        run(&token).expect("an untripped token finishes");
+        let n = seen.load(Ordering::Relaxed);
+        assert!(n >= 2, "the call never loaded the token");
+        let error = run(&jbotci_interrupt::CancellationToken::trip_after_checks(
+            n - 1,
+        ))
+        .expect_err("the last load stops the call");
+        assert!(interrupted(&error));
+        run(&jbotci_interrupt::CancellationToken::trip_after_checks(n))
+            .expect("one more clear load finishes the call")
+    }
 
     #[test]
     #[requires(true)]
@@ -1730,13 +1769,33 @@ mod tests {
             JvozbaInput::Word("lojbo".to_owned()),
             JvozbaInput::Word("bangu".to_owned()),
         ];
-        let run = |trip: usize| {
-            let token = jbotci_interrupt::CancellationToken::trip_after_checks(trip);
-            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
-        };
-        let error = run(JVOZBA_LATE_TRIP).expect_err("the late trip stops the build");
-        assert!(matches!(error, JvozbaError::Interrupted));
-        let result = run(JVOZBA_LATE_TRIP + 1).expect("the next index finishes the build");
+        let result = assert_exit_check(
+            |token| build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, token),
+            |error| matches!(error, JvozbaError::Interrupted),
+        );
         assert_eq!(result.word, "jbobau");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_zbasu_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let inputs = [JvozbaInput::Word(format!(
+            "{}y",
+            "zbasu".repeat(SLOW_ZBASU_COPIES)
+        ))];
+        let started = std::time::Instant::now();
+        let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "jvozba kept running for {elapsed:?}; a missing loop check decomposes the whole word"
+        );
+        assert!(
+            matches!(result, Err(JvozbaError::Interrupted)),
+            "the early trip must be an interrupt, not a finished refusal"
+        );
     }
 }
