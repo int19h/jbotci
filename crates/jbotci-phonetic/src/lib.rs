@@ -844,11 +844,29 @@ impl PreparedAlineTargetInventory {
     }
 }
 
+/// Phones between cancellation loads while the expansion table is built.
+///
+/// That table is the long part of preparation: one target-pair row per query
+/// phone. The substitution table before it is a small fraction of the same
+/// work, and the first row here checks again. The slow bracketed ranking
+/// test uses 12_000 phones and trips at check 1_000. This gap keeps
+/// preparation under that many loads, so the trip is a ranking-loop load.
+const PREPARE_SOUND_CHECK_STRIDE: usize = 16;
+
 /// Prepare one local sound-search query for fixed-cost scoring of target
 /// candidates.
+///
+/// Callers that have no deadline pass [`CancellationToken::never`]. A set
+/// flag drops the partial tables and returns [`jbotci_interrupt::Interrupted`].
 #[requires(true)]
-#[ensures(ret.query_len > 0)]
-pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
+#[ensures(ret.as_ref().is_ok_and(|prepared| prepared.query_len > 0) || ret.is_err())]
+pub fn prepare_sound_query(
+    query: &SoundQuerySequence,
+    cancellation: &CancellationToken,
+) -> Result<PreparedAlineQuery, jbotci_interrupt::Interrupted> {
+    if cancellation.is_cancelled() {
+        return Err(jbotci_interrupt::Interrupted);
+    }
     let query_units = match query.as_data() {
         data!(SoundQuerySequence::Concrete(sequence)) => sequence
             .segments()
@@ -888,7 +906,12 @@ pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
     }
 
     let mut query_to_target_pair = Vec::with_capacity(target_pair_count * query_len);
-    for query in query_units.iter().copied() {
+    for (query_index, query) in query_units.iter().copied().enumerate() {
+        // The rows above this phone are the whole table so far. A set flag
+        // drops them instead of ranking against a half-built query.
+        if query_index % PREPARE_SOUND_CHECK_STRIDE == 0 && cancellation.is_cancelled() {
+            return Err(jbotci_interrupt::Interrupted);
+        }
         for first_index in 0..target_count {
             let first = PronunciationUnit::target(PronunciationTargetId::from_static_index(
                 first_index as u16,
@@ -905,14 +928,14 @@ pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
         }
     }
 
-    new!(PreparedAlineQuery {
+    Ok(new!(PreparedAlineQuery {
         target_count,
         query_len,
         substitution,
         target_to_query_pair,
         query_to_target_pair,
         query_self_similarity: query.self_similarity(),
-    })
+    }))
 }
 
 impl PreparedAlineQuery {
@@ -3734,7 +3757,8 @@ mod tests {
             let query = new!(SoundQuerySequence::Concrete(
                 tokenize_ipa_text(symbol).expect("supported rhotic")
             ));
-            let prepared = prepare_sound_query(&query);
+            let prepared = prepare_sound_query(&query, &CancellationToken::never())
+                .expect("a default token stays clear");
             let mut scratch = AlineSimilarityScratch::default();
             assert_eq!(
                 prepared.similarity_with_scratch(candidate.view(), &mut scratch),
@@ -3998,7 +4022,8 @@ mod tests {
         }
 
         let query = new!(SoundQuerySequence::Concrete(source.clone()));
-        let prepared = prepare_sound_query(&query);
+        let prepared = prepare_sound_query(&query, &CancellationToken::never())
+            .expect("a default token stays clear");
         let mut scratch = AlineSimilarityScratch::default();
         let target_local = prepared.similarity_with_scratch(target_candidate.view(), &mut scratch);
         let concrete_local = aline_phonetic_similarity(concrete_candidate.view(), source.view());
@@ -4016,7 +4041,8 @@ mod tests {
         let query = new!(SoundQuerySequence::Concrete(
             tokenize_ipa_text("r̩").expect("syllabic r input")
         ));
-        let prepared = prepare_sound_query(&query);
+        let prepared = prepare_sound_query(&query, &CancellationToken::never())
+            .expect("a default token stays clear");
         assert_eq!(
             prepared
                 .similarity_with_scratch(candidate.view(), &mut AlineSimilarityScratch::default(),),
@@ -4033,7 +4059,8 @@ mod tests {
             let query = new!(SoundQuerySequence::Concrete(
                 tokenize_ipa_text(symbol).expect("supported IPA")
             ));
-            prepare_sound_query(&query)
+            prepare_sound_query(&query, &CancellationToken::never())
+                .expect("a default token stays clear")
                 .similarity_with_scratch(candidate.view(), &mut AlineSimilarityScratch::default())
         };
         assert!(similarity("ɚ") < similarity("ɾ"));
@@ -4150,6 +4177,24 @@ mod tests {
         assert_eq!(
             lojban_text_to_ipa("coi", &CancellationToken::never()).expect("IPA"),
             "ʃoj"
+        );
+    }
+
+    /// The search slow test repeats `a` this many times inside brackets.
+    ///
+    /// Preparation loads once up front and then once per stride phone. That
+    /// total has to stay under the trip at check 1_000, or the trip leaves
+    /// the ranking loop.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn slow_bracketed_ranking_query_prepares_inside_the_trip() {
+        let phones = 12_000usize;
+        let stride_loads = (phones - 1) / PREPARE_SOUND_CHECK_STRIDE + 1;
+        let prepare_loads = 1 + stride_loads;
+        assert!(
+            prepare_loads < 1_000,
+            "prepare loads {prepare_loads} consume the ranking trip"
         );
     }
 }

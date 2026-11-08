@@ -1465,31 +1465,37 @@ fn cards_for_sound(
         Err(error) => return Ok(invalid_output(error.to_string())),
     };
 
+    // Preparation builds tables sized by the query. It loads the caller's
+    // flag while it does that and returns before any dictionary comparison.
+    let prepared_query = prepare_sound_query(&query_sound, &options.cancellation)?;
     let mut scratch = AlineSimilarityScratch::default();
-    let prepared_query = prepare_sound_query(&query_sound);
     let entries = dictionary.entries();
     let sound_index = dictionary.sound_index();
-    let mut scored = sound_index
-        .iter()
-        .filter_map(|sound_entry| {
-            let entry = entries.get(sound_entry.entry_index.get())?;
-            if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
-                return None;
-            }
-            let similarity = prepared_query
-                .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
-                as f32;
-            dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true).then(
-                || {
-                    new!(SoundScoreEntry {
-                        entry_index: sound_entry.entry_index.get(),
-                        similarity,
-                        entry,
-                    })
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut scored = Vec::with_capacity(sound_index.len());
+    for sound_entry in sound_index {
+        // Each comparison walks the whole query, so the cost grows with the
+        // query. One load here is enough to stop before that comparison. A
+        // set flag drops every score gathered so far.
+        if options.cancellation.is_cancelled() {
+            return Err(jbotci_interrupt::Interrupted);
+        }
+        let Some(entry) = entries.get(sound_entry.entry_index.get()) else {
+            continue;
+        };
+        if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
+            continue;
+        }
+        let similarity = prepared_query
+            .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
+            as f32;
+        if dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true) {
+            scored.push(new!(SoundScoreEntry {
+                entry_index: sound_entry.entry_index.get(),
+                similarity,
+                entry,
+            }));
+        }
+    }
     // The window's own end is what has to be ranked; the scored entries are
     // an index and a score, and only the window becomes cards.
     retain_best_sound_scores(&mut scored, options.skip.saturating_add(options.count));
@@ -3669,6 +3675,12 @@ mod tests {
     /// time is query segmentation, before ranking. The test trips at check
     /// 1,000 and does not repeat that run.
     const SLOW_SOUND_ZBASU_COPIES: usize = 700;
+    /// Copies of `a` inside brackets in the sound-ranking test.
+    ///
+    /// Release time of this bracketed IPA query with a clear token is 65.87 s.
+    /// Check 1,000 is in the ranking loop, after preparation. The test trips
+    /// there and does not repeat that run.
+    const SLOW_BRACKETED_A_COPIES: usize = 12_000;
     /// Copies of `zbasu` before the closing `y` in the vote-filter test.
     ///
     /// Release time of the vote-filter lexical scan on this query with a
@@ -3792,6 +3804,30 @@ mod tests {
                 )
             },
             |error| matches!(error, jbotci_interrupt::Interrupted),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_bracketed_sound_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("[{}]", "a".repeat(SLOW_BRACKETED_A_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+        });
+        let result =
+            super::run_vlacku_requests(dictionary, &[VlackuRequest::sound(query)], &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check ranks the whole sound query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not an invalid-query card"
         );
     }
 }
