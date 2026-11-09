@@ -1823,11 +1823,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
+    fn web_markdown_matches_reviewed_section_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. Section 9.6
-        // restores prose. The copyright section retains its previous hashes.
+        // These hashes pin the reviewed v1.3.7 source. The grammar rules keep
+        // their subsection pages. Section 9.6 now uses the xorlo descriptors.
         let cases = [
             (
                 "1.8",
@@ -1839,7 +1838,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "9897dede5407f6365f2ddfc409c72ca388897ae3b4e060385de6d969d2a655a7",
+                "4153723d10d924d808f2023c7a2d54bf3672e951daa6161222bf67441446ac1a",
             ),
             (
                 "section-EBNF",
@@ -1870,11 +1869,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_html_matches_issue_655_pre_change_baseline_hashes() {
+    fn web_html_matches_reviewed_section_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. Section 9.6
-        // restores prose. The copyright section retains its previous hashes.
+        // These hashes pin the reviewed v1.3.7 source. The grammar rules keep
+        // their subsection pages. Section 9.6 now uses the xorlo descriptors.
         let cases = [
             (
                 "1.8",
@@ -1886,7 +1884,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "ebd6dcb0e2b0b460d38537c517a0d21b165c0db2e3565aa1d1b9de149a13198e",
+                "7c780cc7bbe2631d06ff59ca912712d0f05aac7374b5a3c4b9607c5dd36a1136",
             ),
             (
                 "section-EBNF",

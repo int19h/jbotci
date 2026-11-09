@@ -3483,6 +3483,18 @@ mod tests {
                     probe: MEDIA_PROBE,
                     block: "Media",
                 },
+                // v1.3.7 groups quotation text and gloss cells with phrase.
+                // The wrapper adds no display style. Its inline children must
+                // still retain dictionary links and subscript formatting.
+                ElementDisposition::Transparent {
+                    contexts: &["gloss", "jbo"],
+                    probe: concat!(
+                        "<interlinear-gloss><jbo><phrase>PROBE</phrase></jbo>",
+                        "<gloss><phrase><valsi>PROBE</valsi><subscript>1</subscript>",
+                        "</phrase></gloss></interlinear-gloss>",
+                    ),
+                    block: "InterlinearGloss",
+                },
                 ElementDisposition::Flattened {
                     probe: "<para><phrase>PROBE</phrase></para>",
                     contexts: &["member", "para", "td"],
@@ -3625,6 +3637,7 @@ mod tests {
                     "description",
                     "gloss",
                     "para",
+                    "phrase",
                     "primary",
                     "quote",
                     "subscript",
@@ -3633,7 +3646,7 @@ mod tests {
                     "td",
                     "term",
                 ],
-                probe: "<para><subscript>PROBE</subscript></para>",
+                probe: "<para><phrase><subscript>PROBE</subscript></phrase></para>",
                 inline: "Subscript",
             }],
         ),
@@ -3747,12 +3760,13 @@ mod tests {
                     "member",
                     "natlang",
                     "para",
+                    "phrase",
                     "quote",
                     "secondary",
                     "td",
                     "title",
                 ],
-                probe: "<para><valsi>PROBE</valsi></para>",
+                probe: "<para><phrase><valsi>PROBE</valsi></phrase></para>",
                 inline: "Link",
             }],
         ),
