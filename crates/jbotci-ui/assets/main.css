@@ -6848,9 +6848,10 @@ body::-webkit-scrollbar-thumb:hover,
   margin: 0;
 }
 
+/* The frame is a block as wide as its picture, centered in the column. */
 .cll-page .cll-media {
-  margin: 0.68rem 0;
-  display: inline-block;
+  margin: 0.68rem auto;
+  display: block;
   width: max-content;
   max-width: 100%;
   padding: 0.3rem;
@@ -6861,7 +6862,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 /* The CLL art includes pictures over 1300px wide, so
- * its natural size is far larger than it should appear. Cap the height at half
+ * its natural size is far larger than it should appear. Cap the height at a quarter
  * of the viewport, and let the width follow from the aspect ratio; max-width
  * still keeps a picture inside a narrow column. dvh tracks the visible
  * viewport on mobile browsers and in the installed app; vh is the fallback. */
@@ -6870,8 +6871,8 @@ body::-webkit-scrollbar-thumb:hover,
   width: auto;
   height: auto;
   max-width: 100%;
-  max-height: 50vh;
-  max-height: 50dvh;
+  max-height: 25vh;
+  max-height: 25dvh;
   border-radius: 6px;
 }
 
