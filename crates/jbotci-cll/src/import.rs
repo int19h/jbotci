@@ -2222,7 +2222,13 @@ fn parse_interlinear_gloss_block(
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_none_or(|rows| {
+    rows.len() == 2
+        && rows[0].kind == CllInterlinearRowKind::Jbo
+        && rows[1].kind == CllInterlinearRowKind::Gloss
+        && rows[0].cells.len() > 1
+        && rows[0].cells.len() == rows[1].cells.len()
+}))]
 fn aligned_interlinear_rows(line_elements: &[Node<'_, '_>]) -> Option<Vec<CllInterlinearRow>> {
     let jbo_line = single_named_line(line_elements, "jbo")?;
     let gloss_line = single_named_line(line_elements, "gloss")?;
