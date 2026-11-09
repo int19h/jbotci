@@ -4808,7 +4808,7 @@ fn social_image_for_cll_media(base_path: &str, src: &str) -> Option<SocialImage>
 #[ensures(true)]
 fn cll_media_dimensions(file_name: &str) -> Option<(usize, usize)> {
     match file_name {
-        "chapter-2-diagram.svg.png" => Some((1200, 800)),
+        "chapter-2-diagram.svg.png" => Some((1200, 576)),
         "chapter-about.png" => Some((1388, 1202)),
         "chapter-abstractions.png" => Some((966, 947)),
         "chapter-anaphoric-cmavo.png" => Some((1450, 1155)),

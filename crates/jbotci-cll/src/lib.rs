@@ -1933,7 +1933,7 @@ mod tests {
 
         assert_eq!(
             chunk.text,
-            "mi klama le zarci\nI go-to that-which-I-describe-as-a store.\nI go to the store."
+            "mi klama lo zarci\nI go-to the store.\nI go to the store."
         );
     }
 
@@ -2106,7 +2106,7 @@ mod tests {
         let example = cll_lookup_example(site, "c14e6d3").expect("Example 14.27");
         assert_eq!(
             example.lojban,
-            "la .djan. cu co'e .ije\nla .alis. klama le zarci"
+            "la .djan. cu co'e .ije\nla .alis. klama lo zarci"
         );
         let words = segment_words_with_modifiers(&example.lojban).expect("example word forms");
         parse_syntax_tree_with_options(&words, &ParseOptions::default())
