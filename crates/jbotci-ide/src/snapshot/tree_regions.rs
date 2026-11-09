@@ -452,6 +452,8 @@ fn collect_parse_regions(parse: &SyntaxRecoveryParse, line_index: &LineIndex) ->
             let data!(TreeRegionCollector { regions, .. }) = collector.into_data();
             regions.into_inner()
         }
+        // No regions: the cancellation flag stopped the parse before a tree existed.
+        SyntaxRecoveryParseData::Interrupted => Vec::new(),
     }
 }
 

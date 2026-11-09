@@ -317,6 +317,7 @@ mod tests {
             &[SearchRequest::valsi(query.to_owned())],
             &VlackuSearchOptions::default().with_data(data! { count: 10, decompose_lujvo: true }),
         )
+        .expect("the test token stays clear")
         .cards
     }
 

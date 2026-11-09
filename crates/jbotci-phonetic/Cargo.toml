@@ -15,10 +15,14 @@ expensive_contracts = []
 [dependencies]
 jbotci-budget.workspace = true
 bityzba.workspace = true
+jbotci-interrupt.workspace = true
 jbotci-morphology.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 unicode-normalization.workspace = true
+
+[dev-dependencies]
+jbotci-interrupt = { workspace = true, features = ["cancellation_test_hook"] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

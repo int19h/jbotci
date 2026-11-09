@@ -192,6 +192,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "carries the delivery ticket that protects the admitted id; every ticket is valid",
     ),
     (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Interrupted",
+        "unit marker: the diagram stopped because the cancellation flag was set, and no image is returned",
+    ),
+    (
         "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Render",
         "render error carries only the renderer's message",
     ),
@@ -374,6 +378,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/operations.rs:GimfihiPlan::Setup",
         "plan carries only the optional preset",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:JvozbaInputError::Interrupted",
+        "unit marker: compound segmentation stopped because the cancellation flag was set",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:JvozbaInputError::Invalid",
+        "payload is a request-validation error that already carries its own invariant",
     ),
     (
         "apps/jbotci-server/src/discord/operations.rs:OperationError::Diagram",
@@ -1592,6 +1604,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Interrupted",
+        "unit marker: layout or encoding stopped because the cancellation flag was set",
+    ),
+    (
         "crates/jbotci-gentufa/src/render.rs:GentufaExportError::InvalidSize",
         "export error variant carries no payload beyond the discriminant",
     ),
@@ -1638,6 +1654,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidWeight",
         "gimfihi error variant carries raw invalid user input, including possible empty text",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::Interrupted",
+        "unit marker: gismu scoring stopped because the cancellation flag was set, and no partial ranking is returned",
     ),
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingExplicitWeight",
@@ -1698,6 +1718,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
         "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::Interrupted",
+        "unit marker: compound morphology stopped because the cancellation flag was set, and no partial word is returned",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoDictionaryEntry",
@@ -1772,6 +1796,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "DialectExpansionFailure validates the source span and the structured expansion violation.",
     ),
     (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::Interrupted",
+        "unit signal that the cancellation flag stopped morphology; it carries no rejected word",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
         "diagnostic enum records rejected parser inputs",
     ),
@@ -1818,6 +1846,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/lib.rs:OutputError::Diagnostic",
         "error wrapper carries Ariadne renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Interrupted",
+        "unit marker: rendering stopped because the cancellation flag was set, and no partial document is returned",
     ),
     (
         "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
@@ -2016,6 +2048,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "phonetic error variant is a closed diagnostic selector with no payload invariants",
     ),
     (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Interrupted",
+        "unit signal that the cancellation flag stopped segmentation; it carries no rejected query",
+    ),
+    (
         "crates/jbotci-phonetic/src/lib.rs:PhoneticError::MissingClosingBracket",
         "phonetic error variant is a closed diagnostic selector with no payload invariants",
     ),
@@ -2090,6 +2126,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:NextPlace::Numbered",
         "wraps NonZeroU8, which excludes zero by construction",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceAnalysisError::Interrupted",
+        "unit marker: the reference walk stopped because the cancellation flag was set, and the partial index is dropped",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceAnalysisError::NumberedPlaceExhausted",
@@ -2476,6 +2516,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid ZAhO atoms",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryParseOutcome::Interrupted",
+        "an interrupted recovery holds only the optional trace; the trace report has no further constraint on this arm",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
         "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
     ),
@@ -2540,8 +2584,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental cmavo context carries validated Selmaho values",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxError::Interrupted",
+        "unit signal that the cancellation flag stopped the parser; it carries no syntax error",
+    ),
+    (
         "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",
         "diagnostic enum records parser error location and message",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxRecoveryParse::Interrupted",
+        "unit signal that the cancellation flag stopped a recovery parse before any tree was kept",
     ),
     (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
@@ -2732,8 +2784,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web bracket fragments mirror renderer output, including empty fallback text",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:GentufaSyntaxStop::Failed",
+        "wraps an already built gentufa error; the stop adds no further payload constraint",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaSyntaxStop::Interrupted",
+        "unit marker: web syntax preparation stopped because the cancellation flag was set",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
         "error wrapper carries parser diagnostic text without additional semantic state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Interrupted",
+        "unit marker: web morphology stopped because the cancellation flag was set, and no word list is returned",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Blank",

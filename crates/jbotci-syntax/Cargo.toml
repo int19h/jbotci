@@ -16,6 +16,7 @@ expensive_contracts = []
 bityzba.workspace = true
 jbotci-diagnostics.workspace = true
 jbotci-dialect.workspace = true
+jbotci-interrupt.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 jbotci-morphology.workspace = true
@@ -26,6 +27,9 @@ serde_json.workspace = true
 smallvec.workspace = true
 rustc-hash.workspace = true
 vec1.workspace = true
+
+[dev-dependencies]
+jbotci-interrupt = { workspace = true, features = ["cancellation_test_hook"] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

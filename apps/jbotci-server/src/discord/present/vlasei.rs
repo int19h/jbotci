@@ -27,6 +27,7 @@ pub(crate) fn render_in_scope(
     analysis: &VlaseiAnalysis,
     request: &VlaseiRequest,
     text_scope: &jbotci_output::budget::TextScope,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> RenderedResult {
     let source = request.text.as_str();
     let options = request.options;
@@ -61,6 +62,7 @@ pub(crate) fn render_in_scope(
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             } else {
                 pretty_recovered_morphology_brackets_with_limit(
@@ -68,6 +70,7 @@ pub(crate) fn render_in_scope(
                     source,
                     bracket_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             };
             let text = super::render_output_in_scope(result, text_scope);
@@ -80,6 +83,7 @@ pub(crate) fn render_in_scope(
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             } else {
                 pretty_recovered_morphology_tree_with_limit(
@@ -87,6 +91,7 @@ pub(crate) fn render_in_scope(
                     source,
                     tree_options(phonemes, options.decompose_lujvo),
                     text_scope.limit(),
+                    cancellation,
                 )
             };
             let text = super::render_output_in_scope(result, text_scope);
@@ -308,7 +313,12 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
     let text_scope = jbotci_output::budget::TextScope::new(
         jbotci_output::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
-    let result = render_in_scope(analysis, request, &text_scope);
+    let result = render_in_scope(
+        analysis,
+        request,
+        &text_scope,
+        &jbotci_interrupt::CancellationToken::never(),
+    );
     text_scope
         .finish(String::new())
         .expect("unrestricted Discord rendering");
@@ -339,7 +349,13 @@ mod tests {
     #[ensures(true)]
     fn words_view_uses_morphology_boundaries_and_marks_skipped_input() {
         let request = request("coiro'ido 'x klama", VlaseiView::Words, false);
-        let analysis = analyze_vlasei(request.text.as_str(), None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            request.text.as_str(),
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let rendered = render(&analysis, &request);
         let body = rendered.body.join("\n");
         assert!(body.contains("coi — cmavo"), "{body}");
@@ -362,7 +378,13 @@ mod tests {
     fn other_views_render_the_shared_renderers_in_code_blocks() {
         for view in [VlaseiView::Brackets, VlaseiView::Tree, VlaseiView::Ipa] {
             let request = request("mi klama", view, false);
-            let analysis = analyze_vlasei(request.text.as_str(), None, None).expect("analysis");
+            let analysis = analyze_vlasei(
+                request.text.as_str(),
+                None,
+                None,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("analysis");
             let rendered = render(&analysis, &request);
             assert!(
                 rendered.body[0].starts_with("```\n"),
@@ -377,7 +399,13 @@ mod tests {
             );
         }
         let ipa = request("mi klama", VlaseiView::Ipa, false);
-        let analysis = analyze_vlasei(ipa.text.as_str(), None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            ipa.text.as_str(),
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let rendered = render(&analysis, &ipa);
         assert!(
             rendered
@@ -388,7 +416,13 @@ mod tests {
             rendered.full_text
         );
         let decomposed = request("klabajra", VlaseiView::Words, true);
-        let analysis = analyze_vlasei(decomposed.text.as_str(), None, None).expect("analysis");
+        let analysis = analyze_vlasei(
+            decomposed.text.as_str(),
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         let rendered = render(&analysis, &decomposed);
         assert!(
             rendered.body[0].contains("lujvo\\: kla + bájra"),

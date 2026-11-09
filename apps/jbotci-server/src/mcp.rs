@@ -13,7 +13,6 @@ use bityzba::{data, invariant, new, requires};
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest,
     ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, ToolVlaseiRequest,
-    run_tool_gentufa_with_limits, run_tool_gimfihi_with_limits, run_tool_vlasei_with_limits,
     tool_request_schema,
 };
 use serde::Deserialize;
@@ -718,27 +717,52 @@ async fn call_tool_with_deadline(
             .await
         }
         "jvozba" => {
-            call_typed_tool(arguments, execution, deadline, move |request| {
-                jbotci_cli::run_tool_jvozba_with_limits(request, &limits)
-            })
+            call_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, cancellation| {
+                    jbotci_cli::run_tool_jvozba_with_limits(request, &limits, cancellation)
+                },
+            )
             .await
         }
         "vlasei" => {
-            call_typed_tool(arguments, execution, deadline, move |request| {
-                run_tool_vlasei_with_limits(request, &limits)
-            })
+            call_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, cancellation| {
+                    jbotci_cli::run_tool_vlasei_with_limits(request, &limits, cancellation)
+                },
+            )
             .await
         }
         "gentufa" => {
-            call_typed_tool(arguments, execution, deadline, move |request| {
-                run_tool_gentufa_with_limits(request, &limits)
-            })
+            call_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, cancellation| {
+                    jbotci_cli::run_tool_gentufa_with_limits(request, &limits, cancellation)
+                },
+            )
             .await
         }
         "gimfihi" => {
-            call_typed_tool(arguments, execution, deadline, move |request| {
-                run_tool_gimfihi_with_limits(request, GimfihiSourceWordKind::Ipa, &limits)
-            })
+            call_typed_tool(
+                arguments,
+                execution,
+                deadline,
+                move |request, cancellation| {
+                    jbotci_cli::run_tool_gimfihi_with_limits(
+                        request,
+                        GimfihiSourceWordKind::Ipa,
+                        &limits,
+                        cancellation,
+                    )
+                },
+            )
             .await
         }
         _ => ToolResult::error_bounded(format_args!("Unknown tool: {name}"), &execution.policy),
@@ -798,7 +822,9 @@ async fn call_typed_tool<T, F>(
 ) -> ToolResult
 where
     T: for<'de> Deserialize<'de> + ServerRequest + Send + 'static,
-    F: FnOnce(T) -> anyhow::Result<ToolRenderedOutput> + Send + 'static,
+    F: FnOnce(T, &jbotci_interrupt::CancellationToken) -> anyhow::Result<ToolRenderedOutput>
+        + Send
+        + 'static,
 {
     let request = match serde_json::from_value::<T>(arguments) {
         Ok(request) => request,
@@ -816,7 +842,8 @@ where
         Ok(context) => context,
         Err(error) => return ToolResult::work_error(error),
     };
-    let payload = match context.run(move || runner(request)).await {
+    let cancellation = context.token();
+    let payload = match context.run(move || runner(request, &cancellation)).await {
         Ok(Ok(output)) => ToolPayload::Output(output),
         Ok(Err(error)) => {
             let mut result = ToolResult::failed(error, &execution.policy);
@@ -1130,9 +1157,12 @@ async fn coded_error_json_response(
     } else {
         context.deadline
     };
-    match crate::work::run_admitted(context.lease.clone(), deadline, move || {
-        tool_json_response(id, result, &policy)
-    })
+    match crate::work::run_admitted(
+        context.lease.clone(),
+        deadline,
+        context.cancellation_source(),
+        move || tool_json_response(id, result, &policy),
+    )
     .await
     {
         Ok(response) => response,

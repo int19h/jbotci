@@ -3,13 +3,15 @@ use jbotci_dictionary::{
     Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegmentKind, Keyword,
     WordType, normalize_lookup_query,
 };
-use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
+use jbotci_interrupt::CancellationToken;
+use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
-    LujvoPart, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData, canonicalize_text,
-    lex_single_word, normalize_lojban_input_text, segment_words_with_modifiers,
+    LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
+    canonicalize_text, lex_single_word, normalize_lojban_input_text,
+    segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
-    AlineSimilarityScratch, compare_similarity_then_index, prepare_sound_query,
+    AlineSimilarityScratch, PreparedAlineQuery, compare_similarity_then_index, prepare_sound_query,
     sound_query_to_sequence,
 };
 use regex::Regex;
@@ -78,6 +80,9 @@ pub struct VlackuSearchOptions {
     pub min_votes: Option<i32>,
     pub min_similarity: Option<f32>,
     pub decompose_lujvo: bool,
+    /// The flag for morphology of the query. A caller with no deadline holds
+    /// [`CancellationToken::never`]. The dictionary walk itself does not read it.
+    pub cancellation: CancellationToken,
 }
 
 impl Default for VlackuSearchOptions {
@@ -91,6 +96,7 @@ impl Default for VlackuSearchOptions {
             min_votes: None,
             min_similarity: None,
             decompose_lujvo: false,
+            cancellation: CancellationToken::never(),
         })
     }
 }
@@ -452,23 +458,23 @@ pub fn run_vlacku_requests(
     dictionary: &Dictionary<'_>,
     requests: &[VlackuRequest],
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
     let mut cards = Vec::new();
     let mut diagnostics = Vec::new();
     let mut outcome = VlackuOutcome::Found;
 
     for request in requests {
-        let result = run_single_request(dictionary, request, options);
+        let result = run_single_request(dictionary, request, options)?;
         outcome = outcome.max(result.outcome);
         diagnostics.extend(result.diagnostics);
         cards.extend(result.cards);
     }
 
-    VlackuSearchOutput {
+    Ok(VlackuSearchOutput {
         cards,
         outcome,
         diagnostics,
-    }
+    })
 }
 
 #[requires(true)]
@@ -522,6 +528,7 @@ pub fn dictionary_cards_for_word_likes_with_limit(
                     parsed_word_vlacku_options().with_data(data! { skip: skip, count: 1 });
                 let next =
                     dictionary_cards_for_lookup_target_with_options(dictionary, &target, &options)
+                        .expect("parsed-word lookup uses a token that stays clear")
                         .into_iter()
                         .next();
                 let Some(card) = next else { break };
@@ -550,7 +557,8 @@ pub fn dictionary_matches_for_word_likes(
     let mut matches = Vec::new();
     for word_like in words {
         for target in dictionary_lookup_targets(word_like) {
-            let cards = dictionary_cards_for_lookup_target(dictionary, &target);
+            let cards = dictionary_cards_for_lookup_target(dictionary, &target)
+                .expect("parsed-word lookup uses a token that stays clear");
             if cards.is_empty() {
                 continue;
             }
@@ -751,15 +759,15 @@ fn run_single_request(
     dictionary: &Dictionary<'_>,
     request: &VlackuRequest,
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
     match request.as_data() {
         data!(VlackuRequest::Valsi(query)) => cards_for_valsi(dictionary, query, options),
-        data!(VlackuRequest::Rafsi(query)) => cards_for_rafsi(dictionary, query, options),
+        data!(VlackuRequest::Rafsi(query)) => Ok(cards_for_rafsi(dictionary, query, options)),
         data!(VlackuRequest::Lujvo(query)) => cards_for_lujvo(dictionary, query, options),
         data!(VlackuRequest::Sound(query)) => cards_for_sound(dictionary, query, options),
-        data!(VlackuRequest::Meaning(_)) => {
-            invalid_output("Semantic vlacku search requires an embedding backend.".to_owned())
-        }
+        data!(VlackuRequest::Meaning(_)) => Ok(invalid_output(
+            "Semantic vlacku search requires an embedding backend.".to_owned(),
+        )),
     }
 }
 
@@ -768,7 +776,7 @@ fn run_single_request(
 fn dictionary_cards_for_lookup_target(
     dictionary: &Dictionary<'_>,
     target: &ParsedWordLookupTarget,
-) -> Vec<VlackuCard> {
+) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
     dictionary_cards_for_lookup_target_with_options(
         dictionary,
         target,
@@ -776,24 +784,24 @@ fn dictionary_cards_for_lookup_target(
     )
 }
 #[requires(!target.lookup_text.is_empty())]
-#[ensures(ret.len() <= options.count)]
+#[ensures(ret.as_ref().is_ok_and(|cards| cards.len() <= options.count) || ret.is_err())]
 fn dictionary_cards_for_lookup_target_with_options(
     dictionary: &Dictionary<'_>,
     target: &ParsedWordLookupTarget,
     options: &VlackuSearchOptions,
-) -> Vec<VlackuCard> {
+) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
     let exact_definition_found = dictionary
         .lookup_words(&target.lookup_text)
         .any(|entry| !entry.definition.trim().is_empty());
     let output = if target.is_lujvo && !exact_definition_found {
-        cards_for_lujvo(dictionary, &target.lookup_text, &options)
+        cards_for_lujvo(dictionary, &target.lookup_text, options)?
     } else {
-        cards_for_valsi(dictionary, &target.lookup_text, &options)
+        cards_for_valsi(dictionary, &target.lookup_text, options)?
     };
-    match output.outcome {
+    Ok(match output.outcome {
         VlackuOutcome::Invalid => Vec::new(),
         VlackuOutcome::Found | VlackuOutcome::ValidMissing => output.cards,
-    }
+    })
 }
 
 #[requires(true)]
@@ -806,6 +814,7 @@ fn parsed_word_vlacku_options() -> VlackuSearchOptions {
         min_votes: None,
         min_similarity: None,
         decompose_lujvo: false,
+        cancellation: CancellationToken::never(),
     })
 }
 
@@ -959,22 +968,44 @@ fn letteral_lookup_text(base: &WordLike) -> Option<String> {
     Some(format!("{normalized} bu"))
 }
 
+/// The vote filter needs one plain word. Other morphology errors stay
+/// "not one word", which is `Ok(None)` from `lex_single_word`.
+#[requires(true)]
+#[ensures(true)]
+fn lexical_word_for_vote_filter(
+    query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Word>, jbotci_interrupt::Interrupted> {
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    match lex_single_word(query, &options) {
+        Ok(word) => Ok(word),
+        Err(error) if error.is_interrupted() => Err(jbotci_interrupt::Interrupted),
+        Err(_) => Ok(None),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn cards_for_valsi(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
     if vlacku_exact_query_is_pattern(query) {
-        return cards_for_valsi_pattern(dictionary, query.trim(), options);
+        return Ok(cards_for_valsi_pattern(dictionary, query.trim(), options));
     }
 
     // Lookup keys discard pauses and stress. Only the original input can
-    // establish whether the vote exemption applies.
-    let lexical_word = options.min_votes.and_then(|_| lex_single_word(query));
+    // establish whether the vote exemption applies. That scan is the whole
+    // query, so it uses the caller's flag. A later lookup never gets there
+    // in time to stop a long word.
+    let lexical_word = if options.min_votes.is_some() {
+        lexical_word_for_vote_filter(query, &options.cancellation)?
+    } else {
+        None
+    };
     let Some(query) = normalize_exact_lojban_query(query) else {
-        return invalid_lojban_word_output(query);
+        return Ok(invalid_lojban_word_output(query));
     };
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -983,7 +1014,7 @@ fn cards_for_valsi(
             .into_iter()
             .map(VlackuCandidate::entry)
             .collect::<Vec<_>>();
-        return found_or_missing(cards_with_optional_lujvo_sources(
+        return Ok(found_or_missing(cards_with_optional_lujvo_sources(
             dictionary,
             query,
             candidates,
@@ -991,15 +1022,17 @@ fn cards_for_valsi(
             options,
             SourceAdmission::WhenShown,
             lexical_word.as_ref(),
-        ));
+        )?));
     }
 
-    if let Some(entries) = resolve_segmented_lookup(dictionary, query) {
+    if let Some(entries) = resolve_segmented_lookup(dictionary, query, &options.cancellation)? {
         let candidates = entries
             .into_iter()
             .map(VlackuCandidate::entry)
             .collect::<Vec<_>>();
-        return found_or_missing(cards_for_candidates(dictionary, candidates, options, false));
+        return Ok(found_or_missing(cards_for_candidates(
+            dictionary, candidates, options, false,
+        )));
     }
 
     missing_exact_output(dictionary, query, options, lexical_word.as_ref())
@@ -1033,9 +1066,9 @@ fn cards_for_lujvo(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
     let Some(query) = normalize_exact_lojban_query(query) else {
-        return invalid_lojban_word_output(query);
+        return Ok(invalid_lojban_word_output(query));
     };
     let query = query.as_str();
     let normalized = normalize_lookup_query(query);
@@ -1043,13 +1076,13 @@ fn cards_for_lujvo(
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
-        let decomposition = decompose_lujvo_like(dictionary, query);
-        let candidates = match classify_exact_word(query, &normalized) {
+        let decomposition = decompose_query(dictionary, query, &options.cancellation)?;
+        let candidates = match classify_exact_word(query, &normalized, &options.cancellation)? {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
             })],
             None => {
-                return invalid_lojban_word_output(query);
+                return Ok(invalid_lojban_word_output(query));
             }
         };
         runtime_decomposition = decomposition;
@@ -1074,7 +1107,7 @@ fn cards_for_lujvo(
         if let Some(decomposition) = dictionary_decomposition {
             extend_unique_candidates(
                 &mut candidates,
-                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options)?,
                 dictionary,
                 options,
             );
@@ -1085,7 +1118,7 @@ fn cards_for_lujvo(
     if let Some(decomposition) = runtime_decomposition.as_ref() {
         extend_unique_candidates(
             &mut candidates,
-            candidates_for_lujvo_decomposition(dictionary, decomposition, options),
+            candidates_for_lujvo_decomposition(dictionary, decomposition, options)?,
             dictionary,
             options,
         );
@@ -1097,11 +1130,11 @@ fn cards_for_lujvo(
     } else {
         VlackuOutcome::ValidMissing
     };
-    VlackuSearchOutput {
+    Ok(VlackuSearchOutput {
         cards,
         outcome,
         diagnostics: Vec::new(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -1423,37 +1456,19 @@ fn cards_for_sound(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
-) -> VlackuSearchOutput {
-    let query_sound = match sound_query_to_sequence(query) {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
+    // Query preparation segments an unbracketed Lojban query. That scan is
+    // the whole query, so it uses the caller's flag and stops before ranking.
+    let query_sound = match sound_query_to_sequence(query, &options.cancellation) {
         Ok(sequence) => sequence,
-        Err(error) => return invalid_output(error.to_string()),
+        Err(error) if error.is_interrupted() => return Err(jbotci_interrupt::Interrupted),
+        Err(error) => return Ok(invalid_output(error.to_string())),
     };
 
-    let mut scratch = AlineSimilarityScratch::default();
-    let prepared_query = prepare_sound_query(&query_sound);
-    let entries = dictionary.entries();
-    let sound_index = dictionary.sound_index();
-    let mut scored = sound_index
-        .iter()
-        .filter_map(|sound_entry| {
-            let entry = entries.get(sound_entry.entry_index.get())?;
-            if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
-                return None;
-            }
-            let similarity = prepared_query
-                .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
-                as f32;
-            dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true).then(
-                || {
-                    new!(SoundScoreEntry {
-                        entry_index: sound_entry.entry_index.get(),
-                        similarity,
-                        entry,
-                    })
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    // Preparation builds tables sized by the query. It loads the caller's
+    // flag while it does that and returns before any dictionary comparison.
+    let prepared_query = prepare_sound_query(&query_sound, &options.cancellation)?;
+    let mut scored = rank_sound_entries(&prepared_query, dictionary, options)?;
     // The window's own end is what has to be ranked; the scored entries are
     // an index and a score, and only the window becomes cards.
     retain_best_sound_scores(&mut scored, options.skip.saturating_add(options.count));
@@ -1470,7 +1485,7 @@ fn cards_for_sound(
             )
         })
         .collect();
-    found_or_missing(cards)
+    Ok(found_or_missing(cards))
 }
 
 #[invariant(similarity.is_finite())]
@@ -1479,6 +1494,46 @@ struct SoundScoreEntry<'dictionary> {
     entry_index: usize,
     similarity: f32,
     entry: &'dictionary DictionaryEntry<'dictionary>,
+}
+
+/// Score every sound-index entry against one prepared query.
+///
+/// Each comparison walks the whole query, so the cost grows with the query.
+/// One load per entry stops before that comparison. A set flag drops every
+/// score gathered so far.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|scored| scored.len() <= dictionary.sound_index().len()) || ret.is_err())]
+fn rank_sound_entries<'dictionary>(
+    prepared_query: &PreparedAlineQuery,
+    dictionary: &'dictionary Dictionary<'dictionary>,
+    options: &VlackuSearchOptions,
+) -> Result<Vec<SoundScoreEntry<'dictionary>>, jbotci_interrupt::Interrupted> {
+    let mut scratch = AlineSimilarityScratch::default();
+    let entries = dictionary.entries();
+    let sound_index = dictionary.sound_index();
+    let mut scored = Vec::with_capacity(sound_index.len());
+    for sound_entry in sound_index {
+        if options.cancellation.is_cancelled() {
+            return Err(jbotci_interrupt::Interrupted);
+        }
+        let Some(entry) = entries.get(sound_entry.entry_index.get()) else {
+            continue;
+        };
+        if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
+            continue;
+        }
+        let similarity = prepared_query
+            .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
+            as f32;
+        if dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true) {
+            scored.push(new!(SoundScoreEntry {
+                entry_index: sound_entry.entry_index.get(),
+                similarity,
+                entry,
+            }));
+        }
+    }
+    Ok(scored)
 }
 
 #[requires(true)]
@@ -1557,14 +1612,15 @@ fn missing_exact_output(
     query: &str,
     options: &VlackuSearchOptions,
     lexical_word: Option<&Word>,
-) -> VlackuSearchOutput {
+) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
     let normalized = normalize_lookup_query(query);
-    match classify_exact_word(query, &normalized) {
+    match classify_exact_word(query, &normalized, &options.cancellation)? {
         Some(classification) => {
-            let decomposition = options
-                .decompose_lujvo
-                .then(|| decompose_lujvo_like(dictionary, query))
-                .flatten();
+            let decomposition = if options.decompose_lujvo {
+                decompose_query(dictionary, query, &options.cancellation)?
+            } else {
+                None
+            };
             let cards = cards_with_optional_lujvo_sources(
                 dictionary,
                 query,
@@ -1575,14 +1631,14 @@ fn missing_exact_output(
                 options,
                 SourceAdmission::Always,
                 lexical_word,
-            );
-            VlackuSearchOutput {
+            )?;
+            Ok(VlackuSearchOutput {
                 cards,
                 outcome: VlackuOutcome::ValidMissing,
                 diagnostics: Vec::new(),
-            }
+            })
         }
-        None => invalid_lojban_word_output(query),
+        None => Ok(invalid_lojban_word_output(query)),
     }
 }
 
@@ -1611,7 +1667,7 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
     options: &VlackuSearchOptions,
     admission: SourceAdmission,
     lexical_word: Option<&Word>,
-) -> Vec<VlackuCard> {
+) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
     let exact_word = options.min_votes.and(lexical_word);
     if exact_word.is_some() {
         for candidate in &mut candidates {
@@ -1628,21 +1684,23 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
         if let Some(decomposition) = dictionary_lujvo_decomposition_for_query(dictionary, query) {
             extend_unique_candidates(
                 &mut candidates,
-                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options)?,
                 dictionary,
                 options,
             );
         } else if let Some(decomposition) = runtime_decomposition {
             extend_unique_candidates(
                 &mut candidates,
-                candidates_for_lujvo_decomposition(dictionary, decomposition, options),
+                candidates_for_lujvo_decomposition(dictionary, decomposition, options)?,
                 dictionary,
                 options,
             );
-        } else if let Some(decomposition) = decompose_lujvo_like(dictionary, query) {
+        } else if let Some(decomposition) =
+            decompose_query(dictionary, query, &options.cancellation)?
+        {
             extend_unique_candidates(
                 &mut candidates,
-                candidates_for_lujvo_decomposition(dictionary, &decomposition, options),
+                candidates_for_lujvo_decomposition(dictionary, &decomposition, options)?,
                 dictionary,
                 options,
             );
@@ -1653,7 +1711,7 @@ fn cards_with_optional_lujvo_sources<'dictionary>(
             candidate.exempt_votes();
         }
     }
-    cards_for_candidates(dictionary, candidates, options, false)
+    Ok(cards_for_candidates(dictionary, candidates, options, false))
 }
 
 #[requires(true)]
@@ -1673,7 +1731,7 @@ fn candidates_for_lujvo_decomposition<'dictionary>(
     dictionary: &'dictionary Dictionary<'dictionary>,
     decomposition: &LujvoDecomposition<'_>,
     options: &VlackuSearchOptions,
-) -> Vec<VlackuCandidate<'dictionary>> {
+) -> Result<Vec<VlackuCandidate<'dictionary>>, jbotci_interrupt::Interrupted> {
     let mut candidates = Vec::new();
     for source_word in &decomposition.source_words {
         if let Some(entry) = dictionary.lookup_word(source_word) {
@@ -1688,12 +1746,12 @@ fn candidates_for_lujvo_decomposition<'dictionary>(
     if let Some(surface) = final_rafsi_surface(decomposition) {
         extend_unique_candidates(
             &mut candidates,
-            candidates_for_lujvo_final_segment(dictionary, surface),
+            candidates_for_lujvo_final_segment(dictionary, surface, &options.cancellation)?,
             dictionary,
             options,
         );
     }
-    candidates
+    Ok(candidates)
 }
 
 #[requires(true)]
@@ -1702,7 +1760,7 @@ fn candidates_for_dictionary_lujvo_decomposition<'dictionary>(
     dictionary: &'dictionary Dictionary<'dictionary>,
     decomposition: &DictionaryLujvoEntry<'_>,
     options: &VlackuSearchOptions,
-) -> Vec<VlackuCandidate<'dictionary>> {
+) -> Result<Vec<VlackuCandidate<'dictionary>>, jbotci_interrupt::Interrupted> {
     let mut candidates = Vec::new();
     for source_word in decomposition.source_words {
         if let Some(entry) = dictionary.lookup_word(source_word) {
@@ -1717,12 +1775,12 @@ fn candidates_for_dictionary_lujvo_decomposition<'dictionary>(
     if let Some(surface) = final_dictionary_rafsi_surface(decomposition) {
         extend_unique_candidates(
             &mut candidates,
-            candidates_for_lujvo_final_segment(dictionary, surface),
+            candidates_for_lujvo_final_segment(dictionary, surface, &options.cancellation)?,
             dictionary,
             options,
         );
     }
-    candidates
+    Ok(candidates)
 }
 
 #[requires(true)]
@@ -1758,42 +1816,49 @@ fn final_dictionary_rafsi_surface<'a>(
 fn candidates_for_lujvo_final_segment<'dictionary>(
     dictionary: &'dictionary Dictionary<'dictionary>,
     surface: &str,
-) -> Vec<VlackuCandidate<'dictionary>> {
+    cancellation: &CancellationToken,
+) -> Result<Vec<VlackuCandidate<'dictionary>>, jbotci_interrupt::Interrupted> {
     let normalized = normalize_lookup_query(surface);
-    let Some(classification) = classify_exact_word(surface, &normalized) else {
-        return Vec::new();
+    let Some(classification) = classify_exact_word(surface, &normalized, cancellation)? else {
+        return Ok(Vec::new());
     };
     if !classification.word_type.is_brivla() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     let entries = dictionary.lookup_words(&normalized).collect::<Vec<_>>();
     if entries.is_empty() {
-        vec![new!(VlackuCandidate::Missing {
+        Ok(vec![new!(VlackuCandidate::Missing {
             card: unknown_card(classification, None),
-        })]
+        })])
     } else {
-        entries.into_iter().map(VlackuCandidate::entry).collect()
+        Ok(entries.into_iter().map(VlackuCandidate::entry).collect())
     }
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|entries| entries.len() > 1))]
+#[ensures(ret.as_ref().is_ok_and(|entries| entries.as_ref().is_none_or(|entries| entries.len() > 1)) || ret.is_err())]
 fn resolve_segmented_lookup<'lookup, 'a>(
     dictionary: &'lookup Dictionary<'a>,
     raw_query: &str,
-) -> Option<Vec<&'lookup DictionaryEntry<'a>>> {
-    let words = segment_words_with_modifiers(raw_query).ok()?;
+    cancellation: &CancellationToken,
+) -> Result<Option<Vec<&'lookup DictionaryEntry<'a>>>, jbotci_interrupt::Interrupted> {
+    let Some(words) = segment_query(raw_query, cancellation)? else {
+        return Ok(None);
+    };
     if words.len() <= 1 {
-        return None;
+        return Ok(None);
     }
 
     let mut entries = Vec::with_capacity(words.len());
     for word in &words {
         let surface = flattened_word_like_phonemes(word);
-        entries.push(dictionary.lookup_word(&surface)?);
+        let Some(entry) = dictionary.lookup_word(&surface) else {
+            return Ok(None);
+        };
+        entries.push(entry);
     }
-    Some(entries)
+    Ok(Some(entries))
 }
 
 #[requires(true)]
@@ -1934,22 +1999,78 @@ fn is_visible_pause_dot(value: char) -> bool {
     value == '.'
 }
 
+/// Segment the query with the caller's flag. A morphology error that is not
+/// the flag is "this text is not words", which is the old `.ok()` answer.
+/// The flag is not that answer.
 #[requires(true)]
 #[ensures(true)]
-fn classify_exact_word(raw_query: &str, normalized_query: &str) -> Option<WordClassification> {
-    if normalized_query.is_empty() {
-        return None;
+fn segment_query(
+    raw_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Vec<WordLike>>, jbotci_interrupt::Interrupted> {
+    let morphology = MorphologyOptions::default().with_cancellation(cancellation);
+    match segment_words_with_modifiers_with_options_and_source_id(raw_query, &morphology, None) {
+        Ok(words) => Ok(Some(words)),
+        Err(error) if error.is_interrupted() => Err(jbotci_interrupt::Interrupted),
+        Err(_) => Ok(None),
     }
-    let words = segment_words_with_modifiers(raw_query).ok()?;
-    let [word_like] = words.as_slice() else {
-        return None;
+}
+
+/// Parts of a query word. `decompose_lujvo_like` already returns `Ok(None)`
+/// when the word has no analysis. Its only error today is the flag. Another
+/// error is not "no parts": that reading would change the cards a lookup shows.
+#[requires(true)]
+#[ensures(true)]
+fn decompose_query<'a>(
+    dictionary: &Dictionary<'a>,
+    query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<LujvoDecomposition<'a>>, jbotci_interrupt::Interrupted> {
+    match decompose_lujvo_like(dictionary, query, cancellation) {
+        Ok(decomposition) => Ok(decomposition),
+        Err(JvozbaError::Interrupted) => Err(jbotci_interrupt::Interrupted),
+        // Named so a new `JvozbaError` variant fails here at compile time.
+        // `decompose_lujvo_like` does not return these from a query word.
+        Err(
+            error @ (JvozbaError::RequiresAtLeastTwoInputs
+            | JvozbaError::FixedRafsiEmpty
+            | JvozbaError::NonFinalUniversalLongRafsi { .. }
+            | JvozbaError::FinalConsonant { .. }
+            | JvozbaError::NoRafsiAvailable { .. }
+            | JvozbaError::NoDictionaryEntry { .. }
+            | JvozbaError::TooMuchWork { .. }
+            | JvozbaError::CouldNotBuildLujvo
+            | JvozbaError::CouldNotBuildCompound),
+        ) => {
+            unreachable!("vlacku lujvo decomposition failed without the cancellation flag: {error}")
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|classification| classification.as_ref().is_none_or(|classification| !classification.word.is_empty())) || ret.is_err())]
+fn classify_exact_word(
+    raw_query: &str,
+    normalized_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<WordClassification>, jbotci_interrupt::Interrupted> {
+    if normalized_query.is_empty() {
+        return Ok(None);
+    }
+    let Some(words) = segment_query(raw_query, cancellation)? else {
+        return Ok(None);
     };
-    let word = word_like.bare_word()?;
-    Some(WordClassification {
+    let [word_like] = words.as_slice() else {
+        return Ok(None);
+    };
+    let Some(word) = word_like.bare_word() else {
+        return Ok(None);
+    };
+    Ok(Some(WordClassification {
         word: normalized_query.to_owned(),
         word_type: word_kind_type_key(word.kind()),
         selmaho: word.selmaho().map(str::to_owned),
-    })
+    }))
 }
 
 #[requires(true)]
@@ -2355,8 +2476,11 @@ fn is_lojban_vowel(value: char) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::*;
     use bityzba::requires;
+    use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::segment_words_with_modifiers;
 
     #[requires(true)]
@@ -2380,12 +2504,23 @@ mod tests {
         cards.iter().map(|card| card.word.as_str()).collect()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn search(
+        dictionary: &Dictionary<'_>,
+        requests: &[VlackuRequest],
+        options: &VlackuSearchOptions,
+    ) -> VlackuSearchOutput {
+        super::run_vlacku_requests(dictionary, requests, options)
+            .expect("the test token stays clear")
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn a_window_into_a_search_is_that_stretch_of_the_whole_result() {
         let dictionary = jbotci_dictionary_data::english();
-        let whole = run_vlacku_requests(
+        let whole = search(
             dictionary,
             &[VlackuRequest::valsi("kla*".to_owned())],
             &window(0, usize::MAX),
@@ -2396,7 +2531,7 @@ mod tests {
             whole.cards.len()
         );
 
-        let third_page = run_vlacku_requests(
+        let third_page = search(
             dictionary,
             &[VlackuRequest::valsi("kla*".to_owned())],
             &window(10, 6),
@@ -2405,12 +2540,12 @@ mod tests {
 
         // Sound search ranks before it windows, so the window has to be the
         // same stretch of the ranking rather than of the dictionary.
-        let whole_sound = run_vlacku_requests(
+        let whole_sound = search(
             dictionary,
             &[VlackuRequest::sound("klama".to_owned())],
             &window(0, 16),
         );
-        let later_sound = run_vlacku_requests(
+        let later_sound = search(
             dictionary,
             &[VlackuRequest::sound("klama".to_owned())],
             &window(10, 6),
@@ -2436,13 +2571,13 @@ mod tests {
             VlackuRequest::rafsi("kla".to_owned()),
             VlackuRequest::lujvo("backemselrerkru".to_owned()),
         ] {
-            let whole = run_vlacku_requests(dictionary, std::slice::from_ref(&request), &sources);
+            let whole = search(dictionary, std::slice::from_ref(&request), &sources);
             assert!(
                 !whole.cards.is_empty(),
                 "{request:?} finds nothing to page through"
             );
             for start in (0..whole.cards.len()).step_by(PAGE) {
-                let window = run_vlacku_requests(
+                let window = search(
                     dictionary,
                     std::slice::from_ref(&request),
                     &sources.clone().with_data(data! {
@@ -2460,7 +2595,7 @@ mod tests {
             }
             // A window past the end holds nothing rather than the last page
             // over again.
-            let past_the_end = run_vlacku_requests(
+            let past_the_end = search(
                 dictionary,
                 std::slice::from_ref(&request),
                 &sources.clone().with_data(data! {
@@ -2471,7 +2606,7 @@ mod tests {
             assert!(past_the_end.cards.is_empty(), "{request:?} past the end");
         }
 
-        let long = run_vlacku_requests(
+        let long = search(
             dictionary,
             &[VlackuRequest::lujvo("backemselrerkru".to_owned())],
             &sources,
@@ -2497,7 +2632,7 @@ mod tests {
         // A word the dictionary holds: filtering the lujvo away takes the
         // words it is built from with it, because they were offered as its
         // parts.
-        let attested = run_vlacku_requests(
+        let attested = search(
             dictionary,
             &[VlackuRequest::valsi("lojbangirzu".to_owned())],
             &gismu_only,
@@ -2507,7 +2642,7 @@ mod tests {
         // A word it does not hold: the lookup itself is the reason its parts
         // are offered, and they are results in their own right, so a filter
         // that excludes the lujvo still shows them.
-        let missing = run_vlacku_requests(
+        let missing = search(
             dictionary,
             &[VlackuRequest::valsi("klabajra".to_owned())],
             &gismu_only,
@@ -2533,7 +2668,7 @@ mod tests {
             VlackuRequest::valsi("feklat".to_owned()),
             VlackuRequest::lujvo("feklat".to_owned()),
         ] {
-            let found = run_vlacku_requests(dictionary, std::slice::from_ref(&request), &sources);
+            let found = search(dictionary, std::slice::from_ref(&request), &sources);
             assert_eq!(
                 words(&found.cards),
                 vec!["feklat", "fenki", "mlatu"],
@@ -2597,19 +2732,19 @@ mod tests {
         // Two words run together are two results, and three are three: each
         // occurrence is a word of the text that was looked up, not the same
         // result found twice.
-        let twice = run_vlacku_requests(
+        let twice = search(
             dictionary,
             &[VlackuRequest::valsi("mimi".to_owned())],
             &sources,
         );
         assert_eq!(words(&twice.cards), vec!["mi", "mi"]);
-        let thrice = run_vlacku_requests(
+        let thrice = search(
             dictionary,
             &[VlackuRequest::valsi("mimimi".to_owned())],
             &sources,
         );
         assert_eq!(words(&thrice.cards), vec!["mi", "mi", "mi"]);
-        let both = run_vlacku_requests(
+        let both = search(
             dictionary,
             &[VlackuRequest::valsi("doido".to_owned())],
             &sources,
@@ -2618,7 +2753,7 @@ mod tests {
 
         // A window over a repeated list takes them one at a time like any
         // other results.
-        let second = run_vlacku_requests(
+        let second = search(
             dictionary,
             &[VlackuRequest::valsi("mimi".to_owned())],
             &sources.clone().with_data(data! { skip: 1, count: 1 }),
@@ -2627,7 +2762,7 @@ mod tests {
 
         // The words a compound is built from are a different thing: they are
         // offered once however often the compound names them.
-        let compound = run_vlacku_requests(
+        let compound = search(
             dictionary,
             &[VlackuRequest::lujvo("klaklama".to_owned())],
             &sources,
@@ -2851,7 +2986,7 @@ mod tests {
     #[ensures(true)]
     fn exact_valsi_search_normalizes_non_latin_glide_words() {
         for query in ["шой", "\u{ed86}\u{eda8}"] {
-            let result = run_vlacku_requests(
+            let result = search(
                 jbotci_dictionary_data::english(),
                 &[VlackuRequest::valsi(query.to_owned())],
                 &VlackuSearchOptions::default(),
@@ -2871,7 +3006,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_valsi_glob_matches_words() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("klam@".to_owned())],
             &VlackuSearchOptions::default(),
@@ -2884,7 +3019,7 @@ mod tests {
             Some("klama")
         );
 
-        let broad = run_vlacku_requests(
+        let broad = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("$$@$@".to_owned())],
             &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
@@ -2912,7 +3047,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_valsi_glob_reports_invalid_characters() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("kl!m*".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3045,7 +3180,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sound_search_uses_precomputed_dictionary_index() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::sound("klama".to_owned())],
             &VlackuSearchOptions::default().with_data(data! { count: 1 }),
@@ -3064,7 +3199,7 @@ mod tests {
     #[ensures(true)]
     fn bracketed_rhotic_sound_query_matches_dictionary_target_r_at_identity() {
         for query in ["[pɾami]", "[pʁami]"] {
-            let result = run_vlacku_requests(
+            let result = search(
                 jbotci_dictionary_data::english(),
                 &[VlackuRequest::sound(query.to_owned())],
                 &VlackuSearchOptions::default().with_data(data! { count: 1 }),
@@ -3119,7 +3254,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_rafsi_glob_matches_listed_and_universal_rafsi() {
-        let listed = run_vlacku_requests(
+        let listed = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::rafsi("kl@".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3129,7 +3264,7 @@ mod tests {
         assert_eq!(listed.outcome, VlackuOutcome::Found);
         assert!(listed.cards.iter().any(|card| card.word == "klama"));
 
-        let universal = run_vlacku_requests(
+        let universal = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::rafsi("klam@".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3150,7 +3285,7 @@ mod tests {
     fn exact_valsi_regex_is_substring_and_case_insensitive_by_default() {
         // Fully anchored and upper-case: still resolves to exactly "klama"
         // (anchors honored, case-insensitive by default).
-        let exact = run_vlacku_requests(
+        let exact = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("/^KLAMA$/".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3164,7 +3299,7 @@ mod tests {
 
         // Unanchored substring: `/lam/` matches words that merely contain "lam"
         // (e.g. "klama"), which the old full-match behavior would have rejected.
-        let substring = run_vlacku_requests(
+        let substring = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("/lam/".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3186,7 +3321,7 @@ mod tests {
 
         // The caller's own anchors are honored: `/^kla/` restricts the match to
         // words that START with "kla".
-        let prefix = run_vlacku_requests(
+        let prefix = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("/^kla/".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3206,7 +3341,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_valsi_regex_allows_user_to_disable_case_insensitive_mode() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("/(?-i)KLAMA/".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3221,7 +3356,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_valsi_regex_reports_invalid_patterns() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("/[/".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3246,7 +3381,7 @@ mod tests {
             VlackuRequest::rafsi("!!!".to_owned()),
             VlackuRequest::lujvo("!!!".to_owned()),
         ] {
-            let result = run_vlacku_requests(
+            let result = search(
                 jbotci_dictionary_data::english(),
                 &[request],
                 &VlackuSearchOptions::default(),
@@ -3295,7 +3430,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn dictionary_absent_gismu_shaped_word_card_is_marked_unknown() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("blable".to_owned())],
             &VlackuSearchOptions::default(),
@@ -3313,7 +3448,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn dictionary_absent_lujvo_card_is_marked_unknown_with_decomposition() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("brodau".to_owned())],
             &VlackuSearchOptions::default().with_data(data! {
@@ -3333,7 +3468,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_lujvo_search_includes_dictionary_backed_fuhivla_component_card() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("jenjigu'ydi'e".to_owned())],
             &VlackuSearchOptions::default().with_data(data! {
@@ -3358,7 +3493,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_lujvo_search_uses_dictionary_backed_r_hyphen_decomposition() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("ci'artai".to_owned())],
             &VlackuSearchOptions::default().with_data(data! {
@@ -3393,7 +3528,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exact_garden_path_fuhivla_search_does_not_add_lujvo_source_cards() {
-        let result = run_vlacku_requests(
+        let result = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::valsi("pudlu'avalsi'ipo'ato".to_owned())],
             &VlackuSearchOptions::default().with_data(data! {
@@ -3469,29 +3604,29 @@ mod tests {
             .with_data(data! { min_votes: Some(i32::MAX), decompose_lujvo: true });
         for word in ["lojbangirzu", "ci'artai", "jenjigu'ydi'e"] {
             let request = VlackuRequest::valsi(word.to_owned());
-            let expected = run_vlacku_requests(
+            let expected = search(
                 dictionary,
                 std::slice::from_ref(&request),
                 &VlackuSearchOptions::default().with_data(data! { decompose_lujvo: true }),
             );
-            let actual = run_vlacku_requests(dictionary, &[request], &high);
+            let actual = search(dictionary, &[request], &high);
             assert_eq!(actual.cards, expected.cards, "{word}");
         }
         for query in ["/^lojbangirzu$/", "lojban*", "klama bajra"] {
             assert!(
-                run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query.to_owned())], &high)
+                search(dictionary, &[VlackuRequest::valsi(query.to_owned())], &high)
                     .cards
                     .is_empty(),
                 "{query}"
             );
         }
-        let name = run_vlacku_requests(
+        let name = search(
             dictionary,
             &[VlackuRequest::valsi("mumymast".to_owned())],
             &high,
         );
         assert_eq!(words(&name.cards), vec!["mumymast"]);
-        let mixed = run_vlacku_requests(
+        let mixed = search(
             dictionary,
             &[
                 VlackuRequest::valsi("klama".to_owned()),
@@ -3503,7 +3638,7 @@ mod tests {
         assert_eq!(words(&mixed.cards), vec!["klama"]);
         let gismu_only = high.with_data(data! { word_types: vec![WordTypeFilter::Gismu] });
         assert!(
-            run_vlacku_requests(
+            search(
                 dictionary,
                 &[VlackuRequest::valsi("lojbangirzu".to_owned())],
                 &gismu_only
@@ -3517,12 +3652,18 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlacku_vote_filter_keeps_cards_without_votes() {
-        let classification = classify_exact_word("brodax", "brodax").expect("valid missing word");
+        let classification = classify_exact_word(
+            "brodax",
+            "brodax",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the test token stays clear")
+        .expect("valid missing word");
         let card = unknown_card(classification, None);
         let options = VlackuSearchOptions::default().with_data(data! { min_votes: Some(i32::MAX) });
         assert!(card.votes.is_none());
         assert!(passes_filters(&card, &options, false));
-        let output = run_vlacku_requests(
+        let output = search(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::lujvo("klabajra".to_owned())],
             &options,
@@ -3532,6 +3673,178 @@ mod tests {
                 .cards
                 .iter()
                 .any(|card| !card.known && card.votes.is_none())
+        );
+    }
+
+    /// Copies of `zbasu` before the closing `y` in the slow-loop test.
+    ///
+    /// Release time of this lujvo query with a clear token is 66.04 s. The
+    /// time is the morphology of the query. The test trips at check 1,000
+    /// and does not repeat that run.
+    const SLOW_ZBASU_COPIES: usize = 400;
+    /// Copies of `zbasu` before the closing `y` in the sound-mode test.
+    ///
+    /// Release time of this sound query with a clear token is 90.02 s. The
+    /// time is query segmentation, before ranking. The test trips at check
+    /// 1,000 and does not repeat that run.
+    const SLOW_SOUND_ZBASU_COPIES: usize = 700;
+    /// Copies of `a` inside brackets in the sound-ranking test.
+    ///
+    /// Release time of ranking this bracketed query with a clear token is
+    /// 88.19 s. Preparation is outside that time. The test trips at check
+    /// 1,000 and does not repeat that run.
+    const SLOW_BRACKETED_A_COPIES: usize = 16_500;
+    /// Copies of `zbasu` before the closing `y` in the vote-filter test.
+    ///
+    /// Release time of the vote-filter lexical scan on this query with a
+    /// clear token is 103.53 s. That scan is the whole query, and it runs
+    /// before the later lookup. The test trips at check 1,000 and does not
+    /// repeat that run.
+    const SLOW_VALSI_ZBASU_COPIES: usize = 900;
+    const SLOW_LOOP_TRIP: usize = 1_000;
+    const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
+
+    #[requires(true)]
+    #[ensures(ret.cancellation == *token)]
+    fn options_with(token: &CancellationToken) -> VlackuSearchOptions {
+        VlackuSearchOptions::default().with_data(data! {
+            cancellation: token.clone(),
+            decompose_lujvo: true,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_morphology_of_a_missing_lujvo() {
+        let dictionary = jbotci_dictionary_data::english();
+        assert_exit_check(
+            |token| {
+                super::run_vlacku_requests(
+                    dictionary,
+                    &[VlackuRequest::lujvo("brodax".to_owned())],
+                    &options_with(token),
+                )
+            },
+            |error| matches!(error, jbotci_interrupt::Interrupted),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_lujvo_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let result = super::run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::lujvo(query)],
+            &options_with(&token),
+        );
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check decomposes the whole query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not a missing-word card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_valsi_vote_filter_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("{}y", "zbasu".repeat(SLOW_VALSI_ZBASU_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+            min_votes: Some(1),
+        });
+        let result =
+            super::run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query)], &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check scans the whole vote-filter word"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not a missing-word card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_sound_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("{}y", "zbasu".repeat(SLOW_SOUND_ZBASU_COPIES));
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+        });
+        let result =
+            super::run_vlacku_requests(dictionary, &[VlackuRequest::sound(query)], &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check segments the whole sound query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not an invalid-query card"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_sound_query_preparation() {
+        let dictionary = jbotci_dictionary_data::english();
+        assert_exit_check(
+            |token| {
+                super::run_vlacku_requests(
+                    dictionary,
+                    &[VlackuRequest::sound("klama".to_owned())],
+                    &options_with(token),
+                )
+            },
+            |error| matches!(error, jbotci_interrupt::Interrupted),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_a_long_bracketed_sound_query_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let query = format!("[{}]", "a".repeat(SLOW_BRACKETED_A_COPIES));
+        let clear = CancellationToken::never();
+        let sequence =
+            sound_query_to_sequence(&query, &clear).expect("a bracketed run of a is a sound query");
+        let prepared =
+            prepare_sound_query(&sequence, &clear).expect("a clear token prepares the query");
+        let started = Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let options = VlackuSearchOptions::default().with_data(data! {
+            cancellation: token,
+        });
+        let result = super::rank_sound_entries(&prepared, dictionary, &options);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "vlacku kept running for {elapsed:?}; a missing loop check ranks the whole sound query"
+        );
+        assert!(
+            matches!(result, Err(jbotci_interrupt::Interrupted)),
+            "the early trip must be an interrupt, not an invalid-query card"
         );
     }
 }

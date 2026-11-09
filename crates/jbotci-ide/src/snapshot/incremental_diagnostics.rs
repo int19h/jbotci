@@ -109,8 +109,12 @@ impl PreparedDocumentAnalysis {
         let text: Arc<str> = Arc::from(text);
         let options = GentufaWebOptions::default();
         let morphology_started = Instant::now();
-        let morphology = analyze_gentufa_morphology_source(&text, &options)
-            .expect("the built-in default dialect must always compile");
+        let morphology = analyze_gentufa_morphology_source(
+            &text,
+            &options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the built-in default dialect must always compile");
         let morphology_duration = morphology_started.elapsed();
         let (gate, provisional) = confirmed.map_or(
             (IncrementalDiagnosticGate::NoConfirmedParagraph, None),
@@ -162,7 +166,12 @@ impl PreparedDocumentAnalysis {
             ..
         }) = self.into_data();
         let options = GentufaWebOptions::default();
-        let analysis = complete_gentufa_source_analysis(&text, &options, morphology);
+        let analysis = complete_gentufa_source_analysis(
+            &text,
+            &options,
+            morphology,
+            &jbotci_interrupt::CancellationToken::never(),
+        );
         DocumentSnapshot::from_analysis(text, version, analysis)
     }
 }
@@ -499,6 +508,8 @@ fn confirmed_tree_tokens(parse: &SyntaxRecoveryParse) -> Vec<Token> {
             tokens.extend(runs.into_inner().into_iter().flatten().cloned());
             tokens
         }
+        // No confirmed tokens: the cancellation flag stopped the parse.
+        SyntaxRecoveryParseData::Interrupted => Vec::new(),
     };
     tokens.sort_by_key(token_byte_start);
     tokens

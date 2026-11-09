@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::generated_model::{
@@ -443,12 +444,16 @@ pub struct ReferenceEdge {
 
 #[invariant(true)]
 #[invariant(::NumberedPlaceExhausted { .. } => true)]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ReferenceAnalysisError {
     #[error("syntax index did not contain the root text node")]
     MissingRootNode,
     #[error("cannot assign another numbered place after place 255")]
     NumberedPlaceExhausted { frame: SelbriPlaceFrameId },
+    /// The cancellation flag stopped the walk. No partial analysis is returned.
+    #[error("computation interrupted")]
+    Interrupted,
 }
 
 #[derive(Debug)]
@@ -462,8 +467,11 @@ pub struct GeneratedReferenceAnalysis<'tree> {
 impl<'tree> GeneratedReferenceAnalysis<'tree> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn analyze(syntax: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
-        analyze_generated_references(syntax)
+    pub fn analyze(
+        syntax: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        analyze_generated_references(syntax, cancellation)
     }
 
     #[requires(true)]
@@ -479,15 +487,28 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
     }
 }
 
+/// Index the tree and walk places and discourse references until `cancellation` is set.
+///
+/// A set flag returns [`ReferenceAnalysisError::Interrupted`] and drops the
+/// partial index, place frames, and edges. Those values live only in this call.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0) || ret.is_err())]
 pub fn analyze_generated_references<'tree>(
     syntax: &'tree GeneratedTextSyntax,
+    cancellation: &CancellationToken,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
-    let syntax_index = GeneratedSyntaxIndex::new(syntax)?;
-    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax)?;
-    let discourse_references =
-        DiscourseReferences::analyze_generated(&syntax_index, &place_analysis, syntax);
+    // A flag that is already set must not start the index walk.
+    if cancellation.is_cancelled() {
+        return Err(ReferenceAnalysisError::Interrupted);
+    }
+    let syntax_index = GeneratedSyntaxIndex::new(syntax, cancellation)?;
+    let place_analysis = PlaceAnalysis::analyze_generated(&syntax_index, syntax, cancellation)?;
+    let discourse_references = DiscourseReferences::analyze_generated(
+        &syntax_index,
+        &place_analysis,
+        syntax,
+        cancellation,
+    )?;
     Ok(GeneratedReferenceAnalysis {
         syntax_index,
         place_analysis,
@@ -514,8 +535,9 @@ impl PlaceAnalysis {
     fn analyze_generated<'tree>(
         index: &GeneratedSyntaxIndex<'tree>,
         syntax: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
     ) -> Result<Self, ReferenceAnalysisError> {
-        let mut builder = GeneratedPlaceAnalysisBuilder::new(index);
+        let mut builder = GeneratedPlaceAnalysisBuilder::new(index, cancellation);
         GeneratedSyntaxTreeWalkable::walk_with(syntax, &mut builder);
         builder.finish()
     }
@@ -991,8 +1013,12 @@ impl DiscourseReferences {
         index: &GeneratedSyntaxIndex<'tree>,
         places: &PlaceAnalysis,
         syntax: &'tree GeneratedTextSyntax,
-    ) -> Self {
-        let mut builder = GeneratedDiscourseReferenceBuilder::new(index, places);
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        if cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        let mut builder = GeneratedDiscourseReferenceBuilder::new(index, places, cancellation);
         GeneratedSyntaxTreeWalkable::walk_with(syntax, &mut builder);
         builder.finish()
     }
@@ -1021,12 +1047,13 @@ struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     // The generated walker returns (). Keep its first error for finish().
     error: Option<ReferenceAnalysisError>,
     cursor_blocking_assignments: HashSet<SumtiPlaceAssignmentId>,
+    cancellation: CancellationToken,
 }
 
 impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.frames.is_empty())]
-    fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
+    fn new(index: &'index GeneratedSyntaxIndex<'tree>, cancellation: &CancellationToken) -> Self {
         Self {
             index,
             frames: Vec::new(),
@@ -1040,6 +1067,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             next_place_after_linked_arguments_by_frame: HashMap::new(),
             error: None,
             cursor_blocking_assignments: HashSet::new(),
+            cancellation: cancellation.clone(),
         }
     }
 
@@ -3101,6 +3129,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     where
         N: GeneratedSyntaxTreeWalkable<'tree> + ?Sized,
     {
+        // One acquire load per node. A set flag stops descent, so the rest of
+        // the tree is not turned into place frames.
+        if self.cancellation.is_cancelled() {
+            self.error = Some(ReferenceAnalysisError::Interrupted);
+            return;
+        }
         if self.error.is_none() {
             GeneratedSyntaxTreeWalkable::walk_with(node, self);
         }
@@ -4227,11 +4261,25 @@ struct GeneratedIndexedSyntaxNode<'tree> {
 }
 
 impl<'tree> GeneratedSyntaxIndex<'tree> {
+    /// Index `root`, stopping further mutation once `cancellation` is set.
+    ///
+    /// `visit_in_order` cannot abort, so a flag set mid-walk still visits the
+    /// remaining nodes. Those visits do not record nodes. The partial index is
+    /// dropped and the caller receives [`ReferenceAnalysisError::Interrupted`].
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()) || ret.is_err())]
-    pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
-        let mut builder = GeneratedSyntaxIndexBuilder::new();
+    pub fn new(
+        root: &'tree GeneratedTextSyntax,
+        cancellation: &CancellationToken,
+    ) -> Result<Self, ReferenceAnalysisError> {
+        if cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        let mut builder = GeneratedSyntaxIndexBuilder::new(cancellation);
         root.visit_in_order(&mut builder);
+        if builder.cancelled {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
         let root_ref = root
             .as_node_ref()
             .ok_or(ReferenceAnalysisError::MissingRootNode)?;
@@ -4294,17 +4342,24 @@ struct GeneratedSyntaxIndexBuilder<'tree> {
     by_ref: HashMap<GeneratedSyntaxNodeRef<'tree>, RawSyntaxNodeId>,
     stack: Vec<RawSyntaxNodeId>,
     leaf_index: usize,
+    cancellation: CancellationToken,
+    cancelled: bool,
+    /// Enters that happened after the flag was set. Their exits only unwind this count.
+    skipped: usize,
 }
 
 impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(ret.nodes.is_empty())]
-    fn new() -> Self {
+    fn new(cancellation: &CancellationToken) -> Self {
         Self {
             nodes: Vec::new(),
             by_ref: HashMap::new(),
             stack: Vec::new(),
             leaf_index: 0,
+            cancellation: cancellation.clone(),
+            cancelled: false,
+            skipped: 0,
         }
     }
 
@@ -4332,6 +4387,11 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
+        if self.cancelled || self.skipped > 0 || self.cancellation.is_cancelled() {
+            self.cancelled = true;
+            self.skipped += 1;
+            return;
+        }
         let id = RawSyntaxNodeId(self.nodes.len());
         let parent = self.stack.last().copied();
         let metadata = new!(SyntaxNodeMetadata {
@@ -4353,6 +4413,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn exit_node(&mut self, node: Self::Node) {
+        if self.skipped > 0 {
+            self.skipped -= 1;
+            return;
+        }
         let Some(id) = self.stack.pop() else {
             return;
         };
@@ -4365,6 +4429,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
+        if self.cancelled || self.skipped > 0 || self.cancellation.is_cancelled() {
+            self.cancelled = true;
+            return;
+        }
         match atom {
             GeneratedSyntaxAtomRef::Token(token) => {
                 for span in token.source_spans() {
@@ -4740,12 +4808,18 @@ struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     pending_next_utterance_sources: Vec<RawSyntaxNodeId>,
     current_bridi_frames: Vec<SelbriPlaceFrameId>,
     relative_heads: Vec<SumtiNodeId>,
+    cancellation: CancellationToken,
+    stopped: bool,
 }
 
 impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.edges.is_empty())]
-    fn new(index: &'index GeneratedSyntaxIndex<'tree>, places: &'index PlaceAnalysis) -> Self {
+    fn new(
+        index: &'index GeneratedSyntaxIndex<'tree>,
+        places: &'index PlaceAnalysis,
+        cancellation: &CancellationToken,
+    ) -> Self {
         Self {
             index,
             places,
@@ -4774,14 +4848,24 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             pending_next_utterance_sources: Vec::new(),
             current_bridi_frames: Vec::new(),
             relative_heads: Vec::new(),
+            cancellation: cancellation.clone(),
+            stopped: false,
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(mut self) -> DiscourseReferences {
+    fn finish(mut self) -> Result<DiscourseReferences, ReferenceAnalysisError> {
+        // A cancelled walk must not flush partial utterance state into edges
+        // that a caller could read as a finished analysis.
+        if self.stopped || self.cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
         self.flush_unresolved_pending_next_utterance_sources();
-        DiscourseReferences { edges: self.edges }
+        if self.cancellation.is_cancelled() {
+            return Err(ReferenceAnalysisError::Interrupted);
+        }
+        Ok(DiscourseReferences { edges: self.edges })
     }
 
     #[requires(true)]
@@ -6583,6 +6667,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     where
         N: GeneratedSyntaxTreeWalkable<'tree> + ?Sized,
     {
+        if self.stopped || self.cancellation.is_cancelled() {
+            self.stopped = true;
+            return;
+        }
         GeneratedSyntaxTreeWalkable::walk_with(node, self);
     }
 
@@ -8376,7 +8464,11 @@ mod tests {
         for count in [u8::MAX - 1, u8::MAX] {
             let source = format!("mi klama{}", " mi".repeat(usize::from(count) - 1));
             let syntax = parse_generated_syntax(&source);
-            let analysis = GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+            let analysis = GeneratedReferenceAnalysis::analyze(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .unwrap();
             assert_eq!(
                 analysis
                     .place_analysis
@@ -8401,7 +8493,8 @@ mod tests {
         // Explicit FA can repeat an occupied place after the cursor is exhausted.
         let source = format!("{} cu klama fa do", "mi ".repeat(usize::from(u8::MAX)));
         let syntax = parse_generated_syntax(&source);
-        GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+        GeneratedReferenceAnalysis::analyze(&syntax, &jbotci_interrupt::CancellationToken::never())
+            .unwrap();
 
         // BE starts at x2. Its 254 arguments fill x2 through x255.
         let linked = format!(
@@ -8409,7 +8502,8 @@ mod tests {
             " bei mi".repeat(usize::from(u8::MAX) - 2)
         );
         let syntax = parse_generated_syntax(&linked);
-        GeneratedReferenceAnalysis::analyze(&syntax).unwrap();
+        GeneratedReferenceAnalysis::analyze(&syntax, &jbotci_interrupt::CancellationToken::never())
+            .unwrap();
         assert_public_place_exhaustion(&format!("{linked} do"));
     }
 
@@ -8417,7 +8511,9 @@ mod tests {
     #[ensures(true)]
     fn assert_public_place_exhaustion(source: &str) {
         let syntax = parse_generated_syntax(source);
-        let error = analyze_generated_references(&syntax).unwrap_err();
+        let error =
+            analyze_generated_references(&syntax, &jbotci_interrupt::CancellationToken::never())
+                .unwrap_err();
         let ReferenceAnalysisError::NumberedPlaceExhausted { frame } = &error else {
             panic!("expected a numbered-place capacity error, got {error}");
         };
@@ -8510,7 +8606,9 @@ mod tests {
     fn generated_syntax_index_records_root_and_ordered_spans() {
         run_reference_test(|| {
             let syntax = parse_generated_syntax("mi tavla do");
-            let index = GeneratedSyntaxIndex::new(&syntax).expect("generated index succeeds");
+            let index =
+                GeneratedSyntaxIndex::new(&syntax, &jbotci_interrupt::CancellationToken::never())
+                    .expect("generated index succeeds");
             assert!(index.node_count() > 0);
             let root = index
                 .metadata(index.root().0)
@@ -8536,8 +8634,11 @@ mod tests {
     fn generated_reference_projection_records_basic_places() {
         run_reference_test(|| {
             let syntax = parse_generated_syntax("mi klama do");
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
 
             assert!(!projection.frames.is_empty());
@@ -8564,7 +8665,11 @@ mod tests {
                 "mi broda be nu'i {tag}ko'a ce'e bau ko'e ce'e ko'i nu'u bei ko'o be'o ko'u"
             );
             let syntax = parse_generated_syntax(&input);
-            let analysis = analyze_generated_references(&syntax).unwrap();
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .unwrap();
             let projection = analysis.fixture_projection();
             let frame = projection
                 .frames
@@ -8641,7 +8746,11 @@ mod tests {
                 "mi broda be nu'i lo brode be ko'e be'o ku ce'e ko'a nu'u bei ko'i be'o ko'o"
             };
             let syntax = parse_generated_syntax(input);
-            let analysis = analyze_generated_references(&syntax).unwrap();
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .unwrap();
             let projection = analysis.fixture_projection();
             let outer = projection
                 .frames
@@ -8717,8 +8826,11 @@ mod tests {
     fn generated_prenex_da_scope_stops_at_bare_i_boundary() {
         run_reference_test(|| {
             let syntax = parse_generated_syntax("su'oda zo'u mi prami da .i naku do prami da");
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let da_edges = projection
                 .references
@@ -8742,8 +8854,11 @@ mod tests {
         run_reference_test(|| {
             let input = "mi se te klama do";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let klama = nth_span_key(input, "klama", 0);
             let mi = nth_span_key(input, "mi", 0);
@@ -8769,8 +8884,11 @@ mod tests {
         run_reference_test(|| {
             let input = "ko'a goi le broda cu klama .i ko'a cadzu";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let later_koha = nth_span_key(input, "ko'a", 1);
             let description = nth_span_key(input, "le broda", 0);
@@ -8791,8 +8909,11 @@ mod tests {
         run_reference_test(|| {
             let input = "mi ke klama cei broda ke'e .i mi broda";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let later_broda = nth_span_key(input, "broda", 1);
             let broda_edge = projection
@@ -8818,8 +8939,11 @@ mod tests {
         run_reference_test(|| {
             let input = "lu mi broda cei brode li'u zo'u mi brode";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let outer_brode = nth_span_key(input, "brode", 1);
 
@@ -8839,8 +8963,11 @@ mod tests {
         run_reference_test(|| {
             let input = "lo ke broda cei brode ke'e ku zo'u mi brode";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let later_brode = nth_span_key(input, "brode", 1);
             let brode_edge = projection
@@ -8866,8 +8993,11 @@ mod tests {
         run_reference_test(|| {
             let input = "mi klama .i mi cusku lu do cadzu li'u .i di'u jitfa";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let dihu = nth_span_key(input, "di'u", 0);
             let quote_statement = nth_span_key(input, "do cadzu", 0);
@@ -8891,8 +9021,11 @@ mod tests {
         run_reference_test(|| {
             let input = "mi cusku lu di'e jitfa li'u .i do cadzu";
             let syntax = parse_generated_syntax(input);
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let dihe = nth_span_key(input, "di'e", 0);
             let edge = projection
@@ -8911,8 +9044,11 @@ mod tests {
     fn generated_fixture_projection_is_sorted_and_canonical_json() {
         run_reference_test(|| {
             let syntax = parse_generated_syntax("mi se klama do .i ri cadzu");
-            let analysis =
-                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let analysis = analyze_generated_references(
+                &syntax,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("reference analysis succeeds");
             let projection = analysis.fixture_projection();
             let json = analysis
                 .fixture_projection_json()

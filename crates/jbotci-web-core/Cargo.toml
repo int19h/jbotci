@@ -21,6 +21,7 @@ jbotci-dictionary-data.workspace = true
 jbotci-embedding-inputs.workspace = true
 jbotci-gentufa.workspace = true
 jbotci-gimfihi.workspace = true
+jbotci-interrupt.workspace = true
 jbotci-jvozba.workspace = true
 jbotci-morphology.workspace = true
 jbotci-output.workspace = true
@@ -35,6 +36,9 @@ roxmltree.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+jbotci-interrupt = { workspace = true, features = ["cancellation_test_hook"] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

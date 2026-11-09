@@ -5,3 +5,6 @@
 
 mod generated_term_view;
 pub mod references;
+
+#[cfg(test)]
+mod cancellation_tests;

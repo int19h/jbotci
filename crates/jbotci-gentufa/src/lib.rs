@@ -3264,7 +3264,8 @@ mod tests {
             &words,
             source,
             &jbotci_syntax::ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         assert_eq!(recovered.errors.len(), 1);
         // The model keeps one slot per abandoned construct. This offset has one slot,
         // while the bracket renderer can use more than one missing marker for that slot.
@@ -3457,7 +3458,8 @@ mod tests {
             &words,
             source,
             &jbotci_syntax::ParseOptions::default(),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let layout = recovered_generated_model_blocks_layout(
             recovered.parse_tree.as_ref(),
             source,
@@ -3522,7 +3524,8 @@ mod tests {
                 byte_end,
                 ..
             } => (*byte_start, *byte_end),
-            jbotci_syntax::SyntaxError::NotImplemented => (0, 0),
+            jbotci_syntax::SyntaxError::NotImplemented
+            | jbotci_syntax::SyntaxError::Interrupted => (0, 0),
         }
     }
 

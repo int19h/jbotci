@@ -32,8 +32,8 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed_within, decompose_lujvo_like,
 };
 use jbotci_morphology::{
-    LujvoPart, MorphologyOptions, PhonemeRenderOptions, Phonemes, normalize_lojban_input_text,
-    segment_words_with_modifiers,
+    LujvoPart, MorphologyOptions, PhonemeRenderOptions, Phonemes, ValsiAnalysisStatus,
+    normalize_lojban_input_text, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_search::vlacku::{
     VlackuCard, VlackuOutcome as SearchOutcome, VlackuRequest as SearchRequest,
@@ -42,8 +42,8 @@ use jbotci_search::vlacku::{
 };
 use jbotci_source::SourceId;
 use jbotci_web_core::{
-    GentufaScript, GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebViewMode,
-    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai,
+    GentufaScript, GentufaWebError, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
+    GentufaWebViewMode, VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai,
 };
 use tokio::time::Instant;
 
@@ -54,7 +54,7 @@ use super::request::{
     SourceField, SourceText, VlackuMode, VlackuRequest, VlaseiRequest, VlataiRequest,
 };
 use crate::policy::ServerRequest;
-use crate::work::{WorkError, WorkKeepalive};
+use crate::work::{WorkError, WorkKeepalive, WorkLane};
 use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
 /// What one page asks a source for: its own results and one more, which is
@@ -67,6 +67,28 @@ const WINDOW_COUNT: NonZeroUsize = NonZeroUsize::new(WINDOW_LEN).unwrap();
 
 /// Source label attached to Discord diagnostics.
 pub(crate) const SOURCE_LABEL: &str = "<discord>";
+
+/// The deadline outcome when admitted compute sees the flag already set.
+#[requires(true)]
+#[ensures(matches!(ret, OperationError::Work(WorkError::TimedOut { lane: WorkLane::Compute })))]
+fn compute_deadline() -> OperationError {
+    OperationError::Work(WorkError::TimedOut {
+        lane: WorkLane::Compute,
+    })
+}
+
+/// The deadline outcome when a job sees the admission flag already set.
+#[requires(true)]
+#[ensures(ret.is_ok() || cancellation.is_cancelled())]
+fn stop_if_cancelled(
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<(), OperationError> {
+    if cancellation.is_cancelled() {
+        Err(compute_deadline())
+    } else {
+        Ok(())
+    }
+}
 
 /// Separators between explicitly entered gimfihi source records.
 pub(crate) const GIMFIHI_RECORD_SEPARATORS: [char; 3] = [',', ';', '\n'];
@@ -703,24 +725,35 @@ pub(crate) async fn run_request(
             DiscordRequest::Gentufa(request) => {
                 let limits = context.admitted.execution.policy.tool_limits();
                 let attachment_size_limit = context.attachment_size_limit;
+                let cancellation = context.admitted.token();
                 context
                     .admitted
                     .run_keeping(context.keepalive.clone(), move || {
-                        run_gentufa(&request, limits, attachment_size_limit)
+                        run_gentufa(&request, limits, attachment_size_limit, &cancellation)
                     })
                     .await?
                     .map(ToolOutcome::Gentufa)
             }
-            DiscordRequest::Vlasei(request) => context
-                .admitted
-                .run_keeping(context.keepalive.clone(), move || run_vlasei(&request))
-                .await?
-                .map(ToolOutcome::Vlasei),
-            DiscordRequest::Vlatai(request) => context
-                .admitted
-                .run_keeping(context.keepalive.clone(), move || run_vlatai(&request))
-                .await?
-                .map(ToolOutcome::Vlatai),
+            DiscordRequest::Vlasei(request) => {
+                let cancellation = context.admitted.token();
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_vlasei(&request, &cancellation)
+                    })
+                    .await?
+                    .map(ToolOutcome::Vlasei)
+            }
+            DiscordRequest::Vlatai(request) => {
+                let cancellation = context.admitted.token();
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_vlatai(&request, &cancellation)
+                    })
+                    .await?
+                    .map(ToolOutcome::Vlatai)
+            }
             DiscordRequest::Vlacku(request) => {
                 run_vlacku(request, context).await.map(ToolOutcome::Vlacku)
             }
@@ -729,19 +762,25 @@ pub(crate) async fn run_request(
             }
             DiscordRequest::Jvozba(request) => {
                 let limits = context.admitted.execution.policy.jvozba;
+                let cancellation = context.admitted.token();
                 context
                     .admitted
                     .run_keeping(context.keepalive.clone(), move || {
-                        run_jvozba(&request, limits)
+                        run_jvozba(&request, limits, &cancellation)
                     })
                     .await?
                     .map(ToolOutcome::Jvozba)
             }
-            DiscordRequest::Gimfihi(request) => context
-                .admitted
-                .run_keeping(context.keepalive.clone(), move || run_gimfihi(&request))
-                .await?
-                .map(ToolOutcome::Gimfihi),
+            DiscordRequest::Gimfihi(request) => {
+                let cancellation = context.admitted.token();
+                context
+                    .admitted
+                    .run_keeping(context.keepalive.clone(), move || {
+                        run_gimfihi(&request, &cancellation)
+                    })
+                    .await?
+                    .map(ToolOutcome::Gimfihi)
+            }
         }
     }
     .await;
@@ -761,6 +800,7 @@ fn run_gentufa(
     request: &GentufaRequest,
     limits: jbotci_cli::ToolExecutionLimits,
     attachment_size_limit: Option<u64>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<GentufaOutcome, OperationError> {
     let options = request.options;
     let web_request = GentufaWebRequest {
@@ -777,17 +817,24 @@ fn run_gentufa(
             phonemes: PhonemeRenderOptions::default(),
         },
     };
-    let result =
-        jbotci_web_core::parse_gentufa_for_web_with_limits(&web_request, Some(limits.render))
-            .map_err(|error| {
-                if error.is_output_limit() {
-                    OperationError::Work(WorkError::OutputLimit)
-                } else {
-                    OperationError::Internal {
-                        message: error.to_string(),
-                    }
-                }
-            })?;
+    let result = jbotci_web_core::parse_gentufa_for_web_with_limits(
+        &web_request,
+        Some(limits.render),
+        cancellation,
+    )
+    .map_err(|error| {
+        if error.is_output_limit() {
+            OperationError::Work(WorkError::OutputLimit)
+        } else if error.is_interrupted() {
+            OperationError::Work(WorkError::TimedOut {
+                lane: WorkLane::Compute,
+            })
+        } else {
+            OperationError::Internal {
+                message: error.to_string(),
+            }
+        }
+    })?;
     let diagram = match (&result, options.include_diagram) {
         (GentufaWebResult::Success(success), true) => Some(
             render_diagram(
@@ -795,8 +842,14 @@ fn run_gentufa(
                 options.show_glosses,
                 limits.diagram,
                 attachment_size_limit,
+                cancellation,
             )
-            .map_err(OperationError::Diagram)?,
+            .map_err(|error| match error {
+                DiagramError::Interrupted => OperationError::Work(WorkError::TimedOut {
+                    lane: WorkLane::Compute,
+                }),
+                other => OperationError::Diagram(other),
+            })?,
         ),
         _ => None,
     };
@@ -809,22 +862,32 @@ fn run_gentufa(
 
 #[requires(true)]
 #[ensures(true)]
-fn run_vlasei(request: &VlaseiRequest) -> Result<VlaseiAnalysis, OperationError> {
+fn run_vlasei(
+    request: &VlaseiRequest,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<VlaseiAnalysis, OperationError> {
     analyze_vlasei(
         request.text.as_str(),
         dialect_formula(request.dialect.as_ref()).map(str::trim),
         Some(SourceId(SOURCE_LABEL.to_owned())),
+        cancellation,
     )
-    .map_err(|error| {
-        OperationError::Invalid(RequestValidationError::Dialect {
-            message: error.to_string(),
-        })
+    .map_err(|error| match error {
+        GentufaWebError::Interrupted => OperationError::Work(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
+        other => OperationError::Invalid(RequestValidationError::Dialect {
+            message: other.to_string(),
+        }),
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn run_vlatai(request: &VlataiRequest) -> Result<VlataiReport, OperationError> {
+fn run_vlatai(
+    request: &VlataiRequest,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<VlataiReport, OperationError> {
     let dialect = match dialect_formula(request.dialect.as_ref()) {
         Some(formula) => parse_dialect_definition(formula.trim()).map_err(|error| {
             OperationError::Invalid(RequestValidationError::Dialect {
@@ -839,15 +902,25 @@ fn run_vlatai(request: &VlataiRequest) -> Result<VlataiReport, OperationError> {
             OperationError::Invalid(RequestValidationError::Dialect {
                 message: error.to_string(),
             })
-        })?;
-    analyze_vlatai(
+        })?
+        .with_cancellation(cancellation);
+    let report = analyze_vlatai(
         request.text.as_str(),
         &options,
         Some(SourceId(SOURCE_LABEL.to_owned())),
     )
     .map_err(|error| OperationError::Internal {
         message: error.to_string(),
-    })
+    })?;
+    if matches!(
+        report.analysis.result.status,
+        ValsiAnalysisStatus::Interrupted
+    ) {
+        return Err(OperationError::Work(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }));
+    }
+    Ok(report)
 }
 
 // ---------------------------------------------------------------------------
@@ -864,6 +937,7 @@ fn vlacku_search_options(
     request: &VlackuRequest,
     skip: usize,
     count: usize,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> VlackuSearchOptions {
     let word_types = request
         .options
@@ -878,6 +952,7 @@ fn vlacku_search_options(
         count: count,
         word_types: word_types,
         decompose_lujvo: request.options.decompose_lujvo,
+        cancellation: cancellation.clone(),
     })
 }
 
@@ -903,12 +978,15 @@ async fn run_vlacku(
         // the job so they apply while it ranks. What it hands back is an
         // entry index and a score per hit; the cards come later, for one page.
         let page = request.options.page;
+        // Meaning ranking does not read the flag while it ranks. The token
+        // still rides on the options so a later card pass sees the same flag.
+        let cancellation = context.admitted.token();
         let hits = match context
             .tools
             .semantic_vlacku_hits_admitted(
                 search_query,
                 WINDOW_COUNT,
-                vlacku_search_options(&request, page.first_index(), WINDOW_LEN),
+                vlacku_search_options(&request, page.first_index(), WINDOW_LEN, &cancellation),
                 &context.admitted,
                 context.keepalive.clone(),
             )
@@ -922,7 +1000,11 @@ async fn run_vlacku(
         return context
             .admitted
             .run_keeping(context.keepalive.clone(), move || {
-                let options = vlacku_search_options(&request, page.first_index(), WINDOW_LEN);
+                // One page of cards. The ranking that produced `hits` is the
+                // embedding window, which does not read this flag mid-rank.
+                stop_if_cancelled(&cancellation)?;
+                let options =
+                    vlacku_search_options(&request, page.first_index(), WINDOW_LEN, &cancellation);
                 // The hits are the ranking itself: the worker applied the
                 // reader's filters while it ranked, so what came back is what
                 // passed them, and how many came back is what says whether the
@@ -949,9 +1031,12 @@ async fn run_vlacku(
             })
             .await?;
     }
+    let cancellation = context.admitted.token();
     context
         .admitted
         .run_keeping(context.keepalive.clone(), move || {
+            // The search is one page, starting at the page offset.
+            stop_if_cancelled(&cancellation)?;
             let search_request = match request.options.mode {
                 VlackuMode::Word => SearchRequest::valsi(query),
                 VlackuMode::Rafsi => SearchRequest::rafsi(query),
@@ -961,13 +1046,18 @@ async fn run_vlacku(
             };
             // A dictionary search can start where the page starts, so it is
             // asked for this page's window and builds cards for that alone.
-            let options =
-                vlacku_search_options(&request, request.options.page.first_index(), WINDOW_LEN);
+            let options = vlacku_search_options(
+                &request,
+                request.options.page.first_index(),
+                WINDOW_LEN,
+                &cancellation,
+            );
             let output = run_vlacku_requests(
                 jbotci_dictionary_data::english(),
                 &[search_request],
                 &options,
-            );
+            )
+            .map_err(|_| compute_deadline())?;
             let valid_missing = output.outcome == SearchOutcome::ValidMissing
                 || (output.outcome == SearchOutcome::Found && output.cards.is_empty());
             let results = PagedResults::from_window(output.cards, request.options.page)?;
@@ -1089,9 +1179,12 @@ async fn run_cukta(
         CuktaMode::Word => {
             let page = request.options.page;
             let targets = cukta_targets(&request);
+            let cancellation = context.admitted.token();
             context
                 .admitted
                 .run_keeping(context.keepalive.clone(), move || {
+                    // The book's index starts at this page, so the copy is one window.
+                    stop_if_cancelled(&cancellation)?;
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1115,9 +1208,12 @@ async fn run_cukta(
                 .await?
         }
         CuktaMode::Section => {
+            let cancellation = context.admitted.token();
             context
                 .admitted
                 .run_keeping(context.keepalive.clone(), move || {
+                    // One section lookup.
+                    stop_if_cancelled(&cancellation)?;
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1138,9 +1234,12 @@ async fn run_cukta(
                 .await?
         }
         CuktaMode::Example => {
+            let cancellation = context.admitted.token();
             context
                 .admitted
                 .run_keeping(context.keepalive.clone(), move || {
+                    // One example lookup.
+                    stop_if_cancelled(&cancellation)?;
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1157,9 +1256,12 @@ async fn run_cukta(
                 .await?
         }
         CuktaMode::Contents => {
+            let cancellation = context.admitted.token();
             context
                 .admitted
                 .run_keeping(context.keepalive.clone(), move || {
+                    // The contents list is the chapter index, one pass.
+                    stop_if_cancelled(&cancellation)?;
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1201,27 +1303,42 @@ async fn run_cukta(
 /// builder receives, whichever kind comes first.
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn jvozba_inputs(
+fn jvozba_inputs(
     request: &JvozbaRequest,
-) -> Result<Vec<JvozbaInput>, RequestValidationError> {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<Vec<JvozbaInput>, JvozbaInputError> {
     let mut inputs = Vec::new();
     let mut rest = request.parts.as_str();
     while let Some(open) = rest.find(FIXED_RAFSI_DELIMITER) {
-        push_jvozba_words(&rest[..open], &mut inputs)?;
+        push_jvozba_words(&rest[..open], &mut inputs, cancellation)?;
         let after = &rest[open + FIXED_RAFSI_DELIMITER.len_utf8()..];
         let Some(close) = after.find(FIXED_RAFSI_DELIMITER) else {
-            return Err(RequestValidationError::JvozbaParts {
-                message: format!(
-                    "a fixed rafsi opened with `{FIXED_RAFSI_DELIMITER}` was never closed; \
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: format!(
+                        "a fixed rafsi opened with `{FIXED_RAFSI_DELIMITER}` was never closed; \
                      write it as `-blo-`"
-                ),
-            });
+                    ),
+                },
+            ));
         };
-        inputs.push(JvozbaInput::FixedRafsi(fixed_rafsi_text(&after[..close])?));
+        inputs.push(JvozbaInput::FixedRafsi(
+            fixed_rafsi_text(&after[..close]).map_err(JvozbaInputError::Invalid)?,
+        ));
         rest = &after[close + FIXED_RAFSI_DELIMITER.len_utf8()..];
     }
-    push_jvozba_words(rest, &mut inputs)?;
+    push_jvozba_words(rest, &mut inputs, cancellation)?;
     Ok(inputs)
+}
+
+/// A parts field that is not a compound, or a segmentation the deadline stopped.
+#[invariant(true)]
+#[invariant(::Invalid(_) => true)]
+#[invariant(::Interrupted => true)]
+#[derive(Debug)]
+enum JvozbaInputError {
+    Invalid(RequestValidationError),
+    Interrupted,
 }
 
 /// What marks a rafsi given literally rather than looked up.
@@ -1234,20 +1351,33 @@ const FIXED_RAFSI_DELIMITER: char = '-';
 fn push_jvozba_words(
     span: &str,
     inputs: &mut Vec<JvozbaInput>,
-) -> Result<(), RequestValidationError> {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<(), JvozbaInputError> {
     if span.trim().is_empty() {
         return Ok(());
     }
-    let words = segment_words_with_modifiers(span).map_err(|error| {
-        RequestValidationError::JvozbaParts {
-            message: error.to_string(),
+    // One long piece is segmented under the admission flag. The piece cap
+    // counts pieces and does not bound this parse.
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(span, &options, None)
+    {
+        Ok(words) => words,
+        Err(error) if error.is_interrupted() => return Err(JvozbaInputError::Interrupted),
+        Err(error) => {
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: error.to_string(),
+                },
+            ));
         }
-    })?;
+    };
     for word in &words {
         let Some(text) = word_like_lookup_text(word) else {
-            return Err(RequestValidationError::JvozbaParts {
-                message: "quoted material cannot be a source word".to_owned(),
-            });
+            return Err(JvozbaInputError::Invalid(
+                RequestValidationError::JvozbaParts {
+                    message: "quoted material cannot be a source word".to_owned(),
+                },
+            ));
         };
         inputs.push(JvozbaInput::Word(text));
     }
@@ -1290,21 +1420,41 @@ fn fixed_rafsi_text(span: &str) -> Result<String, RequestValidationError> {
 fn run_jvozba(
     request: &JvozbaRequest,
     limits: JvozbaBuildLimits,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<JvozbaOutcome, OperationError> {
-    let inputs = jvozba_inputs(request).map_err(OperationError::Invalid)?;
+    // The piece cap inside `limits` bounds the build. The flag is read here
+    // so a deadline that already passed does not start that build.
+    stop_if_cancelled(cancellation)?;
+    let inputs = match jvozba_inputs(request, cancellation) {
+        Ok(inputs) => inputs,
+        Err(JvozbaInputError::Invalid(error)) => return Err(OperationError::Invalid(error)),
+        Err(JvozbaInputError::Interrupted) => return Err(compute_deadline()),
+    };
     let mode = match request.options.target {
         JvozbaTarget::Lujvo => JvozbaMode::Lujvo,
         JvozbaTarget::Cmevla => JvozbaMode::Cmevla,
     };
     let dictionary = jbotci_dictionary_data::english();
     let result =
-        build_best_jvozba_detailed_within(mode, dictionary, &inputs, limits).map(|built| {
-            let constituents = constituents_for(dictionary, &built);
-            new!(JvozbaBuilt {
-                word: built.word.clone(),
-                constituents,
-            })
-        });
+        match build_best_jvozba_detailed_within(mode, dictionary, &inputs, limits, cancellation) {
+            Ok(built) => {
+                let constituents = match constituents_for(dictionary, &built, cancellation) {
+                    Ok(constituents) => constituents,
+                    Err(JvozbaError::Interrupted) => return Err(compute_deadline()),
+                    Err(error) => {
+                        return Err(OperationError::Internal {
+                            message: error.to_string(),
+                        });
+                    }
+                };
+                Ok(new!(JvozbaBuilt {
+                    word: built.word.clone(),
+                    constituents,
+                }))
+            }
+            Err(JvozbaError::Interrupted) => return Err(compute_deadline()),
+            Err(error) => Err(error),
+        };
     Ok(JvozbaOutcome {
         inputs,
         target: request.options.target,
@@ -1316,14 +1466,18 @@ fn run_jvozba(
 /// decomposition when it recognizes the word; otherwise the build's own
 /// segments without sources.
 #[requires(!built.word.is_empty())]
-#[ensures(!ret.is_empty() || built.segments.is_empty())]
+#[ensures(match &ret {
+    Ok(parts) => !parts.is_empty() || built.segments.is_empty(),
+    Err(error) => matches!(error, JvozbaError::Interrupted),
+})]
 fn constituents_for(
     dictionary: &jbotci_dictionary::Dictionary<'_>,
     built: &JvozbaBuildResult,
-) -> Vec<JvozbaConstituent> {
-    if let Some(decomposition) = decompose_lujvo_like(dictionary, &built.word) {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<Vec<JvozbaConstituent>, JvozbaError> {
+    if let Some(decomposition) = decompose_lujvo_like(dictionary, &built.word, cancellation)? {
         let decomposition = decomposition.into_data();
-        return decomposition
+        return Ok(decomposition
             .segments
             .into_iter()
             .map(|segment| {
@@ -1337,19 +1491,20 @@ fn constituents_for(
                     source: segment.source.map(str::to_owned),
                 })
             })
-            .collect();
-    }
-    built
-        .segments
-        .iter()
-        .map(|segment| {
-            new!(JvozbaConstituent {
-                text: segment.text.clone(),
-                is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
-                source: None,
+            .collect());
+    } else {
+        Ok(built
+            .segments
+            .iter()
+            .map(|segment| {
+                new!(JvozbaConstituent {
+                    text: segment.text.clone(),
+                    is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
+                    source: None,
+                })
             })
-        })
-        .collect()
+            .collect())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1425,7 +1580,13 @@ fn gimfihi_plan(request: &DiscordGimfihiRequest) -> Result<GimfihiPlan, RequestV
 
 #[requires(true)]
 #[ensures(true)]
-fn run_gimfihi(request: &DiscordGimfihiRequest) -> Result<GimfihiOutcome, OperationError> {
+fn run_gimfihi(
+    request: &DiscordGimfihiRequest,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<GimfihiOutcome, OperationError> {
+    // The scorer ranks every candidate and keeps only this page. The flag is
+    // read once per candidate, so a deadline stops the ranking.
+    stop_if_cancelled(cancellation)?;
     match gimfihi_plan(request).map_err(OperationError::Invalid)? {
         GimfihiPlan::Setup { preset } => Ok(GimfihiOutcome::Setup {
             preset,
@@ -1440,13 +1601,17 @@ fn run_gimfihi(request: &DiscordGimfihiRequest) -> Result<GimfihiOutcome, Operat
                 .unwrap_or_default(),
         }),
         GimfihiPlan::Compose(gimfihi_request) => {
-            let output: GimfihiOutput =
-                jbotci_gimfihi::compose_gismu(jbotci_dictionary_data::english(), &gimfihi_request)
-                    .map_err(|error: GimfihiError| {
-                        OperationError::Invalid(RequestValidationError::GimfihiSources {
-                            errors: vec![error.to_string()],
-                        })
-                    })?;
+            let output: GimfihiOutput = jbotci_gimfihi::compose_gismu(
+                jbotci_dictionary_data::english(),
+                &gimfihi_request,
+                cancellation,
+            )
+            .map_err(|error: GimfihiError| match error {
+                GimfihiError::Interrupted => compute_deadline(),
+                other => OperationError::Invalid(RequestValidationError::GimfihiSources {
+                    errors: vec![other.to_string()],
+                }),
+            })?;
             // The scorer counted every candidate that passed the filters
             // while it ranked them, so the total is known exactly and is not
             // the size of what was kept.
@@ -1712,9 +1877,16 @@ mod tests {
     #[ensures(true)]
     fn ordered_parts_keep_words_and_literal_rafsi_in_the_order_written() {
         let parse = |text: &str| {
-            jvozba_inputs(&JvozbaRequest {
-                parts: SourceText::new(text).expect("parts fit"),
-                options: JvozbaOptions::default(),
+            jvozba_inputs(
+                &JvozbaRequest {
+                    parts: SourceText::new(text).expect("parts fit"),
+                    options: JvozbaOptions::default(),
+                },
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .map_err(|error| match error {
+                JvozbaInputError::Invalid(error) => error,
+                JvozbaInputError::Interrupted => panic!("the test token stays clear"),
             })
         };
         let word = |text: &str| JvozbaInput::Word(text.to_owned());
@@ -1757,9 +1929,16 @@ mod tests {
     #[ensures(true)]
     fn malformed_ordered_parts_say_what_is_wrong() {
         let parse = |text: &str| {
-            jvozba_inputs(&JvozbaRequest {
-                parts: SourceText::new(text).expect("parts fit"),
-                options: JvozbaOptions::default(),
+            jvozba_inputs(
+                &JvozbaRequest {
+                    parts: SourceText::new(text).expect("parts fit"),
+                    options: JvozbaOptions::default(),
+                },
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .map_err(|error| match error {
+                JvozbaInputError::Invalid(error) => error,
+                JvozbaInputError::Interrupted => panic!("the test token stays clear"),
             })
         };
         let message = |text: &str| match parse(text) {
@@ -2113,7 +2292,8 @@ mod tests {
             };
             let GimfihiOutcome::Candidates {
                 results, winner, ..
-            } = run_gimfihi(&request).expect("candidates")
+            } = run_gimfihi(&request, &jbotci_interrupt::CancellationToken::never())
+                .expect("candidates")
             else {
                 panic!("a candidate list");
             };

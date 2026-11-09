@@ -8,9 +8,11 @@ use std::sync::LazyLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType};
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
-    ConsonantPairClass, GlideMark, PhonemeRenderOptions, StressMark, WordKind,
-    consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
+    ConsonantPairClass, GlideMark, MorphologyOptions, PhonemeRenderOptions, StressMark, WordKind,
+    consonant_pair_class, is_consonant, is_vowel,
+    segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
     AlineNormalizer, AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
@@ -634,6 +636,7 @@ struct LcsScratch {
 #[invariant(::InvalidSourceWord { .. } => true)]
 #[invariant(::InvalidIpa { .. } => true)]
 #[invariant(::Phonetic { .. } => true)]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum GimfihiError {
     #[error("unknown gimfi'i preset `{value}`")]
@@ -662,6 +665,8 @@ pub enum GimfihiError {
     InvalidIpa { ipa: String, reason: String },
     #[error("phonetic scoring failed: {message}")]
     Phonetic { message: String },
+    #[error("computation interrupted")]
+    Interrupted,
     #[error("at least one source is required")]
     NoSources,
     #[error("at least one shape is required")]
@@ -814,6 +819,7 @@ pub fn parse_weight(value: &str) -> Result<u16, GimfihiError> {
 pub fn compose_gismu(
     dictionary: &Dictionary<'_>,
     request: &GimfihiRequest,
+    cancellation: &CancellationToken,
 ) -> Result<GimfihiOutput, GimfihiError> {
     let resolved_sources = resolve_sources(request.preset, &request.sources)?;
     if request.shapes.is_empty() {
@@ -848,10 +854,20 @@ pub fn compose_gismu(
         &resolved_sources,
         &shapes,
         request.all_letters || request.scorer == GimfihiScorer::Phonetic,
-    )
-    .into_iter()
-    .filter(|word| valid_gismu_candidate(word))
-    {
+    ) {
+        // One load per candidate. The shapes are a fixed set, and the work
+        // that grows is scoring every word in that set.
+        if cancellation.is_cancelled() {
+            return Err(GimfihiError::Interrupted);
+        }
+        if !valid_gismu_candidate(&word, cancellation) {
+            // A rejected shape is "not a gismu" only while the flag is clear.
+            // Segmentation reports a set flag the same way it reports a bad word.
+            if cancellation.is_cancelled() {
+                return Err(GimfihiError::Interrupted);
+            }
+            continue;
+        }
         candidate_count += 1;
         let candidate = score_candidate_for_ranking_with_scratch(
             dictionary,
@@ -887,6 +903,11 @@ pub fn compose_gismu(
         if retained_count > 0 {
             retain_top_candidate(&mut retained, candidate, retained_count);
         }
+    }
+    // The last candidate can set the flag inside its own check. The words
+    // kept so far are not a result until this load says the flag is clear.
+    if cancellation.is_cancelled() {
+        return Err(GimfihiError::Interrupted);
     }
     let winner_word = winner.as_ref().map(|candidate| candidate.word.clone());
     let highlighted_word = requested_highlight
@@ -1233,11 +1254,13 @@ fn append_shape_candidates(
 
 #[requires(!word.is_empty())]
 #[ensures(ret -> word.len() == 5)]
-fn valid_gismu_candidate(word: &str) -> bool {
+fn valid_gismu_candidate(word: &str, cancellation: &CancellationToken) -> bool {
     if word.len() != 5 {
         return false;
     }
-    let Ok(words) = segment_words_with_modifiers(word) else {
+    let options = MorphologyOptions::default().with_cancellation(cancellation);
+    let Ok(words) = segment_words_with_modifiers_with_options_and_source_id(word, &options, None)
+    else {
         return false;
     };
     let [word_like] = words.as_slice() else {
@@ -1924,6 +1947,7 @@ fn normalize_gismu(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jbotci_interrupt::assert_exit_check;
     use jbotci_phonetic::{AlineFeature, AlineSaliences, PronunciationTargetId};
 
     #[requires(!targets.is_empty())]
@@ -2038,7 +2062,12 @@ mod tests {
         dictionary: &Dictionary<'_>,
         request: &GimfihiRequest,
     ) -> GimfihiOutput {
-        let actual = compose_gismu(dictionary, request).expect("optimized output");
+        let actual = compose_gismu(
+            dictionary,
+            request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("optimized output");
         let expected =
             compose_gismu_eager_for_test(dictionary, request).expect("eager oracle output");
         assert_outputs_bit_exact(&actual, &expected);
@@ -2065,7 +2094,7 @@ mod tests {
             request.all_letters || request.scorer == GimfihiScorer::Phonetic,
         )
         .into_iter()
-        .filter(|word| valid_gismu_candidate(word))
+        .filter(|word| valid_gismu_candidate(word, &jbotci_interrupt::CancellationToken::never()))
         .map(|word| {
             score_candidate_eager_for_test(
                 dictionary,
@@ -2292,7 +2321,7 @@ mod tests {
             request.all_letters || request.scorer == GimfihiScorer::Phonetic,
         )
         .into_iter()
-        .filter(|word| valid_gismu_candidate(word))
+        .filter(|word| valid_gismu_candidate(word, &jbotci_interrupt::CancellationToken::never()))
         {
             match (
                 previous_collision_index.find(&word),
@@ -2522,7 +2551,12 @@ mod tests {
             count: 1,
             highlight: Some("nanpe".to_owned()),
         };
-        let output = compose_gismu(dictionary, &request).expect("output");
+        let output = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert_eq!(
             output
                 .candidates
@@ -2565,7 +2599,12 @@ mod tests {
             count: 205,
             highlight: None,
         };
-        let whole = compose_gismu(dictionary, &request).expect("output");
+        let whole = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert_eq!(whole.candidates.len(), 205);
 
         // The fortieth page of the same ranking: the same five candidates,
@@ -2575,7 +2614,12 @@ mod tests {
             count: 5,
             ..request.clone()
         };
-        let window = compose_gismu(dictionary, &deep).expect("output");
+        let window = compose_gismu(
+            dictionary,
+            &deep,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert_eq!(window.candidates.len(), 5);
         assert_eq!(
             window
@@ -2604,7 +2648,12 @@ mod tests {
             count: 5,
             ..request.clone()
         };
-        let filtered = compose_gismu(dictionary, &free_rafsi).expect("output");
+        let filtered = compose_gismu(
+            dictionary,
+            &free_rafsi,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert!(!filtered.candidates.is_empty());
         for candidate in &filtered.candidates {
             assert!(
@@ -2624,7 +2673,12 @@ mod tests {
             count: 5,
             ..request
         };
-        let nothing = compose_gismu(dictionary, &past_the_end).expect("output");
+        let nothing = compose_gismu(
+            dictionary,
+            &past_the_end,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert!(nothing.candidates.is_empty());
         assert_eq!(nothing.filtered_count, whole.filtered_count);
     }
@@ -2662,7 +2716,12 @@ mod tests {
         // collisions caused only by #672's `daste`.
         let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
         assert_eq!(collision_delta, 17);
-        let output = compose_gismu(dictionary, &request).expect("output");
+        let output = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert_eq!(output.candidate_count, 16_320);
         // The 2026-10-30 roots block seven more candidates. The delta still
         // isolates the experimental roots added for #672.
@@ -2680,7 +2739,12 @@ mod tests {
             show_collisions: true,
             ..request
         };
-        let output = compose_gismu(dictionary, &request).expect("output");
+        let output = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("output");
         assert_eq!(output.filtered_count, output.candidate_count);
         assert!(
             output
@@ -2781,7 +2845,12 @@ mod tests {
         // collisions caused only by #672's `daste`.
         let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
         assert_eq!(collision_delta, 125);
-        let output = compose_gismu(dictionary, &request).expect("#587 reproduction");
+        let output = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("#587 reproduction");
         assert_eq!(output.candidate_count, 96_475);
         // The 2026-10-30 roots block 83 more candidates. The delta still
         // isolates the experimental roots added for #672.
@@ -2881,10 +2950,9 @@ mod tests {
         let mut oracle_scratch = AlineSimilarityScratch::default();
         let mut compared = 0;
 
-        for candidate in candidates
-            .iter()
-            .filter(|candidate| valid_gismu_candidate(candidate))
-        {
+        for candidate in candidates.iter().filter(|candidate| {
+            valid_gismu_candidate(candidate, &jbotci_interrupt::CancellationToken::never())
+        }) {
             dense_candidate.clear();
             target_candidate.clear();
             for letter in candidate.chars() {
@@ -3038,15 +3106,24 @@ mod tests {
         let resolved = resolve_sources(request.preset, &request.sources).expect("sources");
         let restricted_count = generate_candidates(&resolved, &request.shapes, false)
             .into_iter()
-            .filter(|word| valid_gismu_candidate(word))
+            .filter(|word| {
+                valid_gismu_candidate(word, &jbotci_interrupt::CancellationToken::never())
+            })
             .count();
         let full_count = generate_candidates(&resolved, &request.shapes, true)
             .into_iter()
-            .filter(|word| valid_gismu_candidate(word))
+            .filter(|word| {
+                valid_gismu_candidate(word, &jbotci_interrupt::CancellationToken::never())
+            })
             .count();
         assert!(full_count > restricted_count);
 
-        let output = compose_gismu(dictionary, &request).expect("phonetic output");
+        let output = compose_gismu(
+            dictionary,
+            &request,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("phonetic output");
         assert_eq!(output.scorer, GimfihiScorer::Phonetic);
         assert_eq!(output.candidate_count, full_count);
         let identity = output
@@ -3095,7 +3172,10 @@ mod tests {
         let mut candidates = ["kalma", "salma"]
             .into_iter()
             .map(|word| {
-                assert!(valid_gismu_candidate(word), "{word}");
+                assert!(
+                    valid_gismu_candidate(word, &jbotci_interrupt::CancellationToken::never()),
+                    "{word}"
+                );
                 score_candidate_for_ranking_with_scratch(
                     dictionary,
                     &collision_index,
@@ -3160,15 +3240,17 @@ mod tests {
             .chain(VOWELS.iter())
             .copied()
             .collect::<BTreeSet<_>>();
-        for candidate in candidates
-            .iter()
-            .filter(|candidate| valid_gismu_candidate(candidate))
-        {
+        for candidate in candidates.iter().filter(|candidate| {
+            valid_gismu_candidate(candidate, &jbotci_interrupt::CancellationToken::never())
+        }) {
             if !candidate.chars().any(|letter| uncovered.contains(&letter)) {
                 continue;
             }
-            let rendered = jbotci_phonetic::lojban_text_to_tokenized_ipa(candidate)
-                .expect("existing renderer");
+            let rendered = jbotci_phonetic::lojban_text_to_tokenized_ipa(
+                candidate,
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("existing renderer");
             let mapped = candidate
                 .chars()
                 .map(|letter| {
@@ -3184,5 +3266,72 @@ mod tests {
             }
         }
         assert!(uncovered.is_empty(), "uncovered letters: {uncovered:?}");
+    }
+
+    /// Clear-token release time of the full letter inventory on both shapes
+    /// is 0.50 s. That is the whole shape set. It does not reach 60 s. The
+    /// early trip must still come back as an interrupt. A run that scores
+    /// the inventory is not an interrupt, so a deleted loop check fails
+    /// this test even though the inventory itself is short.
+    const SLOW_LOOP_TRIP: usize = 1_000;
+    const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn small_scoring_request() -> GimfihiRequest {
+        GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
+            preset: None,
+            sources: vec![parse_source_spec("eng:1:bla").expect("source")],
+            shapes: vec![GismuShape::Ccvcv],
+            all_letters: false,
+            check_collisions: CollisionScope::None,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            skip: 0,
+            count: 1,
+            highlight: None,
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_late_trip_stops_inside_gismu_scoring() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = small_scoring_request();
+        let finished = assert_exit_check(
+            |token| compose_gismu(dictionary, &request, token),
+            |error| matches!(error, GimfihiError::Interrupted),
+        );
+        assert!(
+            finished.candidate_count >= 2,
+            "the exit check must sit after more than one pass of the candidate loop"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_mid_loop_trip_stops_the_full_shape_set_quickly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = GimfihiRequest {
+            shapes: default_shapes(),
+            all_letters: true,
+            ..small_scoring_request()
+        };
+        let started = std::time::Instant::now();
+        let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+        let result = compose_gismu(dictionary, &request, &token);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < SLOW_LOOP_BOUND,
+            "gimfihi kept running for {elapsed:?}; a missing loop check scores the whole shape set"
+        );
+        assert!(
+            matches!(result, Err(GimfihiError::Interrupted)),
+            "the early trip must be an interrupt, not a finished score"
+        );
     }
 }

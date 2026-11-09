@@ -343,6 +343,10 @@ impl EmbeddingJob {
 
     /// Run against the worker's cache and deliver the result; a reply nobody
     /// awaits any more is dropped.
+    ///
+    /// The worker thread checks the deadline before it calls this. A search
+    /// that has started runs through its result window. It does not read the
+    /// admission cancellation flag in the middle of the ranking.
     #[requires(true)]
     #[ensures(true)]
     fn run(self, cache: &mut EmbeddingSearchCache) {
@@ -353,7 +357,12 @@ impl EmbeddingJob {
                 reply,
             } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    jbotci_cli::run_tool_cukta_with_limits(request, Some(context), &limits)
+                    jbotci_cli::run_tool_cukta_with_limits(
+                        request,
+                        Some(context),
+                        &limits,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
                 }));
             }
             Self::Vlacku {
@@ -362,7 +371,12 @@ impl EmbeddingJob {
                 reply,
             } => {
                 let _ = reply.send(run_with_embedding_cache(cache, |context| {
-                    jbotci_cli::run_tool_vlacku_with_limits(request, Some(context), &limits)
+                    jbotci_cli::run_tool_vlacku_with_limits(
+                        request,
+                        Some(context),
+                        &limits,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
                 }));
             }
             Self::VlackuHits {
@@ -582,8 +596,11 @@ impl ToolServices {
             await_rendered_reply(received, context.deadline).await
         } else {
             let limits = context.execution.policy.tool_limits();
+            let cancellation = context.token();
             context
-                .run(move || jbotci_cli::run_tool_cukta_with_limits(request, None, &limits))
+                .run(move || {
+                    jbotci_cli::run_tool_cukta_with_limits(request, None, &limits, &cancellation)
+                })
                 .await?
         }
     }
@@ -621,8 +638,11 @@ impl ToolServices {
             await_rendered_reply(received, context.deadline).await
         } else {
             let limits = context.execution.policy.tool_limits();
+            let cancellation = context.token();
             context
-                .run(move || jbotci_cli::run_tool_vlacku_with_limits(request, None, &limits))
+                .run(move || {
+                    jbotci_cli::run_tool_vlacku_with_limits(request, None, &limits, &cancellation)
+                })
                 .await?
         }
     }
@@ -1150,9 +1170,14 @@ async fn gentufa(
         Err(error) => return execution::work_error_response(error),
     };
     let render_limits = context.execution.policy.tool_limits().render;
+    let cancellation = context.token();
     let result = match context
         .run(move || {
-            jbotci_web_core::parse_gentufa_for_web_with_limits(&request, Some(render_limits))
+            jbotci_web_core::parse_gentufa_for_web_with_limits(
+                &request,
+                Some(render_limits),
+                &cancellation,
+            )
         })
         .await
     {
@@ -1193,9 +1218,15 @@ async fn gimfihi(
         .expect("positive overlapping limits"),
         limits.render.projection,
     );
+    let cancellation = context.token();
     match context
         .run(move || {
-            jbotci_cli::run_tool_gimfihi_with_limits(request, GimfihiSourceWordKind::Ipa, &limits)
+            jbotci_cli::run_tool_gimfihi_with_limits(
+                request,
+                GimfihiSourceWordKind::Ipa,
+                &limits,
+                &cancellation,
+            )
         })
         .await
     {
@@ -1477,8 +1508,18 @@ async fn computed_spa_index_response(
     let context = state.tool_services.execution.admit(Some(deadline)).await?;
     let meta = (state.page_meta_builder)(state.base_path.clone(), route, context.clone()).await?;
     let limits = spa_head_render_limits(&context.execution.policy);
+    let cancellation = context.token();
     let rendered = context
-        .run(move || apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits))
+        .run(move || {
+            // The splice is bounded by the projection byte limit. Read the
+            // flag first so a deadline that already passed does not start it.
+            if cancellation.is_cancelled() {
+                return Err(WorkError::TimedOut {
+                    lane: crate::work::WorkLane::Compute,
+                });
+            }
+            apply_spa_head_metadata_with_limits(&html, origin.as_deref(), &meta, limits)
+        })
         .await??;
     Ok(spa_index_html_response(execution::owned_body(
         rendered.into_bytes(),
@@ -1567,6 +1608,7 @@ async fn gentufa_export_response(
     };
     let limits = context.execution.policy.tool_limits();
     let diagram = limits.diagram.with_data(bityzba::data! { max_bytes: limits.diagram.max_bytes.min(context.execution.policy.response_bytes) });
+    let cancellation = context.token();
     let task = context
         .run(move || {
             jbotci_web_core::render_gentufa_state_web_export_with_limits(
@@ -1575,6 +1617,7 @@ async fn gentufa_export_response(
                 format,
                 Some(limits.render),
                 Some(diagram),
+                &cancellation,
             )
         })
         .await;
@@ -1601,6 +1644,7 @@ async fn build_page_meta_blocking(
     context: AdmittedWorkContext,
 ) -> PageMetaTaskResult {
     let limits = context.execution.policy.tool_limits();
+    let cancellation = context.token();
     context
         .run(move || {
             jbotci_web_core::blocking::build_computed_page_meta_with_limits(
@@ -1608,12 +1652,17 @@ async fn build_page_meta_blocking(
                 &route,
                 limits.render,
                 limits.diagram,
+                &cancellation,
             )
         })
         .await?
         .map_err(|error| {
             if error.is_output_limit() {
                 WorkError::OutputLimit
+            } else if error.is_interrupted() {
+                WorkError::TimedOut {
+                    lane: crate::work::WorkLane::Compute,
+                }
             } else {
                 eprintln!("metadata computation failed: {error}");
                 WorkError::Panicked {

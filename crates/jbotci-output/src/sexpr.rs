@@ -229,10 +229,19 @@ pub(crate) fn render_bracketed_with_limit(
     expr: &SExpr,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, crate::OutputError> {
+    cancellation
+        .check()
+        .map_err(|_| crate::OutputError::Interrupted)?;
     let mut output = OutputBudget::new(limit).writer();
-    write_bracketed(&mut output, 0, expr, options)
-        .map_err(|error| crate::OutputError::from_render_io(error, limit))?;
+    write_bracketed(&mut output, 0, expr, options, cancellation).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            crate::OutputError::Interrupted
+        } else {
+            crate::OutputError::from_render_io(error, limit)
+        }
+    })?;
     Ok(output.into_string().expect("bracket output is UTF-8"))
 }
 
@@ -252,7 +261,16 @@ fn write_bracketed(
     depth: usize,
     expr: &SExpr,
     options: BracketRenderOptions,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
+    // Stop before writing another node. The bytes already written are discarded
+    // by the caller when this returns Interrupted.
+    if cancellation.is_cancelled() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            jbotci_interrupt::Interrupted,
+        ));
+    }
     match expr {
         SExpr::Leaf { text, role, .. } => {
             if text.is_empty() && *role != LeafRole::Error {
@@ -268,7 +286,7 @@ fn write_bracketed(
                 return Ok(());
             };
             if children.peek().is_none() {
-                return write_bracketed(output, depth + 1, first, options);
+                return write_bracketed(output, depth + 1, first, options, cancellation);
             }
             write_style_open(output, depth, options, LeafRole::Normal)?;
             let (open, close) = bracket_pair(depth);
@@ -276,10 +294,10 @@ fn write_bracketed(
             if options.insert_hair_space {
                 output.write_all("\u{200a}".as_bytes())?;
             }
-            write_bracketed(output, depth + 1, first, options)?;
+            write_bracketed(output, depth + 1, first, options, cancellation)?;
             for child in children {
                 output.write_all(b" ")?;
-                write_bracketed(output, depth + 1, child, options)?;
+                write_bracketed(output, depth + 1, child, options, cancellation)?;
             }
             if options.insert_hair_space {
                 output.write_all("\u{200a}".as_bytes())?;
@@ -344,6 +362,7 @@ pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRender
         expr,
         options,
         ByteLimit::new(usize::MAX).expect("positive limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
     .expect("unrestricted bracket rendering")
 }
@@ -366,7 +385,14 @@ pub(crate) fn render_bracketed_at_depth(
 ) -> String {
     let mut output =
         OutputBudget::new(ByteLimit::new(usize::MAX).expect("positive limit")).writer();
-    write_bracketed(&mut output, depth, expr, options).expect("unrestricted bracket rendering");
+    write_bracketed(
+        &mut output,
+        depth,
+        expr,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .expect("unrestricted bracket rendering");
     output.into_string().expect("bracket output is UTF-8")
 }
 

@@ -37,6 +37,7 @@ pub(crate) fn pretty_morphology_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -47,16 +48,18 @@ pub fn pretty_morphology_brackets_with_limit(
     source: &str,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let _ = source;
     let context = BracketContext { options };
-    let sexpr = sexpr::node(
-        words
-            .iter()
-            .map(|word_like| word_like_brackets(word_like, &context))
-            .collect(),
-    );
-    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit)
+    let mut children = Vec::with_capacity(words.len());
+    for word_like in words {
+        // One load per word. A cancelled segmentation render is not a bracket string.
+        cancellation.check().map_err(|_| OutputError::Interrupted)?;
+        children.push(word_like_brackets(word_like, &context));
+    }
+    let sexpr = sexpr::node(children);
+    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
 #[requires(true)]
@@ -72,6 +75,7 @@ pub(crate) fn pretty_generated_model_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -82,9 +86,10 @@ pub fn pretty_generated_model_brackets_with_limit(
     source: &str,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options);
-    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit)
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, cancellation)?;
+    sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
 #[requires(true)]
@@ -95,7 +100,12 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<BracketSourceFragment>, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options);
+    let sexpr = generated_model_bracket_sexpr(
+        tree,
+        source,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+    )?;
     Ok(sexpr::render_bracketed_source_fragments_with_options(
         &sexpr::flatten(sexpr),
         options,
@@ -127,12 +137,18 @@ fn generated_model_bracket_sexpr(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,
-) -> sexpr::SExpr {
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<sexpr::SExpr, OutputError> {
     let _ = source;
     let context = BracketContext { options };
-    let mut visitor = GeneratedBracketVisitor::new(&context);
+    let mut visitor = GeneratedBracketVisitor::with_cancellation(&context, cancellation);
     tree.visit_in_order(&mut visitor);
-    visitor.finish()
+    // The visitor keeps walking so the frame stack stays balanced, but a
+    // cancelled walk has no bracket document to return.
+    if visitor.cancelled {
+        return Err(OutputError::Interrupted);
+    }
+    Ok(visitor.finish())
 }
 
 #[invariant(true)]
@@ -148,16 +164,39 @@ struct GeneratedBracketVisitor<'source> {
     source: &'source BracketContext,
     stack: Vec<GeneratedBracketFrame>,
     root: Option<sexpr::SExpr>,
+    cancellation: jbotci_interrupt::CancellationToken,
+    cancelled: bool,
+    /// Frames skipped after the flag was set. Exits only unwind this count.
+    skipped: usize,
 }
 
 impl<'source> GeneratedBracketVisitor<'source> {
     #[requires(true)]
     #[ensures(ret.stack.is_empty())]
-    fn new(source: &'source BracketContext) -> Self {
+    fn with_cancellation(
+        source: &'source BracketContext,
+        cancellation: &jbotci_interrupt::CancellationToken,
+    ) -> Self {
         Self {
             source,
             stack: Vec::new(),
             root: None,
+            cancellation: cancellation.clone(),
+            cancelled: false,
+            skipped: 0,
+        }
+    }
+
+    /// One acquire load. After the flag is set, later events keep the frame
+    /// stack balanced and record nothing.
+    #[requires(true)]
+    #[ensures(true)]
+    fn stop_requested(&mut self) -> bool {
+        if self.cancelled || self.cancellation.is_cancelled() {
+            self.cancelled = true;
+            true
+        } else {
+            false
         }
     }
 
@@ -208,6 +247,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
+        if self.skipped > 0 || self.stop_requested() {
+            self.skipped += 1;
+            return;
+        }
         self.push_frame(
             bracket_source_construct(node.constructor_name())
                 .into_iter()
@@ -218,36 +261,59 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn exit_node(&mut self, _node: Self::Node) {
+        if self.skipped > 0 {
+            self.skipped -= 1;
+            return;
+        }
         self.pop_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_field(&mut self, _field: FieldRef) {
+        if self.skipped > 0 || self.stop_requested() {
+            self.skipped += 1;
+            return;
+        }
         self.push_frame(Vec::new());
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_field(&mut self, _field: FieldRef) {
+        if self.skipped > 0 {
+            self.skipped -= 1;
+            return;
+        }
         self.pop_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_sequence(&mut self) {
+        if self.skipped > 0 || self.stop_requested() {
+            self.skipped += 1;
+            return;
+        }
         self.push_frame(Vec::new());
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_sequence(&mut self) {
+        if self.skipped > 0 {
+            self.skipped -= 1;
+            return;
+        }
         self.pop_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_absent_optional_field(&mut self, field: FieldRef) {
+        if self.skipped > 0 || self.cancelled {
+            return;
+        }
         if !self.source.options.show_elided {
             return;
         }
@@ -265,6 +331,9 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
+        if self.skipped > 0 || self.stop_requested() {
+            return;
+        }
         match atom {
             GeneratedSyntaxAtomRef::Token(token) => self.push_expr(word(token, self.source)),
         }

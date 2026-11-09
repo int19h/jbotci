@@ -3,6 +3,9 @@
 //! Output format selection and render facade.
 
 mod brackets;
+
+#[cfg(test)]
+mod cancellation_tests;
 pub use brackets::{
     pretty_generated_model_brackets_with_limit, pretty_morphology_brackets_with_limit,
 };
@@ -150,6 +153,7 @@ impl BracketSourceFragmentRole {
 #[invariant(::Recovery(..) => true)]
 #[invariant(::Render(..) => true)]
 #[invariant(::Limit { .. } => true)]
+#[invariant(::Interrupted => true)]
 pub enum OutputError {
     #[error("The generated output exceeds the {}-byte limit.", limit.get())]
     Limit { limit: budget::ByteLimit },
@@ -165,13 +169,20 @@ pub enum OutputError {
     References(#[from] jbotci_semantics::references::ReferenceAnalysisError),
     #[error("failed to render recovered parse: {0}")]
     Recovery(String),
+    /// The cancellation flag stopped rendering. The value is not a partial document.
+    #[error("computation interrupted")]
+    Interrupted,
 }
 
 impl OutputError {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn from_render_io(error: std::io::Error, limit: budget::ByteLimit) -> Self {
-        if error.kind() == std::io::ErrorKind::FileTooLarge {
+        // A cancelled render writes this kind so it is not reported as a
+        // broken document or as an output-limit failure.
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            Self::Interrupted
+        } else if error.kind() == std::io::ErrorKind::FileTooLarge {
             Self::Limit { limit }
         } else {
             Self::Render(error.to_string())
@@ -1819,12 +1830,20 @@ mod bounded_output_tests {
                     unlimited,
                 )
                 .unwrap(),
-                pretty_morphology_tree_with_limit(&words, source, tree_options, unlimited).unwrap(),
+                pretty_morphology_tree_with_limit(
+                    &words,
+                    source,
+                    tree_options,
+                    unlimited,
+                    &jbotci_interrupt::CancellationToken::never(),
+                )
+                .unwrap(),
                 pretty_morphology_brackets_with_limit(
                     &words,
                     source,
                     BracketRenderOptions::default(),
                     unlimited,
+                    &jbotci_interrupt::CancellationToken::never(),
                 )
                 .unwrap(),
                 ipa_morphology_text_with_limit(&words, source, unlimited).unwrap(),
@@ -1840,12 +1859,19 @@ mod bounded_output_tests {
                             limit,
                             unlimited,
                         ),
-                        1 => pretty_morphology_tree_with_limit(&words, source, tree_options, limit),
+                        1 => pretty_morphology_tree_with_limit(
+                            &words,
+                            source,
+                            tree_options,
+                            limit,
+                            &jbotci_interrupt::CancellationToken::never(),
+                        ),
                         2 => pretty_morphology_brackets_with_limit(
                             &words,
                             source,
                             BracketRenderOptions::default(),
                             limit,
+                            &jbotci_interrupt::CancellationToken::never(),
                         ),
                         3 => ipa_morphology_text_with_limit(&words, source, limit),
                         _ => raw_with_limit(&words, raw_indent, limit),

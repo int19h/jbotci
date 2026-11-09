@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_interrupt::CancellationToken;
 use serde::{Deserialize, Serialize};
 
 pub use crate::segment::ConsonantPairClass;
@@ -217,7 +218,10 @@ pub fn choose_best_lujvo_candidate(
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    choose_best_lujvo_candidate_from_parts(mode, &typed_choices)
+    // Callers of this text API have no deadline. The jvozba builder passes its
+    // own token into `choose_best_lujvo_candidate_from_parts`.
+    choose_best_lujvo_candidate_from_parts(mode, &typed_choices, &CancellationToken::never())
+        .expect("a token that no owner can set stays clear")
 }
 
 #[requires(true)]
@@ -225,8 +229,9 @@ pub fn choose_best_lujvo_candidate(
 pub fn choose_best_lujvo_candidate_from_parts(
     mode: LujvoBuildMode,
     choices: &[Vec<LujvoBuildPart>],
-) -> Option<LujvoCandidate> {
-    choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None)
+    cancellation: &CancellationToken,
+) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
+    choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None, cancellation)
 }
 
 #[requires(true)]
@@ -236,28 +241,32 @@ fn choose_best_candidate_from_parts<'a>(
     choices: &'a [Vec<LujvoBuildPart>],
     selected: &mut Vec<&'a LujvoBuildPart>,
     best: Option<LujvoCandidate>,
-) -> Option<LujvoCandidate> {
+    cancellation: &CancellationToken,
+) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
     let Some((next_choices, rest)) = choices.split_first() else {
-        let bonded = bond_lujvo_build_part_refs(selected)?;
+        let Some(bonded) = bond_lujvo_build_part_refs(selected) else {
+            return Ok(best);
+        };
         let word = bonded.concat();
         let candidate = new!(LujvoCandidate {
             score: lujvo_score(&bonded),
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate) {
-            return best;
+        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate, cancellation)? {
+            return Ok(best);
         }
-        return Some(select_better_candidate(best, candidate));
+        return Ok(Some(select_better_candidate(best, candidate)));
     };
 
     let mut current_best = best;
     for choice in next_choices {
         selected.push(choice);
-        current_best = choose_best_candidate_from_parts(mode, rest, selected, current_best);
+        current_best =
+            choose_best_candidate_from_parts(mode, rest, selected, current_best, cancellation)?;
         selected.pop();
     }
-    current_best
+    Ok(current_best)
 }
 
 #[requires(true)]
@@ -346,22 +355,35 @@ pub fn is_valid_lujvo_candidate_word(word_text: &str) -> bool {
 }
 
 #[requires(!candidate.word.is_empty())]
-#[ensures(ret -> !candidate.parts.is_empty())]
-fn is_valid_lujvo_candidate(candidate: &LujvoCandidate) -> bool {
-    let Ok(words) = crate::segment_words_with_modifiers(&candidate.word) else {
-        return false;
+#[ensures(ret.as_ref().is_ok_and(|valid| !valid || !candidate.parts.is_empty()) || ret.is_err())]
+fn is_valid_lujvo_candidate(
+    candidate: &LujvoCandidate,
+    cancellation: &CancellationToken,
+) -> Result<bool, crate::MorphologyError> {
+    // An interrupt is not an invalid spelling. The search must stop instead
+    // of treating the flag as "try the next candidate".
+    let options = crate::MorphologyOptions::default().with_cancellation(cancellation);
+    let words = match crate::segment_words_with_modifiers_with_options_and_source_id(
+        &candidate.word,
+        &options,
+        None,
+    ) {
+        Ok(words) => words,
+        Err(error) if error.is_interrupted() => return Err(error),
+        Err(_) => return Ok(false),
     };
     let [word_like] = words.as_slice() else {
-        return false;
+        return Ok(false);
     };
     let Some(word) = word_like.bare_word() else {
-        return false;
+        return Ok(false);
     };
     if word.kind() != crate::WordKind::Lujvo {
-        return false;
+        return Ok(false);
     }
-    word.lujvo_parts()
-        .is_some_and(|parts| lujvo_parts_match(parts.as_slice(), &candidate.parts))
+    Ok(word
+        .lujvo_parts()
+        .is_some_and(|parts| lujvo_parts_match(parts.as_slice(), &candidate.parts)))
 }
 
 #[requires(true)]

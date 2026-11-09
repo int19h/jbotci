@@ -64,6 +64,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
     ),
     (
+        "apps/jbotci-server/src/execution.rs:AdmissionCancellation",
+        "The source and the deadline sleeper are one admission. A clear flag and a set flag are both valid, and dropping the value does not change the flag.",
+    ),
+    (
         "crates/jbotci-budget/src/json_text.rs:OnceText",
         "The test tracks how often a text value is serialized.",
     ),
@@ -1114,6 +1118,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:LcsScratch",
         "LCS scratch rows are mutable work storage whose temporary lengths are controlled by longest_common_subsequence_len_chars",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:CancellationToken",
+        "Both states of the shared flag are valid. The owner decides when the flag becomes set.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:CancellationSource",
+        "The source is the owner of one flag. A clear flag and a set flag are both valid owners.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:Interrupted",
+        "The value has no fields. It names one cancelled computation.",
     ),
     (
         "crates/jbotci-ide/src/snapshot/completion.rs:CompletionCancellationToken",

@@ -1,8 +1,13 @@
 use std::fs;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use bityzba::requires;
+
+/// Two tests in this file run together. A clock sample can be the same for
+/// both, and the process id is shared, so the directory name needs its own
+/// counter.
+static FIXTURE_DIALECT_DIR: AtomicU64 = AtomicU64::new(0);
 
 #[test]
 #[requires(true)]
@@ -27,10 +32,7 @@ fn assert_fixture_dialect_failure(formula: &str, reason: &str) {
     let root = std::env::temp_dir().join(format!(
         "jbotci-fixture-dialect-{}-{}",
         std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
+        FIXTURE_DIALECT_DIR.fetch_add(1, Ordering::Relaxed)
     ));
     fs::create_dir(&root).unwrap();
     let fixture = root.join("one.toml");

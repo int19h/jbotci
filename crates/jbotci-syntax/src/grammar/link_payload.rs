@@ -811,7 +811,8 @@ mod tests {
         let words = segment_words_with_modifiers(source).unwrap();
         RECOVERED_ATTEMPTS.set(Some(Vec::new()));
         let parsed =
-            crate::parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+            crate::parse_syntax_tree_recovered_with_source_and_options(&words, source, &options)
+                .expect("an uninterrupted recovered parse returns a tree");
         let attempts = RECOVERED_ATTEMPTS.take().unwrap();
         assert!(
             attempts

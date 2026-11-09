@@ -1,0 +1,26 @@
+[package]
+name = "jbotci-interrupt"
+description = "Cooperative cancellation for jbotci computations."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+exclude = ["/tests/**", "/benches/**", "/examples/**"]
+
+[features]
+expensive_contracts = []
+# Test builds count `is_cancelled` loads and can set the flag after one of
+# them. Production builds leave this off, so `is_cancelled` stays one acquire
+# load. No normal dependency enables this feature.
+cancellation_test_hook = []
+
+[dependencies]
+bityzba.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true

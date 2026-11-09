@@ -106,6 +106,7 @@ fn morphology_recovery_item(
             "morphology.source-span".to_owned(),
             vec!["valid source span".to_owned()],
         ),
+        MorphologyError::Interrupted => return Err(OutputError::Interrupted),
     };
     recovery_item_from_span(
         error_index,
@@ -146,6 +147,7 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
                 expected.clone()
             },
         ),
+        SyntaxError::Interrupted => return Err(OutputError::Interrupted),
     };
     let span = recovery_item_span(item).ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no source span".to_owned())
@@ -226,6 +228,7 @@ pub fn pretty_recovered_morphology_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -236,6 +239,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
     source: &str,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
         return crate::pretty_morphology_brackets_with_limit(
@@ -243,6 +247,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             source,
             options,
             limit,
+            cancellation,
         );
     }
     let context = brackets::BracketContext { options };
@@ -256,7 +261,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
         })
         .collect();
     let value = sexpr::flatten(sexpr::node(children));
-    sexpr::render_bracketed_with_limit(&value, options, limit)
+    sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
 
 #[requires(true)]
@@ -271,6 +276,7 @@ pub fn pretty_recovered_morphology_tree_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
@@ -281,9 +287,16 @@ pub fn pretty_recovered_morphology_tree_with_limit(
     source: &str,
     options: TreeRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     if recovered.errors.is_empty() {
-        return crate::pretty_morphology_tree_with_limit(&recovered.words, source, options, limit);
+        return crate::pretty_morphology_tree_with_limit(
+            &recovered.words,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
     }
     let values = recovered_morphology_sequence(recovered, source)?
         .into_iter()
@@ -301,6 +314,7 @@ pub fn pretty_recovered_morphology_tree_with_limit(
         options,
         None,
         limit,
+        cancellation,
     )
 }
 
@@ -347,6 +361,11 @@ pub fn compact_recovered_morphology_json_string_with_limits(
             projection_limit,
         );
     }
+    // Serde can only report a string. Check before projection so a cancelled
+    // segmentation stays `OutputError::Interrupted` instead of a JSON error.
+    if recovered.errors.iter().any(MorphologyError::is_interrupted) {
+        return Err(OutputError::Interrupted);
+    }
     let projection = new!(RecoveredMorphologyProjection { recovered, source });
     let mut value = crate::compact_json_value_with_limit(&projection, projection_limit)?;
     json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
@@ -384,6 +403,13 @@ impl Serialize for RecoveredMorphologyProjection<'_> {
                     }
                     MorphologyError::DialectExpansion(_) => "morphology.dialect-expansion-limit",
                     MorphologyError::SourceSpan(_) => "morphology.source-span",
+                    // `compact_recovered_morphology_json_string_with_limits`
+                    // returns `OutputError::Interrupted` before serialize.
+                    MorphologyError::Interrupted => {
+                        return Err(S::Error::custom(
+                            "interrupted morphology reached the JSON projection",
+                        ));
+                    }
                 };
                 let text = self
                     .source
@@ -461,6 +487,7 @@ impl std::fmt::Display for MorphologyExpectation<'_> {
             }
             MorphologyError::DialectExpansion(failure) => write!(formatter, "{failure}"),
             MorphologyError::SourceSpan(_) => formatter.write_str("valid source span"),
+            MorphologyError::Interrupted => formatter.write_str("computation interrupted"),
         }
     }
 }
@@ -702,9 +729,15 @@ pub fn pretty_recovered_syntax_brackets_with_options(
         source,
         options,
         ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        &jbotci_interrupt::CancellationToken::never(),
     )
 }
 
+/// Render recovered brackets until `cancellation` is set.
+///
+/// The recovered tree visitor cannot abort mid-walk. The flag is read before
+/// the walk and again when the walk returns; a set flag discards the s-expression
+/// instead of rendering it. The string writer also reads the flag at each node.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 pub fn pretty_recovered_syntax_brackets_with_limit(
@@ -712,17 +745,30 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
     source: &str,
     options: BracketRenderOptions,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_generated_model_brackets_with_limit(&valid, source, options, limit);
+        return crate::pretty_generated_model_brackets_with_limit(
+            &valid,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
     }
     let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
     );
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     let value = sexpr::flatten(visitor.finish()?);
-    sexpr::render_bracketed_with_limit(&value, options, limit)
+    sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
 
 /// Elision marker used wherever the bounded error-region rendering drops
@@ -1214,6 +1260,7 @@ mod tests {
             source,
             &ParseOptions::default(),
         )
+        .expect("an uninterrupted recovered parse returns a tree")
     }
 
     #[test]
@@ -1406,6 +1453,7 @@ mod tests {
     fn syntax_error_code_and_span(error: &SyntaxError) -> (&'static str, (usize, usize)) {
         match error {
             SyntaxError::NotImplemented => ("syntax.not-implemented", (0, 0)),
+            SyntaxError::Interrupted => ("syntax.interrupted", (0, 0)),
             SyntaxError::Parse {
                 kind,
                 byte_start,
@@ -2112,16 +2160,22 @@ pub fn pretty_recovered_morphology_raw_with_limit(
     source: &str,
     indent: Option<Indentation>,
     limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    if recovered.errors.is_empty() {
-        raw_with_limit(&recovered.words, indent, limit)
+    // Debug formatting of an already-built list has no inner checkpoint.
+    // The load after it is the one a late flag must turn into an interrupt.
+    cancellation.check().map_err(|_| OutputError::Interrupted)?;
+    let rendered = if recovered.errors.is_empty() {
+        raw_with_limit(&recovered.words, indent, limit)?
     } else {
         raw_with_limit(
             &recovered_morphology_sequence(recovered, source)?,
             indent,
             limit,
-        )
-    }
+        )?
+    };
+    cancellation.check().map_err(|_| OutputError::Interrupted)?;
+    Ok(rendered)
 }
 
 #[requires(indent.is_none_or(|indent| indent.spaces() == 0))]

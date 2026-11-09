@@ -17,6 +17,7 @@ use jbotci_diagnostics::{
     source_span_from_byte_offsets,
 };
 use jbotci_dialect::DialectFeature;
+use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{Cmavo, Phonemes, Selmaho, Word, WordKind, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_tree::{RecoveryItemState, TreeVisitor};
@@ -270,6 +271,61 @@ impl ContinuationTimeLimit {
     #[ensures(true)]
     fn exhausted(self) -> bool {
         self.started.elapsed() >= self.duration
+    }
+}
+
+/// Why a parse should stop, or that it should continue.
+///
+/// One predicate consults the cancellation flag and, only when a completion
+/// limit is armed, the clock. The parser does not keep a second check beside it.
+#[invariant(true)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ParseStop {
+    Continue,
+    TimeLimit,
+    Cancelled,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_stop(
+    cancellation: &CancellationToken,
+    time_limit: Option<ContinuationTimeLimit>,
+) -> ParseStop {
+    let cancelled = cancellation.is_cancelled();
+    // `is_some_and` does not read the clock when no completion limit is armed.
+    // A server parse passes None, so this stays one acquire load.
+    let timed_out = time_limit.is_some_and(ContinuationTimeLimit::exhausted);
+    if timed_out {
+        // Completion keeps its existing timeout when the flag and the clock
+        // both say stop.
+        ParseStop::TimeLimit
+    } else if cancelled {
+        ParseStop::Cancelled
+    } else {
+        ParseStop::Continue
+    }
+}
+
+/// Record a stop and report whether the caller should leave its loop.
+#[requires(true)]
+#[ensures(true)]
+fn observe_parse_stop(
+    cancellation: &CancellationToken,
+    time_limit: Option<ContinuationTimeLimit>,
+    time_exhausted: &mut bool,
+    cancelled: &mut bool,
+) -> bool {
+    match parse_stop(cancellation, time_limit) {
+        ParseStop::Continue => false,
+        ParseStop::TimeLimit => {
+            *time_exhausted = true;
+            true
+        }
+        ParseStop::Cancelled => {
+            *cancelled = true;
+            true
+        }
     }
 }
 
@@ -1313,6 +1369,7 @@ pub(super) struct ParserState<'tokens> {
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
+    cancellation: CancellationToken,
     _tokens: PhantomData<&'tokens ()>,
 }
 
@@ -1339,12 +1396,14 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
-        Self::from_shared_input(
+        let mut state = Self::from_shared_input(
             words.iter().map(Token::identity).collect(),
             syntax_location_byte_offsets(words).into(),
             generated_runtime::SyntaxGrammarEnv::from_options(options),
             TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
-        )
+        );
+        state.cancellation = options.cancellation.clone();
+        state
     }
 
     /// Give an inline warning probe private caches and recovery state.
@@ -1362,6 +1421,7 @@ impl<'tokens> ParserState<'tokens> {
         );
         state.continuation_sentinel_index = self.continuation_sentinel_index;
         state.continuation_time_limit = self.continuation_time_limit;
+        state.cancellation = self.cancellation.clone();
         state
     }
 
@@ -1415,6 +1475,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_grammar_env,
             continuation_sentinel_index: None,
             continuation_time_limit: None,
+            cancellation: CancellationToken::never(),
             _tokens: PhantomData,
         }
     }
@@ -2314,7 +2375,12 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
+    // `ret` is the stop decision already taken above. Repeating `parse_stop`
+    // here would load the flag a second time on every store.
+    #[ensures(
+        !ret || self.recovery_enabled()
+            || self.syntax_memo.contains_key(&(rule_name, start_location))
+    )]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
     #[inline(never)]
@@ -2326,7 +2392,12 @@ impl<'tokens> ParserState<'tokens> {
         end_location: usize,
         value: SyntaxMemoValue,
         warnings: Vec<SyntaxWarning>,
-    ) {
+    ) -> bool {
+        // A child that stopped must not become a memo the rest of this attempt
+        // can replay. The flag is monotonic, so refusing the insert is enough.
+        if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
+            return false;
+        }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let effective_fail_token_indices = if sensitive {
             self.effective_fail_token_indices
@@ -2381,19 +2452,28 @@ impl<'tokens> ParserState<'tokens> {
             self.syntax_memo
                 .insert((rule_name, start_location), success);
         }
+        true
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
+    // Same as the success store: the bool is the stop decision, so this
+    // postcondition does not load the flag again.
+    #[ensures(
+        !ret || self.recovery_enabled()
+            || self.syntax_failure_memo.contains_key(&(rule_name, start_location))
+    )]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         context: SyntaxMemoContext,
         error: SyntaxParseError<'tokens>,
-    ) {
+    ) -> bool {
+        if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
+            return false;
+        }
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
         let observations = self
             .recovery_memo_trial
@@ -2431,7 +2511,7 @@ impl<'tokens> ParserState<'tokens> {
                     .insensitive_failures
                     .insert((rule_name, start_location), failure);
             }
-            return;
+            return true;
         }
         let diagnostic_observations = self.current_strict_diagnostic_observations();
         let end_location = self.memo_failure_end_location(start_location, &error);
@@ -2447,6 +2527,7 @@ impl<'tokens> ParserState<'tokens> {
                 rule_observation_node: None,
             }),
         );
+        true
     }
 
     #[requires(!rule_name.is_empty())]
@@ -2463,10 +2544,13 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> bool {
-        if self
-            .continuation_time_limit
-            .is_some_and(ContinuationTimeLimit::exhausted)
-        {
+        // Parses stop only through `parse_stop`, including the post-parse
+        // discards. A false return does not store a failure memo: the caller
+        // rewinds the attempt, and the memo stores refuse a set flag.
+        if !matches!(
+            parse_stop(&self.cancellation, self.continuation_time_limit),
+            ParseStop::Continue
+        ) {
             return false;
         }
         let entered = if self.recovery_enabled() {
@@ -3612,6 +3696,17 @@ pub(crate) fn parse_generated_model_syntax_entry_attempt(
 ) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
     let parsed = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
+    // No completion limit is armed here. `parse_stop` still owns the read so a
+    // later limit cannot disagree with this discard.
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
+        return SyntaxParseAttempt {
+            result: Err(SyntaxError::Interrupted),
+            trace: parsed.trace,
+        };
+    }
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
         add_generated_construct_warnings(
@@ -3647,7 +3742,7 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
     let result = match attempt.result.into_data() {
         data!(SyntaxRecoveryParse::Valid { parse }) => {
             let parse = parse.into_data();
-            new!(RecoveredSyntaxParse {
+            Ok(new!(RecoveredSyntaxParse {
                 parse_tree: Box::new(
                     generated::generated_model::recovered::TextSyntax::from_valid(
                         *parse.parse_tree,
@@ -3655,9 +3750,10 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
                 ),
                 errors: Vec::new(),
                 warnings: parse.warnings,
-            })
+            }))
         }
-        data!(SyntaxRecoveryParse::Recovered { parse }) => parse,
+        data!(SyntaxRecoveryParse::Recovered { parse }) => Ok(parse),
+        data!(SyntaxRecoveryParse::Interrupted) => Err(SyntaxError::Interrupted),
     };
     RecoveredSyntaxParseAttempt {
         result,
@@ -3676,8 +3772,10 @@ pub(crate) fn expected_continuations(
         return Err(ContinuationError::TimedOut);
     }
     let time_limit = time_limit.map(ContinuationTimeLimit::new);
-    if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-        return Err(ContinuationError::TimedOut);
+    match parse_stop(&options.cancellation, time_limit) {
+        ParseStop::TimeLimit => return Err(ContinuationError::TimedOut),
+        ParseStop::Cancelled => return Err(ContinuationError::Interrupted),
+        ParseStop::Continue => {}
     }
     let cut_byte = words
         .last()
@@ -3709,8 +3807,10 @@ pub(crate) fn expected_continuations(
         trace,
         mut continuation_expectations,
     }) = tracked_attempt.into_data();
-    if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-        return Err(ContinuationError::TimedOut);
+    match parse_stop(&options.cancellation, time_limit) {
+        ParseStop::TimeLimit => return Err(ContinuationError::TimedOut),
+        ParseStop::Cancelled => return Err(ContinuationError::Interrupted),
+        ParseStop::Continue => {}
     }
     let failure = match result {
         Ok(_) => unreachable!("the completion sentinel cannot satisfy the root EOF parser"),
@@ -3730,18 +3830,22 @@ pub(crate) fn expected_continuations(
         Some(sentinel_index),
         time_limit,
     );
-    let data!(RecoveryParseOutcome {
-        recovered: _,
-        continuation_expectations,
-        continuation_cut_reached,
-        continuation_time_limit_exhausted,
-    }) = recovered.into_data();
-    if continuation_time_limit_exhausted {
-        Err(ContinuationError::TimedOut)
-    } else if !continuation_cut_reached {
-        Err(ContinuationError::RecoveryLimit)
-    } else {
-        Ok(continuation_expectations)
+    match recovered.into_data() {
+        data!(RecoveryParseOutcome::Interrupted { .. }) => Err(ContinuationError::Interrupted),
+        data!(RecoveryParseOutcome::Recovered {
+            continuation_expectations,
+            continuation_cut_reached,
+            continuation_time_limit_exhausted,
+            ..
+        }) => {
+            if continuation_time_limit_exhausted {
+                Err(ContinuationError::TimedOut)
+            } else if !continuation_cut_reached {
+                Err(ContinuationError::RecoveryLimit)
+            } else {
+                Ok(continuation_expectations)
+            }
+        }
     }
 }
 
@@ -3764,7 +3868,7 @@ fn expected_continuation_sentinel(byte_offset: usize) -> Token {
 fn syntax_error_expectations(error: &SyntaxError) -> Vec<SyntaxExpectation> {
     match error {
         SyntaxError::Parse { expectations, .. } => expectations.clone(),
-        SyntaxError::NotImplemented => Vec::new(),
+        SyntaxError::NotImplemented | SyntaxError::Interrupted => Vec::new(),
     }
 }
 
@@ -3804,6 +3908,15 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
     let strict_attempt = generated::generated_model::parse_entry_attempt(entry, &tokens, options);
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
+        return SyntaxRecoveryParseAttempt {
+            result: new!(SyntaxRecoveryParse::Interrupted),
+            trace: strict_attempt.trace,
+        };
+    }
     if let Ok(parsed) = strict_attempt.result {
         return valid_syntax_recovery_attempt(parsed, &tokens, options, strict_attempt.trace);
     }
@@ -3817,6 +3930,15 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
             continuation_expectations: _,
         }
     ) = tracked_attempt.into_data();
+    if matches!(
+        parse_stop(&options.cancellation, None),
+        ParseStop::Cancelled
+    ) {
+        return SyntaxRecoveryParseAttempt {
+            result: new!(SyntaxRecoveryParse::Interrupted),
+            trace,
+        };
+    }
     let failure = match result {
         Ok(parsed) => {
             return valid_syntax_recovery_attempt(parsed, &tokens, options, trace);
@@ -3826,17 +3948,15 @@ fn parse_generated_model_syntax_entry_tokens_with_recovery_attempt(
 
     let recovered =
         recover_after_strict_failure(entry, tokens, source, options, failure, trace, None, None);
-    let data!(RecoveryParseOutcome {
-        recovered,
-        continuation_expectations: _,
-        continuation_cut_reached: _,
-        continuation_time_limit_exhausted: _,
-    }) = recovered.into_data();
-    SyntaxRecoveryParseAttempt {
-        result: new!(SyntaxRecoveryParse::Recovered {
-            parse: recovered.result,
-        }),
-        trace: recovered.trace,
+    match recovered.into_data() {
+        data!(RecoveryParseOutcome::Interrupted { trace }) => SyntaxRecoveryParseAttempt {
+            result: new!(SyntaxRecoveryParse::Interrupted),
+            trace,
+        },
+        data!(RecoveryParseOutcome::Recovered { parse, trace, .. }) => SyntaxRecoveryParseAttempt {
+            result: new!(SyntaxRecoveryParse::Recovered { parse }),
+            trace,
+        },
     }
 }
 
@@ -3867,8 +3987,8 @@ fn valid_syntax_recovery_attempt(
 }
 
 #[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
-#[ensures(!ret.recovered.result.errors.is_empty())]
-#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+// The variant invariant already holds for every value this function returns.
+#[ensures(true)]
 fn recover_after_strict_failure(
     entry: SyntaxParseEntry,
     tokens: Vec<Token>,
@@ -3898,13 +4018,18 @@ fn recover_after_strict_failure(
     let mut continuation_expectations = Vec::new();
     let mut continuation_cut_reached = false;
     let mut continuation_time_limit_exhausted = false;
+    let mut cancelled = false;
     let mut errors_in_statement = 1usize;
     let reachability_filter_enabled =
         recovery_reachability_filter_enabled(options, continuation_time_limit);
 
     'recovery_errors: while errors.len() < global_hard_cap {
-        if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-            continuation_time_limit_exhausted = true;
+        if observe_parse_stop(
+            &options.cancellation,
+            continuation_time_limit,
+            &mut continuation_time_limit_exhausted,
+            &mut cancelled,
+        ) {
             break;
         }
         let mut candidates = select_recovery_directives(
@@ -3969,8 +4094,12 @@ fn recover_after_strict_failure(
                         break;
                     }
                     trial_count += 1;
-                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                        continuation_time_limit_exhausted = true;
+                    if observe_parse_stop(
+                        &options.cancellation,
+                        continuation_time_limit,
+                        &mut continuation_time_limit_exhausted,
+                        &mut cancelled,
+                    ) {
                         break 'recovery_errors;
                     }
                     let directive = if natural_stop_enabled {
@@ -4060,8 +4189,12 @@ fn recover_after_strict_failure(
                         global_hard_cap,
                         errors.last().map_or(0, syntax_error_start),
                     );
-                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                        continuation_time_limit_exhausted = true;
+                    if observe_parse_stop(
+                        &options.cancellation,
+                        continuation_time_limit,
+                        &mut continuation_time_limit_exhausted,
+                        &mut cancelled,
+                    ) {
                         break 'recovery_errors;
                     }
                     match classification {
@@ -4107,10 +4240,12 @@ fn recover_after_strict_failure(
                                                 continuation_time_limit,
                                             )
                                             .unwrap_or_default();
-                                        if continuation_time_limit
-                                            .is_some_and(ContinuationTimeLimit::exhausted)
-                                        {
-                                            continuation_time_limit_exhausted = true;
+                                        if observe_parse_stop(
+                                            &options.cancellation,
+                                            continuation_time_limit,
+                                            &mut continuation_time_limit_exhausted,
+                                            &mut cancelled,
+                                        ) {
                                             break 'recovery_errors;
                                         }
                                         expectations
@@ -4228,8 +4363,12 @@ fn recover_after_strict_failure(
                     continuation_time_limit,
                 )
                 .unwrap_or_default();
-                if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                    continuation_time_limit_exhausted = true;
+                if observe_parse_stop(
+                    &options.cancellation,
+                    continuation_time_limit,
+                    &mut continuation_time_limit_exhausted,
+                    &mut cancelled,
+                ) {
                     break 'recovery_errors;
                 }
                 expectations
@@ -4279,8 +4418,12 @@ fn recover_after_strict_failure(
             );
             continuation_expectations = replayed_expectations
                 .unwrap_or_else(|| syntax_error_expectations(&next_failure.public_error));
-            if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
-                continuation_time_limit_exhausted = true;
+            if observe_parse_stop(
+                &options.cancellation,
+                continuation_time_limit,
+                &mut continuation_time_limit_exhausted,
+                &mut cancelled,
+            ) {
                 break 'recovery_errors;
             }
         }
@@ -4329,8 +4472,24 @@ fn recover_after_strict_failure(
         ) {
             return recovered;
         }
-        continuation_time_limit_exhausted =
-            continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted);
+        let _ = observe_parse_stop(
+            &options.cancellation,
+            continuation_time_limit,
+            &mut continuation_time_limit_exhausted,
+            &mut cancelled,
+        );
+    }
+
+    // One more shared check. A flag set after the last trial must not become a
+    // degraded syntax error. A completion timeout still keeps today's tree,
+    // which the completion caller discards.
+    match parse_stop(&options.cancellation, continuation_time_limit) {
+        ParseStop::TimeLimit => continuation_time_limit_exhausted = true,
+        ParseStop::Cancelled => cancelled = true,
+        ParseStop::Continue => {}
+    }
+    if cancelled && !continuation_time_limit_exhausted {
+        return new!(RecoveryParseOutcome::Interrupted { trace });
     }
 
     recovery_session.clear_memo();
@@ -4344,15 +4503,13 @@ fn recover_after_strict_failure(
             .last()
             .map_or_else(Vec::new, syntax_error_expectations);
     }
-    new!(RecoveryParseOutcome {
-        recovered: RecoveredSyntaxParseAttempt {
-            result: new!(RecoveredSyntaxParse {
-                parse_tree: Box::new(parse_tree),
-                errors,
-                warnings: Vec::new(),
-            }),
-            trace,
-        },
+    new!(RecoveryParseOutcome::Recovered {
+        parse: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parse_tree),
+            errors,
+            warnings: Vec::new(),
+        }),
+        trace,
         continuation_expectations,
         continuation_cut_reached,
         continuation_time_limit_exhausted,
@@ -4360,9 +4517,7 @@ fn recover_after_strict_failure(
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(!ret.recovered.result.errors.is_empty())]
-#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[ensures(ret.continuation_cut_reached == continuation_cut_reached)]
+#[ensures(matches!(ret.as_data(), data!(RecoveryParseOutcome::Recovered { continuation_cut_reached: cut, .. }) if *cut == continuation_cut_reached))]
 fn recovered_success(
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
     errors: &[SyntaxError],
@@ -4370,15 +4525,13 @@ fn recovered_success(
     continuation_expectations: Vec<SyntaxExpectation>,
     continuation_cut_reached: bool,
 ) -> RecoveryParseOutcome {
-    new!(RecoveryParseOutcome {
-        recovered: RecoveredSyntaxParseAttempt {
-            result: new!(RecoveredSyntaxParse {
-                parse_tree: Box::new(parsed.text.into_owned()),
-                errors: errors.to_vec(),
-                warnings: parsed.warnings,
-            }),
-            trace,
-        },
+    new!(RecoveryParseOutcome::Recovered {
+        parse: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parsed.text.into_owned()),
+            errors: errors.to_vec(),
+            warnings: parsed.warnings,
+        }),
+        trace,
         continuation_expectations,
         continuation_cut_reached,
         continuation_time_limit_exhausted: false,
@@ -4608,7 +4761,12 @@ fn classify_recovery_trial(
 #[requires(!directives.is_empty())]
 #[requires(directives.len() + 1 == errors.len())]
 #[requires(errors.last().is_some_and(|error| error == &failure.public_error))]
-#[ensures(ret.as_ref().is_none_or(|attempt| !attempt.recovered.result.errors.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|attempt| {
+    matches!(
+        attempt.as_data(),
+        data!(RecoveryParseOutcome::Recovered { parse, .. }) if !parse.errors.is_empty()
+    )
+}))]
 fn try_final_recovery_from_current_failure<'tokens>(
     entry: SyntaxParseEntry,
     tokens: &[Token],
@@ -4623,7 +4781,10 @@ fn try_final_recovery_from_current_failure<'tokens>(
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<RecoveryParseOutcome> {
     for directive in select_final_recovery_directives(tokens, failure, errors.len() - 1) {
-        if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+        if !matches!(
+            parse_stop(&options.cancellation, continuation_time_limit),
+            ParseStop::Continue
+        ) {
             return None;
         }
         let mut trial_directives = directives.to_vec();
@@ -4640,7 +4801,10 @@ fn try_final_recovery_from_current_failure<'tokens>(
             options.recovery_error_policy.global_hard_cap().get(),
             errors.last().map_or(0, syntax_error_start),
         );
-        if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+        if !matches!(
+            parse_stop(&options.cancellation, continuation_time_limit),
+            ParseStop::Continue
+        ) {
             return None;
         }
         let RecoveryTrialClassification::AcceptedSuccess { trial, .. } = classification else {
@@ -4668,7 +4832,10 @@ fn try_final_recovery_from_current_failure<'tokens>(
                         continuation_time_limit,
                     )
                     .unwrap_or_default();
-                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                    if !matches!(
+                        parse_stop(&options.cancellation, continuation_time_limit),
+                        ParseStop::Continue
+                    ) {
                         return None;
                     }
                     expectations
@@ -4797,13 +4964,24 @@ enum RecoveryTrialClassification {
     },
 }
 
-#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
-#[invariant(!*continuation_cut_reached || !*continuation_time_limit_exhausted)]
-struct RecoveryParseOutcome {
-    recovered: RecoveredSyntaxParseAttempt,
-    continuation_expectations: Vec<SyntaxExpectation>,
-    continuation_cut_reached: bool,
-    continuation_time_limit_exhausted: bool,
+/// An internal recovery either stopped on the flag or finished with a tree.
+/// The public parse API still returns `Result`. This enum is the rule that
+/// used to be stated as `cancelled == recovered.is_none()`.
+#[invariant(::Interrupted => true)]
+#[invariant(::Recovered => !parse.errors.is_empty()
+    && continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty())
+    && (!*continuation_cut_reached || !*continuation_time_limit_exhausted))]
+enum RecoveryParseOutcome {
+    Interrupted {
+        trace: Option<TraceReport>,
+    },
+    Recovered {
+        parse: RecoveredSyntaxParse,
+        trace: Option<TraceReport>,
+        continuation_expectations: Vec<SyntaxExpectation>,
+        continuation_cut_reached: bool,
+        continuation_time_limit_exhausted: bool,
+    },
 }
 
 #[invariant(cmavo.len() == opens_subtext_container.len())]
@@ -5053,7 +5231,7 @@ fn recovery_claim_sort_key(
 fn syntax_error_start(error: &SyntaxError) -> usize {
     match error {
         SyntaxError::Parse { byte_start, .. } => *byte_start,
-        SyntaxError::NotImplemented => 0,
+        SyntaxError::NotImplemented | SyntaxError::Interrupted => 0,
     }
 }
 
@@ -6904,7 +7082,8 @@ mod tests {
             let options = ParseOptions::default();
             let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                 &words, source, &options,
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
             assert_eq!(recovered.errors.len(), 1);
             assert!(recovered.parse_tree.leading_nai.is_empty());
             assert!(recovered.parse_tree.paragraphs.is_some());
@@ -6963,7 +7142,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 assert!(recovered.errors.is_empty(), "{source}");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     let mut matching = warnings.iter().filter(|warning| warning.kind == kind);
@@ -7002,7 +7182,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     assert!(
                         !warnings.iter().any(|warning| matches!(
@@ -7042,7 +7223,8 @@ mod tests {
                     &words,
                     source,
                     &ParseOptions::default(),
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 assert!(!recovered.errors.is_empty(), "{source}");
                 assert_eq!(
                     recovered
@@ -7146,7 +7328,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     let matching: Vec<_> = warnings
                         .iter()
@@ -7171,7 +7354,8 @@ mod tests {
                         .unwrap();
                 let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                     &words, source, &options,
-                );
+                )
+                .expect("an uninterrupted recovered parse returns a tree");
                 for warnings in [&strict.warnings, &recovered.warnings] {
                     assert!(
                         !warnings.iter().any(|warning| {
@@ -7198,7 +7382,8 @@ mod tests {
                 crate::parse_syntax_tree_with_source_and_options(&words, source, &options).unwrap();
             let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
                 &words, source, &options,
-            );
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
             for warnings in [&strict.warnings, &recovered.warnings] {
                 let matching = warnings
                     .iter()
@@ -8195,12 +8380,20 @@ mod tests {
             );
             let elapsed = started.elapsed();
 
+            let data!(RecoveryParseOutcome::Recovered {
+                parse,
+                continuation_cut_reached,
+                ..
+            }) = recovered.into_data()
+            else {
+                panic!("unbounded recovery finishes");
+            };
             assert!(
-                recovered.continuation_cut_reached,
+                continuation_cut_reached,
                 "unbounded recovery must reach the requested completion cut",
             );
             assert_eq!(
-                recovered.recovered.result.errors.len(),
+                parse.errors.len(),
                 14,
                 "the winning recovery must retain every prior owner-document error",
             );

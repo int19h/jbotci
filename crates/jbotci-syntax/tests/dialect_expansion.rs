@@ -104,7 +104,8 @@ fn recovery_retains_both_co_spanned_po_expansion_tokens() {
         &words,
         source,
         &ParseOptions::default().with_dialect_definition(&dialect),
-    );
+    )
+    .expect("an uninterrupted recovered parse returns a tree");
 
     assert_eq!(recovered.errors.len(), 1);
     let mut collector = SkippedTokenCollector::default();
@@ -149,7 +150,8 @@ fn recovery_retains_co_spanned_expansion_cores_with_bahe_and_ui() {
             &words,
             source,
             &ParseOptions::default().with_dialect_definition(&dialect),
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
 
         assert_eq!(
             recovered.errors.len(),

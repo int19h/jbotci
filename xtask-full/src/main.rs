@@ -9306,8 +9306,11 @@ fn v1_reference_projection_for_v0_case(case: &V0RefsCase) -> Result<ReferenceFix
     .with_context(|| format!("{}: morphology failed", case.id))?;
     let parsed = parse_syntax_tree_with_source_and_options(&words, &case.lojban, &syntax_options)
         .with_context(|| format!("{}: syntax failed", case.id))?;
-    let analysis = analyze_generated_references(&parsed.parse_tree)
-        .with_context(|| format!("{}: reference analysis failed", case.id))?;
+    let analysis = analyze_generated_references(
+        &parsed.parse_tree,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .with_context(|| format!("{}: reference analysis failed", case.id))?;
     Ok(analysis.fixture_projection())
 }
 
@@ -10370,6 +10373,7 @@ fn regenerate_jvozba_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
         jvozba_mode_from_fixture(expectation.mode),
         jbotci_dictionary_data::english(),
         &inputs,
+        &jbotci_interrupt::CancellationToken::never(),
     ) {
         Ok(actual) => {
             let actual = actual.into_data();
@@ -10523,7 +10527,8 @@ fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
             &words,
             &fixture.test_case.lojban,
             &recovered_options,
-        );
+        )
+        .expect("an uninterrupted recovered parse returns a tree");
         let status = if recovered.errors.is_empty() {
             ExpectationStatus::Success
         } else {
@@ -11909,12 +11914,15 @@ fn refresh_fixture_expectations(
                     )?;
                 }
                 if refresh_semantics_refs {
-                    let result = analyze_generated_references(&parsed.parse_tree)
-                        .map_err(|error| format!("semantic refs error: {error}"))
-                        .and_then(|refs| {
-                            refs.fixture_projection_json()
-                                .map_err(|error| format!("semantic refs render error: {error}"))
-                        });
+                    let result = analyze_generated_references(
+                        &parsed.parse_tree,
+                        &jbotci_interrupt::CancellationToken::never(),
+                    )
+                    .map_err(|error| format!("semantic refs error: {error}"))
+                    .and_then(|refs| {
+                        refs.fixture_projection_json()
+                            .map_err(|error| format!("semantic refs render error: {error}"))
+                    });
                     if existing_semantics_refs_success && let Err(error) = &result {
                         bail!("{error}");
                     }
@@ -14499,13 +14507,16 @@ fn semantics_refs_fixture_result(fixture: &LoadedTestCase) -> std::result::Resul
         &syntax_options,
     )
     .map_err(|error| format!("syntax error: {error}"))?;
-    analyze_generated_references(&parsed.parse_tree)
-        .map_err(|error| format!("semantic refs error: {error}"))
-        .and_then(|analysis| {
-            analysis
-                .fixture_projection_json()
-                .map_err(|error| format!("semantic refs render error: {error}"))
-        })
+    analyze_generated_references(
+        &parsed.parse_tree,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .map_err(|error| format!("semantic refs error: {error}"))
+    .and_then(|analysis| {
+        analysis
+            .fixture_projection_json()
+            .map_err(|error| format!("semantic refs render error: {error}"))
+    })
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -14523,6 +14534,7 @@ fn run_jvozba_fixture(fixture: &LoadedTestCase) -> FacetResult {
         jvozba_mode_from_fixture(expectation.mode),
         jbotci_dictionary_data::english(),
         &inputs,
+        &jbotci_interrupt::CancellationToken::never(),
     );
     match expectation.status {
         ExpectationStatus::Success => {
@@ -14900,6 +14912,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Err(SyntaxError::NotImplemented) => {
             FacetResult::failed("syntax parser returned NotImplemented")
         }
+        Err(SyntaxError::Interrupted) => FacetResult::failed("syntax parser was interrupted"),
         Err(error @ SyntaxError::Parse { .. }) => match expectation.status {
             ExpectationStatus::Success => {
                 syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
@@ -14978,7 +14991,8 @@ fn run_recovered_syntax_fixture(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
-    );
+    )
+    .expect("an uninterrupted recovered parse returns a tree");
     let actual_status = if recovered.errors.is_empty() {
         ExpectationStatus::Success
     } else {

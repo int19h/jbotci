@@ -6,10 +6,15 @@ pub(crate) fn run_gimfihi<WOut: Write>(
     input: GimfihiInput,
     stdout: &mut WOut,
     limits: Option<&ToolExecutionLimits>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     let request = gimfihi_request_from_input(&input)?;
-    let output = compose_gismu(jbotci_dictionary_data::english(), &request)
-        .map_err(|error| anyhow!(error.to_string()))?;
+    let output = compose_gismu(jbotci_dictionary_data::english(), &request, cancellation).map_err(
+        |error| match error {
+            jbotci_gimfihi::GimfihiError::Interrupted => anyhow!(jbotci_interrupt::Interrupted),
+            other => anyhow!(other.to_string()),
+        },
+    )?;
     match input.format {
         GimfihiCliFormat::Table => {
             let scope = jbotci_output::budget::TextScope::new(tool_render_limits(limits).text);

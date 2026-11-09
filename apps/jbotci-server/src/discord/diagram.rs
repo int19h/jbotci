@@ -16,7 +16,6 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_web_core::{
     DEFAULT_GENTUFA_PNG_SCALE, GentufaBlocksLayout, GentufaExportFormat, GentufaScript,
-    render_gentufa_blocks_web_export_with_limits,
 };
 
 pub(crate) use crate::policy::DiagramLimits;
@@ -35,12 +34,26 @@ pub(crate) struct DiagramImage {
 #[invariant(::TooLarge { .. } => true)]
 #[invariant(::TooManyBytes { .. } => true)]
 #[invariant(::Render { .. } => true)]
+#[invariant(::Interrupted => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum DiagramError {
-    TooComplex { blocks: usize, columns: usize },
-    TooLarge { width: usize, height: usize },
-    TooManyBytes { bytes: usize, limit: usize },
-    Render { message: String },
+    TooComplex {
+        blocks: usize,
+        columns: usize,
+    },
+    TooLarge {
+        width: usize,
+        height: usize,
+    },
+    TooManyBytes {
+        bytes: usize,
+        limit: usize,
+    },
+    Render {
+        message: String,
+    },
+    /// Layout stopped because the cancellation flag was set. No image is returned.
+    Interrupted,
 }
 
 impl fmt::Display for DiagramError {
@@ -63,6 +76,7 @@ impl fmt::Display for DiagramError {
             Self::Render { message } => {
                 write!(formatter, "the diagram could not be rendered ({message})")
             }
+            Self::Interrupted => formatter.write_str("computation interrupted"),
         }
     }
 }
@@ -78,6 +92,7 @@ pub(crate) fn render_diagram(
     show_glosses: bool,
     limits: DiagramLimits,
     attachment_size_limit: Option<u64>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<DiagramImage, DiagramError> {
     let blocks = layout.blocks.len();
     let columns = layout.max_col;
@@ -86,12 +101,13 @@ pub(crate) fn render_diagram(
     }
     // Lay out as SVG first: this is text measurement only, no raster
     // allocation, and it yields the dimensions the PNG pass would rasterize.
-    let svg = render_gentufa_blocks_web_export_with_limits(
+    let svg = jbotci_web_core::render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,
         GentufaExportFormat::Svg,
         Some(limits),
+        cancellation,
     )
     .map_err(diagram_export_error)?;
     let svg_text = std::str::from_utf8(&svg.bytes).expect("SVG export writes UTF-8");
@@ -111,12 +127,13 @@ pub(crate) fn render_diagram(
     if byte_limit == 0 {
         return Err(DiagramError::TooManyBytes { bytes: 1, limit: 0 });
     }
-    let png = render_gentufa_blocks_web_export_with_limits(
+    let png = jbotci_web_core::render_gentufa_blocks_web_export_with_limits(
         layout,
         show_glosses,
         GentufaScript::Latin,
         GentufaExportFormat::Png,
         Some(limits.with_data(bityzba::data! { max_bytes: byte_limit })),
+        cancellation,
     )
     .map_err(diagram_export_error)?;
     if png.bytes.is_empty() {
@@ -159,6 +176,7 @@ mod tests {
             false,
             crate::policy::default_diagram_limits(),
             None,
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("diagram");
         assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
@@ -173,19 +191,37 @@ mod tests {
         let tiny_blocks =
             crate::policy::default_diagram_limits().with_data(bityzba::data! { max_blocks: 1 });
         assert!(matches!(
-            render_diagram(&layout, false, tiny_blocks, None),
+            render_diagram(
+                &layout,
+                false,
+                tiny_blocks,
+                None,
+                &jbotci_interrupt::CancellationToken::never(),
+            ),
             Err(DiagramError::TooComplex { .. })
         ));
         let tiny_area =
             crate::policy::default_diagram_limits().with_data(bityzba::data! { max_pixels: 1 });
         assert!(matches!(
-            render_diagram(&layout, false, tiny_area, None),
+            render_diagram(
+                &layout,
+                false,
+                tiny_area,
+                None,
+                &jbotci_interrupt::CancellationToken::never(),
+            ),
             Err(DiagramError::TooLarge { .. })
         ));
         let tiny_bytes =
             crate::policy::default_diagram_limits().with_data(bityzba::data! { max_bytes: 1 });
         assert!(matches!(
-            render_diagram(&layout, false, tiny_bytes, None),
+            render_diagram(
+                &layout,
+                false,
+                tiny_bytes,
+                None,
+                &jbotci_interrupt::CancellationToken::never(),
+            ),
             Err(DiagramError::TooManyBytes { limit: 1, .. })
         ));
         // The interaction's own attachment limit wins when it is smaller.
@@ -194,7 +230,8 @@ mod tests {
                 &layout,
                 false,
                 crate::policy::default_diagram_limits(),
-                Some(16)
+                Some(16),
+                &jbotci_interrupt::CancellationToken::never(),
             ),
             Err(DiagramError::TooManyBytes { limit: 16, .. })
         ));
@@ -204,6 +241,9 @@ mod tests {
 #[requires(true)]
 #[ensures(true)]
 fn diagram_export_error(error: jbotci_web_core::WebComputeError) -> DiagramError {
+    if error.is_interrupted() {
+        return DiagramError::Interrupted;
+    }
     match error.diagram_limit().as_ref().map(|limit| limit.as_data()) {
         Some(data!(jbotci_gentufa::GentufaLimit::Layout { blocks, columns })) => {
             DiagramError::TooComplex {

@@ -53,6 +53,7 @@ pub(crate) fn render_in_scope(
         ValsiAnalysisStatus::Valid => "valid",
         ValsiAnalysisStatus::Invalid => "invalid",
         ValsiAnalysisStatus::NotSingleWord => "not a single word",
+        ValsiAnalysisStatus::Interrupted => "interrupted",
     };
     let mut status =
         text_scope.buffer_with(&text_scope.format(format_args!("vlatai · {status_word}")));
@@ -88,6 +89,14 @@ pub(crate) fn render_in_scope(
                 escape_in_scope(input, text_scope)
             )));
         }
+        ValsiAnalysisStatus::Interrupted => {
+            // The operation returns before presentation. This arm exists so a
+            // cancelled word is never described as invalid.
+            lines.push(text_scope.format(format_args!(
+                "**{}** — interrupted",
+                escape_in_scope(input, text_scope)
+            )));
+        }
         ValsiAnalysisStatus::NotSingleWord => {
             let words = &report.analysis.result.words;
             lines.push(text_scope.format(format_args!(
@@ -110,6 +119,7 @@ pub(crate) fn render_in_scope(
                         show_elided: false,
                     },
                     text_scope.limit(),
+                    &jbotci_interrupt::CancellationToken::never(),
                 );
                 let brackets = super::render_output_in_scope(brackets, text_scope);
                 lines.push(code_block_in_scope(&brackets, text_scope));

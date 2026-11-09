@@ -46,19 +46,22 @@ impl VlaseiAnalysis {
     }
 }
 
-/// Segment `source` under `dialect` (a formula, or `None` for standard
-/// Lojban), keeping every recovered word and skipped region.
+/// Segment until `cancellation` is set.
+///
+/// A set flag is [`GentufaWebError::Interrupted`] and carries no word list.
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
 pub fn analyze_vlasei(
     source: &str,
     dialect: Option<&str>,
     source_id: Option<SourceId>,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<VlaseiAnalysis, GentufaWebError> {
     let dialect = dialect_definition(dialect)?;
     let morphology_options = MorphologyOptions::default()
         .try_with_dialect_definition(&dialect)
-        .map_err(|error| GentufaWebError::Dialect(error.to_string()))?;
+        .map_err(|error| GentufaWebError::Dialect(error.to_string()))?
+        .with_cancellation(cancellation);
     let morphology = segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
         source,
         &morphology_options,
@@ -66,6 +69,9 @@ pub fn analyze_vlasei(
     )
     .into_data()
     .result;
+    if morphology.was_interrupted() {
+        return Err(GentufaWebError::Interrupted);
+    }
     let mut diagnostics = morphology
         .warnings
         .iter()
@@ -88,7 +94,7 @@ pub fn analyze_vlasei(
 }
 
 /// One word's `vlatai` report.
-#[invariant(analysis.result.is_valid() || diagnostics.iter().any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error), "an invalid or multi-word input always carries an error diagnostic")]
+#[invariant(analysis.result.is_valid() || matches!(analysis.result.status, ValsiAnalysisStatus::Interrupted) || diagnostics.iter().any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error), "an invalid or multi-word input always carries an error diagnostic; a cancellation does not")]
 #[invariant(possible_rafsi.is_empty() || analysis.result.classification.as_ref().and_then(|classification| classification.word()).is_some_and(|word| word.category == WordKind::Gismu), "possible rafsi exist only for a gismu")]
 #[derive(Debug, Clone)]
 pub struct VlataiReport {
@@ -157,6 +163,8 @@ pub fn vlatai_diagnostics(
             )?);
         }
         ValsiAnalysisStatus::Valid => {}
+        // Cancellation is not an invalid word and not a segmentation failure.
+        ValsiAnalysisStatus::Interrupted => {}
     }
     Ok(diagnostics)
 }
@@ -213,13 +221,25 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlasei_reports_recovered_regions_and_diagnostics() {
-        let complete = analyze_vlasei("mi klama", None, None).expect("analysis");
+        let complete = analyze_vlasei(
+            "mi klama",
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         assert!(complete.is_complete());
         assert_eq!(complete.morphology.words.len(), 2);
         assert!(complete.diagnostics.is_empty());
 
         // An apostrophe that cannot start a word forces recovery.
-        let recovered = analyze_vlasei("mi 'klama do", None, None).expect("analysis");
+        let recovered = analyze_vlasei(
+            "mi 'klama do",
+            None,
+            None,
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("analysis");
         assert!(!recovered.is_complete());
         assert_eq!(
             recovered.morphology.error_regions.len(),
@@ -233,7 +253,12 @@ mod tests {
         );
 
         assert!(matches!(
-            analyze_vlasei("mi klama", Some("not-a-dialect(("), None),
+            analyze_vlasei(
+                "mi klama",
+                Some("not-a-dialect(("),
+                None,
+                &jbotci_interrupt::CancellationToken::never()
+            ),
             Err(GentufaWebError::Dialect(_))
         ));
     }

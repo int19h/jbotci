@@ -339,6 +339,7 @@ mod tests {
                 count: 126,
                 highlight: None,
             },
+            &jbotci_interrupt::CancellationToken::never(),
         )
         .expect("candidates");
         let results = PagedResults::from_all(output.candidates, PageNumber::first()).expect("page");

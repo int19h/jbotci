@@ -8,11 +8,14 @@ pub(crate) fn run_vlatai<WOut: Write>(
     stdout: &mut WOut,
     color_policy: CliColorPolicy,
     diagnostic_terminal_width: usize,
+    cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<CliStatus> {
     let glyphs = cli_glyph_style(input.ascii);
     let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
     let dialect = input.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default().try_with_dialect_definition(&dialect)?;
+    let morphology_options = MorphologyOptions::default()
+        .try_with_dialect_definition(&dialect)?
+        .with_cancellation(cancellation);
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let analyses = input
         .words
@@ -117,6 +120,11 @@ pub(crate) fn render_vlatai_text(
                 out.push_str(&format!("words: {rendered}\n"));
             }
             ValsiAnalysisStatus::Invalid => {}
+            // A cancelled word is not an invalid word. The tool boundary
+            // returns `Interrupted` before this renderer runs.
+            ValsiAnalysisStatus::Interrupted => {
+                return Err(jbotci_interrupt::Interrupted.into());
+            }
         }
     }
     Ok(out)
@@ -178,17 +186,21 @@ fn vlatai_json_value(
         ValsiAnalysisStatus::NotSingleWord => {
             value["words"] = compact_morphology_json_value(&analysis.result.words)?;
         }
+        ValsiAnalysisStatus::Interrupted => {
+            return Err(jbotci_interrupt::Interrupted.into());
+        }
     }
     Ok(value)
 }
 
 #[requires(true)]
-#[ensures(matches!(ret, "valid" | "invalid" | "not-single-word"))]
+#[ensures(matches!(ret, "valid" | "invalid" | "not-single-word" | "interrupted"))]
 fn vlatai_status(analysis: &ValsiAnalysis) -> &'static str {
     match analysis.result.status {
         ValsiAnalysisStatus::Valid => "valid",
         ValsiAnalysisStatus::Invalid => "invalid",
         ValsiAnalysisStatus::NotSingleWord => "not-single-word",
+        ValsiAnalysisStatus::Interrupted => "interrupted",
     }
 }
 
