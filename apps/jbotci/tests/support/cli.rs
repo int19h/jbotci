@@ -766,8 +766,6 @@ fn rejects_removed_camxes_switches() {
     for args in [
         ["jbotci", "vlasei", "--camxes", "coi"],
         ["jbotci", "gentufa", "--camxes", "coi"],
-        ["jbotci", "mulgau", "--camxes", "coi"],
-        ["jbotci", "zbasu", "--camxes", "coi"],
     ] {
         let error = Cli::try_parse_from(args).expect_err("camxes flag is no longer accepted");
         assert_eq!(error.kind(), ErrorKind::UnknownArgument);
@@ -4554,14 +4552,12 @@ fn vlacku_known_card_rendering_is_byte_identical_to_before_known_flag() {
 #[requires(true)]
 #[ensures(true)]
 fn joins_positional_text() {
-    let input = TextInput {
-        file: None,
-        trace: None,
-        dialect: None,
-        indent: None,
-        text: vec!["coi".into(), "rodo".into()],
+    let cli =
+        Cli::try_parse_from(["jbotci", "vlasei", "coi", "rodo"]).expect("positional text parses");
+    let Command::Vlasei(input) = cli.command else {
+        panic!("expected vlasei command");
     };
-    assert_eq!(input.read_text().expect("text"), "coi rodo");
+    assert_eq!(input.read_text_with_stdin(None).expect("text"), "coi rodo");
 }
 
 #[requires(!command.is_empty())]
@@ -4944,7 +4940,7 @@ fn vlacku_vote_exemption_uses_original_word_boundaries() {
 #[requires(true)]
 #[ensures(true)]
 fn indentation_is_bounded_at_every_cli_input() {
-    for command in ["gentufa", "vlasei", "vlatai", "mulgau", "zbasu"] {
+    for command in ["gentufa", "vlasei", "vlatai"] {
         for invalid in ["-1", "9", "1073741824", "18446744073709551615", "1.5"] {
             let error = Cli::try_parse_from(["jbotci", command, "--indent", invalid, "mi"])
                 .expect_err("out-of-range indentation must fail before execution");
@@ -4961,7 +4957,6 @@ fn indentation_is_bounded_at_every_cli_input() {
                 Command::Gentufa(input) => input.indent,
                 Command::Vlasei(input) => input.indent,
                 Command::Vlatai(input) => input.indent,
-                Command::Mulgau(input) | Command::Zbasu(input) => input.indent,
                 _ => unreachable!("tested commands accept indentation"),
             };
             assert_eq!(indent.unwrap().spaces(), spaces);

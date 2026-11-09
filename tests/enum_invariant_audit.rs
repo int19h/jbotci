@@ -656,10 +656,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI LSP command is a unit variant with no payload state to constrain",
     ),
     (
-        "apps/jbotci/src/lib.rs:Command::Mulgau",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
         "apps/jbotci/src/lib.rs:Command::Setup",
         "CLI enum delegates validation to clap and setup option handling",
     ),
@@ -673,10 +669,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci/src/lib.rs:Command::Vlatai",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Zbasu",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (

@@ -76,8 +76,8 @@ pub mod test_harness {
         CliSumtiPlaces, CliTracePhase, CliUsePrecomputed, Command, CuktaCliFormat, CuktaInput,
         GentufaFormat, GentufaImageOutputType, GentufaInput, GimfihiCliFormat,
         GimfihiCliNormalizer, GimfihiCliScorer, GimfihiInput, GimfihiSourceWordKind, JvozbaInput,
-        SetupInput, TextInput, ToolAlineNormalizer, ToolAlineSaliences, ToolCollisionScope,
-        ToolCuktaFormat, ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext, ToolGimfihiFormat,
+        SetupInput, ToolAlineNormalizer, ToolAlineSaliences, ToolCollisionScope, ToolCuktaFormat,
+        ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext, ToolGimfihiFormat,
         ToolGimfihiRequest, ToolGimfihiScorer, ToolGimfihiSource, ToolStatus, ToolVlackuMode,
         ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat, VlataiInput,
         run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku,
@@ -274,12 +274,10 @@ pub struct Cli {
 #[invariant(::Vlasei(..) => true)]
 #[invariant(::Vlatai(..) => true)]
 #[invariant(::Gentufa(..) => true)]
-#[invariant(::Mulgau(..) => true)]
 #[invariant(::Vlacku(..) => true)]
 #[invariant(::Jvozba(..) => true)]
 #[invariant(::Gimfihi(..) => true)]
 #[invariant(::Cukta(..) => true)]
-#[invariant(::Zbasu(..) => true)]
 #[invariant(::Setup(..) => true)]
 #[invariant(::Lsp { .. } => true)]
 #[derive(Debug, Clone, Subcommand)]
@@ -290,8 +288,6 @@ pub enum Command {
     Vlatai(VlataiInput),
     #[command(name = "gentufa", visible_alias = "parse")]
     Gentufa(GentufaInput),
-    #[command(name = "mulgau", visible_alias = "completions")]
-    Mulgau(TextInput),
     #[command(name = "vlacku", visible_alias = "dict")]
     Vlacku(VlackuInput),
     #[command(name = "jvozba")]
@@ -300,8 +296,6 @@ pub enum Command {
     Gimfihi(GimfihiInput),
     #[command(name = "cukta", visible_alias = "book")]
     Cukta(CuktaInput),
-    #[command(name = "zbasu")]
-    Zbasu(TextInput),
     #[command(name = "setup")]
     Setup(SetupInput),
     /// Run the Language Server Protocol server over standard input/output.
@@ -665,12 +659,6 @@ pub struct VlaseiInput {
 impl VlaseiInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn read_text(&self) -> Result<String> {
-        self.read_text_with_stdin(None)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
@@ -713,51 +701,6 @@ pub struct VlataiInput {
 }
 
 impl VlataiInput {
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
-        dialect_definition(self.dialect.as_deref())
-    }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Args)]
-pub struct TextInput {
-    #[arg(long = "file", alias = "sfaile")]
-    pub file: Option<PathBuf>,
-    #[arg(
-        long = "trace",
-        alias = "plivei",
-        value_name = "SPEC",
-        num_args = 0..=1,
-        default_missing_value = "1"
-    )]
-    pub trace: Option<Option<String>>,
-    #[arg(long = "dialect", help = DIALECT_HELP.as_str())]
-    pub dialect: Option<String>,
-    #[arg(
-        long = "indent",
-        allow_hyphen_values = true,
-        help = "Spaces per indentation level (0 through 8)"
-    )]
-    pub indent: Option<Indentation>,
-    #[arg()]
-    pub text: Vec<String>,
-}
-
-impl TextInput {
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn read_text(&self) -> Result<String> {
-        self.read_text_with_stdin(None)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
-        read_text_input(self.file.as_ref(), &self.text, stdin_text)
-    }
-
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn dialect_definition(&self) -> Result<DialectDefinition> {
@@ -846,12 +789,6 @@ struct GentufaRendered {
 }
 
 impl GentufaInput {
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn read_text(&self) -> Result<String> {
-        self.read_text_with_stdin(None)
-    }
-
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
@@ -1601,28 +1538,6 @@ fn validate_trace_controls(
     Ok(())
 }
 
-#[requires(!command_name.is_empty())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_trace_controls_for_unsupported_command(
-    command_name: &'static str,
-    trace: &Option<Option<String>>,
-    trace_phase: Option<TracePhase>,
-    trace_limit_present: bool,
-    trace_list: bool,
-) -> Result<()> {
-    validate_trace_controls(
-        trace,
-        new!(CliTraceValidation {
-            command_name,
-            trace_phase,
-            trace_limit_present,
-            trace_list,
-            supports_morphology: false,
-            supports_syntax: false,
-        }),
-    )
-}
-
 #[requires(true)]
 #[ensures(matches!(phase, TracePhase::All) && (supports_morphology || supports_syntax) -> ret)]
 fn trace_phase_supported(
@@ -2057,14 +1972,6 @@ fn read_text_input(
             Ok(input)
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn command_not_implemented(command: &str) -> Result<()> {
-    Err(anyhow!(
-        "`{command}` is scaffolded but its implementation has not been ported yet"
-    ))
 }
 
 #[cfg(test)]

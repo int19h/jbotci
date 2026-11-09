@@ -305,18 +305,6 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                 cancellation,
             )
         }
-        Command::Mulgau(input) => {
-            validate_trace_controls_for_unsupported_command(
-                "mulgau",
-                &input.trace,
-                None,
-                false,
-                false,
-            )?;
-            let _ = input.read_text_with_stdin(stdin_text)?;
-            command_not_implemented("mulgau")?;
-            Ok(CliStatus::Success)
-        }
         Command::Vlacku(input) => {
             let glyphs = cli_glyph_style(input.ascii);
             run_vlacku(
@@ -337,18 +325,6 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
         Command::Gimfihi(input) => run_gimfihi(input, stdout, limits, cancellation),
         Command::Cukta(input) => {
             run_cukta(input, stdout, stderr, tool_context.as_deref_mut(), limits)
-        }
-        Command::Zbasu(input) => {
-            validate_trace_controls_for_unsupported_command(
-                "zbasu",
-                &input.trace,
-                None,
-                false,
-                false,
-            )?;
-            let _ = input.read_text_with_stdin(stdin_text)?;
-            command_not_implemented("zbasu")?;
-            Ok(CliStatus::Success)
         }
         Command::Setup(input) => run_setup(input, stdout, progress_policy),
         Command::Lsp { .. } => bail!("lsp requires the process standard input/output streams"),

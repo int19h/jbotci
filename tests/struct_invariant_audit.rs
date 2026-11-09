@@ -492,10 +492,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "setup CLI input delegates model and directory validation to setup command execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:TextInput",
-        "CLI input selector permits stdin, file, and literal text shapes",
-    ),
-    (
         "apps/jbotci/src/lib.rs:VlackuInput",
         "custom clap parser preserves ordered request flags and command validation checks mode combinations",
     ),
