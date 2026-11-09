@@ -2836,7 +2836,7 @@ mod tests {
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
         assert_eq!(site.chapters.len(), 24);
-        // Every division of colojban 1.3.6 has sections of its own, so the site
+        // Every division of colojban 1.3.7 has sections of its own, so the site
         // holds exactly the 366 `section` elements the sources contain,
         // subsections included, and synthesizes none.
         assert_eq!(site.sections_by_id.len(), 366);
