@@ -1823,11 +1823,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_markdown_matches_issue_655_pre_change_baseline_hashes() {
+    fn web_markdown_matches_reviewed_section_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. Section 9.6
-        // restores prose. The copyright section retains its previous hashes.
+        // These hashes pin the reviewed v1.3.7 source. The grammar rules keep
+        // their subsection pages. Section 9.6 now uses the xorlo descriptors.
         let cases = [
             (
                 "1.8",
@@ -1839,7 +1838,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "9897dede5407f6365f2ddfc409c72ca388897ae3b4e060385de6d969d2a655a7",
+                "4a5968dc7f4bb59e72d6c87723d106977b036200051051d815861db61c95d067",
             ),
             (
                 "section-EBNF",
@@ -1870,11 +1869,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_html_matches_issue_655_pre_change_baseline_hashes() {
+    fn web_html_matches_reviewed_section_hashes() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // The v1.3.6 source moves the EBNF rules onto subsection pages.
-        // Section 2.1 changes only its chapter image filename. Section 9.6
-        // restores prose. The copyright section retains its previous hashes.
+        // These hashes pin the reviewed v1.3.7 source. The grammar rules keep
+        // their subsection pages. Section 9.6 now uses the xorlo descriptors.
         let cases = [
             (
                 "1.8",
@@ -1886,7 +1884,7 @@ mod tests {
             ),
             (
                 "9.6",
-                "ebd6dcb0e2b0b460d38537c517a0d21b165c0db2e3565aa1d1b9de149a13198e",
+                "6f83876d51ecf052524140bd02559cb33b59458dbf482f6089f4f515929f7f54",
             ),
             (
                 "section-EBNF",
@@ -1933,7 +1931,7 @@ mod tests {
 
         assert_eq!(
             chunk.text,
-            "mi klama le zarci\nI go-to that-which-I-describe-as-a store.\nI go to the store."
+            "mi klama lo zarci\nI go-to the store.\nI go to the store."
         );
     }
 
@@ -2106,7 +2104,7 @@ mod tests {
         let example = cll_lookup_example(site, "c14e6d3").expect("Example 14.27");
         assert_eq!(
             example.lojban,
-            "la .djan. cu co'e .ije\nla .alis. klama le zarci"
+            "la .djan. cu co'e .ije\nla .alis. klama lo zarci"
         );
         let words = segment_words_with_modifiers(&example.lojban).expect("example word forms");
         parse_syntax_tree_with_options(&words, &ParseOptions::default())
@@ -2836,7 +2834,7 @@ mod tests {
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
         assert_eq!(site.chapters.len(), 24);
-        // Every division of colojban 1.3.6 has sections of its own, so the site
+        // Every division of colojban 1.3.7 has sections of its own, so the site
         // holds exactly the 366 `section` elements the sources contain,
         // subsections included, and synthesizes none.
         assert_eq!(site.sections_by_id.len(), 366);

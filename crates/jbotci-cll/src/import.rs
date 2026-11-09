@@ -2222,7 +2222,13 @@ fn parse_interlinear_gloss_block(
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_none_or(|rows| {
+    rows.len() == 2
+        && rows[0].kind == CllInterlinearRowKind::Jbo
+        && rows[1].kind == CllInterlinearRowKind::Gloss
+        && rows[0].cells.len() > 1
+        && rows[0].cells.len() == rows[1].cells.len()
+}))]
 fn aligned_interlinear_rows(line_elements: &[Node<'_, '_>]) -> Option<Vec<CllInterlinearRow>> {
     let jbo_line = single_named_line(line_elements, "jbo")?;
     let gloss_line = single_named_line(line_elements, "gloss")?;
@@ -2234,33 +2240,117 @@ fn aligned_interlinear_rows(line_elements: &[Node<'_, '_>]) -> Option<Vec<CllInt
     }) {
         return None;
     }
-    let jbo_tokens = normalized_plain_text(&visible_text_raw(jbo_line))
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    let gloss_tokens = normalized_plain_text(&visible_text_raw(gloss_line))
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    if jbo_tokens.len() <= 1 || jbo_tokens.len() != gloss_tokens.len() {
+    let jbo_cells = interlinear_source_cells(jbo_line);
+    let gloss_cells = interlinear_source_cells(gloss_line);
+    if jbo_cells.len() <= 1 || jbo_cells.len() != gloss_cells.len() {
         return None;
     }
     Some(vec![
         new!(CllInterlinearRow {
             kind: CllInterlinearRowKind::Jbo,
-            cells: jbo_tokens
-                .iter()
-                .map(|token| linked_jbo_text_inlines(token))
-                .collect(),
+            cells: jbo_cells,
         }),
         new!(CllInterlinearRow {
             kind: CllInterlinearRowKind::Gloss,
-            cells: gloss_tokens
-                .into_iter()
-                .map(|token| vec![CllInline::Text(token)])
-                .collect(),
+            cells: gloss_cells,
         }),
     ])
+}
+
+/// Read the edition's explicit alignment notation, as defined by its
+/// scripts/gloss-cells.rb. These are layout cells, not Lojban word boundaries.
+/// Inline elements each form one cell. This keeps a phrase together and
+/// preserves links and subscripts instead of flattening them into extra cells.
+#[requires(line.has_tag_name("jbo") || line.has_tag_name("gloss"))]
+#[ensures(line.first_child().is_some() || ret.is_empty())]
+#[ensures(ret.iter().all(|cell| !cell.is_empty()))]
+fn interlinear_source_cells(line: Node<'_, '_>) -> Vec<Vec<CllInline>> {
+    let mut cells = Vec::new();
+    let mut merge_with_previous = false;
+    for child in line.children() {
+        if let Some(text) = child.text().filter(|_| child.is_text()) {
+            // The source uses -- to bind fragments within a cell. Its ASCII
+            // whitespace separators leave the resulting nonbreaking space intact.
+            let joined = text.replace("--", "\u{a0}");
+            let mut words = joined
+                .split_ascii_whitespace()
+                .filter(|word| *word != "…")
+                .peekable();
+            while let Some(word) = words.next() {
+                let display = match word {
+                    "-" => "",
+                    "[-]" => "-",
+                    _ => word,
+                };
+                let body = if display.is_empty() {
+                    // A blank layout cell still has an inline body, as the
+                    // CllInterlinearRow invariant requires. Empty text displays
+                    // no dash and preserves that cell's position.
+                    vec![CllInline::Text(String::new())]
+                } else if line.has_tag_name("jbo") {
+                    linked_jbo_text_inlines(display)
+                } else {
+                    vec![CllInline::Text(display.to_owned())]
+                };
+                append_interlinear_cell(&mut cells, body, merge_with_previous);
+                merge_with_previous = words.peek().is_none()
+                    && child.next_sibling().is_some_and(|next| {
+                        next.has_tag_name("subscript")
+                            || (word.ends_with('-') && next.has_tag_name("quote"))
+                    });
+            }
+        } else if child.is_element()
+            && !child.has_tag_name("indexterm")
+            && !is_display_none_element(child)
+        {
+            let inlines = trim_inline_runs(parse_inline_nodes(&[child]));
+            let mut body = if line.has_tag_name("jbo") {
+                let mut linked = Vec::with_capacity(inlines.len());
+                for inline in inlines {
+                    match inline {
+                        CllInline::Text(text) => linked.extend(linked_jbo_text_inlines(&text)),
+                        inline => linked.push(inline),
+                    }
+                }
+                linked
+            } else {
+                inlines
+            };
+            if body.is_empty() {
+                body.push(CllInline::Text(String::new()));
+            }
+            append_interlinear_cell(&mut cells, body, merge_with_previous);
+            merge_with_previous = child.next_sibling().is_some_and(|next| {
+                next.is_text()
+                    && next.text().is_some_and(|text| {
+                        text.starts_with('=')
+                            || text.starts_with('-')
+                            || text.starts_with('/')
+                            || text.starts_with(']')
+                    })
+            });
+        }
+    }
+    cells
+}
+
+#[requires(!merge_with_previous || !cells.is_empty())]
+#[requires(!body.is_empty())]
+#[ensures(cells.last().is_some_and(|cell| !cell.is_empty()))]
+#[ensures(cells.len() == old(cells.len()) + usize::from(!merge_with_previous))]
+fn append_interlinear_cell(
+    cells: &mut Vec<Vec<CllInline>>,
+    body: Vec<CllInline>,
+    merge_with_previous: bool,
+) {
+    if merge_with_previous {
+        cells
+            .last_mut()
+            .expect("a continuation has a preceding alignment cell")
+            .extend(body);
+    } else {
+        cells.push(body);
+    }
 }
 
 #[requires(true)]
@@ -3483,6 +3573,18 @@ mod tests {
                     probe: MEDIA_PROBE,
                     block: "Media",
                 },
+                // v1.3.7 groups quotation text and gloss cells with phrase.
+                // The wrapper adds no display style. Its inline children must
+                // still retain dictionary links and subscript formatting.
+                ElementDisposition::Transparent {
+                    contexts: &["gloss", "jbo"],
+                    probe: concat!(
+                        "<interlinear-gloss><jbo><phrase>PROBE</phrase></jbo>",
+                        "<gloss><phrase><valsi>PROBE</valsi><subscript>1</subscript>",
+                        "</phrase></gloss></interlinear-gloss>",
+                    ),
+                    block: "InterlinearGloss",
+                },
                 ElementDisposition::Flattened {
                     probe: "<para><phrase>PROBE</phrase></para>",
                     contexts: &["member", "para", "td"],
@@ -3625,6 +3727,7 @@ mod tests {
                     "description",
                     "gloss",
                     "para",
+                    "phrase",
                     "primary",
                     "quote",
                     "subscript",
@@ -3633,7 +3736,7 @@ mod tests {
                     "td",
                     "term",
                 ],
-                probe: "<para><subscript>PROBE</subscript></para>",
+                probe: "<para><phrase><subscript>PROBE</subscript></phrase></para>",
                 inline: "Subscript",
             }],
         ),
@@ -3747,12 +3850,13 @@ mod tests {
                     "member",
                     "natlang",
                     "para",
+                    "phrase",
                     "quote",
                     "secondary",
                     "td",
                     "title",
                 ],
-                probe: "<para><valsi>PROBE</valsi></para>",
+                probe: "<para><phrase><valsi>PROBE</valsi></phrase></para>",
                 inline: "Link",
             }],
         ),
@@ -3971,6 +4075,95 @@ mod tests {
             .next()
             .unwrap_or_default()
             .to_owned()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn interlinear_phrase_groups_form_one_alignment_cell() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<interlinear-gloss><jbo>mi <phrase>lo ninmu cu morsi</phrase></jbo>",
+            "<gloss>I <phrase>the woman is dead</phrase></gloss></interlinear-gloss>",
+        ));
+        let CllBlock::InterlinearGloss { aligned, rows, .. } = &blocks[0] else {
+            panic!("an interlinear gloss block");
+        };
+        assert!(*aligned);
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| row.cells.len() == 2));
+        assert_eq!(inline_plain_text(&rows[0].cells[1]), "lo ninmu cu morsi");
+        assert_eq!(inline_plain_text(&rows[1].cells[1]), "the woman is dead");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn interlinear_phrase_cells_preserve_links_and_subscripts() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<interlinear-gloss><jbo>mi do</jbo>",
+            "<gloss role=\"gloss-lint-labeled-terminators\">I ",
+            "<phrase><valsi>by</valsi><subscript>1</subscript></phrase>",
+            "</gloss></interlinear-gloss>",
+        ));
+        let CllBlock::InterlinearGloss { aligned, rows, .. } = &blocks[0] else {
+            panic!("an interlinear gloss block");
+        };
+        assert!(*aligned);
+        assert!(rows.iter().all(|row| row.cells.len() == 2));
+        assert!(matches!(
+            rows[1].cells[1].as_slice(),
+            [CllInline::Link { target, .. }, CllInline::Subscript { .. }] if target == "by"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn interlinear_cells_follow_the_editions_explicit_join_notation() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<interlinear-gloss><jbo>… mi do ti ta tu</jbo>",
+            "<gloss>… a--b - [-] x<subscript>1</subscript>-place ",
+            "lerfu-<quote>c</quote></gloss></interlinear-gloss>",
+        ));
+        let CllBlock::InterlinearGloss { aligned, rows, .. } = &blocks[0] else {
+            panic!("an interlinear gloss block");
+        };
+        assert!(*aligned);
+        assert!(rows.iter().all(|row| row.cells.len() == 5));
+        let cells = &rows[1].cells;
+        assert!(matches!(&cells[0][0], CllInline::Text(text) if text == "a\u{a0}b"));
+        assert!(matches!(cells[1].as_slice(), [CllInline::Text(text)] if text.is_empty()));
+        assert!(matches!(&cells[2][0], CllInline::Text(text) if text == "-"));
+        assert!(matches!(
+            cells[3].as_slice(),
+            [CllInline::Text(prefix), CllInline::Subscript { .. }, CllInline::Text(suffix)]
+                if prefix == "x" && suffix == "-place"
+        ));
+        assert!(matches!(
+            cells[4].as_slice(),
+            [CllInline::Text(prefix), CllInline::Quote { .. }] if prefix == "lerfu-"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_error_quotation_keeps_its_grouped_gloss_cell() {
+        let site = embedded_cll_site().expect("embedded CLL");
+        let example = cll_lookup_example(site, "c19e9d5").expect("the error quotation example");
+        let (aligned, rows) = example
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::InterlinearGloss { aligned, rows, .. } => Some((aligned, rows)),
+                _ => None,
+            })
+            .expect("the first interlinear block");
+        assert!(*aligned);
+        assert!(rows.iter().all(|row| row.cells.len() == 6));
+        for row in rows {
+            assert_eq!(inline_plain_text(&row.cells[4]), "lo ninmu cu morsi");
+        }
     }
 
     #[test]
