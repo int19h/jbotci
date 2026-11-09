@@ -822,7 +822,7 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "f486c57bca3ddba4d29c7d09bf0e267a16bb395d227cc83ebb5ddfbbe4b84124"
+            "c76932f53b5fb63088032ed5ffd9e538661810191b8a3f61abd1cb703c51414b"
         );
         assert_eq!(
             corpus.dictionary_hash,
@@ -830,7 +830,7 @@ mod tests {
         );
         assert_eq!(
             corpus.cll_hash,
-            "85fc02f4e4773d31da43c70fcc4351dee333764d9f131d0eaba9f64a4100f2f3"
+            "54e1f54521bd30594e39c2bdfa2fe20a5eac2d663a71915badc44829e818468d"
         );
         assert_eq!(corpus.input_hash.len(), 64);
         assert!(
