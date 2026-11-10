@@ -1,48 +1,88 @@
-const DEFAULT_TIMEOUT_MS = 30_000;
-const DEFAULT_POLL_INTERVAL_MS = 25;
-const WASM_READINESS_SIGNALS = "appModule.__wasm or globalThis.__dx_mainWasm";
+// The worker creates a promise before it imports the Dioxus app module.
+// It stores the resolve function as globalThis.jbotciWorkerStarted.
+// Rust main calls that function in a worker.
+// Dioxus calls main after fetch, compile, and instantiate.
+// The call is the ready signal.
+//
+// Fetch, compile, instantiate, or main can fail before that call.
+// A panic or a trap is the same kind of failure.
+// The Dioxus glue drops the promise for that work.
+// Nothing else handles the rejection.
+// This file listens for unhandledrejection during the import window.
+// Before the ready call, only module startup runs in the worker.
+// A rejection in that window is an init failure.
+// This file removes the listener after the ready call.
+// It also removes the listener after a rejection, and after a thrown import.
+//
+// This app cannot load the module and then stay silent.
+// In a worker, main always calls jbotciWorkerStarted.
+// The call runs before the Dioxus init promise can fulfill.
+// A throw from main is an unhandled rejection.
+// A test module can return from main without the call.
+// No exact event reports that case.
+// This file does not use a time limit for it.
 
-export async function waitForAppModuleReady(appModule, options = {}) {
+export async function importAppModule(moduleUrl, options = {}) {
   const label = options.label || "Dioxus app module";
-  if (!appModule || typeof appModule !== "object") {
+  if (typeof moduleUrl !== "string" || moduleUrl.length === 0) {
     throw new Error(`${label} did not load`);
   }
-  if (typeof appModule.jbotciWorkerReady !== "function") {
-    throw new Error(`${label} does not export jbotciWorkerReady`);
-  }
-  await waitForWasmExports(appModule, label, options);
-  await appModule.jbotciWorkerReady();
-}
 
-async function waitForWasmExports(appModule, label, options) {
-  // Dioxus starts wasm-bindgen initialization at module import time without
-  // top-level await, so import() can resolve before the generated module has
-  // assigned its wasm exports. Depending on the generated bootstrap shape, the
-  // readiness signal is either a live module export or Dioxus' split-main global.
-  const timeoutMs = positiveNumberOrDefault(options.timeoutMs, DEFAULT_TIMEOUT_MS);
-  const pollIntervalMs = positiveNumberOrDefault(
-    options.pollIntervalMs,
-    DEFAULT_POLL_INTERVAL_MS,
-  );
-  const deadline = Date.now() + timeoutMs;
-  while (!wasmExportsReady(appModule)) {
-    if (Date.now() >= deadline) {
-      throw new Error(
-        `${label} wasm initialization timed out waiting for ${WASM_READINESS_SIGNALS}`,
-      );
+  let resolveStarted;
+  let rejectStarted;
+  let settled = false;
+  const started = new Promise((resolve, reject) => {
+    resolveStarted = resolve;
+    rejectStarted = reject;
+  });
+
+  function finish(kind, error) {
+    if (settled) {
+      return;
     }
-    await delay(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())));
+    settled = true;
+    globalThis.removeEventListener("unhandledrejection", onUnhandledRejection);
+    if (globalThis.jbotciWorkerStarted === onReady) {
+      delete globalThis.jbotciWorkerStarted;
+    }
+    if (kind === "ready") {
+      resolveStarted();
+    } else {
+      rejectStarted(error);
+    }
   }
+
+  function onReady() {
+    finish("ready");
+  }
+
+  function onUnhandledRejection(event) {
+    const reason = event && "reason" in event ? event.reason : event;
+    if (event && typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    finish(
+      "fail",
+      new Error(`${label} wasm initialization failed: ${errorText(reason)}`),
+    );
+  }
+
+  globalThis.jbotciWorkerStarted = onReady;
+  globalThis.addEventListener("unhandledrejection", onUnhandledRejection);
+
+  let appModule;
+  try {
+    appModule = await import(moduleUrl);
+  } catch (error) {
+    finish("fail", new Error(`${label} did not load: ${errorText(error)}`));
+  }
+  await started;
+  return appModule;
 }
 
-function wasmExportsReady(appModule) {
-  return appModule.__wasm !== undefined || globalThis.__dx_mainWasm !== undefined;
-}
-
-function positiveNumberOrDefault(value, fallback) {
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function errorText(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }

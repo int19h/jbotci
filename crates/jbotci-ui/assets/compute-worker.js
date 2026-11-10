@@ -14,15 +14,17 @@ function initCompute(mainModuleUrl) {
   initModuleUrl = moduleUrl;
   computeHandle = null;
   appModuleReadyModulePromise = null;
-  initPromise = import(moduleUrl).then(async (appModule) => {
-    if (typeof appModule.jbotciComputeHandle !== "function") {
-      throw new Error("Dioxus app module does not export jbotciComputeHandle");
-    }
-    const { waitForAppModuleReady } = await appModuleReadyModule();
-    await waitForAppModuleReady(appModule);
-    computeHandle = appModule.jbotciComputeHandle;
-  });
+  initPromise = loadComputeModule(moduleUrl);
   return initPromise;
+}
+
+async function loadComputeModule(moduleUrl) {
+  const ready = await appModuleReadyModule();
+  const appModule = await ready.importAppModule(moduleUrl);
+  if (typeof appModule.jbotciComputeHandle !== "function") {
+    throw new Error("Dioxus app module does not export jbotciComputeHandle");
+  }
+  computeHandle = appModule.jbotciComputeHandle;
 }
 
 function appModuleReadyModule() {

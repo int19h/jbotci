@@ -1078,12 +1078,24 @@ impl Default for CuktaTocExpansionState {
     }
 }
 
+// The worker stores this function before it imports the module.
+// Rust main calls it after fetch, compile, and instantiate.
+// The page does not call it. A worker has no window document.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = globalThis, js_name = jbotciWorkerStarted)]
+    fn jbotci_worker_started();
+}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub fn launch_app() {
     if is_window_document_context() {
         dioxus::launch(App);
+    } else {
+        jbotci_worker_started();
     }
 }
 

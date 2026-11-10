@@ -169,7 +169,24 @@ function requestFor(probeCase, defaultText) {
   };
 }
 
+// Node has no unhandledrejection listener on globalThis.
+// The app module helper uses that listener. Forward the process event to it.
+function installNodeRejectionBridge() {
+  if (typeof globalThis.addEventListener === "function") {
+    return;
+  }
+  const target = new EventTarget();
+  globalThis.addEventListener = target.addEventListener.bind(target);
+  globalThis.removeEventListener = target.removeEventListener.bind(target);
+  process.on("unhandledRejection", (reason) => {
+    const event = new Event("unhandledrejection", { cancelable: true });
+    event.reason = reason;
+    target.dispatchEvent(event);
+  });
+}
+
 async function loadAppModule(jsPath, wasmPath, readyJsPath) {
+  installNodeRejectionBridge();
   const wasmBytes = readFileSync(wasmPath);
   globalThis.fetch = async () =>
     new Response(wasmBytes, {
@@ -177,8 +194,7 @@ async function loadAppModule(jsPath, wasmPath, readyJsPath) {
       headers: { "Content-Type": "application/wasm" },
     });
   const readinessModule = await import(pathToFileURL(readyJsPath).href);
-  const module = await import(pathToFileURL(jsPath).href);
-  await readinessModule.waitForAppModuleReady(module);
+  const module = await readinessModule.importAppModule(pathToFileURL(jsPath).href);
   if (typeof module.jbotciComputeHandle !== "function") {
     throw new Error("Dioxus app module does not export jbotciComputeHandle");
   }

@@ -1779,10 +1779,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn wasm_dev_profile_keeps_browser_safe_debug_info() {
-        assert!(
-            WORKSPACE_CARGO_MANIFEST
-                .contains("[profile.wasm-dev]\ninherits = \"dev\"\ndebug = \"line-tables-only\"")
-        );
+        assert!(WORKSPACE_CARGO_MANIFEST.contains(
+            "[profile.wasm-dev]\ninherits = \"dev\"\nopt-level = 1\ndebug = \"line-tables-only\""
+        ));
     }
 
     #[test]
@@ -1914,11 +1913,33 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_app_module_ready_accepts_current_dioxus_wasm_signal() {
-        assert!(APP_MODULE_READY_JS.contains("globalThis.__dx_mainWasm"));
-        assert!(APP_MODULE_READY_JS.contains("appModule.__wasm"));
-        assert!(APP_MODULE_READY_JS.contains("waiting for"));
-        assert!(!APP_MODULE_READY_JS.contains("does not export the wasm readiness binding"));
+    fn web_app_module_ready_waits_for_the_rust_worker_call() {
+        assert!(APP_MODULE_READY_JS.contains("jbotciWorkerStarted"));
+        assert!(APP_MODULE_READY_JS.contains("unhandledrejection"));
+        assert!(APP_MODULE_READY_JS.contains("wasm initialization failed"));
+        assert!(APP_MODULE_READY_JS.contains("did not load"));
+        assert!(!APP_MODULE_READY_JS.contains("captureAppModuleInit"));
+        assert!(!APP_MODULE_READY_JS.contains("__dx_mainWasm"));
+        assert!(!APP_MODULE_READY_JS.contains("jbotciWorkerReady"));
+        assert!(!APP_MODULE_READY_JS.contains("Promise.prototype.then"));
+        assert!(!APP_MODULE_READY_JS.contains("timed out"));
+        let ready_fn = APP_MODULE_READY_JS
+            .find("globalThis.jbotciWorkerStarted =")
+            .expect("the worker stores the ready function");
+        let listener = APP_MODULE_READY_JS
+            .find("addEventListener(\"unhandledrejection\"")
+            .expect("the worker listens for an unhandled rejection");
+        let app_import = APP_MODULE_READY_JS
+            .find("import(moduleUrl)")
+            .expect("the helper imports the app module");
+        assert!(ready_fn < app_import);
+        assert!(listener < app_import);
+        assert!(COMPUTE_WORKER_JS.contains("importAppModule("));
+        assert!(!COMPUTE_WORKER_JS.contains("captureAppModuleInit"));
+        assert!(!COMPUTE_WORKER_JS.contains("import(moduleUrl)"));
+        assert!(EMBEDDING_WORKER_JS.contains("importAppModule("));
+        assert!(!EMBEDDING_WORKER_JS.contains("captureAppModuleInit"));
+        assert!(!EMBEDDING_WORKER_JS.contains("import(moduleUrl)"));
     }
 
     #[test]
