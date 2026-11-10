@@ -2557,13 +2557,17 @@ fn lujvo_from_until_with_cache(
     if let Some(result) = cache.lujvo_from(index, end, has_initial_rafsi) {
         return result;
     }
+    // This checker only needs a yes or no. The failure record belongs to the
+    // part-range analysis that builds the diagnostic.
+    let mut ignored_failure = None;
     let result = if index >= end {
         false
-    } else if has_initial_rafsi && lujvo_core_part_ranges_until(chars, index, end, cache).is_some()
+    } else if has_initial_rafsi
+        && lujvo_core_part_ranges_until(chars, index, end, &mut ignored_failure, cache).is_some()
     {
         true
     } else if !has_initial_rafsi
-        && lujvo_core_part_ranges_until(chars, index, end, cache)
+        && lujvo_core_part_ranges_until(chars, index, end, &mut ignored_failure, cache)
             .is_some_and(|ranges| ranges.len() > 1)
     {
         true
@@ -2632,12 +2636,12 @@ fn lujvo_part_ranges_uncached(
         return None;
     }
     if has_initial_rafsi
-        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, cache)
+        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, failure, cache)
     {
         return Some(ranges);
     }
     if !has_initial_rafsi
-        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, cache)
+        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, failure, cache)
         && ranges.len() > 1
     {
         return Some(ranges);
@@ -2982,6 +2986,7 @@ fn lujvo_core_part_ranges_until(
     chars: &[char],
     index: usize,
     end: usize,
+    failure: &mut Option<LujvoParseFailure>,
     cache: &mut MorphologyRecognitionCache,
 ) -> Option<Vec<LujvoPartRange>> {
     if is_gismu_slice(chars, index, end)
@@ -2991,10 +2996,53 @@ fn lujvo_core_part_ranges_until(
     {
         return Some(vec![LujvoPartRange::rafsi(index, end)]);
     }
-    let split = stressed_initial_rafsi_short_final_split_with_cache(chars, index, end, cache)?;
-    let mut ranges = initial_rafsi_ranges(chars, index, split)?;
-    ranges.push(LujvoPartRange::rafsi(split, end));
-    Some(ranges)
+    // brivla_core <- ... / stressed_initial_rafsi short_final_rafsi
+    if let Some(split) =
+        stressed_initial_rafsi_short_final_split_with_cache(chars, index, end, cache)
+    {
+        let mut ranges = initial_rafsi_ranges(chars, index, split)?;
+        ranges.push(LujvoPartRange::rafsi(split, end));
+        return Some(ranges);
+    }
+    record_stressed_extended_short_final_failure(chars, index, end, failure, cache);
+    None
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn record_stressed_extended_short_final_failure(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    failure: &mut Option<LujvoParseFailure>,
+    cache: &mut MorphologyRecognitionCache,
+) {
+    // The split search above returns only a stressed rafsi whose tail is a
+    // short final. When that search fails, keep the furthest stressed extended
+    // rafsi. Its end is the failure position. Do not guess the boundary from
+    // the letters, and do not fall back to a y-less rafsi.
+    let Some(split) = stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache)
+        .into_iter()
+        .filter(|split| {
+            // The tail is the short-final position. A rafsi that already ends
+            // at the core end has no tail inside this core.
+            *split > index
+                && *split < end
+                && chars.get(split - 1).is_some_and(|value| is_y(*value))
+                && !is_short_final_rafsi_slice(chars, *split, end)
+        })
+        .max()
+    else {
+        return;
+    };
+    merge_lujvo_failure(
+        failure,
+        Some(LujvoParseFailure::new(
+            split,
+            LujvoParseExpectation::ShortFinalRafsi,
+        )),
+    );
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -3114,21 +3162,55 @@ fn extended_rafsi_ends_until_with_cache(
             ends.push(next);
         }
     }
-    for base_end in brivla_head_ends_until_with_cache(chars, index, end, end, cache)
-        .iter()
-        .copied()
-    {
-        if chars[index..base_end].iter().any(|value| is_y(*value)) {
-            continue;
-        }
-        if let Some(next) = hy_rafsi_hyphen_end(chars, base_end)
-            && next <= end
+    // brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y h?
+    // The `&` is at the rafsi start and reads to the classified end.
+    if brivla_rafsi_two_syllable_lookahead(chars, index, end) {
+        for base_end in brivla_head_ends_until_with_cache(chars, index, end, end, cache)
+            .iter()
+            .copied()
         {
-            ends.push(next);
+            if chars[index..base_end].iter().any(|value| is_y(*value)) {
+                continue;
+            }
+            if let Some(next) = hy_rafsi_hyphen_end(chars, base_end)
+                && next <= end
+            {
+                ends.push(next);
+            }
         }
     }
     cache.record_extended_rafsi_ends(index, end, &ends);
     ends
+}
+
+#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn brivla_rafsi_two_syllable_lookahead(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+    // &(syllable consonantal_syllable* syllable)
+    // `syllable` excludes a `y` nucleus. Try the second vowel syllable before
+    // a consonantal syllable, so the consonantal syllable cannot consume it.
+    if index >= lookahead_end {
+        return false;
+    }
+    syllable_ends(chars, index, lookahead_end, lookahead_end)
+        .into_iter()
+        .any(|first_end| {
+            first_end > index && syllable_after_consonantal_chain(chars, first_end, lookahead_end)
+        })
+}
+
+#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn syllable_after_consonantal_chain(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+    if syllable_ends(chars, index, lookahead_end, lookahead_end)
+        .iter()
+        .any(|syllable_end| *syllable_end > index)
+    {
+        return true;
+    }
+    consonantal_syllable_ends(chars, index, lookahead_end, lookahead_end)
+        .into_iter()
+        .any(|next| next > index && syllable_after_consonantal_chain(chars, next, lookahead_end))
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -3216,7 +3298,8 @@ fn stressed_brivla_rafsi_slice_with_cache(
     }
 
     // stressed_brivla_rafsi <- &unstressed_syllable brivla_head stressed_syllable h y
-    // The `&unstressed_syllable` lookahead reads to the pause, not to `'`.
+    // The two-syllable lookahead is only on unstressed `brivla_rafsi`.
+    // This rule keeps `&unstressed_syllable`, which reads to the pause, not to `'`.
     if end < start + 3
         || chars.get(end - 2) != Some(&'\'')
         || !chars.get(end - 1).is_some_and(|value| is_y(*value))
@@ -3425,7 +3508,7 @@ fn brivla_head_ends_without_lookahead(
         for syllable_end in
             unstressed_syllable_ends_for_fuhivla(chars, start, span_end, lookahead_end)
         {
-            if syllable_end > start && syllable_end <= span_end && !ends.contains(&syllable_end) {
+            if syllable_end > start && !ends.contains(&syllable_end) {
                 ends.push(syllable_end);
                 stack.push(syllable_end);
             }
@@ -5205,10 +5288,7 @@ fn consonantal_syllable_ends(
     // The filter keeps only the second of those. The coda consonant stays in
     // the span. `&any_syllable` reads to `lookahead_end`, so a later `y`
     // nucleus still counts.
-    if index + 1 < span_end
-        && index + 2 <= span_end
-        && syllable_flags_at(chars, index + 1, lookahead_end).coda_takes_next
-    {
+    if index + 2 <= span_end && syllable_flags_at(chars, index + 1, lookahead_end).coda_takes_next {
         vec![index + 2]
     } else {
         Vec::new()
@@ -5600,6 +5680,9 @@ mod tests {
             "gerkrxuipybra",
             "gerkrxuipykla",
             "gerkrxuipybroda",
+            "zbasu'ybroda",
+            "kanbrma'ybroda",
+            "blanu'ybroda",
         ];
         let expected = [
             "Lujvo:rafsi:kánbrt+hyphen:y+rafsi:bra",
@@ -5628,6 +5711,9 @@ mod tests {
             "Lujvo:rafsi:gerkrxŭíp+hyphen:y+rafsi:bra",
             "Lujvo:rafsi:gerkrxŭíp+hyphen:y+rafsi:kla",
             "Lujvo:rafsi:gerkrxŭip+hyphen:y+rafsi:bróda",
+            "Lujvo:rafsi:zbasu+hyphen:'y+rafsi:bróda",
+            "Lujvo:rafsi:kanbrma+hyphen:'y+rafsi:bróda",
+            "Lujvo:rafsi:blanu+hyphen:'y+rafsi:bróda",
         ];
         for (source, expected) in accepted.iter().zip(expected) {
             assert_eq!(morphology_classes(source), expected, "{source}");
@@ -5641,9 +5727,12 @@ mod tests {
         // `kan` + `br` + `y` is `stressed_y_less_rafsi? initial_pair y`.
         // Camxes rejects the word. `klaMAybra` has no apostrophe, so `' y`
         // does not match, and camxes rejects it too.
-        // `gerkrxuipyte` has the stressed fu'ivla rafsi `gerkrxuipy`, but `te`
-        // is not a short final. `any_extended_rafsi` then blocks a y-less rafsi,
-        // so the lujvo parse stops at the first letter. Camxes rejects the word.
+        // A brivla rafsi before `'y` needs two vowel syllables. One vowel
+        // syllable, with or without a following consonantal syllable, fails
+        // the lookahead. Stress on the first syllable fails
+        // `&unstressed_syllable` on `stressed_brivla_rafsi`.
+        // `gerkrxuipyte` keeps the stressed fu'ivla rafsi and still fails,
+        // because `te` is not a short final rafsi.
         for source in [
             "kanbrybra",
             "kánbrybra",
@@ -5653,16 +5742,26 @@ mod tests {
             "kandia",
             "gerkrxuipyte",
             "gerkrxuipy",
+            "kla'ybroda",
+            "klá'ybroda",
+            "bra'ybroda",
+            "brá'ybroda",
+            "spa'ykanbrti",
+            "spá'ykanbrti",
+            "ka'ybra",
+            "ká'ybra",
+            "kanbr'ybroda",
+            "kánbr'ybroda",
+            "kláma'ybroda",
+            "zbásu'ybroda",
+            "kánbrma'ybroda",
         ] {
             let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
                 source,
                 &MorphologyOptions::default(),
                 None,
             );
-            assert!(
-                attempt.into_data().result.is_err(),
-                "{source} should be rejected"
-            );
+            assert!(attempt.into_data().result.is_err(), "{source} is rejected");
         }
         // Camxes rejects these (`r <- comma* [rR] !h !glide !r` and
         // `n <- comma* [nN] !h !glide !n !affricate`).
@@ -5695,6 +5794,73 @@ mod tests {
             assert_eq!(data.warnings[0].char_end, end, "{source}");
             assert_eq!(data.warnings[0].text, text, "{source}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stressed_extended_rafsi_keeps_short_final_failure() {
+        // The stressed extended rafsi is recognized. The tail is not a
+        // `short_final_rafsi`. The diagnostic names that prefix and the tail.
+        for (source, prefix, suffix) in [
+            ("gerkrxuipyte", "gerkrxuipy", "te"),
+            ("kanbrtyte", "kanbrty", "te"),
+        ] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err(source);
+            let crate::MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                text,
+                detail,
+                ..
+            } = &error
+            else {
+                panic!("{source} is an invalid-word error, got {error:?}");
+            };
+            assert_eq!(*kind, MorphologyErrorKind::InvalidLujvo, "{source}");
+            assert_eq!(
+                (*char_start, *char_end),
+                (0, source.chars().count()),
+                "{source}"
+            );
+            assert_eq!(text, source, "{source}");
+            assert_eq!(&text[prefix.len()..], suffix, "{source}");
+            let expected = new!(MorphologyErrorDetail::InvalidLujvo {
+                parsed_prefix: Some(prefix.to_owned()),
+                expected: LujvoParseExpectation::ShortFinalRafsi,
+            });
+            assert_eq!(detail.as_ref(), Some(&expected), "{source}");
+            let diagnostic = error.to_diagnostic(None, source).expect(source);
+            assert_eq!(diagnostic.code, "morphology.invalid-lujvo", "{source}");
+            let note: String = diagnostic
+                .styled_notes
+                .iter()
+                .flat_map(|note| note.segments.iter().map(|segment| segment.text.as_str()))
+                .collect();
+            assert!(
+                note.contains(prefix) && note.contains("a short final rafsi after the `y`"),
+                "{source}: {note}"
+            );
+        }
+        // A stressed extended rafsi that already ends at the core end has no
+        // short-final tail. `Only` stays unrecognized. Camxes rejects it as a
+        // foreign word.
+        let only = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "Only",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("Only");
+        let crate::MorphologyError::Invalid { kind, .. } = &only else {
+            panic!("Only is an invalid-word error, got {only:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{only:?}");
     }
 
     #[requires(!source.is_empty())]
