@@ -801,22 +801,33 @@ async function f2llmRuntimeModule() {
     throw new Error("embedding app module URL is not configured.");
   }
   if (mainModulePromise === null) {
-    mainModulePromise = import(mainModuleUrl).then(async (appModule) => {
-      if (typeof appModule.jbotciF2LlmWebGpuRuntimeLoad !== "function") {
-        throw new Error("Dioxus app module does not export jbotciF2LlmWebGpuRuntimeLoad");
-      }
-      if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
-        throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
-      }
-      if (typeof appModule.jbotciF2LlmQueryInput !== "function") {
-        throw new Error("Dioxus app module does not export jbotciF2LlmQueryInput");
-      }
-      const { waitForAppModuleReady } = await appModuleReadyModule();
-      await waitForAppModuleReady(appModule);
-      return appModule;
-    });
+    mainModulePromise = loadEmbeddingAppModule(mainModuleUrl);
   }
   return mainModulePromise;
+}
+
+async function loadEmbeddingAppModule(moduleUrl) {
+  const ready = await appModuleReadyModule();
+  // Install the capture before import(). The dioxus init promise starts
+  // during evaluation, and import() resolves only after that statement runs.
+  const capture = ready.captureAppModuleInit();
+  let appModule;
+  try {
+    appModule = await import(moduleUrl);
+  } finally {
+    capture.stop();
+  }
+  if (typeof appModule.jbotciF2LlmWebGpuRuntimeLoad !== "function") {
+    throw new Error("Dioxus app module does not export jbotciF2LlmWebGpuRuntimeLoad");
+  }
+  if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
+    throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
+  }
+  if (typeof appModule.jbotciF2LlmQueryInput !== "function") {
+    throw new Error("Dioxus app module does not export jbotciF2LlmQueryInput");
+  }
+  await ready.waitForAppModuleReady(appModule, { initPromise: capture.promise });
+  return appModule;
 }
 
 async function ortModule() {

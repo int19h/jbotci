@@ -242,11 +242,29 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 [profile.desktop-dev]
 inherits = "dev"
 
-# Full DWARF makes the emitted web module about 1.39 GB, exceeding V8's 1 GiB
-# WebAssembly module limit. Use CARGO_PROFILE_WASM_DEV_DEBUG=full when needed; it
-# does not reach jbotci-syntax, whose own override below disables debug info.
+# `dx serve --web` and `dx build --web` use this profile.
+# opt-level 0 makes the loaded module slow. opt-level 1 is the measured fix.
+# The code section fell from 77.6 MB to 60.7 MB.
+# Line tables stay on, so a wasm stack trace still has a file and a line.
+# Full DWARF makes the module about 1.39 GB. That is past V8's 1 GiB module limit.
+# debug = false drops the file and the line from the trace.
+# With opt-level 1 and debug = false, the raw module is 114.3 MB and DWARF is 0.
+# `dx serve` keeps DWARF by default and drops the name section unless you pass --keep-names.
+# A trace then has neither a file nor a function name.
+# Line tables on only jbotci-ui and jbotci-gentufa make a 134.0 MB module.
+# The other crates then have no file and no line in the trace.
+# These sizes are the cargo wasm file, before dx removes the name section.
+# With opt-level 1 and these line tables, the raw module is 203.7 MB and DWARF is 89.3 MB.
+# A clean build took 733 seconds. One new line in jbotci-ui rebuilt in 29 seconds.
+# A higher opt-level on only the heavy crates leaves the other crates at opt-level 0.
+# That build stays slow, and its raw module is still 192.9 MB.
+# Native debug builds use the dev profile. Release builds use the release profile.
+# This block changes neither profile.
+# CARGO_PROFILE_WASM_DEV_DEBUG=full asks for full debug info for one build.
+# That variable does not change jbotci-syntax. The override below turns its debug info off.
 [profile.wasm-dev]
 inherits = "dev"
+opt-level = 1
 debug = "line-tables-only"
 
 [profile.dev.build-override]

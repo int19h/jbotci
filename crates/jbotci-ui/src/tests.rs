@@ -1104,6 +1104,26 @@ fn embedding_worker_stale_pack_regressions_pass() {
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
+fn app_module_ready_contract_passes() {
+    let test_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/app-module-ready.test.mjs");
+    let output = std::process::Command::new("node")
+        .args(["--test", test_path.to_str().unwrap()])
+        .output()
+        .expect("Node.js must run the app module readiness tests");
+
+    assert!(
+        output.status.success(),
+        "app module readiness tests failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
 fn worker_client_fatal_disposal_regressions_pass() {
     let test_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/worker-client.test.mjs");

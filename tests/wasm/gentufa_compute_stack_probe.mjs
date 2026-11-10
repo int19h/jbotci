@@ -177,8 +177,7 @@ async function loadAppModule(jsPath, wasmPath, readyJsPath) {
       headers: { "Content-Type": "application/wasm" },
     });
   const readinessModule = await import(pathToFileURL(readyJsPath).href);
-  const module = await import(pathToFileURL(jsPath).href);
-  await readinessModule.waitForAppModuleReady(module);
+  const module = await readinessModule.importAppModule(pathToFileURL(jsPath).href);
   if (typeof module.jbotciComputeHandle !== "function") {
     throw new Error("Dioxus app module does not export jbotciComputeHandle");
   }

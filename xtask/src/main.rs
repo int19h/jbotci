@@ -1779,10 +1779,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn wasm_dev_profile_keeps_browser_safe_debug_info() {
-        assert!(
-            WORKSPACE_CARGO_MANIFEST
-                .contains("[profile.wasm-dev]\ninherits = \"dev\"\ndebug = \"line-tables-only\"")
-        );
+        assert!(WORKSPACE_CARGO_MANIFEST.contains(
+            "[profile.wasm-dev]\ninherits = \"dev\"\nopt-level = 1\ndebug = \"line-tables-only\""
+        ));
     }
 
     #[test]
@@ -1914,11 +1913,32 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_app_module_ready_accepts_current_dioxus_wasm_signal() {
+    fn web_app_module_ready_waits_on_the_dioxus_init_promise() {
         assert!(APP_MODULE_READY_JS.contains("globalThis.__dx_mainWasm"));
         assert!(APP_MODULE_READY_JS.contains("appModule.__wasm"));
-        assert!(APP_MODULE_READY_JS.contains("waiting for"));
+        assert!(APP_MODULE_READY_JS.contains("captureAppModuleInit"));
+        assert!(APP_MODULE_READY_JS.contains("wasm initialization failed"));
+        assert!(APP_MODULE_READY_JS.contains("did not start wasm initialization"));
+        assert!(!APP_MODULE_READY_JS.contains("timed out"));
         assert!(!APP_MODULE_READY_JS.contains("does not export the wasm readiness binding"));
+        assert!(COMPUTE_WORKER_JS.contains("captureAppModuleInit"));
+        let capture = COMPUTE_WORKER_JS
+            .find("captureAppModuleInit()")
+            .expect("compute worker should capture the dioxus init promise");
+        let app_import = COMPUTE_WORKER_JS
+            .find("import(moduleUrl)")
+            .expect("compute worker should import the app module");
+        assert!(
+            capture < app_import,
+            "the init promise starts during evaluation, so capture must be installed before import()"
+        );
+        let embedding_capture = EMBEDDING_WORKER_JS
+            .find("captureAppModuleInit()")
+            .expect("embedding worker should capture the dioxus init promise");
+        let embedding_import = EMBEDDING_WORKER_JS
+            .find("import(moduleUrl)")
+            .expect("embedding worker should import the app module");
+        assert!(embedding_capture < embedding_import);
     }
 
     #[test]
