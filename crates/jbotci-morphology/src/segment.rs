@@ -5804,17 +5804,31 @@ mod tests {
                 "reps={reps} chars={char_count} steps={} cap={step_cap}",
                 steps.get()
             );
-            // The base lexer rejects this run. The test locks that rejection
-            // and counts the scan that searches it.
-            match words {
-                Err(crate::MorphologyError::Invalid {
-                    kind: crate::MorphologyErrorKind::UnrecognizedWord,
-                    char_start: 0,
-                    char_end,
-                    ..
-                }) if char_end == char_count => {}
-                other => panic!("{input}: {other:?}"),
-            }
+            // Camxes accepts this run as one fu'ivla.
+            // The split is `bar`, then `lr` once for each remaining pair, then `la`.
+            // The counts above bound that scan.
+            let words = words.unwrap_or_else(|error| panic!("{input}: {error:?}"));
+            assert_eq!(words.len(), 1, "{input}");
+            let word = words[0]
+                .bare_word()
+                .unwrap_or_else(|| panic!("{input}: {words:?}"));
+            assert_eq!(word.kind(), crate::WordKind::Fuhivla, "{input}");
+            assert_eq!(
+                word.phonemes().as_str(),
+                format!("bá{}a", "rl".repeat(reps)),
+                "{input}"
+            );
+            let mut expected_syllables = Vec::with_capacity(reps + 1);
+            expected_syllables.push("bar");
+            expected_syllables.extend(std::iter::repeat_n("lr", reps - 1));
+            expected_syllables.push("la");
+            let got_syllables =
+                pronunciation_syllable_texts(&input).unwrap_or_else(|| panic!("{input} syllables"));
+            assert_eq!(
+                got_syllables.iter().map(String::as_str).collect::<Vec<_>>(),
+                expected_syllables,
+                "{input}"
+            );
         }
     }
 
@@ -6142,6 +6156,12 @@ mod tests {
                 "Fuhivla",
                 "cidjrspagéti",
                 &["cid", "jr", "spa", "ge", "ti"],
+            ),
+            (
+                "barlrlrlrla",
+                "Fuhivla",
+                "bárlrlrlrla",
+                &["bar", "lr", "lr", "lr", "la"],
             ),
         ];
         for &(word, kind, phonemes, syllables) in accepted {
