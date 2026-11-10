@@ -3916,7 +3916,7 @@ fn syllable_is_stressed_in_context(
     context_end: usize,
 ) -> bool {
     syllable_has_explicit_stress(chars, start, syllable_end)
-        || stressed_syllable_has_implicit_stress(chars, start, syllable_end, context_end)
+        || stressed_syllable_has_implicit_stress(chars, syllable_end, context_end)
 }
 
 #[requires(start <= end && end <= context_end && context_end <= chars.len())]
@@ -3928,7 +3928,7 @@ fn final_syllable_slice_in_context(
     context_end: usize,
 ) -> bool {
     final_syllable_slice(chars, start, end)
-        && !stressed_syllable_has_implicit_stress(chars, start, end, context_end)
+        && !stressed_syllable_has_implicit_stress(chars, end, context_end)
 }
 
 #[cfg(test)]
@@ -4726,28 +4726,15 @@ fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bo
         return false;
     }
     if chars[index] == 'r' {
-        return starts_t_l(chars, index + 1, end) || starts_n_liquid(chars, index + 1, end);
+        // The cluster `tl` is not valid. A consonantal syllable such as `rn` is valid.
+        // Camxes accepts `kan.rn.la.ti`.
+        return starts_t_l(chars, index + 1, end);
     }
-    starts_affricate_liquid(chars, index, end)
-        || starts_jr_vowel(chars, index, end)
-        || starts_consonantal_then_forbidden_initial(chars, index, end)
-        || starts_gn_vowel(chars, index, end)
+    // `jr` and `gn` before a vowel nucleus are a syllable break. Camxes accepts
+    // `cmaj.ri.ti`. The same letters before a glide match the consonant-glide ban.
+    starts_jr_glide(chars, index, end)
+        || starts_gn_glide(chars, index, end)
         || starts_cgv_sequence(chars, index, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_forbidden_initial_pair(chars: &[char], index: usize, end: usize) -> bool {
-    index + 1 < end
-        && is_consonant(chars[index])
-        && is_consonant(chars[index + 1])
-        && !initial_pair_chars(chars[index], chars[index + 1])
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_n_liquid(chars: &[char], index: usize, end: usize) -> bool {
-    index + 1 < end && chars[index] == 'n' && is_liquid(chars[index + 1])
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -4758,34 +4745,20 @@ fn starts_t_l(chars: &[char], index: usize, end: usize) -> bool {
 
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
-fn starts_affricate_liquid(chars: &[char], index: usize, end: usize) -> bool {
+fn starts_jr_glide(chars: &[char], index: usize, end: usize) -> bool {
     index + 2 < end
-        && matches!(
-            (chars[index], chars[index + 1]),
-            ('d', 'j' | 'z') | ('t', 'c' | 's')
-        )
-        && is_liquid(chars[index + 2])
+        && chars[index] == 'j'
+        && chars[index + 1] == 'r'
+        && starts_glide(&chars[..end], index + 2)
 }
 
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
-fn starts_jr_vowel(chars: &[char], index: usize, end: usize) -> bool {
-    index + 2 < end && chars[index] == 'j' && chars[index + 1] == 'r' && is_vowel(chars[index + 2])
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_consonantal_then_forbidden_initial(chars: &[char], index: usize, end: usize) -> bool {
-    index + 3 < end
-        && is_consonant(chars[index])
-        && is_syllabic(chars[index + 1])
-        && starts_forbidden_initial_pair(chars, index + 2, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_gn_vowel(chars: &[char], index: usize, end: usize) -> bool {
-    index + 2 < end && chars[index] == 'g' && chars[index + 1] == 'n' && is_vowel(chars[index + 2])
+fn starts_gn_glide(chars: &[char], index: usize, end: usize) -> bool {
+    index + 2 < end
+        && chars[index] == 'g'
+        && chars[index + 1] == 'n'
+        && starts_glide(&chars[..end], index + 2)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -4939,7 +4912,7 @@ fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize
         .into_iter()
         .filter(|syllable_end| {
             !syllable_has_explicit_stress(chars, index, *syllable_end)
-                && !stressed_syllable_has_implicit_stress(chars, index, *syllable_end, end)
+                && !stressed_syllable_has_implicit_stress(chars, *syllable_end, end)
         })
         .collect();
     ends.extend(consonantal_syllable_ends(chars, index, end));
@@ -4955,32 +4928,25 @@ fn stressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) 
         .into_iter()
         .filter(|syllable_end| {
             syllable_has_explicit_stress(chars, index, *syllable_end)
-                || stressed_syllable_has_implicit_stress(chars, index, *syllable_end, end)
+                || stressed_syllable_has_implicit_stress(chars, *syllable_end, end)
         })
         .collect()
 }
 
-#[requires(start <= syllable_end && syllable_end <= end && end <= chars.len())]
+#[requires(syllable_end <= end && end <= chars.len())]
 #[ensures(true)]
-fn stressed_syllable_has_implicit_stress(
-    chars: &[char],
-    start: usize,
-    syllable_end: usize,
-    end: usize,
-) -> bool {
+fn stressed_syllable_has_implicit_stress(chars: &[char], syllable_end: usize, end: usize) -> bool {
+    // Camxes: stressed_syllable <- &stressed syllable / syllable &stress.
+    // stress <- (consonant / glide)* h? y? syllable pause.
+    // The span ends at the word pause. The coda stays in this syllable.
+    // The text after it is one final syllable, or consonantal syllables and
+    // then one final syllable.
     if final_syllable_slice(chars, syllable_end, end) {
         return true;
     }
-    syllable_can_end_without_coda(chars, start, syllable_end)
-        && consonantal_syllable_ends(chars, syllable_end, end)
-            .into_iter()
-            .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, end))
-}
-
-#[requires(start <= syllable_end && syllable_end <= chars.len())]
-#[ensures(true)]
-fn syllable_can_end_without_coda(chars: &[char], start: usize, syllable_end: usize) -> bool {
-    brivla_onset_has_nucleus_end(chars, start, syllable_end, true)
+    consonantal_syllable_ends(chars, syllable_end, end)
+        .into_iter()
+        .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, end))
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -6087,5 +6053,118 @@ mod tests {
         let call_count = calls;
         let starts_here = starts(chars, index, end, &mut calls);
         (ends, call_count, starts_here)
+    }
+
+    /// Issue #1093. A consonantal syllable can follow a stressed syllable that
+    /// ends in a consonant. It can also stand before the stress, after an open
+    /// syllable or a closed one. The lists are the camxes syllable splits.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn consonantal_syllable_fuhivla_match_camxes() {
+        let accepted: &[(&str, &str, &str, &[&str])] = &[
+            ("kanbrti", "Fuhivla", "kánbrti", &["kan", "br", "ti"]),
+            ("tanbrti", "Fuhivla", "tánbrti", &["tan", "br", "ti"]),
+            ("kanbrta", "Fuhivla", "kánbrta", &["kan", "br", "ta"]),
+            ("tarbrtu", "Fuhivla", "tárbrtu", &["tar", "br", "tu"]),
+            (
+                "kanbrtana",
+                "Fuhivla",
+                "kanbrtána",
+                &["kan", "br", "ta", "na"],
+            ),
+            ("kanbrata", "Lujvo", "kanbráta", &["kan", "bra", "ta"]),
+            (
+                "cmacrntegrale",
+                "Fuhivla",
+                "cmacrntegrále",
+                &["cmac", "rn", "te", "gra", "le"],
+            ),
+            (
+                "tarmrnintegrale",
+                "Fuhivla",
+                "tarmrnintegrále",
+                &["tar", "mr", "nin", "te", "gra", "le"],
+            ),
+            ("cmacrnte", "Fuhivla", "cmácrnte", &["cmac", "rn", "te"]),
+            (
+                "kanbrmrti",
+                "Fuhivla",
+                "kánbrmrti",
+                &["kan", "br", "mr", "ti"],
+            ),
+            (
+                "kanbrlnti",
+                "Fuhivla",
+                "kánbrlnti",
+                &["kan", "br", "ln", "ti"],
+            ),
+            (
+                "kanbrmrtana",
+                "Fuhivla",
+                "kanbrmrtána",
+                &["kan", "br", "mr", "ta", "na"],
+            ),
+            ("kánbrti", "Fuhivla", "kánbrti", &["kán", "br", "ti"]),
+            (
+                "cmacrntegrále",
+                "Fuhivla",
+                "cmacrntegrále",
+                &["cmac", "rn", "te", "grá", "le"],
+            ),
+            (
+                "tamrnitegrale",
+                "Fuhivla",
+                "tamrnitegrále",
+                &["ta", "mr", "ni", "te", "gra", "le"],
+            ),
+            (
+                "kabrnitegrale",
+                "Fuhivla",
+                "kabrnitegrále",
+                &["ka", "br", "ni", "te", "gra", "le"],
+            ),
+            (
+                "kanrnlati",
+                "Fuhivla",
+                "kanrnláti",
+                &["kan", "rn", "la", "ti"],
+            ),
+            ("cmajriti", "Fuhivla", "cmajríti", &["cmaj", "ri", "ti"]),
+            (
+                "cmatclatana",
+                "Fuhivla",
+                "cmatclatána",
+                &["cmat", "cla", "ta", "na"],
+            ),
+            (
+                "cidjrspageti",
+                "Fuhivla",
+                "cidjrspagéti",
+                &["cid", "jr", "spa", "ge", "ti"],
+            ),
+        ];
+        for &(word, kind, phonemes, syllables) in accepted {
+            let (got_kind, got_phonemes) = classify_word(word).unwrap_or_else(|| panic!("{word}"));
+            assert_eq!(format!("{got_kind:?}"), kind, "{word}");
+            assert_eq!(got_phonemes, phonemes, "{word}");
+            let got_syllables =
+                pronunciation_syllable_texts(word).unwrap_or_else(|| panic!("{word} syllables"));
+            assert_eq!(
+                got_syllables.iter().map(String::as_str).collect::<Vec<_>>(),
+                syllables,
+                "{word}"
+            );
+        }
+        for word in [
+            "kanbrtí",
+            "cmácrntegrale",
+            "brlnti",
+            "kanbxti",
+            "cmajria",
+            "cmagnia",
+        ] {
+            assert!(classify_word(word).is_none(), "{word}");
+        }
     }
 }
