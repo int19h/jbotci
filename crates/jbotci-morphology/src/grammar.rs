@@ -3455,6 +3455,7 @@ fn is_indicator_cmavo_text(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::LujvoParseExpectation;
     use crate::PhonotacticDetailKind;
     use bityzba::requires;
 
@@ -3725,22 +3726,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xlaglymlu_reports_slinkuhi_before_lujvo_progress() {
+    fn xlaglymlu_reports_invalid_lujvo_after_rafsi_string_prefix() {
+        // `xla` + `gl` + `y` is `stressed_y_less_rafsi? initial_pair y`.
+        // `slinkuhi <- !rafsi_string consonant rafsi_string` does not match.
+        // Camxes rejects the word as a foreign word.
         let error = crate::segment_words_with_modifiers_with_options_and_source_id(
             "xlaglymlu",
             &MorphologyOptions::default(),
             None,
         )
-        .expect_err("slinku'i form should fail");
+        .expect_err("rafsi-string prefix should fail as invalid lujvo");
 
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::Slinkuhi,
+            MorphologyErrorKind::InvalidLujvo,
             0,
             9,
-            Some(MorphologyContextKind::Fuhivla),
+            Some(MorphologyContextKind::Lujvo),
         );
-        let expected = new!(MorphologyErrorDetail::Slinkuhi);
+        let expected = new!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix: Some("xla".to_owned()),
+            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+        });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
@@ -4273,14 +4280,19 @@ mod tests {
             &MorphologyOptions::default(),
             None,
         )
-        .expect_err("slinku'i form should not be repaired into a fu'ivla rafsi lujvo");
+        .expect_err("rafsi-string prefix should not be repaired into a fu'ivla rafsi lujvo");
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::Slinkuhi,
+            MorphologyErrorKind::InvalidLujvo,
             0,
             9,
-            Some(MorphologyContextKind::Fuhivla),
+            Some(MorphologyContextKind::Lujvo),
         );
+        let expected = new!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix: Some("xla".to_owned()),
+            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
 
         assert!(
             crate::segment_words_with_modifiers_with_options_and_source_id(

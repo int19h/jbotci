@@ -1948,13 +1948,29 @@ fn vlasei_detailed_error_reports_xlaglymlu_lujvo_progress() {
 
     assert_eq!(run.status, CliStatus::Failure);
     assert!(run.stdout.contains('‼'), "{}", run.stdout);
-    assert!(run.stderr.contains("morphology.slinkuhi"));
-    assert!(run.stderr.contains("slinku'i"));
-    assert!(run.stderr.contains("{xlaglymlu}"));
-    assert!(run.stderr.contains("while parsing fu'ivla"));
+    assert!(
+        run.stderr.contains("morphology.invalid-lujvo"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("invalid lujvo decomposition"),
+        "{}",
+        run.stderr
+    );
+    assert!(run.stderr.contains("{xlaglymlu}"), "{}", run.stderr);
+    assert!(run.stderr.contains("while parsing lujvo"), "{}", run.stderr);
+    assert!(run.stderr.contains("after parsing `xla`"), "{}", run.stderr);
+    assert!(
+        !run.stderr.contains("morphology.slinkuhi"),
+        "{}",
+        run.stderr
+    );
     assert!(
         !run.stderr
-            .contains("reason: word is not a valid Lojban word")
+            .contains("reason: word is not a valid Lojban word"),
+        "{}",
+        run.stderr
     );
 }
 

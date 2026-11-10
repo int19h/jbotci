@@ -3084,7 +3084,7 @@ fn stressed_extended_rafsi_ends_until_with_cache(
         return ends.to_vec();
     }
     let ends = ((index + 1)..=end)
-        .filter(|next| stressed_extended_rafsi_slice_with_cache(chars, index, *next, cache))
+        .filter(|next| stressed_extended_rafsi_slice_with_cache(chars, index, *next, end, cache))
         .collect::<Vec<_>>();
     cache.record_stressed_extended_rafsi_ends(index, end, &ends);
     ends
@@ -3114,7 +3114,7 @@ fn extended_rafsi_ends_until_with_cache(
             ends.push(next);
         }
     }
-    for base_end in brivla_head_ends_until_with_cache(chars, index, end, cache)
+    for base_end in brivla_head_ends_until_with_cache(chars, index, end, end, cache)
         .iter()
         .copied()
     {
@@ -3146,43 +3146,45 @@ fn stressed_initial_rafsi_short_final_split_with_cache(
 
     (start + 1..end).rev().find(|split| {
         is_short_final_rafsi_slice(chars, *split, end)
-            && stressed_initial_rafsi_slice_with_cache(chars, start, *split, cache)
+            && stressed_initial_rafsi_slice_with_cache(chars, start, *split, end, cache)
     })
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_initial_rafsi_slice_with_cache(
     chars: &[char],
     start: usize,
     end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
     if cache.is_cancelled() {
         return false;
     }
 
-    stressed_extended_rafsi_slice_with_cache(chars, start, end, cache)
+    stressed_extended_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
         || stressed_y_rafsi_slice(chars, start, end)
         || stressed_y_less_rafsi_slice(chars, start, end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_extended_rafsi_slice_with_cache(
     chars: &[char],
     start: usize,
     end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
     if cache.is_cancelled() {
         return false;
     }
 
-    stressed_brivla_rafsi_slice_with_cache(chars, start, end, cache)
-        || stressed_fuhivla_rafsi_slice_with_cache(chars, start, end, cache)
+    stressed_brivla_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
+        || stressed_fuhivla_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -3199,74 +3201,92 @@ fn stressed_y_less_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool
         .any(|rafsi_end| rafsi_end == end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_brivla_rafsi_slice_with_cache(
     chars: &[char],
     start: usize,
     end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
     if cache.is_cancelled() {
         return false;
     }
 
+    // stressed_brivla_rafsi <- &unstressed_syllable brivla_head stressed_syllable h y
+    // The `&unstressed_syllable` lookahead reads to the pause, not to `'`.
     if end < start + 3
         || chars.get(end - 2) != Some(&'\'')
         || !chars.get(end - 1).is_some_and(|value| is_y(*value))
+        || unstressed_syllable_ends_for_fuhivla(chars, start, lookahead_end, lookahead_end)
+            .is_empty()
     {
         return false;
     }
     let stress_end = end - 2;
-    brivla_head_ends_until_with_cache(chars, start, stress_end, cache)
+    brivla_head_ends_until_with_cache(chars, start, stress_end, lookahead_end, cache)
         .iter()
         .copied()
         .filter(|head_end| *head_end < stress_end)
         .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, stress_end)
+            stressed_syllable_ends_for_fuhivla(chars, head_end, stress_end, lookahead_end)
                 .into_iter()
                 .any(|syllable_end| syllable_end == stress_end)
         })
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_fuhivla_rafsi_slice_with_cache(
     chars: &[char],
     start: usize,
     end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
     if cache.is_cancelled() {
         return false;
     }
 
+    // stressed_fuhivla_rafsi <- fuhivla_head stressed_syllable consonantal_syllable* !h onset y
+    // `end` is the `y`. Lookaheads read to `lookahead_end`, where pause applies.
+    // The onset and the `y` stay inside this rafsi.
     if end < start + 2 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
         return false;
     }
     let base_end = end - 1;
-    fuhivla_head_ends_until_with_cache(chars, start, base_end, cache)
+    fuhivla_head_ends_until_with_cache(chars, start, base_end, lookahead_end, cache)
         .iter()
         .copied()
         .filter(|head_end| *head_end < base_end)
         .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, base_end)
+            stressed_syllable_ends_for_fuhivla(chars, head_end, base_end, lookahead_end)
                 .into_iter()
-                .any(|stressed_end| consonantal_chain_then_onset(chars, stressed_end, base_end))
+                .any(|stressed_end| {
+                    consonantal_chain_then_onset(chars, stressed_end, base_end, lookahead_end)
+                })
         })
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn consonantal_chain_then_onset(chars: &[char], index: usize, end: usize) -> bool {
-    if chars.get(index) != Some(&'\'') && has_parse_onset_end(chars, index, end) {
+fn consonantal_chain_then_onset(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> bool {
+    if chars.get(index) != Some(&'\'') && has_parse_onset_end(chars, index, span_end) {
         return true;
     }
-    consonantal_syllable_ends(chars, index, end)
+    consonantal_syllable_ends(chars, index, span_end, lookahead_end)
         .into_iter()
-        .any(|next| next > index && consonantal_chain_then_onset(chars, next, end))
+        .any(|next| {
+            next > index && consonantal_chain_then_onset(chars, next, span_end, lookahead_end)
+        })
 }
 
 #[requires(index <= lookahead_end && lookahead_end <= chars.len())]
@@ -3311,13 +3331,17 @@ fn fuhivla_rafsi_base_slice_with_cache(
         return false;
     }
 
+    // fuhivla_rafsi <- &unstressed_syllable fuhivla_head !h onset y h?
+    // `&unstressed_syllable` and `!rafsi_string` read to `lookahead_end`.
+    // The head stops before the onset. The onset stays inside this base.
     if start >= end
         || chars[start..end].iter().any(|value| is_y(*value))
-        || unstressed_syllable_ends_for_fuhivla(chars, start, end).is_empty()
+        || unstressed_syllable_ends_for_fuhivla(chars, start, lookahead_end, lookahead_end)
+            .is_empty()
     {
         return false;
     }
-    fuhivla_head_ends_until_with_cache(chars, start, lookahead_end, cache)
+    fuhivla_head_ends_until_with_cache(chars, start, end, lookahead_end, cache)
         .iter()
         .copied()
         .filter(|head_end| *head_end > start && *head_end < end)
@@ -3326,67 +3350,82 @@ fn fuhivla_rafsi_base_slice_with_cache(
         })
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
 fn brivla_head_ends_until_with_cache(
     chars: &[char],
     index: usize,
-    end: usize,
+    span_end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Rc<[usize]> {
     if cache.is_cancelled() {
         return Rc::from([]);
     }
 
-    if let Some(ends) = cache.brivla_head_ends(index, end) {
+    if let Some(ends) = cache.brivla_head_ends(index, span_end, lookahead_end) {
         return ends;
     }
-    let ends = if index > end
+    // brivla_head <- !cmavo !slinkuhi !h &onset unstressed_syllable*
+    // The three predicates are lookaheads. They read to `lookahead_end`.
+    // The syllables themselves stop at `span_end`.
+    let ends = if index > span_end
         || chars.get(index) == Some(&'\'')
         || !starts_with_onset(chars, index)
-        || cmavo_word_slice_with_cache(chars, index, end, cache)
-        || slinkuhi_slice_with_cache(chars, index, end, cache)
+        || cmavo_word_slice_with_cache(chars, index, lookahead_end, cache)
+        || slinkuhi_slice_with_cache(chars, index, lookahead_end, cache)
     {
         Vec::new()
     } else {
-        brivla_head_ends_without_lookahead(chars, index, end)
+        brivla_head_ends_without_lookahead(chars, index, span_end, lookahead_end)
     };
-    cache.record_brivla_head_ends(index, end, &ends)
+    cache.record_brivla_head_ends(index, span_end, lookahead_end, &ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
 fn fuhivla_head_ends_until_with_cache(
     chars: &[char],
     index: usize,
-    end: usize,
+    span_end: usize,
+    lookahead_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> Rc<[usize]> {
     if cache.is_cancelled() {
         return Rc::from([]);
     }
 
-    if let Some(ends) = cache.fuhivla_head_ends(index, end) {
+    if let Some(ends) = cache.fuhivla_head_ends(index, span_end, lookahead_end) {
         return ends;
     }
-    if rafsi_string_starts_slice_with_cache(chars, index, end, cache) {
-        cache.record_fuhivla_head_ends(index, end, &[])
+    // fuhivla_head <- !rafsi_string brivla_head
+    // `!rafsi_string` reads past the head, through a following `y`.
+    if rafsi_string_starts_slice_with_cache(chars, index, lookahead_end, cache) {
+        cache.record_fuhivla_head_ends(index, span_end, lookahead_end, &[])
     } else {
-        let shared = brivla_head_ends_until_with_cache(chars, index, end, cache);
-        cache.record_fuhivla_head_ends_shared(index, end, shared)
+        let shared =
+            brivla_head_ends_until_with_cache(chars, index, span_end, lookahead_end, cache);
+        cache.record_fuhivla_head_ends_shared(index, span_end, lookahead_end, shared)
     }
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
-fn brivla_head_ends_without_lookahead(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
+fn brivla_head_ends_without_lookahead(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
     let mut ends = vec![index];
     let mut stack = vec![index];
     while let Some(start) = stack.pop() {
-        for syllable_end in unstressed_syllable_ends_for_fuhivla(chars, start, end) {
-            if syllable_end > start && !ends.contains(&syllable_end) {
+        for syllable_end in
+            unstressed_syllable_ends_for_fuhivla(chars, start, span_end, lookahead_end)
+        {
+            if syllable_end > start && syllable_end <= span_end && !ends.contains(&syllable_end) {
                 ends.push(syllable_end);
                 stack.push(syllable_end);
             }
@@ -3806,10 +3845,39 @@ fn stress_tail_reaches_boundary_uncached(chars: &[char], index: usize, context_e
             after_y.push(cursor + 1);
         }
         after_y.into_iter().any(|syllable_start| {
-            syllable_ends(chars, syllable_start, context_end)
+            syllable_ends(chars, syllable_start, context_end, context_end)
                 .into_iter()
                 .any(|syllable_end| syllable_end == context_end)
         })
+    })
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn initial_pair_y_ending_with_cache(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // rafsi_string end: stressed_y_less_rafsi? initial_pair y
+    // The pair is the two consonants immediately before `y`.
+    // A stressed CCV rafsi ends in a vowel, so it cannot eat that pair.
+    if end - start < 3 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
+        return false;
+    }
+    let pair_start = end - 3;
+    if !initial_pair_chars(chars[pair_start], chars[pair_start + 1]) {
+        return false;
+    }
+    if pair_start == start {
+        return true;
+    }
+    y_less_rafsi_ends(chars, start).into_iter().any(|mid| {
+        mid == pair_start
+            && !y_less_rafsi_is_unstressed_in_context(chars, start, mid, lookahead_end, cache)
     })
 }
 
@@ -3841,7 +3909,8 @@ fn rafsi_string_ending_with_cache(
                 && post_word_slice_with_cache(chars, end, lookahead_end, cache)
         })
         || y_rafsi_slice(chars, start, end)
-        || hy_rafsi_slice(chars, start, end);
+        || hy_rafsi_slice(chars, start, end)
+        || initial_pair_y_ending_with_cache(chars, start, end, lookahead_end, cache);
     cache.record_rafsi_string_ending(start, end, lookahead_end, result);
     result
 }
@@ -4725,45 +4794,20 @@ fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bo
     if index >= end {
         return false;
     }
-    // When the continuation starts with `r`, the checks below do not run.
-    // Camxes accepts `kanrtlti` as `ka.nr.tl.ti`. There `tl` is a consonantal
-    // syllable. This onset rule bans `tl` only as an onset:
-    // `other <- p / t !l / k / f / x / b / d !l / g / v / m / n !liquid`.
-    // The onset parser already has that rule.
     // A glide after this `r` stays on the experimental consonant-glide warning.
     // Camxes rejects that glide by `r <- comma* [rR] !h !glide !r`.
+    // `kanria` is the case. The continuation is `r` and then a glide.
+    // `starts_cgv_sequence` would reject it, so the warning would not run.
+    // `kanrtlti` does not use this return. There `tl` is a consonantal syllable.
+    // The onset parser already bans `tl` as an onset.
     if chars[index] == 'r' {
         return false;
     }
-    // `jr` before a glide matches `r <- comma* [rR] !h !glide !r`.
-    // `j` cannot take a liquid: `sibilant <- c / s !x / (j / z) !n !liquid`.
-    // The same letters before a vowel are a syllable break.
-    // Camxes accepts `cmajriti` as `cmaj.ri.ti`.
-    // `gn` before a glide matches `n <- comma* [nN] !h !glide !n !affricate`.
-    // Camxes accepts `cmagniti` as `cmag.ni.ti`.
     // A consonant and then a glide matches `!glide` on that consonant.
     // `glide <- (i / u) &nucleus`.
-    starts_jr_glide(chars, index, end)
-        || starts_gn_glide(chars, index, end)
-        || starts_cgv_sequence(chars, index, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_jr_glide(chars: &[char], index: usize, end: usize) -> bool {
-    index + 2 < end
-        && chars[index] == 'j'
-        && chars[index + 1] == 'r'
-        && starts_glide(&chars[..end], index + 2)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_gn_glide(chars: &[char], index: usize, end: usize) -> bool {
-    index + 2 < end
-        && chars[index] == 'g'
-        && chars[index + 1] == 'n'
-        && starts_glide(&chars[..end], index + 2)
+    // `j` or `g` before that glide is the same test. `cmajria` and `cmagnia`
+    // take the warning. `cmajriti` and `cmagniti` have a vowel, not a glide.
+    starts_cgv_sequence(chars, index, end)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -4873,7 +4917,7 @@ fn parse_fuhivla_shape_with_head_policy_with_cache(
         .iter()
         .copied()
         .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, end)
+            stressed_syllable_ends_for_fuhivla(chars, head_end, end, end)
                 .into_iter()
                 .any(|stressed_end| consonantal_chain_then_final(chars, stressed_end, end))
         });
@@ -4903,55 +4947,133 @@ fn fuhivla_head_ends_for_fuhivla_with_cache(
     }
 
     match head_policy {
-        FuhivlaHeadPolicy::Standard => fuhivla_head_ends_until_with_cache(chars, start, end, cache),
+        FuhivlaHeadPolicy::Standard => {
+            fuhivla_head_ends_until_with_cache(chars, start, end, end, cache)
+        }
         FuhivlaHeadPolicy::ExperimentalCgv => {
-            brivla_head_ends_until_with_cache(chars, start, end, cache)
+            brivla_head_ends_until_with_cache(chars, start, end, end, cache)
         }
     }
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    let mut ends: Vec<usize> = syllable_ends(chars, index, end)
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
+fn unstressed_syllable_ends_for_fuhivla(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
+    let mut ends: Vec<usize> = syllable_ends(chars, index, span_end, lookahead_end)
         .into_iter()
         .filter(|syllable_end| {
             !syllable_has_explicit_stress(chars, index, *syllable_end)
-                && !stressed_syllable_has_implicit_stress(chars, *syllable_end, end)
+                && !stressed_syllable_has_implicit_stress(chars, *syllable_end, lookahead_end)
         })
         .collect();
-    ends.extend(consonantal_syllable_ends(chars, index, end));
+    ends.extend(consonantal_syllable_ends(
+        chars,
+        index,
+        span_end,
+        lookahead_end,
+    ));
     ends.sort_unstable();
     ends.dedup();
     ends
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn stressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    syllable_ends(chars, index, end)
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
+fn stressed_syllable_ends_for_fuhivla(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
+    syllable_ends(chars, index, span_end, lookahead_end)
         .into_iter()
         .filter(|syllable_end| {
             syllable_has_explicit_stress(chars, index, *syllable_end)
-                || stressed_syllable_has_implicit_stress(chars, *syllable_end, end)
+                || stressed_syllable_has_implicit_stress(chars, *syllable_end, lookahead_end)
         })
         .collect()
 }
 
-#[requires(syllable_end <= end && end <= chars.len())]
+#[requires(syllable_end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn stressed_syllable_has_implicit_stress(chars: &[char], syllable_end: usize, end: usize) -> bool {
+fn stressed_syllable_has_implicit_stress(
+    chars: &[char],
+    syllable_end: usize,
+    lookahead_end: usize,
+) -> bool {
     // Camxes: stressed_syllable <- &stressed syllable / syllable &stress.
     // stress <- (consonant / glide)* h? y? syllable pause.
-    // The span ends at the word pause. The coda stays in this syllable.
-    // The text after it is one final syllable, or consonantal syllables and
-    // then one final syllable.
-    if final_syllable_slice(chars, syllable_end, end) {
+    // `lookahead_end` is that pause. The coda stays in this syllable.
+    // The tail is one final syllable, or consonantal syllables and then one
+    // final syllable. `h? y?` covers an apostrophe or a y before that syllable.
+    if final_syllable_slice(chars, syllable_end, lookahead_end) {
         return true;
     }
-    consonantal_syllable_ends(chars, syllable_end, end)
+    if consonantal_syllable_ends(chars, syllable_end, lookahead_end, lookahead_end)
         .into_iter()
-        .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, end))
+        .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, lookahead_end))
+    {
+        return true;
+    }
+    stress_tail_through_hyphen(chars, syllable_end, lookahead_end)
+}
+
+#[requires(syllable_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn stress_tail_through_hyphen(chars: &[char], syllable_end: usize, lookahead_end: usize) -> bool {
+    // `(consonant / glide)* h? y? syllable pause`, and the tail uses `h` or `y`.
+    let mut cursors = vec![syllable_end];
+    let mut seen = vec![syllable_end];
+    let mut read = 0;
+    while read < cursors.len() {
+        let cursor = cursors[read];
+        read += 1;
+        if cursor < lookahead_end && is_consonant(chars[cursor]) {
+            let next = cursor + 1;
+            if !seen.contains(&next) {
+                seen.push(next);
+                cursors.push(next);
+            }
+        }
+        if let Some(glide_end) = parse_glide_end(chars, cursor)
+            && glide_end <= lookahead_end
+            && !seen.contains(&glide_end)
+        {
+            seen.push(glide_end);
+            cursors.push(glide_end);
+        }
+    }
+    cursors
+        .into_iter()
+        .any(|cursor| hyphen_then_final_syllable(chars, cursor, lookahead_end))
+}
+
+#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn hyphen_then_final_syllable(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+    let mut syllable_starts = Vec::new();
+    if index < lookahead_end && chars[index] == '\'' {
+        let after_h = index + 1;
+        syllable_starts.push(after_h);
+        if after_h < lookahead_end && chars.get(after_h).is_some_and(|value| is_y(*value)) {
+            syllable_starts.push(after_h + 1);
+        }
+    } else if index < lookahead_end && chars.get(index).is_some_and(|value| is_y(*value)) {
+        syllable_starts.push(index + 1);
+    } else {
+        return false;
+    }
+    syllable_starts.into_iter().any(|syllable_start| {
+        syllable_start <= lookahead_end
+            && syllable_ends(chars, syllable_start, lookahead_end, lookahead_end)
+                .into_iter()
+                .any(|syllable_end| syllable_end == lookahead_end)
+    })
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -4960,7 +5082,7 @@ fn consonantal_chain_then_final(chars: &[char], index: usize, end: usize) -> boo
     if final_syllable_slice(chars, index, end) {
         return true;
     }
-    consonantal_syllable_ends(chars, index, end)
+    consonantal_syllable_ends(chars, index, end, end)
         .into_iter()
         .any(|next| next > index && consonantal_chain_then_final(chars, next, end))
 }
@@ -4972,9 +5094,14 @@ fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
         && brivla_onset_has_nucleus_end(chars, start, end, true)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
+fn syllable_ends(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
     let mut ends = Vec::new();
     let mut onset_ends = Vec::with_capacity(6);
     let mut nucleus_ends = Vec::with_capacity(2);
@@ -4986,9 +5113,11 @@ fn syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
         nucleus_ends.clear();
         append_parse_nucleus_ends(chars, onset_end, &mut nucleus_ends);
         for nucleus_end in nucleus_ends.iter().copied() {
-            if nucleus_end <= end {
+            // syllable <- onset !y nucleus coda?
+            // The nucleus is inside the span. Coda lookahead reads further.
+            if nucleus_end <= span_end {
                 ends.push(nucleus_end);
-                ends.extend(coda_ends(chars, nucleus_end, end));
+                ends.extend(coda_ends(chars, nucleus_end, span_end, lookahead_end));
             }
         }
     }
@@ -5010,9 +5139,10 @@ struct SyllableFlags {
     coda_takes_next: bool,
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn syllable_flags_at(chars: &[char], index: usize, end: usize) -> SyllableFlags {
+fn syllable_flags_at(chars: &[char], index: usize, lookahead_end: usize) -> SyllableFlags {
+    let end = lookahead_end;
     if index >= end {
         return SyllableFlags {
             starts_any: false,
@@ -5054,10 +5184,15 @@ fn syllable_flags_at(chars: &[char], index: usize, end: usize) -> SyllableFlags 
     next_flags
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn consonantal_syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    if index >= end
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
+fn consonantal_syllable_ends(
+    chars: &[char],
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
+    if index >= span_end
         || !is_consonant(chars[index])
         || !chars
             .get(index + 1)
@@ -5065,23 +5200,29 @@ fn consonantal_syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<us
     {
         return Vec::new();
     }
+    // consonantal_syllable <- consonant &syllabic coda
     // `coda_ends(index + 1)` is `[index + 1]` plus maybe `[index + 2]`.
-    // The filter keeps only the second of those, and only when the next
-    // coda takes its following character. The flag at `index + 1` does not
-    // depend on the flag at `index`.
-    if syllable_flags_at(chars, index + 1, end).coda_takes_next {
+    // The filter keeps only the second of those. The coda consonant stays in
+    // the span. `&any_syllable` reads to `lookahead_end`, so a later `y`
+    // nucleus still counts.
+    if index + 1 < span_end
+        && index + 2 <= span_end
+        && syllable_flags_at(chars, index + 1, lookahead_end).coda_takes_next
+    {
         vec![index + 2]
     } else {
         Vec::new()
     }
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= end))]
-fn coda_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= span_end))]
+fn coda_ends(chars: &[char], index: usize, span_end: usize, lookahead_end: usize) -> Vec<usize> {
     let mut ends = Vec::with_capacity(2);
     ends.push(index);
-    if index < end && syllable_flags_at(chars, index, end).coda_takes_next {
+    // coda <- !any_syllable consonant &any_syllable / syllabic? consonant? &pause
+    // The consonant stays in the span. Both syllable tests read to the lookahead.
+    if index < span_end && syllable_flags_at(chars, index, lookahead_end).coda_takes_next {
         ends.push(index + 1);
     }
     ends
@@ -5428,6 +5569,199 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn fuhivla_rafsi_lookahead_matches_camxes() {
+        // Camxes morphology, not the full text grammar. A foreign word is a
+        // rejection. Uppercase vowels are camxes stress. Acutes are the same
+        // stress in jbotci.
+        let accepted = [
+            "kanbrtybra",
+            "kánbrtybra",
+            "KAnbrtybra",
+            "spagetybra",
+            "spagétybra",
+            "spaGEtybra",
+            "cmacrntybroda",
+            "cmácrntybroda",
+            "cmAcrntybroda",
+            "klama'ybra",
+            "klamá'ybra",
+            "klamA'ybra",
+            "klama'ybroda",
+            "kanbrti'ybroda",
+            "kaunbrti",
+            "cmarnteti",
+            "kanbrbrti",
+            "kanybriti",
+            "cmajria",
+            "cmagnia",
+            "cmajriti",
+            "cmagniti",
+            "gerkrxuiybra",
+            "gerkrxuipybra",
+            "gerkrxuipykla",
+            "gerkrxuipybroda",
+        ];
+        let expected = [
+            "Lujvo:rafsi:kánbrt+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:kánbrt+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:kánbrt+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:spa+rafsi:gét+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:spa+rafsi:gét+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:spa+rafsi:gét+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:cmacrnt+hyphen:y+rafsi:bróda",
+            "Lujvo:rafsi:cmácrnt+hyphen:y+rafsi:bro | Cmavo:da",
+            "Lujvo:rafsi:cmácrnt+hyphen:y+rafsi:bro | Cmavo:da",
+            "Lujvo:rafsi:klamá+hyphen:'y+rafsi:bra",
+            "Lujvo:rafsi:klamá+hyphen:'y+rafsi:bra",
+            "Lujvo:rafsi:klamá+hyphen:'y+rafsi:bra",
+            "Lujvo:rafsi:klama+hyphen:'y+rafsi:bróda",
+            "Lujvo:rafsi:kanbrti+hyphen:'y+rafsi:bróda",
+            "Fuhivla:káŭnbrti",
+            "Fuhivla:cmarntéti",
+            "Fuhivla:kánbrbrti",
+            "Lujvo:rafsi:kan+hyphen:y+rafsi:bríti",
+            "Fuhivla:cmájrĭa",
+            "Fuhivla:cmágnĭa",
+            "Fuhivla:cmajríti",
+            "Fuhivla:cmagníti",
+            "Lujvo:rafsi:gerkrxúĭ+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:gerkrxŭíp+hyphen:y+rafsi:bra",
+            "Lujvo:rafsi:gerkrxŭíp+hyphen:y+rafsi:kla",
+            "Lujvo:rafsi:gerkrxŭip+hyphen:y+rafsi:bróda",
+        ];
+        for (source, expected) in accepted.iter().zip(expected) {
+            assert_eq!(morphology_classes(source), expected, "{source}");
+            let marked = stress_marked_output(source);
+            assert_eq!(
+                morphology_classes(&marked),
+                expected,
+                "{source} read back as {marked}"
+            );
+        }
+        // `kan` + `br` + `y` is `stressed_y_less_rafsi? initial_pair y`.
+        // Camxes rejects the word. `klaMAybra` has no apostrophe, so `' y`
+        // does not match, and camxes rejects it too.
+        // `gerkrxuipyte` has the stressed fu'ivla rafsi `gerkrxuipy`, but `te`
+        // is not a short final. `any_extended_rafsi` then blocks a y-less rafsi,
+        // so the lujvo parse stops at the first letter. Camxes rejects the word.
+        for source in [
+            "kanbrybra",
+            "kánbrybra",
+            "KAnbrybra",
+            "klaMAybra",
+            "cmania",
+            "kandia",
+            "gerkrxuipyte",
+            "gerkrxuipy",
+        ] {
+            let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            );
+            assert!(
+                attempt.into_data().result.is_err(),
+                "{source} should be rejected"
+            );
+        }
+        // Camxes rejects these (`r <- comma* [rR] !h !glide !r` and
+        // `n <- comma* [nN] !h !glide !n !affricate`).
+        // jbotci keeps the experimental consonant-glide warning.
+        // Camxes rejects `gerkrxuipybra`: `u` is not a nucleus before `i`, and
+        // `i` is not a glide before `p`, so no syllable starts at `x`.
+        // The experimental consonant-glide onset accepts `xui`. The a692
+        // parser already accepted this word with the same warning.
+        for (source, start, end, text) in [
+            ("cmajria", 4, 7, "ria"),
+            ("cmagnia", 4, 7, "nia"),
+            ("gerkrxuipybra", 5, 8, "xui"),
+            ("gerkrxuipykla", 5, 8, "xui"),
+            ("gerkrxuipybroda", 5, 8, "xui"),
+        ] {
+            let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            );
+            let data = attempt.into_data();
+            assert!(data.result.is_ok(), "{source}");
+            assert_eq!(data.warnings.len(), 1, "{source}");
+            assert_eq!(
+                data.warnings[0].kind,
+                crate::MorphologyWarningKind::ExperimentalCgv,
+                "{source}"
+            );
+            assert_eq!(data.warnings[0].char_start, start, "{source}");
+            assert_eq!(data.warnings[0].char_end, end, "{source}");
+            assert_eq!(data.warnings[0].text, text, "{source}");
+        }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn morphology_classes(source: &str) -> String {
+        let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let Ok(words) = data.result else {
+            return "ERR".to_owned();
+        };
+        words
+            .iter()
+            .map(|word| match word.as_data() {
+                data!(crate::WordLike::PlainWord(word)) => {
+                    let body = if let Some(parts) = word.lujvo_parts() {
+                        parts
+                            .iter()
+                            .map(|part| match part {
+                                LujvoPart::Rafsi(phonemes) => {
+                                    format!("rafsi:{}", phonemes.as_str())
+                                }
+                                LujvoPart::Hyphen(phonemes) => {
+                                    format!("hyphen:{}", phonemes.as_str())
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join("+")
+                    } else {
+                        word.phonemes().as_str().to_owned()
+                    };
+                    format!("{:?}:{body}", word.kind())
+                }
+                _ => "other".to_owned(),
+            })
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn stress_marked_output(source: &str) -> String {
+        let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        );
+        let words = attempt
+            .into_data()
+            .result
+            .unwrap_or_else(|_| panic!("{source}"));
+        words
+            .iter()
+            .map(|word| match word.as_data() {
+                data!(crate::WordLike::PlainWord(word)) => word.phonemes().as_str().to_owned(),
+                _ => panic!("{source}"),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn segment_and_lujvo_pair_matrices_are_equivalent() {
         for first in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
             for second in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
@@ -5585,7 +5919,7 @@ mod tests {
     /// Body executions for `cíniconulová` repeated `groups` times.
     ///
     /// The repeated piece is 12 characters. `tcíniconuloválsicu` is 18
-    /// characters, not 12. The cap is the key space: 28 two-index slots, 6
+    /// characters, not 12. The cap is the key space: 26 two-index slots, 8
     /// three-index maps, and 1 four-index map. A body runs once per stored
     /// key, so the count cannot pass that space. Growth from one size to the
     /// next stays inside four times the four-index ratio.
@@ -5688,14 +6022,16 @@ mod tests {
         .collect()
     }
 
-    /// 28 two-index slots, 6 three-index maps, and 1 four-index map.
+    /// 26 two-index slots, 8 three-index maps, and 1 four-index map.
     ///
-    /// Twenty of the two-index slots are plain maps. Four maps carry a flag
+    /// Eighteen of the two-index slots are plain maps. Four maps carry a flag
     /// with two values (`has_initial_rafsi` on `lujvo_from` and on
     /// `lujvo_part_ranges`, `allows_y`, and `FuhivlaHeadPolicy`). Those eight
-    /// slots are the rest of the 28. `m = char_count + 1`.
+    /// slots make 26 with the plain maps. `brivla_head_ends` and
+    /// `fuhivla_head_ends` are three-index keys. The extra index is the
+    /// lookahead end. `m = char_count + 1`.
     #[requires(char_count < usize::MAX)]
-    #[ensures(ret >= 28)]
+    #[ensures(ret >= 26)]
     fn recognition_key_space(char_count: usize) -> u64 {
         let m = u64::try_from(char_count)
             .unwrap_or(u64::MAX)
@@ -5703,8 +6039,8 @@ mod tests {
         let m2 = m.saturating_mul(m);
         let m3 = m2.saturating_mul(m);
         let m4 = m3.saturating_mul(m);
-        m2.saturating_mul(28)
-            .saturating_add(m3.saturating_mul(6))
+        m2.saturating_mul(26)
+            .saturating_add(m3.saturating_mul(8))
             .saturating_add(m4)
     }
 
@@ -5757,7 +6093,7 @@ mod tests {
             );
             drop(start_steps);
             let steps = super::recognition_cache::SyllableStepCount::begin(length as u64);
-            let new_ends = coda_ends(&chars, 0, chars.len());
+            let new_ends = coda_ends(&chars, 0, chars.len(), chars.len());
             assert_eq!(new_ends, old_ends, "length {length}");
             assert!(
                 steps.get() <= length as u64,
@@ -5777,7 +6113,7 @@ mod tests {
         }
         let chars = vec!['l'; 64];
         let steps = super::recognition_cache::SyllableStepCount::begin(chars.len() as u64);
-        let ends = coda_ends(&chars, 0, chars.len());
+        let ends = coda_ends(&chars, 0, chars.len(), chars.len());
         assert_eq!(ends.first().copied(), Some(0));
         assert!(ends.len() <= 2, "{ends:?}");
         assert!(steps.get() <= chars.len() as u64, "steps={}", steps.get());
@@ -6005,12 +6341,13 @@ mod tests {
     fn fuhivla_head_miss_shares_the_brivla_allocation() {
         let chars = ['z'];
         let mut cache = MorphologyRecognitionCache::new(chars.len());
-        let shared = fuhivla_head_ends_until_with_cache(&chars, 0, chars.len(), &mut cache);
+        let shared =
+            fuhivla_head_ends_until_with_cache(&chars, 0, chars.len(), chars.len(), &mut cache);
         let brivla = cache
-            .brivla_head_ends(0, chars.len())
+            .brivla_head_ends(0, chars.len(), chars.len())
             .unwrap_or_else(|| panic!("brivla head list is missing"));
         let fuhivla = cache
-            .fuhivla_head_ends(0, chars.len())
+            .fuhivla_head_ends(0, chars.len(), chars.len())
             .unwrap_or_else(|| panic!("fuhivla head list is missing"));
         assert!(Rc::ptr_eq(&shared, &brivla));
         assert!(Rc::ptr_eq(&fuhivla, &brivla));
@@ -6151,6 +6488,7 @@ mod tests {
                 &["kan", "rn", "la", "ti"],
             ),
             ("cmajriti", "Fuhivla", "cmajríti", &["cmaj", "ri", "ti"]),
+            ("cmagniti", "Fuhivla", "cmagníti", &["cmag", "ni", "ti"]),
             (
                 "cmatclatana",
                 "Fuhivla",
@@ -6457,14 +6795,29 @@ mod tests {
                 syllables,
                 "{word}"
             );
+            let (again_kind, again_phonemes) = classify_word(&got_phonemes)
+                .unwrap_or_else(|| panic!("{word} stress mark {got_phonemes}"));
+            assert_eq!(format!("{again_kind:?}"), kind, "{word} stress mark");
+            assert_eq!(again_phonemes, got_phonemes, "{word} stress mark");
+            if kind == "Lujvo" {
+                assert_eq!(
+                    morphology_classes(word),
+                    morphology_classes(&got_phonemes),
+                    "{word} stress mark split"
+                );
+            }
+        }
+        // Camxes rejects these two. jbotci accepts them with the experimental
+        // consonant-glide warning. See `fuhivla_rafsi_lookahead_matches_camxes`.
+        for word in ["cmajria", "cmagnia"] {
+            let (got_kind, _) = classify_word(word).unwrap_or_else(|| panic!("{word}"));
+            assert_eq!(got_kind, WordKind::Fuhivla, "{word}");
         }
         for word in [
             "kanbrtí",
             "cmácrntegrale",
             "brlnti",
             "kanbxti",
-            "cmajria",
-            "cmagnia",
             "banrtlinganu",
             "bangrtlingana",
             "kartlati",

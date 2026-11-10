@@ -3700,22 +3700,32 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn invalid_slinkuhi_examples_remain_invalid() {
-        for source in ["xlaglymlu", "jbaugri"] {
-            let Err(error) = segment_words_with_modifiers(source) else {
-                panic!("{source} must remain invalid");
-            };
+        // `jbaugri` is still `slinkuhi <- !rafsi_string consonant rafsi_string`.
+        // `xlaglymlu` starts with `stressed_y_less_rafsi initial_pair y`, so
+        // `!rafsi_string` fails. Camxes rejects both as foreign words.
+        let slinkuhi = segment_words_with_modifiers("jbaugri");
+        assert!(
+            matches!(
+                &slinkuhi,
+                Err(MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::Slinkuhi,
+                    ..
+                })
+            ),
+            "jbaugri: {slinkuhi:?}"
+        );
 
-            assert!(
-                matches!(
-                    error,
-                    MorphologyError::Invalid {
-                        kind: MorphologyErrorKind::Slinkuhi,
-                        ..
-                    }
-                ),
-                "{source}: {error:?}"
-            );
-        }
+        let rafsi_prefix = segment_words_with_modifiers("xlaglymlu");
+        assert!(
+            matches!(
+                &rafsi_prefix,
+                Err(MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::InvalidLujvo,
+                    ..
+                })
+            ),
+            "xlaglymlu: {rafsi_prefix:?}"
+        );
     }
 
     #[test]
