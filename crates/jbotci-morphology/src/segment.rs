@@ -4725,22 +4725,27 @@ fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bo
     if index >= end {
         return false;
     }
+    // When the continuation starts with `r`, the checks below do not run.
+    // Camxes accepts `kanrtlti` as `ka.nr.tl.ti`. There `tl` is a consonantal
+    // syllable. This onset rule bans `tl` only as an onset:
+    // `other <- p / t !l / k / f / x / b / d !l / g / v / m / n !liquid`.
+    // The onset parser already has that rule.
+    // A glide after this `r` stays on the experimental consonant-glide warning.
+    // Camxes rejects that glide by `r <- comma* [rR] !h !glide !r`.
     if chars[index] == 'r' {
-        // The cluster `tl` is not valid. A consonantal syllable such as `rn` is valid.
-        // Camxes accepts `kan.rn.la.ti`.
-        return starts_t_l(chars, index + 1, end);
+        return false;
     }
-    // `jr` and `gn` before a vowel nucleus are a syllable break. Camxes accepts
-    // `cmaj.ri.ti`. The same letters before a glide match the consonant-glide ban.
+    // `jr` before a glide matches `r <- comma* [rR] !h !glide !r`.
+    // `j` cannot take a liquid: `sibilant <- c / s !x / (j / z) !n !liquid`.
+    // The same letters before a vowel are a syllable break.
+    // Camxes accepts `cmajriti` as `cmaj.ri.ti`.
+    // `gn` before a glide matches `n <- comma* [nN] !h !glide !n !affricate`.
+    // Camxes accepts `cmagniti` as `cmag.ni.ti`.
+    // A consonant and then a glide matches `!glide` on that consonant.
+    // `glide <- (i / u) &nucleus`.
     starts_jr_glide(chars, index, end)
         || starts_gn_glide(chars, index, end)
         || starts_cgv_sequence(chars, index, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn starts_t_l(chars: &[char], index: usize, end: usize) -> bool {
-    index + 1 < end && chars[index] == 't' && chars[index + 1] == 'l'
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -6071,7 +6076,8 @@ mod tests {
 
     /// Issue #1093. A consonantal syllable can follow a stressed syllable that
     /// ends in a consonant. It can also stand before the stress, after an open
-    /// syllable or a closed one. The lists are the camxes syllable splits.
+    /// syllable or a closed one. A pair such as `tl` can be that syllable even
+    /// when it is not a valid onset. The lists are the camxes syllable splits.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -6163,6 +6169,282 @@ mod tests {
                 "bárlrlrlrla",
                 &["bar", "lr", "lr", "lr", "la"],
             ),
+            ("kanrtlti", "Fuhivla", "kánrtlti", &["ka", "nr", "tl", "ti"]),
+            (
+                "kanrtltana",
+                "Fuhivla",
+                "kanrtltána",
+                &["ka", "nr", "tl", "ta", "na"],
+            ),
+            ("kartlti", "Fuhivla", "kártlti", &["kar", "tl", "ti"]),
+            ("cmartlti", "Fuhivla", "cmártlti", &["cmar", "tl", "ti"]),
+            (
+                "tarmrtlti",
+                "Fuhivla",
+                "tármrtlti",
+                &["tar", "mr", "tl", "ti"],
+            ),
+            ("kandlti", "Fuhivla", "kándlti", &["kan", "dl", "ti"]),
+            (
+                "kanbrtlti",
+                "Fuhivla",
+                "kánbrtlti",
+                &["kan", "br", "tl", "ti"],
+            ),
+            ("kanmlti", "Fuhivla", "kánmlti", &["kan", "ml", "ti"]),
+            ("kanrdlti", "Fuhivla", "kánrdlti", &["ka", "nr", "dl", "ti"]),
+            ("kadbmti", "Fuhivla", "kádbmti", &["kad", "bm", "ti"]),
+            (
+                "kadbmtana",
+                "Fuhivla",
+                "kadbmtána",
+                &["kad", "bm", "ta", "na"],
+            ),
+            ("kadbnti", "Fuhivla", "kádbnti", &["kad", "bn", "ti"]),
+            (
+                "kadbntana",
+                "Fuhivla",
+                "kadbntána",
+                &["kad", "bn", "ta", "na"],
+            ),
+            ("kabdlti", "Fuhivla", "kábdlti", &["kab", "dl", "ti"]),
+            (
+                "kabdltana",
+                "Fuhivla",
+                "kabdltána",
+                &["kab", "dl", "ta", "na"],
+            ),
+            ("kabdmti", "Fuhivla", "kábdmti", &["kab", "dm", "ti"]),
+            (
+                "kabdmtana",
+                "Fuhivla",
+                "kabdmtána",
+                &["kab", "dm", "ta", "na"],
+            ),
+            ("kabdnti", "Fuhivla", "kábdnti", &["kab", "dn", "ti"]),
+            (
+                "kabdntana",
+                "Fuhivla",
+                "kabdntána",
+                &["kab", "dn", "ta", "na"],
+            ),
+            ("kacfmti", "Fuhivla", "kácfmti", &["kac", "fm", "ti"]),
+            (
+                "kacfmtana",
+                "Fuhivla",
+                "kacfmtána",
+                &["kac", "fm", "ta", "na"],
+            ),
+            ("kacfnti", "Fuhivla", "kácfnti", &["kac", "fn", "ti"]),
+            (
+                "kacfntana",
+                "Fuhivla",
+                "kacfntána",
+                &["kac", "fn", "ta", "na"],
+            ),
+            ("kabgmti", "Fuhivla", "kábgmti", &["kab", "gm", "ti"]),
+            (
+                "kabgmtana",
+                "Fuhivla",
+                "kabgmtána",
+                &["kab", "gm", "ta", "na"],
+            ),
+            ("kabgnti", "Fuhivla", "kábgnti", &["kab", "gn", "ti"]),
+            (
+                "kabgntana",
+                "Fuhivla",
+                "kabgntána",
+                &["kab", "gn", "ta", "na"],
+            ),
+            ("kabjlti", "Fuhivla", "kábjlti", &["kab", "jl", "ti"]),
+            (
+                "kabjltana",
+                "Fuhivla",
+                "kabjltána",
+                &["kab", "jl", "ta", "na"],
+            ),
+            ("kabjnti", "Fuhivla", "kábjnti", &["kab", "jn", "ti"]),
+            (
+                "kabjntana",
+                "Fuhivla",
+                "kabjntána",
+                &["kab", "jn", "ta", "na"],
+            ),
+            ("kabjrti", "Fuhivla", "kábjrti", &["kab", "jr", "ti"]),
+            (
+                "kabjrtana",
+                "Fuhivla",
+                "kabjrtána",
+                &["kab", "jr", "ta", "na"],
+            ),
+            ("kackmti", "Fuhivla", "káckmti", &["kac", "km", "ti"]),
+            (
+                "kackmtana",
+                "Fuhivla",
+                "kackmtána",
+                &["kac", "km", "ta", "na"],
+            ),
+            ("kacknti", "Fuhivla", "kácknti", &["kac", "kn", "ti"]),
+            (
+                "kackntana",
+                "Fuhivla",
+                "kackntána",
+                &["kac", "kn", "ta", "na"],
+            ),
+            ("kablmti", "Fuhivla", "káblmti", &["kab", "lm", "ti"]),
+            (
+                "kablmtana",
+                "Fuhivla",
+                "kablmtána",
+                &["kab", "lm", "ta", "na"],
+            ),
+            ("kablnti", "Fuhivla", "káblnti", &["kab", "ln", "ti"]),
+            (
+                "kablntana",
+                "Fuhivla",
+                "kablntána",
+                &["kab", "ln", "ta", "na"],
+            ),
+            ("kablrti", "Fuhivla", "káblrti", &["kab", "lr", "ti"]),
+            (
+                "kablrtana",
+                "Fuhivla",
+                "kablrtána",
+                &["kab", "lr", "ta", "na"],
+            ),
+            ("kabmnti", "Fuhivla", "kábmnti", &["kab", "mn", "ti"]),
+            (
+                "kabmntana",
+                "Fuhivla",
+                "kabmntána",
+                &["kab", "mn", "ta", "na"],
+            ),
+            ("kabnlti", "Fuhivla", "kábnlti", &["kab", "nl", "ti"]),
+            (
+                "kabnltana",
+                "Fuhivla",
+                "kabnltána",
+                &["kab", "nl", "ta", "na"],
+            ),
+            ("kabnmti", "Fuhivla", "kábnmti", &["kab", "nm", "ti"]),
+            (
+                "kabnmtana",
+                "Fuhivla",
+                "kabnmtána",
+                &["kab", "nm", "ta", "na"],
+            ),
+            ("kabnrti", "Fuhivla", "kábnrti", &["kab", "nr", "ti"]),
+            (
+                "kabnrtana",
+                "Fuhivla",
+                "kabnrtána",
+                &["kab", "nr", "ta", "na"],
+            ),
+            ("kacpmti", "Fuhivla", "kácpmti", &["kac", "pm", "ti"]),
+            (
+                "kacpmtana",
+                "Fuhivla",
+                "kacpmtána",
+                &["kac", "pm", "ta", "na"],
+            ),
+            ("kacpnti", "Fuhivla", "kácpnti", &["kac", "pn", "ti"]),
+            (
+                "kacpntana",
+                "Fuhivla",
+                "kacpntána",
+                &["kac", "pn", "ta", "na"],
+            ),
+            ("kabrlti", "Fuhivla", "kábrlti", &["kab", "rl", "ti"]),
+            (
+                "kabrltana",
+                "Fuhivla",
+                "kabrltána",
+                &["kab", "rl", "ta", "na"],
+            ),
+            ("kabrmti", "Fuhivla", "kábrmti", &["kab", "rm", "ti"]),
+            (
+                "kabrmtana",
+                "Fuhivla",
+                "kabrmtána",
+                &["kab", "rm", "ta", "na"],
+            ),
+            ("kabrnti", "Fuhivla", "kábrnti", &["kab", "rn", "ti"]),
+            (
+                "kabrntana",
+                "Fuhivla",
+                "kabrntána",
+                &["kab", "rn", "ta", "na"],
+            ),
+            ("kactlti", "Fuhivla", "káctlti", &["kac", "tl", "ti"]),
+            (
+                "kactltana",
+                "Fuhivla",
+                "kactltána",
+                &["kac", "tl", "ta", "na"],
+            ),
+            ("kactmti", "Fuhivla", "káctmti", &["kac", "tm", "ti"]),
+            (
+                "kactmtana",
+                "Fuhivla",
+                "kactmtána",
+                &["kac", "tm", "ta", "na"],
+            ),
+            ("kactnti", "Fuhivla", "káctnti", &["kac", "tn", "ti"]),
+            (
+                "kactntana",
+                "Fuhivla",
+                "kactntána",
+                &["kac", "tn", "ta", "na"],
+            ),
+            ("kabvmti", "Fuhivla", "kábvmti", &["kab", "vm", "ti"]),
+            (
+                "kabvmtana",
+                "Fuhivla",
+                "kabvmtána",
+                &["kab", "vm", "ta", "na"],
+            ),
+            ("kabvnti", "Fuhivla", "kábvnti", &["kab", "vn", "ti"]),
+            (
+                "kabvntana",
+                "Fuhivla",
+                "kabvntána",
+                &["kab", "vn", "ta", "na"],
+            ),
+            ("kafxmti", "Fuhivla", "káfxmti", &["kaf", "xm", "ti"]),
+            (
+                "kafxmtana",
+                "Fuhivla",
+                "kafxmtána",
+                &["kaf", "xm", "ta", "na"],
+            ),
+            ("kafxnti", "Fuhivla", "káfxnti", &["kaf", "xn", "ti"]),
+            (
+                "kafxntana",
+                "Fuhivla",
+                "kafxntána",
+                &["kaf", "xn", "ta", "na"],
+            ),
+            ("kabzlti", "Fuhivla", "kábzlti", &["kab", "zl", "ti"]),
+            (
+                "kabzltana",
+                "Fuhivla",
+                "kabzltána",
+                &["kab", "zl", "ta", "na"],
+            ),
+            ("kabznti", "Fuhivla", "kábznti", &["kab", "zn", "ti"]),
+            (
+                "kabzntana",
+                "Fuhivla",
+                "kabzntána",
+                &["kab", "zn", "ta", "na"],
+            ),
+            ("kabzrti", "Fuhivla", "kábzrti", &["kab", "zr", "ti"]),
+            (
+                "kabzrtana",
+                "Fuhivla",
+                "kabzrtána",
+                &["kab", "zr", "ta", "na"],
+            ),
         ];
         for &(word, kind, phonemes, syllables) in accepted {
             let (got_kind, got_phonemes) = classify_word(word).unwrap_or_else(|| panic!("{word}"));
@@ -6183,6 +6465,10 @@ mod tests {
             "kanbxti",
             "cmajria",
             "cmagnia",
+            "banrtlinganu",
+            "bangrtlingana",
+            "kartlati",
+            "kannrti",
         ] {
             assert!(classify_word(word).is_none(), "{word}");
         }
