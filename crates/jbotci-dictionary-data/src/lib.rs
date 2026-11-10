@@ -295,16 +295,21 @@ mod tests {
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
         // Sound preprocessing rejects unopened LEhU and unfinished replacement markers.
-        assert_eq!(english().sound_index().len(), 31_351);
-        assert_eq!(english().lujvo_index().len(), 13_129);
+        // Issue #1093 adds 33 sound entries. Camxes accepts 25 of those fu'ivla.
+        // The other 8 are experimental consonant-glide fu'ivla. Camxes rejects those 8.
+        assert_eq!(english().sound_index().len(), 31_384);
+        assert_eq!(english().lujvo_index().len(), 13_130);
 
         // The decomposition index is audited by word type and not only in
         // total, because a shift between the two that left the total alone
         // would otherwise pass unnoticed. The lujvo are every lujvo entry
-        // except `islenskygu'e` and `refgau`, which do not decompose. #914
-        // restored 102 cmevla. The 2026-10-30 rename of `zbadjurek` to
-        // `zbadjugreku` moves one entry from cmevla to lujvo. The new snapshot
-        // labels `xinsovyctisince` as fu'ivla, but its listed rafsi decompose.
+        // except `refgau`, which does not decompose. #1093 adds
+        // `islenskygu'e`. Camxes accepts that lujvo. The extended rafsi is
+        // `islensky`. The final rafsi is `gu'e`. jbotci stores `islensk`,
+        // the hyphen `y`, and `gú'e` from `gugde`. #914 restored 102 cmevla.
+        // The 2026-10-30 rename of `zbadjurek` to `zbadjugreku` moves one
+        // entry from cmevla to lujvo. The new snapshot labels
+        // `xinsovyctisince` as fu'ivla, but its listed rafsi decompose.
         let entries = english().entries();
         let word_types = english()
             .lujvo_index()
@@ -317,7 +322,7 @@ mod tests {
                 .iter()
                 .filter(|word_type| **word_type == WordType::Lujvo)
                 .count(),
-            13_024
+            13_025
         );
         assert_eq!(
             word_types

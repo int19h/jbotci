@@ -2029,6 +2029,7 @@ define_string_enum_metadata! {
     pub enum LujvoParseExpectation {
         InitialOrStandaloneFinalRafsi => ("INITIAL_OR_STANDALONE_FINAL_RAFSI", "initial-or-standalone-final-rafsi"),
         FinalOrInitialRafsi => ("FINAL_OR_INITIAL_RAFSI", "final-or-initial-rafsi"),
+        ShortFinalRafsi => ("SHORT_FINAL_RAFSI", "short-final-rafsi"),
     }
 }
 
@@ -2039,6 +2040,7 @@ impl LujvoParseExpectation {
         match self {
             Self::InitialOrStandaloneFinalRafsi => "an initial rafsi or a standalone final rafsi",
             Self::FinalOrInitialRafsi => "a final rafsi or another initial rafsi",
+            Self::ShortFinalRafsi => "a short final rafsi after the `y`",
         }
     }
 }
@@ -2195,20 +2197,30 @@ impl MorphologyErrorDetail {
             data!(MorphologyErrorDetail::InvalidLujvo {
                 parsed_prefix,
                 expected,
-            }) => parsed_prefix.as_ref().map_or_else(
-                || {
+            }) => {
+                if matches!(expected, LujvoParseExpectation::ShortFinalRafsi)
+                    && let Some(prefix) = parsed_prefix.as_ref()
+                {
                     format!(
-                        "the lujvo parser expected {} at the start",
-                        expected.description()
+                        "after parsing `{prefix}`, the lujvo parser expected a short final rafsi after the `y`"
                     )
-                },
-                |prefix| {
-                    format!(
-                        "after parsing `{prefix}`, the lujvo parser expected {} at the next source position",
-                        expected.description()
+                } else {
+                    parsed_prefix.as_ref().map_or_else(
+                        || {
+                            format!(
+                                "the lujvo parser expected {} at the start",
+                                expected.description()
+                            )
+                        },
+                        |prefix| {
+                            format!(
+                                "after parsing `{prefix}`, the lujvo parser expected {} at the next source position",
+                                expected.description()
+                            )
+                        },
                     )
-                },
-            ),
+                }
+            }
             data!(MorphologyErrorDetail::FuhivlaContainsY) => {
                 "fu'ivla syllables cannot use y as a vowel nucleus".to_owned()
             }
@@ -2222,9 +2234,7 @@ impl MorphologyErrorDetail {
             data!(MorphologyErrorDetail::InvalidZoiDelimiter { reason }) => {
                 reason.description().to_owned()
             }
-            data!(MorphologyErrorDetail::Phonotactic { reason }) => {
-                reason.description().to_owned()
-            }
+            data!(MorphologyErrorDetail::Phonotactic { reason }) => reason.description().to_owned(),
         }
     }
 }
@@ -3700,22 +3710,32 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn invalid_slinkuhi_examples_remain_invalid() {
-        for source in ["xlaglymlu", "jbaugri"] {
-            let Err(error) = segment_words_with_modifiers(source) else {
-                panic!("{source} must remain invalid");
-            };
+        // `jbaugri` is still `slinkuhi <- !rafsi_string consonant rafsi_string`.
+        // `xlaglymlu` starts with `stressed_y_less_rafsi initial_pair y`, so
+        // `!rafsi_string` fails. Camxes rejects both as foreign words.
+        let slinkuhi = segment_words_with_modifiers("jbaugri");
+        assert!(
+            matches!(
+                &slinkuhi,
+                Err(MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::Slinkuhi,
+                    ..
+                })
+            ),
+            "jbaugri: {slinkuhi:?}"
+        );
 
-            assert!(
-                matches!(
-                    error,
-                    MorphologyError::Invalid {
-                        kind: MorphologyErrorKind::Slinkuhi,
-                        ..
-                    }
-                ),
-                "{source}: {error:?}"
-            );
-        }
+        let rafsi_prefix = segment_words_with_modifiers("xlaglymlu");
+        assert!(
+            matches!(
+                &rafsi_prefix,
+                Err(MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::InvalidLujvo,
+                    ..
+                })
+            ),
+            "xlaglymlu: {rafsi_prefix:?}"
+        );
     }
 
     #[test]

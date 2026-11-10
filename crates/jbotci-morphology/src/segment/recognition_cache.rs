@@ -294,18 +294,19 @@ struct IndicatorBoundaryKey {
 /// - Two-index keys are `O(m^2)`. The plain maps are `cmavo_word`,
 ///   `lojban_word`, `brivla_word`, `lujvo_slice`, `fuhivla_shape`,
 ///   `experimental_cgv`, `slinkuhi`, `rafsi_string_starts`, `post_word`,
-///   `indicator_cmavo_starts`, `brivla_head_ends`, `fuhivla_head_ends`,
-///   `initial_rafsi_ends`, `extended_rafsi_ends`, `any_extended_rafsi_starts`,
-///   `fuhivla_rafsi_base_ends`, `stressed_extended_rafsi_ends`,
-///   `nucleus_has_implicit_stress`, `stress_tail_reaches_boundary`, and
-///   `greedy_rafsi_chain`.
+///   `indicator_cmavo_starts`, `initial_rafsi_ends`, `extended_rafsi_ends`,
+///   `any_extended_rafsi_starts`, `fuhivla_rafsi_base_ends`,
+///   `stressed_extended_rafsi_ends`, `nucleus_has_implicit_stress`,
+///   `stress_tail_reaches_boundary`, and `greedy_rafsi_chain`.
 /// - `lujvo_from` and `lujvo_part_ranges` add `has_initial_rafsi`,
 ///   `fuhivla_shape_y` adds `allows_y`, and `fuhivla_head_policy` adds
 ///   `FuhivlaHeadPolicy`. Each flag has a constant number of values, so those
 ///   maps are still `O(m^2)`.
 /// - Three-index keys are `O(m^3)`: `rafsi_string_from`, `rafsi_string_ending`,
-///   `cmavo_post_word`, `nucleus_is_stressed`, `y_less_rafsi_unstressed`, and
-///   `cvv_rafsi_unstressed`.
+///   `cmavo_post_word`, `nucleus_is_stressed`, `y_less_rafsi_unstressed`,
+///   `cvv_rafsi_unstressed`, `brivla_head_ends`, and `fuhivla_head_ends`.
+///   The two head maps store the span end and the lookahead end. A fu'ivla
+///   rafsi lookahead reads past its `y`.
 /// - Four-index keys are `O(m^4)`: `indicator_boundary`.
 ///
 /// Those sizes are the key domains: every index combination a map can store.
@@ -365,8 +366,8 @@ pub(crate) struct MorphologyRecognitionCache {
     fuhivla_shape: RefCell<HashMap<SpanKey, bool>>,
     fuhivla_head_policy: RefCell<HashMap<FuhivlaHeadKey, bool>>,
     experimental_cgv: RefCell<HashMap<SpanKey, bool>>,
-    fuhivla_head_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    brivla_head_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    fuhivla_head_ends: RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
+    brivla_head_ends: RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
     slinkuhi: RefCell<HashMap<SpanKey, bool>>,
     rafsi_string_starts: RefCell<HashMap<SpanKey, bool>>,
     rafsi_string_from: RefCell<HashMap<LookaheadKey, bool>>,
@@ -745,18 +746,24 @@ impl MorphologyRecognitionCache {
         self.sync_accounted();
     }
 
-    #[requires(index <= end && end <= self.char_count)]
+    #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
     #[ensures(true)]
-    pub(crate) fn fuhivla_head_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
-        head_get(&self.fuhivla_head_ends, index, end)
+    pub(crate) fn fuhivla_head_ends(
+        &self,
+        index: usize,
+        end: usize,
+        lookahead_end: usize,
+    ) -> Option<Rc<[usize]>> {
+        lookahead_head_get(&self.fuhivla_head_ends, index, end, lookahead_end)
     }
 
-    #[requires(index <= end && end <= self.char_count)]
-    #[ensures(self.is_cancelled() || self.fuhivla_head_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.fuhivla_head_ends(index, end, lookahead_end).is_some_and(|ends| ends.len() == value.len()))]
     pub(crate) fn record_fuhivla_head_ends(
         &self,
         index: usize,
         end: usize,
+        lookahead_end: usize,
         value: &[usize],
     ) -> Rc<[usize]> {
         if self.is_cancelled() {
@@ -764,20 +771,21 @@ impl MorphologyRecognitionCache {
             return Rc::from(value);
         }
         note_recognition_body();
-        let stored = head_set(&self.fuhivla_head_ends, index, end, value);
+        let stored = lookahead_head_set(&self.fuhivla_head_ends, index, end, lookahead_end, value);
         self.sync_accounted();
         stored
     }
 
     /// Store `ends` itself. The fu'ivla miss path that copies a brivla head
     /// list uses this so both tables keep one allocation.
-    #[requires(index <= end && end <= self.char_count)]
+    #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
     #[ensures(Rc::ptr_eq(&ret, &ends))]
-    #[ensures(self.is_cancelled() || self.fuhivla_head_ends(index, end).is_some_and(|stored| Rc::ptr_eq(&stored, &ends)))]
+    #[ensures(self.is_cancelled() || self.fuhivla_head_ends(index, end, lookahead_end).is_some_and(|stored| Rc::ptr_eq(&stored, &ends)))]
     pub(crate) fn record_fuhivla_head_ends_shared(
         &self,
         index: usize,
         end: usize,
+        lookahead_end: usize,
         ends: Rc<[usize]>,
     ) -> Rc<[usize]> {
         if self.is_cancelled() {
@@ -785,9 +793,10 @@ impl MorphologyRecognitionCache {
             return Rc::clone(&ends);
         }
         note_recognition_body();
-        let key = new!(SpanKey {
+        let key = new!(LookaheadKey {
             start: index,
             end: end,
+            lookahead_end: lookahead_end,
         });
         self.fuhivla_head_ends
             .borrow_mut()
@@ -796,25 +805,31 @@ impl MorphologyRecognitionCache {
         Rc::clone(&ends)
     }
 
-    #[requires(index <= end && end <= self.char_count)]
+    #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
     #[ensures(true)]
-    pub(crate) fn brivla_head_ends(&self, index: usize, end: usize) -> Option<Rc<[usize]>> {
-        head_get(&self.brivla_head_ends, index, end)
+    pub(crate) fn brivla_head_ends(
+        &self,
+        index: usize,
+        end: usize,
+        lookahead_end: usize,
+    ) -> Option<Rc<[usize]>> {
+        lookahead_head_get(&self.brivla_head_ends, index, end, lookahead_end)
     }
 
-    #[requires(index <= end && end <= self.char_count)]
-    #[ensures(self.is_cancelled() || self.brivla_head_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
+    #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.brivla_head_ends(index, end, lookahead_end).is_some_and(|ends| ends.len() == value.len()))]
     pub(crate) fn record_brivla_head_ends(
         &self,
         index: usize,
         end: usize,
+        lookahead_end: usize,
         value: &[usize],
     ) -> Rc<[usize]> {
         if self.is_cancelled() {
             return Rc::from(value);
         }
         note_recognition_body();
-        let stored = head_set(&self.brivla_head_ends, index, end, value);
+        let stored = lookahead_head_set(&self.brivla_head_ends, index, end, lookahead_end, value);
         self.sync_accounted();
         stored
     }
@@ -1462,6 +1477,41 @@ fn head_set(
     let key = new!(SpanKey {
         start: start,
         end: end,
+    });
+    table.borrow_mut().insert(key, Rc::clone(&stored));
+    stored
+}
+
+#[requires(start <= end && end <= lookahead_end)]
+#[ensures(true)]
+fn lookahead_head_get(
+    table: &RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> Option<Rc<[usize]>> {
+    let key = new!(LookaheadKey {
+        start: start,
+        end: end,
+        lookahead_end: lookahead_end,
+    });
+    table.borrow().get(&key).cloned()
+}
+
+#[requires(start <= end && end <= lookahead_end)]
+#[ensures(lookahead_head_get(table, start, end, lookahead_end).is_some_and(|ends| ends.len() == value.len()))]
+fn lookahead_head_set(
+    table: &RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+    value: &[usize],
+) -> Rc<[usize]> {
+    let stored = Rc::<[usize]>::from(value);
+    let key = new!(LookaheadKey {
+        start: start,
+        end: end,
+        lookahead_end: lookahead_end,
     });
     table.borrow_mut().insert(key, Rc::clone(&stored));
     stored
