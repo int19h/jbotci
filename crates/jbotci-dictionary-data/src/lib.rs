@@ -295,7 +295,9 @@ mod tests {
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
         // Sound preprocessing rejects unopened LEhU and unfinished replacement markers.
-        assert_eq!(english().sound_index().len(), 31_351);
+        // Issue #1093 adds 33 sound entries. Camxes accepts 25 of those fu'ivla.
+        // The other 8 are experimental consonant-glide fu'ivla. Camxes rejects those 8.
+        assert_eq!(english().sound_index().len(), 31_384);
         assert_eq!(english().lujvo_index().len(), 13_129);
 
         // The decomposition index is audited by word type and not only in
