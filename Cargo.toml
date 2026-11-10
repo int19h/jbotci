@@ -243,25 +243,29 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 inherits = "dev"
 
 # `dx serve --web` and `dx build --web` use this profile.
+# A debug build reduces debug info only for a crate that causes a real failure.
+# A larger module that still loads is not such a failure.
+# The ready signal waits for as long as the load takes.
 # opt-level 0 makes the loaded module slow. opt-level 1 is the measured fix.
-# The code section fell from 77.6 MB to 60.7 MB.
-# Line tables stay on, so a wasm stack trace still has a file and a line.
-# Full DWARF makes the module about 1.39 GB. That is past V8's 1 GiB module limit.
-# debug = false drops the file and the line from the trace.
-# With opt-level 1 and debug = false, the raw module is 114.3 MB and DWARF is 0.
-# `dx serve` keeps DWARF by default and drops the name section unless you pass --keep-names.
-# A trace then has neither a file nor a function name.
-# Line tables on only jbotci-ui and jbotci-gentufa make a 134.0 MB module.
-# The other crates then have no file and no line in the trace.
 # These sizes are the cargo wasm file, before dx removes the name section.
-# With opt-level 1 and these line tables, the raw module is 203.7 MB and DWARF is 89.3 MB.
+# The baseline raw module is 199,910,110 bytes. Its code section is 77,616,480 bytes.
+# With opt-level 1 and line tables, the raw module is 203,731,482 bytes.
+# Its code section is 60,695,813 bytes. Its data section is 23,239,805 bytes.
+# Its DWARF is 89,345,763 bytes. Its name section is 29,274,362 bytes.
 # A clean build took 733 seconds. One new line in jbotci-ui rebuilt in 29 seconds.
+# Line tables stay on, so a wasm stack trace still has a file and a line.
+# `dx serve` keeps DWARF on a debug build. It drops the name section.
+# Pass --keep-names to keep that section.
+# opt-level 1 with debug info off makes a raw module of 114,322,375 bytes.
+# Its code section is 60,661,632 bytes. Its DWARF is 0. Its name section is 29,246,159 bytes.
+# That module is smaller. It is not the chosen build, because it still loads.
+# With debug info off, the default serve has no file, no line, and no function name.
+# Line tables on only jbotci-ui and jbotci-gentufa make a raw module of 133,966,795 bytes.
+# The other crates then have no file and no line in the trace.
 # A higher opt-level on only the heavy crates leaves the other crates at opt-level 0.
-# That build stays slow, and its raw module is still 192.9 MB.
+# That raw module is 192,862,993 bytes, and the other crates stay slow.
 # Native debug builds use the dev profile. Release builds use the release profile.
 # This block changes neither profile.
-# CARGO_PROFILE_WASM_DEV_DEBUG=full asks for full debug info for one build.
-# That variable does not change jbotci-syntax. The override below turns its debug info off.
 [profile.wasm-dev]
 inherits = "dev"
 opt-level = 1
@@ -284,16 +288,20 @@ codegen-units = 16
 [profile.dev.package.jbotci-syntax]
 debug = "line-tables-only"
 
-# The web debug build of jbotci-syntax carries no debug info at all. Even line
-# tables name every monomorphized function in .debug_str, and the generated
-# grammar's combinator types make those names enormous: on their own they exceed
-# both V8's 1 GiB WebAssembly module limit and rust-lld's 2 GiB section limit
-# (lld crashes linking the module past it). Every other crate keeps the profile's
-# line tables, and wasm stack traces still name functions through the name
-# section. Native debug builds of this crate keep line tables (the dev override
-# above). The underlying growth is #936. Package overrides are not read from
-# CARGO_PROFILE_* environment variables; to get the syntax crate's line tables
-# back for a one-off cargo build, pass
+# The web debug build of jbotci-syntax carries no debug info.
+# This is the one crate whose debug info causes a real failure.
+# Line tables name every monomorphized function in .debug_str.
+# The generated grammar uses combinator types, and those names are enormous.
+# On their own, the line tables exceed the V8 1 GiB WebAssembly module limit.
+# They also exceed the rust-lld 2 GiB section limit.
+# lld crashes when it links a module past that limit.
+# Every other crate keeps the line tables from the profile above.
+# A wasm stack trace for those crates still has a file and a line.
+# Native debug builds of this crate keep line tables. See the dev override above.
+# The underlying growth is #936.
+# Package overrides are not read from CARGO_PROFILE_* environment variables.
+# CARGO_PROFILE_WASM_DEV_DEBUG=full does not change this crate.
+# For one cargo build that restores line tables for this crate only, pass
 # --config 'profile.wasm-dev.package.jbotci-syntax.debug="line-tables-only"'.
 [profile.wasm-dev.package.jbotci-syntax]
 opt-level = 1

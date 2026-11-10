@@ -808,15 +808,7 @@ async function f2llmRuntimeModule() {
 
 async function loadEmbeddingAppModule(moduleUrl) {
   const ready = await appModuleReadyModule();
-  // Install the capture before import(). The dioxus init promise starts
-  // during evaluation, and import() resolves only after that statement runs.
-  const capture = ready.captureAppModuleInit();
-  let appModule;
-  try {
-    appModule = await import(moduleUrl);
-  } finally {
-    capture.stop();
-  }
+  const appModule = await ready.importAppModule(moduleUrl);
   if (typeof appModule.jbotciF2LlmWebGpuRuntimeLoad !== "function") {
     throw new Error("Dioxus app module does not export jbotciF2LlmWebGpuRuntimeLoad");
   }
@@ -826,7 +818,6 @@ async function loadEmbeddingAppModule(moduleUrl) {
   if (typeof appModule.jbotciF2LlmQueryInput !== "function") {
     throw new Error("Dioxus app module does not export jbotciF2LlmQueryInput");
   }
-  await ready.waitForAppModuleReady(appModule, { initPromise: capture.promise });
   return appModule;
 }
 

@@ -20,19 +20,10 @@ function initCompute(mainModuleUrl) {
 
 async function loadComputeModule(moduleUrl) {
   const ready = await appModuleReadyModule();
-  // Install the capture before import(). The dioxus init promise starts
-  // during evaluation, and import() resolves only after that statement runs.
-  const capture = ready.captureAppModuleInit();
-  let appModule;
-  try {
-    appModule = await import(moduleUrl);
-  } finally {
-    capture.stop();
-  }
+  const appModule = await ready.importAppModule(moduleUrl);
   if (typeof appModule.jbotciComputeHandle !== "function") {
     throw new Error("Dioxus app module does not export jbotciComputeHandle");
   }
-  await ready.waitForAppModuleReady(appModule, { initPromise: capture.promise });
   computeHandle = appModule.jbotciComputeHandle;
 }
 

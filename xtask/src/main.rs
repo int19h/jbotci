@@ -1913,32 +1913,33 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_app_module_ready_waits_on_the_dioxus_init_promise() {
-        assert!(APP_MODULE_READY_JS.contains("globalThis.__dx_mainWasm"));
-        assert!(APP_MODULE_READY_JS.contains("appModule.__wasm"));
-        assert!(APP_MODULE_READY_JS.contains("captureAppModuleInit"));
+    fn web_app_module_ready_waits_for_the_rust_worker_call() {
+        assert!(APP_MODULE_READY_JS.contains("jbotciWorkerStarted"));
+        assert!(APP_MODULE_READY_JS.contains("unhandledrejection"));
         assert!(APP_MODULE_READY_JS.contains("wasm initialization failed"));
-        assert!(APP_MODULE_READY_JS.contains("did not start wasm initialization"));
+        assert!(APP_MODULE_READY_JS.contains("did not load"));
+        assert!(!APP_MODULE_READY_JS.contains("captureAppModuleInit"));
+        assert!(!APP_MODULE_READY_JS.contains("__dx_mainWasm"));
+        assert!(!APP_MODULE_READY_JS.contains("jbotciWorkerReady"));
+        assert!(!APP_MODULE_READY_JS.contains("Promise.prototype.then"));
         assert!(!APP_MODULE_READY_JS.contains("timed out"));
-        assert!(!APP_MODULE_READY_JS.contains("does not export the wasm readiness binding"));
-        assert!(COMPUTE_WORKER_JS.contains("captureAppModuleInit"));
-        let capture = COMPUTE_WORKER_JS
-            .find("captureAppModuleInit()")
-            .expect("compute worker should capture the dioxus init promise");
-        let app_import = COMPUTE_WORKER_JS
+        let ready_fn = APP_MODULE_READY_JS
+            .find("globalThis.jbotciWorkerStarted =")
+            .expect("the worker stores the ready function");
+        let listener = APP_MODULE_READY_JS
+            .find("addEventListener(\"unhandledrejection\"")
+            .expect("the worker listens for an unhandled rejection");
+        let app_import = APP_MODULE_READY_JS
             .find("import(moduleUrl)")
-            .expect("compute worker should import the app module");
-        assert!(
-            capture < app_import,
-            "the init promise starts during evaluation, so capture must be installed before import()"
-        );
-        let embedding_capture = EMBEDDING_WORKER_JS
-            .find("captureAppModuleInit()")
-            .expect("embedding worker should capture the dioxus init promise");
-        let embedding_import = EMBEDDING_WORKER_JS
-            .find("import(moduleUrl)")
-            .expect("embedding worker should import the app module");
-        assert!(embedding_capture < embedding_import);
+            .expect("the helper imports the app module");
+        assert!(ready_fn < app_import);
+        assert!(listener < app_import);
+        assert!(COMPUTE_WORKER_JS.contains("importAppModule("));
+        assert!(!COMPUTE_WORKER_JS.contains("captureAppModuleInit"));
+        assert!(!COMPUTE_WORKER_JS.contains("import(moduleUrl)"));
+        assert!(EMBEDDING_WORKER_JS.contains("importAppModule("));
+        assert!(!EMBEDDING_WORKER_JS.contains("captureAppModuleInit"));
+        assert!(!EMBEDDING_WORKER_JS.contains("import(moduleUrl)"));
     }
 
     #[test]

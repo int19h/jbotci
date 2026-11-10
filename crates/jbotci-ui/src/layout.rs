@@ -2217,14 +2217,6 @@ pub fn jbotci_compute_handle(request_json: &str) -> Result<String, JsValue> {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(js_name = jbotciWorkerReady)]
-#[requires(true)]
-#[ensures(true)]
-pub fn jbotci_worker_ready() -> js_sys::Promise {
-    js_sys::Promise::resolve(&JsValue::UNDEFINED)
-}
-
-#[cfg(target_arch = "wasm32")]
 #[requires(!request_json.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
 pub(super) fn web_compute_handle(request_json: &str) -> Result<String, String> {
