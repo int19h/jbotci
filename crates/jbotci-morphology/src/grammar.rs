@@ -3761,6 +3761,7 @@ mod tests {
         );
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
+            rafsi_start: 0,
             expected: LujvoParseExpectation::ShortFinalRafsi,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
@@ -4307,6 +4308,7 @@ mod tests {
         // The tail after `xla` is not a short final rafsi.
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
+            rafsi_start: 0,
             expected: LujvoParseExpectation::ShortFinalRafsi,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));

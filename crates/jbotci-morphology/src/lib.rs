@@ -2062,15 +2062,16 @@ impl LujvoParseExpectation {
         }
     }
 
-    #[requires(true)]
+    #[requires(rafsi_start <= prefix.chars().count())]
     #[ensures(!ret.is_empty())]
-    fn incomplete_headline_for(self, prefix: &str) -> String {
-        // A prefix that ends on y keeps the fixed sentence.
-        // A y-less prefix names the rafsi that still needs a continuation.
-        if lujvo_prefix_ends_on_y(prefix) {
+    fn incomplete_headline_for(self, prefix: &str, rafsi_start: usize) -> String {
+        // The span is the rafsi the parser recognized.
+        // A span that ends on y keeps the fixed sentence.
+        // A y-less span names that rafsi.
+        if lujvo_span_ends_on_y(&lujvo_rafsi_span(prefix, rafsi_start)) {
             return self.incomplete_headline().to_owned();
         }
-        let anchor = lujvo_continuation_anchor(prefix);
+        let anchor = lujvo_continuation_anchor(prefix, rafsi_start);
         match self {
             Self::ShortFinalRafsi => {
                 format!("incomplete lujvo: a short final rafsi is needed after {anchor}")
@@ -2084,66 +2085,28 @@ impl LujvoParseExpectation {
     }
 }
 
-#[requires(true)]
+#[requires(rafsi_start <= prefix.chars().count())]
 #[ensures(!ret.is_empty())]
-fn lujvo_continuation_anchor(prefix: &str) -> String {
-    if lujvo_prefix_ends_on_y(prefix) {
+fn lujvo_continuation_anchor(prefix: &str, rafsi_start: usize) -> String {
+    let span = lujvo_rafsi_span(prefix, rafsi_start);
+    if lujvo_span_ends_on_y(&span) {
         "the `y`".to_owned()
     } else {
-        format!("`{}`", trailing_y_less_rafsi(prefix))
+        format!("`{span}`")
     }
+}
+
+#[requires(rafsi_start <= prefix.chars().count())]
+#[ensures(ret.chars().count() == prefix.chars().count() - rafsi_start)]
+fn lujvo_rafsi_span(prefix: &str, rafsi_start: usize) -> String {
+    prefix.chars().skip(rafsi_start).collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn lujvo_prefix_ends_on_y(prefix: &str) -> bool {
-    let chars = prefix.chars().collect::<Vec<_>>();
+fn lujvo_span_ends_on_y(span: &str) -> bool {
+    let chars = span.chars().collect::<Vec<_>>();
     matches!(chars.as_slice(), [.., 'y'] | [.., 'y', '\''])
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty() || prefix.is_empty())]
-fn trailing_y_less_rafsi(prefix: &str) -> String {
-    let chars = prefix.chars().collect::<Vec<_>>();
-    let len = chars.len();
-    if len >= 4 {
-        let start = len - 4;
-        if is_trailing_rafsi_consonant(chars[start])
-            && segment::is_vowel(chars[start + 1])
-            && chars[start + 2] == '\''
-            && segment::is_vowel(chars[start + 3])
-        {
-            return chars[start..].iter().collect();
-        }
-    }
-    if len >= 3 {
-        return chars[len - 3..].iter().collect();
-    }
-    prefix.to_owned()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_trailing_rafsi_consonant(value: char) -> bool {
-    matches!(
-        value,
-        'b' | 'c'
-            | 'd'
-            | 'f'
-            | 'g'
-            | 'j'
-            | 'k'
-            | 'l'
-            | 'm'
-            | 'n'
-            | 'p'
-            | 'r'
-            | 's'
-            | 't'
-            | 'v'
-            | 'x'
-            | 'z'
-    )
 }
 
 define_string_enum_metadata! {
@@ -2234,8 +2197,8 @@ impl PhonotacticDetailKind {
 }
 
 #[invariant(true)]
-#[invariant(::InvalidLujvo => parsed_prefix.as_ref().is_none_or(|prefix| !prefix.is_empty()))]
-#[invariant(::IncompleteLujvo => !parsed_prefix.is_empty() && matches!(*expected, LujvoParseExpectation::ShortFinalRafsi | LujvoParseExpectation::FinalOrInitialRafsi))]
+#[invariant(::InvalidLujvo => parsed_prefix.as_ref().is_none_or(|prefix| !prefix.is_empty() && *rafsi_start <= prefix.chars().count() && (*expected != LujvoParseExpectation::ShortFinalRafsi || *rafsi_start < prefix.chars().count())))]
+#[invariant(::IncompleteLujvo => !parsed_prefix.is_empty() && *rafsi_start < parsed_prefix.chars().count() && matches!(*expected, LujvoParseExpectation::ShortFinalRafsi | LujvoParseExpectation::FinalOrInitialRafsi))]
 #[invariant(::ExpectedWord => matches!(expected,
     ExpectedWordDetailKind::PlainWord
         | ExpectedWordDetailKind::ReplacementClose
@@ -2263,10 +2226,16 @@ impl PhonotacticDetailKind {
 pub enum MorphologyErrorDetail {
     InvalidLujvo {
         parsed_prefix: Option<String>,
+        /// Char index of the recognized trailing rafsi in `parsed_prefix`.
+        /// The span is the suffix of the prefix that starts at this index.
+        rafsi_start: usize,
         expected: LujvoParseExpectation,
     },
     IncompleteLujvo {
         parsed_prefix: String,
+        /// Char index of the recognized trailing rafsi in `parsed_prefix`.
+        /// The span is the suffix of the prefix that starts at this index.
+        rafsi_start: usize,
         expected: LujvoParseExpectation,
     },
     FuhivlaContainsY,
@@ -2303,12 +2272,13 @@ impl MorphologyErrorDetail {
         match self.as_data() {
             data!(MorphologyErrorDetail::InvalidLujvo {
                 parsed_prefix,
+                rafsi_start,
                 expected,
             }) => {
                 if matches!(expected, LujvoParseExpectation::ShortFinalRafsi)
                     && let Some(prefix) = parsed_prefix.as_ref()
                 {
-                    let anchor = lujvo_continuation_anchor(prefix);
+                    let anchor = lujvo_continuation_anchor(prefix, *rafsi_start);
                     format!(
                         "after parsing `{prefix}`, the lujvo parser expected a short final rafsi after {anchor}"
                     )
@@ -2331,9 +2301,10 @@ impl MorphologyErrorDetail {
             }
             data!(MorphologyErrorDetail::IncompleteLujvo {
                 parsed_prefix,
+                rafsi_start,
                 expected,
             }) => {
-                let anchor = lujvo_continuation_anchor(parsed_prefix);
+                let anchor = lujvo_continuation_anchor(parsed_prefix, *rafsi_start);
                 match expected {
                     LujvoParseExpectation::ShortFinalRafsi => format!(
                         "as a Lojban compound, `{parsed_prefix}` needs a short final rafsi after {anchor}"
@@ -2376,8 +2347,9 @@ impl MorphologyErrorDetail {
         match self.as_data() {
             data!(MorphologyErrorDetail::IncompleteLujvo {
                 parsed_prefix,
+                rafsi_start,
                 expected,
-            }) => Some(expected.incomplete_headline_for(parsed_prefix)),
+            }) => Some(expected.incomplete_headline_for(parsed_prefix, *rafsi_start)),
             _ => None,
         }
     }
