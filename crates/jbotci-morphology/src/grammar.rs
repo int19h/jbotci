@@ -3740,7 +3740,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn xlaglymlu_reports_invalid_lujvo_after_rafsi_string_prefix() {
-        // `xla` + `gl` + `y` is `stressed_y_less_rafsi? initial_pair y`.
+        // `a` in `xla` is stressed. `gly` has a y nucleus and does not count.
+        // `mlu` is the one counted syllable that follows.
+        // `stressed_y_less_rafsi` matches `xla`. The tail is not a short final.
         // `slinkuhi <- !rafsi_string consonant rafsi_string` does not match.
         // Camxes rejects the word as a foreign word.
         let error = crate::segment_words_with_modifiers_with_options_and_source_id(
@@ -3759,7 +3761,7 @@ mod tests {
         );
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
-            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+            expected: LujvoParseExpectation::ShortFinalRafsi,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
@@ -4301,9 +4303,11 @@ mod tests {
             9,
             Some(MorphologyContextKind::Lujvo),
         );
+        // `a` in `xla` is stressed. `sty` does not count. `mlu` is one syllable.
+        // The tail after `xla` is not a short final rafsi.
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
-            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+            expected: LujvoParseExpectation::ShortFinalRafsi,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
 

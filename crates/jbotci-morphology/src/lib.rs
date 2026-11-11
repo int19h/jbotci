@@ -2061,6 +2061,89 @@ impl LujvoParseExpectation {
             }
         }
     }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn incomplete_headline_for(self, prefix: &str) -> String {
+        // A prefix that ends on y keeps the fixed sentence.
+        // A y-less prefix names the rafsi that still needs a continuation.
+        if lujvo_prefix_ends_on_y(prefix) {
+            return self.incomplete_headline().to_owned();
+        }
+        let anchor = lujvo_continuation_anchor(prefix);
+        match self {
+            Self::ShortFinalRafsi => {
+                format!("incomplete lujvo: a short final rafsi is needed after {anchor}")
+            }
+            Self::FinalOrInitialRafsi | Self::InitialOrStandaloneFinalRafsi => {
+                format!(
+                    "incomplete lujvo: a final rafsi or another initial rafsi is needed after {anchor}"
+                )
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn lujvo_continuation_anchor(prefix: &str) -> String {
+    if lujvo_prefix_ends_on_y(prefix) {
+        "the `y`".to_owned()
+    } else {
+        format!("`{}`", trailing_y_less_rafsi(prefix))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_prefix_ends_on_y(prefix: &str) -> bool {
+    let chars = prefix.chars().collect::<Vec<_>>();
+    matches!(chars.as_slice(), [.., 'y'] | [.., 'y', '\''])
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty() || prefix.is_empty())]
+fn trailing_y_less_rafsi(prefix: &str) -> String {
+    let chars = prefix.chars().collect::<Vec<_>>();
+    let len = chars.len();
+    if len >= 4 {
+        let start = len - 4;
+        if is_trailing_rafsi_consonant(chars[start])
+            && segment::is_vowel(chars[start + 1])
+            && chars[start + 2] == '\''
+            && segment::is_vowel(chars[start + 3])
+        {
+            return chars[start..].iter().collect();
+        }
+    }
+    if len >= 3 {
+        return chars[len - 3..].iter().collect();
+    }
+    prefix.to_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_trailing_rafsi_consonant(value: char) -> bool {
+    matches!(
+        value,
+        'b' | 'c'
+            | 'd'
+            | 'f'
+            | 'g'
+            | 'j'
+            | 'k'
+            | 'l'
+            | 'm'
+            | 'n'
+            | 'p'
+            | 'r'
+            | 's'
+            | 't'
+            | 'v'
+            | 'x'
+            | 'z'
+    )
 }
 
 define_string_enum_metadata! {
@@ -2225,8 +2308,9 @@ impl MorphologyErrorDetail {
                 if matches!(expected, LujvoParseExpectation::ShortFinalRafsi)
                     && let Some(prefix) = parsed_prefix.as_ref()
                 {
+                    let anchor = lujvo_continuation_anchor(prefix);
                     format!(
-                        "after parsing `{prefix}`, the lujvo parser expected a short final rafsi after the `y`"
+                        "after parsing `{prefix}`, the lujvo parser expected a short final rafsi after {anchor}"
                     )
                 } else {
                     parsed_prefix.as_ref().map_or_else(
@@ -2248,15 +2332,18 @@ impl MorphologyErrorDetail {
             data!(MorphologyErrorDetail::IncompleteLujvo {
                 parsed_prefix,
                 expected,
-            }) => match expected {
-                LujvoParseExpectation::ShortFinalRafsi => format!(
-                    "as a Lojban compound, `{parsed_prefix}` needs a short final rafsi after the `y`"
-                ),
-                LujvoParseExpectation::FinalOrInitialRafsi
-                | LujvoParseExpectation::InitialOrStandaloneFinalRafsi => format!(
-                    "as a Lojban compound, `{parsed_prefix}` needs a final rafsi or another initial rafsi after the `y`"
-                ),
-            },
+            }) => {
+                let anchor = lujvo_continuation_anchor(parsed_prefix);
+                match expected {
+                    LujvoParseExpectation::ShortFinalRafsi => format!(
+                        "as a Lojban compound, `{parsed_prefix}` needs a short final rafsi after {anchor}"
+                    ),
+                    LujvoParseExpectation::FinalOrInitialRafsi
+                    | LujvoParseExpectation::InitialOrStandaloneFinalRafsi => format!(
+                        "as a Lojban compound, `{parsed_prefix}` needs a final rafsi or another initial rafsi after {anchor}"
+                    ),
+                }
+            }
             data!(MorphologyErrorDetail::FuhivlaContainsY) => {
                 "fu'ivla syllables cannot use y as a vowel nucleus".to_owned()
             }
@@ -2285,11 +2372,12 @@ impl MorphologyErrorDetail {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(crate) fn incomplete_headline(&self) -> Option<&'static str> {
+    pub(crate) fn incomplete_headline(&self) -> Option<String> {
         match self.as_data() {
-            data!(MorphologyErrorDetail::IncompleteLujvo { expected, .. }) => {
-                Some(expected.incomplete_headline())
-            }
+            data!(MorphologyErrorDetail::IncompleteLujvo {
+                parsed_prefix,
+                expected,
+            }) => Some(expected.incomplete_headline_for(parsed_prefix)),
             _ => None,
         }
     }
@@ -2327,6 +2415,17 @@ pub enum MorphologyError {
     SourceSpan(#[from] SourceLocationError),
 }
 
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn invalid_word_diagnostic_message(
+    kind: MorphologyErrorKind,
+    detail: Option<&MorphologyErrorDetail>,
+) -> String {
+    detail
+        .and_then(MorphologyErrorDetail::incomplete_headline)
+        .unwrap_or_else(|| kind.message().to_owned())
+}
+
 impl MorphologyError {
     #[requires(true)]
     #[ensures(ret == matches!(self, Self::Interrupted))]
@@ -2340,11 +2439,9 @@ impl MorphologyError {
     #[ensures(!ret.is_empty())]
     pub fn diagnostic_message(&self) -> String {
         match self {
-            Self::Invalid { kind, detail, .. } => detail
-                .as_ref()
-                .and_then(MorphologyErrorDetail::incomplete_headline)
-                .unwrap_or_else(|| kind.message())
-                .to_owned(),
+            Self::Invalid { kind, detail, .. } => {
+                invalid_word_diagnostic_message(*kind, detail.as_ref())
+            }
             Self::UnterminatedZoiQuote { .. } => "unterminated ZOI quote".to_owned(),
             Self::DialectExpansion(failure) => failure.to_string(),
             Self::SourceSpan(error) => error.to_string(),
@@ -2368,11 +2465,7 @@ impl MorphologyError {
                 context,
                 detail,
             } => {
-                let message = detail
-                    .as_ref()
-                    .and_then(MorphologyErrorDetail::incomplete_headline)
-                    .unwrap_or_else(|| kind.message())
-                    .to_owned();
+                let message = invalid_word_diagnostic_message(*kind, detail.as_ref());
                 let diagnostic = morphology_diagnostic(
                     source_id.clone(),
                     source,
@@ -3790,8 +3883,9 @@ mod tests {
     #[ensures(true)]
     fn invalid_slinkuhi_examples_remain_invalid() {
         // `jbaugri` is still `slinkuhi <- !rafsi_string consonant rafsi_string`.
-        // `xlaglymlu` starts with `stressed_y_less_rafsi initial_pair y`, so
-        // `!rafsi_string` fails. Camxes rejects both as foreign words.
+        // `xlaglymlu` starts with the stressed y-less rafsi `xla`.
+        // The tail is not a short final rafsi, and `!rafsi_string` fails.
+        // Camxes rejects both as foreign words.
         let slinkuhi = segment_words_with_modifiers("jbaugri");
         assert!(
             matches!(
