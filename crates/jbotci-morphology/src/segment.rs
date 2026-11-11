@@ -663,9 +663,11 @@ pub(crate) fn invalid_lujvo_error_detail(word: &str) -> Option<MorphologyErrorDe
         return None;
     };
     // A word with no y keeps its old diagnostic.
-    // A bare stressed y-less rafsi is the exception.
-    // That rafsi reaches the end, so the lujvo is incomplete.
-    if !failure.incomplete && !chars.iter().any(|value| is_y(*value)) {
+    // A bare stressed y-less rafsi reaches the end, so the lujvo is incomplete.
+    // A stressed initial rafsi with input left expects a short final rafsi.
+    // That failure is invalid lujvo even when the word has no y.
+    let expects_short_final = failure.expected == LujvoParseExpectation::ShortFinalRafsi;
+    if !failure.incomplete && !expects_short_final && !chars.iter().any(|value| is_y(*value)) {
         return None;
     }
     failure.to_detail(&chars)
@@ -706,6 +708,9 @@ struct LujvoParseFailure {
     /// True when that rafsi reaches the end of the span.
     /// No input remains, so the lujvo is incomplete.
     incomplete: bool,
+    /// True when the matched rafsi production ends on y.
+    /// The renderer reads this flag. It does not scan the letters.
+    ends_on_y: bool,
 }
 
 impl LujvoParseFailure {
@@ -714,12 +719,14 @@ impl LujvoParseFailure {
     #[ensures(ret.rafsi_start == index)]
     #[ensures(ret.expected == expected)]
     #[ensures(!ret.incomplete)]
+    #[ensures(!ret.ends_on_y)]
     fn new(index: usize, expected: LujvoParseExpectation) -> Self {
         new!(LujvoParseFailure {
             index: index,
             rafsi_start: index,
             expected: expected,
             incomplete: false,
+            ends_on_y: false,
         })
     }
 
@@ -735,17 +742,20 @@ impl LujvoParseFailure {
     #[ensures(ret.rafsi_start == rafsi_start)]
     #[ensures(ret.expected == expected)]
     #[ensures(ret.incomplete == incomplete)]
+    #[ensures(ret.ends_on_y == ends_on_y)]
     fn with_rafsi(
         rafsi_start: usize,
         index: usize,
         expected: LujvoParseExpectation,
         incomplete: bool,
+        ends_on_y: bool,
     ) -> Self {
         new!(LujvoParseFailure {
             index: index,
             rafsi_start: rafsi_start,
             expected: expected,
             incomplete: incomplete,
+            ends_on_y: ends_on_y,
         })
     }
 
@@ -762,12 +772,14 @@ impl LujvoParseFailure {
                 parsed_prefix: parsed_prefix,
                 rafsi_start: rafsi_start,
                 expected: self.expected,
+                ends_on_y: self.ends_on_y,
             }))
         } else {
             Some(new!(MorphologyErrorDetail::InvalidLujvo {
                 parsed_prefix: Some(parsed_prefix),
                 rafsi_start: rafsi_start,
                 expected: self.expected,
+                ends_on_y: self.ends_on_y,
             }))
         }
     }
@@ -2732,9 +2744,12 @@ fn lujvo_part_ranges_uncached(
             } else {
                 LujvoParseExpectation::FinalOrInitialRafsi
             };
+            // This branch runs only after a y-ending rafsi production matched.
             merge_lujvo_failure(
                 failure,
-                Some(LujvoParseFailure::with_rafsi(index, end, expected, true)),
+                Some(LujvoParseFailure::with_rafsi(
+                    index, end, expected, true, true,
+                )),
             );
             continue;
         }
@@ -3110,47 +3125,61 @@ fn record_stressed_extended_short_final_failure(
     // stressed initial rafsi. Input after it is a bad tail. No input after it
     // means the short final is missing. Stress uses the parser predicate in
     // this span. A rafsi shape alone does not decide stress.
-    let Some(split) = stressed_initial_rafsi_failure_split(chars, index, end, cache) else {
+    let Some((split, ends_on_y)) = stressed_initial_rafsi_failure_split(chars, index, end, cache)
+    else {
         return;
     };
     // `index` is the start of this stressed rafsi. `split` is its end.
     // The diagnostic names that span. It does not rebuild the boundary.
+    // `ends_on_y` records the production. A stressed extended rafsi and a
+    // stressed y-rafsi end on y. A stressed y-less rafsi does not.
     let candidate = LujvoParseFailure::with_rafsi(
         index,
         split,
         LujvoParseExpectation::ShortFinalRafsi,
         split == end,
+        ends_on_y,
     );
     merge_lujvo_failure(failure, Some(candidate));
 }
 
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|split| split > index && split <= end))]
+#[ensures(ret.is_none_or(|(split, _ends_on_y)| split > index && split <= end))]
 fn stressed_initial_rafsi_failure_split(
     chars: &[char],
     index: usize,
     end: usize,
     cache: &mut MorphologyRecognitionCache,
-) -> Option<usize> {
+) -> Option<(usize, bool)> {
     if cache.is_cancelled() {
         return None;
     }
-    let mut splits = stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache);
-    splits.extend(stressed_y_rafsi_ends_in_context(chars, index, end, cache));
+    // The bool is true when that production ends on y.
+    // A later candidate replaces an earlier one only when its end is greater.
+    // A tie keeps the earlier production.
+    let mut best: Option<(usize, bool)> = None;
+    let mut consider = |split: usize, ends_on_y: bool| {
+        if split > index
+            && split <= end
+            && !is_unaccented_short_final_rafsi_slice(chars, split, end)
+            && best.is_none_or(|(current, _)| split > current)
+        {
+            best = Some((split, ends_on_y));
+        }
+    };
+    for split in stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache) {
+        consider(split, true);
+    }
+    for split in stressed_y_rafsi_ends_in_context(chars, index, end, cache) {
+        consider(split, true);
+    }
     // stressed_y_less_rafsi has no y. A tail after it, as in `klá'y`, is
     // invalid. No tail means the short final is missing.
-    splits.extend(stressed_y_less_rafsi_ends_in_context(
-        chars, index, end, cache,
-    ));
-    splits
-        .into_iter()
-        .filter(|split| {
-            *split > index
-                && *split <= end
-                && !is_unaccented_short_final_rafsi_slice(chars, *split, end)
-        })
-        .max()
+    for split in stressed_y_less_rafsi_ends_in_context(chars, index, end, cache) {
+        consider(split, false);
+    }
+    best
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -3397,8 +3426,14 @@ fn initial_rafsi_ends_until_with_cache(
         }
     }
     if !any_extended_rafsi_starts_until_with_cache(chars, index, end, cache) {
+        // y_less_rafsi <- CVC_rafsi !y / CCV_rafsi / CVV_rafsi
+        // Each form requires an unstressed vowel. A stressed y-less rafsi is
+        // only stressed_initial_rafsi before short_final_rafsi. The predicate
+        // reads this span, so implicit stress counts.
         ends.extend(y_less_rafsi_ends(chars, index).into_iter().filter(|next| {
-            *next <= end && !any_extended_rafsi_starts_until_with_cache(chars, *next, end, cache)
+            *next <= end
+                && y_less_rafsi_is_unstressed_in_context(chars, index, *next, end, cache)
+                && !any_extended_rafsi_starts_until_with_cache(chars, *next, end, cache)
         }));
     }
 
@@ -4756,21 +4791,13 @@ fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
 #[ensures(true)]
 fn is_unaccented_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     // final_syllable <- onset !y !stressed nucleus
+    // short_final_rafsi is that one syllable: consonant plus diphthong, or
+    // an initial pair plus a vowel.
     // A capital or acute nucleus is not a short final. `klá` keeps the
-    // stressed y-rafsi in front of it, and the tail stays a failure.
-    // CV'V puts the stress on the first vowel. Only the last vowel is the
-    // final syllable.
+    // stressed rafsi in front of it, and the tail stays a failure.
+    // CV'V is two syllables. It is CVV_final_rafsi, not a short final.
     is_short_final_rafsi_slice(chars, start, end)
-        && !short_final_nucleus_has_explicit_stress(chars, start, end)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn short_final_nucleus_has_explicit_stress(chars: &[char], start: usize, end: usize) -> bool {
-    if end >= start + 4 && chars.get(start + 2) == Some(&'\'') {
-        return syllable_has_explicit_stress(chars, start + 3, end);
-    }
-    syllable_has_explicit_stress(chars, start, end)
+        && !syllable_has_explicit_stress(chars, start, end)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -4785,17 +4812,9 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
     {
         return true;
     }
-    if end == start + 3
+    end == start + 3
         && initial_pair_chars(chars[start], chars[start + 1])
         && is_vowel(chars[start + 2])
-    {
-        return true;
-    }
-    end == start + 4
-        && is_consonant(chars[start])
-        && is_vowel(chars[start + 1])
-        && chars[start + 2] == '\''
-        && is_vowel(chars[start + 3])
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -6231,6 +6250,7 @@ mod tests {
                 parsed_prefix: Some(prefix.to_owned()),
                 rafsi_start: 0,
                 expected: LujvoParseExpectation::ShortFinalRafsi,
+                ends_on_y: true,
             });
             assert_eq!(detail.as_ref(), Some(&expected), "{source}");
             let diagnostic = error.to_diagnostic(None, source).expect(source);
@@ -6274,6 +6294,11 @@ mod tests {
             ("probably", "probably"),
             ("brody", "brody"),
             ("klama'y", "klama'y"),
+            // Uppercase Y normalizes to ý. The matched production still ends
+            // on y, so the note names y.
+            ("kanbrtY", "kanbrtý"),
+            ("onlY", "onlý"),
+            ("probablY", "probablý"),
         ] {
             assert_incomplete_lujvo(source, prefix, LujvoParseExpectation::FinalOrInitialRafsi);
         }
@@ -6466,6 +6491,10 @@ mod tests {
             "brodykanbrtybra",
             "spagétykla",
             "brodykla",
+            "kanbrtYbra",
+            "brodYbra",
+            "klábro",
+            "klákla",
         ] {
             let words = crate::segment_words_with_modifiers_with_options_and_source_id(
                 source,
@@ -6522,9 +6551,30 @@ mod tests {
             ("bródykanbrtyy", "bródy", "kanbrtyy"),
             ("bródyknbrty", "bródy", "knbrty"),
             ("bródybrnbra", "bródy", "brnbra"),
+            // CV'V is CVV_final_rafsi, not short_final_rafsi. A stressed
+            // initial rafsi cannot take it. The tail stays a failure.
+            ("bródyba'i", "bródy", "ba'i"),
+            ("bródybá'i", "bródy", "bá'i"),
+            ("kánbrtyba'i", "kánbrty", "ba'i"),
         ] {
             assert_short_final_failure(source, prefix, suffix);
             assert_short_final_note(source, prefix, "after the `y`");
+        }
+        // A stressed y-less rafsi is not an unstressed initial rafsi.
+        // One syllable after it makes the first rafsi stressed. The tail is
+        // not a short final rafsi.
+        for (source, prefix, suffix) in [
+            ("klaklá", "kla", "klá"),
+            ("kanklá", "kan", "klá"),
+            ("kláklá", "klá", "klá"),
+            ("kánklá", "kán", "klá"),
+            ("klábrodybra", "klá", "brodybra"),
+            ("kánbrodybra", "kán", "brodybra"),
+            ("xlastmlu", "xla", "stmlu"),
+            ("flai", "fla", "i"),
+        ] {
+            assert_short_final_failure(source, prefix, suffix);
+            assert_short_final_note(source, prefix, &format!("after `{prefix}`"));
         }
         assert_incomplete_lujvo(
             "brodykanbrty",
@@ -6637,11 +6687,13 @@ mod tests {
             parsed_prefix,
             rafsi_start,
             expected,
+            ends_on_y,
         }) = detail.as_data()
         else {
             panic!("{source} detail is {detail:?}");
         };
         assert_eq!(parsed_prefix, prefix, "{source}");
+        assert!(!*ends_on_y, "{source}");
         assert_eq!(
             *expected,
             LujvoParseExpectation::ShortFinalRafsi,
@@ -6696,20 +6748,31 @@ mod tests {
             note.contains(prefix) && note.contains(anchor_phrase),
             "{source}: {note}"
         );
-        let span = invalid_lujvo_rafsi_span(&error);
+        let ends_on_y = invalid_lujvo_ends_on_y(&error);
         if anchor_phrase == "after the `y`" {
-            let span_chars = span.chars().collect::<Vec<_>>();
-            assert!(
-                matches!(span_chars.as_slice(), [.., 'y'] | [.., 'y', '\'']),
-                "{source} names the y in `{span}`"
-            );
+            assert!(ends_on_y, "{source}");
         } else {
+            let span = invalid_lujvo_rafsi_span(&error);
+            assert!(!ends_on_y, "{source}");
             assert_eq!(format!("after `{span}`"), anchor_phrase, "{source}");
             assert!(
                 !note.contains("after the `y`"),
                 "{source} names a y-less rafsi: {note}"
             );
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_lujvo_ends_on_y(error: &crate::MorphologyError) -> bool {
+        let crate::MorphologyError::Invalid { detail, .. } = error else {
+            panic!("invalid word error");
+        };
+        let detail = detail.as_ref().expect("lujvo detail");
+        let data!(MorphologyErrorDetail::InvalidLujvo { ends_on_y, .. }) = detail.as_data() else {
+            panic!("invalid lujvo detail");
+        };
+        *ends_on_y
     }
 
     #[requires(true)]
@@ -6759,18 +6822,16 @@ mod tests {
             parsed_prefix,
             rafsi_start,
             expected,
+            ends_on_y,
         }) = detail.as_data()
         else {
             panic!("{source} detail is {detail:?}");
         };
         assert_eq!(parsed_prefix, prefix, "{source}");
         assert_eq!(*expected, expected_continuation, "{source}");
+        assert!(*ends_on_y, "{source}");
         let span: String = parsed_prefix.chars().skip(*rafsi_start).collect();
-        let span_chars = span.chars().collect::<Vec<_>>();
-        assert!(
-            matches!(span_chars.as_slice(), [.., 'y'] | [.., 'y', '\'']),
-            "{source} names the y in `{span}`"
-        );
+        assert!(!span.is_empty(), "{source}");
         let diagnostic = error.to_diagnostic(None, source).expect(source);
         assert_eq!(diagnostic.code, "morphology.incomplete-lujvo", "{source}");
         assert_eq!(
@@ -6822,6 +6883,7 @@ mod tests {
             parsed_prefix,
             rafsi_start,
             expected,
+            ..
         }) = detail.as_data()
         else {
             panic!("{source} detail is {detail:?}");

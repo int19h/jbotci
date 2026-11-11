@@ -3763,6 +3763,7 @@ mod tests {
             parsed_prefix: Some("xla".to_owned()),
             rafsi_start: 0,
             expected: LujvoParseExpectation::ShortFinalRafsi,
+            ends_on_y: false,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
@@ -4310,6 +4311,7 @@ mod tests {
             parsed_prefix: Some("xla".to_owned()),
             rafsi_start: 0,
             expected: LujvoParseExpectation::ShortFinalRafsi,
+            ends_on_y: false,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
 
