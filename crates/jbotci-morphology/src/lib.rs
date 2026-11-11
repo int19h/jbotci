@@ -2054,10 +2054,10 @@ impl LujvoParseExpectation {
     pub(crate) fn incomplete_headline(self) -> &'static str {
         match self {
             Self::ShortFinalRafsi => {
-                "incomplete lujvo: a short final rafsi is expected after the `y`"
+                "incomplete lujvo: a short final rafsi is needed after the `y`"
             }
             Self::FinalOrInitialRafsi | Self::InitialOrStandaloneFinalRafsi => {
-                "incomplete lujvo: a final rafsi or another initial rafsi is expected"
+                "incomplete lujvo: a final rafsi or another initial rafsi is needed after the `y`"
             }
         }
     }
@@ -2250,11 +2250,11 @@ impl MorphologyErrorDetail {
                 expected,
             }) => match expected {
                 LujvoParseExpectation::ShortFinalRafsi => format!(
-                    "after parsing `{parsed_prefix}`, the lujvo is incomplete and a short final rafsi is expected after the `y`"
+                    "as a Lojban compound, `{parsed_prefix}` needs a short final rafsi after the `y`"
                 ),
                 LujvoParseExpectation::FinalOrInitialRafsi
                 | LujvoParseExpectation::InitialOrStandaloneFinalRafsi => format!(
-                    "As a Lojban compound, `{parsed_prefix}` ends before its final word part. A final rafsi or another initial rafsi is expected."
+                    "as a Lojban compound, `{parsed_prefix}` needs a final rafsi or another initial rafsi after the `y`"
                 ),
             },
             data!(MorphologyErrorDetail::FuhivlaContainsY) => {

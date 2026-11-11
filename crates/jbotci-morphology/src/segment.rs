@@ -2682,20 +2682,17 @@ fn lujvo_part_ranges_uncached(
             continue;
         }
         // The rafsi consumed this span and ends on y. No input remains after
-        // that y. The lujvo is incomplete. This rafsi is unstressed.
-        // brivla reads initial_rafsi* and then brivla_core. After this rafsi,
-        // camxes can read another initial rafsi or a whole brivla_core.
-        // A brivla_core is a fu'ivla, a gismu, a CVV final rafsi, or a stressed
-        // initial rafsi plus a short final rafsi. A tail after the y stays on
-        // the invalid-lujvo path.
+        // that y. The lujvo is incomplete. Stress comes from the parser
+        // predicate in this span. A stressed initial rafsi needs a short final
+        // rafsi. An unstressed initial rafsi can take another initial rafsi or
+        // a brivla core. A tail after the y stays on the invalid-lujvo path.
         if next == end && initial_rafsi_reaches_end_on_y(chars, index, end, cache) {
-            merge_lujvo_failure(
-                failure,
-                Some(LujvoParseFailure::incomplete(
-                    end,
-                    LujvoParseExpectation::FinalOrInitialRafsi,
-                )),
-            );
+            let expected = if stressed_y_ending_rafsi_in_context(chars, index, end, cache) {
+                LujvoParseExpectation::ShortFinalRafsi
+            } else {
+                LujvoParseExpectation::FinalOrInitialRafsi
+            };
+            merge_lujvo_failure(failure, Some(LujvoParseFailure::incomplete(end, expected)));
             continue;
         }
         let Some(mut rest) =
@@ -3064,21 +3061,13 @@ fn record_stressed_extended_short_final_failure(
     cache: &mut MorphologyRecognitionCache,
 ) {
     // brivla_core <- ... / stressed_initial_rafsi short_final_rafsi.
-    // The split search above returns only a stressed rafsi whose tail is a
-    // short final. When that search fails, keep the furthest stressed extended
-    // rafsi that ends on y. Input after that y is a bad tail. No input after
-    // that y means the short final is missing. The choice is that parse state.
-    // Do not guess the boundary from the letters, and do not fall back to a
-    // y-less rafsi.
-    let Some(split) = stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache)
-        .into_iter()
-        .filter(|split| {
-            *split > index
-                && chars.get(split - 1).is_some_and(|value| is_y(*value))
-                && !is_short_final_rafsi_slice(chars, *split, end)
-        })
-        .max()
-    else {
+    // stressed_initial_rafsi is a stressed extended rafsi, a stressed y-rafsi,
+    // or a stressed y-less rafsi. The split search above returns only a match
+    // whose tail is a short final. When that search fails, keep the furthest
+    // stressed initial rafsi. Input after it is a bad tail. No input after it
+    // means the short final is missing. Stress uses the parser predicate in
+    // this span. A rafsi shape alone does not decide stress.
+    let Some(split) = stressed_initial_rafsi_failure_split(chars, index, end, cache) else {
         return;
     };
     let candidate = if split == end {
@@ -3087,6 +3076,232 @@ fn record_stressed_extended_short_final_failure(
         LujvoParseFailure::new(split, LujvoParseExpectation::ShortFinalRafsi)
     };
     merge_lujvo_failure(failure, Some(candidate));
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.is_none_or(|split| split > index && split <= end))]
+fn stressed_initial_rafsi_failure_split(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Option<usize> {
+    if cache.is_cancelled() {
+        return None;
+    }
+    let mut splits = stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache)
+        .into_iter()
+        .filter(|split| chars.get(split - 1).is_some_and(|value| is_y(*value)))
+        .collect::<Vec<_>>();
+    splits.extend(stressed_y_rafsi_ends_in_context(chars, index, end, cache));
+    // A stressed y-less rafsi has no y. The short-final note names the break
+    // after y, so this alternative applies only when the rafsi reaches the
+    // end and the short final is missing. A tail, as in `klá'y`, stays off
+    // this path.
+    splits.extend(
+        stressed_y_less_rafsi_ends_in_context(chars, index, end, cache)
+            .into_iter()
+            .filter(|split| *split == end),
+    );
+    splits
+        .into_iter()
+        .filter(|split| {
+            *split > index && *split <= end && !is_short_final_rafsi_slice(chars, *split, end)
+        })
+        .max()
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn stressed_y_ending_rafsi_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    if cache.is_cancelled() || index >= end {
+        return false;
+    }
+    // stressed_extended_rafsi and stressed_y_rafsi end on y.
+    // The vowel stress predicate runs in this span. The rafsi shape is not
+    // evidence that the rafsi is unstressed.
+    stressed_extended_rafsi_slice_with_cache(chars, index, end, end, cache)
+        || stressed_y_rafsi_ends_in_context(chars, index, end, cache).contains(&end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+fn stressed_y_rafsi_ends_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Vec<usize> {
+    // stressed_y_rafsi <- (stressed_long_rafsi / stressed_CVC_rafsi) y
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+    let mut ends = Vec::new();
+    for base_end in stressed_long_rafsi_ends_in_context(chars, index, end, cache) {
+        if chars.get(base_end).is_some_and(|value| is_y(*value)) && base_end + 1 <= end {
+            ends.push(base_end + 1);
+        }
+    }
+    if let Some(base_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache)
+        && chars.get(base_end).is_some_and(|value| is_y(*value))
+        && base_end + 1 <= end
+    {
+        ends.push(base_end + 1);
+    }
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+fn stressed_y_less_rafsi_ends_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Vec<usize> {
+    // stressed_y_less_rafsi <- stressed_CVC_rafsi !y / stressed_CCV_rafsi / stressed_CVV_rafsi
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+    let mut ends = Vec::new();
+    if let Some(cvc_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache)
+        && !chars.get(cvc_end).is_some_and(|value| is_y(*value))
+    {
+        ends.push(cvc_end);
+    }
+    if index + 3 <= end
+        && initial_pair_chars(chars[index], chars[index + 1])
+        && is_vowel(chars[index + 2])
+        && vowel_is_stressed_in_context(chars, index + 2, end, cache)
+    {
+        ends.push(index + 3);
+    }
+    ends.extend(stressed_cvv_rafsi_ends_in_context(chars, index, end, cache));
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+fn stressed_long_rafsi_ends_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Vec<usize> {
+    // stressed_long_rafsi <- initial_pair stressed_vowel consonant
+    //                      / consonant stressed_vowel consonant consonant
+    if cache.is_cancelled() {
+        return Vec::new();
+    }
+    let mut ends = Vec::new();
+    if index + 4 <= end
+        && initial_pair_chars(chars[index], chars[index + 1])
+        && is_vowel(chars[index + 2])
+        && is_consonant(chars[index + 3])
+        && vowel_is_stressed_in_context(chars, index + 2, end, cache)
+    {
+        ends.push(index + 4);
+    }
+    if index + 4 <= end
+        && is_consonant(chars[index])
+        && is_vowel(chars[index + 1])
+        && is_consonant(chars[index + 2])
+        && is_consonant(chars[index + 3])
+        && vowel_is_stressed_in_context(chars, index + 1, end, cache)
+    {
+        ends.push(index + 4);
+    }
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.is_none_or(|next| next > index && next <= end))]
+fn stressed_cvc_rafsi_end_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Option<usize> {
+    // stressed_CVC_rafsi <- consonant stressed_vowel consonant
+    (index + 3 <= end
+        && is_consonant(chars[index])
+        && is_vowel(chars[index + 1])
+        && is_consonant(chars[index + 2])
+        && vowel_is_stressed_in_context(chars, index + 1, end, cache))
+    .then_some(index + 3)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+fn stressed_cvv_rafsi_ends_in_context(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> Vec<usize> {
+    // stressed_CVV_rafsi <- consonant (unstressed_vowel h stressed_vowel / stressed_diphthong) r_hyphen?
+    if cache.is_cancelled() || index >= end || !is_consonant(chars[index]) {
+        return Vec::new();
+    }
+    let mut ends = Vec::new();
+    if index + 4 <= end
+        && is_vowel(chars[index + 1])
+        && chars[index + 2] == '\''
+        && is_vowel(chars[index + 3])
+        && !vowel_is_stressed_in_context(chars, index + 1, end, cache)
+        && vowel_is_stressed_in_context(chars, index + 3, end, cache)
+    {
+        push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 4, end);
+    }
+    if index + 3 <= end
+        && is_diphthong_pair(chars[index + 1], chars[index + 2])
+        && nucleus_is_stressed_in_context(chars, index + 1, index + 3, end, cache)
+    {
+        push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 3, end);
+    }
+    ends
+}
+
+#[requires(base_end <= end && end <= chars.len())]
+#[ensures(ends.iter().all(|next| *next >= base_end && *next <= end))]
+fn push_rafsi_with_optional_r_hyphen(
+    ends: &mut Vec<usize>,
+    chars: &[char],
+    base_end: usize,
+    end: usize,
+) {
+    ends.push(base_end);
+    if let Some(hyphen_end) =
+        r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end))
+        && hyphen_end <= end
+    {
+        ends.push(hyphen_end);
+    }
+}
+
+#[requires(vowel_index < context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn vowel_is_stressed_in_context(
+    chars: &[char],
+    vowel_index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // stressed_vowel <- &stressed vowel / vowel &stress
+    nucleus_is_stressed_in_context(chars, vowel_index, vowel_index + 1, context_end, cache)
 }
 
 #[requires(index < end && end <= chars.len())]
@@ -5913,9 +6128,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn stressed_rafsi_ending_at_y_is_incomplete_lujvo() {
-        // A stressed extended rafsi ends on y. The missing part is a short
-        // final rafsi.
+        // A stressed initial rafsi ends on y. The missing part is a short
+        // final rafsi. `spagéty` is `spa` plus the stressed y-rafsi `géty`.
+        // `bródy` is a stressed long rafsi plus y.
         for (source, prefix) in [
+            ("spagéty", "spagéty"),
+            ("bródy", "bródy"),
             ("kánbrty", "kánbrty"),
             ("klamá'y", "klamá'y"),
             ("Only", "ónly"),
@@ -5923,12 +6141,12 @@ mod tests {
             assert_incomplete_lujvo(source, prefix, LujvoParseExpectation::ShortFinalRafsi);
         }
         // An unstressed y-ending initial rafsi ends the span. The parser can
-        // still read another initial rafsi or a final part. `kanbrty` has no
-        // stress mark, so implicit stress does not apply when the word ends
-        // at y. It uses this path. `kánbrty` is the stressed form.
+        // still read another initial rafsi or a final part. No syllable
+        // follows the final y, so implicit stress does not apply. `kanbrty`
+        // uses this path. `kánbrty` is the stressed form.
         for (source, prefix) in [
             ("kanbrty", "kanbrty"),
-            ("spagéty", "spagéty"),
+            ("spagety", "spagety"),
             ("only", "only"),
             ("probably", "probably"),
             ("brody", "brody"),
@@ -6171,10 +6389,10 @@ mod tests {
             .flat_map(|note| note.segments.iter().map(|segment| segment.text.as_str()))
             .collect();
         let detail_text = match expected_continuation {
-            LujvoParseExpectation::ShortFinalRafsi => {
-                "a short final rafsi is expected after the `y`"
+            LujvoParseExpectation::ShortFinalRafsi => "needs a short final rafsi after the `y`",
+            LujvoParseExpectation::FinalOrInitialRafsi => {
+                "needs a final rafsi or another initial rafsi after the `y`"
             }
-            LujvoParseExpectation::FinalOrInitialRafsi => "ends before its final word part",
             LujvoParseExpectation::InitialOrStandaloneFinalRafsi => {
                 panic!("{source} is not an initial-only failure")
             }
