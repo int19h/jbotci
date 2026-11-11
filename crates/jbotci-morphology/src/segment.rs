@@ -853,18 +853,8 @@ fn analyze_lujvo_part_ranges_chars_with_cache(
         record_lujvo_failure(&mut failure, 0, false);
         return Err(failure.expect("initial lujvo failure was recorded"));
     }
-    if chars.len() <= 3 {
-        // A stressed y-less rafsi can be three letters.
-        // It reaches the end, and a short final rafsi is still required.
-        // A short word that is not that rafsi keeps the index-0 failure.
-        record_stressed_extended_short_final_failure(chars, 0, chars.len(), &mut failure, cache);
-        if failure.as_ref().is_some_and(|item| item.incomplete) {
-            return Err(failure.expect("incomplete lujvo failure was recorded"));
-        }
-        failure = None;
-        record_lujvo_failure(&mut failure, 0, false);
-        return Err(failure.expect("initial lujvo failure was recorded"));
-    }
+    // Every length uses the same analysis. A stressed initial rafsi that
+    // reaches the end records an incomplete short-final failure there.
     if let Some(ranges) =
         lujvo_part_ranges_from_with_cache(chars, 0, chars.len(), false, &mut failure, cache)
         && let Ok(ranges) = Vec1::try_from_vec(ranges)
@@ -4468,7 +4458,7 @@ fn y_rafsi_vowel_is_unstressed_in_context(
 #[ensures(ret.is_none_or(|(start, end)| index <= start && start < end && end <= rafsi_end))]
 fn y_rafsi_vowel_span(chars: &[char], index: usize, rafsi_end: usize) -> Option<(usize, usize)> {
     // (long_rafsi / CVC_rafsi) y h?
-    // long_rafsi is four letters. CVC_rafsi is three. The vowel is one letter.
+    // The recognizer names the base that ends at y. The vowel is that base's nucleus.
     if rafsi_end <= index {
         return None;
     }
@@ -4480,11 +4470,20 @@ fn y_rafsi_vowel_span(chars: &[char], index: usize, rafsi_end: usize) -> Option<
     if y_index <= index || !chars.get(y_index).is_some_and(|value| is_y(*value)) {
         return None;
     }
-    let base_len = y_index - index;
-    let vowel_start = if base_len == 4 && initial_pair_chars(chars[index], chars[index + 1]) {
-        index + 2
-    } else if base_len == 4 || base_len == 3 {
+    let vowel_start = if cvc_rafsi_end(chars, index) == Some(y_index) {
+        // CVC_rafsi <- consonant vowel consonant
         index + 1
+    } else if long_rafsi_ends(chars, index).contains(&y_index) {
+        // long_rafsi <- initial_pair vowel consonant
+        //             / consonant vowel consonant consonant
+        if chars
+            .get(index + 1)
+            .is_some_and(|second| initial_pair_chars(chars[index], *second))
+        {
+            index + 2
+        } else {
+            index + 1
+        }
     } else {
         return None;
     };
@@ -6554,10 +6553,15 @@ mod tests {
         // `stressed_y_less_rafsi` matches the stressed CCV, and a short final
         // rafsi is still required. No input remains.
         for source in ["klá", "bró"] {
-            assert_incomplete_y_less_short_final(source, source);
+            assert_incomplete_y_less_short_final(source, source, source);
+        }
+        // A comma is inside the vowel. The parser drops it.
+        // The prefix is the rafsi, `klá` or `bró`.
+        for (source, prefix) in [("kl,á", "klá"), ("br,ó", "bró")] {
+            assert_incomplete_y_less_short_final(source, prefix, prefix);
         }
         // Camxes-morpho accepts these shapes as words.
-        // `bái` and `bá'i` are cmavo. `kán` and `baúr` are cmevla.
+        // `bái` and `bá'i` are cmavo. `kán`, `baúr`, and `baún` are cmevla.
         // The lujvo failure path does not run for an accepted word.
         for (source, kind) in [
             ("bái", WordKind::Cmavo),
@@ -6565,6 +6569,9 @@ mod tests {
             ("ba'í", WordKind::Cmavo),
             ("kán", WordKind::Cmevla),
             ("baúr", WordKind::Cmevla),
+            ("ba'úr", WordKind::Cmevla),
+            ("baún", WordKind::Cmevla),
+            ("ba'ún", WordKind::Cmevla),
         ] {
             let words = crate::segment_words_with_modifiers_with_options_and_source_id(
                 source,
@@ -6590,11 +6597,25 @@ mod tests {
             panic!("pro is an invalid-word error, got {error:?}");
         };
         assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord);
+        // `brá'i` is a slinku'i. Camxes-morpho rejects it.
+        // The diagnostic stays `morphology.slinkuhi`.
+        let brai = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "brá'i",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("brá'i");
+        let crate::MorphologyError::Invalid { kind, .. } = &brai else {
+            panic!("brá'i is an invalid-word error, got {brai:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::Slinkuhi, "brá'i");
+        let diagnostic = brai.to_diagnostic(None, "brá'i").expect("brá'i");
+        assert_eq!(diagnostic.code, "morphology.slinkuhi", "brá'i");
     }
 
-    #[requires(!source.is_empty())]
+    #[requires(!source.is_empty() && !prefix.is_empty() && !rafsi.is_empty())]
     #[ensures(true)]
-    fn assert_incomplete_y_less_short_final(source: &str, rafsi: &str) {
+    fn assert_incomplete_y_less_short_final(source: &str, prefix: &str, rafsi: &str) {
         let error = crate::segment_words_with_modifiers_with_options_and_source_id(
             source,
             &MorphologyOptions::default(),
@@ -6620,7 +6641,7 @@ mod tests {
         else {
             panic!("{source} detail is {detail:?}");
         };
-        assert_eq!(parsed_prefix, source, "{source}");
+        assert_eq!(parsed_prefix, prefix, "{source}");
         assert_eq!(
             *expected,
             LujvoParseExpectation::ShortFinalRafsi,
@@ -6628,12 +6649,8 @@ mod tests {
         );
         let span: String = parsed_prefix.chars().skip(*rafsi_start).collect();
         assert_eq!(span, rafsi, "{source}");
-        assert!(text.ends_with(rafsi), "{source}");
-        assert_eq!(
-            text.chars().count(),
-            parsed_prefix.chars().count(),
-            "{source} has an empty suffix"
-        );
+        let stripped: String = text.chars().filter(|value| *value != ',').collect();
+        assert_eq!(stripped, *parsed_prefix, "{source} has an empty suffix");
         let diagnostic = error.to_diagnostic(None, source).expect(source);
         assert_eq!(diagnostic.code, "morphology.incomplete-lujvo", "{source}");
         assert_eq!(
@@ -6648,7 +6665,7 @@ mod tests {
             .collect();
         assert!(
             note.contains(&format!(
-                "as a Lojban compound, `{source}` needs a short final rafsi after `{rafsi}`"
+                "as a Lojban compound, `{prefix}` needs a short final rafsi after `{rafsi}`"
             )),
             "{source}: {note}"
         );
