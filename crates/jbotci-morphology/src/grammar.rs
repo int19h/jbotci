@@ -2625,12 +2625,13 @@ impl<'a> Segmenter<'a> {
                 phonemes.as_str(),
             )
             .ok_or_else(|| {
+                let detail = crate::segment::invalid_lujvo_error_detail(&shape);
                 self.invalid_span_with_detail(
-                    MorphologyErrorKind::InvalidLujvo,
+                    lujvo_detail_kind(detail.as_ref()),
                     start,
                     end,
                     self.context(MorphologyContextKind::Lujvo, start, end),
-                    crate::segment::invalid_lujvo_error_detail(&shape),
+                    detail,
                 )
             })?;
             Word::lujvo(parts, span)
@@ -2889,7 +2890,7 @@ impl<'a> Segmenter<'a> {
             .collect::<String>();
         if let Some(detail) = crate::segment::invalid_lujvo_error_detail(&stripped) {
             return self.invalid_span_with_detail(
-                MorphologyErrorKind::InvalidLujvo,
+                lujvo_detail_kind(Some(&detail)),
                 start,
                 end,
                 self.context(MorphologyContextKind::Lujvo, start, end),
@@ -3025,10 +3026,22 @@ fn word_context_kind(kind: WordKind) -> MorphologyContextKind {
 
 #[requires(true)]
 #[ensures(true)]
+fn lujvo_detail_kind(detail: Option<&MorphologyErrorDetail>) -> MorphologyErrorKind {
+    if detail.is_some_and(MorphologyErrorDetail::is_incomplete_lujvo) {
+        MorphologyErrorKind::IncompleteLujvo
+    } else {
+        MorphologyErrorKind::InvalidLujvo
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn context_kind_for_violation(kind: MorphologyErrorKind) -> MorphologyContextKind {
     match kind {
         MorphologyErrorKind::Slinkuhi => MorphologyContextKind::Fuhivla,
-        MorphologyErrorKind::InvalidLujvo => MorphologyContextKind::Lujvo,
+        MorphologyErrorKind::InvalidLujvo | MorphologyErrorKind::IncompleteLujvo => {
+            MorphologyContextKind::Lujvo
+        }
         MorphologyErrorKind::InvalidZoiDelimiter => MorphologyContextKind::DelimitedNonLojbanQuote,
         MorphologyErrorKind::InvalidQuoteMarker => MorphologyContextKind::QuotedWord,
         _ => MorphologyContextKind::Fuhivla,

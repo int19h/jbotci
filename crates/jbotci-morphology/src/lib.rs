@@ -1718,6 +1718,7 @@ define_string_enum_metadata! {
         DigitVowel => ("DIGIT_VOWEL", "digit-vowel"),
         Slinkuhi => ("SLINKUHI", "slinkuhi"),
         InvalidLujvo => ("INVALID_LUJVO", "invalid-lujvo"),
+        IncompleteLujvo => ("INCOMPLETE_LUJVO", "incomplete-lujvo"),
         InvalidQuoteMarker => ("INVALID_QUOTE_MARKER", "invalid-quote-marker"),
         UnopenedQuote => ("UNOPENED_QUOTE", "unopened-quote"),
         InvalidZoiDelimiter => ("INVALID_ZOI_DELIMITER", "invalid-zoi-delimiter"),
@@ -1744,6 +1745,7 @@ impl MorphologyErrorKind {
             Self::DigitVowel => "morphology.digit-vowel",
             Self::Slinkuhi => "morphology.slinkuhi",
             Self::InvalidLujvo => "morphology.invalid-lujvo",
+            Self::IncompleteLujvo => "morphology.incomplete-lujvo",
             Self::InvalidQuoteMarker => "morphology.invalid-quote-marker",
             Self::UnopenedQuote => "morphology.unopened-quote",
             Self::InvalidZoiDelimiter => "morphology.invalid-zoi-delimiter",
@@ -1769,6 +1771,9 @@ impl MorphologyErrorKind {
             Self::DigitVowel => "digit cannot be followed by a vowel",
             Self::Slinkuhi => "slinku'i form is not a valid word",
             Self::InvalidLujvo => "invalid lujvo decomposition",
+            Self::IncompleteLujvo => {
+                "incomplete lujvo: a short final rafsi is expected after the `y`"
+            }
             Self::InvalidQuoteMarker => "quote marker must be a single word",
             Self::UnopenedQuote => "unexpected cmavo",
             Self::InvalidZoiDelimiter => "ZOI delimiter must be a single non-y word",
@@ -2134,6 +2139,7 @@ impl PhonotacticDetailKind {
 
 #[invariant(true)]
 #[invariant(::InvalidLujvo => parsed_prefix.as_ref().is_none_or(|prefix| !prefix.is_empty()))]
+#[invariant(::IncompleteLujvo => !parsed_prefix.is_empty())]
 #[invariant(::ExpectedWord => matches!(expected,
     ExpectedWordDetailKind::PlainWord
         | ExpectedWordDetailKind::ReplacementClose
@@ -2163,6 +2169,9 @@ pub enum MorphologyErrorDetail {
         parsed_prefix: Option<String>,
         expected: LujvoParseExpectation,
     },
+    IncompleteLujvo {
+        parsed_prefix: String,
+    },
     FuhivlaContainsY,
     Slinkuhi,
     ExpectedWord {
@@ -2182,6 +2191,7 @@ impl MorphologyErrorDetail {
     fn construct(&self) -> &'static str {
         match self.as_data() {
             data!(MorphologyErrorDetail::InvalidLujvo { .. }) => "invalid lujvo",
+            data!(MorphologyErrorDetail::IncompleteLujvo { .. }) => "incomplete lujvo",
             data!(MorphologyErrorDetail::FuhivlaContainsY) => "fu'ivla",
             data!(MorphologyErrorDetail::Slinkuhi) => "slinku'i",
             data!(MorphologyErrorDetail::ExpectedWord { .. }) => "expected word",
@@ -2221,6 +2231,11 @@ impl MorphologyErrorDetail {
                     )
                 }
             }
+            data!(MorphologyErrorDetail::IncompleteLujvo { parsed_prefix }) => {
+                format!(
+                    "after parsing `{parsed_prefix}`, the lujvo is incomplete and a short final rafsi is expected after the `y`"
+                )
+            }
             data!(MorphologyErrorDetail::FuhivlaContainsY) => {
                 "fu'ivla syllables cannot use y as a vowel nucleus".to_owned()
             }
@@ -2236,6 +2251,15 @@ impl MorphologyErrorDetail {
             }
             data!(MorphologyErrorDetail::Phonotactic { reason }) => reason.description().to_owned(),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn is_incomplete_lujvo(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(MorphologyErrorDetail::IncompleteLujvo { .. })
+        )
     }
 }
 
@@ -3914,6 +3938,11 @@ mod tests {
                 MorphologyErrorKind::InvalidLujvo,
                 "morphology.invalid-lujvo",
                 "invalid lujvo decomposition",
+            ),
+            (
+                MorphologyErrorKind::IncompleteLujvo,
+                "morphology.incomplete-lujvo",
+                "incomplete lujvo: a short final rafsi is expected after the `y`",
             ),
             (
                 MorphologyErrorKind::InvalidQuoteMarker,

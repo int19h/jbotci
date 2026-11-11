@@ -680,17 +680,29 @@ pub(crate) fn fuhivla_y_error_detail(word: &str) -> Option<MorphologyErrorDetail
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct LujvoParseFailure {
     index: usize,
-    expected: LujvoParseExpectation,
+    /// `None` means the span ended on a y-ending rafsi and the short final
+    /// rafsi is missing. `Some` is the rafsi the parser still expects.
+    expected: Option<LujvoParseExpectation>,
 }
 
 impl LujvoParseFailure {
     #[requires(true)]
     #[ensures(ret.index == index)]
-    #[ensures(ret.expected == expected)]
+    #[ensures(ret.expected == Some(expected))]
     fn new(index: usize, expected: LujvoParseExpectation) -> Self {
         LujvoParseFailure {
             index: index,
-            expected: expected,
+            expected: Some(expected),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.index == index)]
+    #[ensures(ret.expected.is_none())]
+    fn incomplete(index: usize) -> Self {
+        LujvoParseFailure {
+            index: index,
+            expected: None,
         }
     }
 
@@ -700,10 +712,16 @@ impl LujvoParseFailure {
         if self.index == 0 || self.index > chars.len() {
             return None;
         }
-        Some(new!(MorphologyErrorDetail::InvalidLujvo {
-            parsed_prefix: Some(chars[..self.index].iter().collect()),
-            expected: self.expected,
-        }))
+        let parsed_prefix = chars[..self.index].iter().collect::<String>();
+        match self.expected {
+            Some(expected) => Some(new!(MorphologyErrorDetail::InvalidLujvo {
+                parsed_prefix: Some(parsed_prefix),
+                expected: expected,
+            })),
+            None => Some(new!(MorphologyErrorDetail::IncompleteLujvo {
+                parsed_prefix: parsed_prefix,
+            })),
+        }
     }
 }
 
@@ -2653,6 +2671,13 @@ fn lujvo_part_ranges_uncached(
         if next <= index {
             continue;
         }
+        // The rafsi consumed this span and ends on y. Camxes still requires
+        // short_final_rafsi. No input remains after that y, so the lujvo is
+        // incomplete. A tail after the y stays on the invalid-lujvo path.
+        if next == end && initial_rafsi_reaches_end_on_y(chars, index, end, cache) {
+            merge_lujvo_failure(failure, Some(LujvoParseFailure::incomplete(end)));
+            continue;
+        }
         let Some(mut rest) =
             lujvo_part_ranges_from_with_cache(chars, next, end, true, failure, cache)
         else {
@@ -3018,17 +3043,17 @@ fn record_stressed_extended_short_final_failure(
     failure: &mut Option<LujvoParseFailure>,
     cache: &mut MorphologyRecognitionCache,
 ) {
+    // brivla_core <- ... / stressed_initial_rafsi short_final_rafsi.
     // The split search above returns only a stressed rafsi whose tail is a
     // short final. When that search fails, keep the furthest stressed extended
-    // rafsi. Its end is the failure position. Do not guess the boundary from
-    // the letters, and do not fall back to a y-less rafsi.
+    // rafsi that ends on y. Input after that y is a bad tail. No input after
+    // that y means the short final is missing. The choice is that parse state.
+    // Do not guess the boundary from the letters, and do not fall back to a
+    // y-less rafsi.
     let Some(split) = stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache)
         .into_iter()
         .filter(|split| {
-            // The tail is the short-final position. A rafsi that already ends
-            // at the core end has no tail inside this core.
             *split > index
-                && *split < end
                 && chars.get(split - 1).is_some_and(|value| is_y(*value))
                 && !is_short_final_rafsi_slice(chars, *split, end)
         })
@@ -3036,13 +3061,29 @@ fn record_stressed_extended_short_final_failure(
     else {
         return;
     };
-    merge_lujvo_failure(
-        failure,
-        Some(LujvoParseFailure::new(
-            split,
-            LujvoParseExpectation::ShortFinalRafsi,
-        )),
-    );
+    let candidate = if split == end {
+        LujvoParseFailure::incomplete(split)
+    } else {
+        LujvoParseFailure::new(split, LujvoParseExpectation::ShortFinalRafsi)
+    };
+    merge_lujvo_failure(failure, Some(candidate));
+}
+
+#[requires(index < end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn initial_rafsi_reaches_end_on_y(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // The end came from a rafsi recognizer. y-rafsi, hy-rafsi, brivla rafsi,
+    // and fu'ivla rafsi all end on y. A y-less rafsi does not.
+    y_rafsi_slice(chars, index, end)
+        || hy_rafsi_slice(chars, index, end)
+        || extended_rafsi_ends_until_with_cache(chars, index, end, cache).contains(&end)
+        || stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache).contains(&end)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -3194,9 +3235,7 @@ fn brivla_rafsi_two_syllable_lookahead(chars: &[char], index: usize, lookahead_e
     }
     syllable_ends(chars, index, lookahead_end, lookahead_end)
         .into_iter()
-        .any(|first_end| {
-            first_end > index && syllable_after_consonantal_chain(chars, first_end, lookahead_end)
-        })
+        .any(|first_end| syllable_after_consonantal_chain(chars, first_end, lookahead_end))
 }
 
 #[requires(index <= lookahead_end && lookahead_end <= chars.len())]
@@ -5848,19 +5887,250 @@ mod tests {
                 "{source}: {note}"
             );
         }
-        // A stressed extended rafsi that already ends at the core end has no
-        // short-final tail. `Only` stays unrecognized. Camxes rejects it as a
-        // foreign word.
-        let only = crate::segment_words_with_modifiers_with_options_and_source_id(
-            "Only",
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stressed_rafsi_ending_at_y_is_incomplete_lujvo() {
+        // The stressed or y-ending rafsi is recognized. The span ends on that
+        // y. Camxes still requires a short final rafsi, and none remains.
+        for (source, prefix) in [
+            ("kanbrty", "kanbrty"),
+            ("only", "only"),
+            ("spagéty", "spagéty"),
+            ("kánbrty", "kánbrty"),
+            ("klamá'y", "klamá'y"),
+            ("Only", "ónly"),
+            ("brody", "brody"),
+            ("klama'y", "klama'y"),
+        ] {
+            assert_incomplete_lujvo(source, prefix);
+        }
+        // `kla'y` has one syllable before apostrophe-y. That is a hy-rafsi in
+        // rafsi_string, not a brivla rafsi, so the lujvo parser does not reach
+        // the missing short final. `ka'y` is a cmavo.
+        for source in ["kla'y", "klá'y"] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err(source);
+            let crate::MorphologyError::Invalid { kind, .. } = &error else {
+                panic!("{source} is an invalid-word error, got {error:?}");
+            };
+            assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{source}");
+        }
+        assert!(
+            crate::segment_words_with_modifiers_with_options_and_source_id(
+                "ka'y",
+                &MorphologyOptions::default(),
+                None,
+            )
+            .is_ok(),
+            "ka'y is a cmavo"
+        );
+        // A pause ends the word on the y. A comma inside one candidate is
+        // removed before the lujvo parse, so a tail after the comma remains.
+        assert_incomplete_lujvo("kánbrty.", "kánbrty");
+        assert_incomplete_lujvo("kánbrty,", "kánbrty");
+        assert_incomplete_lujvo("kánbrty broda", "kánbrty");
+        assert_short_final_failure("kanbrty,te", "kanbrty", "te");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn corpus_sentences_keep_incomplete_lujvo_spans() {
+        let incomplete = [
+            (
+                "to purci le nu go'i kei fa le nu do cpacu le tasty food toi",
+                45,
+                50,
+                "tasty",
+            ),
+            ("Only one broda.", 0, 4, "Only"),
+            ("only one selbri", 0, 4, "only"),
+            ("i like simplicity", 7, 17, "simplicity"),
+            (
+                "leka tsali, leka {dexterity}, leka renvi, leka selnelci, leka {manipulation}",
+                18,
+                27,
+                "dexterity",
+            ),
+            (
+                "leka tsali, leka {dexterity}, leka renvi, leka selnelci, leka jitro, leka melbi, leka zgana, leka besna, leka pesysutra",
+                18,
+                27,
+                "dexterity",
+            ),
+            (
+                ".iku'i le preti cu kakne le nu vasru loi raply lerfu",
+                41,
+                46,
+                "raply",
+            ),
+            ("probably more likely", 0, 8, "probably"),
+            ("xirma prami, probably", 13, 21, "probably"),
+            (
+                "probably more like le stuzi be tu'a le ckire",
+                0,
+                8,
+                "probably",
+            ),
+            ("uu mi na tavla la ny joi la omny", 28, 32, "omny"),
+            ("probably noroi klama", 0, 8, "probably"),
+            ("probably me le re lumci kumfa", 0, 8, "probably"),
+            ("probably me re le lumci kumfa", 0, 8, "probably"),
+            ("probably any size", 0, 8, "probably"),
+            ("only one bite", 0, 4, "only"),
+        ];
+        for (source, start, end, word) in incomplete {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err(source);
+            let crate::MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                text,
+                ..
+            } = &error
+            else {
+                panic!("{source} is an invalid-word error, got {error:?}");
+            };
+            assert_eq!(*kind, MorphologyErrorKind::IncompleteLujvo, "{source}");
+            assert_eq!(
+                (*char_start, *char_end, text.as_str()),
+                (start, end, word),
+                "{source}"
+            );
+        }
+        let unchanged = [
+            (
+                "some japanese guy?",
+                14,
+                17,
+                "guy",
+                MorphologyErrorKind::UnrecognizedWord,
+            ),
+            (
+                "doi p1nky .i xu do xamgu tavla fo la lojban?",
+                4,
+                9,
+                "p1nky",
+                MorphologyErrorKind::UnrecognizedWord,
+            ),
+        ];
+        for (source, start, end, word, expected_kind) in unchanged {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err(source);
+            let crate::MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                text,
+                ..
+            } = &error
+            else {
+                panic!("{source} is an invalid-word error, got {error:?}");
+            };
+            assert_eq!(*kind, expected_kind, "{source}");
+            assert_eq!(
+                (*char_start, *char_end, text.as_str()),
+                (start, end, word),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn y_ending_rafsi_with_a_short_final_stays_lujvo() {
+        for source in [
+            "onlybra",
+            "Onlybra",
+            "klama'ybroda",
+            "kanbrtybra",
+            "brodybra",
+        ] {
+            crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .unwrap_or_else(|error| panic!("{source} stays a word: {error:?}"));
+        }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_incomplete_lujvo(source: &str, prefix: &str) {
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
             &MorphologyOptions::default(),
             None,
         )
-        .expect_err("Only");
-        let crate::MorphologyError::Invalid { kind, .. } = &only else {
-            panic!("Only is an invalid-word error, got {only:?}");
+        .expect_err(source);
+        let crate::MorphologyError::Invalid { kind, detail, .. } = &error else {
+            panic!("{source} is an invalid-word error, got {error:?}");
         };
-        assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{only:?}");
+        assert_eq!(*kind, MorphologyErrorKind::IncompleteLujvo, "{source}");
+        let expected = new!(MorphologyErrorDetail::IncompleteLujvo {
+            parsed_prefix: prefix.to_owned(),
+        });
+        assert_eq!(detail.as_ref(), Some(&expected), "{source}");
+        let diagnostic = error.to_diagnostic(None, source).expect(source);
+        assert_eq!(diagnostic.code, "morphology.incomplete-lujvo", "{source}");
+        assert_eq!(
+            diagnostic.message, "incomplete lujvo: a short final rafsi is expected after the `y`",
+            "{source}"
+        );
+        let note: String = diagnostic
+            .styled_notes
+            .iter()
+            .flat_map(|note| note.segments.iter().map(|segment| segment.text.as_str()))
+            .collect();
+        assert!(
+            note.contains(prefix)
+                && note.contains(
+                    "the lujvo is incomplete and a short final rafsi is expected after the `y`"
+                ),
+            "{source}: {note}"
+        );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_short_final_failure(source: &str, prefix: &str, suffix: &str) {
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err(source);
+        let crate::MorphologyError::Invalid {
+            kind, text, detail, ..
+        } = &error
+        else {
+            panic!("{source} is an invalid-word error, got {error:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::InvalidLujvo, "{source}");
+        assert!(text.contains(suffix), "{source} text {text}");
+        let expected = new!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix: Some(prefix.to_owned()),
+            expected: LujvoParseExpectation::ShortFinalRafsi,
+        });
+        assert_eq!(detail.as_ref(), Some(&expected), "{source}");
     }
 
     #[requires(!source.is_empty())]
