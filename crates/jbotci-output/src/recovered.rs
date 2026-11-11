@@ -91,9 +91,10 @@ fn morphology_recovery_item(
     source: &str,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let (diagnostic_code, expected) = match &errors[error_index] {
-        MorphologyError::Invalid { kind, .. } => {
-            (kind.code().to_owned(), vec![kind.message().to_owned()])
-        }
+        MorphologyError::Invalid { kind, .. } => (
+            kind.code().to_owned(),
+            vec![errors[error_index].diagnostic_message()],
+        ),
         MorphologyError::UnterminatedZoiQuote { delimiter, .. } => (
             "morphology.unterminated-zoi-quote".to_owned(),
             vec![format!("closing delimiter `{delimiter}`")],
@@ -481,7 +482,10 @@ impl std::fmt::Display for MorphologyExpectation<'_> {
     #[ensures(true)]
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            MorphologyError::Invalid { kind, .. } => formatter.write_str(kind.message()),
+            MorphologyError::Invalid { .. } => {
+                let message = self.0.diagnostic_message();
+                formatter.write_str(&message)
+            }
             MorphologyError::UnterminatedZoiQuote { delimiter, .. } => {
                 write!(formatter, "closing delimiter `{delimiter}`")
             }
