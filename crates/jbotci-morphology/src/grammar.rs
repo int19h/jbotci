@@ -2625,12 +2625,13 @@ impl<'a> Segmenter<'a> {
                 phonemes.as_str(),
             )
             .ok_or_else(|| {
+                let detail = crate::segment::invalid_lujvo_error_detail(&shape);
                 self.invalid_span_with_detail(
-                    MorphologyErrorKind::InvalidLujvo,
+                    lujvo_detail_kind(detail.as_ref()),
                     start,
                     end,
                     self.context(MorphologyContextKind::Lujvo, start, end),
-                    crate::segment::invalid_lujvo_error_detail(&shape),
+                    detail,
                 )
             })?;
             Word::lujvo(parts, span)
@@ -2889,7 +2890,7 @@ impl<'a> Segmenter<'a> {
             .collect::<String>();
         if let Some(detail) = crate::segment::invalid_lujvo_error_detail(&stripped) {
             return self.invalid_span_with_detail(
-                MorphologyErrorKind::InvalidLujvo,
+                lujvo_detail_kind(Some(&detail)),
                 start,
                 end,
                 self.context(MorphologyContextKind::Lujvo, start, end),
@@ -3025,10 +3026,22 @@ fn word_context_kind(kind: WordKind) -> MorphologyContextKind {
 
 #[requires(true)]
 #[ensures(true)]
+fn lujvo_detail_kind(detail: Option<&MorphologyErrorDetail>) -> MorphologyErrorKind {
+    if detail.is_some_and(MorphologyErrorDetail::is_incomplete_lujvo) {
+        MorphologyErrorKind::IncompleteLujvo
+    } else {
+        MorphologyErrorKind::InvalidLujvo
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn context_kind_for_violation(kind: MorphologyErrorKind) -> MorphologyContextKind {
     match kind {
         MorphologyErrorKind::Slinkuhi => MorphologyContextKind::Fuhivla,
-        MorphologyErrorKind::InvalidLujvo => MorphologyContextKind::Lujvo,
+        MorphologyErrorKind::InvalidLujvo | MorphologyErrorKind::IncompleteLujvo => {
+            MorphologyContextKind::Lujvo
+        }
         MorphologyErrorKind::InvalidZoiDelimiter => MorphologyContextKind::DelimitedNonLojbanQuote,
         MorphologyErrorKind::InvalidQuoteMarker => MorphologyContextKind::QuotedWord,
         _ => MorphologyContextKind::Fuhivla,
@@ -3727,7 +3740,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn xlaglymlu_reports_invalid_lujvo_after_rafsi_string_prefix() {
-        // `xla` + `gl` + `y` is `stressed_y_less_rafsi? initial_pair y`.
+        // `a` in `xla` is stressed. `gly` has a y nucleus and does not count.
+        // `mlu` is the one counted syllable that follows.
+        // `stressed_y_less_rafsi` matches `xla`. The tail is not a short final.
         // `slinkuhi <- !rafsi_string consonant rafsi_string` does not match.
         // Camxes rejects the word as a foreign word.
         let error = crate::segment_words_with_modifiers_with_options_and_source_id(
@@ -3746,7 +3761,9 @@ mod tests {
         );
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
-            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+            rafsi_start: 0,
+            expected: LujvoParseExpectation::ShortFinalRafsi,
+            ends_on_y: false,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
@@ -4288,9 +4305,13 @@ mod tests {
             9,
             Some(MorphologyContextKind::Lujvo),
         );
+        // `a` in `xla` is stressed. `sty` does not count. `mlu` is one syllable.
+        // The tail after `xla` is not a short final rafsi.
         let expected = new!(MorphologyErrorDetail::InvalidLujvo {
             parsed_prefix: Some("xla".to_owned()),
-            expected: LujvoParseExpectation::FinalOrInitialRafsi,
+            rafsi_start: 0,
+            expected: LujvoParseExpectation::ShortFinalRafsi,
+            ends_on_y: false,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
 
