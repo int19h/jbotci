@@ -2183,6 +2183,33 @@ pub(crate) fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     parse_diphthong_end(chars, start).is_some() || parse_single_vowel_end(chars, start).is_some()
 }
 
+#[requires(limit <= chars.len())]
+#[ensures(ret.is_none_or(|end| end == start + 1 && end <= limit))]
+fn vowel_production_end(chars: &[char], start: usize, limit: usize) -> Option<usize> {
+    // vowel <- (a / e / i / o / u) !nucleus
+    // `limit` is the candidate bound. The check reads through that bound.
+    // It does not stop at a shorter proposed rafsi end.
+    if start >= limit || !is_vowel(chars[start]) {
+        return None;
+    }
+    let end = start + 1;
+    if starts_with_nucleus(&chars[..limit], end) {
+        return None;
+    }
+    Some(end)
+}
+
+#[requires(limit <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > start && end <= limit))]
+fn diphthong_production_end(chars: &[char], start: usize, limit: usize) -> Option<usize> {
+    // diphthong <- (a i !i / a u !u / e i !i / o i !i) !nucleus
+    // The same candidate bound keeps a following nucleus visible.
+    if start >= limit {
+        return None;
+    }
+    parse_diphthong_end(&chars[..limit], start).map(|(_, end)| end)
+}
+
 #[requires(start <= chars.len())]
 #[ensures(true)]
 fn starts_with_cluster(chars: &[char], start: usize) -> bool {
@@ -3248,9 +3275,12 @@ fn stressed_y_less_rafsi_ends_in_context(
     {
         ends.push(cvc_end);
     }
+    // stressed_CCV_rafsi <- initial_pair stressed_vowel
+    // stressed_vowel uses vowel, and vowel requires !nucleus.
+    // In `flai` the `a` starts the diphthong `ai`, so `fla` is not a CCV.
     if index + 3 <= end
         && initial_pair_chars(chars[index], chars[index + 1])
-        && is_vowel(chars[index + 2])
+        && vowel_production_end(chars, index + 2, end) == Some(index + 3)
         && vowel_is_stressed_in_context(chars, index + 2, end, cache)
     {
         ends.push(index + 3);
@@ -3276,7 +3306,7 @@ fn stressed_long_rafsi_ends_in_context(
     let mut ends = Vec::new();
     if index + 4 <= end
         && initial_pair_chars(chars[index], chars[index + 1])
-        && is_vowel(chars[index + 2])
+        && vowel_production_end(chars, index + 2, end) == Some(index + 3)
         && is_consonant(chars[index + 3])
         && vowel_is_stressed_in_context(chars, index + 2, end, cache)
     {
@@ -3284,7 +3314,7 @@ fn stressed_long_rafsi_ends_in_context(
     }
     if index + 4 <= end
         && is_consonant(chars[index])
-        && is_vowel(chars[index + 1])
+        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
         && is_consonant(chars[index + 2])
         && is_consonant(chars[index + 3])
         && vowel_is_stressed_in_context(chars, index + 1, end, cache)
@@ -3304,9 +3334,11 @@ fn stressed_cvc_rafsi_end_in_context(
     cache: &mut MorphologyRecognitionCache,
 ) -> Option<usize> {
     // stressed_CVC_rafsi <- consonant stressed_vowel consonant
+    // The consonant after the vowel is not a nucleus. The vowel production
+    // still applies, with this candidate as the lookahead bound.
     (index + 3 <= end
         && is_consonant(chars[index])
-        && is_vowel(chars[index + 1])
+        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
         && is_consonant(chars[index + 2])
         && vowel_is_stressed_in_context(chars, index + 1, end, cache))
     .then_some(index + 3)
@@ -3327,16 +3359,15 @@ fn stressed_cvv_rafsi_ends_in_context(
     }
     let mut ends = Vec::new();
     if index + 4 <= end
-        && is_vowel(chars[index + 1])
+        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
         && chars[index + 2] == '\''
-        && is_vowel(chars[index + 3])
+        && vowel_production_end(chars, index + 3, end) == Some(index + 4)
         && !vowel_is_stressed_in_context(chars, index + 1, end, cache)
         && vowel_is_stressed_in_context(chars, index + 3, end, cache)
     {
         push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 4, end);
     }
-    if index + 3 <= end
-        && is_diphthong_pair(chars[index + 1], chars[index + 2])
+    if diphthong_production_end(chars, index + 1, end) == Some(index + 3)
         && nucleus_is_stressed_in_context(chars, index + 1, index + 3, end, cache)
     {
         push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 3, end);
@@ -4394,9 +4425,9 @@ fn is_cvv_final_rafsi_slice_for_rafsi_string(
 ) -> bool {
     end == start + 4
         && is_consonant(chars[start])
-        && is_vowel(chars[start + 1])
+        && vowel_production_end(chars, start + 1, lookahead_end) == Some(start + 2)
         && chars[start + 2] == '\''
-        && is_vowel(chars[start + 3])
+        && vowel_production_end(chars, start + 3, lookahead_end) == Some(start + 4)
         && syllable_is_stressed_in_context(chars, start, start + 2, lookahead_end)
         && final_syllable_slice_in_context(chars, start + 3, end, lookahead_end)
 }
@@ -4483,15 +4514,21 @@ fn y_rafsi_vowel_is_unstressed_in_context(
     context_end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    let Some((vowel_start, vowel_end)) = y_rafsi_vowel_span(chars, index, rafsi_end) else {
+    let Some((vowel_start, vowel_end)) = y_rafsi_vowel_span(chars, index, rafsi_end, context_end)
+    else {
         return false;
     };
     !nucleus_is_stressed_in_context(chars, vowel_start, vowel_end, context_end, cache)
 }
 
-#[requires(index <= rafsi_end && rafsi_end <= chars.len())]
+#[requires(index <= rafsi_end && rafsi_end <= context_end && context_end <= chars.len())]
 #[ensures(ret.is_none_or(|(start, end)| index <= start && start < end && end <= rafsi_end))]
-fn y_rafsi_vowel_span(chars: &[char], index: usize, rafsi_end: usize) -> Option<(usize, usize)> {
+fn y_rafsi_vowel_span(
+    chars: &[char],
+    index: usize,
+    rafsi_end: usize,
+    context_end: usize,
+) -> Option<(usize, usize)> {
     // (long_rafsi / CVC_rafsi) y h?
     // The recognizer names the base that ends at y. The vowel is that base's nucleus.
     if rafsi_end <= index {
@@ -4522,11 +4559,14 @@ fn y_rafsi_vowel_span(chars: &[char], index: usize, rafsi_end: usize) -> Option<
     } else {
         return None;
     };
-    let vowel_end = vowel_start + 1;
-    if vowel_end > y_index || !is_vowel(chars[vowel_start]) {
+    // The base rafsi vowel uses `vowel <- (a / e / i / o / u) !nucleus`.
+    // The lookahead bound is the candidate, which reaches past this vowel.
+    if vowel_production_end(chars, vowel_start, context_end) != Some(vowel_start + 1)
+        || vowel_start + 1 > y_index
+    {
         return None;
     }
-    Some((vowel_start, vowel_end))
+    Some((vowel_start, vowel_start + 1))
 }
 
 #[requires(index <= chars.len())]
@@ -4669,14 +4709,14 @@ fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index + 4 <= chars.len()
         && initial_pair_chars(chars[index], chars[index + 1])
-        && is_vowel(chars[index + 2])
+        && vowel_production_end(chars, index + 2, chars.len()) == Some(index + 3)
         && is_consonant(chars[index + 3])
     {
         ends.push(index + 4);
     }
     if index + 4 <= chars.len()
         && is_consonant(chars[index])
-        && is_vowel(chars[index + 1])
+        && vowel_production_end(chars, index + 1, chars.len()) == Some(index + 2)
         && is_consonant(chars[index + 2])
         && is_consonant(chars[index + 3])
     {
@@ -4688,9 +4728,12 @@ fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+    // CVC_rafsi <- consonant unstressed_vowel consonant
+    // unstressed_vowel uses vowel, so the letter needs !nucleus.
+    // The following consonant is not a nucleus. The bound is the whole buffer.
     (index + 3 <= chars.len()
         && is_consonant(chars[index])
-        && is_vowel(chars[index + 1])
+        && vowel_production_end(chars, index + 1, chars.len()) == Some(index + 2)
         && is_consonant(chars[index + 2]))
     .then_some(index + 3)
 }
@@ -4698,9 +4741,13 @@ fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+    // CCV_rafsi <- initial_pair unstressed_vowel
+    // vowel <- (a / e / i / o / u) !nucleus
+    // `flai` fails: `a` is followed by `i`, and `ai` is a nucleus.
+    // The bound is this buffer, not the third letter.
     (index + 3 <= chars.len()
         && initial_pair_chars(chars[index], chars[index + 1])
-        && is_vowel(chars[index + 2]))
+        && vowel_production_end(chars, index + 2, chars.len()) == Some(index + 3))
     .then_some(index + 3)
 }
 
@@ -4767,15 +4814,17 @@ fn n_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
 #[requires(index <= chars.len())]
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
+    // CVV_rafsi uses unstressed_vowel h unstressed_vowel, or unstressed_diphthong.
+    // Both vowel and diphthong stop before a following nucleus.
     let mut ends = Vec::new();
-    if index + 3 <= chars.len()
-        && is_vowel(chars[index])
-        && chars[index + 1] == '\''
-        && is_vowel(chars[index + 2])
+    let limit = chars.len();
+    if vowel_production_end(chars, index, limit) == Some(index + 1)
+        && chars.get(index + 1) == Some(&'\'')
+        && vowel_production_end(chars, index + 2, limit) == Some(index + 3)
     {
         ends.push(index + 3);
     }
-    if index + 2 <= chars.len() && is_diphthong_pair(chars[index], chars[index + 1]) {
+    if diphthong_production_end(chars, index, limit) == Some(index + 2) {
         ends.push(index + 2);
     }
     ends
@@ -4806,15 +4855,17 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
     if start >= end {
         return false;
     }
+    // short_final_rafsi <- &final_syllable (consonant diphthong / initial_pair vowel)
+    // `end` is the candidate bound. The vowel or diphthong reads through it.
     if end == start + 3
         && is_consonant(chars[start])
-        && is_diphthong_pair(chars[start + 1], chars[start + 2])
+        && diphthong_production_end(chars, start + 1, end) == Some(start + 3)
     {
         return true;
     }
     end == start + 3
         && initial_pair_chars(chars[start], chars[start + 1])
-        && is_vowel(chars[start + 2])
+        && vowel_production_end(chars, start + 2, end) == Some(start + 3)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -6013,28 +6064,6 @@ fn is_lujvo_char(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_diphthong_pair(first: char, second: char) -> bool {
-    matches!(
-        (base_vowel(first), base_semivowel(second)),
-        (Some('a'), Some('i'))
-            | (Some('e'), Some('i'))
-            | (Some('o'), Some('i'))
-            | (Some('a'), Some('u'))
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_semivowel(value: char) -> Option<char> {
-    match value {
-        'i' | 'í' | 'ĭ' => Some('i'),
-        'u' | 'ú' | 'ŭ' => Some('u'),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn is_y(value: char) -> bool {
     matches!(value, 'y' | 'ý')
 }
@@ -6495,6 +6524,9 @@ mod tests {
             "brodYbra",
             "klábro",
             "klákla",
+            "kanklabra",
+            "kairbroda",
+            "soirsai",
         ] {
             let words = crate::segment_words_with_modifiers_with_options_and_source_id(
                 source,
@@ -6571,7 +6603,6 @@ mod tests {
             ("klábrodybra", "klá", "brodybra"),
             ("kánbrodybra", "kán", "brodybra"),
             ("xlastmlu", "xla", "stmlu"),
-            ("flai", "fla", "i"),
         ] {
             assert_short_final_failure(source, prefix, suffix);
             assert_short_final_note(source, prefix, &format!("after `{prefix}`"));
@@ -6636,17 +6667,24 @@ mod tests {
             assert_eq!(word.kind(), kind, "{source}");
         }
         // An unstressed short final is not this failure.
-        // Camxes rejects `pro`, and the diagnostic stays unrecognized.
-        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
-            "pro",
-            &MorphologyOptions::default(),
-            None,
-        )
-        .expect_err("pro");
-        let crate::MorphologyError::Invalid { kind, .. } = &error else {
-            panic!("pro is an invalid-word error, got {error:?}");
-        };
-        assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord);
+        // Camxes rejects `pro`. A CCV vowel inside a diphthong is not a vowel,
+        // so `flai` has no rafsi and stays unrecognized too.
+        for source in [
+            "pro", "flai", "klai", "klau", "klei", "kloi", "trai", "skai", "flái",
+        ] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err(source);
+            let crate::MorphologyError::Invalid { kind, .. } = &error else {
+                panic!("{source} is an invalid-word error, got {error:?}");
+            };
+            assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{source}");
+            let diagnostic = error.to_diagnostic(None, source).expect(source);
+            assert_eq!(diagnostic.code, "morphology.unrecognized-word", "{source}");
+        }
         // `brá'i` is a slinku'i. Camxes-morpho rejects it.
         // The diagnostic stays `morphology.slinkuhi`.
         let brai = crate::segment_words_with_modifiers_with_options_and_source_id(
