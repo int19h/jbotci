@@ -1620,14 +1620,25 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
+        let lookahead_end = normalized.normalized_chars.len();
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
+            let relative_end = end - start;
+            // The cluster after a stressed final nucleus can start in the next word.
+            let Some(cmavo_end) = normalized.normalized_char_end(relative_end) else {
                 continue;
             };
-            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
+            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
+                &normalized.normalized_chars,
+                0,
+                cmavo_end,
+                lookahead_end,
+            ) else {
+                continue;
+            };
+            let Some(normalized_prefix) = normalized.slice_to_source_end(relative_end) else {
                 continue;
             };
             if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
@@ -2474,13 +2485,27 @@ impl<'a> Segmenter<'a> {
         if index >= candidate_end {
             return false;
         }
+        let relative_start = index - prefix_start;
+        let Some(norm_start) = normalized.normalized_char_end(relative_start) else {
+            return false;
+        };
+        let lookahead_end = normalized.normalized_chars.len();
         ((index + 1)..=candidate_end).any(|end| {
-            let Some(normalized_prefix) =
-                normalized.slice_source_range(index - prefix_start, end - prefix_start)
-            else {
+            let relative_end = end - prefix_start;
+            let Some(norm_end) = normalized.normalized_char_end(relative_end) else {
                 return false;
             };
-            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
+            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
+                &normalized.normalized_chars,
+                norm_start,
+                norm_end,
+                lookahead_end,
+            ) else {
+                return false;
+            };
+            let Some(normalized_prefix) =
+                normalized.slice_source_range(relative_start, relative_end)
+            else {
                 return false;
             };
             is_indicator_cmavo_text(&phonemes)
@@ -3161,9 +3186,15 @@ impl NormalizedCandidate {
     }
 
     #[requires(relative_end <= self.source_char_count)]
+    #[ensures(ret.is_none_or(|end| end <= self.normalized_chars.len()))]
+    fn normalized_char_end(&self, relative_end: usize) -> Option<usize> {
+        self.source_normalized_char_ends.get(relative_end).copied()
+    }
+
+    #[requires(relative_end <= self.source_char_count)]
     #[ensures(true)]
     fn normalized_chars_to_source_end(&self, relative_end: usize) -> Option<&[char]> {
-        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
+        let char_end = self.normalized_char_end(relative_end)?;
         self.normalized_chars.get(..char_end)
     }
 
