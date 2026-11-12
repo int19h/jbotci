@@ -1204,15 +1204,8 @@ impl<'a> Segmenter<'a> {
         } else {
             start
         };
-        let error_end = self.trim_trailing_commas(error_start, error_end);
-        if error_start >= error_end {
-            return Err(self.invalid_span(
-                MorphologyErrorKind::ExpectedWord,
-                error_start,
-                error_start,
-                None,
-            ));
-        }
+        // `error_end` is already the trimmed candidate. `failed_at` is `start`
+        // or an index strictly inside that span, so the span cannot be empty.
         let error = self.invalid_word_error(error_start, error_end);
         self.trace_failure("word", error_start, error_end, || Some(error.to_string()));
         Err(error)
@@ -3670,12 +3663,19 @@ fn find_nth_matching_word_index(
 #[requires(true)]
 #[ensures(true)]
 fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
-    let prefix_chars = text_chars(prefix);
-    let remainder_chars = text_chars(remainder);
-    let Some(next_index) = next_non_comma_index(&remainder_chars, 0) else {
+    boundary_repeats_diphthong_semivowel_chars(&text_chars(prefix), &text_chars(remainder))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn boundary_repeats_diphthong_semivowel_chars(
+    prefix: &[char],
+    remainder: &[char],
+) -> bool {
+    let Some(next_index) = next_non_comma_index(remainder, 0) else {
         return false;
     };
-    let Some((last_index, last)) = previous_non_comma(&prefix_chars, prefix_chars.len()) else {
+    let Some((last_index, last)) = previous_non_comma(prefix, prefix.len()) else {
         return false;
     };
     let semivowel = match base_vowel(last) {
@@ -3683,10 +3683,10 @@ fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
         Some('u') => 'ŭ',
         _ => return false,
     };
-    if !matches_diphthong_semivowel(remainder_chars[next_index], semivowel) {
+    if !matches_diphthong_semivowel(remainder[next_index], semivowel) {
         return false;
     }
-    previous_non_comma(&prefix_chars, last_index).is_some_and(|(_, previous)| {
+    previous_non_comma(prefix, last_index).is_some_and(|(_, previous)| {
         matches!(
             (base_vowel(previous), semivowel),
             (Some('a'), 'ĭ') | (Some('e'), 'ĭ') | (Some('o'), 'ĭ') | (Some('a'), 'ŭ')
@@ -3697,23 +3697,38 @@ fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_explicit_brivla_stress(normalized_word: &str) -> bool {
-    normalized_word
-        .chars()
-        .any(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+    normalized_word.chars().any(is_explicit_brivla_stress_mark)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_explicit_brivla_stress_mark(value: char) -> bool {
+    matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú')
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn has_explicit_brivla_stress_chars(chars: &[char]) -> bool {
+    chars.iter().copied().any(is_explicit_brivla_stress_mark)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
-    let chars = text_chars(normalized_word);
-    let nuclei = stressable_nucleus_starts(&chars);
+    explicit_brivla_stress_is_valid_chars(&text_chars(normalized_word))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
+    let nuclei = stressable_nucleus_starts(chars);
     let stressed = nuclei
         .iter()
         .copied()
         .filter(|index| {
             chars
                 .get(*index)
-                .is_some_and(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+                .is_some_and(|value| is_explicit_brivla_stress_mark(*value))
         })
         .collect::<Vec<_>>();
     nuclei

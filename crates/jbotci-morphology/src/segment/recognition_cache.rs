@@ -388,6 +388,12 @@ pub(crate) struct MorphologyRecognitionCache {
     nucleus_is_stressed: RefCell<HashMap<StressContextKey, bool>>,
     y_less_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
     cvv_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
+    /// CVCy `post_word` that can end a brivla before the slice end.
+    /// This is not `post_word`. A true result here must not satisfy a caller
+    /// that needs the next word to consume the whole slice.
+    cvcy_post_word: RefCell<HashMap<SpanKey, bool>>,
+    /// `initial_rafsi* brivla_core` ending strictly before this span.
+    cvcy_core_before: RefCell<HashMap<SpanKey, bool>>,
     /// Shared with the admission that owns this segmentation.
     ///
     /// A recognizer loads this flag once at the start of each memoized body.
@@ -444,6 +450,8 @@ impl MorphologyRecognitionCache {
             nucleus_is_stressed: RefCell::new(HashMap::new()),
             y_less_rafsi_unstressed: RefCell::new(HashMap::new()),
             cvv_rafsi_unstressed: RefCell::new(HashMap::new()),
+            cvcy_post_word: RefCell::new(HashMap::new()),
+            cvcy_core_before: RefCell::new(HashMap::new()),
         });
         cache.sync_accounted();
         cache
@@ -518,6 +526,8 @@ impl MorphologyRecognitionCache {
             .saturating_add(slots(&self.nucleus_is_stressed))
             .saturating_add(slots(&self.y_less_rafsi_unstressed))
             .saturating_add(slots(&self.cvv_rafsi_unstressed))
+            .saturating_add(slots(&self.cvcy_post_word))
+            .saturating_add(slots(&self.cvcy_core_before))
     }
 
     /// Empty maps have capacity 0. The ensures on `new` evaluates this in
@@ -958,6 +968,40 @@ impl MorphologyRecognitionCache {
         }
         note_recognition_body();
         span_set(&self.post_word, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn cvcy_post_word(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.cvcy_post_word, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.cvcy_post_word(index, end) == Some(value))]
+    pub(crate) fn record_cvcy_post_word(&self, index: usize, end: usize, value: bool) {
+        if self.is_cancelled() {
+            return;
+        }
+        note_recognition_body();
+        span_set(&self.cvcy_post_word, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn cvcy_core_before(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.cvcy_core_before, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.cvcy_core_before(index, end) == Some(value))]
+    pub(crate) fn record_cvcy_core_before(&self, index: usize, end: usize, value: bool) {
+        if self.is_cancelled() {
+            return;
+        }
+        note_recognition_body();
+        span_set(&self.cvcy_core_before, index, end, value);
         self.sync_accounted();
     }
 
