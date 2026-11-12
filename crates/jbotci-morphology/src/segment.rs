@@ -3252,7 +3252,7 @@ fn cvcy_lujvo_from_stressed_cvc(
     let short_end = after_y + 3;
     short_end <= end
         && is_unaccented_short_final_rafsi_slice(chars, after_y, short_end)
-        && cvcy_post_word_slice_with_cache(chars, short_end, end, cache)
+        && prefix_post_word_slice_with_cache(chars, short_end, end, cache)
 }
 
 #[requires(index <= context_end && context_end <= chars.len())]
@@ -3327,7 +3327,7 @@ fn cvcy_fuhivla_core_before_end(
                     &chars[core_end..context_end],
                 )
                 && is_fuhivla_shape_slice_with_cache(chars, index, core_end, cache)
-                && cvcy_post_word_slice_with_cache(chars, core_end, context_end, cache)
+                && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
         })
 }
 
@@ -3368,32 +3368,18 @@ fn cvcy_gismu_core_before_end(
 ) -> bool {
     // gismu <- (initial_pair stressed_vowel / consonant stressed_vowel consonant)
     //          &final_syllable consonant vowel &post_word
-    // `stressed_vowel` uses this candidate. `final_syllable` uses `!stressed`,
-    // which is an explicit mark, not implicit stress from the next word.
+    // The shape is `is_gismu_slice`. Both shapes put the final syllable at
+    // the last two letters. `stressed_vowel` uses this candidate.
+    // `final_syllable` uses `!stressed`, an explicit mark, not implicit stress
+    // from the next word.
     let core_end = index + 5;
-    if core_end >= context_end {
+    if core_end >= context_end || !is_gismu_slice(chars, index, core_end) {
         return false;
     }
-    let final_start = if initial_pair_chars(chars[index], chars[index + 1])
-        && is_vowel(chars[index + 2])
-        && is_consonant(chars[index + 3])
-        && is_vowel(chars[index + 4])
-    {
-        index + 3
-    } else if is_consonant(chars[index])
-        && is_vowel(chars[index + 1])
-        && is_consonant(chars[index + 2])
-        && is_consonant(chars[index + 3])
-        && is_vowel(chars[index + 4])
-        && experimental_permissible_consonant_pair(chars[index + 2], chars[index + 3])
-    {
-        index + 3
-    } else {
-        return false;
-    };
+    let final_start = index + 3;
     syllable_is_stressed_in_context(chars, index, final_start, context_end)
         && final_syllable_slice(chars, final_start, core_end)
-        && cvcy_post_word_slice_with_cache(chars, core_end, context_end, cache)
+        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
 }
 
 #[requires(index <= context_end && context_end <= chars.len())]
@@ -3414,7 +3400,7 @@ fn cvcy_cvv_core_before_end(
         && vowel_production_end(chars, index + 3, context_end) == Some(index + 4)
         && vowel_is_stressed_in_context(chars, index + 1, context_end, cache)
         && final_syllable_slice(chars, index + 3, core_end)
-        && cvcy_post_word_slice_with_cache(chars, core_end, context_end, cache)
+        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
 }
 
 #[requires(index <= context_end && context_end <= chars.len())]
@@ -3449,54 +3435,154 @@ fn cvcy_stressed_initial_short_final_before_end(
         split > index
             && core_end < context_end
             && is_unaccented_short_final_rafsi_slice(chars, split, core_end)
-            && cvcy_post_word_slice_with_cache(chars, core_end, context_end, cache)
+            && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
     })
 }
 
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
-fn cvcy_post_word_slice_with_cache(
+fn prefix_post_word_slice_with_cache(
     chars: &[char],
     index: usize,
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
     // post_word <- pause / !nucleus lojban_word
-    // A brivla in that word can end before `end` when its explicit stress makes
-    // the end valid. The same rule is `post_word_ok_for_brivla`. This result
-    // stays out of the whole-slice `post_word` cache.
+    // `pause` is a separator or the end of this slice. `end` stays the stress
+    // context and the lookahead. This result stays out of the whole-slice
+    // `post_word` table. A recursive call starts later, so one key runs once.
     if cache.is_cancelled() {
         return false;
     }
-    if let Some(result) = cache.cvcy_post_word(index, end) {
+    if let Some(result) = cache.prefix_post_word(index, end) {
         return result;
     }
-    let result = if post_word_slice_with_cache(chars, index, end, cache) {
-        true
-    } else {
-        match next_non_comma_index(chars, index) {
-            Some(next) if next < end && !starts_with_pause_required_nucleus(chars, next) => {
-                cvcy_explicit_brivla_before_end(chars, next, end, cache)
-            }
-            _ => false,
-        }
+    let result = match next_non_comma_index(chars, index) {
+        None => true,
+        Some(next) if next >= end || is_separator(chars[next]) => true,
+        Some(next) if starts_with_pause_required_nucleus(chars, next) => false,
+        Some(next) => prefix_lojban_word_slice_with_cache(chars, next, end, cache),
     };
-    cache.record_cvcy_post_word(index, end, result);
+    cache.record_prefix_post_word(index, end, result);
     result
 }
 
-#[requires(start < end && end <= chars.len())]
+#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
-fn cvcy_explicit_brivla_before_end(
+fn prefix_lojban_word_slice_with_cache(
     chars: &[char],
     start: usize,
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    // The brivla ends on its last nucleus. Explicit stress has to sit on the
-    // penultimate nucleus, and the next word has to satisfy this same post_word.
+    // lojban_word <- cmevla / cmavo / brivla
+    // The cmavo arm continues with the prefix post_word. The brivla arm accepts
+    // a brivla that ends before `end` when explicit stress makes that end valid.
+    // This result stays out of the whole-slice `lojban_word` and `cmavo_word`
+    // tables. A recursive call starts later, so one key runs once.
+    if cache.is_cancelled() {
+        return false;
+    }
+    if let Some(result) = cache.prefix_lojban_word(start, end) {
+        return result;
+    }
+    #[allow(unused_mut)]
+    let mut recognize = || {
+        start < end
+            && (is_cmevla_slice(chars, start, end)
+                || prefix_cmavo_word_before_end(chars, start, end, cache)
+                || prefix_brivla_word_before_end(chars, start, end, cache))
+    };
+    // One word calls the next word before this call returns. Grow the native
+    // stack when less than 64 KiB remains. wasm32 has no auxiliary stack, so
+    // the call stays on the host stack.
+    #[cfg(not(target_arch = "wasm32"))]
+    let result = stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+    #[cfg(target_arch = "wasm32")]
+    let result = recognize();
+    cache.record_prefix_lojban_word(start, end, result);
+    result
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_cmavo_word_before_end(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // cmavo <- !cmevla !CVCy_lujvo cmavo_form &post_word
+    // Both exclusions use this candidate. The continuation is the prefix post_word.
+    if start >= end
+        || is_cmevla_slice(chars, start, end)
+        || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
+    {
+        return false;
+    }
+    ((start + 1)..=end).any(|word_end| {
+        is_cmavo_form_span(chars, start, word_end, end)
+            && prefix_cmavo_post_word_before_end(chars, start, word_end, end, cache)
+    })
+}
+
+#[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_cmavo_post_word_before_end(
+    chars: &[char],
+    prefix_start: usize,
+    prefix_end: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // The cmavo `&post_word` keeps the nucleus rule and the indicator boundary.
+    // A nucleus-initial next word stays out unless that boundary matches.
+    let Some(index) = next_non_comma_index(chars, prefix_end) else {
+        return true;
+    };
+    if index >= end || is_separator(chars[index]) {
+        return true;
+    }
+    if starts_with_pause_required_nucleus(chars, index)
+        && !indicator_cmavo_boundary_slice_with_cache(
+            chars,
+            prefix_start,
+            prefix_end,
+            index,
+            end,
+            cache,
+        )
+    {
+        return false;
+    }
+    if starts_with_pause_required_nucleus(chars, index) {
+        return prefix_lojban_word_slice_with_cache(chars, index, end, cache);
+    }
+    prefix_post_word_slice_with_cache(chars, prefix_end, end, cache)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_brivla_word_before_end(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // A brivla that runs to `end` meets `post_word` at that pause.
+    // A brivla that ends earlier needs the explicit-stress rule from
+    // `post_word_ok_for_brivla`, then this same post_word.
+    if start >= end {
+        return false;
+    }
+    if brivla_word_slice_with_cache(chars, start, end, cache) {
+        return true;
+    }
     cvcy_stressable_nucleus_ends(chars, start, end)
         .into_iter()
         .skip(1)
@@ -3509,7 +3595,7 @@ fn cvcy_explicit_brivla_before_end(
                     &chars[brivla_end..end],
                 )
                 && brivla_word_slice_with_cache(chars, start, brivla_end, cache)
-                && cvcy_post_word_slice_with_cache(chars, brivla_end, end, cache)
+                && prefix_post_word_slice_with_cache(chars, brivla_end, end, cache)
         })
 }
 
@@ -7542,6 +7628,19 @@ mod tests {
                 "tadyspagétimi",
                 "Lujvo:rafsi:tad+hyphen:y+rafsi:spagéti | Cmavo:mi",
             ),
+            // A cmavo, then a brivla that ends before the next word.
+            (
+                "tadyklámamibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tadybá'imibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:bá'i | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tadyspagétimibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:spagéti | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
             (
                 "mi tadyklámami",
                 "Cmavo:mi | Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi",
@@ -7558,6 +7657,34 @@ mod tests {
             (
                 "tádybrobródado",
                 "Lujvo:rafsi:tád+hyphen:y+rafsi:bro | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamibródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamimibródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklabródamiklámado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:bróda | Cmavo:mi | Gismu:kláma | Cmavo:do",
+            ),
+            (
+                "tádyklami bródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamibróda",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda",
+            ),
+            (
+                "tádyklamibrodado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Fuhivla:brodádo",
+            ),
+            (
+                "tádyklabródaklámado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:bróda | Gismu:kláma | Cmavo:do",
             ),
             // The mark on `klá` blocks the short final. This stays three cmavo and a gismu.
             (
@@ -7634,6 +7761,16 @@ mod tests {
             "tádyklabródado",
             "tádyklaklámami",
             "tádybrobródado",
+            "tádyklamibródado",
+            "tadyklámamibródado",
+            "tadybá'imibródado",
+            "tadyspagétimibródado",
+            "tádyklamimibródado",
+            "tádyklabródamiklámado",
+            "tádyklami bródado",
+            "tádyklamibróda",
+            "tádyklamibrodado",
+            "tádyklabródaklámado",
             "tadykláma",
             "tadyklamami",
             "tádyklama",
@@ -7892,7 +8029,7 @@ mod tests {
     /// Body executions for `cíniconulová` repeated `groups` times.
     ///
     /// The repeated piece is 12 characters. `tcíniconuloválsicu` is 18
-    /// characters, not 12. The cap is the key space: 26 two-index slots, 8
+    /// characters, not 12. The cap is the key space: 29 two-index slots, 8
     /// three-index maps, and 1 four-index map. A body runs once per stored
     /// key, so the count cannot pass that space. Growth from one size to the
     /// next stays inside four times the four-index ratio.
@@ -7915,6 +8052,55 @@ mod tests {
             .unwrap_or_else(|error| panic!("{input}: {error}"));
             let bodies = counter.get();
             assert!(!words.is_empty(), "{input}");
+            assert!(
+                bodies <= cap,
+                "groups={groups} chars={char_count} bodies={bodies} cap={cap}"
+            );
+            assert!(
+                bodies > previous_bodies,
+                "groups={groups} bodies={bodies} previous={previous_bodies}"
+            );
+            if previous_bodies > 0 {
+                let n = u64::try_from(char_count).unwrap_or(u64::MAX);
+                assert!(
+                    bodies.saturating_mul(previous_n.saturating_pow(4))
+                        <= previous_bodies
+                            .saturating_mul(n.saturating_pow(4))
+                            .saturating_mul(4),
+                    "groups={groups} bodies={bodies} previous={previous_bodies} n={n} previous_n={previous_n}"
+                );
+            }
+            previous_bodies = bodies;
+            previous_n = u64::try_from(char_count).unwrap_or(u64::MAX);
+        }
+    }
+
+    /// Body executions for `tádykla`, then `mibróda` repeated `groups` times, then `do`.
+    ///
+    /// Camxes-morpho splits each copy into the cmavo `mi` and the gismu `bróda`.
+    /// The lujvo is `tádykla`, and the last word is the cmavo `do`. The cap is
+    /// the same key space as the stressed-cmavo groups. A body runs once per
+    /// stored key. Growth from one size to the next stays inside four times
+    /// the four-index ratio.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cvcy_prefix_cmavo_brivla_chain_executes_polynomially_many_recognizer_bodies() {
+        let mut previous_bodies = 0u64;
+        let mut previous_n = 0u64;
+        for groups in 1..=3 {
+            let input = format!("tádykla{}do", "mibróda".repeat(groups));
+            let char_count = input.chars().count();
+            let cap = recognition_key_space(char_count);
+            let counter = super::recognition_cache::RecognitionBodyCount::begin(cap);
+            let got = morphology_classes(&input);
+            let bodies = counter.get();
+            let mut expected = String::from("Lujvo:rafsi:tád+hyphen:y+rafsi:kla");
+            for _ in 0..groups {
+                expected.push_str(" | Cmavo:mi | Gismu:bróda");
+            }
+            expected.push_str(" | Cmavo:do");
+            assert_eq!(got, expected, "{input}");
             assert!(
                 bodies <= cap,
                 "groups={groups} chars={char_count} bodies={bodies} cap={cap}"
@@ -7995,16 +8181,16 @@ mod tests {
         .collect()
     }
 
-    /// 26 two-index slots, 8 three-index maps, and 1 four-index map.
+    /// 29 two-index slots, 8 three-index maps, and 1 four-index map.
     ///
-    /// Eighteen of the two-index slots are plain maps. Four maps carry a flag
+    /// Twenty-one of the two-index slots are plain maps. Four maps carry a flag
     /// with two values (`has_initial_rafsi` on `lujvo_from` and on
     /// `lujvo_part_ranges`, `allows_y`, and `FuhivlaHeadPolicy`). Those eight
-    /// slots make 26 with the plain maps. `brivla_head_ends` and
+    /// slots make 29 with the plain maps. `brivla_head_ends` and
     /// `fuhivla_head_ends` are three-index keys. The extra index is the
     /// lookahead end. `m = char_count + 1`.
     #[requires(char_count < usize::MAX)]
-    #[ensures(ret >= 26)]
+    #[ensures(ret >= 29)]
     fn recognition_key_space(char_count: usize) -> u64 {
         let m = u64::try_from(char_count)
             .unwrap_or(u64::MAX)
@@ -8012,7 +8198,7 @@ mod tests {
         let m2 = m.saturating_mul(m);
         let m3 = m2.saturating_mul(m);
         let m4 = m3.saturating_mul(m);
-        m2.saturating_mul(26)
+        m2.saturating_mul(29)
             .saturating_add(m3.saturating_mul(8))
             .saturating_add(m4)
     }
