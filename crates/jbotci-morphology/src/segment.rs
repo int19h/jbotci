@@ -2289,21 +2289,28 @@ fn diphthong_production_end(chars: &[char], start: usize, limit: usize) -> Optio
 #[ensures(true)]
 fn consonant_cluster_follows(chars: &[char], index: usize, lookahead_end: usize) -> bool {
     // cluster <- consonant consonant+.
+    // Each consonant starts with comma*. A comma does not end the cluster.
     // A pause ends the lookahead: a space, a period, or the end of the input.
-    // A comma is not a pause and not a consonant, so it ends the cluster too.
-    if index >= lookahead_end {
+    let Some(first) = consonant_index_within(chars, index, lookahead_end) else {
         return false;
+    };
+    consonant_index_within(chars, first + 1, lookahead_end).is_some()
+}
+
+#[requires(lookahead_end <= chars.len())]
+#[ensures(ret.is_none_or(|found| found >= index && found < lookahead_end))]
+fn consonant_index_within(chars: &[char], index: usize, lookahead_end: usize) -> Option<usize> {
+    // `next_non_comma_index` reads the whole buffer. The lookahead end still bounds the cluster.
+    let found = next_non_comma_index(chars, index)?;
+    if found >= lookahead_end {
+        return None;
     }
-    let first = chars[index];
-    if is_separator(first) || !is_consonant(first) {
-        return false;
+    let value = chars[found];
+    if is_separator(value) || !is_consonant(value) {
+        None
+    } else {
+        Some(found)
     }
-    let next = index + 1;
-    if next >= lookahead_end {
-        return false;
-    }
-    let second = chars[next];
-    !is_separator(second) && is_consonant(second)
 }
 
 #[requires(true)]
@@ -6749,12 +6756,16 @@ mod tests {
             ("kanklá", "kan", "klá"),
             ("kláklá", "klá", "klá"),
             ("kánklá", "kán", "klá"),
-            ("klábrodybra", "klá", "brodybra"),
-            ("kánbrodybra", "kán", "brodybra"),
             ("xlastmlu", "xla", "stmlu"),
         ] {
             assert_short_final_failure(source, prefix, suffix);
             assert_short_final_note(source, prefix, &format!("after `{prefix}`"));
+        }
+        // Camxes accepts `klAbrody` and `kAnbrody` as a lujvo plus cmavo `dy`.
+        // The next syllable `bra` is not a word. The whole-span guess that
+        // `klá` still needs a short final is not that parse state.
+        for source in ["klábrodybra", "kánbrodybra"] {
+            assert_unrecognized_word_tail(source, "bra");
         }
         assert_incomplete_lujvo(
             "brodykanbrty",
@@ -7170,6 +7181,26 @@ mod tests {
         assert!(!consonant_cluster_follows(&single, 2, single.len()));
         let ended = text_chars("kái");
         assert!(!consonant_cluster_follows(&ended, ended.len(), ended.len()));
+        // A comma is not a pause. It can sit before the cluster or between
+        // the two consonants. Camxes consonant productions start with comma*.
+        let comma_before = text_chars("kái,klama");
+        assert!(consonant_cluster_follows(
+            &comma_before,
+            3,
+            comma_before.len()
+        ));
+        let comma_between = text_chars("káik,lama");
+        assert!(consonant_cluster_follows(
+            &comma_between,
+            3,
+            comma_between.len()
+        ));
+        let commas_around = text_chars("kái,k,lama");
+        assert!(consonant_cluster_follows(
+            &commas_around,
+            3,
+            commas_around.len()
+        ));
     }
 
     #[test]
@@ -7215,26 +7246,29 @@ mod tests {
             ("mÍ klama", "Cmavo:mí | Gismu:kláma"),
             ("kái", "Cmavo:káĭ"),
             ("bá'aklama", "Cmavo:bá'a | Gismu:kláma"),
+            ("kái,klama", "Lujvo:rafsi:káĭ+rafsi:kla | Cmavo:ma"),
         ];
         for (source, expected) in splits {
             assert_eq!(morphology_classes(source), expected, "{source}");
         }
-        // The last nucleus is stressed and a consonant cluster follows.
-        // Camxes rejects the whole chunk. The lujvo parser then reports the
-        // stressed cmavo as a rafsi with no short final.
-        for (source, prefix) in [
-            ("káibrodybra", "kái"),
-            ("báibrodybra", "bái"),
-            ("káubrodybra", "káu"),
-            ("péibrodybra", "péi"),
-            ("sóibrodybra", "sói"),
+        // Camxes consumes the lujvo `kAibro` and the cmavo `dy`, then fails
+        // at `bra`. The chunk stays rejected. The error is that tail.
+        // A comma does not hide the cluster, so `kái,brodybra` fails the same way.
+        for source in [
+            "káibrodybra",
+            "báibrodybra",
+            "káubrodybra",
+            "péibrodybra",
+            "sóibrodybra",
+            "kái,brodybra",
         ] {
-            assert_stressed_cmavo_before_cluster(source, prefix);
+            assert_unrecognized_word_tail(source, "bra");
         }
         // `kaí` has the mark on the second vowel. This predicate calls that
         // nucleus stressed, so the cluster rule rejects the chunk.
         // Camxes reads only the first vowel and splits `kaI` + `brodybra`.
-        // Issue 1103 owns that difference.
+        // Issue 1103 owns that difference. The brivla stress check reads the
+        // first vowel, so this chunk stays on the lujvo failure path.
         assert_stressed_cmavo_before_cluster("kaíbrodybra", "kaí");
         // `tády'bai` is not a CVCy lujvo: the stressed alternative has no h.
         // The apostrophe is still illegal. Camxes rejects the chunk.
@@ -7293,6 +7327,37 @@ mod tests {
         );
         let diagnostic = error.to_diagnostic(None, source).expect(source);
         assert_eq!(diagnostic.code, "morphology.invalid-lujvo", "{source}");
+    }
+
+    #[requires(!source.is_empty() && !tail.is_empty())]
+    #[ensures(true)]
+    fn assert_unrecognized_word_tail(source: &str, tail: &str) {
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err(source);
+        let crate::MorphologyError::Invalid {
+            kind,
+            char_start,
+            char_end,
+            text,
+            detail,
+            ..
+        } = &error
+        else {
+            panic!("{source} is an invalid-word error, got {error:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{source}");
+        assert!(detail.is_none(), "{source} detail is {detail:?}");
+        assert_eq!(text, tail, "{source}");
+        let source_chars = source.chars().count();
+        let tail_chars = tail.chars().count();
+        assert_eq!(*char_end, source_chars, "{source}");
+        assert_eq!(*char_start, source_chars - tail_chars, "{source}");
+        let diagnostic = error.to_diagnostic(None, source).expect(source);
+        assert_eq!(diagnostic.code, "morphology.unrecognized-word", "{source}");
     }
 
     #[test]
