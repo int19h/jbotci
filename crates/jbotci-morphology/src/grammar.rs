@@ -1196,8 +1196,8 @@ impl<'a> Segmenter<'a> {
             ));
         }
         // The strict search failed. A whole-span lujvo guess can name a rafsi
-        // that the stream already consumed. Keep the furthest word boundary
-        // and report the word that does not start.
+        // that the stream already consumed. Keep the brivla that reached
+        // post_word, then report the word that does not start.
         let failed_at = self.furthest_successful_word_end(start, candidate_end);
         let error_start = if failed_at > start && failed_at < error_end {
             failed_at
@@ -1221,34 +1221,50 @@ impl<'a> Segmenter<'a> {
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
     #[ensures(ret >= start && ret <= candidate_end)]
     fn furthest_successful_word_end(&self, start: usize, candidate_end: usize) -> usize {
-        // A single recognized word whose next syllable is not a word does not
-        // move the error. `bróda'y` stays the lujvo failure of the whole span.
-        // Two recognized words mean the stream passed a real boundary.
-        // `káibro` plus `dy` leaves the error on `bra`.
-        let mut pos = start;
-        let mut recognized_words = 0usize;
+        // Camxes reports the tail only after a completed brivla reaches
+        // `post_word` and that check matches a following word shape.
+        // `káibro` is that brivla. `dy` is that shape. The failure is `bra`.
+        // `biryrka` never reaches `post_word` from `final_syllable`.
+        // The lujvo failure stays on the whole span.
+        // `bróda` is a complete gismu, but `'y` is not a word.
+        // `post_word` matches no following word, so the lujvo failure stays.
+        let Some(normalized) = self.checked_normalized_candidate(start, candidate_end) else {
+            return start;
+        };
+        let frame = self.open_word_region(start, candidate_end, &normalized);
+        let brivla_end = self.relaxed_brivla_end(start, candidate_end, &normalized);
+        self.close_word_region(frame);
+        let Some(brivla_end) = brivla_end else {
+            return start;
+        };
+        if brivla_end <= start || brivla_end >= candidate_end {
+            return start;
+        }
+        let mut pos = brivla_end;
+        let mut matched_following_word = false;
         while pos < candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return start;
             }
-            let Some(normalized) = self.checked_normalized_candidate(pos, candidate_end) else {
+            let Some(next_normalized) = self.checked_normalized_candidate(pos, candidate_end)
+            else {
                 break;
             };
-            let Some(next) = self.relaxed_word_end(pos, candidate_end, &normalized) else {
+            let Some(next) = self.relaxed_word_end(pos, candidate_end, &next_normalized) else {
                 break;
             };
             if next <= pos || next > candidate_end {
                 break;
             }
-            // The remainder is one word. The strict search still failed.
-            // The lujvo failure of the original span stays the report.
+            // The rest of the span is one word. The strict search still failed.
+            // The original span stays the report.
             if next == candidate_end {
                 return start;
             }
             pos = next;
-            recognized_words += 1;
+            matched_following_word = true;
         }
-        if recognized_words >= 2 { pos } else { start }
+        if matched_following_word { pos } else { start }
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
