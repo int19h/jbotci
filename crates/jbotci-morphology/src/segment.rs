@@ -1791,26 +1791,49 @@ fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn matches_cmavo_form_chars(chars: &[char]) -> bool {
-    let mut output = None;
-    parse_cmavo_form_chars_into(chars, &mut output).is_some()
+fn parse_cmavo_form_chars_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
+    // A cmavo parsed alone ends at the input. That end is a pause.
+    parse_cmavo_form_span_into(chars, 0, chars.len(), chars.len(), output)
 }
 
-#[requires(true)]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+pub(crate) fn parse_cmavo_form_with_lookahead(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> Option<String> {
+    let mut normalized = String::new();
+    let mut output = Some(&mut normalized);
+    parse_cmavo_form_span_into(chars, start, end, lookahead_end, &mut output)?;
+    Some(normalized)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn parse_cmavo_form_chars_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
-    if chars.is_empty() {
+fn parse_cmavo_form_span_into(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+    output: &mut Option<&mut String>,
+) -> Option<()> {
+    if start >= end {
         return None;
     }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        append_cmavo_chars(output, chars);
+    let span = &chars[start..end];
+    // `y+` and a single digit stay whole-span matches. The cluster rule
+    // belongs to the nucleus alternative only.
+    if span.iter().all(|value| matches!(value, 'y' | 'ý')) {
+        append_cmavo_chars(output, span);
         return Some(());
     }
-    if chars.len() == 1 && chars[0].is_ascii_digit() {
-        append_cmavo_str(output, digit_to_cmavo(chars[0])?);
+    if span.len() == 1 && span[0].is_ascii_digit() {
+        append_cmavo_str(output, digit_to_cmavo(span[0])?);
         return Some(());
     }
-    parse_cmavo_form_main_into(chars, output)
+    parse_cmavo_form_main_span_into(chars, start, end, lookahead_end, output)
 }
 
 #[requires(true)]
@@ -1837,16 +1860,25 @@ fn append_cmavo_char(output: &mut Option<&mut String>, value: char) {
     }
 }
 
-#[requires(true)]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn parse_cmavo_form_main_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
-    if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
+fn parse_cmavo_form_main_span_into(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+    output: &mut Option<&mut String>,
+) -> Option<()> {
+    // cmavo_form <- !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster)
+    if chars.get(start) == Some(&'\'') || consonant_cluster_follows(chars, start, lookahead_end) {
         return None;
     }
-    for onset in parse_onsets(chars, 0) {
+    let span = &chars[start..end];
+    for onset in parse_onsets(span, 0) {
+        let nucleus_start = start + onset.end;
         if with_cmavo_output_rollback(output, |output| {
             append_cmavo_str(output, &onset.normalized);
-            parse_cmavo_form_tail_into(chars, onset.end, output)
+            parse_cmavo_form_tail_span_into(chars, nucleus_start, end, lookahead_end, output)
         })
         .is_some()
         {
@@ -1856,40 +1888,64 @@ fn parse_cmavo_form_main_into(chars: &[char], output: &mut Option<&mut String>) 
     None
 }
 
-#[requires(start <= chars.len())]
+#[requires(index <= cmavo_end && cmavo_end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn parse_cmavo_form_tail_into(
+fn parse_cmavo_form_tail_span_into(
     chars: &[char],
-    start: usize,
+    index: usize,
+    cmavo_end: usize,
+    lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
-    if let Some((semivowel, after_nucleus)) = parse_diphthong_end(chars, start) {
-        if after_nucleus == chars.len() {
-            append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
-            return Some(());
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
+    // The nucleus productions read through `lookahead_end`. Cutting the buffer
+    // at `cmavo_end` would hide a following vowel, and `!nucleus` would succeed
+    // on a letter that is still inside a diphthong.
+    let visible = &chars[..lookahead_end];
+    if let Some((semivowel, after_nucleus)) = parse_diphthong_end(visible, index)
+        && after_nucleus <= cmavo_end
+    {
+        if after_nucleus == cmavo_end {
+            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
+                append_cmavo_diphthong_nucleus(output, chars[index], semivowel);
+                return Some(());
+            }
+        } else if chars.get(after_nucleus) == Some(&'\'')
             && with_cmavo_output_rollback(output, |output| {
-                append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
+                append_cmavo_diphthong_nucleus(output, chars[index], semivowel);
                 append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+                parse_cmavo_form_tail_span_into(
+                    chars,
+                    after_nucleus + 1,
+                    cmavo_end,
+                    lookahead_end,
+                    output,
+                )
             })
             .is_some()
         {
             return Some(());
         }
     }
-    if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
-        let value = chars[start];
-        if after_nucleus == chars.len() {
-            append_cmavo_single_nucleus(output, value);
-            return Some(());
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
+    if let Some(after_nucleus) = parse_single_vowel_end(visible, index)
+        && after_nucleus <= cmavo_end
+    {
+        let value = chars[index];
+        if after_nucleus == cmavo_end {
+            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
+                append_cmavo_single_nucleus(output, value);
+                return Some(());
+            }
+        } else if chars.get(after_nucleus) == Some(&'\'')
             && with_cmavo_output_rollback(output, |output| {
                 append_cmavo_single_nucleus(output, value);
                 append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+                parse_cmavo_form_tail_span_into(
+                    chars,
+                    after_nucleus + 1,
+                    cmavo_end,
+                    lookahead_end,
+                    output,
+                )
             })
             .is_some()
         {
@@ -1897,6 +1953,25 @@ fn parse_cmavo_form_tail_into(
         }
     }
     None
+}
+
+#[requires(nucleus_start < nucleus_end && nucleus_end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn last_cmavo_nucleus_is_allowed(
+    chars: &[char],
+    nucleus_start: usize,
+    nucleus_end: usize,
+    lookahead_end: usize,
+) -> bool {
+    // (!stressed nucleus / nucleus !cluster)
+    // `stressed` is a marked nucleus. Implicit stress is a different rule.
+    // `syllable_has_explicit_stress` reads every vowel of this nucleus.
+    // A mark on the second vowel of `kaí` makes that nucleus stressed.
+    // Camxes reads only the first vowel of the diphthong.
+    if !syllable_has_explicit_stress(chars, nucleus_start, nucleus_end) {
+        return true;
+    }
+    !consonant_cluster_follows(chars, nucleus_end, lookahead_end)
 }
 
 #[requires(true)]
@@ -2210,13 +2285,32 @@ fn diphthong_production_end(chars: &[char], start: usize, limit: usize) -> Optio
     parse_diphthong_end(&chars[..limit], start).map(|(_, end)| end)
 }
 
-#[requires(start <= chars.len())]
+#[requires(lookahead_end <= chars.len())]
 #[ensures(true)]
-fn starts_with_cluster(chars: &[char], start: usize) -> bool {
-    chars
-        .get(start)
-        .zip(chars.get(start + 1))
-        .is_some_and(|(first, second)| is_consonant(*first) && is_consonant(*second))
+fn consonant_cluster_follows(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+    // cluster <- consonant consonant+.
+    // Each consonant starts with comma*. A comma does not end the cluster.
+    // A pause ends the lookahead: a space, a period, or the end of the input.
+    let Some(first) = consonant_index_within(chars, index, lookahead_end) else {
+        return false;
+    };
+    consonant_index_within(chars, first + 1, lookahead_end).is_some()
+}
+
+#[requires(lookahead_end <= chars.len())]
+#[ensures(ret.is_none_or(|found| found >= index && found < lookahead_end))]
+fn consonant_index_within(chars: &[char], index: usize, lookahead_end: usize) -> Option<usize> {
+    // `next_non_comma_index` reads the whole buffer. The lookahead end still bounds the cluster.
+    let found = next_non_comma_index(chars, index)?;
+    if found >= lookahead_end {
+        return None;
+    }
+    let value = chars[found];
+    if is_separator(value) || !is_consonant(value) {
+        None
+    } else {
+        Some(found)
+    }
 }
 
 #[requires(true)]
@@ -3092,17 +3186,417 @@ pub(crate) fn starts_with_cvcy_lujvo_chars_with_cache(
         return false;
     }
 
+    // CVCy_lujvo <- CVC_rafsi y h? initial_rafsi* brivla_core
+    //             / stressed_CVC_rafsi y short_final_rafsi
+    // The first rafsi needs an unstressed vowel. A stressed vowel takes the
+    // second alternative, and that tail is only a short final. CV'V is not one.
+    // Stress uses the predicates for this span. An accent mark alone does not.
+    cvcy_lujvo_from_unstressed_cvc(chars, index, end, cache)
+        || cvcy_lujvo_from_stressed_cvc(chars, index, end, cache)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_lujvo_from_unstressed_cvc(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // CVC_rafsi <- consonant unstressed_vowel consonant
     let Some(base_end) = cvc_rafsi_end(chars, index) else {
         return false;
     };
     if base_end >= end || !chars.get(base_end).is_some_and(|value| is_y(*value)) {
         return false;
     }
-    let mut after_hyphen = base_end + 1;
-    if chars.get(after_hyphen) == Some(&'\'') {
-        after_hyphen += 1;
+    if !y_less_rafsi_is_unstressed_in_context(chars, index, base_end, end, cache) {
+        return false;
     }
-    after_hyphen <= end && lujvo_from_until_with_cache(chars, after_hyphen, end, true, cache)
+    let mut after_y = base_end + 1;
+    // h? stays inside this span. The next character can belong to another word.
+    if after_y < end && chars[after_y] == '\'' {
+        after_y += 1;
+    }
+    // The whole tail can be one lujvo. It can also be initial_rafsi* brivla_core
+    // ending before this candidate. Stress and lookahead keep `end`.
+    after_y < end
+        && (lujvo_from_until_with_cache(chars, after_y, end, true, cache)
+            || cvcy_initial_rafsi_star_core_before_end(chars, after_y, end, cache))
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_lujvo_from_stressed_cvc(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // stressed_CVC_rafsi y short_final_rafsi
+    // This alternative has no h. The short final can end before this span.
+    // `post_word` then reads the next word. `klama` is `kla` plus `ma`.
+    let Some(base_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache) else {
+        return false;
+    };
+    let after_y = base_end + 1;
+    if base_end >= end
+        || after_y >= end
+        || !chars.get(base_end).is_some_and(|value| is_y(*value))
+        || chars[after_y] == '\''
+    {
+        return false;
+    }
+    let short_end = after_y + 3;
+    short_end <= end
+        && is_unaccented_short_final_rafsi_slice(chars, after_y, short_end)
+        && prefix_post_word_slice_with_cache(chars, short_end, end, cache)
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_initial_rafsi_star_core_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // initial_rafsi* brivla_core, with the core ending before `context_end`.
+    // `context_end` stays the stress pause and the lookahead. A shorter core
+    // end is not a pause.
+    if cache.is_cancelled() || index >= context_end {
+        return false;
+    }
+    if let Some(result) = cache.cvcy_core_before(index, context_end) {
+        return result;
+    }
+    let result = cvcy_brivla_core_before_end(chars, index, context_end, cache)
+        || initial_rafsi_ends_until_with_cache(chars, index, context_end, cache)
+            .into_iter()
+            .any(|next| {
+                next > index
+                    && next < context_end
+                    && cvcy_initial_rafsi_star_core_before_end(chars, next, context_end, cache)
+            });
+    cache.record_cvcy_core_before(index, context_end, result);
+    result
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_brivla_core_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // brivla_core <- fuhivla / gismu / CVV_final_rafsi
+    //              / stressed_initial_rafsi short_final_rafsi
+    cvcy_gismu_core_before_end(chars, index, context_end, cache)
+        || cvcy_cvv_core_before_end(chars, index, context_end, cache)
+        || cvcy_stressed_initial_short_final_before_end(chars, index, context_end, cache)
+        || cvcy_fuhivla_core_before_end(chars, index, context_end, cache)
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_fuhivla_core_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // fuhivla <- fuhivla_head stressed_syllable consonantal_syllable* final_syllable
+    // The shape checker reads stress to its own end. An early core therefore
+    // needs an explicit mark on the penultimate nucleus. Implicit stress from
+    // that shorter end does not count. `context_end` still bounds post_word.
+    cvcy_stressable_nucleus_ends(chars, index, context_end)
+        .into_iter()
+        .skip(1)
+        .any(|core_end| {
+            let prefix = &chars[index..core_end];
+            crate::grammar::has_explicit_brivla_stress_chars(prefix)
+                && crate::grammar::explicit_brivla_stress_is_valid_chars(prefix)
+                && !crate::grammar::boundary_repeats_diphthong_semivowel_chars(
+                    prefix,
+                    &chars[core_end..context_end],
+                )
+                && is_fuhivla_shape_slice_with_cache(chars, index, core_end, cache)
+                && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+        })
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(ret.iter().all(|nucleus_end| *nucleus_end > start && *nucleus_end < end))]
+fn cvcy_stressable_nucleus_ends(chars: &[char], start: usize, end: usize) -> Vec<usize> {
+    let mut nucleus_ends = Vec::new();
+    let mut index = start;
+    while index < end {
+        if chars[index] == ',' {
+            index += 1;
+            continue;
+        }
+        let Some((stressable, nucleus_end)) = parse_explicit_stress_nucleus_end(chars, index)
+        else {
+            index += 1;
+            continue;
+        };
+        if nucleus_end <= index {
+            break;
+        }
+        if stressable && nucleus_end < end {
+            nucleus_ends.push(nucleus_end);
+        }
+        index = nucleus_end;
+    }
+    nucleus_ends
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_gismu_core_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // gismu <- (initial_pair stressed_vowel / consonant stressed_vowel consonant)
+    //          &final_syllable consonant vowel &post_word
+    // The shape is `is_gismu_slice`. Both shapes put the final syllable at
+    // the last two letters. `stressed_vowel` uses this candidate.
+    // `final_syllable` uses `!stressed`, an explicit mark, not implicit stress
+    // from the next word.
+    let core_end = index + 5;
+    if core_end >= context_end || !is_gismu_slice(chars, index, core_end) {
+        return false;
+    }
+    let final_start = index + 3;
+    syllable_is_stressed_in_context(chars, index, final_start, context_end)
+        && final_syllable_slice(chars, final_start, core_end)
+        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_cvv_core_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // CVV_final_rafsi <- consonant stressed_vowel h &final_syllable vowel &post_word
+    let core_end = index + 4;
+    core_end < context_end
+        && is_consonant(chars[index])
+        && vowel_production_end(chars, index + 1, context_end) == Some(index + 2)
+        && chars[index + 2] == '\''
+        && vowel_production_end(chars, index + 3, context_end) == Some(index + 4)
+        && vowel_is_stressed_in_context(chars, index + 1, context_end, cache)
+        && final_syllable_slice(chars, index + 3, core_end)
+        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn cvcy_stressed_initial_short_final_before_end(
+    chars: &[char],
+    index: usize,
+    context_end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // stressed_initial_rafsi short_final_rafsi, ending before `context_end`.
+    // The stressed rafsi reads stress from `context_end`, not from its own end.
+    if cache.is_cancelled() {
+        return false;
+    }
+    let mut splits = stressed_y_rafsi_ends_in_context(chars, index, context_end, cache);
+    splits.extend(stressed_y_less_rafsi_ends_in_context(
+        chars,
+        index,
+        context_end,
+        cache,
+    ));
+    splits.extend(stressed_extended_rafsi_ends_until_with_cache(
+        chars,
+        index,
+        context_end,
+        cache,
+    ));
+    splits.into_iter().any(|split| {
+        let core_end = split.saturating_add(3);
+        split > index
+            && core_end < context_end
+            && is_unaccented_short_final_rafsi_slice(chars, split, core_end)
+            && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+    })
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_post_word_slice_with_cache(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // post_word <- pause / !nucleus lojban_word
+    // `pause` is a separator or the end of this slice. `end` stays the stress
+    // context and the lookahead. This result stays out of the whole-slice
+    // `post_word` table. A recursive call starts later, so one key runs once.
+    if cache.is_cancelled() {
+        return false;
+    }
+    if let Some(result) = cache.prefix_post_word(index, end) {
+        return result;
+    }
+    let result = match next_non_comma_index(chars, index) {
+        None => true,
+        Some(next) if next >= end || is_separator(chars[next]) => true,
+        Some(next) if starts_with_pause_required_nucleus(chars, next) => false,
+        Some(next) => prefix_lojban_word_slice_with_cache(chars, next, end, cache),
+    };
+    cache.record_prefix_post_word(index, end, result);
+    result
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_lojban_word_slice_with_cache(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // lojban_word <- cmevla / cmavo / brivla
+    // The cmavo arm continues with the prefix post_word. The brivla arm accepts
+    // a brivla that ends before `end` when explicit stress makes that end valid.
+    // This result stays out of the whole-slice `lojban_word` and `cmavo_word`
+    // tables. A recursive call starts later, so one key runs once.
+    if cache.is_cancelled() {
+        return false;
+    }
+    if let Some(result) = cache.prefix_lojban_word(start, end) {
+        return result;
+    }
+    #[allow(unused_mut)]
+    let mut recognize = || {
+        start < end
+            && (is_cmevla_slice(chars, start, end)
+                || prefix_cmavo_word_before_end(chars, start, end, cache)
+                || prefix_brivla_word_before_end(chars, start, end, cache))
+    };
+    // One word calls the next word before this call returns. Grow the native
+    // stack when less than 64 KiB remains. wasm32 has no auxiliary stack, so
+    // the call stays on the host stack.
+    #[cfg(not(target_arch = "wasm32"))]
+    let result = stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+    #[cfg(target_arch = "wasm32")]
+    let result = recognize();
+    cache.record_prefix_lojban_word(start, end, result);
+    result
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_cmavo_word_before_end(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // cmavo <- !cmevla !CVCy_lujvo cmavo_form &post_word
+    // Both exclusions use this candidate. The continuation is the prefix post_word.
+    if start >= end
+        || is_cmevla_slice(chars, start, end)
+        || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
+    {
+        return false;
+    }
+    ((start + 1)..=end).any(|word_end| {
+        is_cmavo_form_span(chars, start, word_end, end)
+            && prefix_cmavo_post_word_before_end(chars, start, word_end, end, cache)
+    })
+}
+
+#[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_cmavo_post_word_before_end(
+    chars: &[char],
+    prefix_start: usize,
+    prefix_end: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // The cmavo `&post_word` keeps the nucleus rule and the indicator boundary.
+    // A nucleus-initial next word stays out unless that boundary matches.
+    let Some(index) = next_non_comma_index(chars, prefix_end) else {
+        return true;
+    };
+    if index >= end || is_separator(chars[index]) {
+        return true;
+    }
+    if starts_with_pause_required_nucleus(chars, index)
+        && !indicator_cmavo_boundary_slice_with_cache(
+            chars,
+            prefix_start,
+            prefix_end,
+            index,
+            end,
+            cache,
+        )
+    {
+        return false;
+    }
+    if starts_with_pause_required_nucleus(chars, index) {
+        return prefix_lojban_word_slice_with_cache(chars, index, end, cache);
+    }
+    prefix_post_word_slice_with_cache(chars, prefix_end, end, cache)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[requires(cache.char_count == chars.len())]
+#[ensures(true)]
+fn prefix_brivla_word_before_end(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    cache: &mut MorphologyRecognitionCache,
+) -> bool {
+    // A brivla that runs to `end` meets `post_word` at that pause.
+    // A brivla that ends earlier needs the explicit-stress rule from
+    // `post_word_ok_for_brivla`, then this same post_word.
+    if start >= end {
+        return false;
+    }
+    if brivla_word_slice_with_cache(chars, start, end, cache) {
+        return true;
+    }
+    cvcy_stressable_nucleus_ends(chars, start, end)
+        .into_iter()
+        .skip(1)
+        .any(|brivla_end| {
+            let prefix = &chars[start..brivla_end];
+            crate::grammar::has_explicit_brivla_stress_chars(prefix)
+                && crate::grammar::explicit_brivla_stress_is_valid_chars(prefix)
+                && !crate::grammar::boundary_repeats_diphthong_semivowel_chars(
+                    prefix,
+                    &chars[brivla_end..end],
+                )
+                && brivla_word_slice_with_cache(chars, start, brivla_end, cache)
+                && prefix_post_word_slice_with_cache(chars, brivla_end, end, cache)
+        })
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -5066,7 +5560,7 @@ fn indicator_cmavo_boundary_slice_with_cache(
     if let Some(result) = cache.indicator_boundary(prefix_start, prefix_end, index, end) {
         return result;
     }
-    let result = is_indicator_cmavo_slice(chars, prefix_start, prefix_end)
+    let result = is_indicator_cmavo_span(chars, prefix_start, prefix_end, end)
         && !starts_with_nucleus(chars, index)
         && indicator_cmavo_starts_slice_with_cache(chars, index, end, cache);
     cache.record_indicator_boundary(prefix_start, prefix_end, index, end, result);
@@ -5091,20 +5585,21 @@ fn indicator_cmavo_starts_slice_with_cache(
     }
     let result = start < end
         && ((start + 1)..=end).any(|word_end| {
-            is_indicator_cmavo_slice(chars, start, word_end)
+            is_indicator_cmavo_span(chars, start, word_end, end)
                 && cmavo_post_word_slice_with_cache(chars, start, word_end, end, cache)
         });
     cache.record_indicator_cmavo_starts(start, end, result);
     result
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn is_indicator_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn is_indicator_cmavo_span(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
     if start >= end {
         return false;
     }
-    parse_cmavo_form_chars(&chars[start..end])
+    // The last nucleus can see a cluster that starts after this cmavo.
+    parse_cmavo_form_with_lookahead(chars, start, end, lookahead_end)
         .and_then(|phonemes| Cmavo::from_text(&phonemes))
         .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
 }
@@ -5192,7 +5687,7 @@ fn cmavo_word_slice_with_cache(
             false
         } else {
             ((start + 1)..=end).any(|word_end| {
-                is_cmavo_slice(chars, start, word_end)
+                is_cmavo_form_span(chars, start, word_end, end)
                     && cmavo_post_word_slice_with_cache(chars, start, word_end, end, cache)
             })
         };
@@ -5983,10 +6478,19 @@ pub(crate) fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<u
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
+    // A closed slice cannot see past its end. Callers that classify one
+    // finished span, including a fu'ivla shape, stay on that bound.
+    is_cmavo_form_span(chars, start, end, end)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn is_cmavo_form_span(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
     if start >= end {
         return false;
     }
-    matches_cmavo_form_chars(&chars[start..end])
+    let mut output = None;
+    parse_cmavo_form_span_into(chars, start, end, lookahead_end, &mut output).is_some()
 }
 
 #[requires(index <= chars.len())]
@@ -6600,12 +7104,16 @@ mod tests {
             ("kanklá", "kan", "klá"),
             ("kláklá", "klá", "klá"),
             ("kánklá", "kán", "klá"),
-            ("klábrodybra", "klá", "brodybra"),
-            ("kánbrodybra", "kán", "brodybra"),
             ("xlastmlu", "xla", "stmlu"),
         ] {
             assert_short_final_failure(source, prefix, suffix);
             assert_short_final_note(source, prefix, &format!("after `{prefix}`"));
+        }
+        // Camxes accepts `klAbrody` and `kAnbrody` as a lujvo plus cmavo `dy`.
+        // The next syllable `bra` is not a word. The whole-span guess that
+        // `klá` still needs a short final is not that parse state.
+        for source in ["klábrodybra", "kánbrodybra"] {
+            assert_unrecognized_word_tail(source, "bra");
         }
         assert_incomplete_lujvo(
             "brodykanbrty",
@@ -7002,6 +7510,368 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn explicit_stress_mark_on_either_diphthong_vowel_counts() {
+        // `syllable_has_explicit_stress` reads every vowel of the nucleus.
+        // The nucleus of `kaí` is `aí`, so the mark on the second vowel counts.
+        // Camxes `stressed` reads only the first vowel, so `kaI` is not stressed.
+        // That difference is issue 1103. This predicate stays as it is.
+        let kai = text_chars("kaí");
+        assert!(syllable_has_explicit_stress(&kai, 1, 3));
+        let unmarked = text_chars("kai");
+        assert!(!syllable_has_explicit_stress(&unmarked, 1, 3));
+        let first = text_chars("kái");
+        assert!(syllable_has_explicit_stress(&first, 1, 3));
+        let cluster = text_chars("káibrodybra");
+        assert!(consonant_cluster_follows(&cluster, 3, cluster.len()));
+        let spaced = text_chars("kái brodybra");
+        assert!(!consonant_cluster_follows(&spaced, 3, spaced.len()));
+        let single = text_chars("tádyba'i");
+        assert!(!consonant_cluster_follows(&single, 2, single.len()));
+        let ended = text_chars("kái");
+        assert!(!consonant_cluster_follows(&ended, ended.len(), ended.len()));
+        // A comma is not a pause. It can sit before the cluster or between
+        // the two consonants. Camxes consonant productions start with comma*.
+        let comma_before = text_chars("kái,klama");
+        assert!(consonant_cluster_follows(
+            &comma_before,
+            3,
+            comma_before.len()
+        ));
+        let comma_between = text_chars("káik,lama");
+        assert!(consonant_cluster_follows(
+            &comma_between,
+            3,
+            comma_between.len()
+        ));
+        let commas_around = text_chars("kái,k,lama");
+        assert!(consonant_cluster_follows(
+            &commas_around,
+            3,
+            commas_around.len()
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stressed_final_cmavo_nucleus_and_cvcy_lujvo_follow_camxes() {
+        // Camxes-morpho classes, with uppercase vowels for stress.
+        // A foreign word there is a rejection here.
+        let splits = [
+            (
+                "kái brodybra",
+                "Cmavo:káĭ | Lujvo:rafsi:bród+hyphen:y+rafsi:bra",
+            ),
+            (
+                "kaibrodybra",
+                "Cmavo:kaĭ | Lujvo:rafsi:bród+hyphen:y+rafsi:bra",
+            ),
+            ("káibro", "Lujvo:rafsi:káĭ+rafsi:bro"),
+            ("mÍklama", "Gismu:míkla | Cmavo:ma"),
+            ("miklama", "Cmavo:mi | Gismu:kláma"),
+            ("tádyba'i", "Cmavo:tá | Cmavo:dy | Cmavo:ba'i"),
+            ("tádybá'i", "Cmavo:tá | Cmavo:dy | Cmavo:bá'i"),
+            (
+                "tádykanbrtybra",
+                "Cmavo:tá | Cmavo:dy | Lujvo:rafsi:kánbrt+hyphen:y+rafsi:bra",
+            ),
+            ("tadyba'i", "Lujvo:rafsi:tad+hyphen:y+rafsi:bá'i"),
+            ("tádybai", "Lujvo:rafsi:tád+hyphen:y+rafsi:baĭ"),
+            ("tadybai", "Lujvo:rafsi:tád+hyphen:y+rafsi:baĭ"),
+            ("tádyklama", "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:ma"),
+            (
+                "tádyklamami",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:ma | Cmavo:mi",
+            ),
+            ("tádybroda", "Lujvo:rafsi:tád+hyphen:y+rafsi:bro | Cmavo:da"),
+            ("tádybaido", "Lujvo:rafsi:tád+hyphen:y+rafsi:baĭ | Cmavo:do"),
+            ("tadyklama", "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma"),
+            ("tá dyba'i", "Cmavo:tá | Cmavo:dy | Cmavo:ba'i"),
+            ("brodyklama", "Lujvo:rafsi:brod+hyphen:y+rafsi:kláma"),
+            ("klama'yklama", "Lujvo:rafsi:klama+hyphen:'y+rafsi:kláma"),
+            ("KLAmami", "Gismu:kláma | Cmavo:mi"),
+            ("klamami", "Fuhivla:klamámi"),
+            ("mÍ klama", "Cmavo:mí | Gismu:kláma"),
+            ("kái", "Cmavo:káĭ"),
+            ("bá'aklama", "Cmavo:bá'a | Gismu:kláma"),
+            ("kái,klama", "Lujvo:rafsi:káĭ+rafsi:kla | Cmavo:ma"),
+            // Unstressed CVC y, then a brivla that ends before the next word.
+            (
+                "tadyklámami",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi",
+            ),
+            (
+                "tadybá'imi",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:bá'i | Cmavo:mi",
+            ),
+            (
+                "tadyklámabróda",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Gismu:bróda",
+            ),
+            (
+                "tadybródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:bróda | Cmavo:do",
+            ),
+            (
+                "tadyklámado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:do",
+            ),
+            (
+                "tadykanbrtyklámami",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kanbrt+hyphen:y+rafsi:kláma | Cmavo:mi",
+            ),
+            (
+                "tadybrábrodo",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:brá+rafsi:bro | Cmavo:do",
+            ),
+            (
+                "tadyspagétimi",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:spagéti | Cmavo:mi",
+            ),
+            // A cmavo, then a brivla that ends before the next word.
+            (
+                "tadyklámamibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tadybá'imibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:bá'i | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tadyspagétimibródado",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:spagéti | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "mi tadyklámami",
+                "Cmavo:mi | Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi",
+            ),
+            // Stressed CVC y short-final, then a brivla that ends before the next word.
+            (
+                "tádyklabródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklaklámami",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:kláma | Cmavo:mi",
+            ),
+            (
+                "tádybrobródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:bro | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamibródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamimibródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklabródamiklámado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:bróda | Cmavo:mi | Gismu:kláma | Cmavo:do",
+            ),
+            (
+                "tádyklami bródado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda | Cmavo:do",
+            ),
+            (
+                "tádyklamibróda",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Gismu:bróda",
+            ),
+            (
+                "tádyklamibrodado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:mi | Fuhivla:brodádo",
+            ),
+            (
+                "tádyklabródaklámado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Gismu:bróda | Gismu:kláma | Cmavo:do",
+            ),
+            // The mark on `klá` blocks the short final. This stays three cmavo and a gismu.
+            (
+                "tádyklámami",
+                "Cmavo:tá | Cmavo:dy | Gismu:kláma | Cmavo:mi",
+            ),
+            (
+                "tadykláma mi",
+                "Lujvo:rafsi:tad+hyphen:y+rafsi:kláma | Cmavo:mi",
+            ),
+            ("tadyklamado", "Lujvo:rafsi:tad+hyphen:y+rafsi:klamádo"),
+            (
+                "tádyklamado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:kla | Cmavo:ma | Cmavo:do",
+            ),
+            (
+                "tádybrodado",
+                "Lujvo:rafsi:tád+hyphen:y+rafsi:bro | Cmavo:da | Cmavo:do",
+            ),
+        ];
+        for (source, expected) in splits {
+            assert_eq!(morphology_classes(source), expected, "{source}");
+        }
+        // Camxes consumes the lujvo `kAibro` and the cmavo `dy`, then fails
+        // at `bra`. The chunk stays rejected. The error is that tail.
+        // A comma does not hide the cluster, so `kái,brodybra` fails the same way.
+        for source in [
+            "káibrodybra",
+            "báibrodybra",
+            "káubrodybra",
+            "péibrodybra",
+            "sóibrodybra",
+            "kái,brodybra",
+        ] {
+            assert_unrecognized_word_tail(source, "bra");
+        }
+        // `kaí` has the mark on the second vowel. This predicate calls that
+        // nucleus stressed, so the cluster rule rejects the chunk.
+        // Camxes reads only the first vowel and splits `kaI` + `brodybra`.
+        // Issue 1103 owns that difference. The brivla stress check reads the
+        // first vowel, so this chunk stays on the lujvo failure path.
+        assert_stressed_cmavo_before_cluster("kaíbrodybra", "kaí");
+        // `tády'bai` is not a CVCy lujvo: the stressed alternative has no h.
+        // The apostrophe is still illegal. Camxes rejects the chunk.
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "tády'bai",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("tády'bai");
+        let crate::MorphologyError::Invalid { kind, .. } = &error else {
+            panic!("tády'bai is an invalid-word error, got {error:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::InvalidApostrophe);
+        let diagnostic = error.to_diagnostic(None, "tády'bai").expect("tády'bai");
+        assert_eq!(diagnostic.code, "morphology.invalid-apostrophe");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cvcy_lujvo_exclusion_accepts_a_brivla_that_ends_early() {
+        // `!CVCy_lujvo` is a prefix check. The brivla core can end before the
+        // candidate, and `post_word` then reads the next word.
+        for source in [
+            "tadyklámami",
+            "tadybá'imi",
+            "tadyklámabróda",
+            "tadybródado",
+            "tadyklámado",
+            "tadykanbrtyklámami",
+            "tadybrábrodo",
+            "tadyspagétimi",
+            "tádyklabródado",
+            "tádyklaklámami",
+            "tádybrobródado",
+            "tádyklamibródado",
+            "tadyklámamibródado",
+            "tadybá'imibródado",
+            "tadyspagétimibródado",
+            "tádyklamimibródado",
+            "tádyklabródamiklámado",
+            "tádyklami bródado",
+            "tádyklamibróda",
+            "tádyklamibrodado",
+            "tádyklabródaklámado",
+            "tadykláma",
+            "tadyklamami",
+            "tádyklama",
+            "tádyklamami",
+            "tadyba'i",
+            "tádybai",
+        ] {
+            let chars = text_chars(source);
+            assert!(
+                starts_with_cvcy_lujvo_chars(&chars, 0),
+                "{source} is a CVCy lujvo"
+            );
+        }
+        // A stressed CVC whose next syllable is also stressed is not this lujvo.
+        // `ba'i` after that CVC is a cmavo, not a short final.
+        for source in ["tádyklámami", "tádyba'i", "tádybá'i"] {
+            let chars = text_chars(source);
+            assert!(
+                !starts_with_cvcy_lujvo_chars(&chars, 0),
+                "{source} is not a CVCy lujvo"
+            );
+        }
+    }
+
+    #[requires(!source.is_empty() && !prefix.is_empty())]
+    #[ensures(true)]
+    fn assert_stressed_cmavo_before_cluster(source: &str, prefix: &str) {
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err(source);
+        let crate::MorphologyError::Invalid {
+            kind,
+            char_start,
+            char_end,
+            detail,
+            ..
+        } = &error
+        else {
+            panic!("{source} is an invalid-word error, got {error:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::InvalidLujvo, "{source}");
+        assert_eq!(*char_start, 0, "{source}");
+        assert_eq!(*char_end, source.chars().count(), "{source}");
+        let detail = detail
+            .as_ref()
+            .unwrap_or_else(|| panic!("{source} has a detail"));
+        let data!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix,
+            expected,
+            ..
+        }) = detail.as_data()
+        else {
+            panic!("{source} detail is {detail:?}");
+        };
+        assert_eq!(parsed_prefix.as_deref(), Some(prefix), "{source}");
+        assert_eq!(
+            *expected,
+            LujvoParseExpectation::ShortFinalRafsi,
+            "{source}"
+        );
+        let diagnostic = error.to_diagnostic(None, source).expect(source);
+        assert_eq!(diagnostic.code, "morphology.invalid-lujvo", "{source}");
+    }
+
+    #[requires(!source.is_empty() && !tail.is_empty())]
+    #[ensures(true)]
+    fn assert_unrecognized_word_tail(source: &str, tail: &str) {
+        let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err(source);
+        let crate::MorphologyError::Invalid {
+            kind,
+            char_start,
+            char_end,
+            text,
+            detail,
+            ..
+        } = &error
+        else {
+            panic!("{source} is an invalid-word error, got {error:?}");
+        };
+        assert_eq!(*kind, MorphologyErrorKind::UnrecognizedWord, "{source}");
+        assert!(detail.is_none(), "{source} detail is {detail:?}");
+        assert_eq!(text, tail, "{source}");
+        let source_chars = source.chars().count();
+        let tail_chars = tail.chars().count();
+        assert_eq!(*char_end, source_chars, "{source}");
+        assert_eq!(*char_start, source_chars - tail_chars, "{source}");
+        let diagnostic = error.to_diagnostic(None, source).expect(source);
+        assert_eq!(diagnostic.code, "morphology.unrecognized-word", "{source}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn segment_and_lujvo_pair_matrices_are_equivalent() {
         for first in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
             for second in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
@@ -7159,7 +8029,7 @@ mod tests {
     /// Body executions for `cíniconulová` repeated `groups` times.
     ///
     /// The repeated piece is 12 characters. `tcíniconuloválsicu` is 18
-    /// characters, not 12. The cap is the key space: 26 two-index slots, 8
+    /// characters, not 12. The cap is the key space: 29 two-index slots, 8
     /// three-index maps, and 1 four-index map. A body runs once per stored
     /// key, so the count cannot pass that space. Growth from one size to the
     /// next stays inside four times the four-index ratio.
@@ -7182,6 +8052,55 @@ mod tests {
             .unwrap_or_else(|error| panic!("{input}: {error}"));
             let bodies = counter.get();
             assert!(!words.is_empty(), "{input}");
+            assert!(
+                bodies <= cap,
+                "groups={groups} chars={char_count} bodies={bodies} cap={cap}"
+            );
+            assert!(
+                bodies > previous_bodies,
+                "groups={groups} bodies={bodies} previous={previous_bodies}"
+            );
+            if previous_bodies > 0 {
+                let n = u64::try_from(char_count).unwrap_or(u64::MAX);
+                assert!(
+                    bodies.saturating_mul(previous_n.saturating_pow(4))
+                        <= previous_bodies
+                            .saturating_mul(n.saturating_pow(4))
+                            .saturating_mul(4),
+                    "groups={groups} bodies={bodies} previous={previous_bodies} n={n} previous_n={previous_n}"
+                );
+            }
+            previous_bodies = bodies;
+            previous_n = u64::try_from(char_count).unwrap_or(u64::MAX);
+        }
+    }
+
+    /// Body executions for `tádykla`, then `mibróda` repeated `groups` times, then `do`.
+    ///
+    /// Camxes-morpho splits each copy into the cmavo `mi` and the gismu `bróda`.
+    /// The lujvo is `tádykla`, and the last word is the cmavo `do`. The cap is
+    /// the same key space as the stressed-cmavo groups. A body runs once per
+    /// stored key. Growth from one size to the next stays inside four times
+    /// the four-index ratio.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cvcy_prefix_cmavo_brivla_chain_executes_polynomially_many_recognizer_bodies() {
+        let mut previous_bodies = 0u64;
+        let mut previous_n = 0u64;
+        for groups in 1..=3 {
+            let input = format!("tádykla{}do", "mibróda".repeat(groups));
+            let char_count = input.chars().count();
+            let cap = recognition_key_space(char_count);
+            let counter = super::recognition_cache::RecognitionBodyCount::begin(cap);
+            let got = morphology_classes(&input);
+            let bodies = counter.get();
+            let mut expected = String::from("Lujvo:rafsi:tád+hyphen:y+rafsi:kla");
+            for _ in 0..groups {
+                expected.push_str(" | Cmavo:mi | Gismu:bróda");
+            }
+            expected.push_str(" | Cmavo:do");
+            assert_eq!(got, expected, "{input}");
             assert!(
                 bodies <= cap,
                 "groups={groups} chars={char_count} bodies={bodies} cap={cap}"
@@ -7262,16 +8181,16 @@ mod tests {
         .collect()
     }
 
-    /// 26 two-index slots, 8 three-index maps, and 1 four-index map.
+    /// 29 two-index slots, 8 three-index maps, and 1 four-index map.
     ///
-    /// Eighteen of the two-index slots are plain maps. Four maps carry a flag
+    /// Twenty-one of the two-index slots are plain maps. Four maps carry a flag
     /// with two values (`has_initial_rafsi` on `lujvo_from` and on
     /// `lujvo_part_ranges`, `allows_y`, and `FuhivlaHeadPolicy`). Those eight
-    /// slots make 26 with the plain maps. `brivla_head_ends` and
+    /// slots make 29 with the plain maps. `brivla_head_ends` and
     /// `fuhivla_head_ends` are three-index keys. The extra index is the
     /// lookahead end. `m = char_count + 1`.
     #[requires(char_count < usize::MAX)]
-    #[ensures(ret >= 26)]
+    #[ensures(ret >= 29)]
     fn recognition_key_space(char_count: usize) -> u64 {
         let m = u64::try_from(char_count)
             .unwrap_or(u64::MAX)
@@ -7279,7 +8198,7 @@ mod tests {
         let m2 = m.saturating_mul(m);
         let m3 = m2.saturating_mul(m);
         let m4 = m3.saturating_mul(m);
-        m2.saturating_mul(26)
+        m2.saturating_mul(29)
             .saturating_add(m3.saturating_mul(8))
             .saturating_add(m4)
     }

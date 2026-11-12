@@ -1195,9 +1195,270 @@ impl<'a> Segmenter<'a> {
                 None,
             ));
         }
-        let error = self.invalid_word_error(start, error_end);
-        self.trace_failure("word", start, error_end, || Some(error.to_string()));
+        // The strict search failed. A whole-span lujvo guess can name a rafsi
+        // that the stream already consumed. Keep the brivla that reached
+        // post_word, then report the word that does not start.
+        let failed_at = self.furthest_successful_word_end(start, candidate_end);
+        let error_start = if failed_at > start && failed_at < error_end {
+            failed_at
+        } else {
+            start
+        };
+        // `error_end` is already the trimmed candidate. `failed_at` is `start`
+        // or an index strictly inside that span, so the span cannot be empty.
+        let error = self.invalid_word_error(error_start, error_end);
+        self.trace_failure("word", error_start, error_end, || Some(error.to_string()));
         Err(error)
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret >= start && ret <= candidate_end)]
+    fn furthest_successful_word_end(&self, start: usize, candidate_end: usize) -> usize {
+        // Camxes reports the tail only after a completed brivla reaches
+        // `post_word` and that check matches a following word shape.
+        // `káibro` is that brivla. `dy` is that shape. The failure is `bra`.
+        // `biryrka` never reaches `post_word` from `final_syllable`.
+        // The lujvo failure stays on the whole span.
+        // `bróda` is a complete gismu, but `'y` is not a word.
+        // `post_word` matches no following word, so the lujvo failure stays.
+        let Some(normalized) = self.checked_normalized_candidate(start, candidate_end) else {
+            return start;
+        };
+        let frame = self.open_word_region(start, candidate_end, &normalized);
+        let brivla_end = self.relaxed_brivla_end(start, candidate_end, &normalized);
+        self.close_word_region(frame);
+        let Some(brivla_end) = brivla_end else {
+            return start;
+        };
+        if brivla_end <= start || brivla_end >= candidate_end {
+            return start;
+        }
+        let mut pos = brivla_end;
+        let mut matched_following_word = false;
+        while pos < candidate_end {
+            if self.options.cancellation.is_cancelled() {
+                return start;
+            }
+            let Some(next_normalized) = self.checked_normalized_candidate(pos, candidate_end)
+            else {
+                break;
+            };
+            let Some(next) = self.relaxed_word_end(pos, candidate_end, &next_normalized) else {
+                break;
+            };
+            if next <= pos || next > candidate_end {
+                break;
+            }
+            // The rest of the span is one word. The strict search still failed.
+            // The original span stays the report.
+            if next == candidate_end {
+                return start;
+            }
+            pos = next;
+            matched_following_word = true;
+        }
+        if matched_following_word { pos } else { start }
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|end| end > start && end <= candidate_end))]
+    fn relaxed_word_end(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<usize> {
+        let frame = self.open_word_region(start, candidate_end, normalized);
+        let result = self.relaxed_word_end_uncached(start, candidate_end, normalized);
+        self.close_word_region(frame);
+        result
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|end| end > start && end <= candidate_end))]
+    fn relaxed_word_end_uncached(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<usize> {
+        if let Some(end) = self.relaxed_cmevla_end(start, candidate_end, normalized) {
+            return Some(end);
+        }
+        if let Some(end) = self.relaxed_cmavo_end(start, candidate_end, normalized) {
+            return Some(end);
+        }
+        self.relaxed_brivla_end(start, candidate_end, normalized)
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|end| end > start && end <= candidate_end))]
+    fn relaxed_cmevla_end(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<usize> {
+        for end in (start + 1)..=candidate_end {
+            if !self.pause_at(end) {
+                continue;
+            }
+            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            if crate::segment::is_cmevla_text(normalized_prefix) {
+                return Some(end);
+            }
+        }
+        None
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|end| end > start && end <= candidate_end))]
+    fn relaxed_cmavo_end(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<usize> {
+        if let Some(done) = self.cmavo_candidate_prescan(start, candidate_end, normalized) {
+            let candidate = done?;
+            let data!(StreamingWordCandidate { end, .. }) = candidate.into_data();
+            return Some(end);
+        }
+        let lookahead_end = normalized.normalized_chars.len();
+        for end in (start + 1)..=candidate_end {
+            if self.options.cancellation.is_cancelled() {
+                return None;
+            }
+            let relative_end = end - start;
+            let cmavo_end = normalized.normalized_char_end(relative_end)?;
+            if crate::segment::parse_cmavo_form_with_lookahead(
+                &normalized.normalized_chars,
+                0,
+                cmavo_end,
+                lookahead_end,
+            )
+            .is_none()
+            {
+                continue;
+            }
+            let normalized_prefix = normalized.slice_to_source_end(relative_end)?;
+            if self.relaxed_cmavo_boundary_ok(
+                start,
+                end,
+                candidate_end,
+                normalized_prefix,
+                normalized,
+            ) {
+                return Some(end);
+            }
+        }
+        None
+    }
+
+    #[requires(prefix_start < prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn relaxed_cmavo_boundary_ok(
+        &self,
+        prefix_start: usize,
+        prefix_end: usize,
+        candidate_end: usize,
+        prefix: &str,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
+        if self.pause_at(prefix_end) {
+            return true;
+        }
+        let Some(remainder) =
+            normalized.slice_source_range(prefix_end - prefix_start, candidate_end - prefix_start)
+        else {
+            return false;
+        };
+        if boundary_repeats_diphthong_semivowel(prefix, remainder) {
+            return false;
+        }
+        if self.starts_with_pause_required_nucleus_at(prefix_end) {
+            return self.indicator_cmavo_boundary_ok(
+                prefix,
+                prefix_start,
+                prefix_end,
+                candidate_end,
+                normalized,
+            );
+        }
+        true
+    }
+
+    #[requires(start < candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|end| end > start && end <= candidate_end))]
+    fn relaxed_brivla_end(
+        &self,
+        start: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> Option<usize> {
+        for end in (start + 1)..=candidate_end {
+            if self.options.cancellation.is_cancelled() {
+                return None;
+            }
+            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            if !self.relaxed_brivla_boundary_ok(
+                start,
+                end,
+                candidate_end,
+                normalized_prefix,
+                normalized,
+            ) {
+                continue;
+            }
+            let local_stripped_end = normalized.stripped_end_to_source_end(end - start)?;
+            let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
+            let classified =
+                self.with_shared_cache(start, normalized, |stripped, offset, cache| {
+                    crate::segment::classify_word_with_cache(
+                        normalized_prefix,
+                        normalized_prefix_chars,
+                        stripped,
+                        offset,
+                        offset + local_stripped_end,
+                        cache,
+                    )
+                });
+            if classified.is_some_and(|(kind, _)| {
+                matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
+            }) {
+                return Some(end);
+            }
+        }
+        None
+    }
+
+    #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn relaxed_brivla_boundary_ok(
+        &self,
+        start: usize,
+        end: usize,
+        candidate_end: usize,
+        prefix: &str,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
+        if !has_explicit_brivla_stress(prefix) {
+            return self.pause_at(end);
+        }
+        if !explicit_brivla_stress_is_valid(prefix) {
+            return false;
+        }
+        if self.pause_at(end) {
+            return true;
+        }
+        let Some(remainder) = normalized.slice_source_range(end - start, candidate_end - start)
+        else {
+            return false;
+        };
+        if boundary_repeats_diphthong_semivowel(prefix, remainder) {
+            return false;
+        }
+        self.pause_at(end) || !self.starts_with_pause_required_nucleus_at(end)
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -1620,14 +1881,25 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
+        let lookahead_end = normalized.normalized_chars.len();
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
+            let relative_end = end - start;
+            // The cluster after a stressed final nucleus can start in the next word.
+            let Some(cmavo_end) = normalized.normalized_char_end(relative_end) else {
                 continue;
             };
-            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
+            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
+                &normalized.normalized_chars,
+                0,
+                cmavo_end,
+                lookahead_end,
+            ) else {
+                continue;
+            };
+            let Some(normalized_prefix) = normalized.slice_to_source_end(relative_end) else {
                 continue;
             };
             if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
@@ -2474,13 +2746,27 @@ impl<'a> Segmenter<'a> {
         if index >= candidate_end {
             return false;
         }
+        let relative_start = index - prefix_start;
+        let Some(norm_start) = normalized.normalized_char_end(relative_start) else {
+            return false;
+        };
+        let lookahead_end = normalized.normalized_chars.len();
         ((index + 1)..=candidate_end).any(|end| {
-            let Some(normalized_prefix) =
-                normalized.slice_source_range(index - prefix_start, end - prefix_start)
-            else {
+            let relative_end = end - prefix_start;
+            let Some(norm_end) = normalized.normalized_char_end(relative_end) else {
                 return false;
             };
-            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
+            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
+                &normalized.normalized_chars,
+                norm_start,
+                norm_end,
+                lookahead_end,
+            ) else {
+                return false;
+            };
+            let Some(normalized_prefix) =
+                normalized.slice_source_range(relative_start, relative_end)
+            else {
                 return false;
             };
             is_indicator_cmavo_text(&phonemes)
@@ -3161,9 +3447,15 @@ impl NormalizedCandidate {
     }
 
     #[requires(relative_end <= self.source_char_count)]
+    #[ensures(ret.is_none_or(|end| end <= self.normalized_chars.len()))]
+    fn normalized_char_end(&self, relative_end: usize) -> Option<usize> {
+        self.source_normalized_char_ends.get(relative_end).copied()
+    }
+
+    #[requires(relative_end <= self.source_char_count)]
     #[ensures(true)]
     fn normalized_chars_to_source_end(&self, relative_end: usize) -> Option<&[char]> {
-        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
+        let char_end = self.normalized_char_end(relative_end)?;
         self.normalized_chars.get(..char_end)
     }
 
@@ -3371,12 +3663,19 @@ fn find_nth_matching_word_index(
 #[requires(true)]
 #[ensures(true)]
 fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
-    let prefix_chars = text_chars(prefix);
-    let remainder_chars = text_chars(remainder);
-    let Some(next_index) = next_non_comma_index(&remainder_chars, 0) else {
+    boundary_repeats_diphthong_semivowel_chars(&text_chars(prefix), &text_chars(remainder))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn boundary_repeats_diphthong_semivowel_chars(
+    prefix: &[char],
+    remainder: &[char],
+) -> bool {
+    let Some(next_index) = next_non_comma_index(remainder, 0) else {
         return false;
     };
-    let Some((last_index, last)) = previous_non_comma(&prefix_chars, prefix_chars.len()) else {
+    let Some((last_index, last)) = previous_non_comma(prefix, prefix.len()) else {
         return false;
     };
     let semivowel = match base_vowel(last) {
@@ -3384,10 +3683,10 @@ fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
         Some('u') => 'ŭ',
         _ => return false,
     };
-    if !matches_diphthong_semivowel(remainder_chars[next_index], semivowel) {
+    if !matches_diphthong_semivowel(remainder[next_index], semivowel) {
         return false;
     }
-    previous_non_comma(&prefix_chars, last_index).is_some_and(|(_, previous)| {
+    previous_non_comma(prefix, last_index).is_some_and(|(_, previous)| {
         matches!(
             (base_vowel(previous), semivowel),
             (Some('a'), 'ĭ') | (Some('e'), 'ĭ') | (Some('o'), 'ĭ') | (Some('a'), 'ŭ')
@@ -3398,23 +3697,38 @@ fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_explicit_brivla_stress(normalized_word: &str) -> bool {
-    normalized_word
-        .chars()
-        .any(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+    normalized_word.chars().any(is_explicit_brivla_stress_mark)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_explicit_brivla_stress_mark(value: char) -> bool {
+    matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú')
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn has_explicit_brivla_stress_chars(chars: &[char]) -> bool {
+    chars.iter().copied().any(is_explicit_brivla_stress_mark)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
-    let chars = text_chars(normalized_word);
-    let nuclei = stressable_nucleus_starts(&chars);
+    explicit_brivla_stress_is_valid_chars(&text_chars(normalized_word))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
+    let nuclei = stressable_nucleus_starts(chars);
     let stressed = nuclei
         .iter()
         .copied()
         .filter(|index| {
             chars
                 .get(*index)
-                .is_some_and(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
+                .is_some_and(|value| is_explicit_brivla_stress_mark(*value))
         })
         .collect::<Vec<_>>();
     nuclei

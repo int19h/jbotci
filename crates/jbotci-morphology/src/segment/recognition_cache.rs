@@ -297,7 +297,8 @@ struct IndicatorBoundaryKey {
 ///   `indicator_cmavo_starts`, `initial_rafsi_ends`, `extended_rafsi_ends`,
 ///   `any_extended_rafsi_starts`, `fuhivla_rafsi_base_ends`,
 ///   `stressed_extended_rafsi_ends`, `nucleus_has_implicit_stress`,
-///   `stress_tail_reaches_boundary`, and `greedy_rafsi_chain`.
+///   `stress_tail_reaches_boundary`, `greedy_rafsi_chain`, `prefix_post_word`,
+///   `prefix_lojban_word`, and `cvcy_core_before`.
 /// - `lujvo_from` and `lujvo_part_ranges` add `has_initial_rafsi`,
 ///   `fuhivla_shape_y` adds `allows_y`, and `fuhivla_head_policy` adds
 ///   `FuhivlaHeadPolicy`. Each flag has a constant number of values, so those
@@ -388,6 +389,16 @@ pub(crate) struct MorphologyRecognitionCache {
     nucleus_is_stressed: RefCell<HashMap<StressContextKey, bool>>,
     y_less_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
     cvv_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
+    /// Prefix `post_word`: `pause / !nucleus lojban_word`.
+    /// A brivla in that word can end before the slice. This is not `post_word`.
+    /// A true result here must not satisfy a caller that needs the next word
+    /// to consume the whole slice.
+    prefix_post_word: RefCell<HashMap<SpanKey, bool>>,
+    /// Prefix `lojban_word`: `cmevla / cmavo / brivla`.
+    /// The cmavo arm continues with `prefix_post_word`. This is not `lojban_word`.
+    prefix_lojban_word: RefCell<HashMap<SpanKey, bool>>,
+    /// `initial_rafsi* brivla_core` ending strictly before this span.
+    cvcy_core_before: RefCell<HashMap<SpanKey, bool>>,
     /// Shared with the admission that owns this segmentation.
     ///
     /// A recognizer loads this flag once at the start of each memoized body.
@@ -444,6 +455,9 @@ impl MorphologyRecognitionCache {
             nucleus_is_stressed: RefCell::new(HashMap::new()),
             y_less_rafsi_unstressed: RefCell::new(HashMap::new()),
             cvv_rafsi_unstressed: RefCell::new(HashMap::new()),
+            prefix_post_word: RefCell::new(HashMap::new()),
+            prefix_lojban_word: RefCell::new(HashMap::new()),
+            cvcy_core_before: RefCell::new(HashMap::new()),
         });
         cache.sync_accounted();
         cache
@@ -518,6 +532,9 @@ impl MorphologyRecognitionCache {
             .saturating_add(slots(&self.nucleus_is_stressed))
             .saturating_add(slots(&self.y_less_rafsi_unstressed))
             .saturating_add(slots(&self.cvv_rafsi_unstressed))
+            .saturating_add(slots(&self.prefix_post_word))
+            .saturating_add(slots(&self.prefix_lojban_word))
+            .saturating_add(slots(&self.cvcy_core_before))
     }
 
     /// Empty maps have capacity 0. The ensures on `new` evaluates this in
@@ -958,6 +975,57 @@ impl MorphologyRecognitionCache {
         }
         note_recognition_body();
         span_set(&self.post_word, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn prefix_post_word(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.prefix_post_word, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.prefix_post_word(index, end) == Some(value))]
+    pub(crate) fn record_prefix_post_word(&self, index: usize, end: usize, value: bool) {
+        if self.is_cancelled() {
+            return;
+        }
+        note_recognition_body();
+        span_set(&self.prefix_post_word, index, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(start <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn prefix_lojban_word(&self, start: usize, end: usize) -> Option<bool> {
+        span_get(&self.prefix_lojban_word, start, end)
+    }
+
+    #[requires(start <= end && end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.prefix_lojban_word(start, end) == Some(value))]
+    pub(crate) fn record_prefix_lojban_word(&self, start: usize, end: usize, value: bool) {
+        if self.is_cancelled() {
+            return;
+        }
+        note_recognition_body();
+        span_set(&self.prefix_lojban_word, start, end, value);
+        self.sync_accounted();
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(true)]
+    pub(crate) fn cvcy_core_before(&self, index: usize, end: usize) -> Option<bool> {
+        span_get(&self.cvcy_core_before, index, end)
+    }
+
+    #[requires(index <= end && end <= self.char_count)]
+    #[ensures(self.is_cancelled() || self.cvcy_core_before(index, end) == Some(value))]
+    pub(crate) fn record_cvcy_core_before(&self, index: usize, end: usize, value: bool) {
+        if self.is_cancelled() {
+            return;
+        }
+        note_recognition_body();
+        span_set(&self.cvcy_core_before, index, end, value);
         self.sync_accounted();
     }
 
