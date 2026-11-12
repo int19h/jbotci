@@ -297,7 +297,8 @@ struct IndicatorBoundaryKey {
 ///   `indicator_cmavo_starts`, `initial_rafsi_ends`, `extended_rafsi_ends`,
 ///   `any_extended_rafsi_starts`, `fuhivla_rafsi_base_ends`,
 ///   `stressed_extended_rafsi_ends`, `nucleus_has_implicit_stress`,
-///   `stress_tail_reaches_boundary`, and `greedy_rafsi_chain`.
+///   `stress_tail_reaches_boundary`, `greedy_rafsi_chain`, `cvcy_post_word`,
+///   and `cvcy_core_before`.
 /// - `lujvo_from` and `lujvo_part_ranges` add `has_initial_rafsi`,
 ///   `fuhivla_shape_y` adds `allows_y`, and `fuhivla_head_policy` adds
 ///   `FuhivlaHeadPolicy`. Each flag has a constant number of values, so those
