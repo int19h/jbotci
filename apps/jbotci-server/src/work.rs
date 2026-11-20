@@ -401,33 +401,31 @@ mod tests {
     }
 
     /// A submitted job plus the signal from the first line of its closure.
-    #[invariant(true)]
-    struct GatedJob<T> {
-        start_rx: oneshot::Receiver<()>,
-        task: tokio::task::JoinHandle<Result<T, WorkError>>,
+    type GatedJob<T> = (
+        oneshot::Receiver<()>,
+        tokio::task::JoinHandle<Result<T, WorkError>>,
+    );
+
+    /// Wait until the closure has entered.
+    /// The paused clock stays still during the wait.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn until_started<T>(job: GatedJob<T>) -> tokio::task::JoinHandle<Result<T, WorkError>> {
+        let (start_rx, task) = job;
+        start_rx
+            .await
+            .expect("the worker starts before the deadline");
+        task
     }
 
-    impl<T> GatedJob<T> {
-        /// Wait until the closure has entered.
-        /// The paused clock stays still during the wait.
-        #[requires(true)]
-        #[ensures(true)]
-        async fn until_started(self) -> tokio::task::JoinHandle<Result<T, WorkError>> {
-            self.start_rx
-                .await
-                .expect("the worker starts before the deadline");
-            self.task
-        }
-
-        /// Wait for closure entry, then return the job result.
-        #[requires(true)]
-        #[ensures(true)]
-        async fn finish(self) -> Result<T, WorkError> {
-            self.until_started()
-                .await
-                .await
-                .expect("the job task finishes")
-        }
+    /// Wait for closure entry, then return the job result.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn finish_gated<T>(job: GatedJob<T>) -> Result<T, WorkError> {
+        until_started(job)
+            .await
+            .await
+            .expect("the job task finishes")
     }
 
     /// A deadline far ahead of the paused clock.
@@ -467,11 +465,11 @@ mod tests {
                 GatedLane::Fetch => governor.run_fetch(deadline, body).await,
             }
         });
-        GatedJob { start_rx, task }
+        (start_rx, task)
     }
 
     /// Submit a compute job.
-    /// Call `until_started` or `finish` to wait for closure entry.
+    /// Call `until_started` or `finish_gated` to wait for closure entry.
     #[requires(true)]
     #[ensures(true)]
     fn gate_compute<T, F>(governor: &Arc<WorkGovernor>, deadline: Instant, body: F) -> GatedJob<T>
@@ -483,7 +481,7 @@ mod tests {
     }
 
     /// Submit a fetch job.
-    /// Call `until_started` or `finish` to wait for closure entry.
+    /// Call `until_started` or `finish_gated` to wait for closure entry.
     #[requires(true)]
     #[ensures(true)]
     fn gate_fetch<T, F>(governor: &Arc<WorkGovernor>, deadline: Instant, body: F) -> GatedJob<T>
@@ -529,17 +527,14 @@ mod tests {
     async fn zero_queue_admits_idle_workers_and_refuses_backlog() {
         let governor = governor(1, 0);
         assert_eq!(
-            gate_compute(&governor, far_deadline(), |_| 1)
-                .finish()
-                .await,
+            finish_gated(gate_compute(&governor, far_deadline(), |_| 1)).await,
             Ok(1)
         );
         let (release_tx, release_rx) = mpsc::channel::<()>();
-        let busy = gate_compute(&governor, far_deadline(), move |_| {
+        let busy = until_started(gate_compute(&governor, far_deadline(), move |_| {
             let _ = release_rx.recv();
             2
-        })
-        .until_started()
+        }))
         .await;
         assert_eq!(governor.snapshot().compute_active, 1);
         assert_eq!(
@@ -573,11 +568,10 @@ mod tests {
         let ran = Arc::new(AtomicUsize::new(0));
         let (release_tx, release_rx) = mpsc::channel::<()>();
         runtime.block_on(async {
-            let occupied = gate_compute(&governor, far_deadline(), move |_| {
+            let occupied = until_started(gate_compute(&governor, far_deadline(), move |_| {
                 release_rx.recv().expect("release");
                 "occupied"
-            })
-            .until_started()
+            }))
             .await;
             let counter = Arc::clone(&ran);
             let deadline = Instant::now() + Duration::from_secs(1);
@@ -727,11 +721,10 @@ mod tests {
         let ran = Arc::new(AtomicUsize::new(0));
         let (release_tx, release_rx) = mpsc::channel::<()>();
         runtime.block_on(async {
-            let occupied = gate_compute(&governor, far_deadline(), move |_| {
+            let occupied = until_started(gate_compute(&governor, far_deadline(), move |_| {
                 release_rx.recv().expect("release");
                 "occupied"
-            })
-            .until_started()
+            }))
             .await;
             let counter = Arc::clone(&ran);
             let deadline = Instant::now() + Duration::from_secs(1);
@@ -985,10 +978,9 @@ mod tests {
     async fn the_waiting_queue_is_bounded() {
         let governor = governor(1, 1);
         let (release_tx, release_rx) = mpsc::channel::<()>();
-        let holder = gate_compute(&governor, far_deadline(), move |_| {
+        let holder = until_started(gate_compute(&governor, far_deadline(), move |_| {
             let _ = release_rx.recv();
-        })
-        .until_started()
+        }))
         .await;
         assert_eq!(governor.snapshot().compute_active, 1);
         let waiter = gate_compute(&governor, far_deadline(), |_| "waited");
@@ -1005,7 +997,7 @@ mod tests {
             })
         );
         release_tx.send(()).expect("holder waiting");
-        assert_eq!(waiter.finish().await, Ok("waited"));
+        assert_eq!(finish_gated(waiter).await, Ok("waited"));
         holder.await.expect("holder task").expect("holder ran");
         assert_eq!(
             governor.snapshot(),
@@ -1024,10 +1016,9 @@ mod tests {
     async fn an_aborted_waiter_gives_its_queue_slot_back() {
         let governor = governor(1, 1);
         let (release_tx, release_rx) = mpsc::channel::<()>();
-        let holder = gate_compute(&governor, far_deadline(), move |_| {
+        let holder = until_started(gate_compute(&governor, far_deadline(), move |_| {
             let _ = release_rx.recv();
-        })
-        .until_started()
+        }))
         .await;
         assert_eq!(governor.snapshot().compute_active, 1);
         // This body stays out of the closure. The test aborts the waiter
@@ -1049,7 +1040,7 @@ mod tests {
         let next = gate_compute(&governor, far_deadline(), |_| "admitted");
         release_tx.send(()).expect("holder waiting");
         holder.await.expect("holder task").expect("holder ran");
-        assert_eq!(next.finish().await, Ok("admitted"));
+        assert_eq!(finish_gated(next).await, Ok("admitted"));
         assert_eq!(governor.snapshot().compute_active, 0);
     }
 
@@ -1058,10 +1049,9 @@ mod tests {
     #[ensures(true)]
     async fn panicking_workers_release_their_permit() {
         let governor = governor(1, 1);
-        let result = gate_compute(&governor, far_deadline(), |_| -> u8 {
+        let result = finish_gated(gate_compute(&governor, far_deadline(), |_| -> u8 {
             panic!("deterministic worker failure")
-        })
-        .finish()
+        }))
         .await;
         assert_eq!(
             result,
@@ -1071,7 +1061,7 @@ mod tests {
         );
         assert_eq!(governor.snapshot().compute_active, 0);
         assert_eq!(
-            gate_fetch(&governor, far_deadline(), |_| 7).finish().await,
+            finish_gated(gate_fetch(&governor, far_deadline(), |_| 7)).await,
             Ok(7)
         );
     }
