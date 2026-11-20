@@ -388,6 +388,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit error marker",
     ),
     (
+        "apps/jbotci-server/src/work.rs:GatedJob",
+        "Every start receiver and task handle is a valid submitted test job.",
+    ),
+    (
         "apps/jbotci-server/src/work.rs:QueueSlot",
         "RAII handle over a lane's waiting counter; it carries no data of its own",
     ),

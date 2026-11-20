@@ -401,17 +401,18 @@ mod tests {
     }
 
     /// A submitted job plus the signal from the first line of its closure.
-    type GatedJob<T> = (
-        oneshot::Receiver<()>,
-        tokio::task::JoinHandle<Result<T, WorkError>>,
-    );
+    #[invariant(true)]
+    struct GatedJob<T> {
+        start_rx: oneshot::Receiver<()>,
+        task: tokio::task::JoinHandle<Result<T, WorkError>>,
+    }
 
     /// Wait until the closure has entered.
     /// The paused clock stays still during the wait.
     #[requires(true)]
     #[ensures(true)]
     async fn until_started<T>(job: GatedJob<T>) -> tokio::task::JoinHandle<Result<T, WorkError>> {
-        let (start_rx, task) = job;
+        let GatedJob { start_rx, task } = job;
         start_rx
             .await
             .expect("the worker starts before the deadline");
@@ -465,7 +466,7 @@ mod tests {
                 GatedLane::Fetch => governor.run_fetch(deadline, body).await,
             }
         });
-        (start_rx, task)
+        GatedJob { start_rx, task }
     }
 
     /// Submit a compute job.
