@@ -676,84 +676,195 @@ mod tests {
             "body_encoding": object.content_encoding})
     }
 
+    // A signal interrupts a blocking socket call. The call returns
+    // `ErrorKind::Interrupted`. Retry that call. Leave every other error.
+    #[requires(true)]
+    #[ensures(true)]
+    fn io_retry_interrupted<T>(
+        mut operation: impl FnMut() -> std::io::Result<T>,
+    ) -> std::io::Result<T> {
+        loop {
+            match operation() {
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                result => return result,
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_all_retry(socket: &mut impl std::io::Write, mut bytes: &[u8]) -> std::io::Result<()> {
+        while !bytes.is_empty() {
+            let count = io_retry_interrupted(|| std::io::Write::write(socket, bytes))?;
+            if count == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "the stub server write wrote nothing",
+                ));
+            }
+            bytes = &bytes[count..];
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
+        io_retry_interrupted(|| std::io::Read::read(socket, buf))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn thread_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+        if let Some(message) = payload.downcast_ref::<String>() {
+            return format!("the stub server thread panicked: {message}");
+        }
+        if let Some(message) = payload.downcast_ref::<&str>() {
+            return format!("the stub server thread panicked: {message}");
+        }
+        "the stub server thread panicked".to_owned()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn io_retry_interrupted_retries_until_success() {
+        let mut calls = 0;
+        let result = io_retry_interrupted(|| {
+            calls += 1;
+            if calls < 3 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            Ok(7)
+        });
+        assert_eq!(result.expect("the helper returns the value"), 7);
+        assert_eq!(calls, 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn io_retry_interrupted_returns_other_errors_once() {
+        let mut calls = 0;
+        let result: std::io::Result<()> = io_retry_interrupted(|| {
+            calls += 1;
+            Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                "injected reset",
+            ))
+        });
+        let error = result.expect_err("the helper returns the reset");
+        assert_eq!(error.kind(), std::io::ErrorKind::ConnectionReset);
+        assert_eq!(calls, 1);
+    }
+
     #[invariant(true)]
     struct R6Server {
         url: String,
         stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
         requests: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
-        worker: Option<std::thread::JoinHandle<()>>,
+        worker: Option<std::thread::JoinHandle<Result<(), String>>>,
     }
 
     impl R6Server {
         #[requires(true)]
         #[ensures(true)]
         fn start(stored: serde_json::Value, body: Vec<u8>, encoding: Option<&'static str>) -> Self {
-            use std::io::{Read, Write};
             let listener = (18800..=18899)
-                .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
-                .unwrap();
-            listener.set_nonblocking(true).unwrap();
+                .find_map(|port| {
+                    io_retry_interrupted(|| std::net::TcpListener::bind(("127.0.0.1", port))).ok()
+                })
+                .expect("the stub server binds a local port");
+            io_retry_interrupted(|| listener.set_nonblocking(true))
+                .expect("the stub server socket accepts nonblocking mode");
             let url = format!("http://{}", listener.local_addr().unwrap());
             let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
             let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let worker_stop = stop.clone();
             let worker_requests = requests.clone();
-            let worker = std::thread::spawn(move || {
+            let worker = std::thread::spawn(move || -> Result<(), String> {
+                let send = |socket: &mut std::net::TcpStream, bytes: &[u8]| -> Result<(), String> {
+                    write_all_retry(socket, bytes)
+                        .map_err(|error| format!("the stub server write failed: {error}"))
+                };
                 while !worker_stop.load(Ordering::Relaxed) {
-                    let (mut socket, _) = match listener.accept() {
+                    let (mut socket, _) = match io_retry_interrupted(|| listener.accept()) {
                         Ok(connection) => connection,
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2));
                             continue;
                         }
-                        Err(error) => panic!("{error}"),
+                        Err(error) => {
+                            return Err(format!("the stub server accept failed: {error}"));
+                        }
                     };
-                    socket
-                        .set_read_timeout(Some(Duration::from_secs(2)))
-                        .unwrap();
+                    io_retry_interrupted(|| socket.set_read_timeout(Some(Duration::from_secs(2))))
+                        .map_err(|error| {
+                            format!("the stub server read timeout setup failed: {error}")
+                        })?;
                     let mut request = Vec::new();
                     while !request.ends_with(b"\r\n\r\n") {
                         let mut byte = [0];
-                        if socket.read(&mut byte).unwrap() == 0 {
-                            break;
+                        match read_retry(&mut socket, &mut byte) {
+                            Ok(0) => break,
+                            Ok(_) => request.push(byte[0]),
+                            Err(error) => {
+                                return Err(format!("the stub server read failed: {error}"));
+                            }
                         }
-                        request.push(byte[0]);
-                        assert!(request.len() < 16 * 1024);
+                        if request.len() >= 16 * 1024 {
+                            return Err("the stub server request is longer than 16 KiB".to_owned());
+                        }
                     }
-                    let request = String::from_utf8(request).unwrap();
-                    let first = request.lines().next().unwrap().to_owned();
+                    let request = String::from_utf8(request).map_err(|error| {
+                        format!("the stub server request is not utf-8: {error}")
+                    })?;
+                    let first = request.lines().next().unwrap_or("").to_owned();
                     worker_requests.lock().unwrap().push(first.clone());
-                    assert!(
-                        first.starts_with("GET "),
-                        "read-only requests only: {first}"
-                    );
-                    let listing = first
-                        .split_whitespace()
-                        .nth(1)
-                        .unwrap()
-                        .split('?')
-                        .next()
-                        .unwrap()
-                        .ends_with("/objects");
+                    if !first.starts_with("GET ") {
+                        return Err(format!(
+                            "the stub server saw a request that is not GET: {first}"
+                        ));
+                    }
+                    let path = first.split_whitespace().nth(1).unwrap_or("");
+                    let listing = path.split('?').next().unwrap_or("").ends_with("/objects");
                     if listing {
                         let json = serde_json::to_vec(
                             &serde_json::json!({"success":true,"result":[stored]}),
                         )
-                        .unwrap();
-                        write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", json.len()).unwrap();
-                        socket.write_all(&json).unwrap();
+                        .map_err(|error| format!("the stub server listing failed: {error}"))?;
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            json.len()
+                        );
+                        send(&mut socket, header.as_bytes())?;
+                        send(&mut socket, &json)?;
                     } else {
-                        let etag = stored["etag"].as_str().unwrap();
+                        let etag = stored["etag"]
+                            .as_str()
+                            .ok_or_else(|| "the stub server record has no etag".to_owned())?;
                         if encoding == Some("br") {
-                            write!(socket, "HTTP/1.1 200 OK\r\nETag: \"{etag}\"\r\nContent-Encoding: br\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
-                            socket.write_all(&body).unwrap();
+                            let header = format!(
+                                "HTTP/1.1 200 OK\r\nETag: \"{etag}\"\r\nContent-Encoding: br\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                                body.len()
+                            );
+                            send(&mut socket, header.as_bytes())?;
+                            send(&mut socket, &body)?;
                         } else {
-                            write!(socket, "HTTP/1.1 200 OK\r\nETag: W/\"{etag}\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n", body.len()).unwrap();
-                            socket.write_all(&body).unwrap();
-                            socket.write_all(b"\r\n0\r\n\r\n").unwrap();
+                            let header = format!(
+                                "HTTP/1.1 200 OK\r\nETag: W/\"{etag}\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n",
+                                body.len()
+                            );
+                            send(&mut socket, header.as_bytes())?;
+                            send(&mut socket, &body)?;
+                            send(&mut socket, b"\r\n0\r\n\r\n")?;
                         }
                     }
                 }
+                Ok(())
             });
             Self {
                 url,
@@ -762,16 +873,27 @@ mod tests {
                 worker: Some(worker),
             }
         }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn shutdown(&mut self) -> Result<(), String> {
+            self.stop.store(true, Ordering::Relaxed);
+            let Some(worker) = self.worker.take() else {
+                return Ok(());
+            };
+            match worker.join() {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(error)) => Err(error),
+                Err(payload) => Err(thread_panic_message(payload)),
+            }
+        }
     }
 
     impl Drop for R6Server {
         #[requires(true)]
         #[ensures(true)]
         fn drop(&mut self) {
-            self.stop.store(true, Ordering::Relaxed);
-            if let Some(worker) = self.worker.take() {
-                worker.join().unwrap();
-            }
+            let _ = self.shutdown();
         }
     }
 
@@ -827,7 +949,7 @@ mod tests {
                     _ => {}
                 }
                 let object = args.object().unwrap();
-                let server = R6Server::start(stored, body, encoding);
+                let mut server = R6Server::start(stored, body, encoding);
                 let expected = fingerprint(&object.local_path).unwrap();
                 let report = std::cell::RefCell::new(None);
                 let result = reader.verify_with_readback(&object, &expected, |downloaded, metadata| {
@@ -854,9 +976,14 @@ mod tests {
                         "{encoding:?}/{case}/{field}: {report}"
                     );
                 }
-                let requests = server.requests.lock().unwrap();
-                assert_eq!(requests.len(), 2);
-                assert!(requests.iter().all(|request| request.starts_with("GET ")));
+                {
+                    let requests = server.requests.lock().unwrap();
+                    assert_eq!(requests.len(), 2);
+                    assert!(requests.iter().all(|request| request.starts_with("GET ")));
+                }
+                server
+                    .shutdown()
+                    .expect("the stub server thread finishes cleanly");
             }
         }
         let original = temporary.path.join("source.f16");
