@@ -15,8 +15,12 @@ use super::*;
 /// The importer builds only these two shapes for a word cell. Paragraphs and
 /// other cells do not use this view. `target` is the dictionary headword when
 /// the word links. It is absent when the word stays plain.
-#[invariant(::Bracket { word, .. } => is_dictionary_token(word))]
-#[invariant(::Token { text, .. } => is_dictionary_token(text))]
+#[invariant(::Bracket { word, target } => {
+    is_dictionary_token(word) && target.as_ref().is_none_or(|target| !target.is_empty())
+})]
+#[invariant(::Token { text, target } => {
+    is_dictionary_token(text) && target.as_ref().is_none_or(|target| !target.is_empty())
+})]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CllCmavoWordCell<'a> {
     /// The cell text is `[word]`. The brackets stay outside a link.
@@ -176,14 +180,17 @@ pub(crate) fn shipped_dictionary_link_target(candidate: &str) -> Option<&'static
 }
 
 /// One token of letters, apostrophes and pause dots. The token must be non-empty.
+///
+/// A true result has that shape. The shape is the word a bracket cell or a
+/// one-word cell stores.
 #[requires(true)]
-#[ensures(!ret || !text.is_empty())]
-#[ensures(!ret || text.chars().all(|character| {
-    character.is_ascii_alphabetic() || character == '\'' || character == '.'
-}))]
-#[ensures(ret || text.is_empty() || text.chars().any(|character| {
-    !(character.is_ascii_alphabetic() || character == '\'' || character == '.')
-}))]
+#[ensures(!ret || {
+    let mut characters = text.chars();
+    matches!(
+        characters.next(),
+        Some('A'..='Z' | 'a'..='z' | '\'' | '.')
+    ) && characters.all(|character| matches!(character, 'A'..='Z' | 'a'..='z' | '\'' | '.'))
+})]
 pub(crate) fn is_dictionary_token(text: &str) -> bool {
     !text.is_empty()
         && text.chars().all(|character| {
@@ -399,5 +406,47 @@ mod tests {
         ));
         assert_eq!(cell("[jundi]"), vec![CllInline::Text("[jundi]".to_owned())]);
         assert!(cell("").is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_dictionary_target_is_rejected() {
+        let bracket = std::panic::catch_unwind(|| {
+            new!(CllCmavoWordCell::Bracket {
+                word: "coi",
+                target: Some(""),
+            })
+        });
+        assert!(
+            panic_is_type_invariant(bracket),
+            "an empty bracket target must fail the type invariant"
+        );
+        let token = std::panic::catch_unwind(|| {
+            new!(CllCmavoWordCell::Token {
+                text: "coi",
+                target: Some(""),
+            })
+        });
+        assert!(
+            panic_is_type_invariant(token),
+            "an empty token target must fail the type invariant"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn panic_is_type_invariant(
+        result: Result<CllCmavoWordCell<'_>, Box<dyn std::any::Any + Send>>,
+    ) -> bool {
+        let Err(payload) = result else {
+            return false;
+        };
+        payload
+            .downcast_ref::<String>()
+            .is_some_and(|message| message.contains("type invariant"))
+            || payload
+                .downcast_ref::<&str>()
+                .is_some_and(|message| message.contains("type invariant"))
     }
 }
