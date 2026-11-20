@@ -76,6 +76,9 @@ pub(crate) enum WorkError {
         lane: WorkLane,
     },
     /// No permit became free before the deadline.
+    /// The permit was taken, and the blocking pool started the closure late.
+    /// The closure then returns without calling the job.
+    /// The caller sees this error.
     WaitTimedOut {
         lane: WorkLane,
     },
@@ -386,8 +389,38 @@ impl WorkGovernor {
     }
 }
 
+/// A paused clock and one blocking thread.
+/// The drain task is correct only on that runtime.
+#[cfg(test)]
+pub(crate) mod paused_blocking {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    /// A paused current-thread runtime with one blocking thread.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn paused_runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .start_paused(true)
+            .max_blocking_threads(1)
+            .build()
+            .expect("runtime")
+    }
+
+    /// Run one empty blocking task.
+    /// The runtime has one blocking thread.
+    /// This task starts after the previous blocking task stored its result.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn drain_blocking_thread() {
+        tokio::task::spawn_blocking(|| ()).await.expect("drain");
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::paused_blocking::{drain_blocking_thread, paused_runtime};
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;
@@ -505,27 +538,6 @@ mod tests {
             tokio::task::yield_now().await;
         }
         ready()
-    }
-
-    /// A paused current-thread runtime with one blocking thread.
-    #[requires(true)]
-    #[ensures(true)]
-    fn paused_runtime() -> tokio::runtime::Runtime {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .start_paused(true)
-            .max_blocking_threads(1)
-            .build()
-            .expect("runtime")
-    }
-
-    /// Run one empty blocking task.
-    /// The runtime has one blocking thread.
-    /// This task starts after the previous blocking task has stored its result.
-    #[requires(true)]
-    #[ensures(true)]
-    async fn drain_blocking_thread() {
-        tokio::task::spawn_blocking(|| ()).await.expect("drain");
     }
 
     #[tokio::test(start_paused = true)]
@@ -763,6 +775,11 @@ mod tests {
                     lane: WorkLane::Compute
                 })
             );
+            assert_eq!(
+                governor.snapshot().compute_active,
+                1,
+                "the permit is still held before the flag check"
+            );
             check_tx
                 .send(())
                 .expect("the worker is waiting for the flag check");
@@ -808,70 +825,6 @@ mod tests {
             assert_eq!(
                 finish_gated(gate_compute(&governor, far_deadline(), |_| "third")).await,
                 Ok("third")
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_cancelled_worker_returns_its_permit_shortly_after_the_deadline() {
-        // The worker blocks on a channel.
-        // The test reads the flag after the caller returns.
-        // The worker still holds the permit at that moment.
-        // The worker then returns.
-        // A late flag fails the test.
-        let runtime = paused_runtime();
-        let governor = governor(1, 4);
-        runtime.block_on(async {
-            let (start_tx, start_rx) = oneshot::channel();
-            let (check_tx, check_rx) = mpsc::channel();
-            let (flag_tx, flag_rx) = oneshot::channel();
-            let deadline = Instant::now() + Duration::from_millis(500);
-            let result = {
-                let governor = Arc::clone(&governor);
-                tokio::spawn(async move {
-                    governor
-                        .run_compute(deadline, move |cancellation| {
-                            start_tx
-                                .send(())
-                                .expect("the test waits for the worker start");
-                            check_rx.recv().expect("the test asks for the flag");
-                            flag_tx
-                                .send(cancellation.is_cancelled())
-                                .expect("the test reads the flag");
-                            "stopped"
-                        })
-                        .await
-                })
-            };
-            start_rx
-                .await
-                .expect("the worker starts before the deadline");
-            tokio::time::advance(Duration::from_secs(1)).await;
-            assert_eq!(
-                result.await.expect("task"),
-                Err(WorkError::TimedOut {
-                    lane: WorkLane::Compute
-                })
-            );
-            assert_eq!(
-                governor.snapshot().compute_active,
-                1,
-                "the permit is still held"
-            );
-            check_tx
-                .send(())
-                .expect("the worker is waiting for the flag check");
-            assert!(
-                flag_rx.await.expect("the worker sends the flag"),
-                "the flag is set before the worker returns the permit"
-            );
-            drain_blocking_thread().await;
-            assert_eq!(governor.snapshot().compute_active, 0);
-            assert_eq!(
-                finish_gated(gate_compute(&governor, far_deadline(), |_| "second")).await,
-                Ok("second")
             );
         });
     }

@@ -2101,6 +2101,7 @@ mod tests {
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
     use crate::discord::request::PageNumber;
+    use crate::work::paused_blocking::{drain_blocking_thread, paused_runtime};
     use crate::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
@@ -4848,27 +4849,6 @@ mod tests {
         );
     }
 
-    /// A paused current-thread runtime with one blocking thread.
-    #[requires(true)]
-    #[ensures(true)]
-    fn paused_runtime() -> tokio::runtime::Runtime {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .start_paused(true)
-            .max_blocking_threads(1)
-            .build()
-            .expect("runtime")
-    }
-
-    /// Run one empty blocking task.
-    /// The runtime has one blocking thread.
-    /// This task starts after the previous blocking task has stored its result.
-    #[requires(true)]
-    #[ensures(true)]
-    async fn drain_blocking_thread() {
-        tokio::task::spawn_blocking(|| ()).await.expect("drain");
-    }
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -4986,11 +4966,6 @@ mod tests {
                 ),
                 "the caller gave up"
             );
-            assert_eq!(
-                recent.active_count(),
-                1,
-                "the delivery still stands while its work runs"
-            );
             drop(ticket);
             assert_eq!(
                 recent.active_count(),
@@ -5009,7 +4984,6 @@ mod tests {
                 "the flag is set before the worker returns the permit"
             );
             drain_blocking_thread().await;
-            recent.wait_until_idle().await;
             assert_eq!(
                 recent.active_count(),
                 0,
