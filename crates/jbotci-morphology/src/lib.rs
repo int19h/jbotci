@@ -3812,6 +3812,34 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn apostrophe_after_y_needs_a_following_nucleus() {
+        assert!(
+            matches!(
+                LujvoPart::parse_bare_rafsi("tady'"),
+                Err(LujvoFragmentError::InvalidRafsi)
+            ),
+            "tady'"
+        );
+        let label_spans = |source: &str| {
+            let error = segment_words_with_modifiers(source).expect_err(source);
+            let diagnostic = error.to_diagnostic(None, source).expect(source);
+            diagnostic
+                .labels
+                .iter()
+                .map(|label| (label.primary, label.span.char_start, label.span.char_end))
+                .collect::<Vec<_>>()
+        };
+        // The primary mark is the apostrophe. The secondary mark is the tail `'kla`.
+        assert_eq!(label_spans("bródatady'kla"), label_spans("bródatabu'kla"));
+        assert_eq!(
+            label_spans("bródatady'kla"),
+            vec![(true, 9, 10), (false, 9, 13)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn bare_rafsi_parser_accepts_consonant_final_fuhivla_stems() {
         for text in ["spaget", "kulnrfars", "akt"] {
             assert_eq!(

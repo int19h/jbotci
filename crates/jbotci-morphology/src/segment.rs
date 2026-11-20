@@ -530,14 +530,10 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
         } else {
             normalize_vowel(value)
         };
-        // A falling diphthong is one nucleus. Put its acute on the first vowel.
-        if falling_diphthong_offglide(&chars, index)
-            && let Some((vowel_index, _)) = previous_non_comma(&chars, index)
-            && syllable_has_explicit_stress(&chars, vowel_index, index + 1)
-        {
-            mark_previous_output_vowel(&mut out);
-        }
-        out.push(output);
+        // A falling diphthong is one nucleus. Put the acute on its first vowel.
+        let marked = parse_diphthong_end(&chars, index)
+            .is_some_and(|(_, end)| syllable_has_explicit_stress(&chars, index, end));
+        out.push(if marked { acute_vowel(output) } else { output });
     }
     out
 }
@@ -627,27 +623,6 @@ fn acute_vowel(ch: char) -> char {
         'u' | 'ú' => 'ú',
         other => other,
     }
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn falling_diphthong_offglide(chars: &[char], index: usize) -> bool {
-    match chars.get(index).copied() {
-        Some('i' | 'í' | 'ĭ') => is_diphthong_semivowel(chars, index, 'i'),
-        Some('u' | 'ú' | 'ŭ') => is_diphthong_semivowel(chars, index, 'u'),
-        _ => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn mark_previous_output_vowel(out: &mut String) {
-    let mut chars: Vec<char> = out.chars().collect();
-    let Some(found) = chars.iter().rposition(|value| *value != ',') else {
-        return;
-    };
-    chars[found] = acute_vowel(chars[found]);
-    *out = chars.into_iter().collect();
 }
 
 #[requires(true)]
@@ -1868,7 +1843,11 @@ fn parse_cmavo_form_span_into(
     let span = &chars[start..end];
     // `y+` and a single digit stay whole-span matches. The cluster rule
     // belongs to the nucleus alternative only.
-    if span.iter().all(|value| matches!(value, 'y' | 'ý')) {
+    // `y+` consumes every following y. A comma between them is not a break.
+    if span.iter().all(|value| is_y(*value)) {
+        if end < lookahead_end && is_y(chars[end]) {
+            return None;
+        }
         append_cmavo_chars(output, span);
         return Some(());
     }
@@ -2255,48 +2234,11 @@ pub(crate) fn parse_explicit_stress_nucleus_end(
     chars: &[char],
     start: usize,
 ) -> Option<(bool, usize)> {
-    if let Some(end) = parse_explicit_stress_diphthong_end(chars, start) {
+    if let Some((_, end)) = parse_diphthong_end(chars, start) {
         return Some((true, end));
     }
     let value = *chars.get(start)?;
-    parse_explicit_stress_single_vowel_end(chars, start)
-        .map(|end| (!matches!(value, 'y' | 'ý'), end))
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
-fn parse_explicit_stress_diphthong_end(chars: &[char], start: usize) -> Option<usize> {
-    let (semivowel, end) = raw_diphthong_end(chars, start)?;
-    if next_non_comma_index(chars, end)
-        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
-    {
-        return None;
-    }
-    if starts_with_pause_required_nucleus(chars, end) {
-        return None;
-    }
-    Some(end)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|end| end == start + 1))]
-fn parse_explicit_stress_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
-    let value = *chars.get(start)?;
-    if value == 'y' || value == 'ý' {
-        let end = start + 1;
-        if starts_with_pause_required_nucleus(chars, end) {
-            return None;
-        }
-        return Some(end);
-    }
-    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
-        return None;
-    }
-    let end = start + 1;
-    if starts_with_pause_required_nucleus(chars, end) {
-        return None;
-    }
-    Some(end)
+    parse_single_vowel_end(chars, start).map(|end| (!is_y(value), end))
 }
 
 #[requires(start <= chars.len())]
@@ -2308,9 +2250,10 @@ fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
 #[requires(start <= chars.len())]
 #[ensures(true)]
 pub(crate) fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
-    if start >= chars.len() {
+    // Camxes starts every vowel with `comma*`, so `!nucleus` reads past a comma.
+    let Some(start) = next_non_comma_index(chars, start) else {
         return false;
-    }
+    };
     parse_diphthong_end(chars, start).is_some() || parse_single_vowel_end(chars, start).is_some()
 }
 
@@ -3280,11 +3223,8 @@ fn cvcy_lujvo_from_unstressed_cvc(
     if !y_less_rafsi_is_unstressed_in_context(chars, index, base_end, end, cache) {
         return false;
     }
-    let mut after_y = base_end + 1;
-    // h? stays inside this span. The next character can belong to another word.
-    if after_y < end && chars[after_y] == '\'' {
-        after_y += 1;
-    }
+    // `h?` stays inside this span. The apostrophe counts only when a nucleus follows.
+    let after_y = optional_rafsi_h_end(chars, base_end + 1, end);
     // The whole tail can be one lujvo. It can also be initial_rafsi* brivla_core
     // ending before this candidate. Stress and lookahead keep `end`.
     after_y < end
@@ -5119,11 +5059,7 @@ fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
         .chain(cvc_rafsi_end(chars, index))
     {
         if chars.get(base_end).is_some_and(|value| is_y(*value)) {
-            let mut end = base_end + 1;
-            if chars.get(end) == Some(&'\'') {
-                end += 1;
-            }
-            ends.push(end);
+            ends.push(optional_rafsi_h_end(chars, base_end + 1, chars.len()));
         }
     }
     ends
@@ -5220,25 +5156,34 @@ fn hy_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     if chars.get(index).is_some_and(|value| is_y(*value)) {
-        let mut end = index + 1;
-        if chars.get(end) == Some(&'\'') {
-            end += 1;
-        }
-        Some(end)
+        Some(optional_rafsi_h_end(chars, index + 1, chars.len()))
     } else {
         None
     }
 }
 
+#[requires(index <= limit && limit <= chars.len())]
+#[ensures(ret >= index && ret <= limit)]
+fn optional_rafsi_h_end(chars: &[char], index: usize, limit: usize) -> usize {
+    // `h <- comma* ['h] &nucleus`. The apostrophe counts only when a nucleus follows.
+    let Some(apostrophe_at) = next_non_comma_index(chars, index) else {
+        return index;
+    };
+    if apostrophe_at >= limit || chars[apostrophe_at] != '\'' {
+        return index;
+    }
+    if apostrophe_at + 1 <= limit && starts_with_nucleus(chars, apostrophe_at + 1) {
+        return apostrophe_at + 1;
+    }
+    index
+}
+
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+    // The first apostrophe belongs to `hy`. It does not need a nucleus before `y`.
     if chars.get(index) == Some(&'\'') && chars.get(index + 1).is_some_and(|value| is_y(*value)) {
-        let mut end = index + 2;
-        if chars.get(end) == Some(&'\'') {
-            end += 1;
-        }
-        Some(end)
+        Some(optional_rafsi_h_end(chars, index + 2, chars.len()))
     } else {
         None
     }
@@ -7553,6 +7498,20 @@ mod tests {
             stress_marked_output("báurbro"),
             stress_marked_output("baúrbro")
         );
+        // Issue #1099. The canonical spelling and a second lex of that spelling
+        // name the same words.
+        let maiy = stress_marked_output("mái'y");
+        assert_eq!(maiy, stress_marked_output("maí'y"));
+        assert_eq!(maiy, "máĭ'y");
+        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("mái'y"));
+        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("maí'y"));
+        let phrase = stress_marked_output("mái'ybroda");
+        assert_eq!(phrase, stress_marked_output("maí'ybroda"));
+        assert_eq!(
+            word_kind_phonemes(&phrase),
+            word_kind_phonemes("mái'ybroda")
+        );
+        assert_eq!(stress_marked_output(&phrase), phrase);
         // A rising pair is a glide plus a vowel. A mark on the glide stays dropped.
         assert_eq!(acute_signature("íabu"), acute_signature("iabu"));
         assert_eq!(acute_signature("úa"), acute_signature("ua"));
@@ -7563,10 +7522,13 @@ mod tests {
     #[ensures(true)]
     fn moving_an_offglide_acute_keeps_the_segmentation() {
         let mut sources = Vec::new();
-        for head in ["", "b", "m", "kl", "t", "br"] {
+        for head in [
+            "", "b", "m", "kl", "t", "br", "k", "brod", "brodyb", "tadyk", "citkak", "bi'", "klam",
+        ] {
             for (first, second) in [("a", "i"), ("e", "i"), ("o", "i"), ("a", "u")] {
                 for tail in [
-                    "", "bro", "ba'i", "brodybra", "nrbro", "nrba'i", "'y", "'ybroda",
+                    "", "bro", "ba'i", "brodybra", "nrbro", "nrba'i", "'y", "'ybroda", "rbro", "r",
+                    "n", "broda", "'ybra", "nbrtybra",
                 ] {
                     let acute_second = if second == "i" { "í" } else { "ú" };
                     let acute_first: String = first.chars().map(acute_vowel).collect();
@@ -7580,6 +7542,24 @@ mod tests {
             sources.len() > 100,
             "the generated diphthong set is too small"
         );
+        for required in [
+            "brodaí",
+            "citkakeí",
+            "bi'aíbroda",
+            "brodybaúrbro",
+            "tadykaíbro",
+            "baúrbro",
+            "baúr",
+            "klamaí'ybra",
+            "kaúnbrtybra",
+            "brodaín",
+            "bi'aí",
+        ] {
+            assert!(
+                sources.iter().any(|source| source == required),
+                "{required} is missing from the diphthong set"
+            );
+        }
         for source in sources {
             let moved = relocate_offglide_acute(&source);
             assert_ne!(moved, source, "{source} has an off-glide acute to move");
@@ -7608,6 +7588,12 @@ mod tests {
             ("ba',i", "ba'i"),
             ("y,'y", "y'y"),
             ("y',y", "y'y"),
+            ("y,yy", "yyy"),
+            ("y,yy bu", "yyy bu"),
+            ("miy,y", "miyy"),
+            ("maii,an", "maiian"),
+            ("ba'a,e", "ba'ae"),
+            ("aii,a", "aiia"),
         ] {
             let comma_at = with_comma.chars().position(|value| value == ',');
             assert_eq!(
@@ -7639,6 +7625,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn word_kind_phonemes(source: &str) -> Vec<String> {
+        let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &MorphologyOptions::default(),
+            None,
+        );
+        let words = attempt
+            .into_data()
+            .result
+            .unwrap_or_else(|_| panic!("{source}"));
+        words.iter().map(|word| word.to_string()).collect()
     }
 
     #[requires(!source.is_empty())]
@@ -7677,14 +7678,6 @@ mod tests {
         let warnings = data
             .warnings
             .iter()
-            .filter(|warning| {
-                !allow_comma_warnings
-                    || !matches!(
-                        warning.kind,
-                        crate::MorphologyWarningKind::ExperimentalCgv
-                            | crate::MorphologyWarningKind::ExperimentalMz
-                    )
-            })
             .map(|warning| {
                 format!(
                     "{:?}:{}:{}:{}",
@@ -7872,6 +7865,15 @@ mod tests {
                 "dy",
                 "cy",
                 "yy",
+                "yyy",
+                "yyy bu",
+                "miyy",
+                "maiian",
+                "ba'ae",
+                "ba'ai",
+                "aiia",
+                "babba",
+                "apti",
                 "y'y",
                 "ybu",
                 "ba'i",
