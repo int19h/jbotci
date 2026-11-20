@@ -81,6 +81,18 @@ impl PackServer {
     }
 }
 
+#[requires(true)]
+#[ensures(ret.starts_with("the pack server thread panicked"))]
+fn pack_server_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        return format!("the pack server thread panicked: {message}");
+    }
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        return format!("the pack server thread panicked: {message}");
+    }
+    "the pack server thread panicked".to_owned()
+}
+
 impl Drop for PackServer {
     #[requires(true)]
     #[ensures(self.worker.is_none())]
@@ -88,7 +100,15 @@ impl Drop for PackServer {
         self.stop.store(true, AtomicOrdering::Release);
         let _ = TcpStream::connect(self.address);
         if let Some(worker) = self.worker.take() {
-            worker.join().unwrap();
+            if let Err(payload) = worker.join() {
+                let _ = std::io::Write::write_fmt(
+                    &mut std::io::stderr(),
+                    format_args!(
+                        "the pack server thread failed during drop: {}\n",
+                        pack_server_panic_message(payload)
+                    ),
+                );
+            }
         }
     }
 }
