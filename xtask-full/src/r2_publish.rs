@@ -661,6 +661,7 @@ impl Drop for Readback {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[requires(true)]
     #[ensures(true)]
@@ -693,24 +694,34 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-    fn write_all_retry(socket: &mut impl std::io::Write, mut bytes: &[u8]) -> std::io::Result<()> {
-        while !bytes.is_empty() {
-            let count = io_retry_interrupted(|| std::io::Write::write(socket, bytes))?;
-            if count == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    "the stub server write wrote nothing",
-                ));
-            }
-            bytes = &bytes[count..];
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
     fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
         io_retry_interrupted(|| std::io::Read::read(socket, buf))
+    }
+
+    const REQUEST_HEAD_LIMIT: usize = 16 * 1024;
+
+    /// Read one HTTP request head.
+    /// Retry an interrupted read.
+    /// Stop at the blank line, at a closed socket, or past the size limit.
+    #[requires(true)]
+    #[ensures(match &ret {
+        Ok(request) => request.len() < REQUEST_HEAD_LIMIT,
+        Err(error) => !error.is_empty(),
+    })]
+    fn read_request_head(socket: &mut impl std::io::Read) -> Result<Vec<u8>, String> {
+        let mut request = Vec::new();
+        while !request.ends_with(b"\r\n\r\n") {
+            let mut byte = [0];
+            match read_retry(socket, &mut byte) {
+                Ok(0) => break,
+                Ok(_) => request.push(byte[0]),
+                Err(error) => return Err(format!("the stub server read failed: {error}")),
+            }
+            if request.len() >= REQUEST_HEAD_LIMIT {
+                return Err("the stub server request is longer than 16 KiB".to_owned());
+            }
+        }
+        Ok(request)
     }
 
     #[requires(true)]
@@ -761,6 +772,58 @@ mod tests {
         assert_eq!(calls, 1);
     }
 
+    /// A reader that returns Interrupted before each byte.
+    #[invariant(true)]
+    struct InterruptBeforeEachByte {
+        bytes: &'static [u8],
+        index: usize,
+        interrupt: bool,
+    }
+
+    impl std::io::Read for InterruptBeforeEachByte {
+        #[requires(true)]
+        #[ensures(
+            ret.as_ref()
+                .map(|count| *count <= 1)
+                .unwrap_or_else(|error| error.kind() == std::io::ErrorKind::Interrupted)
+        )]
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if buf.is_empty() {
+                return Ok(0);
+            }
+            if self.interrupt {
+                self.interrupt = false;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            if self.index >= self.bytes.len() {
+                return Ok(0);
+            }
+            buf[0] = self.bytes[self.index];
+            self.index += 1;
+            self.interrupt = true;
+            Ok(1)
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn read_request_head_retries_an_interrupted_read() {
+        // One interrupt comes before each byte.
+        // A read path that stops on Interrupted fails this test.
+        let head = b"GET / HTTP/1.1\r\n\r\n";
+        let mut reader = InterruptBeforeEachByte {
+            bytes: head,
+            index: 0,
+            interrupt: true,
+        };
+        let request = read_request_head(&mut reader).expect("the head is complete");
+        assert_eq!(request, head);
+    }
+
     #[invariant(true)]
     struct R6Server {
         url: String,
@@ -787,7 +850,8 @@ mod tests {
             let worker_requests = requests.clone();
             let worker = std::thread::spawn(move || -> Result<(), String> {
                 let send = |socket: &mut std::net::TcpStream, bytes: &[u8]| -> Result<(), String> {
-                    write_all_retry(socket, bytes)
+                    socket
+                        .write_all(bytes)
                         .map_err(|error| format!("the stub server write failed: {error}"))
                 };
                 while !worker_stop.load(Ordering::Relaxed) {
@@ -801,24 +865,16 @@ mod tests {
                             return Err(format!("the stub server accept failed: {error}"));
                         }
                     };
-                    io_retry_interrupted(|| socket.set_read_timeout(Some(Duration::from_secs(2))))
-                        .map_err(|error| {
-                            format!("the stub server read timeout setup failed: {error}")
-                        })?;
-                    let mut request = Vec::new();
-                    while !request.ends_with(b"\r\n\r\n") {
-                        let mut byte = [0];
-                        match read_retry(&mut socket, &mut byte) {
-                            Ok(0) => break,
-                            Ok(_) => request.push(byte[0]),
-                            Err(error) => {
-                                return Err(format!("the stub server read failed: {error}"));
-                            }
-                        }
-                        if request.len() >= 16 * 1024 {
-                            return Err("the stub server request is longer than 16 KiB".to_owned());
-                        }
-                    }
+                    // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
+                    // A nonblocking read returns WouldBlock.
+                    // Set this socket to blocking mode.
+                    io_retry_interrupted(|| socket.set_nonblocking(false)).map_err(|error| {
+                        format!("the stub server accepted socket did not become blocking: {error}")
+                    })?;
+                    // The read has no time limit.
+                    // run_readback kills the process group.
+                    // That close ends this read.
+                    let request = read_request_head(&mut socket)?;
                     let request = String::from_utf8(request).map_err(|error| {
                         format!("the stub server request is not utf-8: {error}")
                     })?;
@@ -961,11 +1017,15 @@ mod tests {
                     let mut command = reader.node_command();
                     command.arg("-e").arg(concat!(include_str!("r2_readback.cjs"), "\nconst [apiBase,key,encoding,downloaded,metadata] = process.argv.slice(1); readback({account:'stub-account',bucket:'stub-bucket',key,encoding,downloaded,metadata,headers:{Authorization:'Bearer stub-token'},apiBase}).catch(reportReadbackError);"))
                         .arg(&server.url).arg(&object.object_key).arg(object.content_encoding.unwrap_or("identity")).arg(downloaded).arg(metadata);
-                    run_readback(&mut command, Duration::from_secs(5))
+                    // This limit only stops a hang.
+                    run_readback(&mut command, Duration::from_secs(60))
+                        .context("this limit only stops a hang")
                 }, |facts| *report.borrow_mut() = Some(serde_json::to_value(facts).unwrap()));
-                server
-                    .shutdown()
-                    .expect("the stub server thread finishes cleanly");
+                let stopped = server.shutdown();
+                assert!(
+                    stopped.is_ok(),
+                    "{encoding:?}/{case}: stub {stopped:?}, read-back {result:?}"
+                );
                 assert_eq!(
                     result.is_ok(),
                     case == "match",
