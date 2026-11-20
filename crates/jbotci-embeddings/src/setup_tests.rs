@@ -37,10 +37,23 @@ impl PackServer {
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
             for stream in listener.incoming() {
-                let mut stream = stream.unwrap();
+                // The stop flag is read before the stream is unwrapped.
+                // A wakeup connection can fail.
+                // An interrupted accept is tried again.
+                if let Err(error) = &stream {
+                    if error.kind() == std::io::ErrorKind::Interrupted {
+                        if worker_stop.load(AtomicOrdering::Acquire) {
+                            break;
+                        }
+                        continue;
+                    }
+                }
                 if worker_stop.load(AtomicOrdering::Acquire) {
                     break;
                 }
+                let mut stream = stream.unwrap_or_else(|error| {
+                    panic!("the pack server accept failed: {error}");
+                });
                 stream
                     .set_read_timeout(Some(std::time::Duration::from_secs(10)))
                     .unwrap();
@@ -79,6 +92,20 @@ impl PackServer {
             worker: Some(worker),
         }
     }
+
+    #[requires(true)]
+    #[ensures(self.worker.is_none())]
+    fn shutdown(&mut self) -> Result<(), String> {
+        let Some(worker) = self.worker.take() else {
+            return Ok(());
+        };
+        self.stop.store(true, AtomicOrdering::Release);
+        let _ = TcpStream::connect(self.address);
+        match worker.join() {
+            Ok(()) => Ok(()),
+            Err(payload) => Err(pack_server_panic_message(payload)),
+        }
+    }
 }
 
 #[requires(true)]
@@ -97,18 +124,11 @@ impl Drop for PackServer {
     #[requires(true)]
     #[ensures(self.worker.is_none())]
     fn drop(&mut self) {
-        self.stop.store(true, AtomicOrdering::Release);
-        let _ = TcpStream::connect(self.address);
-        if let Some(worker) = self.worker.take() {
-            if let Err(payload) = worker.join() {
-                let _ = std::io::Write::write_fmt(
-                    &mut std::io::stderr(),
-                    format_args!(
-                        "the pack server thread failed during drop: {}\n",
-                        pack_server_panic_message(payload)
-                    ),
-                );
-            }
+        if let Err(error) = self.shutdown() {
+            let _ = std::io::Write::write_fmt(
+                &mut std::io::stderr(),
+                format_args!("the pack server thread failed during drop: {error}\n"),
+            );
         }
     }
 }
@@ -227,7 +247,7 @@ fn public_setup_updates_one_corpus_without_force_and_repairs_damaged_candidates(
     let spec = model_spec(DEFAULT_MODEL_KEY).unwrap();
     let desired = current_fixture(remote.path(), &spec);
     let remote_pack = pack_root(remote.path(), &spec.model_key, &desired.pack_id);
-    let server = PackServer::start(remote.path().join(INDEX_BASE_VERSION));
+    let mut server = PackServer::start(remote.path().join(INDEX_BASE_VERSION));
     let models = setup_test_dir();
     let model = model_file_path(models.path(), &spec);
     ensure_parent_dir(&model).unwrap();
@@ -369,4 +389,7 @@ fn public_setup_updates_one_corpus_without_force_and_repairs_damaged_candidates(
             );
         }
     }
+    server
+        .shutdown()
+        .expect("the pack server thread finishes cleanly");
 }
