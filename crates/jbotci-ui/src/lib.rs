@@ -4,7 +4,7 @@ use dioxus::router::Navigator;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllEdition, CllInline, CllInterlinearRow,
     CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation,
-    CllTableCell, cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
+    CllTableCell, cll_link_href, cmavo_word_cell, embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
@@ -18,6 +18,7 @@ use jbotci_dialect::{
 };
 #[cfg(test)]
 use jbotci_gentufa::ReferenceMarkerKind;
+use jbotci_gentufa::render_loose_latin_text_for_script;
 use jbotci_output::{
     GlideMark, LujvoFragmentKind, PhonemeRenderOptions, StressMark, render_lojban_text_for_script,
     render_lujvo_fragment_for_script,

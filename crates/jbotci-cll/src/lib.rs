@@ -56,6 +56,7 @@ mod math;
 use math::{CllMathDisplay, render_math_node};
 
 mod cmavo_table;
+pub use cmavo_table::{CllCmavoWordCell, cmavo_word_cell};
 mod links;
 use links::{
     AnchorMode, build_example_reference_index, build_index_entries, build_section_reference_index,
@@ -858,13 +859,6 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
 #[requires(true)]
 #[ensures(true)]
 fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
-    // A linked bracketed table word is three inlines. The visitor separates
-    // every inline with a space. That space turns `[jundi]` into `[ jundi ]`.
-    // Glue that one shape back together. The brackets stay outside the link.
-    // An unlinked bracket is already one text node.
-    if let Some(word) = glued_bracket_word(inlines) {
-        return scope.format(format_args!("[{word}]"));
-    }
     let mut visitor = InlinePlainTextVisitor {
         output: scope.buffer(),
     };
@@ -872,26 +866,20 @@ fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::Text
     scope.join(visitor.output.split_whitespace(), " ")
 }
 
-/// The word inside `Text("[")`, one word inline, `Text("]")`.
+/// Plain text of one cmavo-list cell.
+///
+/// A bracketed word cell keeps `[word]` with no spaces. Every other cell uses
+/// the same plain-text walk as a paragraph.
 #[requires(true)]
-#[ensures(ret.is_none() || matches!(inlines, [CllInline::Text(open), _, CllInline::Text(close)] if open == "[" && close == "]"))]
-fn glued_bracket_word(inlines: &[CllInline]) -> Option<&str> {
-    let [open, inner, close] = inlines else {
-        return None;
-    };
-    if !matches!(open, CllInline::Text(text) if text == "[")
-        || !matches!(close, CllInline::Text(text) if text == "]")
-    {
-        return None;
+#[ensures(true)]
+fn cmavo_cell_plain_text_in_scope(
+    inlines: &[CllInline],
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    if let Some((word, _)) = cmavo_word_cell(inlines).and_then(CllCmavoWordCell::bracket) {
+        return scope.format(format_args!("[{word}]"));
     }
-    match inner {
-        CllInline::Text(text) => Some(text.as_str()),
-        CllInline::Link { inlines, .. } => match inlines.as_slice() {
-            [CllInline::Text(text)] => Some(text.as_str()),
-            _ => None,
-        },
-        _ => None,
-    }
+    inline_plain_text_in_scope(inlines, scope)
 }
 
 #[invariant(true)]
@@ -1079,7 +1067,7 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 for row in rows {
                     for cell in row {
                         self.output
-                            .push_str(&inline_plain_text_in_scope(cell, &scope));
+                            .push_str(&cmavo_cell_plain_text_in_scope(cell, &scope));
                         self.output.push('\n');
                     }
                 }
@@ -3341,7 +3329,7 @@ mod tests {
     #[ensures(ret.iter().all(|cell| !cell.is_empty()))]
     fn cmavo_list_row_texts(row: &[Vec<CllInline>]) -> Vec<String> {
         row.iter()
-            .map(|cell| inline_plain_text(cell))
+            .map(|cell| cmavo_cell_plain_text(cell))
             .filter(|cell| !cell.is_empty())
             .collect()
     }
@@ -3525,6 +3513,20 @@ mod tests {
         );
         assert_eq!(normalize_valsis_query("\u{ed86}\u{eda8}"), "coi");
 
+        let bapli = cukta_word_search_matches(
+            site,
+            "bapli",
+            CuktaSearchWindow::first(MAX_CUKTA_RESULT_COUNT),
+            CuktaTargetFilter::default(),
+        );
+        assert!(
+            bapli.iter().any(|item| {
+                item.chunk.kind == CllSearchChunkKind::Section
+                    && item.chunk.section_id == "section-all-BAI"
+            }),
+            "bapli is the gismu linked from section 9.17"
+        );
+
         let non_latin_matches = cukta_word_search_matches(
             site,
             "\u{ed86}\u{eda8}",
@@ -3597,7 +3599,6 @@ mod tests {
             }),
             section_title: "Test".to_owned(),
             source_path: "test.xml".to_owned(),
-            dictionary: cmavo_table::shipped_dictionary_index(),
         }
     }
 
@@ -3857,7 +3858,8 @@ mod tests {
             ],
             "[jundi]",
         );
-        assert_eq!(inline_plain_text(paragraph_inlines(&linked)), "[jundi]");
+        assert_eq!(inline_plain_text(paragraph_inlines(&linked)), "[ jundi ]");
+        assert_eq!(cmavo_cell_plain_text(paragraph_inlines(&linked)), "[jundi]");
         let markdown = github_markdown(site, &linked);
         assert_eq!(markdown, "[[jundi](../vlacku/jundi)]\n\n");
         assert!(!markdown.contains("\\["));
@@ -4012,15 +4014,16 @@ mod tests {
     #[ensures(true)]
     fn vendored_cmavo_table_cells_link_only_dictionary_spellings() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let index = cmavo_table::shipped_dictionary_index();
         let mut row_count = 0usize;
         let mut cell_count = 0usize;
-        let mut linked = 0usize;
-        let mut bracketed = 0usize;
-        let mut plain = 0usize;
+        let mut counts = CmavoCellCounts {
+            linked: 0,
+            bracketed: 0,
+            plain: 0,
+            unlinked: BTreeMap::new(),
+        };
         let mut preserved_dictionary = 0usize;
         let mut preserved_rafsi = 0usize;
-        let mut unlinked: BTreeMap<String, usize> = BTreeMap::new();
 
         assert_eq!(site.chapters.len(), EMBEDDED_CLL_CHAPTERS.len());
         for ((source_path, _, compressed), chapter) in
@@ -4076,45 +4079,36 @@ mod tests {
                             "{source_path} list {list_index} row {row_index} cell {cell_index} <{}> {}",
                             xml_cell.tag, xml_cell.text
                         );
-                        let model_text = inline_plain_text(model_cell);
+                        let model_text = cmavo_cell_plain_text(model_cell);
                         if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
                             assert!(
                                 !inlines_have_link_kind(model_cell, CllLinkKind::Rafsi),
                                 "{label} links a rafsi"
                             );
                             assert_eq!(model_text, xml_cell.text, "{label}");
-                            classify_word_cell(
-                                model_cell,
-                                &xml_cell.text,
-                                index,
-                                &label,
-                                &mut linked,
-                                &mut bracketed,
-                                &mut plain,
-                                &mut unlinked,
-                            );
+                            classify_word_cell(model_cell, &xml_cell.text, &label, &mut counts);
                         } else {
                             preserved_dictionary +=
                                 link_kind_count(model_cell, CllLinkKind::Dictionary);
                             preserved_rafsi += link_kind_count(model_cell, CllLinkKind::Rafsi);
-                            plain += 1;
+                            counts.plain += 1;
                         }
                     }
                 }
             }
         }
 
-        assert_eq!(linked + plain, cell_count);
-        assert!(bracketed <= linked);
+        assert_eq!(counts.linked + counts.plain, cell_count);
+        assert!(counts.bracketed <= counts.linked);
         assert_eq!(row_count, 917);
         assert_eq!(cell_count, 3035);
-        assert_eq!(linked, 1021);
-        assert_eq!(bracketed, 48);
-        assert_eq!(plain, 2014);
+        assert_eq!(counts.linked, 1021);
+        assert_eq!(counts.bracketed, 48);
+        assert_eq!(counts.plain, 2014);
         assert_eq!(preserved_dictionary, 45);
         assert_eq!(preserved_rafsi, 16);
         assert_eq!(
-            unlinked,
+            counts.unlinked,
             BTreeMap::from([
                 ("pino'o".to_owned(), 1),
                 ("pirau".to_owned(), 1),
@@ -4129,52 +4123,63 @@ mod tests {
     fn classify_word_cell(
         cell: &[CllInline],
         text: &str,
-        index: &cmavo_table::DictionarySpellingIndex<'_>,
         label: &str,
-        linked: &mut usize,
-        bracketed: &mut usize,
-        plain: &mut usize,
-        unlinked: &mut BTreeMap<String, usize>,
+        counts: &mut CmavoCellCounts,
     ) {
+        let target_for = |candidate: &str| {
+            cmavo_table::dictionary_link_target(
+                candidate,
+                jbotci_dictionary_data::english()
+                    .lookup_words(candidate)
+                    .map(|entry| entry.word),
+            )
+        };
         if let Some(word) = cmavo_table::bracketed_dictionary_word(text) {
-            match index.link_target(word) {
+            match target_for(word) {
                 Some(target) => {
                     assert_eq!(
                         bracket_dictionary_link(cell),
                         Some((target, word)),
                         "{label}"
                     );
-                    *linked += 1;
-                    *bracketed += 1;
+                    counts.linked += 1;
+                    counts.bracketed += 1;
                 }
                 None => {
                     assert!(
                         matches!(cell, [CllInline::Text(body)] if body == text),
                         "{label}"
                     );
-                    *plain += 1;
-                    *unlinked.entry(word.to_owned()).or_default() += 1;
+                    counts.plain += 1;
+                    *counts.unlinked.entry(word.to_owned()).or_default() += 1;
                 }
             }
             return;
         }
         if cmavo_table::is_dictionary_token(text) {
-            match index.link_target(text) {
+            match target_for(text) {
                 Some(target) => {
                     assert_eq!(
                         whole_cell_dictionary_link(cell),
                         Some((target, text)),
                         "{label}"
                     );
-                    *linked += 1;
+                    counts.linked += 1;
                 }
                 None => {
                     assert!(
-                        matches!(cell, [CllInline::Text(body)] if body == text),
+                        matches!(
+                            cell,
+                            [CllInline::LanguageSpan {
+                                kind: CllLanguageSpanKind::JboPhrase,
+                                inlines,
+                                ..
+                            }] if matches!(inlines.as_slice(), [CllInline::Text(body)] if body == text)
+                        ),
                         "{label}"
                     );
-                    *plain += 1;
-                    *unlinked.entry(text.to_owned()).or_default() += 1;
+                    counts.plain += 1;
+                    *counts.unlinked.entry(text.to_owned()).or_default() += 1;
                 }
             }
             return;
@@ -4183,7 +4188,7 @@ mod tests {
             !inlines_have_link_kind(cell, CllLinkKind::Dictionary),
             "{label}"
         );
-        *plain += 1;
+        counts.plain += 1;
     }
 
     #[requires(true)]
@@ -4271,6 +4276,14 @@ mod tests {
         let mut counter = LinkKindCounter { kind, count: 0 };
         counter.visit_inline_run(inlines);
         counter.count
+    }
+
+    #[invariant(true)]
+    struct CmavoCellCounts {
+        linked: usize,
+        bracketed: usize,
+        plain: usize,
+        unlinked: BTreeMap<String, usize>,
     }
 
     #[invariant(true)]
@@ -4687,6 +4700,17 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
     );
     scope
         .finish(inline_plain_text_in_scope(inlines, &scope))
+        .expect("unrestricted plain text")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_cell_plain_text(inlines: &[CllInline]) -> String {
+    let scope = jbotci_budget::TextScope::new(
+        jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
+    scope
+        .finish(cmavo_cell_plain_text_in_scope(inlines, &scope))
         .expect("unrestricted plain text")
 }
 #[requires(true)]

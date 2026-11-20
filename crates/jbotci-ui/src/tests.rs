@@ -694,6 +694,153 @@ fn page_find_indexes_a_cmavo_dictionary_link_in_zbalermorna() {
     assert!(build_page_find_index(word, &entries).matches.is_empty());
 }
 
+#[invariant(true)]
+#[invariant(::CmavoBracketFindPage => true)]
+#[derive(Clone, PartialEq, Routable)]
+enum CmavoBracketFindRoute {
+    #[route("/")]
+    CmavoBracketFindPage {},
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CmavoBracketFindApp() -> Element {
+    rsx! { Router::<CmavoBracketFindRoute> {} }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CmavoBracketFindPage() -> Element {
+    let pending = use_signal(|| None);
+    let rows = vec![vec![bracketed_dictionary_cell("jundi")]];
+    let mut entries = Vec::new();
+    collect_cmavo_cell_page_find_entries(&mut entries, &rows[0][0], GentufaScript::Latin);
+    let index = build_page_find_index("[jundi", &entries);
+    let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
+    render_cll_cmavo_list(
+        None,
+        &[],
+        &[],
+        &rows,
+        pending,
+        "",
+        GentufaScript::Latin,
+        &page_find,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bracketed_dictionary_cell(word: &str) -> Vec<CllInline> {
+    vec![
+        CllInline::Text("[".to_owned()),
+        CllInline::Link {
+            target: word.to_owned(),
+            inlines: vec![CllInline::Text(word.to_owned())],
+            kind: CllLinkKind::Dictionary,
+        },
+        CllInline::Text("]".to_owned()),
+    ]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unlinked_lojban_word_cell(word: &str) -> Vec<CllInline> {
+    vec![CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        language: Some("jbo".to_owned()),
+        inlines: vec![CllInline::Text(word.to_owned())],
+    }]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_list_of(rows: Vec<Vec<Vec<CllInline>>>) -> CllBlock {
+    CllBlock::CmavoList {
+        id: None,
+        titles: Vec::new(),
+        headers: Vec::new(),
+        rows,
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_keeps_a_bracketed_cmavo_word_as_one_entry() {
+    let block = cmavo_list_of(vec![vec![bracketed_dictionary_cell("jundi")]]);
+    let mut latin = Vec::new();
+    collect_cll_block_page_find_entries(&mut latin, None, &block, GentufaScript::Latin);
+    assert_eq!(page_find_entry_texts(&latin), vec!["[jundi]".to_owned()]);
+    assert!(!build_page_find_index("[jundi", &latin).matches.is_empty());
+
+    let shown = display_lojban_text(GentufaScript::Zbalermorna, "jundi");
+    assert_ne!(shown, "jundi");
+    let mut zbalermorna = Vec::new();
+    collect_cll_block_page_find_entries(&mut zbalermorna, None, &block, GentufaScript::Zbalermorna);
+    let texts = page_find_entry_texts(&zbalermorna);
+    assert_eq!(texts, vec![format!("[{shown}]")]);
+    assert!(texts[0].starts_with('['));
+    assert!(texts[0].ends_with(']'));
+    assert!(
+        build_page_find_index("[jundi", &zbalermorna)
+            .matches
+            .is_empty()
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
+    for word in ["pino'o", "pirau", "rere'u", "roinai"] {
+        let block = cmavo_list_of(vec![vec![
+            unlinked_lojban_word_cell(word),
+            vec![CllInline::Text("COI".to_owned())],
+        ]]);
+        let mut entries = Vec::new();
+        collect_cll_block_page_find_entries(&mut entries, None, &block, GentufaScript::Zbalermorna);
+        let texts = page_find_entry_texts(&entries);
+        let expected = match render_lojban_text_for_script(
+            word,
+            GentufaScript::Zbalermorna,
+            display_lojban_phoneme_options(),
+        ) {
+            Ok(rendered) => rendered,
+            Err(_) => render_loose_latin_text_for_script(GentufaScript::Zbalermorna, word),
+        };
+        assert_ne!(expected, word, "{word}");
+        assert_eq!(texts, vec![expected, "COI".to_owned()], "{word}");
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_marks_a_bracketed_cmavo_word_outside_the_brackets() {
+    let mut dom = VirtualDom::new(CmavoBracketFindApp);
+    dom.rebuild_in_place();
+    let html = dioxus::ssr::render(&dom);
+    let open_at = html.find("[</mark>").unwrap_or_else(|| panic!("{html}"));
+    let anchor_at = html
+        .find("spa-cll-link-dictionary")
+        .unwrap_or_else(|| panic!("{html}"));
+    assert!(open_at < anchor_at, "{html}");
+    let anchor_end = html[anchor_at..]
+        .find("</a>")
+        .unwrap_or_else(|| panic!("{html}"));
+    let anchor_html = &html[anchor_at..anchor_at + anchor_end];
+    assert!(anchor_html.contains("jundi</mark>"), "{anchor_html}");
+    assert!(!anchor_html.contains("[</mark>"), "{anchor_html}");
+    let after_anchor = &html[anchor_at + anchor_end..];
+    assert!(
+        after_anchor.contains(']'),
+        "the closing bracket follows the link: {after_anchor}"
+    );
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]

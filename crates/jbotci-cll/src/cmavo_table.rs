@@ -1,172 +1,189 @@
 //! Dictionary links for the words in a cmavo table.
 //!
-//! The importer decides each `cmavo` cell and each `gismu` cell against the
-//! dictionary that this build ships. A match becomes one dictionary link. A
-//! miss stays plain text. Every host reads those links from the loaded book.
-
-use std::sync::OnceLock;
+//! The importer asks the shipped dictionary for each `cmavo` cell and each
+//! `gismu` cell. A match becomes one dictionary link. A miss that is one
+//! dictionary token keeps a Lojban span. Any other miss stays one text node.
+//! Every host reads that result from the loaded book.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_ensures, expensive_invariant, new, requires};
-use rustc_hash::{FxHashMap, FxHashSet};
+use bityzba::{data, ensures, invariant, new, requires};
 
 use super::*;
 
-/// Exact spellings from one dictionary, plus a second map for outer pause dots.
+/// One cmavo or gismu cell that holds a single dictionary word.
 ///
-/// The exact map wins. The second map drops only the pause dots at the two ends
-/// of a spelling. It keeps the spelling that equals the stripped key when one
-/// exists. Otherwise it keeps the first spelling.
-#[expensive_invariant(
-    exact.iter().all(|spelling| !spelling.is_empty()),
-    "each exact entry is a dictionary spelling"
-)]
-#[expensive_invariant(
-    stripped.iter().all(|(key, spelling)| {
-        !key.is_empty() && spelling.trim_matches('.') == *key
-    }),
-    "each stripped key drops only the outer pause dots of its spelling"
-)]
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct DictionarySpellingIndex<'word> {
-    exact: FxHashSet<&'word str>,
-    stripped: FxHashMap<&'word str, &'word str>,
+/// The importer builds only these two shapes for a word cell. Paragraphs and
+/// other cells do not use this view. `target` is the dictionary headword when
+/// the word links. It is absent when the word stays plain.
+#[invariant(::Bracket { word, .. } => is_dictionary_token(word))]
+#[invariant(::Token { text, .. } => is_dictionary_token(text))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CllCmavoWordCell<'a> {
+    /// The cell text is `[word]`. The brackets stay outside a link.
+    Bracket {
+        word: &'a str,
+        target: Option<&'a str>,
+    },
+    /// The cell text is one dictionary token.
+    Token {
+        text: &'a str,
+        target: Option<&'a str>,
+    },
 }
 
-impl<'word> DictionarySpellingIndex<'word> {
-    /// Build an index from dictionary headwords. Empty headwords are skipped.
-    ///
-    /// The maps store the headwords that the caller already owns. This function
-    /// does not copy those spellings.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(crate) fn from_entry_words(words: impl IntoIterator<Item = &'word str>) -> Self {
-        let mut exact = FxHashSet::default();
-        let mut stripped = FxHashMap::default();
-        for word in words {
-            if word.is_empty() {
-                continue;
-            }
-            exact.insert(word);
-            remember_outer_dot_spelling(&mut stripped, word);
+/// The word cell stored in `inlines`, when the importer built one.
+#[requires(true)]
+#[ensures(true)]
+pub fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
+    match inlines {
+        [
+            CllInline::Text(open),
+            CllInline::Link {
+                target,
+                inlines: inner,
+                kind: CllLinkKind::Dictionary,
+            },
+            CllInline::Text(close),
+        ] if open == "[" && close == "]" => {
+            let [CllInline::Text(word)] = inner.as_slice() else {
+                return None;
+            };
+            is_dictionary_token(word).then(|| {
+                new!(CllCmavoWordCell::Bracket {
+                    word,
+                    target: Some(target.as_str()),
+                })
+            })
         }
-        new!(Self { exact, stripped })
+        [CllInline::Text(text)] => bracketed_dictionary_word(text)
+            .map(|word| new!(CllCmavoWordCell::Bracket { word, target: None })),
+        [
+            CllInline::Link {
+                target,
+                inlines: inner,
+                kind: CllLinkKind::Dictionary,
+            },
+        ] => {
+            let [CllInline::Text(text)] = inner.as_slice() else {
+                return None;
+            };
+            is_dictionary_token(text).then(|| {
+                new!(CllCmavoWordCell::Token {
+                    text,
+                    target: Some(target.as_str()),
+                })
+            })
+        }
+        [
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                inlines: inner,
+                ..
+            },
+        ] => {
+            let [CllInline::Text(text)] = inner.as_slice() else {
+                return None;
+            };
+            is_dictionary_token(text).then(|| new!(CllCmavoWordCell::Token { text, target: None }))
+        }
+        _ => None,
+    }
+}
+
+impl<'a> CllCmavoWordCell<'a> {
+    /// The bracketed word and its dictionary target, when this cell is `[word]`.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|(word, _)| is_dictionary_token(word)))]
+    pub fn bracket(self) -> Option<(&'a str, Option<&'a str>)> {
+        match self.as_data() {
+            data!(CllCmavoWordCell::Bracket { word, target }) => Some((word, *target)),
+            data!(CllCmavoWordCell::Token { .. }) => None,
+        }
     }
 
-    /// The dictionary spelling for `candidate`, if one matches.
-    ///
-    /// A match is the same spelling, or the same spelling once outer pause dots
-    /// are ignored. Case, `h`, inner dots and inner commas stay significant.
-    /// The returned spelling is the headword stored in this index.
+    /// The unlinked dictionary token, when this cell is one Lojban word with no link.
     #[requires(true)]
-    #[ensures(match ret {
-        Some(spelling) => {
-            spelling == candidate
-                || {
-                    let key = candidate.trim_matches('.');
-                    !key.is_empty() && spelling.trim_matches('.') == key
-                }
+    #[ensures(ret.is_none_or(is_dictionary_token))]
+    pub fn unlinked_token(self) -> Option<&'a str> {
+        match self.as_data() {
+            data!(CllCmavoWordCell::Token { text, target: None }) => Some(text),
+            data!(CllCmavoWordCell::Token { .. }) | data!(CllCmavoWordCell::Bracket { .. }) => None,
         }
-        None => {
-            !self.exact.contains(candidate)
-                && {
-                    let key = candidate.trim_matches('.');
-                    key.is_empty() || !self.stripped.contains_key(key)
-                }
+    }
+}
+
+/// The dictionary spelling for `candidate`.
+///
+/// `spellings` are the headwords that share the lookup key of `candidate`.
+/// The exact spelling wins. Otherwise a spelling that differs only by pause
+/// dots at the two ends wins. Among those, the spelling that equals the bare
+/// key wins. Otherwise the first such spelling wins. Case, `h`, an inner dot
+/// and an inner comma stay significant.
+#[requires(true)]
+#[ensures(!candidate.is_empty() || ret.is_none())]
+#[ensures(ret.is_none_or(|spelling| {
+    spelling == candidate
+        || {
+            let key = candidate.trim_matches('.');
+            !key.is_empty() && spelling.trim_matches('.') == key
         }
-    })]
-    pub(crate) fn link_target(&self, candidate: &str) -> Option<&'word str> {
-        if let Some(spelling) = self.exact.get(candidate).copied() {
+}))]
+pub(crate) fn dictionary_link_target<'word>(
+    candidate: &str,
+    spellings: impl IntoIterator<Item = &'word str>,
+) -> Option<&'word str> {
+    if candidate.is_empty() {
+        return None;
+    }
+    let key = candidate.trim_matches('.');
+    let mut outer_dot = None;
+    for spelling in spellings {
+        if spelling == candidate {
             return Some(spelling);
         }
-        let key = candidate.trim_matches('.');
-        if key.is_empty() {
-            return None;
+        if key.is_empty() || spelling.trim_matches('.') != key {
+            continue;
         }
-        self.stripped.get(key).copied()
+        match outer_dot {
+            Some(current) if current == key => {}
+            Some(_) if spelling == key => outer_dot = Some(spelling),
+            Some(_) => {}
+            None => outer_dot = Some(spelling),
+        }
     }
+    outer_dot
 }
 
-impl DictionarySpellingIndex<'static> {
-    /// The dictionary that jbotci ships with this build.
-    #[requires(true)]
-    #[ensures(!ret.exact.is_empty())]
-    pub(crate) fn from_shipped_dictionary() -> Self {
-        Self::from_entry_words(
-            jbotci_dictionary_data::english()
-                .entries()
-                .iter()
-                .map(|entry| entry.word),
-        )
-    }
-}
-
-/// The one shared index for the shipped dictionary.
+/// The shipped-dictionary spelling for `candidate`.
 ///
-/// Site load and the import probes borrow this index. They do not build a
-/// second copy of the headword maps.
+/// The lookup is the dictionary's own word list for this candidate. This
+/// function then keeps only an exact spelling, or a spelling that differs by
+/// outer pause dots.
 #[requires(true)]
-#[ensures(!ret.exact.is_empty())]
-pub(crate) fn shipped_dictionary_index() -> &'static DictionarySpellingIndex<'static> {
-    static INDEX: OnceLock<DictionarySpellingIndex<'static>> = OnceLock::new();
-    INDEX.get_or_init(DictionarySpellingIndex::from_shipped_dictionary)
-}
-
-/// Keep the spelling that equals the stripped key. Otherwise keep the first one.
-#[requires(!word.is_empty())]
-#[ensures({
-    let key = word.trim_matches('.');
-    key.is_empty()
-        || stripped
-            .get(key)
-            .is_some_and(|spelling| spelling.trim_matches('.') == key)
-})]
-#[ensures({
-    let key = word.trim_matches('.');
-    key.is_empty() || word != key || stripped.get(key).copied() == Some(word)
-})]
-#[expensive_ensures({
-    let key = word.trim_matches('.');
-    let previous = old(stripped.get(word.trim_matches('.')).copied());
-    if key.is_empty() {
-        previous.is_none() && stripped.get(key).is_none()
-    } else {
-        match previous {
-            Some(current) if current == key => stripped.get(key).copied() == Some(current),
-            Some(_) if word == key => stripped.get(key).copied() == Some(word),
-            Some(current) => stripped.get(key).copied() == Some(current),
-            None => stripped.get(key).copied() == Some(word),
+#[ensures(ret.is_none_or(|spelling| {
+    spelling == candidate
+        || {
+            let key = candidate.trim_matches('.');
+            !key.is_empty() && spelling.trim_matches('.') == key
         }
-    }
-})]
-fn remember_outer_dot_spelling<'word>(
-    stripped: &mut FxHashMap<&'word str, &'word str>,
-    word: &'word str,
-) {
-    let key = word.trim_matches('.');
-    if key.is_empty() {
-        return;
-    }
-    match stripped.get(key).copied() {
-        Some(current) if current == key => {}
-        Some(_) if word == key => {
-            stripped.insert(key, word);
-        }
-        Some(_) => {}
-        None => {
-            stripped.insert(key, word);
-        }
-    }
+}))]
+pub(crate) fn shipped_dictionary_link_target(candidate: &str) -> Option<&'static str> {
+    let dictionary = jbotci_dictionary_data::english();
+    dictionary_link_target(
+        candidate,
+        dictionary.lookup_words(candidate).map(|entry| entry.word),
+    )
 }
 
 /// One token of letters, apostrophes and pause dots. The token must be non-empty.
 #[requires(true)]
-#[ensures(
-    ret == (!text.is_empty()
-        && text
-            .chars()
-            .all(|character| character.is_ascii_alphabetic() || character == '\'' || character == '.'))
-)]
+#[ensures(!ret || !text.is_empty())]
+#[ensures(!ret || text.chars().all(|character| {
+    character.is_ascii_alphabetic() || character == '\'' || character == '.'
+}))]
+#[ensures(ret || text.is_empty() || text.chars().any(|character| {
+    !(character.is_ascii_alphabetic() || character == '\'' || character == '.')
+}))]
 pub(crate) fn is_dictionary_token(text: &str) -> bool {
     !text.is_empty()
         && text.chars().all(|character| {
@@ -193,86 +210,106 @@ pub(crate) fn bracketed_dictionary_word(text: &str) -> Option<&str> {
 /// The inlines for one cmavo or gismu cell.
 ///
 /// `text` is the cell text with whitespace already collapsed and trimmed.
-/// A bracketed word that links keeps the brackets as text outside the link.
-/// A bracketed word that does not link is one text inline.
+/// `target_for` returns the dictionary headword for one candidate. A bracketed
+/// word that links keeps the brackets as text outside the link. A bracketed
+/// word that does not link is one text node. A token that does not link is one
+/// Lojban span, so its script does not depend on the dictionary.
 #[requires(text == text.trim())]
-#[ensures(ret.is_empty() == text.is_empty())]
-#[ensures({
-    if text.is_empty() {
-        ret.is_empty()
-    } else if let Some(word) = bracketed_dictionary_word(text) {
-        match dictionary.link_target(word) {
-            Some(target) => matches!(
-                ret.as_slice(),
-                [
-                    CllInline::Text(open),
-                    CllInline::Link {
-                        target: link_target,
-                        inlines,
-                        kind: CllLinkKind::Dictionary,
-                    },
-                    CllInline::Text(close),
-                ] if open == "["
-                    && close == "]"
-                    && link_target == target
-                    && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == word)
-            ),
-            None => matches!(ret.as_slice(), [CllInline::Text(shown)] if shown == text),
-        }
-    } else if is_dictionary_token(text) {
-        match dictionary.link_target(text) {
-            Some(target) => matches!(
-                ret.as_slice(),
-                [CllInline::Link {
-                    target: link_target,
-                    inlines,
-                    kind: CllLinkKind::Dictionary,
-                }] if link_target == target
-                    && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
-            ),
-            None => matches!(ret.as_slice(), [CllInline::Text(shown)] if shown == text),
-        }
-    } else {
-        matches!(ret.as_slice(), [CllInline::Text(shown)] if shown == text)
-    }
-})]
-pub(crate) fn cmavo_or_gismu_cell_inlines(
+#[ensures(cmavo_cell_joined_text(&ret) == text)]
+#[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
+#[ensures(ret.iter().all(|inline| match inline {
+    CllInline::Text(_) => true,
+    CllInline::Link {
+        kind: CllLinkKind::Dictionary,
+        inlines,
+        ..
+    } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        inlines,
+        ..
+    } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+    _ => false,
+}))]
+pub(crate) fn cmavo_or_gismu_cell_inlines_from<'word>(
     text: &str,
-    dictionary: &DictionarySpellingIndex<'_>,
+    mut target_for: impl FnMut(&str) -> Option<&'word str>,
 ) -> Vec<CllInline> {
     if text.is_empty() {
         return Vec::new();
     }
-    let inlines = if let Some(word) = bracketed_dictionary_word(text) {
-        match dictionary.link_target(word) {
+    if let Some(word) = bracketed_dictionary_word(text) {
+        return match target_for(word) {
             Some(target) => vec![
                 CllInline::Text("[".to_owned()),
-                CllInline::Link {
-                    target: target.to_owned(),
-                    inlines: vec![CllInline::Text(word.to_owned())],
-                    kind: CllLinkKind::Dictionary,
-                },
+                dictionary_word_link(target, word),
                 CllInline::Text("]".to_owned()),
             ],
-            None => vec![
-                CllInline::Text("[".to_owned()),
-                CllInline::Text(word.to_owned()),
-                CllInline::Text("]".to_owned()),
-            ],
-        }
-    } else if is_dictionary_token(text) {
-        match dictionary.link_target(text) {
-            Some(target) => vec![CllInline::Link {
-                target: target.to_owned(),
-                inlines: vec![CllInline::Text(text.to_owned())],
-                kind: CllLinkKind::Dictionary,
-            }],
             None => vec![CllInline::Text(text.to_owned())],
+        };
+    }
+    if is_dictionary_token(text) {
+        return match target_for(text) {
+            Some(target) => vec![dictionary_word_link(target, text)],
+            None => vec![lojban_word_span(text)],
+        };
+    }
+    vec![CllInline::Text(text.to_owned())]
+}
+
+/// The inlines for one cmavo or gismu cell in the shipped dictionary.
+#[requires(text == text.trim())]
+#[ensures(cmavo_cell_joined_text(&ret) == text)]
+pub(crate) fn cmavo_or_gismu_cell_inlines(text: &str) -> Vec<CllInline> {
+    cmavo_or_gismu_cell_inlines_from(text, |candidate| shipped_dictionary_link_target(candidate))
+}
+
+#[requires(!target.is_empty())]
+#[requires(is_dictionary_token(shown))]
+#[ensures(matches!(ret, CllInline::Link { kind: CllLinkKind::Dictionary, .. }))]
+fn dictionary_word_link(target: &str, shown: &str) -> CllInline {
+    CllInline::Link {
+        target: target.to_owned(),
+        inlines: vec![CllInline::Text(shown.to_owned())],
+        kind: CllLinkKind::Dictionary,
+    }
+}
+
+#[requires(is_dictionary_token(text))]
+#[ensures(matches!(
+    ret,
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        ..
+    }
+))]
+fn lojban_word_span(text: &str) -> CllInline {
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        language: Some("jbo".to_owned()),
+        inlines: vec![CllInline::Text(text.to_owned())],
+    }
+}
+
+/// The characters a reader sees in one cmavo cell, with no added spaces.
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_cell_joined_text(inlines: &[CllInline]) -> String {
+    let mut joined = String::new();
+    for inline in inlines {
+        match inline {
+            CllInline::Text(text) => joined.push_str(text),
+            CllInline::Link { inlines, .. } | CllInline::LanguageSpan { inlines, .. } => {
+                for child in inlines {
+                    if let CllInline::Text(text) = child {
+                        joined.push_str(text);
+                    }
+                }
+            }
+            _ => {}
         }
-    } else {
-        vec![CllInline::Text(text.to_owned())]
-    };
-    crate::import::merge_adjacent_text_inlines(inlines)
+    }
+    joined
 }
 
 #[cfg(test)]
@@ -282,62 +319,52 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn spelling_index_matches_exact_text_or_outer_pause_dots_only() {
-        let both = DictionarySpellingIndex::from_entry_words([".ui", "ui", "..ui", "klama", "ui'"]);
-        assert_eq!(both.link_target(".ui"), Some(".ui"));
-        assert_eq!(both.link_target("ui"), Some("ui"));
-        assert_eq!(both.link_target("..ui"), Some("..ui"));
-        assert_eq!(both.link_target(".ui."), Some("ui"));
-        assert_eq!(both.link_target("klama"), Some("klama"));
-        assert_eq!(both.link_target("Klama"), None);
-        assert_eq!(both.link_target("uih"), None);
-        assert_eq!(both.link_target("u.i"), None);
-        assert_eq!(both.link_target(""), None);
-        assert_eq!(both.link_target("..."), None);
+    fn link_target_matches_exact_text_or_outer_pause_dots_only() {
+        let both = [".ui", "ui", "..ui", "klama", "ui'"];
+        assert_eq!(dictionary_link_target(".ui", both), Some(".ui"));
+        assert_eq!(dictionary_link_target("ui", both), Some("ui"));
+        assert_eq!(dictionary_link_target("..ui", both), Some("..ui"));
+        assert_eq!(dictionary_link_target(".ui.", both), Some("ui"));
+        assert_eq!(dictionary_link_target("klama", both), Some("klama"));
+        assert_eq!(dictionary_link_target("Klama", both), None);
+        assert_eq!(dictionary_link_target("uih", both), None);
+        assert_eq!(dictionary_link_target("u.i", both), None);
+        assert_eq!(dictionary_link_target("", both), None);
+        assert_eq!(dictionary_link_target("...", both), None);
 
-        let dotted = DictionarySpellingIndex::from_entry_words([".ui"]);
-        assert_eq!(dotted.link_target("ui"), Some(".ui"));
-        assert_eq!(dotted.link_target(".ui"), Some(".ui"));
-
-        let bare = DictionarySpellingIndex::from_entry_words(["ui"]);
-        assert_eq!(bare.link_target(".ui"), Some("ui"));
-
-        let first_dotted = DictionarySpellingIndex::from_entry_words([".ui", "..ui"]);
-        assert_eq!(first_dotted.link_target("ui"), Some(".ui"));
+        assert_eq!(dictionary_link_target("ui", [".ui"]), Some(".ui"));
+        assert_eq!(dictionary_link_target(".ui", [".ui"]), Some(".ui"));
+        assert_eq!(dictionary_link_target(".ui", ["ui"]), Some("ui"));
+        assert_eq!(dictionary_link_target("ui", [".ui", "..ui"]), Some(".ui"));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn shipped_dictionary_keeps_case_and_h_distinct() {
-        let index = DictionarySpellingIndex::from_shipped_dictionary();
-        assert_eq!(index.link_target("coi"), Some("coi"));
-        assert_eq!(index.link_target("klama"), Some("klama"));
-        assert_eq!(index.link_target("jundi"), Some("jundi"));
-        assert_eq!(index.link_target("do'e"), Some("do'e"));
-        assert_eq!(index.link_target("Klama"), None);
-        assert_eq!(index.link_target("uih"), None);
-        assert_eq!(index.link_target("dohe"), None);
-        assert_eq!(index.link_target("ui'"), None);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn shipped_dictionary_index_is_one_shared_value() {
-        let first = shipped_dictionary_index();
-        let second = shipped_dictionary_index();
-        assert!(std::ptr::eq(first, second));
-        assert_eq!(first.link_target("coi"), Some("coi"));
+        assert_eq!(shipped_dictionary_link_target("coi"), Some("coi"));
+        assert_eq!(shipped_dictionary_link_target("klama"), Some("klama"));
+        assert_eq!(shipped_dictionary_link_target("jundi"), Some("jundi"));
+        assert_eq!(shipped_dictionary_link_target("do'e"), Some("do'e"));
+        assert_eq!(shipped_dictionary_link_target(".ui"), Some("ui"));
+        assert_eq!(shipped_dictionary_link_target("Klama"), None);
+        assert_eq!(shipped_dictionary_link_target("uih"), None);
+        assert_eq!(shipped_dictionary_link_target("dohe"), None);
+        assert_eq!(shipped_dictionary_link_target("ui'"), None);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn cell_inlines_link_a_known_compound_and_keep_an_unknown_one_as_text() {
-        let index = DictionarySpellingIndex::from_entry_words(["roinai", "ui"]);
+        let words = ["roinai", "ui"];
+        let cell = |text| {
+            cmavo_or_gismu_cell_inlines_from(text, |candidate| {
+                dictionary_link_target(candidate, words)
+            })
+        };
         assert!(matches!(
-            cmavo_or_gismu_cell_inlines("roinai", &index).as_slice(),
+            cell("roinai").as_slice(),
             [CllInline::Link {
                 target,
                 inlines,
@@ -345,12 +372,16 @@ mod tests {
             }] if target == "roinai"
                 && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "roinai")
         ));
-        assert_eq!(
-            cmavo_or_gismu_cell_inlines("pino'o", &index),
-            vec![CllInline::Text("pino'o".to_owned())]
-        );
         assert!(matches!(
-            cmavo_or_gismu_cell_inlines(".ui", &index).as_slice(),
+            cell("pino'o").as_slice(),
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                inlines,
+                ..
+            }] if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "pino'o")
+        ));
+        assert!(matches!(
+            cell(".ui").as_slice(),
             [CllInline::Link {
                 target,
                 inlines,
@@ -358,14 +389,15 @@ mod tests {
             }] if target == "ui"
                 && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == ".ui")
         ));
-        assert_eq!(
-            cmavo_or_gismu_cell_inlines("Klama", &index),
-            vec![CllInline::Text("Klama".to_owned())]
-        );
-        assert_eq!(
-            cmavo_or_gismu_cell_inlines("[jundi]", &index),
-            vec![CllInline::Text("[jundi]".to_owned())]
-        );
-        assert!(cmavo_or_gismu_cell_inlines("", &index).is_empty());
+        assert!(matches!(
+            cell("Klama").as_slice(),
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                inlines,
+                ..
+            }] if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "Klama")
+        ));
+        assert_eq!(cell("[jundi]"), vec![CllInline::Text("[jundi]".to_owned())]);
+        assert!(cell("").is_empty());
     }
 }

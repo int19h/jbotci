@@ -9,9 +9,7 @@ use roxmltree::{Document, Node};
 use sha2::{Digest, Sha256};
 
 use super::*;
-use crate::cmavo_table::{
-    DictionarySpellingIndex, cmavo_or_gismu_cell_inlines, shipped_dictionary_index,
-};
+use crate::cmavo_table::{cmavo_or_gismu_cell_inlines, cmavo_or_gismu_cell_inlines_from};
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
@@ -61,7 +59,6 @@ pub(crate) struct SectionParseContext {
     pub(crate) section_number: Option<CllSectionNumber>,
     pub(crate) section_title: String,
     pub(crate) source_path: String,
-    pub(crate) dictionary: &'static DictionarySpellingIndex<'static>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,7 +141,7 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
             }
         }
         let (chapter, sections, examples, anchors, index_entries) =
-            parse_chapter(root, *division, source_path, shipped_dictionary_index())?;
+            parse_chapter(root, *division, source_path)?;
         for section in sections {
             section_order.push(section.section_id.clone());
             sections_by_id.insert(section.section_id.clone(), section);
@@ -219,7 +216,6 @@ fn parse_chapter(
     root: Node<'_, '_>,
     division: CllDivision,
     source_path: &str,
-    dictionary: &'static DictionarySpellingIndex<'static>,
 ) -> Result<
     (
         CllChapter,
@@ -293,7 +289,6 @@ fn parse_chapter(
             ),
             section_title: chapter_title.clone(),
             source_path: source_path.to_owned(),
-            dictionary,
         };
         // Index terms come from every non-section child, not from the nodes
         // that survive block parsing: an `<indexterm>` carries no visible text,
@@ -344,7 +339,6 @@ fn parse_chapter(
                 }),
                 source_path,
                 &mut parse_state,
-                dictionary,
             )?;
             let parsed = parsed.into_data();
             root_section_ids.push(parsed.section_id);
@@ -361,7 +355,6 @@ fn parse_chapter(
             &chapter_title,
             source_path,
             &mut parse_state,
-            dictionary,
         );
         root_section_ids.push(parsed.0.section_id.clone());
         examples.extend(parsed.1);
@@ -409,7 +402,6 @@ fn parse_sectionless_chapter(
     chapter_title: &str,
     source_path: &str,
     parse_state: &mut BlockParseState,
-    dictionary: &'static DictionarySpellingIndex<'static>,
 ) -> (
     CllSection,
     Vec<CllExample>,
@@ -424,7 +416,6 @@ fn parse_sectionless_chapter(
         section_number,
         section_title: chapter_title.to_owned(),
         source_path: source_path.to_owned(),
-        dictionary,
     };
     let mut examples = Vec::new();
     let mut anchors = Vec::new();
@@ -527,7 +518,6 @@ fn parse_section(
     placement: SectionPlacement<'_>,
     source_path: &str,
     parse_state: &mut BlockParseState,
-    dictionary: &'static DictionarySpellingIndex<'static>,
 ) -> Result<ParsedSection, CllError> {
     let data!(SectionPlacement {
         chapter_id,
@@ -551,7 +541,6 @@ fn parse_section(
         section_number,
         section_title: section_title.clone(),
         source_path: source_path.to_owned(),
-        dictionary,
     };
     let mut examples = Vec::new();
     let mut anchors = Vec::new();
@@ -624,7 +613,6 @@ fn parse_section(
             }),
             source_path,
             parse_state,
-            dictionary,
         )?;
         let parsed = parsed.into_data();
         child_section_ids.push(parsed.section_id);
@@ -1970,7 +1958,7 @@ fn push_text_inline(inlines: &mut Vec<CllInline>, text: &str) {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
+fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
     let mut merged = Vec::new();
     for inline in inlines {
         match (merged.last_mut(), inline) {
@@ -2532,18 +2520,63 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
 
 /// One cell of a cmavo entry.
 ///
-/// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. Every
-/// other cell keeps the inline links that the rest of the book uses.
+/// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. The book
+/// leaves a cell unlinked when the cell, or an element inside it, has
+/// `glossary="false"`, `valid="false"` or `valid="maybe"`. Every other cell
+/// keeps the inline links that the rest of the book uses.
 #[requires(cell.is_element())]
-#[ensures(true)]
-fn parse_cmavo_entry_cell(
-    cell: Node<'_, '_>,
-    dictionary: &'static DictionarySpellingIndex<'static>,
-) -> Vec<CllInline> {
+#[ensures({
+    let word_cell = cell.has_tag_name("cmavo") || cell.has_tag_name("gismu");
+    if word_cell {
+        ret.iter()
+            .filter(|inline| matches!(inline, CllInline::Link { .. }))
+            .count()
+            <= 1
+            && ret.iter().all(|inline| match inline {
+                CllInline::Text(_) => true,
+                CllInline::Link {
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                    ..
+                } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    inlines,
+                    ..
+                } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+                _ => false,
+            })
+    } else {
+        ret == trim_inline_runs(parse_inlines(cell))
+    }
+})]
+fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> Vec<CllInline> {
     if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
-        return cmavo_or_gismu_cell_inlines(&cmavo_or_gismu_cell_text(cell), dictionary);
+        let text = cmavo_or_gismu_cell_text(cell);
+        if cmavo_cell_opted_out(cell) {
+            return cmavo_or_gismu_cell_inlines_from(&text, |_| None);
+        }
+        return cmavo_or_gismu_cell_inlines(&text);
     }
     trim_inline_runs(parse_inlines(cell))
+}
+
+/// The CLL build leaves this cell out of the cmavo-list glossary links.
+///
+/// The mark is `glossary="false"`, `valid="false"` or `valid="maybe"` on the
+/// cell or on any element inside it.
+#[requires(cell.is_element())]
+#[ensures(true)]
+fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
+    cell.descendants()
+        .any(|node| node.is_element() && element_opts_out_of_cmavo_link(node))
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn element_opts_out_of_cmavo_link(node: Node<'_, '_>) -> bool {
+    attr_value(node, "glossary") == Some("false")
+        || matches!(attr_value(node, "valid"), Some("false" | "maybe"))
 }
 
 #[requires(node.is_element())]
@@ -2582,7 +2615,7 @@ fn parse_cmavo_list_block(
                 .map(|index| {
                     entry_cells
                         .get(index)
-                        .map(|cell| parse_cmavo_entry_cell(*cell, context.dictionary))
+                        .map(|cell| parse_cmavo_entry_cell(*cell))
                         .unwrap_or_default()
                 })
                 .collect::<Vec<_>>()
@@ -4015,7 +4048,6 @@ mod tests {
             section_number: None,
             section_title: "Probe".to_owned(),
             source_path: "probe.xml".to_owned(),
-            dictionary: shipped_dictionary_index(),
         }
     }
 
@@ -4348,7 +4380,6 @@ mod tests {
                             document.root_element(),
                             CllDivision::Appendix,
                             "probe.xml",
-                            shipped_dictionary_index(),
                         )
                         .expect("a division probe imports");
                         assert!(
@@ -4611,13 +4642,9 @@ mod tests {
             "</section></article>",
         );
         let document = Document::parse(probe).expect("probe chapter parses");
-        let (chapter, _, _, _, index_entries) = parse_chapter(
-            document.root_element(),
-            CllDivision::Appendix,
-            "probe.xml",
-            shipped_dictionary_index(),
-        )
-        .expect("the probe chapter imports");
+        let (chapter, _, _, _, index_entries) =
+            parse_chapter(document.root_element(), CllDivision::Appendix, "probe.xml")
+                .expect("the probe chapter imports");
 
         let entries = index_entries
             .iter()
@@ -4672,7 +4699,6 @@ mod tests {
                 number: std::num::NonZeroU16::new(21).unwrap(),
             },
             "21.xml",
-            shipped_dictionary_index(),
         )
         .expect("grammar probe imports");
         assert_eq!(sections[0].child_section_ids, ["page-a", "section-EBNF-s2"]);
@@ -4743,13 +4769,9 @@ mod tests {
         let chapter_seven = CllDivision::Chapter {
             number: std::num::NonZeroU16::new(7).expect("non-zero"),
         };
-        let (chapter, sections, examples, anchors, index_entries) = parse_chapter(
-            document.root_element(),
-            chapter_seven,
-            "07.xml",
-            shipped_dictionary_index(),
-        )
-        .expect("the probe chapter imports");
+        let (chapter, sections, examples, anchors, index_entries) =
+            parse_chapter(document.root_element(), chapter_seven, "07.xml")
+                .expect("the probe chapter imports");
 
         assert_eq!(chapter.root_section_ids, ["probe-parent"]);
         let summary = sections
@@ -4835,7 +4857,6 @@ mod tests {
                 document.root_element(),
                 chapter_seven,
                 "07.xml",
-                shipped_dictionary_index(),
             ),
             Err(CllError::Parse(message)) if message.contains("two levels deep")
         ));
@@ -4995,12 +5016,12 @@ mod tests {
         assert_eq!(cell(13), [CllInline::Text("tense+ ki".to_owned())]);
         assert!(is_dictionary_word_link(cell(14), "do'e", "do'e"));
         assert_eq!(cell(15), [CllInline::Text("-----".to_owned())]);
-        assert_eq!(cell(16), [CllInline::Text("roinai".to_owned())]);
-        assert_eq!(cell(17), [CllInline::Text("pino'o".to_owned())]);
+        assert!(is_unlinked_lojban_word(cell(16), "roinai"));
+        assert!(is_unlinked_lojban_word(cell(17), "pino'o"));
         assert!(is_dictionary_word_link(cell(18), ".ui", "ui"));
-        assert_eq!(cell(19), [CllInline::Text("Klama".to_owned())]);
-        assert_eq!(cell(20), [CllInline::Text("uih".to_owned())]);
-        assert_eq!(cell(21), [CllInline::Text("u.i".to_owned())]);
+        assert!(is_unlinked_lojban_word(cell(19), "Klama"));
+        assert!(is_unlinked_lojban_word(cell(20), "uih"));
+        assert!(is_unlinked_lojban_word(cell(21), "u.i"));
         assert!(cell(22).is_empty(), "a blank cell stays empty");
 
         let outside = probe_inlines("<para><valsi>klama</valsi></para>");
@@ -5027,7 +5048,7 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::inline_plain_text(&rows[0][0]), "[jundi]");
+        assert_eq!(crate::cmavo_cell_plain_text(&rows[0][0]), "[jundi]");
         assert!(matches!(
             rows[0][0].as_slice(),
             [
@@ -5060,7 +5081,11 @@ mod tests {
         assert_eq!(crate::inline_plain_text(&rows[0][0]), "coico'o");
         assert_eq!(
             rows[0][0],
-            cmavo_or_gismu_cell_inlines("coico'o", shipped_dictionary_index())
+            vec![CllInline::Link {
+                target: "coico'o".to_owned(),
+                inlines: vec![CllInline::Text("coico'o".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            }]
         );
     }
 
@@ -5101,14 +5126,94 @@ mod tests {
         assert_eq!(crate::inline_plain_text(&rows[0][0]), "coi.co'o");
         assert_eq!(
             rows[0][0],
-            cmavo_or_gismu_cell_inlines("coi.co'o", shipped_dictionary_index())
+            vec![CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: Some("jbo".to_owned()),
+                inlines: vec![CllInline::Text("coi.co'o".to_owned())],
+            }]
         );
+        assert!(
+            !rows[0][0]
+                .iter()
+                .any(|inline| matches!(inline, CllInline::Link { .. }))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_false_on_a_cmavo_cell_does_not_link() {
+        assert_opted_out_cell(r#"<cmavo valid="false">coi</cmavo>"#, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn glossary_false_on_a_gismu_cell_does_not_link() {
+        assert_opted_out_cell(r#"<gismu glossary="false">klama</gismu>"#, "klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_maybe_on_a_nested_valsi_does_not_link() {
+        assert_opted_out_cell(r#"<cmavo><valsi valid="maybe">coi</valsi></cmavo>"#, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_paragraph_keeps_spaces_inside_a_bracketed_valsi() {
+        let alone = paragraph_text("<para>[<valsi>klama</valsi>]</para>");
+        let after_text = paragraph_text("<para>see [<valsi>klama</valsi>]</para>");
+        assert_eq!(alone, "[ klama ]");
+        assert_eq!(after_text, "see [ klama ]");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_opted_out_cell(cell_xml: &str, text: &str) {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert!(
+            is_unlinked_lojban_word(&rows[0][0], text),
+            "got {:?}",
+            rows[0][0]
+        );
+        assert_eq!(crate::inline_plain_text(&rows[0][0]), text);
+    }
+
+    #[requires(!xml.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn paragraph_text(xml: &str) -> String {
+        let (blocks, _) = probe_blocks(xml);
+        match &blocks[0] {
+            CllBlock::Paragraph { text, .. } => text.clone(),
+            _ => panic!("expected one paragraph, got {blocks:?}"),
+        }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn is_dictionary_word_link(cell: &[CllInline], display: &str, target: &str) -> bool {
         is_word_link(cell, CllLinkKind::Dictionary, display, target)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_unlinked_lojban_word(cell: &[CllInline], text: &str) -> bool {
+        matches!(
+            cell,
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language,
+                inlines,
+            }] if language.as_deref() == Some("jbo")
+                && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+        )
     }
 
     #[requires(true)]

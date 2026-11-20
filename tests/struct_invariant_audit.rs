@@ -632,6 +632,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL link target counter is private test traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CmavoCellCounts",
+        "test counters for one walk of the vendored cmavo tables",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
         "inline plain text visitor is private traversal accumulator state",
     ),

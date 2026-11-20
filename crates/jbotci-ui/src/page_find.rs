@@ -495,12 +495,52 @@ fn render_page_find_text(page_find: &PageFindContext, text: &str) -> Element {
     if text.is_empty() {
         return rsx! {};
     }
+    let pieces = page_find_pieces_for(page_find, text);
+    render_page_find_pieces(page_find, &pieces)
+}
+
+/// One page-find string, counted once, split into marked and plain pieces.
+#[requires(!text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn page_find_pieces_for(page_find: &PageFindContext, text: &str) -> Vec<PageFindRenderPiece> {
     let key = page_find.text_key(text);
     let matches = page_find.matches_for_key(key);
-    if matches.is_empty() {
-        return rsx! { "{text}" };
+    page_find_render_pieces(text, matches)
+}
+
+/// The pieces whose bytes fall inside `start..end` of the original string.
+///
+/// A match that crosses the cut is split, and both parts keep the match index.
+#[requires(start <= end)]
+#[ensures(ret.iter().all(|piece| !piece.text.is_empty()))]
+fn clip_page_find_pieces(
+    pieces: &[PageFindRenderPiece],
+    start: usize,
+    end: usize,
+) -> Vec<PageFindRenderPiece> {
+    let mut clipped = Vec::new();
+    let mut cursor = 0usize;
+    for piece in pieces {
+        let piece_end = cursor + piece.text.len();
+        let from = start.max(cursor);
+        let to = end.min(piece_end);
+        if from < to {
+            let text = piece.text[from - cursor..to - cursor].to_owned();
+            if !text.is_empty() {
+                clipped.push(new!(PageFindRenderPiece {
+                    text,
+                    match_index: piece.match_index,
+                }));
+            }
+        }
+        cursor = piece_end;
     }
-    let pieces = page_find_render_pieces(text, matches);
+    clipped
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_page_find_pieces(page_find: &PageFindContext, pieces: &[PageFindRenderPiece]) -> Element {
     rsx! {
         for piece in pieces.iter() {
             if let Some(match_index) = piece.match_index {
@@ -827,7 +867,7 @@ fn collect_cll_block_page_find_entries(
             }
             for row in rows {
                 for cell in row {
-                    collect_cll_inlines_page_find_entries(entries, cell, script, false);
+                    collect_cmavo_cell_page_find_entries(entries, cell, script);
                 }
             }
         }
@@ -868,6 +908,27 @@ fn collect_cll_table_cell_page_find_entries(
     for child in &cell.blocks {
         collect_cll_block_page_find_entries(entries, site, child, script);
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cmavo_cell_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    cell: &[CllInline],
+    script: GentufaScript,
+) {
+    if let Some(word_cell) = cmavo_word_cell(cell) {
+        if let Some((word, _)) = word_cell.bracket() {
+            let shown = display_cmavo_word(script, word);
+            push_page_find_entry(entries, format!("[{shown}]"));
+            return;
+        }
+        if let Some(text) = word_cell.unlinked_token() {
+            push_page_find_entry(entries, display_cmavo_word(script, text));
+            return;
+        }
+    }
+    collect_cll_inlines_page_find_entries(entries, cell, script, false);
 }
 
 #[requires(true)]

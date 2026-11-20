@@ -990,7 +990,7 @@ fn render_cmavo_list_discord(
         .collect::<Vec<_>>();
     let body = rows.iter().map(|row| {
         row.iter()
-            .map(|cell| single_line(&inline_plain_text_in_scope(cell, &scope), &scope))
+            .map(|cell| single_line(&cmavo_cell_plain_text_in_scope(cell, &scope), &scope))
             .collect::<Vec<_>>()
     });
     push_discord_rows(std::iter::once(header).chain(body), output);
