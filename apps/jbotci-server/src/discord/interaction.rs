@@ -2101,7 +2101,7 @@ mod tests {
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
     use crate::discord::request::PageNumber;
-    use crate::work::paused_blocking::{drain_blocking_thread, paused_runtime};
+    use crate::work::paused_blocking::{drain_blocking_thread, join_ready, paused_runtime};
     use crate::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
@@ -4893,7 +4893,11 @@ mod tests {
             tokio::time::advance(Duration::from_secs(2)).await;
             assert!(
                 matches!(
-                    outcome.await.expect("task"),
+                    join_ready(
+                        outcome,
+                        "the write caller parked instead of returning TimedOut",
+                    )
+                    .await,
                     Err(WorkError::TimedOut {
                         lane: WorkLane::Fetch
                     })
@@ -4901,8 +4905,19 @@ mod tests {
                 "the caller stopped waiting for the write"
             );
             drop(keepalive);
+            let locks_for_probe = Arc::clone(&locks);
+            let message_for_probe = message.clone();
             assert!(
-                locks.acquire(&message, Instant::now()).await.is_err(),
+                join_ready(
+                    tokio::spawn(async move {
+                        locks_for_probe
+                            .acquire(&message_for_probe, Instant::now())
+                            .await
+                    }),
+                    "the held message lock parked instead of returning an error",
+                )
+                .await
+                .is_err(),
                 "no later edit may enter while the write is in flight"
             );
             release_tx
@@ -4959,7 +4974,11 @@ mod tests {
             tokio::time::advance(Duration::from_secs(2)).await;
             assert!(
                 matches!(
-                    timed_out.await.expect("task"),
+                    join_ready(
+                        timed_out,
+                        "the delivery caller parked instead of returning TimedOut",
+                    )
+                    .await,
                     Err(WorkError::TimedOut {
                         lane: WorkLane::Compute
                     })

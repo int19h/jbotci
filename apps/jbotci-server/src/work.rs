@@ -76,7 +76,7 @@ pub(crate) enum WorkError {
         lane: WorkLane,
     },
     /// No permit became free before the deadline.
-    /// The permit was taken, and the blocking pool started the closure late.
+    /// Or a permit was taken, and the blocking pool started the closure late.
     /// The closure then returns without calling the job.
     /// The caller sees this error.
     WaitTimedOut {
@@ -416,11 +416,29 @@ pub(crate) mod paused_blocking {
     pub(crate) async fn drain_blocking_thread() {
         tokio::task::spawn_blocking(|| ()).await.expect("drain");
     }
+
+    /// Poll `task` until it is finished.
+    /// Yield at most 1000 times.
+    /// Then abort `task` and fail the test.
+    /// A live blocking task keeps a paused clock still.
+    /// A refusal or a timeout that never comes fails here.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn join_ready<T>(task: tokio::task::JoinHandle<T>, message: &str) -> T {
+        for _ in 0..1000 {
+            if task.is_finished() {
+                return task.await.expect("task");
+            }
+            tokio::task::yield_now().await;
+        }
+        task.abort();
+        panic!("{message}");
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::paused_blocking::{drain_blocking_thread, paused_runtime};
+    use super::paused_blocking::{drain_blocking_thread, join_ready, paused_runtime};
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;
@@ -556,8 +574,16 @@ mod tests {
         }))
         .await;
         assert_eq!(governor.snapshot().compute_active, 1);
+        let refused = {
+            let governor = Arc::clone(&governor);
+            tokio::spawn(async move { governor.run_compute(far_deadline(), |_| 3).await })
+        };
         assert_eq!(
-            governor.run_compute(far_deadline(), |_| 3).await,
+            join_ready(
+                refused,
+                "backlog refusal parked instead of returning Overloaded",
+            )
+            .await,
             Err(WorkError::Overloaded {
                 lane: WorkLane::Compute
             }),
@@ -606,7 +632,11 @@ mod tests {
             );
             tokio::time::advance(Duration::from_secs(2)).await;
             assert_eq!(
-                queued.await.expect("task"),
+                join_ready(
+                    queued,
+                    "the queued caller parked instead of returning TimedOut",
+                )
+                .await,
                 Err(WorkError::TimedOut {
                     lane: WorkLane::Compute
                 }),
@@ -770,7 +800,11 @@ mod tests {
                 .expect("the worker starts before the deadline");
             tokio::time::advance(Duration::from_secs(1)).await;
             assert_eq!(
-                slow.await.expect("task"),
+                join_ready(
+                    slow,
+                    "the timed-out caller parked instead of returning TimedOut",
+                )
+                .await,
                 Err(WorkError::TimedOut {
                     lane: WorkLane::Compute
                 })
@@ -807,7 +841,11 @@ mod tests {
                 task: blocked_task,
             } = blocked;
             assert_eq!(
-                blocked_task.await.expect("task"),
+                join_ready(
+                    blocked_task,
+                    "the waiting caller parked instead of returning WaitTimedOut",
+                )
+                .await,
                 Err(WorkError::WaitTimedOut {
                     lane: WorkLane::Compute
                 })
@@ -846,7 +884,15 @@ mod tests {
             "one caller waits for the only permit"
         );
         // The queue holds one waiter. The next arrival is refused at once.
-        let refused = governor.run_compute(far_deadline(), |_| "refused").await;
+        let refused = {
+            let governor = Arc::clone(&governor);
+            tokio::spawn(async move { governor.run_compute(far_deadline(), |_| "refused").await })
+        };
+        let refused = join_ready(
+            refused,
+            "queue refusal parked instead of returning Overloaded",
+        )
+        .await;
         assert_eq!(
             refused,
             Err(WorkError::Overloaded {
