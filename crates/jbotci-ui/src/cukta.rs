@@ -1914,7 +1914,7 @@ pub(super) fn render_cll_inline(
     page_find: &PageFindContext,
 ) -> Element {
     match inline {
-        CllInline::Text(text) => {
+        CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
             let text = if lojban_context {
                 display_lojban_text(script, text)
             } else {

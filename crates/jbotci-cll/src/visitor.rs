@@ -179,7 +179,8 @@ pub(crate) fn walk_inline<V: CllBlockVisitor + ?Sized>(visitor: &mut V, inline: 
         CllInline::Text(_)
         | CllInline::Code(_)
         | CllInline::InlineMath { .. }
-        | CllInline::Anchor { .. } => {}
+        | CllInline::Anchor { .. }
+        | CllInline::DictionaryCandidate { .. } => {}
     }
 }
 
@@ -359,6 +360,7 @@ pub(crate) fn walk_inline_mut<V: CllBlockVisitor + ?Sized>(
         CllInline::Text(_)
         | CllInline::Code(_)
         | CllInline::InlineMath { .. }
-        | CllInline::Anchor { .. } => {}
+        | CllInline::Anchor { .. }
+        | CllInline::DictionaryCandidate { .. } => {}
     }
 }

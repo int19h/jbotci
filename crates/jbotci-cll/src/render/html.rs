@@ -254,7 +254,9 @@ fn render_inlines_html(
     let mut output = scope.buffer();
     for inline in inlines {
         match inline {
-            CllInline::Text(text) => output.push_str(&escape_html_in_scope(text, &scope)),
+            CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
+                output.push_str(&escape_html_in_scope(text, &scope))
+            }
             CllInline::Emphasis { language, inlines } => {
                 output.push_str("<em");
                 output.push_str(&render_optional_lang(language.as_deref(), scope));

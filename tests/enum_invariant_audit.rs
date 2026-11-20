@@ -1064,6 +1064,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
+        "crates/jbotci-cll/src/model.rs:CllInline::DictionaryCandidate",
+        "the spelling is the trimmed text of one cmavo or gismu cell. The dictionary match happens when the site loads. This variant does not require that an entry exists",
+    ),
+    (
         "crates/jbotci-cll/src/model.rs:CllInline::Elidable",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),

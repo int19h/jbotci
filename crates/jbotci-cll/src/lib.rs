@@ -55,6 +55,7 @@ pub use model::*;
 mod math;
 use math::{CllMathDisplay, render_math_node};
 
+mod cmavo_table;
 mod links;
 use links::{
     AnchorMode, build_example_reference_index, build_index_entries, build_section_reference_index,
@@ -857,11 +858,41 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
 #[requires(true)]
 #[ensures(true)]
 fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
+    // A bracketed table word is three inlines. The visitor separates every
+    // inline with a space. That space turns `[jundi]` into `[ jundi ]`. Glue
+    // that one shape back together. The brackets stay outside the link.
+    if let Some(word) = glued_bracket_word(inlines) {
+        return scope.format(format_args!("[{word}]"));
+    }
     let mut visitor = InlinePlainTextVisitor {
         output: scope.buffer(),
     };
     visitor.visit_inline_run(inlines);
     scope.join(visitor.output.split_whitespace(), " ")
+}
+
+/// The word inside `Text("[")`, one word inline, `Text("]")`.
+#[requires(true)]
+#[ensures(ret.is_none() || matches!(inlines, [CllInline::Text(open), _, CllInline::Text(close)] if open == "[" && close == "]"))]
+fn glued_bracket_word(inlines: &[CllInline]) -> Option<&str> {
+    let [open, inner, close] = inlines else {
+        return None;
+    };
+    if !matches!(open, CllInline::Text(text) if text == "[")
+        || !matches!(close, CllInline::Text(text) if text == "]")
+    {
+        return None;
+    }
+    match inner {
+        CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
+            Some(text.as_str())
+        }
+        CllInline::Link { inlines, .. } => match inlines.as_slice() {
+            [CllInline::Text(text)] => Some(text.as_str()),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 #[invariant(true)]
@@ -875,7 +906,10 @@ impl CllBlockVisitor for InlinePlainTextVisitor {
     #[ensures(true)]
     fn visit_inline(&mut self, inline: &CllInline) {
         match inline {
-            CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text, .. } => {
+            CllInline::Text(text)
+            | CllInline::Code(text)
+            | CllInline::InlineMath { text, .. }
+            | CllInline::DictionaryCandidate { spelling: text } => {
                 self.output.push_str(text);
                 self.output.push(' ');
             }
@@ -2926,9 +2960,11 @@ mod tests {
 
         let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
         assert!(!html.contains("<th>cmavo</th>"));
-        assert!(html.contains("<tr><td>coi</td><td>greetings</td></tr>"));
         assert!(html.contains(
-            "<tr><td>ju'i</td><td>[jundi]</td><td>attention</td><td>at ease</td><td>ignore me/us</td></tr>"
+            "<tr><td><a href=\"../vlacku/coi\" class=\"spa-cll-link spa-cll-link-dictionary\">coi</a></td><td>greetings</td></tr>"
+        ));
+        assert!(html.contains(
+            "<tr><td><a href=\"../vlacku/ju'i\" class=\"spa-cll-link spa-cll-link-dictionary\">ju'i</a></td><td>[<a href=\"../vlacku/jundi\" class=\"spa-cll-link spa-cll-link-dictionary\">jundi</a>]</td><td>attention</td><td>at ease</td><td>ignore me/us</td></tr>"
         ));
 
         let markdown = render_section(
@@ -2939,8 +2975,10 @@ mod tests {
         );
         assert!(!markdown.contains("| cmavo |"));
         assert!(!markdown.contains("| --- |"));
-        assert!(markdown.contains("coi | greetings\n\n"));
-        assert!(markdown.contains("ju'i | [jundi] | attention | at ease | ignore me/us\n\n"));
+        assert!(markdown.contains("[coi](../vlacku/coi) | greetings\n\n"));
+        assert!(markdown.contains(
+            "[ju'i](../vlacku/ju'i) | \\[[jundi](../vlacku/jundi)\\] | attention | at ease | ignore me/us\n\n"
+        ));
 
         let plain_text = blocks_plain_text(site, &section.blocks);
         assert!(plain_text.contains("cmavo selma'o coi greetings"));
@@ -3793,6 +3831,637 @@ mod tests {
             output.message.as_deref(),
             Some("Meaning search is not available yet.")
         );
+    }
+
+    /// A candidate that site load did not replace stays plain text in both renderers.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unresolved_dictionary_candidate_renders_as_plain_text() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let candidate = plain_paragraph(
+            vec![CllInline::DictionaryCandidate {
+                spelling: "roinai".to_owned(),
+            }],
+            "roinai",
+        );
+        assert_eq!(
+            render_block_html(site, &candidate, CllLinkRenderMode::Web),
+            "<p class=\"cll-para\">roinai</p>"
+        );
+        assert_eq!(
+            github_markdown(site, &candidate),
+            "roinai\n\n",
+            "a miss has no dictionary href"
+        );
+
+        let brackets = plain_paragraph(
+            vec![
+                CllInline::Text("[".to_owned()),
+                CllInline::DictionaryCandidate {
+                    spelling: "pino'o".to_owned(),
+                },
+                CllInline::Text("]".to_owned()),
+            ],
+            "[pino'o]",
+        );
+        assert_eq!(inline_plain_text(paragraph_inlines(&brackets)), "[pino'o]");
+        assert_eq!(
+            render_block_html(site, &brackets, CllLinkRenderMode::Web),
+            "<p class=\"cll-para\">[pino'o]</p>"
+        );
+        assert_eq!(github_markdown(site, &brackets), "\\[pino'o\\]\n\n");
+
+        let text_miss = plain_paragraph(
+            vec![
+                CllInline::Text("[".to_owned()),
+                CllInline::Text("jundi".to_owned()),
+                CllInline::Text("]".to_owned()),
+            ],
+            "[jundi]",
+        );
+        assert_eq!(github_markdown(site, &text_miss), "\\[jundi\\]\n\n");
+        assert!(!github_markdown(site, &text_miss).contains("]("));
+
+        let phrase = plain_paragraph(
+            vec![CllInline::Text("[cmavo: mi]".to_owned())],
+            "[cmavo: mi]",
+        );
+        assert_eq!(github_markdown(site, &phrase), "[cmavo: mi]\n\n");
+    }
+
+    /// CLL 9.17 is the BAI table. Every row links its cmavo and its gismu.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bai_table_links_every_cmavo_and_gismu() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section =
+            cll_lookup_section(site, "section-all-BAI").expect("section 9.17 should exist");
+        let rows = section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::CmavoList { rows, .. } => Some(rows),
+                _ => None,
+            })
+            .expect("section 9.17 should contain the BAI table");
+
+        assert!(!rows.is_empty());
+        for (index, row) in rows.iter().enumerate() {
+            assert!(
+                row.len() >= 2,
+                "row {index} has the cmavo and gismu columns"
+            );
+            assert!(
+                whole_cell_dictionary_link(&row[0]).is_some(),
+                "row {index} cmavo {} links once",
+                inline_plain_text(&row[0])
+            );
+            let gismu = inline_plain_text(&row[1]);
+            if gismu == "-----" {
+                assert!(
+                    !inlines_have_link_kind(&row[1], CllLinkKind::Dictionary),
+                    "row {index} keeps the gismu placeholder as plain text"
+                );
+            } else {
+                assert!(
+                    whole_cell_dictionary_link(&row[1]).is_some(),
+                    "row {index} gismu {gismu} links once"
+                );
+            }
+            for cell in row.iter().skip(2) {
+                assert!(
+                    !inlines_have_link_kind(cell, CllLinkKind::Dictionary),
+                    "row {index} modal place stays plain: {}",
+                    inline_plain_text(cell)
+                );
+            }
+        }
+
+        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let markdown = render_section(
+            site,
+            section,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Web,
+        );
+        for word in [
+            "ba'i", "basti", "bai", "bapli", "do'e", "ra'a", "srana", "ra'i", "krasi",
+        ] {
+            let anchor = format!(
+                "<a href=\"../vlacku/{word}\" class=\"spa-cll-link spa-cll-link-dictionary\">{word}</a>"
+            );
+            assert!(html.contains(&anchor), "{word} html link");
+            assert!(
+                markdown.contains(&format!("[{word}](../vlacku/{word})")),
+                "{word} markdown link"
+            );
+        }
+        assert!(html.contains("<td><a href=\"../vlacku/do'e\" class=\"spa-cll-link spa-cll-link-dictionary\">do'e</a></td><td>-----</td>"));
+        assert!(html.contains("<td><a href=\"../vlacku/ra'a\" class=\"spa-cll-link spa-cll-link-dictionary\">ra'a</a></td><td><a href=\"../vlacku/srana\" class=\"spa-cll-link spa-cll-link-dictionary\">srana</a></td>"));
+        assert!(html.contains("<td><a href=\"../vlacku/ra'i\" class=\"spa-cll-link spa-cll-link-dictionary\">ra'i</a></td><td><a href=\"../vlacku/krasi\" class=\"spa-cll-link spa-cll-link-dictionary\">krasi</a></td>"));
+        assert!(!html.contains("href=\"../vlacku/-----\""));
+    }
+
+    /// The vendored book has 917 cmavo-entry rows. This counts the links.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_cmavo_table_cells_link_only_dictionary_spellings() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        assert!(
+            !cmavo_table::site_contains_dictionary_candidate(site),
+            "site load replaces every candidate"
+        );
+        let index = cmavo_table::DictionarySpellingIndex::from_shipped_dictionary();
+        let mut row_count = 0usize;
+        let mut cell_count = 0usize;
+        let mut linked = 0usize;
+        let mut bracketed = 0usize;
+        let mut plain = 0usize;
+        let mut unlinked: BTreeMap<String, usize> = BTreeMap::new();
+
+        assert_eq!(site.chapters.len(), EMBEDDED_CLL_CHAPTERS.len());
+        for ((source_path, _, compressed), chapter) in
+            EMBEDDED_CLL_CHAPTERS.iter().zip(&site.chapters)
+        {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decode");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            let xml_lists = xml_cmavo_lists(document.root_element());
+            let mut model_lists = Vec::new();
+            collect_model_cmavo_lists(site, &chapter.prelude_blocks, &mut model_lists);
+            for section_id in &chapter.root_section_ids {
+                collect_section_cmavo_lists(site, section_id, &mut model_lists);
+            }
+            assert_eq!(
+                xml_lists.len(),
+                model_lists.len(),
+                "{source_path}: cmavo list count"
+            );
+
+            for (list_index, (xml_rows, model_list)) in
+                xml_lists.iter().zip(&model_lists).enumerate()
+            {
+                for header in model_list.headers {
+                    assert!(
+                        !inlines_have_link_kind(header, CllLinkKind::Dictionary),
+                        "{source_path} list {list_index} header links a dictionary word"
+                    );
+                    assert!(
+                        !inlines_have_link_kind(header, CllLinkKind::Rafsi),
+                        "{source_path} list {list_index} header links a rafsi"
+                    );
+                }
+                assert_eq!(
+                    xml_rows.len(),
+                    model_list.rows.len(),
+                    "{source_path} list {list_index}: row count"
+                );
+                for (row_index, (xml_row, model_row)) in
+                    xml_rows.iter().zip(model_list.rows).enumerate()
+                {
+                    row_count += 1;
+                    assert!(
+                        model_row.len() >= xml_row.len(),
+                        "{source_path} list {list_index} row {row_index}: model row is shorter"
+                    );
+                    for cell in &model_row[xml_row.len()..] {
+                        assert!(
+                            cell.is_empty(),
+                            "{source_path} list {list_index} row {row_index}: padding is not empty"
+                        );
+                    }
+                    for (cell_index, (xml_cell, model_cell)) in
+                        xml_row.iter().zip(model_row).enumerate()
+                    {
+                        cell_count += 1;
+                        let label = format!(
+                            "{source_path} list {list_index} row {row_index} cell {cell_index} <{}> {}",
+                            xml_cell.tag, xml_cell.text
+                        );
+                        assert!(
+                            !inlines_have_link_kind(model_cell, CllLinkKind::Rafsi),
+                            "{label} links a rafsi"
+                        );
+                        assert!(
+                            !inlines_have_candidate(model_cell),
+                            "{label} still has a candidate"
+                        );
+                        let model_text = inline_plain_text(model_cell);
+                        if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
+                            assert_eq!(model_text, xml_cell.text, "{label}");
+                            classify_word_cell(
+                                model_cell,
+                                &xml_cell.text,
+                                &index,
+                                &label,
+                                &mut linked,
+                                &mut bracketed,
+                                &mut plain,
+                                &mut unlinked,
+                            );
+                        } else {
+                            assert!(
+                                !inlines_have_link_kind(model_cell, CllLinkKind::Dictionary),
+                                "{label} is not a cmavo or gismu cell"
+                            );
+                            plain += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        assert_eq!(linked + plain, cell_count);
+        assert!(bracketed <= linked);
+        assert_eq!(row_count, 917);
+        assert_eq!(cell_count, 3035);
+        assert_eq!(linked, 1021);
+        assert_eq!(bracketed, 48);
+        assert_eq!(plain, 2014);
+        assert_eq!(
+            unlinked,
+            BTreeMap::from([
+                ("pino'o".to_owned(), 1),
+                ("pirau".to_owned(), 1),
+                ("rere'u".to_owned(), 1),
+                ("roinai".to_owned(), 1),
+            ])
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn classify_word_cell(
+        cell: &[CllInline],
+        text: &str,
+        index: &cmavo_table::DictionarySpellingIndex,
+        label: &str,
+        linked: &mut usize,
+        bracketed: &mut usize,
+        plain: &mut usize,
+        unlinked: &mut BTreeMap<String, usize>,
+    ) {
+        if let Some(word) = cmavo_table::bracketed_dictionary_word(text) {
+            match index.link_target(word) {
+                Some(target) => {
+                    assert_eq!(
+                        bracket_dictionary_link(cell),
+                        Some((target, word)),
+                        "{label}"
+                    );
+                    *linked += 1;
+                    *bracketed += 1;
+                }
+                None => {
+                    assert!(
+                        matches!(
+                            cell,
+                            [
+                                CllInline::Text(open),
+                                CllInline::Text(inner),
+                                CllInline::Text(close),
+                            ] if open == "[" && close == "]" && inner == word
+                        ),
+                        "{label}"
+                    );
+                    *plain += 1;
+                    *unlinked.entry(word.to_owned()).or_default() += 1;
+                }
+            }
+            return;
+        }
+        if cmavo_table::is_dictionary_token(text) {
+            match index.link_target(text) {
+                Some(target) => {
+                    assert_eq!(
+                        whole_cell_dictionary_link(cell),
+                        Some((target, text)),
+                        "{label}"
+                    );
+                    *linked += 1;
+                }
+                None => {
+                    assert!(
+                        matches!(cell, [CllInline::Text(body)] if body == text),
+                        "{label}"
+                    );
+                    *plain += 1;
+                    *unlinked.entry(text.to_owned()).or_default() += 1;
+                }
+            }
+            return;
+        }
+        assert!(
+            !inlines_have_link_kind(cell, CllLinkKind::Dictionary),
+            "{label}"
+        );
+        *plain += 1;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn whole_cell_dictionary_link(cell: &[CllInline]) -> Option<(&str, &str)> {
+        match cell {
+            [
+                CllInline::Link {
+                    target,
+                    inlines,
+                    kind: CllLinkKind::Dictionary,
+                },
+            ] => match inlines.as_slice() {
+                [CllInline::Text(display)] => Some((target.as_str(), display.as_str())),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_dictionary_link(cell: &[CllInline]) -> Option<(&str, &str)> {
+        match cell {
+            [
+                CllInline::Text(open),
+                CllInline::Link {
+                    target,
+                    inlines,
+                    kind: CllLinkKind::Dictionary,
+                },
+                CllInline::Text(close),
+            ] if open == "[" && close == "]" => match inlines.as_slice() {
+                [CllInline::Text(display)] => Some((target.as_str(), display.as_str())),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_paragraph(inlines: Vec<CllInline>, text: &str) -> CllBlock {
+        CllBlock::Paragraph {
+            anchor_id: None,
+            role: None,
+            inlines,
+            text: text.to_owned(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn paragraph_inlines(block: &CllBlock) -> &[CllInline] {
+        match block {
+            CllBlock::Paragraph { inlines, .. } => inlines,
+            _ => &[],
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn github_markdown(site: &CllSite, block: &CllBlock) -> String {
+        let mut markdown = String::new();
+        render_block_markdown(
+            site,
+            block,
+            &mut markdown,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        markdown
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn inlines_have_link_kind(inlines: &[CllInline], kind: CllLinkKind) -> bool {
+        inlines.iter().any(|inline| match inline {
+            CllInline::Link {
+                kind: link_kind,
+                inlines,
+                ..
+            } => *link_kind == kind || inlines_have_link_kind(inlines, kind),
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Elidable { inlines, .. } => inlines_have_link_kind(inlines, kind),
+            _ => false,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn inlines_have_candidate(inlines: &[CllInline]) -> bool {
+        inlines.iter().any(|inline| match inline {
+            CllInline::DictionaryCandidate { .. } => true,
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Link { inlines, .. }
+            | CllInline::Elidable { inlines, .. } => inlines_have_candidate(inlines),
+            _ => false,
+        })
+    }
+
+    #[invariant(true)]
+    struct XmlCmavoCell {
+        tag: String,
+        text: String,
+    }
+
+    #[invariant(true)]
+    struct ModelCmavoList<'site> {
+        headers: &'site [Vec<CllInline>],
+        rows: &'site [Vec<Vec<CllInline>>],
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn xml_cmavo_lists(root: roxmltree::Node<'_, '_>) -> Vec<Vec<Vec<XmlCmavoCell>>> {
+        let mut lists = Vec::new();
+        let has_sections = root
+            .children()
+            .any(|child| child.is_element() && child.has_tag_name("section"));
+        if has_sections {
+            push_region_cmavo_lists(root, &mut lists);
+            for child in root.children() {
+                if child.is_element() && child.has_tag_name("section") {
+                    push_section_cmavo_lists(child, &mut lists);
+                }
+            }
+        } else {
+            push_region_cmavo_lists(root, &mut lists);
+        }
+        lists
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_section_cmavo_lists(
+        section: roxmltree::Node<'_, '_>,
+        lists: &mut Vec<Vec<Vec<XmlCmavoCell>>>,
+    ) {
+        push_region_cmavo_lists(section, lists);
+        for child in section.children() {
+            if child.is_element() && child.has_tag_name("section") {
+                push_section_cmavo_lists(child, lists);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_region_cmavo_lists(
+        parent: roxmltree::Node<'_, '_>,
+        lists: &mut Vec<Vec<Vec<XmlCmavoCell>>>,
+    ) {
+        for child in parent.children() {
+            if !child.is_element()
+                || child.has_tag_name("title")
+                || child.has_tag_name("indexterm")
+                || child.has_tag_name("section")
+                || is_hidden_xml(child)
+            {
+                continue;
+            }
+            push_descendant_cmavo_lists(child, lists);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_descendant_cmavo_lists(
+        node: roxmltree::Node<'_, '_>,
+        lists: &mut Vec<Vec<Vec<XmlCmavoCell>>>,
+    ) {
+        if !node.is_element()
+            || node.has_tag_name("title")
+            || node.has_tag_name("indexterm")
+            || is_hidden_xml(node)
+        {
+            return;
+        }
+        if node.has_tag_name("cmavo-list") {
+            if let Some(rows) = xml_cmavo_rows(node) {
+                lists.push(rows);
+            }
+            return;
+        }
+        for child in node.children() {
+            push_descendant_cmavo_lists(child, lists);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_hidden_xml(node: roxmltree::Node<'_, '_>) -> bool {
+        node.attribute("role")
+            .is_some_and(|role| role.trim().eq_ignore_ascii_case("display-none"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn xml_cmavo_rows(list: roxmltree::Node<'_, '_>) -> Option<Vec<Vec<XmlCmavoCell>>> {
+        let rows = list
+            .children()
+            .filter(|child| child.is_element() && child.has_tag_name("cmavo-entry"))
+            .map(|entry| {
+                entry
+                    .children()
+                    .filter(|child| child.is_element())
+                    .map(|cell| XmlCmavoCell {
+                        tag: cell.tag_name().name().to_owned(),
+                        text: visible_text(cell),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let column_count = rows.iter().map(Vec::len).max().unwrap_or(0);
+        (column_count > 0).then_some(rows)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_section_cmavo_lists<'site>(
+        site: &'site CllSite,
+        section_id: &str,
+        lists: &mut Vec<ModelCmavoList<'site>>,
+    ) {
+        let section = site
+            .sections_by_id
+            .get(section_id)
+            .unwrap_or_else(|| panic!("section {section_id} should exist"));
+        collect_model_cmavo_lists(site, &section.blocks, lists);
+        for child_id in &section.child_section_ids {
+            collect_section_cmavo_lists(site, child_id, lists);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_model_cmavo_lists<'site>(
+        site: &'site CllSite,
+        blocks: &'site [CllBlock],
+        lists: &mut Vec<ModelCmavoList<'site>>,
+    ) {
+        for block in blocks {
+            match block {
+                CllBlock::CmavoList { headers, rows, .. } => {
+                    lists.push(ModelCmavoList { headers, rows })
+                }
+                CllBlock::List { items, .. } => {
+                    for item in items {
+                        collect_model_cmavo_lists(site, item, lists);
+                    }
+                }
+                CllBlock::Example { example_id } => {
+                    let example = site.examples_by_id.get(example_id).unwrap_or_else(|| {
+                        panic!("example {example_id} should exist");
+                    });
+                    collect_model_cmavo_lists(site, &example.blocks, lists);
+                }
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => {
+                    for row in header_rows.iter().chain(body_rows.iter()) {
+                        for cell in row {
+                            collect_model_cmavo_lists(site, &cell.blocks, lists);
+                        }
+                    }
+                }
+                CllBlock::VariableList { entries, .. } => {
+                    for entry in entries {
+                        collect_model_cmavo_lists(site, &entry.blocks, lists);
+                    }
+                }
+                CllBlock::Rule { body, .. } | CllBlock::BlockQuote { blocks: body, .. } => {
+                    collect_model_cmavo_lists(site, body, lists);
+                }
+                CllBlock::Paragraph { .. }
+                | CllBlock::SimpleListTable { .. }
+                | CllBlock::Media { .. }
+                | CllBlock::Code { .. }
+                | CllBlock::Heading { .. }
+                | CllBlock::Definition { .. }
+                | CllBlock::InterlinearGloss { .. }
+                | CllBlock::Lojbanization { .. }
+                | CllBlock::LujvoMaking { .. }
+                | CllBlock::GrammarTemplate { .. }
+                | CllBlock::Ebnf { .. }
+                | CllBlock::DisplayMath { .. } => {}
+            }
+        }
     }
 }
 

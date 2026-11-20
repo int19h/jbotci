@@ -600,6 +600,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the compile-fail fixture tests unused-type warnings on a no-op contract marker",
     ),
     (
+        "crates/jbotci-cll/src/cmavo_table.rs:DictionaryCandidateFinder",
+        "private traversal state for the expensive postcondition that no candidate remains",
+    ),
+    (
+        "crates/jbotci-cll/src/cmavo_table.rs:DictionaryCandidateResolver",
+        "private traversal state that borrows the spelling index and rewrites one candidate at a time",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:BlockParseState",
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
@@ -636,8 +644,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "inline plain text visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:ModelCmavoList",
+        "test view of one imported cmavo list. The rows already belong to the loaded site",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:StatusNoteCountVisitor",
         "status note counter is private test traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:XmlCmavoCell",
+        "test record of one vendored cmavo cell. The tag is the element name and the text is the visible cell text",
     ),
     (
         "crates/jbotci-cll/src/links.rs:LinkResolution",

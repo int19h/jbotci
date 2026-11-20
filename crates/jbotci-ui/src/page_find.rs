@@ -892,10 +892,12 @@ fn collect_cll_inline_page_find_entries(
     lojban_context: bool,
 ) {
     match inline {
-        CllInline::Text(text) => push_page_find_entry(
-            entries,
-            display_lojban_text_if(script, text, lojban_context),
-        ),
+        CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
+            push_page_find_entry(
+                entries,
+                display_lojban_text_if(script, text, lojban_context),
+            )
+        }
         CllInline::Emphasis { language, inlines } | CllInline::Quote { language, inlines } => {
             let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
             collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);

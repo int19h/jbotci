@@ -178,6 +178,8 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     site = site.with_data(data! {
         example_ids_by_normalized_reference: example_ids_by_normalized_reference,
     });
+    // Candidates become links here, before section text and search read the blocks.
+    site = crate::cmavo_table::resolve_cmavo_table_dictionary_links(site);
     site = resolve_site_links(site);
     let search_chunks = build_search_chunks(&site);
     site = site.with_data(data! {
@@ -2486,6 +2488,88 @@ fn collect_interlinear_cell(
     vec![parse_inlines(node)]
 }
 
+/// One cell of a cmavo entry. Only `cmavo` and `gismu` can name a dictionary word.
+#[requires(cell.is_element())]
+#[ensures(true)]
+fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> Vec<CllInline> {
+    if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
+        return crate::cmavo_table::cmavo_or_gismu_cell_inlines(&visible_text(cell));
+    }
+    trim_inline_runs(strip_dictionary_and_rafsi_links(parse_inlines(cell)))
+}
+
+/// Remove dictionary and rafsi links from a cell that must stay plain.
+///
+/// A section reference stays. Join the text runs that the removed link split,
+/// so the visible words do not change.
+#[requires(true)]
+#[ensures(true)]
+fn strip_dictionary_and_rafsi_links(inlines: Vec<CllInline>) -> Vec<CllInline> {
+    merge_adjacent_text_inlines(
+        inlines
+            .into_iter()
+            .flat_map(strip_dictionary_and_rafsi_link)
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strip_dictionary_and_rafsi_link(inline: CllInline) -> Vec<CllInline> {
+    match inline {
+        CllInline::Link {
+            inlines,
+            kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
+            ..
+        } => strip_dictionary_and_rafsi_links(inlines),
+        CllInline::Link {
+            target,
+            inlines,
+            kind,
+        } => vec![CllInline::Link {
+            target,
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+            kind,
+        }],
+        CllInline::Emphasis { language, inlines } => vec![CllInline::Emphasis {
+            language,
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::Quote { language, inlines } => vec![CllInline::Quote {
+            language,
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::LanguageSpan {
+            kind,
+            language,
+            inlines,
+        } => vec![CllInline::LanguageSpan {
+            kind,
+            language,
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::CiteTitle { inlines } => vec![CllInline::CiteTitle {
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::Subscript { inlines } => vec![CllInline::Subscript {
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::Superscript { inlines } => vec![CllInline::Superscript {
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        CllInline::Elidable {
+            shown,
+            forced,
+            inlines,
+        } => vec![CllInline::Elidable {
+            shown,
+            forced,
+            inlines: strip_dictionary_and_rafsi_links(inlines),
+        }],
+        other => vec![other],
+    }
+}
+
 #[requires(node.is_element())]
 #[ensures(true)]
 fn parse_cmavo_list_block(
@@ -2512,7 +2596,7 @@ fn parse_cmavo_list_block(
         .unwrap_or_default();
     let headers = header_cells
         .iter()
-        .map(|cell| trim_inline_runs(parse_inlines(*cell)))
+        .map(|cell| trim_inline_runs(strip_dictionary_and_rafsi_links(parse_inlines(*cell))))
         .filter(|body| !body.is_empty())
         .collect::<Vec<_>>();
     let rows = entry_rows
@@ -2522,7 +2606,7 @@ fn parse_cmavo_list_block(
                 .map(|index| {
                     entry_cells
                         .get(index)
-                        .map(|cell| trim_inline_runs(parse_inlines(*cell)))
+                        .map(|cell| parse_cmavo_entry_cell(*cell))
                         .unwrap_or_default()
                 })
                 .collect::<Vec<_>>()
@@ -4817,5 +4901,180 @@ mod tests {
         };
         assert!(header_rows.is_empty());
         assert_eq!(body_rows.len(), 1);
+    }
+
+    /// Cmavo and gismu cells of a cmavo table follow the dictionary link rules.
+    /// A word outside a table still links through the inline path.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cmavo_table_cells_follow_the_dictionary_link_rules() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list>",
+            "<cmavo-list-head><td><valsi>coi</valsi></td></cmavo-list-head>",
+            "<cmavo-entry><cmavo>coi</cmavo></cmavo-entry>",
+            "<cmavo-entry><gismu>klama</gismu></cmavo-entry>",
+            "<cmavo-entry><selmaho>coi</selmaho></cmavo-entry>",
+            "<cmavo-entry><rafsi>coi</rafsi></cmavo-entry>",
+            "<cmavo-entry><series>COI</series></cmavo-entry>",
+            "<cmavo-entry><description>see <valsi>klama</valsi> now</description></cmavo-entry>",
+            "<cmavo-entry><description><rafsi>coi</rafsi></description></cmavo-entry>",
+            "<cmavo-entry><description>see <xref linkend=\"section-erasure\"/></description></cmavo-entry>",
+            "<cmavo-entry><pseudo-cmavo>ba'e</pseudo-cmavo></cmavo-entry>",
+            "<cmavo-entry><compound>roinai</compound></cmavo-entry>",
+            "<cmavo-entry><gismu>[jundi]</gismu></cmavo-entry>",
+            "<cmavo-entry><gismu>-----</gismu></cmavo-entry>",
+            "<cmavo-entry><gismu>[cmavo: mi]</gismu></cmavo-entry>",
+            "<cmavo-entry><cmavo>tense+ <valsi>ki</valsi></cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo><valsi>do'e</valsi></cmavo></cmavo-entry>",
+            "<cmavo-entry><gismu><valsi>-----</valsi></gismu></cmavo-entry>",
+            "<cmavo-entry><cmavo>roinai</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>pino'o</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>.ui</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>Klama</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>uih</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>u.i</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo> </cmavo></cmavo-entry>",
+            "</cmavo-list>",
+        ));
+        let CllBlock::CmavoList { headers, rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(headers.len(), 1);
+        assert_eq!(headers[0], vec![CllInline::Text("coi".to_owned())]);
+        assert!(
+            !format!("{headers:?}").contains("Link"),
+            "a header must not link, got {headers:?}"
+        );
+
+        let cell = |index: usize| rows[index][0].as_slice();
+        assert!(matches!(
+            cell(0),
+            [CllInline::DictionaryCandidate { spelling }] if spelling == "coi"
+        ));
+        assert!(matches!(
+            cell(1),
+            [CllInline::DictionaryCandidate { spelling }] if spelling == "klama"
+        ));
+        assert_eq!(cell(2), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(3), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(4), [CllInline::Text("COI".to_owned())]);
+        assert_eq!(cell(5), [CllInline::Text("see klama now".to_owned())]);
+        assert_eq!(cell(6), [CllInline::Text("coi".to_owned())]);
+        assert!(matches!(
+            cell(7),
+            [
+                CllInline::Text(lead),
+                CllInline::Link {
+                    kind: CllLinkKind::Section,
+                    target,
+                    inlines,
+                },
+            ] if lead == "see "
+                && target == "section-erasure"
+                && matches!(inlines.as_slice(), [CllInline::Text(label)] if label == "section-erasure")
+        ));
+        assert_eq!(cell(8), [CllInline::Text("ba'e".to_owned())]);
+        assert_eq!(cell(9), [CllInline::Text("roinai".to_owned())]);
+        assert!(matches!(
+            cell(10),
+            [
+                CllInline::Text(open),
+                CllInline::DictionaryCandidate { spelling },
+                CllInline::Text(close),
+            ] if open == "[" && close == "]" && spelling == "jundi"
+        ));
+        assert_eq!(cell(11), [CllInline::Text("-----".to_owned())]);
+        assert_eq!(cell(12), [CllInline::Text("[cmavo: mi]".to_owned())]);
+        assert_eq!(cell(13), [CllInline::Text("tense+ ki".to_owned())]);
+        assert!(matches!(
+            cell(14),
+            [CllInline::DictionaryCandidate { spelling }] if spelling == "do'e"
+        ));
+        assert_eq!(cell(15), [CllInline::Text("-----".to_owned())]);
+        assert!(cell(22).is_empty(), "a blank cell stays empty");
+
+        let index = crate::cmavo_table::DictionarySpellingIndex::from_entry_words([
+            "coi", "klama", "jundi", "do'e", "roinai", "ui", "ui'", "ba'e",
+        ]);
+        let mut blocks = blocks;
+        crate::cmavo_table::resolve_dictionary_candidates(&mut blocks, &index);
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list");
+        };
+        let cell = |index: usize| rows[index][0].as_slice();
+        assert!(is_dictionary_word_link(cell(0), "coi", "coi"));
+        assert!(is_dictionary_word_link(cell(1), "klama", "klama"));
+        assert_eq!(cell(2), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(3), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(4), [CllInline::Text("COI".to_owned())]);
+        assert_eq!(cell(5), [CllInline::Text("see klama now".to_owned())]);
+        assert_eq!(cell(6), [CllInline::Text("coi".to_owned())]);
+        assert!(matches!(
+            cell(7),
+            [
+                CllInline::Text(lead),
+                CllInline::Link {
+                    kind: CllLinkKind::Section,
+                    target,
+                    inlines,
+                },
+            ] if lead == "see "
+                && target == "section-erasure"
+                && matches!(inlines.as_slice(), [CllInline::Text(label)] if label == "section-erasure")
+        ));
+        assert_eq!(cell(8), [CllInline::Text("ba'e".to_owned())]);
+        assert_eq!(cell(9), [CllInline::Text("roinai".to_owned())]);
+        assert!(matches!(
+            cell(10),
+            [
+                CllInline::Text(open),
+                CllInline::Link {
+                    target,
+                    inlines,
+                    kind: CllLinkKind::Dictionary,
+                },
+                CllInline::Text(close),
+            ] if open == "["
+                && close == "]"
+                && target == "jundi"
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jundi")
+        ));
+        assert_eq!(cell(11), [CllInline::Text("-----".to_owned())]);
+        assert_eq!(cell(12), [CllInline::Text("[cmavo: mi]".to_owned())]);
+        assert_eq!(cell(13), [CllInline::Text("tense+ ki".to_owned())]);
+        assert!(is_dictionary_word_link(cell(14), "do'e", "do'e"));
+        assert_eq!(cell(15), [CllInline::Text("-----".to_owned())]);
+        assert!(is_dictionary_word_link(cell(16), "roinai", "roinai"));
+        assert_eq!(cell(17), [CllInline::Text("pino'o".to_owned())]);
+        assert!(is_dictionary_word_link(cell(18), ".ui", "ui"));
+        assert_eq!(cell(19), [CllInline::Text("Klama".to_owned())]);
+        assert_eq!(cell(20), [CllInline::Text("uih".to_owned())]);
+        assert_eq!(cell(21), [CllInline::Text("u.i".to_owned())]);
+
+        let outside = probe_inlines("<para><valsi>klama</valsi></para>");
+        assert!(
+            is_dictionary_word_link(&outside, "klama", "klama"),
+            "a valsi outside a cmavo table still links, got {outside:?}"
+        );
+        let folded = probe_inlines("<jbo><cmavo>Klama</cmavo></jbo>");
+        assert!(
+            is_dictionary_word_link(&folded, "Klama", "klama"),
+            "a cmavo outside a table still uses the inline link, got {folded:?}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_dictionary_word_link(cell: &[CllInline], display: &str, target: &str) -> bool {
+        matches!(
+            cell,
+            [CllInline::Link {
+                target: link_target,
+                inlines,
+                kind: CllLinkKind::Dictionary,
+            }] if link_target == target
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == display)
+        )
     }
 }
