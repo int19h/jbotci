@@ -11,7 +11,7 @@ use crate::cmavo::QuoteOpenerKind;
 use crate::segment::{
     MorphologyRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
     next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
-    text_chars,
+    syllable_has_explicit_stress, text_chars,
 };
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
@@ -3721,27 +3721,26 @@ fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
-    let nuclei = stressable_nucleus_starts(chars);
+    // A falling diphthong is one nucleus. An acute on either vowel marks it.
+    let nuclei = stressable_nucleus_spans(chars);
     let stressed = nuclei
         .iter()
         .copied()
-        .filter(|index| {
-            chars
-                .get(*index)
-                .is_some_and(|value| is_explicit_brivla_stress_mark(*value))
-        })
+        .filter(|(start, end)| syllable_has_explicit_stress(chars, *start, *end))
+        .map(|(start, _)| start)
         .collect::<Vec<_>>();
     nuclei
         .iter()
         .rev()
         .nth(1)
-        .is_some_and(|penultimate| stressed.as_slice() == [*penultimate])
+        .map(|(start, _)| *start)
+        .is_some_and(|penultimate| stressed.as_slice() == [penultimate])
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
-    let mut starts = Vec::new();
+#[ensures(ret.iter().all(|(start, end)| *start < *end && *end <= chars.len()))]
+fn stressable_nucleus_spans(chars: &[char]) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
     let mut index = 0;
     while index < chars.len() {
         if chars[index] == ',' {
@@ -3750,14 +3749,14 @@ fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
         }
         if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
             if stressable {
-                starts.push(index);
+                spans.push((index, end));
             }
             index = end;
         } else {
             index += 1;
         }
     }
-    starts
+    spans
 }
 
 #[requires(index <= chars.len())]
