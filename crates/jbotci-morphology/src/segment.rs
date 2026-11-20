@@ -1813,6 +1813,117 @@ pub(crate) fn parse_cmavo_form_with_lookahead(
     Some(normalized)
 }
 
+#[requires(index <= limit && limit <= chars.len())]
+#[ensures(ret.is_none_or(|found| found >= index && found < limit && chars[found] != ','))]
+fn next_letter_before(chars: &[char], index: usize, limit: usize) -> Option<usize> {
+    // A comma marks a syllable. The cmavo letter is the next other character.
+    let found = next_non_comma_index(chars, index)?;
+    (found < limit).then_some(found)
+}
+
+#[requires(index < limit && limit <= chars.len())]
+#[ensures(ret.is_none_or(|(_, nucleus)| nucleus > index && nucleus < limit))]
+fn cmavo_span_glide(chars: &[char], index: usize, limit: usize) -> Option<(char, usize)> {
+    // The glide check sees only the cmavo span. A vowel past `limit` is lookahead.
+    let glide = match chars[index] {
+        'i' | 'í' | 'ĭ' => 'ĭ',
+        'u' | 'ú' | 'ŭ' => 'ŭ',
+        _ => return None,
+    };
+    let nucleus = next_letter_before(chars, index + 1, limit)?;
+    if !starts_with_nucleus(&chars[..limit], nucleus) {
+        return None;
+    }
+    Some((glide, nucleus))
+}
+
+#[requires(first <= span_end && span_end <= chars.len())]
+#[requires(count <= 3)]
+#[ensures(ret.is_none_or(|nucleus| nucleus >= first && nucleus <= span_end))]
+fn append_cmavo_initial(
+    chars: &[char],
+    first: usize,
+    span_end: usize,
+    count: usize,
+    output: &mut Option<&mut String>,
+) -> Option<usize> {
+    // Consonant slots skip commas. A comma is not one of the three letters.
+    let mut consonants = ['\0'; 3];
+    let mut index = first;
+    for slot in 0..count {
+        let letter = next_letter_before(chars, index, span_end)?;
+        let value = chars[letter];
+        if !is_consonant(value) {
+            return None;
+        }
+        consonants[slot] = value;
+        index = letter + 1;
+    }
+    let shape_ok = match count {
+        0 => true,
+        1 => true,
+        2 => initial_pair_chars(consonants[0], consonants[1]),
+        3 => {
+            is_sibilant(consonants[0])
+                && initial_pair_chars(consonants[0], consonants[1])
+                && initial_pair_chars(consonants[1], consonants[2])
+                && is_liquid(consonants[2])
+        }
+        _ => false,
+    };
+    if !shape_ok {
+        return None;
+    }
+    let nucleus = if let Some(next) = next_letter_before(chars, index, span_end) {
+        // The consonant run stops before another consonant or a glide.
+        if is_consonant(chars[next]) || cmavo_span_glide(chars, next, span_end).is_some() {
+            return None;
+        }
+        next
+    } else {
+        // The onset consumed every letter in the span. The tail then fails.
+        span_end
+    };
+    for slot in 0..count {
+        append_cmavo_char(output, consonants[slot]);
+    }
+    Some(nucleus)
+}
+
+#[requires(
+    nucleus_start < after_nucleus
+        && after_nucleus <= cmavo_end
+        && cmavo_end <= lookahead_end
+        && lookahead_end <= chars.len()
+)]
+#[ensures(true)]
+fn accept_cmavo_nucleus(
+    chars: &[char],
+    nucleus_start: usize,
+    after_nucleus: usize,
+    cmavo_end: usize,
+    lookahead_end: usize,
+    output: &mut Option<&mut String>,
+    append_nucleus: impl FnOnce(&mut Option<&mut String>),
+) -> Option<()> {
+    match next_letter_before(chars, after_nucleus, cmavo_end) {
+        None => {
+            // No letter remains in the span. Trailing commas are syllable marks.
+            if !last_cmavo_nucleus_is_allowed(chars, nucleus_start, after_nucleus, lookahead_end) {
+                return None;
+            }
+            append_nucleus(output);
+            Some(())
+        }
+        Some(at) if chars[at] == '\'' => with_cmavo_output_rollback(output, |output| {
+            append_nucleus(output);
+            append_cmavo_char(output, '\'');
+            parse_cmavo_form_tail_span_into(chars, at + 1, cmavo_end, lookahead_end, output)
+        }),
+        Some(_) => None,
+    }
+}
+
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
 fn parse_cmavo_form_span_into(
@@ -1825,45 +1936,47 @@ fn parse_cmavo_form_span_into(
     if start >= end {
         return None;
     }
-    // A comma marks a syllable. It is not a cmavo letter. Parse the letters once.
-    if chars[start..lookahead_end].contains(&',') {
-        let mut stripped = Vec::new();
-        let mut mapped_end = None;
-        for (offset, value) in chars[start..lookahead_end].iter().copied().enumerate() {
-            if start + offset == end {
-                mapped_end = Some(stripped.len());
-            }
-            if value != ',' {
-                stripped.push(value);
-            }
+    // A comma marks a syllable. It is not a cmavo letter. Read the letters in
+    // place. A second character list would allocate on every comma.
+    let mut letter_count = 0usize;
+    let mut all_y = true;
+    let mut only_digit = None;
+    let mut index = start;
+    while let Some(letter) = next_letter_before(chars, index, end) {
+        let value = chars[letter];
+        letter_count += 1;
+        if !is_y(value) {
+            all_y = false;
         }
-        let mapped_end = mapped_end.unwrap_or(stripped.len());
-        return parse_cmavo_form_span_into(&stripped, 0, mapped_end, stripped.len(), output);
+        if letter_count == 1 && value.is_ascii_digit() {
+            only_digit = Some(value);
+        } else {
+            only_digit = None;
+        }
+        index = letter + 1;
     }
-    let span = &chars[start..end];
+    if letter_count == 0 {
+        return None;
+    }
     // `y+` and a single digit stay whole-span matches. The cluster rule
     // belongs to the nucleus alternative only.
     // `y+` consumes every following y. A comma between them is not a break.
-    if span.iter().all(|value| is_y(*value)) {
-        if end < lookahead_end && is_y(chars[end]) {
+    if all_y {
+        if next_letter_before(chars, end, lookahead_end).is_some_and(|next| is_y(chars[next])) {
             return None;
         }
-        append_cmavo_chars(output, span);
+        index = start;
+        while let Some(letter) = next_letter_before(chars, index, end) {
+            append_cmavo_char(output, chars[letter]);
+            index = letter + 1;
+        }
         return Some(());
     }
-    if span.len() == 1 && span[0].is_ascii_digit() {
-        append_cmavo_str(output, digit_to_cmavo(span[0])?);
+    if let Some(digit) = only_digit {
+        append_cmavo_str(output, digit_to_cmavo(digit)?);
         return Some(());
     }
     parse_cmavo_form_main_span_into(chars, start, end, lookahead_end, output)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn append_cmavo_chars(output: &mut Option<&mut String>, chars: &[char]) {
-    if let Some(text) = output.as_mut() {
-        text.extend(chars.iter().copied());
-    }
 }
 
 #[requires(true)]
@@ -1892,15 +2005,26 @@ fn parse_cmavo_form_main_span_into(
     output: &mut Option<&mut String>,
 ) -> Option<()> {
     // cmavo_form <- !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster)
-    if chars.get(start) == Some(&'\'') || consonant_cluster_follows(chars, start, lookahead_end) {
+    // `!h` and the onset read letters. A comma before them is not a letter.
+    let Some(first) = next_letter_before(chars, start, end) else {
+        return None;
+    };
+    if chars[first] == '\'' || consonant_cluster_follows(chars, first, lookahead_end) {
         return None;
     }
-    let span = &chars[start..end];
-    for onset in parse_onsets(span, 0) {
-        let nucleus_start = start + onset.end;
+    if let Some((glide, nucleus)) = cmavo_span_glide(chars, first, end)
+        && with_cmavo_output_rollback(output, |output| {
+            append_cmavo_char(output, glide);
+            parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
+        })
+        .is_some()
+    {
+        return Some(());
+    }
+    for count in [3, 2, 1, 0] {
         if with_cmavo_output_rollback(output, |output| {
-            append_cmavo_str(output, &onset.normalized);
-            parse_cmavo_form_tail_span_into(chars, nucleus_start, end, lookahead_end, output)
+            let nucleus = append_cmavo_initial(chars, first, end, count, output)?;
+            parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
         })
         .is_some()
         {
@@ -1919,57 +2043,47 @@ fn parse_cmavo_form_tail_span_into(
     lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
+    // The nucleus starts on a letter. Commas before it are syllable marks.
     // The nucleus productions read through `lookahead_end`. Cutting the buffer
     // at `cmavo_end` would hide a following vowel, and `!nucleus` would succeed
     // on a letter that is still inside a diphthong.
+    let Some(index) = next_letter_before(chars, index, cmavo_end) else {
+        return None;
+    };
     let visible = &chars[..lookahead_end];
     if let Some((semivowel, after_nucleus)) = parse_diphthong_end(visible, index)
         && after_nucleus <= cmavo_end
+        && accept_cmavo_nucleus(
+            chars,
+            index,
+            after_nucleus,
+            cmavo_end,
+            lookahead_end,
+            output,
+            |output| {
+                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
+            },
+        )
+        .is_some()
     {
-        if after_nucleus == cmavo_end {
-            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
-                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
-                return Some(());
-            }
-        } else if chars.get(after_nucleus) == Some(&'\'')
-            && with_cmavo_output_rollback(output, |output| {
-                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
-                append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_span_into(
-                    chars,
-                    after_nucleus + 1,
-                    cmavo_end,
-                    lookahead_end,
-                    output,
-                )
-            })
-            .is_some()
-        {
-            return Some(());
-        }
+        return Some(());
     }
     if let Some(after_nucleus) = parse_single_vowel_end(visible, index)
         && after_nucleus <= cmavo_end
     {
         let value = chars[index];
-        if after_nucleus == cmavo_end {
-            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
+        if accept_cmavo_nucleus(
+            chars,
+            index,
+            after_nucleus,
+            cmavo_end,
+            lookahead_end,
+            output,
+            |output| {
                 append_cmavo_single_nucleus(output, value);
-                return Some(());
-            }
-        } else if chars.get(after_nucleus) == Some(&'\'')
-            && with_cmavo_output_rollback(output, |output| {
-                append_cmavo_single_nucleus(output, value);
-                append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_span_into(
-                    chars,
-                    after_nucleus + 1,
-                    cmavo_end,
-                    lookahead_end,
-                    output,
-                )
-            })
-            .is_some()
+            },
+        )
+        .is_some()
         {
             return Some(());
         }
@@ -2043,50 +2157,6 @@ fn with_cmavo_output_rollback(
         text.truncate(original_len);
     }
     None
-}
-
-#[invariant(self.start <= self.end)]
-#[invariant(self.normalized.chars().count() == self.end - self.start)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ParsedOnset {
-    start: usize,
-    end: usize,
-    normalized: String,
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|onset| onset.start == start && onset.end >= start && onset.end <= chars.len()))]
-fn parse_onsets(chars: &[char], start: usize) -> Vec<ParsedOnset> {
-    let mut onsets = Vec::new();
-    if let Some(end) = parse_glide_end(chars, start) {
-        let glide = match chars[start] {
-            'i' | 'í' | 'ĭ' => 'ĭ',
-            'u' | 'ú' | 'ŭ' => 'ŭ',
-            _ => unreachable!("parse_glide_end only accepts glide starts"),
-        };
-        onsets.push(new!(ParsedOnset {
-            start: start,
-            end: end,
-            normalized: glide.to_string(),
-        }));
-    }
-    for end in (start..=max_initial_end(chars, start)).rev() {
-        if let Some(initial) = parse_initial(chars, start, end) {
-            onsets.push(new!(ParsedOnset {
-                start: start,
-                end: end,
-                normalized: initial,
-            }));
-        }
-    }
-    onsets
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|value| value.chars().count() == end - start))]
-fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
-    parse_initial_end(chars, start, end)?;
-    Some(chars[start..end].iter().collect())
 }
 
 #[requires(start <= chars.len())]
@@ -7465,6 +7535,29 @@ mod tests {
             3,
             commas_around.len()
         ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn comma_inside_a_cmavo_form_matches_the_letters() {
+        // A comma marks a syllable. The letters are the same cmavo either way.
+        assert_eq!(parse_cmavo_form("c,oi"), parse_cmavo_form("coi"));
+        assert_eq!(parse_cmavo_form("c,oi").as_deref(), Some("coĭ"));
+        assert_eq!(parse_cmavo_form("co,i"), parse_cmavo_form("coi"));
+        assert_eq!(parse_cmavo_form("ba,'o"), parse_cmavo_form("ba'o"));
+        assert_eq!(parse_cmavo_form("a,'a"), parse_cmavo_form("a'a"));
+        assert_eq!(parse_cmavo_form("y,yy"), parse_cmavo_form("yyy"));
+        assert_eq!(parse_cmavo_form("y,yy").as_deref(), Some("yyy"));
+        assert_eq!(parse_cmavo_form("y,'y"), parse_cmavo_form("y'y"));
+        assert_eq!(parse_cmavo_form("i,a"), parse_cmavo_form("ia"));
+        assert_eq!(parse_cmavo_form("í,a"), parse_cmavo_form("ía"));
+        assert_eq!(parse_cmavo_form("i,á"), parse_cmavo_form("iá"));
+        assert_eq!(parse_cmavo_form("c,c"), None);
+        // `y+` consumes the following y. The first y of `y,yy` is not a cmavo.
+        let yyy = text_chars("y,yy");
+        assert!(!super::is_cmavo_form_span(&yyy, 0, 1, yyy.len()));
+        assert!(super::is_cmavo_form_span(&yyy, 0, yyy.len(), yyy.len()));
     }
 
     #[test]
