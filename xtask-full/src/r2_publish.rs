@@ -679,7 +679,7 @@ mod tests {
     // A signal interrupts a blocking socket call. The call returns
     // `ErrorKind::Interrupted`. Retry that call. Leave every other error.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
     fn io_retry_interrupted<T>(
         mut operation: impl FnMut() -> std::io::Result<T>,
     ) -> std::io::Result<T> {
@@ -692,7 +692,7 @@ mod tests {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
     fn write_all_retry(socket: &mut impl std::io::Write, mut bytes: &[u8]) -> std::io::Result<()> {
         while !bytes.is_empty() {
             let count = io_retry_interrupted(|| std::io::Write::write(socket, bytes))?;
@@ -708,13 +708,13 @@ mod tests {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
     fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
         io_retry_interrupted(|| std::io::Read::read(socket, buf))
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.starts_with("the stub server thread panicked"))]
     fn thread_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
         if let Some(message) = payload.downcast_ref::<String>() {
             return format!("the stub server thread panicked: {message}");
@@ -771,7 +771,7 @@ mod tests {
 
     impl R6Server {
         #[requires(true)]
-        #[ensures(true)]
+        #[ensures(ret.worker.is_some())]
         fn start(stored: serde_json::Value, body: Vec<u8>, encoding: Option<&'static str>) -> Self {
             let listener = (18800..=18899)
                 .find_map(|port| {
@@ -875,7 +875,7 @@ mod tests {
         }
 
         #[requires(true)]
-        #[ensures(true)]
+        #[ensures(self.worker.is_none())]
         fn shutdown(&mut self) -> Result<(), String> {
             self.stop.store(true, Ordering::Relaxed);
             let Some(worker) = self.worker.take() else {
@@ -891,9 +891,14 @@ mod tests {
 
     impl Drop for R6Server {
         #[requires(true)]
-        #[ensures(true)]
+        #[ensures(self.worker.is_none())]
         fn drop(&mut self) {
-            let _ = self.shutdown();
+            if let Err(error) = self.shutdown() {
+                let _ = std::io::Write::write_fmt(
+                    &mut std::io::stderr(),
+                    format_args!("the stub server thread failed during drop: {error}\n"),
+                );
+            }
         }
     }
 
@@ -958,6 +963,9 @@ mod tests {
                         .arg(&server.url).arg(&object.object_key).arg(object.content_encoding.unwrap_or("identity")).arg(downloaded).arg(metadata);
                     run_readback(&mut command, Duration::from_secs(5))
                 }, |facts| *report.borrow_mut() = Some(serde_json::to_value(facts).unwrap()));
+                server
+                    .shutdown()
+                    .expect("the stub server thread finishes cleanly");
                 assert_eq!(
                     result.is_ok(),
                     case == "match",
@@ -981,9 +989,6 @@ mod tests {
                     assert_eq!(requests.len(), 2);
                     assert!(requests.iter().all(|request| request.starts_with("GET ")));
                 }
-                server
-                    .shutdown()
-                    .expect("the stub server thread finishes cleanly");
             }
         }
         let original = temporary.path.join("source.f16");
