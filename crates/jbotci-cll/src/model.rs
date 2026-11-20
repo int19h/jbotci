@@ -1113,7 +1113,6 @@ pub enum CllBlock {
 #[invariant(::Superscript { .. } => true)]
 #[invariant(::Link { .. } => true)]
 #[invariant(::Code(_) => true)]
-#[invariant(::DictionaryCandidate { .. } => true)]
 #[invariant(::Elidable { .. } => true)]
 #[invariant(::InlineMath { .. } => true)]
 #[invariant(::Anchor { .. } => true)]
@@ -1149,13 +1148,6 @@ pub enum CllInline {
         kind: CllLinkKind,
     },
     Code(String),
-    /// A cmavo or gismu cell that can name a dictionary entry. The spelling is
-    /// the cell text, or the word inside one pair of brackets. Site load
-    /// replaces this with a dictionary link when an entry matches. When no
-    /// entry matches, rendering shows the spelling as plain text.
-    DictionaryCandidate {
-        spelling: String,
-    },
     Elidable {
         shown: String,
         forced: bool,

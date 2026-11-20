@@ -414,18 +414,7 @@ pub(crate) fn render_inlines_markdown(
     let mut output = scope.buffer();
     for inline in inlines {
         match inline {
-            // A bracket that is its own text node sits beside a linked word in
-            // a cmavo cell, as in `[jundi]`. GitHub reads `[jundi](url)` with
-            // the opening bracket inside the label. Escape that one node.
-            CllInline::Text(text)
-                if dialect == CllMarkdownDialect::GitHub && (text == "[" || text == "]") =>
-            {
-                output.push('\\');
-                output.push_str(text);
-            }
-            CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
-                push_text(&mut output, text, dialect)
-            }
+            CllInline::Text(text) => push_text(&mut output, text, dialect),
             CllInline::Emphasis { inlines, .. } => {
                 output.push('*');
                 output.push_str(&render_inlines_markdown(

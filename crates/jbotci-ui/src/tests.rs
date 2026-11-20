@@ -668,6 +668,35 @@ fn page_find_collects_cukta_content_but_not_toc() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn page_find_indexes_a_cmavo_dictionary_link_in_zbalermorna() {
+    let word = "basti";
+    let rendered = display_lojban_text(GentufaScript::Zbalermorna, word);
+    assert_ne!(rendered, word);
+    assert!(rendered.chars().all(|character| !character.is_ascii()));
+    let block = CllBlock::CmavoList {
+        id: None,
+        titles: Vec::new(),
+        headers: Vec::new(),
+        rows: vec![vec![vec![CllInline::Link {
+            target: word.to_owned(),
+            inlines: vec![CllInline::Text(word.to_owned())],
+            kind: CllLinkKind::Dictionary,
+        }]]],
+    };
+    let mut entries = Vec::new();
+    collect_cll_block_page_find_entries(&mut entries, None, &block, GentufaScript::Zbalermorna);
+    assert_eq!(page_find_entry_texts(&entries), vec![rendered.clone()]);
+    assert!(
+        !build_page_find_index(&rendered, &entries)
+            .matches
+            .is_empty()
+    );
+    assert!(build_page_find_index(word, &entries).matches.is_empty());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn page_find_collects_vlacku_card_text_without_controls() {
     let result = new!(VlackuWebResult {
         hidden_by_vote_filter: false,

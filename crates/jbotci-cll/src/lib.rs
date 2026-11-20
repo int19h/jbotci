@@ -858,9 +858,10 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
 #[requires(true)]
 #[ensures(true)]
 fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
-    // A bracketed table word is three inlines. The visitor separates every
-    // inline with a space. That space turns `[jundi]` into `[ jundi ]`. Glue
-    // that one shape back together. The brackets stay outside the link.
+    // A linked bracketed table word is three inlines. The visitor separates
+    // every inline with a space. That space turns `[jundi]` into `[ jundi ]`.
+    // Glue that one shape back together. The brackets stay outside the link.
+    // An unlinked bracket is already one text node.
     if let Some(word) = glued_bracket_word(inlines) {
         return scope.format(format_args!("[{word}]"));
     }
@@ -884,9 +885,7 @@ fn glued_bracket_word(inlines: &[CllInline]) -> Option<&str> {
         return None;
     }
     match inner {
-        CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
-            Some(text.as_str())
-        }
+        CllInline::Text(text) => Some(text.as_str()),
         CllInline::Link { inlines, .. } => match inlines.as_slice() {
             [CllInline::Text(text)] => Some(text.as_str()),
             _ => None,
@@ -906,10 +905,7 @@ impl CllBlockVisitor for InlinePlainTextVisitor {
     #[ensures(true)]
     fn visit_inline(&mut self, inline: &CllInline) {
         match inline {
-            CllInline::Text(text)
-            | CllInline::Code(text)
-            | CllInline::InlineMath { text, .. }
-            | CllInline::DictionaryCandidate { spelling: text } => {
+            CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text, .. } => {
                 self.output.push_str(text);
                 self.output.push(' ');
             }
@@ -2977,7 +2973,7 @@ mod tests {
         assert!(!markdown.contains("| --- |"));
         assert!(markdown.contains("[coi](../vlacku/coi) | greetings\n\n"));
         assert!(markdown.contains(
-            "[ju'i](../vlacku/ju'i) | \\[[jundi](../vlacku/jundi)\\] | attention | at ease | ignore me/us\n\n"
+            "[ju'i](../vlacku/ju'i) | [[jundi](../vlacku/jundi)] | attention | at ease | ignore me/us\n\n"
         ));
 
         let plain_text = blocks_plain_text(site, &section.blocks);
@@ -3601,6 +3597,7 @@ mod tests {
             }),
             section_title: "Test".to_owned(),
             source_path: "test.xml".to_owned(),
+            dictionary: cmavo_table::shipped_dictionary_index(),
         }
     }
 
@@ -3833,61 +3830,106 @@ mod tests {
         );
     }
 
-    /// A candidate that site load did not replace stays plain text in both renderers.
+    /// An unlinked bracket is one text node. Markdown leaves the brackets as text.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn unresolved_dictionary_candidate_renders_as_plain_text() {
+    fn unlinked_brackets_render_as_one_text_node() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let candidate = plain_paragraph(
-            vec![CllInline::DictionaryCandidate {
-                spelling: "roinai".to_owned(),
-            }],
-            "roinai",
-        );
-        assert_eq!(
-            render_block_html(site, &candidate, CllLinkRenderMode::Web),
-            "<p class=\"cll-para\">roinai</p>"
-        );
-        assert_eq!(
-            github_markdown(site, &candidate),
-            "roinai\n\n",
-            "a miss has no dictionary href"
-        );
-
-        let brackets = plain_paragraph(
-            vec![
-                CllInline::Text("[".to_owned()),
-                CllInline::DictionaryCandidate {
-                    spelling: "pino'o".to_owned(),
-                },
-                CllInline::Text("]".to_owned()),
-            ],
-            "[pino'o]",
-        );
+        let brackets = plain_paragraph(vec![CllInline::Text("[pino'o]".to_owned())], "[pino'o]");
         assert_eq!(inline_plain_text(paragraph_inlines(&brackets)), "[pino'o]");
         assert_eq!(
             render_block_html(site, &brackets, CllLinkRenderMode::Web),
             "<p class=\"cll-para\">[pino'o]</p>"
         );
-        assert_eq!(github_markdown(site, &brackets), "\\[pino'o\\]\n\n");
+        assert_eq!(github_markdown(site, &brackets), "[pino'o]\n\n");
+        assert!(!github_markdown(site, &brackets).contains("]("));
 
-        let text_miss = plain_paragraph(
+        let linked = plain_paragraph(
             vec![
                 CllInline::Text("[".to_owned()),
-                CllInline::Text("jundi".to_owned()),
+                CllInline::Link {
+                    target: "jundi".to_owned(),
+                    inlines: vec![CllInline::Text("jundi".to_owned())],
+                    kind: CllLinkKind::Dictionary,
+                },
                 CllInline::Text("]".to_owned()),
             ],
             "[jundi]",
         );
-        assert_eq!(github_markdown(site, &text_miss), "\\[jundi\\]\n\n");
-        assert!(!github_markdown(site, &text_miss).contains("]("));
+        assert_eq!(inline_plain_text(paragraph_inlines(&linked)), "[jundi]");
+        let markdown = github_markdown(site, &linked);
+        assert_eq!(markdown, "[[jundi](../vlacku/jundi)]\n\n");
+        assert!(!markdown.contains("\\["));
+        assert!(!markdown.contains("\\]"));
 
         let phrase = plain_paragraph(
             vec![CllInline::Text("[cmavo: mi]".to_owned())],
             "[cmavo: mi]",
         );
         assert_eq!(github_markdown(site, &phrase), "[cmavo: mi]\n\n");
+    }
+
+    /// Plain markdown keeps bracket characters in cmavo cells and in glosses.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_markdown_keeps_brackets_in_cmavo_cells_and_glosses() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let vocative = cll_lookup_section(site, "section-vocative-scales")
+            .expect("section 13.14 should exist");
+        let vocative_plain = render_section(
+            site,
+            vocative,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(vocative_plain.contains("[jundi]"));
+        assert!(!vocative_plain.contains("\\[jundi\\]"));
+        assert!(!vocative_plain.contains("](../vlacku/jundi)"));
+
+        let content_words = cll_lookup_section(site, "section-content-words-brivla")
+            .expect("section 5.1 should exist");
+        let content_words_plain = render_section(
+            site,
+            content_words,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(content_words_plain.contains("| You | are-a-mother-of | me |"));
+        assert!(content_words_plain.contains("| That | is-a-(boat)-schooner. |"));
+        assert!(!content_words_plain.contains("\\["));
+        assert!(!content_words_plain.contains("\\]"));
+
+        let place_conversion = cll_lookup_section(site, "section-place-conversion")
+            .expect("section 5.11 should exist");
+        let place_conversion_plain = render_section(
+            site,
+            place_conversion,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(place_conversion_plain.contains("gloss: The market - is-a-[swap--x~1~/x~2~]"));
+        assert!(
+            place_conversion_plain
+                .contains("| You | [swap\u{a0}x~1~\u{a0}and\u{a0}x~2~] | love | me. |")
+        );
+        assert!(!place_conversion_plain.contains("\\["));
+        assert!(!place_conversion_plain.contains("\\]"));
+
+        let mekso = cll_lookup_section(site, "section-connectives-within-mekso")
+            .expect("section 18.17 should exist");
+        let mekso_plain = render_section(
+            site,
+            mekso,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(mekso_plain.contains(
+            "| then | the-number | x | equals | the-number | [ | the-negation-of( | b | ) |"
+        ));
+        assert!(!mekso_plain.contains("\\["));
+        assert!(!mekso_plain.contains("\\]"));
     }
 
     /// CLL 9.17 is the BAI table. Every row links its cmavo and its gismu.
@@ -3970,16 +4012,14 @@ mod tests {
     #[ensures(true)]
     fn vendored_cmavo_table_cells_link_only_dictionary_spellings() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        assert!(
-            !cmavo_table::site_contains_dictionary_candidate(site),
-            "site load replaces every candidate"
-        );
-        let index = cmavo_table::DictionarySpellingIndex::from_shipped_dictionary();
+        let index = cmavo_table::shipped_dictionary_index();
         let mut row_count = 0usize;
         let mut cell_count = 0usize;
         let mut linked = 0usize;
         let mut bracketed = 0usize;
         let mut plain = 0usize;
+        let mut preserved_dictionary = 0usize;
+        let mut preserved_rafsi = 0usize;
         let mut unlinked: BTreeMap<String, usize> = BTreeMap::new();
 
         assert_eq!(site.chapters.len(), EMBEDDED_CLL_CHAPTERS.len());
@@ -4006,14 +4046,8 @@ mod tests {
                 xml_lists.iter().zip(&model_lists).enumerate()
             {
                 for header in model_list.headers {
-                    assert!(
-                        !inlines_have_link_kind(header, CllLinkKind::Dictionary),
-                        "{source_path} list {list_index} header links a dictionary word"
-                    );
-                    assert!(
-                        !inlines_have_link_kind(header, CllLinkKind::Rafsi),
-                        "{source_path} list {list_index} header links a rafsi"
-                    );
+                    preserved_dictionary += link_kind_count(header, CllLinkKind::Dictionary);
+                    preserved_rafsi += link_kind_count(header, CllLinkKind::Rafsi);
                 }
                 assert_eq!(
                     xml_rows.len(),
@@ -4042,21 +4076,17 @@ mod tests {
                             "{source_path} list {list_index} row {row_index} cell {cell_index} <{}> {}",
                             xml_cell.tag, xml_cell.text
                         );
-                        assert!(
-                            !inlines_have_link_kind(model_cell, CllLinkKind::Rafsi),
-                            "{label} links a rafsi"
-                        );
-                        assert!(
-                            !inlines_have_candidate(model_cell),
-                            "{label} still has a candidate"
-                        );
                         let model_text = inline_plain_text(model_cell);
                         if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
+                            assert!(
+                                !inlines_have_link_kind(model_cell, CllLinkKind::Rafsi),
+                                "{label} links a rafsi"
+                            );
                             assert_eq!(model_text, xml_cell.text, "{label}");
                             classify_word_cell(
                                 model_cell,
                                 &xml_cell.text,
-                                &index,
+                                index,
                                 &label,
                                 &mut linked,
                                 &mut bracketed,
@@ -4064,10 +4094,9 @@ mod tests {
                                 &mut unlinked,
                             );
                         } else {
-                            assert!(
-                                !inlines_have_link_kind(model_cell, CllLinkKind::Dictionary),
-                                "{label} is not a cmavo or gismu cell"
-                            );
+                            preserved_dictionary +=
+                                link_kind_count(model_cell, CllLinkKind::Dictionary);
+                            preserved_rafsi += link_kind_count(model_cell, CllLinkKind::Rafsi);
                             plain += 1;
                         }
                     }
@@ -4082,6 +4111,8 @@ mod tests {
         assert_eq!(linked, 1021);
         assert_eq!(bracketed, 48);
         assert_eq!(plain, 2014);
+        assert_eq!(preserved_dictionary, 45);
+        assert_eq!(preserved_rafsi, 16);
         assert_eq!(
             unlinked,
             BTreeMap::from([
@@ -4098,7 +4129,7 @@ mod tests {
     fn classify_word_cell(
         cell: &[CllInline],
         text: &str,
-        index: &cmavo_table::DictionarySpellingIndex,
+        index: &cmavo_table::DictionarySpellingIndex<'_>,
         label: &str,
         linked: &mut usize,
         bracketed: &mut usize,
@@ -4118,14 +4149,7 @@ mod tests {
                 }
                 None => {
                     assert!(
-                        matches!(
-                            cell,
-                            [
-                                CllInline::Text(open),
-                                CllInline::Text(inner),
-                                CllInline::Text(close),
-                            ] if open == "[" && close == "]" && inner == word
-                        ),
+                        matches!(cell, [CllInline::Text(body)] if body == text),
                         "{label}"
                     );
                     *plain += 1;
@@ -4238,38 +4262,35 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn inlines_have_link_kind(inlines: &[CllInline], kind: CllLinkKind) -> bool {
-        inlines.iter().any(|inline| match inline {
-            CllInline::Link {
-                kind: link_kind,
-                inlines,
-                ..
-            } => *link_kind == kind || inlines_have_link_kind(inlines, kind),
-            CllInline::Emphasis { inlines, .. }
-            | CllInline::Quote { inlines, .. }
-            | CllInline::LanguageSpan { inlines, .. }
-            | CllInline::CiteTitle { inlines }
-            | CllInline::Subscript { inlines }
-            | CllInline::Superscript { inlines }
-            | CllInline::Elidable { inlines, .. } => inlines_have_link_kind(inlines, kind),
-            _ => false,
-        })
+        link_kind_count(inlines, kind) > 0
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn inlines_have_candidate(inlines: &[CllInline]) -> bool {
-        inlines.iter().any(|inline| match inline {
-            CllInline::DictionaryCandidate { .. } => true,
-            CllInline::Emphasis { inlines, .. }
-            | CllInline::Quote { inlines, .. }
-            | CllInline::LanguageSpan { inlines, .. }
-            | CllInline::CiteTitle { inlines }
-            | CllInline::Subscript { inlines }
-            | CllInline::Superscript { inlines }
-            | CllInline::Link { inlines, .. }
-            | CllInline::Elidable { inlines, .. } => inlines_have_candidate(inlines),
-            _ => false,
-        })
+    fn link_kind_count(inlines: &[CllInline], kind: CllLinkKind) -> usize {
+        let mut counter = LinkKindCounter { kind, count: 0 };
+        counter.visit_inline_run(inlines);
+        counter.count
+    }
+
+    #[invariant(true)]
+    struct LinkKindCounter {
+        kind: CllLinkKind,
+        count: usize,
+    }
+
+    #[contract_trait]
+    impl CllBlockVisitor for LinkKindCounter {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_inline(&mut self, inline: &CllInline) {
+            if let CllInline::Link { kind, .. } = inline
+                && *kind == self.kind
+            {
+                self.count += 1;
+            }
+            super::visitor::walk_inline(self, inline);
+        }
     }
 
     #[invariant(true)]
@@ -4380,7 +4401,11 @@ mod tests {
                     .filter(|child| child.is_element())
                     .map(|cell| XmlCmavoCell {
                         tag: cell.tag_name().name().to_owned(),
-                        text: visible_text(cell),
+                        text: if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
+                            crate::import::cmavo_or_gismu_cell_text(cell)
+                        } else {
+                            visible_text(cell)
+                        },
                     })
                     .collect::<Vec<_>>()
             })

@@ -892,12 +892,10 @@ fn collect_cll_inline_page_find_entries(
     lojban_context: bool,
 ) {
     match inline {
-        CllInline::Text(text) | CllInline::DictionaryCandidate { spelling: text } => {
-            push_page_find_entry(
-                entries,
-                display_lojban_text_if(script, text, lojban_context),
-            )
-        }
+        CllInline::Text(text) => push_page_find_entry(
+            entries,
+            display_lojban_text_if(script, text, lojban_context),
+        ),
         CllInline::Emphasis { language, inlines } | CllInline::Quote { language, inlines } => {
             let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
             collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
@@ -914,9 +912,12 @@ fn collect_cll_inline_page_find_entries(
         }
         CllInline::CiteTitle { inlines }
         | CllInline::Subscript { inlines }
-        | CllInline::Superscript { inlines }
-        | CllInline::Link { inlines, .. } => {
+        | CllInline::Superscript { inlines } => {
             collect_cll_inlines_page_find_entries(entries, inlines, script, lojban_context);
+        }
+        CllInline::Link { kind, inlines, .. } => {
+            let child_context = lojban_context || cll_link_text_is_lojban(*kind);
+            collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
         }
         CllInline::Code(text) => push_page_find_entry(entries, text.clone()),
         CllInline::Elidable { shown, inlines, .. } => {
