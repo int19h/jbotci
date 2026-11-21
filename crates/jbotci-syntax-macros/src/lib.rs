@@ -115,10 +115,10 @@ impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
-        if let Some(warnings) = &self.warnings {
-            if let Err(error) = warnings.validate_uses(&self.rules) {
-                return error.into_compile_error();
-            }
+        if let Some(warnings) = &self.warnings
+            && let Err(error) = warnings.validate_uses(&self.rules)
+        {
+            return error.into_compile_error();
         }
         let warnings = self.warnings.as_ref().map(WarningCatalog::expand);
         let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
@@ -706,7 +706,7 @@ impl SyntaxGrammar {
                             ),
                         ));
                     }
-                    let enum_constructor = generated_constructor_name(&output);
+                    let enum_constructor = generated_constructor_name(output);
                     constructor_labels.insert(enum_constructor.clone(), rule.context.value());
                     for branch in &rule.branches {
                         let Some(branch_output) = rule.branch_output(branch, type_env) else {
@@ -776,7 +776,7 @@ impl SyntaxGrammar {
             }
             let fields = rule.generated_model_fields(type_env)?;
             if let Some(context) = &rule.context {
-                constructor_labels.insert(generated_constructor_name(&output), context.value());
+                constructor_labels.insert(generated_constructor_name(output), context.value());
             }
             if let Some(existing) = structs.get(&key) {
                 return Err(syn::Error::new_spanned(
@@ -919,7 +919,7 @@ impl SyntaxGrammar {
         self.rules
             .iter()
             .flat_map(Rule::model_rules)
-            .find(|rule| rule.name().to_string() == name)
+            .find(|rule| *rule.name() == name)
             .and_then(Rule::context_label)
     }
 }
@@ -1537,7 +1537,7 @@ impl SyntaxGrammar {
                 let rule = self
                     .rules
                     .iter()
-                    .find(|rule| rule.name().to_string() == recursive.name.to_string())
+                    .find(|rule| recursive.name == *rule.name())
                     .ok_or_else(|| {
                         syn::Error::new_spanned(
                             &recursive.name,
@@ -1738,7 +1738,7 @@ impl SyntaxGrammar {
                     let rule = self
                         .rules
                         .iter()
-                        .find(|rule| rule.name().to_string() == recursive.name.to_string())
+                        .find(|rule| recursive.name == *rule.name())
                         .ok_or_else(|| {
                             syn::Error::new_spanned(
                                 &recursive.name,
@@ -1946,9 +1946,9 @@ impl ParserExpr {
     fn compact_tokens(&self) -> String {
         match self {
             Self::Rust(expr) => compact_tokens(expr),
-            Self::Vector(expr) => compact_tokens(&expr.to_token_stream()),
-            Self::Chain(expr) => compact_tokens(&expr.to_token_stream()),
-            Self::Postfix { .. } => compact_tokens(&self.to_token_stream()),
+            Self::Vector(expr) => compact_tokens(expr.to_token_stream()),
+            Self::Chain(expr) => compact_tokens(expr.to_token_stream()),
+            Self::Postfix { .. } => compact_tokens(self.to_token_stream()),
         }
     }
 
@@ -3578,10 +3578,7 @@ impl NodeRule {
         })?;
         self.fields
             .iter()
-            .filter_map(|field| match field.kind {
-                FieldKind::Field | FieldKind::Computed => Some(field),
-                FieldKind::TempLet | FieldKind::Require => None,
-            })
+            .filter(|field| matches!(field.kind, FieldKind::Field | FieldKind::Computed))
             .map(|field| field.generated_model_field(type_env, &argument_types))
             .collect()
     }
@@ -3703,25 +3700,29 @@ impl NodeRule {
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens(flavor);
         let body = if is_unit_type(output) {
-            let let_bindings = self.fields.iter().filter_map(|field| {
-                matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
+            let let_bindings = self
+                .fields
+                .iter()
+                .filter(|&field| matches!(field.kind, FieldKind::Computed | FieldKind::TempLet))
+                .map(|field| {
                     let name = field.name.as_ref().expect("let field items have names");
                     let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
-                })
-            });
+                });
             quote!({
                 #(#let_bindings)*
                 ()
             })
         } else if use_model_construction && matches!(output, Type::Tuple(_)) {
-            let let_bindings = self.fields.iter().filter_map(|field| {
-                matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
+            let let_bindings = self
+                .fields
+                .iter()
+                .filter(|&field| matches!(field.kind, FieldKind::Computed | FieldKind::TempLet))
+                .map(|field| {
                     let name = field.name.as_ref().expect("let field items have names");
                     let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
-                })
-            });
+                });
             let values = self.fields.iter().filter_map(|field| {
                 let name = field.name.as_ref()?;
                 match field.kind {
@@ -3744,13 +3745,15 @@ impl NodeRule {
                 } else {
                     TokenStream2::new()
                 };
-            let let_bindings = self.fields.iter().filter_map(|field| {
-                matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
+            let let_bindings = self
+                .fields
+                .iter()
+                .filter(|&field| matches!(field.kind, FieldKind::Computed | FieldKind::TempLet))
+                .map(|field| {
                     let name = field.name.as_ref().expect("let field items have names");
                     let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
-                })
-            });
+                });
             let constructed_fields = self
                 .fields
                 .iter()
@@ -3884,13 +3887,15 @@ impl NodeRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
-        let let_bindings = self.fields.iter().filter_map(|field| {
-            matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
+        let let_bindings = self
+            .fields
+            .iter()
+            .filter(|&field| matches!(field.kind, FieldKind::Computed | FieldKind::TempLet))
+            .map(|field| {
                 let name = field.name.as_ref().expect("let field items have names");
                 let value = field.parser.rust_tokens();
                 quote!(let #name = #value;)
-            })
-        });
+            });
         let body = if is_unit_type(output) {
             quote!({
                 #(#let_bindings)*
@@ -4765,125 +4770,122 @@ fn recovery_checkpoint_strict_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> Result<TokenStream2> {
-    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
-        if let [item] = vector.items.as_slice() {
-            let repeated = match item {
-                VectorItem::ZeroOrMore(expr) => {
-                    let inner = strict_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #inner.boxed()
-                        )
-                    })
-                }
-                VectorItem::ZeroOrMoreSpread(expr) => {
-                    let inner = strict_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            __items
-                        })
-                    })
-                }
-                VectorItem::OneOrMore(expr) => {
-                    let inner = strict_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #inner.boxed()
-                        )
-                        .map(|__items| {
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("strict non-empty vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::OneOrMoreSpread(expr) => {
-                    let inner = strict_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("strict non-empty spread vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
-            };
-            if let Some(repeated) = repeated {
-                if matches!(parser, ParserExpr::Vector(_)) {
-                    return Ok(repeated);
-                }
-                let inner = vector_field_postfix_tokens(
-                    parser,
-                    repeated,
-                    &|receiver, method, args, inner| {
-                        strict_postfix_with_inner_tokens(
-                            receiver,
-                            method,
-                            args,
-                            inner,
-                            arguments,
-                            generation,
-                            free_modifier_parser,
-                            mode,
-                        )
-                    },
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments)
+        && let [item] = vector.items.as_slice()
+    {
+        let repeated = match item {
+            VectorItem::ZeroOrMore(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
                 )?;
-                // Keep prefix and postfix failures inside this field's recovery.
-                return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
-                    #rule_name,
-                    #field_index,
-                    #inner
-                )));
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #inner.boxed()
+                    )
+                })
             }
+            VectorItem::ZeroOrMoreSpread(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        __items
+                    })
+                })
+            }
+            VectorItem::OneOrMore(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #inner.boxed()
+                    )
+                    .map(|__items| {
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("strict non-empty vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::OneOrMoreSpread(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("strict non-empty spread vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+        };
+        if let Some(repeated) = repeated {
+            if matches!(parser, ParserExpr::Vector(_)) {
+                return Ok(repeated);
+            }
+            let inner =
+                vector_field_postfix_tokens(parser, repeated, &|receiver, method, args, inner| {
+                    strict_postfix_with_inner_tokens(
+                        receiver,
+                        method,
+                        args,
+                        inner,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
+                })?;
+            // Keep prefix and postfix failures inside this field's recovery.
+            return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+                #rule_name,
+                #field_index,
+                #inner
+            )));
         }
     }
 
@@ -4996,125 +4998,122 @@ fn recovery_checkpoint_recovered_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
-    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
-        if let [item] = vector.items.as_slice() {
-            let repeated = match item {
-                VectorItem::ZeroOrMore(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #inner.boxed()
-                        )
-                    })
-                }
-                VectorItem::ZeroOrMoreSpread(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            __items
-                        })
-                    })
-                }
-                VectorItem::OneOrMore(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #inner.boxed()
-                        )
-                        .map(|__items| {
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("recovered plain non-empty vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::OneOrMoreSpread(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("recovered plain non-empty spread vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
-            };
-            if let Some(repeated) = repeated {
-                if matches!(parser, ParserExpr::Vector(_)) {
-                    return Ok(repeated);
-                }
-                let inner = vector_field_postfix_tokens(
-                    parser,
-                    repeated,
-                    &|receiver, method, args, inner| {
-                        recovered_postfix_with_inner_tokens(
-                            receiver,
-                            method,
-                            args,
-                            inner,
-                            arguments,
-                            generation,
-                            free_modifier_parser,
-                            mode,
-                        )
-                    },
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments)
+        && let [item] = vector.items.as_slice()
+    {
+        let repeated = match item {
+            VectorItem::ZeroOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
                 )?;
-                // Keep prefix and postfix failures inside this field's recovery.
-                return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
-                    #rule_name,
-                    #field_index,
-                    #inner
-                )));
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #inner.boxed()
+                    )
+                })
             }
+            VectorItem::ZeroOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        __items
+                    })
+                })
+            }
+            VectorItem::OneOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #inner.boxed()
+                    )
+                    .map(|__items| {
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("recovered plain non-empty vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::OneOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("recovered plain non-empty spread vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+        };
+        if let Some(repeated) = repeated {
+            if matches!(parser, ParserExpr::Vector(_)) {
+                return Ok(repeated);
+            }
+            let inner =
+                vector_field_postfix_tokens(parser, repeated, &|receiver, method, args, inner| {
+                    recovered_postfix_with_inner_tokens(
+                        receiver,
+                        method,
+                        args,
+                        inner,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
+                })?;
+            // Keep prefix and postfix failures inside this field's recovery.
+            return Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+                #rule_name,
+                #field_index,
+                #inner
+            )));
         }
     }
 
@@ -5129,6 +5128,7 @@ fn recovery_checkpoint_recovered_field_parser_expr_tokens(
 
 #[requires(!rule_name.is_empty())]
 #[ensures(true)]
+#[allow(clippy::too_many_arguments)]
 fn recovered_field_parser_expr_tokens(
     rule_name: &str,
     field_index: usize,
@@ -5139,129 +5139,126 @@ fn recovered_field_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
 ) -> Result<TokenStream2> {
-    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments) {
-        if let [item] = vector.items.as_slice() {
-            let repeated = match item {
-                VectorItem::ZeroOrMore(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #recovery_boundary,
-                            #inner.boxed()
-                        )
-                    })
-                }
-                VectorItem::ZeroOrMoreSpread(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            0usize,
-                            #recovery_boundary,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            __items
-                        })
-                    })
-                }
-                VectorItem::OneOrMore(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #recovery_boundary,
-                            #inner.boxed()
-                        )
-                        .map(|__items| {
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("recovered non-empty vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::OneOrMoreSpread(expr) => {
-                    let inner = recovered_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )?;
-                    Some(quote! {
-                        generated_runtime::recovered_greedy_many_field_parser(
-                            #rule_name,
-                            #field_index,
-                            1usize,
-                            #recovery_boundary,
-                            #inner.boxed()
-                        )
-                        .map(|__chunks| {
-                            let mut __items = Vec::new();
-                            for __chunk in __chunks {
-                                __items.extend(__chunk);
-                            }
-                            vec1::Vec1::try_from_vec(__items)
-                                .expect("recovered non-empty spread vector parser preserves cardinality")
-                        })
-                    })
-                }
-                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
-            };
-            if let Some(repeated) = repeated {
-                if matches!(parser, ParserExpr::Vector(_)) {
-                    return Ok(repeated);
-                }
-                let inner = vector_field_postfix_tokens(
-                    parser,
-                    repeated,
-                    &|receiver, method, args, inner| {
-                        recovered_postfix_with_inner_tokens(
-                            receiver,
-                            method,
-                            args,
-                            inner,
-                            arguments,
-                            generation,
-                            free_modifier_parser,
-                            mode,
-                        )
-                    },
+    if let Some(vector) = repeated_vector_field(parser, generation.type_env, arguments)
+        && let [item] = vector.items.as_slice()
+    {
+        let repeated = match item {
+            VectorItem::ZeroOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
                 )?;
-                // Keep prefix and postfix failures inside this field's recovery.
-                return Ok(quote!(generated_runtime::recovered_field_parser(
-                    #rule_name,
-                    #field_index,
-                    #inner
-                )));
+                Some(quote! {
+                    generated_runtime::recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #recovery_boundary,
+                        #inner.boxed()
+                    )
+                })
             }
+            VectorItem::ZeroOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        0usize,
+                        #recovery_boundary,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        __items
+                    })
+                })
+            }
+            VectorItem::OneOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #recovery_boundary,
+                        #inner.boxed()
+                    )
+                    .map(|__items| {
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("recovered non-empty vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::OneOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                Some(quote! {
+                    generated_runtime::recovered_greedy_many_field_parser(
+                        #rule_name,
+                        #field_index,
+                        1usize,
+                        #recovery_boundary,
+                        #inner.boxed()
+                    )
+                    .map(|__chunks| {
+                        let mut __items = Vec::new();
+                        for __chunk in __chunks {
+                            __items.extend(__chunk);
+                        }
+                        vec1::Vec1::try_from_vec(__items)
+                            .expect("recovered non-empty spread vector parser preserves cardinality")
+                    })
+                })
+            }
+            VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+        };
+        if let Some(repeated) = repeated {
+            if matches!(parser, ParserExpr::Vector(_)) {
+                return Ok(repeated);
+            }
+            let inner =
+                vector_field_postfix_tokens(parser, repeated, &|receiver, method, args, inner| {
+                    recovered_postfix_with_inner_tokens(
+                        receiver,
+                        method,
+                        args,
+                        inner,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
+                })?;
+            // Keep prefix and postfix failures inside this field's recovery.
+            return Ok(quote!(generated_runtime::recovered_field_parser(
+                #rule_name,
+                #field_index,
+                #inner
+            )));
         }
     }
 
@@ -5440,6 +5437,7 @@ fn strict_postfix_parser_expr_tokens(
 
 #[requires(!inner.is_empty())]
 #[ensures(true)]
+#[allow(clippy::too_many_arguments)]
 fn strict_postfix_with_inner_tokens(
     receiver: &ParserExpr,
     method: &Ident,
@@ -5847,6 +5845,7 @@ fn recovered_postfix_parser_expr_tokens(
 
 #[requires(!inner.is_empty())]
 #[ensures(true)]
+#[allow(clippy::too_many_arguments)]
 fn recovered_postfix_with_inner_tokens(
     receiver: &ParserExpr,
     method: &Ident,
@@ -8913,7 +8912,7 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<ParsedRule> {
         }
         Ok(new!(ParsedRule::Enum(EnumRuleDecl::from_data(data!(
             EnumRuleDecl {
-                attrs: attrs,
+                attrs,
                 output: syntax_type_for_rule(&name),
                 name,
                 arguments,
@@ -10952,8 +10951,7 @@ fn next_literal_field(
     after_field: usize,
     type_env: &GrammarTypeEnv,
 ) -> Result<Option<(usize, BTreeSet<AnchorToken>)>> {
-    for field_index in after_field + 1..rule.fields.len() {
-        let field = &rule.fields[field_index];
+    for (field_index, field) in rule.fields.iter().enumerate().skip(after_field + 1) {
         if !matches!(field.kind, FieldKind::Field) {
             continue;
         }

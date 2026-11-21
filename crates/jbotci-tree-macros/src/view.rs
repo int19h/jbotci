@@ -47,7 +47,7 @@ fn source_type(
             }
         }
         Type::Array(array) => {
-            array.elem = Box::new(source_type(&array.elem, recovered, nodes, aliases))
+            *array.elem = source_type(&array.elem, recovered, nodes, aliases);
         }
         Type::Tuple(tuple) => {
             for elem in &mut tuple.elems {

@@ -3,7 +3,7 @@
 A Cargo unit is one target, profile, feature set, and compilation mode.
 Each unit keeps a SHA-256 input record in its fingerprint directory.
 The record describes the content that produced that unit, even when later jobs select different units.
-CI uses stable Rust and one target directory for each cached job.
+CI uses Rust 1.100.0 and one target directory for each cached job.
 The CLI release workflow never restores a target cache.
 
 Both cached jobs export `JBOTCI_INPUT_SESSION` through `GITHUB_ENV` before their first Cargo step.

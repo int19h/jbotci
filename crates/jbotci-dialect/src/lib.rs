@@ -954,8 +954,8 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
         }
     }
     DialectDefinition {
-        cmavo_entries: cmavo_entries,
-        features: features,
+        cmavo_entries,
+        features,
     }
 }
 
@@ -1476,7 +1476,9 @@ mod tests {
             definition: "()".to_owned(),
             show_in_gentufa: true,
         };
-        assert!(custom_dialect_is_valid(&[builtin_alias.clone()], &builtin_alias).is_err());
+        assert!(
+            custom_dialect_is_valid(std::slice::from_ref(&builtin_alias), &builtin_alias).is_err()
+        );
 
         let first_cycle = CustomDialect {
             name: "first".to_owned(),

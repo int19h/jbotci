@@ -45,7 +45,7 @@ enum Action {
     SmallVector {
         nonempty: bool,
         element: Box<Containment>,
-        capacity: Expr,
+        capacity: Box<Expr>,
     },
 }
 
@@ -150,7 +150,7 @@ impl Action {
                 };
                 segment.ident == if *nonempty { "SmallVec1" } else { "SmallVec" }
                     && args.args.len() == 1
-                    && matches!(&args.args[0], GenericArgument::Type(Type::Array(array)) if element.source == *ungroup_type(&array.elem) && *capacity == array.len)
+                    && matches!(&args.args[0], GenericArgument::Type(Type::Array(array)) if element.source == *ungroup_type(&array.elem) && **capacity == array.len)
             }
             _ => false,
         }
@@ -237,7 +237,7 @@ impl Containment {
                             return Some(Action::SmallVector {
                                 nonempty: name == "SmallVec1",
                                 element: Box::new(Self::new(&array.elem, nodes)),
-                                capacity: array.len.clone(),
+                                capacity: Box::new(array.len.clone()),
                             });
                         }
                         let kind = match name.as_str() {
@@ -314,7 +314,7 @@ impl ContainmentData {
                 ty
             }
             (Action::Array { element }, Type::Array(array)) => {
-                array.elem = Box::new(element.stored_type());
+                *array.elem = element.stored_type();
                 ty
             }
             (Action::Unary { inner, .. }, Type::Path(path)) => {
@@ -343,6 +343,7 @@ impl ContainmentData {
                 Type::Path(path),
             ) => {
                 let element = element.stored_type();
+                let capacity = &**capacity;
                 path.path
                     .segments
                     .last_mut()
