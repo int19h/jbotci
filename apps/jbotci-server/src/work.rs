@@ -528,14 +528,17 @@ pub(crate) mod paused_blocking {
 
     /// Run `future` on `runtime`.
     /// When `future` panics, shut the runtime down in the background.
+    /// This path catches every panic, not only the hang panic.
     /// Teardown then does not wait for a stuck blocking task.
     /// A normal return drops the runtime in the normal way.
     /// The background shutdown leaves the stuck worker thread running.
     /// That thread stays until the test process exits.
-    /// The test has already failed with the hang message.
+    /// The test has already failed.
+    /// The hang message belongs to the timeout case only.
     /// A later test can meet that thread.
     /// A normal runtime drop waits for the stuck thread.
-    /// That wait hangs, so this path keeps the background shutdown.
+    /// That wait hangs.
+    /// This path keeps the background shutdown.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn block_on_hang_guard<T>(
