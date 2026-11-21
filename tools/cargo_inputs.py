@@ -15,7 +15,7 @@ import subprocess
 from typing import Any
 from uuid import uuid4
 
-from tools.cargo_inputs_trace import TraceError, trace
+from tools.cargo_inputs_trace import TraceError, has_unit_id_child, inside_unit_out, trace
 
 RECORD = "jbotci-inputs-v1.json"
 VERSION = 1
@@ -113,10 +113,14 @@ class Layout:
         return found
 
     def build_unit_fingerprints(self) -> list[Path]:
-        """Return fingerprint directories stored beside each build-unit output.
+        """Return every 1.100 fingerprint directory under the selected roots.
 
-        A directory under `<profile>/build/<package>` that is not a 16-hex unit is an error.
-        A nested `build` directory inside an `OUT_DIR` is not a unit root.
+        A package name can end in 16 hex characters.
+        A directory with a 16-hex child is a package.
+        A 1.99 output directory has no 16-hex child.
+        A fingerprint inside a unit `out` directory is included.
+        An unrecognized child there is skipped.
+        An unrecognized child of a top-level package is an error.
         """
         roots = self.profiles if self.profiles is not None else (self.target,)
         found: list[Path] = []
@@ -124,13 +128,16 @@ class Layout:
             if not root.exists():
                 continue
             for build in root.rglob("build"):
-                if not build.is_dir() or nested_out_build(root, build):
+                if not build.is_dir():
                     continue
+                nested = inside_unit_out(self.target, build)
                 for package in build.iterdir():
-                    if not package.is_dir() or CLASSIC_DIR.search(package.name):
+                    if not package.is_dir():
+                        continue
+                    if CLASSIC_DIR.search(package.name) and not has_unit_id_child(package):
                         continue
                     for child in package.iterdir():
-                        fingerprint = build_unit_child(child)
+                        fingerprint = build_unit_child(child, strict=not nested)
                         if fingerprint is not None:
                             found.append(fingerprint)
         return found
@@ -167,23 +174,18 @@ class Unit:
         return (self.directory / self.stem).stat().st_mtime_ns > marker_ns
 
 
-def nested_out_build(root: Path, build: Path) -> bool:
-    """Return true when `build` is a directory nested inside an `OUT_DIR`."""
-    parts = build.relative_to(root).parts
-    try:
-        outer = parts.index("build")
-    except ValueError:
-        return True
-    return "out" in parts[outer + 1:-1]
+def build_unit_child(child: Path, *, strict: bool) -> Path | None:
+    """Return one build-unit fingerprint.
 
-
-def build_unit_child(child: Path) -> Path | None:
-    """Return one build-unit fingerprint, or None when the unit has not run.
-
-    Raise InputError when `child` is not a 16-hex unit directory.
+    If the unit has no fingerprint directory, return None.
+    When `strict` is true, a child that is not a 16-hex directory is an error.
+    Inside a unit `out` directory, that child is output and `strict` is false.
+    A `fingerprint` path that exists and is not a directory is an error.
     """
     if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
-        raise InputError(f"Unknown build entry: {child}")
+        if strict:
+            raise InputError(f"Unknown build entry: {child}")
+        return None
     fingerprint = child / "fingerprint"
     if not fingerprint.exists():
         return None
@@ -213,7 +215,28 @@ def read_unit(layout: Layout, directory: Path, shape: FingerprintShape) -> Unit:
 
 
 def inventory(layout: Layout) -> dict[str, Unit]:
-    """Read every fingerprint directory. An unknown shape is an error."""
+    """Read every fingerprint directory. An unknown shape is an error.
+
+    A unit is one Cargo fingerprint directory.
+    Cargo 1.99 stores that directory at `profile/.fingerprint/<package>-<16 hex>/`.
+    Cargo 1.100 stores that directory at `profile/build/<package>/<16 hex>/fingerprint/`.
+    The package name can end in 16 hex characters.
+    If a directory under `profile/build` contains a 16-hex child, that directory is a 1.100 package.
+    If its name ends in `-` and 16 hex characters, and it has no 16-hex child, that directory is a 1.99 output directory.
+    If that fingerprint has either shape, inventory records it inside a unit `out` directory.
+    The trace emits that same unit.
+    Save checks the reads of that unit.
+    An unrecognized entry inside that `out` directory is output.
+    An unrecognized entry under a top-level `profile/build/<package>` is an error.
+    Cargo creates the fingerprint directory before it starts rustc or the build script.
+    Cargo writes the hash file and the `run-build-script` file after that process exits.
+    At the start of the process, the trace requires the fingerprint directory to exist.
+    A directory that holds a marker of the other kind is an error.
+    A missing directory is an error.
+    Cleanup uses the retained hashes of one profile for that profile only.
+    Cleanup skips a profile directory that eviction removed.
+    Save rejects a trace unit that inventory does not return.
+    """
     result: dict[str, Unit] = {}
 
     def add(unit: Unit) -> None:
@@ -450,14 +473,22 @@ def profile_directories(layout: Layout, units: dict[str, Unit]) -> set[Path]:
 
 
 def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) -> None:
+    """Remove output that no retained unit in the same profile owns.
+
+    Skip a profile directory that eviction removed.
+    If its unit is retained, a package directory that contains a 16-hex child keeps that child.
+    """
     units = inventory(layout)
-    valid_hashes: set[str] = set()
+    hashes_by_profile: dict[Path, set[str]] = {}
     for key, unit in units.items():
         if key not in retained:
             evict_unit(unit)
         else:
-            valid_hashes.add(unit.suffix)
+            hashes_by_profile.setdefault(unit.profile, set()).add(unit.suffix)
     for profile in profiles:
+        if not profile.is_dir():
+            continue
+        valid_hashes = hashes_by_profile.get(profile, set())
         deps = profile / "deps"
         if deps.is_dir():
             for path in list(deps.iterdir()):
@@ -474,6 +505,9 @@ def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) 
         if not build.is_dir():
             continue
         for path in list(build.iterdir()):
+            if path.is_dir() and has_unit_id_child(path):
+                retain_build_unit_children(layout, path, retained)
+                continue
             match = UNIT_HASH.search(path.name)
             if match:
                 if match[1] not in valid_hashes:
@@ -482,19 +516,26 @@ def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) 
             if not path.is_dir():
                 remove(path)
                 continue
-            for child in list(path.iterdir()):
-                kept = False
-                if child.is_dir() and UNIT_ID.fullmatch(child.name):
-                    fingerprint = child / "fingerprint"
-                    if fingerprint.is_dir():
-                        key = fingerprint.relative_to(layout.target).as_posix()
-                        kept = key in retained
-                if not kept:
-                    remove(child)
+            retain_build_unit_children(layout, path, retained)
+
+
+def retain_build_unit_children(layout: Layout, package: Path, retained: set[str]) -> None:
+    """If its fingerprint is a retained unit, keep that child."""
+    for child in list(package.iterdir()):
+        kept = False
+        if child.is_dir() and UNIT_ID.fullmatch(child.name):
+            fingerprint = child / "fingerprint"
+            if fingerprint.is_dir():
+                key = fingerprint.relative_to(layout.target).as_posix()
+                kept = key in retained
+        if not kept:
+            remove(child)
 
 
 def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
     for profile in profiles:
+        if not profile.is_dir():
+            continue
         for entry in profile.iterdir():
             if entry.name not in ("deps", "build", "examples", ".fingerprint", ".cargo-lock"):
                 remove(entry)
@@ -694,6 +735,9 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
     if writes & tracked_paths:
         raise InputError("A build changed a tracked checkout input")
     units = inventory(layout)
+    for key in descriptors:
+        if key not in units:
+            raise InputError(f"The trace recorded a unit that inventory did not: {key}")
     profiles = profile_directories(layout, units)
     records: dict[str, dict] = {}
     built: set[str] = set()

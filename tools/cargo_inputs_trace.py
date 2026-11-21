@@ -210,6 +210,60 @@ def fingerprint_names(fingerprint: Path, prefix: str) -> bool:
     return any(entry.name.startswith(prefix) for entry in fingerprint.iterdir())
 
 
+def has_unit_id_child(path: Path) -> bool:
+    """If a direct child is a 16-hex unit directory, return true."""
+    return any(child.is_dir() and UNIT_ID.fullmatch(child.name) for child in path.iterdir())
+
+
+def is_unit_out_directory(path: Path) -> bool:
+    """Return true for one Cargo unit `out` directory.
+
+    A package name can end in 16 hex characters.
+    A 16-hex child makes that directory a 1.100 package, not a 1.99 output directory.
+    """
+    if path.name != "out":
+        return False
+    parent = path.parent
+    if parent.parent.name == "build" and classic_package_dir(parent.name) is not None:
+        return not has_unit_id_child(parent)
+    return bool(UNIT_ID.fullmatch(parent.name) and parent.parent.parent.name == "build")
+
+
+def inside_unit_out(root: Path, path: Path) -> bool:
+    """If `path` is strictly inside a unit `out` directory under `root`, return true."""
+    if not path.is_relative_to(root) or path == root:
+        return False
+    current = path.parent
+    while current.is_relative_to(root) and current != root:
+        if is_unit_out_directory(current):
+            return True
+        if current.parent == current:
+            break
+        current = current.parent
+    return False
+
+
+def fingerprint_ready(path: Path, run: bool) -> None:
+    """If `path` cannot be the claimed unit, raise TraceError.
+
+    Cargo creates the fingerprint directory before it starts rustc or the script.
+    Cargo writes the hash file and the `run-build-script` file after that process exits.
+    A missing directory is an error.
+    A directory that holds a marker of the other kind is an error.
+    """
+    reason = "Unknown build script unit layout" if run else "Unknown rustc unit layout"
+    if not path.is_dir():
+        raise TraceError(reason)
+    for entry in path.iterdir():
+        name = entry.name
+        if name in ("invoked.timestamp", "jbotci-inputs-v1.json") or name.startswith(("dep-", "output-")):
+            continue
+        if run and not name.startswith("run-build-script-"):
+            raise TraceError(reason)
+        if not run and name.startswith("run-build-script-"):
+            raise TraceError(reason)
+
+
 def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir: Path) -> Path | None:
     """Return the build-unit run fingerprint for one build-script executable.
 
@@ -227,7 +281,8 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
         return None
     package_dir = compile_dir.parent
     build_dir = package_dir.parent
-    if build_dir.name != "build" or CLASSIC_DIR.search(package_dir.name):
+    # The package name can end in 16 hex characters. The `out/<id>` shape is the layout.
+    if build_dir.name != "build":
         return None
     profile = build_dir.parent
     if not profile_inside_target(target, profile):
@@ -373,7 +428,10 @@ class Parser:
                 fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir)
                 if fingerprint is None:
                     fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir)
-                if fingerprint is not None and fingerprint.is_dir() and fingerprint.is_relative_to(self.target):
+                if fingerprint is not None:
+                    if not fingerprint.is_relative_to(self.target):
+                        raise TraceError("Unknown build script unit layout")
+                    fingerprint_ready(fingerprint, run=True)
                     unit = fingerprint
                     kind = "run"
             # A rustc probe inherits Cargo's environment and can write into OUT_DIR.
@@ -388,31 +446,26 @@ class Parser:
                 directory = normalized_path(destination, process.cwd)
                 fingerprint = build_unit_fingerprint(directory)
                 if fingerprint is not None:
-                    relative = str(fingerprint.relative_to(self.target)) if fingerprint.is_relative_to(self.target) else None
-                    if (
-                        relative is None
-                        or (suffix is not None and not hashed_suffix)
-                        or fingerprint_names(fingerprint, "run-build-script-")
-                        or process.unit == relative
-                    ):
+                    relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
+                    if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
                         raise TraceError("Unknown rustc unit layout")
-                    if fingerprint.is_dir():
-                        unit = fingerprint
-                        kind = "compile"
-                        dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
-                        dep_info = str(directory / dep_name)
+                    fingerprint_ready(fingerprint, run=False)
+                    unit = fingerprint
+                    kind = "compile"
+                    dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
+                    dep_info = str(directory / dep_name)
                 elif hashed_suffix:
                     fingerprint = classic_fingerprint(self.target, directory, package, suffix)
-                    if fingerprint is None:
+                    if fingerprint is None or not fingerprint.is_relative_to(self.target):
                         raise TraceError("Unknown rustc unit layout")
-                    if fingerprint.is_dir():
-                        unit = fingerprint
-                        kind = "compile"
-                        dep_info = str(directory / f"{crate}-{suffix}.d")
+                    fingerprint_ready(fingerprint, run=False)
+                    unit = fingerprint
+                    kind = "compile"
+                    dep_info = str(directory / f"{crate}-{suffix}.d")
                 else:
                     raise TraceError("Unknown rustc unit layout")
-            if unit is not None and unit.is_dir():
-                process.unit = str(unit.relative_to(self.target))
+            if unit is not None:
+                process.unit = unit.relative_to(self.target).as_posix()
                 self.emit({"event": "unit", "unit": process.unit, "kind": kind,
                            "package": manifest, "cwd": process.cwd, "dep_info": dep_info,
                            "via_dx": process.via_dx})

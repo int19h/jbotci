@@ -644,13 +644,21 @@ class CargoUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(c.InputError, "Unknown build entry"):
             c.inventory(self.layout)
 
-    def test_a_build_directory_inside_out_dir_is_not_inventory(self) -> None:
+    def test_a_build_directory_inside_out_dir_records_a_real_unit(self) -> None:
         nested = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
         self.write_fingerprint(nested, "bin-demo", 1)
         weird = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/not-a-unit"
         weird.mkdir(parents=True)
         (weird / "notes").write_text("x")
-        self.assertEqual(c.inventory(self.layout), {})
+        key = nested.relative_to(self.layout.target).as_posix()
+        self.assertEqual(set(c.inventory(self.layout)), {key})
+
+    def test_a_fingerprint_file_inside_out_dir_fails_closed(self) -> None:
+        fingerprint = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
+        fingerprint.parent.mkdir(parents=True)
+        fingerprint.write_text("not a directory")
+        with self.assertRaisesRegex(c.InputError, "not a directory"):
+            c.inventory(self.layout)
 
     def test_an_unexecuted_build_unit_is_not_an_error(self) -> None:
         (self.layout.target / "debug/build/demo/0123456789abcdef/out").mkdir(parents=True)
@@ -805,6 +813,201 @@ class CargoUnitTests(unittest.TestCase):
         directory.mkdir(parents=True, exist_ok=True)
         (directory / stem).write_text(cargo_hash.to_bytes(8, "little").hex())
         (directory / f"{stem}.json").write_text('{"deps":[]}')
+
+    def test_a_package_name_that_ends_in_16_hex_characters_stays(self) -> None:
+        target = self.layout.target
+        fingerprint = target / "debug/build/demo-aaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbb/fingerprint"
+        self.write_fingerprint(fingerprint, "bin-demo", 1)
+        classic = target / "debug/build/demo-0123456789abcdef/out/generated.rs"
+        classic.parent.mkdir(parents=True)
+        classic.write_text("fn generated() {}\n")
+        key = fingerprint.relative_to(target).as_posix()
+        units = c.inventory(self.layout)
+        self.assertEqual(set(units), {key})
+        dependency = target / "debug/deps/libdemo-bbbbbbbbbbbbbbbb.rlib"
+        dependency.parent.mkdir(parents=True)
+        dependency.write_text("data")
+        c.discard_unrecorded(self.layout, {key}, c.profile_directories(self.layout, units))
+        self.assertTrue(fingerprint.is_dir())
+        self.assertTrue(dependency.is_file())
+        self.assertFalse(classic.exists())
+
+    def test_a_profile_or_package_named_out_keeps_its_build_unit(self) -> None:
+        target = self.layout.target
+        named_profile = target / "out/build/demo/0123456789abcdef/fingerprint"
+        named_package = target / "debug/build/out/fedcba9876543210/fingerprint"
+        self.write_fingerprint(named_profile, "bin-demo", 1)
+        self.write_fingerprint(named_package, "bin-demo", 2)
+        keys = {path.relative_to(target).as_posix() for path in (named_profile, named_package)}
+        self.assertEqual(set(c.inventory(self.layout)), keys)
+
+    def test_a_classic_fingerprint_inside_out_dir_is_a_unit(self) -> None:
+        fingerprint = self.layout.target / (
+            "debug/build/demo/0123456789abcdef/out/nested-target/debug/.fingerprint/child-aaaaaaaaaaaaaaaa"
+        )
+        self.write_fingerprint(fingerprint, "bin-child", 1)
+        key = fingerprint.relative_to(self.layout.target).as_posix()
+        self.assertIn(key, c.inventory(self.layout))
+
+    def test_cleanup_keeps_hashes_inside_one_profile(self) -> None:
+        target = self.layout.target
+        suffix = "a" * 16
+        debug_fingerprint = target / f"debug/.fingerprint/app-{suffix}"
+        self.write_fingerprint(debug_fingerprint, "bin-app", 1)
+        (target / "release/.fingerprint").mkdir(parents=True)
+        debug_dependency = target / f"debug/deps/libapp-{suffix}.rlib"
+        debug_example = target / f"debug/examples/demo-{suffix}"
+        release_dependency = target / f"release/deps/libapp-{suffix}.rlib"
+        release_example = target / f"release/examples/demo-{suffix}"
+        for path in (debug_dependency, debug_example, release_dependency, release_example):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("data")
+        units = c.inventory(self.layout)
+        key = debug_fingerprint.relative_to(target).as_posix()
+        c.discard_unrecorded(self.layout, {key}, c.profile_directories(self.layout, units))
+        self.assertTrue(debug_dependency.is_file())
+        self.assertTrue(debug_example.is_file())
+        self.assertFalse(release_dependency.exists())
+        self.assertFalse(release_example.exists())
+
+    def test_restore_skips_a_nested_profile_removed_with_its_outer_unit(self) -> None:
+        target = self.layout.target
+        outer = target / "release/build/demo/0123456789abcdef/fingerprint"
+        nested = target / (
+            "release/build/demo/0123456789abcdef/out/nested-target/debug/.fingerprint/child-aaaaaaaaaaaaaaaa"
+        )
+        self.write_fingerprint(outer, "run-build-script-build-script-build", 1)
+        (outer / "run-build-script-build-script-build.json").write_text('{"deps":[],"local":[]}')
+        self.write_fingerprint(nested, "bin-child", 2)
+        stats = c.restore(self.layout, normalize=False)
+        self.assertEqual(stats, {"retained": 0, "invalidated": 2})
+        self.assertFalse(outer.exists())
+        self.assertFalse(nested.exists())
+
+    def test_trace_rejects_a_missing_or_wrong_kind_fingerprint(self) -> None:
+        target = self.layout.target
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        run = target / "debug/build/demo/fedcba9876543210/fingerprint"
+        run.mkdir(parents=True)
+        (run / "bin-demo").write_text("fedcba9876543210")
+        executable = compile_dir.parent / "out/build_script_build"
+        out = run.parent / "out"
+        script = (
+            f'1 execve("{executable}", ["{executable}"], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+        )
+        self.assert_trace_layout_error(script, "Unknown build script unit layout")
+        (run / "bin-demo").unlink()
+        run.rmdir()
+        self.assert_trace_layout_error(script, "Unknown build script unit layout")
+        classic_executable = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build"
+        classic_out = target / "debug/build/demo-0123456789abcdef/out"
+        classic = target / "debug/.fingerprint/demo-0123456789abcdef"
+        classic.mkdir(parents=True)
+        (classic / "bin-demo").write_text("0123456789abcdef")
+        classic_script = (
+            f'1 execve("{classic_executable}", ["{classic_executable}"], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={classic_out}"]) = 0\n'
+        )
+        self.assert_trace_layout_error(classic_script, "Unknown build script unit layout")
+        (classic / "bin-demo").unlink()
+        classic.rmdir()
+        self.assert_trace_layout_error(classic_script, "Unknown build script unit layout")
+        missing_out = target / "debug/build/demo/abcdefabcdefabcd/out"
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{missing_out}", '
+                '"-C", "metadata=abcdefabcdefabcd"], ["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ),
+            "Unknown rustc unit layout",
+        )
+        deps = target / "debug/deps"
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{deps}", '
+                '"-C", "extra-filename=-cccccccccccccccc", "-C", "metadata=cccccccccccccccc"], '
+                '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ),
+            "Unknown rustc unit layout",
+        )
+        wrong_compile = target / "debug/.fingerprint/demo-dddddddddddddddd"
+        wrong_compile.mkdir(parents=True)
+        (wrong_compile / "run-build-script-build").write_text("dddddddddddddddd")
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{deps}", '
+                '"-C", "extra-filename=-dddddddddddddddd", "-C", "metadata=dddddddddddddddd"], '
+                '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ),
+            "Unknown rustc unit layout",
+        )
+
+    def assert_trace_layout_error(self, line: str, reason: str) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([line.encode()])
+        events = [json.loads(item) for item in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 1)
+        self.assertEqual(events[1]["reason"], reason)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
+
+    def test_an_undeclared_read_through_a_nested_unit_fails(self) -> None:
+        self.ensure_git()
+        (self.workspace / "Cargo.toml").write_text('[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n')
+        (self.workspace / "src").mkdir()
+        (self.workspace / "src/lib.rs").write_text("pub fn demo() {}\n")
+        secret = self.workspace / "secret.txt"
+        secret.write_text("secret\n")
+        subprocess.run(["git", "add", "."], cwd=self.workspace, check=True)
+        subprocess.run(["git", "commit", "-qm", "Add the nested unit fixture"], cwd=self.workspace, check=True)
+        target = self.layout.target
+        fingerprint = target / (
+            "release/build/demo/0123456789abcdef/out/nested-target/debug/build/child/fedcba9876543210/fingerprint"
+        )
+        session = self.root / "session-nested"
+        c.begin(self.layout, session)
+        self.write_fingerprint(fingerprint, "lib-child", 4)
+        marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
+        os.utime(fingerprint / "lib-child", ns=(marker_ns + 1_000_000_000, marker_ns + 1_000_000_000))
+        out = fingerprint.parent / "out"
+        out.mkdir(parents=True)
+        (out / "child-fedcba9876543210.d").write_text("out: src/lib.rs\n")
+        (fingerprint / "dep-lib-child").write_bytes(bytes.fromhex("01000000ff010000000000000000"))
+        key = fingerprint.relative_to(target).as_posix()
+        self.assertIn(key, c.inventory(self.layout))
+        with (session / "trace-nested.jsonl").open("w") as journal:
+            parser = Parser(self.workspace, target, journal)
+            parser.feed([
+                (
+                    f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "child", "--out-dir", "{out}", '
+                    f'"-C", "extra-filename=-fedcba9876543210", "-C", "metadata=fedcba9876543210"], '
+                    f'["CARGO_PKG_NAME=child", "CARGO_MANIFEST_DIR={self.workspace}"]) = 0\n'
+                ).encode(),
+                f'1 openat(AT_FDCWD, "{secret}", O_RDONLY) = 3<{secret}>\n'.encode(),
+            ])
+        with (session / "trace-nested.jsonl").open() as journal:
+            events = [json.loads(line) for line in journal]
+        units = [event for event in events if event["event"] == "unit"]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual([(event["kind"], event["unit"]) for event in units], [("compile", key)])
+        with self.assertRaisesRegex(c.InputError, "Undeclared input.*secret.txt"):
+            c.save(self.layout, session, scrub=False)
+
+    def test_save_rejects_a_trace_unit_missing_from_inventory(self) -> None:
+        self.ensure_git()
+        (self.workspace / "Cargo.toml").write_text('[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n')
+        subprocess.run(["git", "add", "."], cwd=self.workspace, check=True)
+        subprocess.run(["git", "commit", "-qm", "Add an empty package"], cwd=self.workspace, check=True)
+        session = self.root / "session-missing"
+        c.begin(self.layout, session)
+        event = {"event": "unit", "unit": "debug/build/missing/aaaaaaaaaaaaaaaa/fingerprint", "kind": "compile",
+                 "package": str(self.workspace), "cwd": str(self.workspace), "dep_info": None, "via_dx": False}
+        (session / "trace-missing.jsonl").write_text(
+            json.dumps(event) + "\n" + json.dumps({"event": "complete", "errors": 0}) + "\n")
+        with self.assertRaisesRegex(c.InputError, "inventory did not"):
+            c.save(self.layout, session, scrub=False)
 
 
 if __name__ == "__main__":
