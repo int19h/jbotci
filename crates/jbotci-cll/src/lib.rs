@@ -866,10 +866,10 @@ fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::Text
     scope.join(visitor.output.split_whitespace(), " ")
 }
 
-/// Plain text of one cmavo-list cell.
+/// Plain text of one cmavo or gismu cell.
 ///
-/// A bracketed word cell keeps `[word]` with no spaces. Every other cell uses
-/// the same plain-text walk as a paragraph.
+/// A bracketed word keeps `[word]` with no spaces. Call this only for a word
+/// cell. An ordinary cell uses `inline_plain_text_in_scope`.
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_cell_plain_text_in_scope(
@@ -880,6 +880,22 @@ fn cmavo_cell_plain_text_in_scope(
         return scope.format(format_args!("[{word}]"));
     }
     inline_plain_text_in_scope(inlines, scope)
+}
+
+/// Plain text of one cmavo-list body cell.
+///
+/// A word cell keeps a bracketed word as `[word]`. An ordinary cell uses the
+/// same walk as a paragraph, so `[ klama ]` keeps its spaces.
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_list_cell_plain_text_in_scope(
+    cell: &CllCmavoListCell,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    match cell {
+        CllCmavoListCell::Word { inlines } => cmavo_cell_plain_text_in_scope(inlines, scope),
+        CllCmavoListCell::Other { inlines } => inline_plain_text_in_scope(inlines, scope),
+    }
 }
 
 #[invariant(true)]
@@ -1067,7 +1083,7 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 for row in rows {
                     for cell in row {
                         self.output
-                            .push_str(&cmavo_cell_plain_text_in_scope(cell, &scope));
+                            .push_str(&cmavo_list_cell_plain_text_in_scope(cell, &scope));
                         self.output.push('\n');
                     }
                 }
@@ -1967,7 +1983,9 @@ mod tests {
             id: None,
             titles: Vec::new(),
             headers: Vec::new(),
-            rows: vec![vec![coi.clone()]],
+            rows: vec![vec![CllCmavoListCell::Word {
+                inlines: coi.clone(),
+            }]],
         };
         let interlinear = CllBlock::InterlinearGloss {
             id: None,
@@ -2988,7 +3006,7 @@ mod tests {
             .expect("section should contain an explicitly headed cmavo list");
 
         assert_eq!(
-            cmavo_list_row_texts(headers),
+            inline_row_texts(headers),
             vec![
                 "cmavo".to_owned(),
                 "gismu".to_owned(),
@@ -3022,7 +3040,9 @@ mod tests {
                 vec![CllInline::Text("selma'o".to_owned())],
                 vec![CllInline::Text("notes".to_owned())],
             ],
-            rows: vec![vec![vec![CllInline::Text("coi".to_owned())]]],
+            rows: vec![vec![CllCmavoListCell::Other {
+                inlines: vec![CllInline::Text("coi".to_owned())],
+            }]],
         };
 
         let plain_text = blocks_plain_text(site, &[block]);
@@ -3327,9 +3347,21 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret.iter().all(|cell| !cell.is_empty()))]
-    fn cmavo_list_row_texts(row: &[Vec<CllInline>]) -> Vec<String> {
+    fn cmavo_list_row_texts(row: &[CllCmavoListCell]) -> Vec<String> {
         row.iter()
-            .map(|cell| cmavo_cell_plain_text(cell))
+            .map(|cell| match cell {
+                CllCmavoListCell::Word { inlines } => cmavo_cell_plain_text(inlines),
+                CllCmavoListCell::Other { inlines } => inline_plain_text(inlines),
+            })
+            .filter(|cell| !cell.is_empty())
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|cell| !cell.is_empty()))]
+    fn inline_row_texts(row: &[Vec<CllInline>]) -> Vec<String> {
+        row.iter()
+            .map(|cell| inline_plain_text(cell))
             .filter(|cell| !cell.is_empty())
             .collect()
     }
@@ -3872,6 +3904,91 @@ mod tests {
         assert_eq!(github_markdown(site, &phrase), "[cmavo: mi]\n\n");
     }
 
+    /// An ordinary cell keeps paragraph spacing. An unlinked bracket word cell
+    /// keeps the Lojban span. An empty link target does not panic.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ordinary_cells_keep_spaces_and_unlinked_brackets_keep_lojban_style() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let klama = vec![
+            CllInline::Text("[".to_owned()),
+            CllInline::Link {
+                target: "klama".to_owned(),
+                inlines: vec![CllInline::Text("klama".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            },
+            CllInline::Text("]".to_owned()),
+        ];
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![
+                CllCmavoListCell::Word {
+                    inlines: vec![
+                        CllInline::Text("[".to_owned()),
+                        CllInline::Link {
+                            target: "jundi".to_owned(),
+                            inlines: vec![CllInline::Text("jundi".to_owned())],
+                            kind: CllLinkKind::Dictionary,
+                        },
+                        CllInline::Text("]".to_owned()),
+                    ],
+                },
+                CllCmavoListCell::Other {
+                    inlines: klama.clone(),
+                },
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("[idiom]".to_owned())],
+                },
+                CllCmavoListCell::Word {
+                    inlines: vec![CllInline::Text("[pino'o]".to_owned())],
+                },
+                CllCmavoListCell::Word {
+                    inlines: vec![CllInline::Link {
+                        target: String::new(),
+                        inlines: vec![CllInline::Text(".".to_owned())],
+                        kind: CllLinkKind::Dictionary,
+                    }],
+                },
+            ]],
+        };
+        let plain = blocks_plain_text(site, &[block]);
+        assert!(plain.contains("[jundi]"));
+        assert!(plain.contains("[ klama ]"));
+        assert!(plain.contains("[idiom]"));
+        assert!(plain.contains("[pino'o]"));
+        assert!(!plain.contains("[klama]"));
+
+        let unlinked = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![CllCmavoListCell::Word {
+                inlines: vec![CllInline::Text("[pino'o]".to_owned())],
+            }]],
+        };
+        let html = render_block_html(site, &unlinked, CllLinkRenderMode::Web);
+        assert!(
+            html.contains(
+                "<td>[<span class=\"spa-cll-jbophrase\" lang=\"jbo\">pino'o</span>]</td>"
+            )
+        );
+
+        let idiom = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![CllCmavoListCell::Other {
+                inlines: vec![CllInline::Text("[idiom]".to_owned())],
+            }]],
+        };
+        let idiom_html = render_block_html(site, &idiom, CllLinkRenderMode::Web);
+        assert!(idiom_html.contains("<td>[idiom]</td>"));
+        assert!(!idiom_html.contains("spa-cll-jbophrase"));
+    }
+
     /// Plain markdown keeps bracket characters in cmavo cells and in glosses.
     #[test]
     #[requires(true)]
@@ -3958,27 +4075,27 @@ mod tests {
                 "row {index} has the cmavo and gismu columns"
             );
             assert!(
-                whole_cell_dictionary_link(&row[0]).is_some(),
+                whole_cell_dictionary_link(row[0].inlines()).is_some(),
                 "row {index} cmavo {} links once",
-                inline_plain_text(&row[0])
+                inline_plain_text(row[0].inlines())
             );
-            let gismu = inline_plain_text(&row[1]);
+            let gismu = inline_plain_text(row[1].inlines());
             if gismu == "-----" {
                 assert!(
-                    !inlines_have_link_kind(&row[1], CllLinkKind::Dictionary),
+                    !inlines_have_link_kind(row[1].inlines(), CllLinkKind::Dictionary),
                     "row {index} keeps the gismu placeholder as plain text"
                 );
             } else {
                 assert!(
-                    whole_cell_dictionary_link(&row[1]).is_some(),
+                    whole_cell_dictionary_link(row[1].inlines()).is_some(),
                     "row {index} gismu {gismu} links once"
                 );
             }
             for cell in row.iter().skip(2) {
                 assert!(
-                    !inlines_have_link_kind(cell, CllLinkKind::Dictionary),
+                    !inlines_have_link_kind(cell.inlines(), CllLinkKind::Dictionary),
                     "row {index} modal place stays plain: {}",
-                    inline_plain_text(cell)
+                    inline_plain_text(cell.inlines())
                 );
             }
         }
@@ -4067,7 +4184,7 @@ mod tests {
                     );
                     for cell in &model_row[xml_row.len()..] {
                         assert!(
-                            cell.is_empty(),
+                            cell.inlines().is_empty(),
                             "{source_path} list {list_index} row {row_index}: padding is not empty"
                         );
                     }
@@ -4079,18 +4196,29 @@ mod tests {
                             "{source_path} list {list_index} row {row_index} cell {cell_index} <{}> {}",
                             xml_cell.tag, xml_cell.text
                         );
-                        let model_text = cmavo_cell_plain_text(model_cell);
                         if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
+                            let CllCmavoListCell::Word { inlines } = model_cell else {
+                                panic!("{label} is a word cell");
+                            };
                             assert!(
-                                !inlines_have_link_kind(model_cell, CllLinkKind::Rafsi),
+                                !inlines_have_link_kind(inlines, CllLinkKind::Rafsi),
                                 "{label} links a rafsi"
                             );
-                            assert_eq!(model_text, xml_cell.text, "{label}");
-                            classify_word_cell(model_cell, &xml_cell.text, &label, &mut counts);
+                            assert_eq!(cmavo_cell_plain_text(inlines), xml_cell.text, "{label}");
+                            classify_word_cell(
+                                inlines,
+                                &xml_cell.text,
+                                xml_cell.opted_out,
+                                &label,
+                                &mut counts,
+                            );
                         } else {
+                            let CllCmavoListCell::Other { inlines } = model_cell else {
+                                panic!("{label} stays an ordinary cell");
+                            };
                             preserved_dictionary +=
-                                link_kind_count(model_cell, CllLinkKind::Dictionary);
-                            preserved_rafsi += link_kind_count(model_cell, CllLinkKind::Rafsi);
+                                link_kind_count(inlines, CllLinkKind::Dictionary);
+                            preserved_rafsi += link_kind_count(inlines, CllLinkKind::Rafsi);
                             counts.plain += 1;
                         }
                     }
@@ -4123,6 +4251,7 @@ mod tests {
     fn classify_word_cell(
         cell: &[CllInline],
         text: &str,
+        opted_out: bool,
         label: &str,
         counts: &mut CmavoCellCounts,
     ) {
@@ -4135,6 +4264,15 @@ mod tests {
             )
         };
         if let Some(word) = cmavo_table::bracketed_dictionary_word(text) {
+            if opted_out {
+                assert!(
+                    matches!(cell, [CllInline::Text(body)] if body == text),
+                    "{label}"
+                );
+                counts.plain += 1;
+                *counts.unlinked.entry(word.to_owned()).or_default() += 1;
+                return;
+            }
             match target_for(word) {
                 Some(target) => {
                     assert_eq!(
@@ -4157,6 +4295,22 @@ mod tests {
             return;
         }
         if cmavo_table::is_dictionary_token(text) {
+            if opted_out {
+                assert!(
+                    matches!(
+                        cell,
+                        [CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::JboPhrase,
+                            inlines,
+                            ..
+                        }] if matches!(inlines.as_slice(), [CllInline::Text(body)] if body == text)
+                    ),
+                    "{label}"
+                );
+                counts.plain += 1;
+                *counts.unlinked.entry(text.to_owned()).or_default() += 1;
+                return;
+            }
             match target_for(text) {
                 Some(target) => {
                     assert_eq!(
@@ -4310,12 +4464,13 @@ mod tests {
     struct XmlCmavoCell {
         tag: String,
         text: String,
+        opted_out: bool,
     }
 
     #[invariant(true)]
     struct ModelCmavoList<'site> {
         headers: &'site [Vec<CllInline>],
-        rows: &'site [Vec<Vec<CllInline>>],
+        rows: &'site [Vec<CllCmavoListCell>],
     }
 
     #[requires(true)]
@@ -4419,6 +4574,7 @@ mod tests {
                         } else {
                             visible_text(cell)
                         },
+                        opted_out: crate::import::cmavo_cell_opted_out(cell),
                     })
                     .collect::<Vec<_>>()
             })
@@ -4703,6 +4859,7 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
         .expect("unrestricted plain text")
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_cell_plain_text(inlines: &[CllInline]) -> String {

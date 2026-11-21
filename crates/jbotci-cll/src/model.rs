@@ -1077,7 +1077,7 @@ pub enum CllBlock {
         id: Option<String>,
         titles: Vec<Vec<CllInline>>,
         headers: Vec<Vec<CllInline>>,
-        rows: Vec<Vec<Vec<CllInline>>>,
+        rows: Vec<Vec<CllCmavoListCell>>,
     },
     Lojbanization {
         id: Option<String>,
@@ -1101,6 +1101,53 @@ pub enum CllBlock {
         latex: String,
         markup: String,
     },
+}
+
+/// One body cell of a cmavo list.
+///
+/// A `Word` cell is a `cmavo` cell or a `gismu` cell. The importer is the
+/// only builder of that variant. Every other column is `Other`, and it keeps
+/// the inlines the rest of the book uses.
+#[invariant(true)]
+#[invariant(::Word { .. } => true)]
+#[invariant(::Other { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllCmavoListCell {
+    /// A `cmavo` cell or a `gismu` cell.
+    Word { inlines: Vec<CllInline> },
+    /// A selmaho cell, a description cell, or any other column.
+    Other { inlines: Vec<CllInline> },
+}
+
+impl CllCmavoListCell {
+    /// The inlines stored in this cell.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn inlines(&self) -> &[CllInline] {
+        match self {
+            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => inlines,
+        }
+    }
+
+    /// The inlines stored in this cell, for a visitor that rewrites links.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn inlines_mut(&mut self) -> &mut Vec<CllInline> {
+        match self {
+            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => inlines,
+        }
+    }
+
+    /// The inlines when this cell is a `cmavo` cell or a `gismu` cell.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_inlines(&self) -> Option<&[CllInline]> {
+        match self {
+            CllCmavoListCell::Word { inlines } => Some(inlines),
+            CllCmavoListCell::Other { .. } => None,
+        }
+    }
 }
 
 #[invariant(true)]

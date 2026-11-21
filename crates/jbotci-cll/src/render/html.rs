@@ -615,7 +615,7 @@ fn render_cmavo_list_html(
     id: Option<&str>,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
 ) -> String {
@@ -644,13 +644,38 @@ fn render_cmavo_list_html(
         output.push_str("<tr>");
         for cell in row {
             output.push_str("<td>");
-            output.push_str(&render_inlines_html(site, cell, link_mode, scope));
+            output.push_str(&render_cmavo_list_cell_html(site, cell, link_mode, scope));
             output.push_str("</td>");
         }
         output.push_str("</tr>");
     }
     output.push_str("</tbody></table></div>");
     output.into_piece()
+}
+
+/// HTML for one cmavo-list body cell.
+///
+/// An unlinked `[word]` word cell wraps the word in a Lojban span. A linked
+/// bracket and every ordinary cell render their inlines.
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_list_cell_html(
+    site: &CllSite,
+    cell: &CllCmavoListCell,
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    if let Some(inlines) = cell.word_inlines()
+        && let Some((word, None)) = cmavo_word_cell(inlines).and_then(CllCmavoWordCell::bracket)
+    {
+        let mut output = scope.buffer();
+        output.push('[');
+        output.push_str("<span class=\"spa-cll-jbophrase\" lang=\"jbo\">");
+        output.push_str(&escape_html_in_scope(word, scope));
+        output.push_str("</span>]");
+        return output.into_piece();
+    }
+    render_inlines_html(site, cell.inlines(), link_mode, scope)
 }
 
 #[requires(true)]

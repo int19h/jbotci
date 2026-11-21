@@ -2289,13 +2289,16 @@ fn render_cll_link_with_child(
 #[requires(true)]
 #[ensures(true)]
 fn render_cmavo_list_cell(
-    cell: &[CllInline],
+    cell: &CllCmavoListCell,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    if let Some(word_cell) = cmavo_word_cell(cell) {
+    let inlines = cell.inlines();
+    if cell.word_inlines().is_some()
+        && let Some(word_cell) = cmavo_word_cell(inlines)
+    {
         if let Some((word, target)) = word_cell.bracket() {
             return render_cmavo_bracket_cell(
                 word,
@@ -2316,13 +2319,15 @@ fn render_cmavo_list_cell(
         }
     }
     rsx! {
-        for inline in cell.iter() {
+        for inline in inlines.iter() {
             { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
         }
     }
 }
 
 /// `[word]` as one page-find string, with the link around the word only.
+///
+/// An unlinked word keeps a Lojban span. The class is `spa-cll-jbophrase`.
 #[requires(true)]
 #[ensures(true)]
 fn render_cmavo_bracket_cell(
@@ -2350,7 +2355,11 @@ fn render_cmavo_bracket_cell(
             script,
             word_node,
         ),
-        None => word_node,
+        None => rsx! {
+            span { class: "spa-cll-jbophrase", lang: "jbo",
+                {word_node}
+            }
+        },
     };
     rsx! {
         { render_page_find_pieces(page_find, &open) }
@@ -2365,7 +2374,7 @@ pub(super) fn render_cll_cmavo_list(
     id: Option<&str>,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,

@@ -2525,14 +2525,15 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
 /// `glossary="false"`, `valid="false"` or `valid="maybe"`. Every other cell
 /// keeps the inline links that the rest of the book uses.
 #[requires(cell.is_element())]
-#[ensures({
-    let word_cell = cell.has_tag_name("cmavo") || cell.has_tag_name("gismu");
-    if word_cell {
-        ret.iter()
-            .filter(|inline| matches!(inline, CllInline::Link { .. }))
-            .count()
-            <= 1
-            && ret.iter().all(|inline| match inline {
+#[ensures(match &ret {
+    CllCmavoListCell::Word { inlines } => {
+        (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
+            && inlines
+                .iter()
+                .filter(|inline| matches!(inline, CllInline::Link { .. }))
+                .count()
+                <= 1
+            && inlines.iter().all(|inline| match inline {
                 CllInline::Text(_) => true,
                 CllInline::Link {
                     kind: CllLinkKind::Dictionary,
@@ -2546,19 +2547,24 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
                 } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
                 _ => false,
             })
-    } else {
-        ret == trim_inline_runs(parse_inlines(cell))
+    }
+    CllCmavoListCell::Other { .. } => {
+        !(cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
     }
 })]
-fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> Vec<CllInline> {
+fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
         let text = cmavo_or_gismu_cell_text(cell);
-        if cmavo_cell_opted_out(cell) {
-            return cmavo_or_gismu_cell_inlines_from(&text, |_| None);
-        }
-        return cmavo_or_gismu_cell_inlines(&text);
+        let inlines = if cmavo_cell_opted_out(cell) {
+            cmavo_or_gismu_cell_inlines_from(&text, |_| None)
+        } else {
+            cmavo_or_gismu_cell_inlines(&text)
+        };
+        return CllCmavoListCell::Word { inlines };
     }
-    trim_inline_runs(parse_inlines(cell))
+    CllCmavoListCell::Other {
+        inlines: trim_inline_runs(parse_inlines(cell)),
+    }
 }
 
 /// The CLL build leaves this cell out of the cmavo-list glossary links.
@@ -2567,7 +2573,7 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> Vec<CllInline> {
 /// cell or on any element inside it.
 #[requires(cell.is_element())]
 #[ensures(true)]
-fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
+pub(crate) fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
     cell.descendants()
         .any(|node| node.is_element() && element_opts_out_of_cmavo_link(node))
 }
@@ -2616,7 +2622,9 @@ fn parse_cmavo_list_block(
                     entry_cells
                         .get(index)
                         .map(|cell| parse_cmavo_entry_cell(*cell))
-                        .unwrap_or_default()
+                        .unwrap_or_else(|| CllCmavoListCell::Other {
+                            inlines: Vec::new(),
+                        })
                 })
                 .collect::<Vec<_>>()
         })
@@ -4959,7 +4967,9 @@ mod tests {
             "an explicit valsi in a header keeps its link, got {headers:?}"
         );
 
-        let cell = |index: usize| rows[index][0].as_slice();
+        let cell = |index: usize| rows[index][0].inlines();
+        assert!(matches!(rows[0][0], CllCmavoListCell::Word { .. }));
+        assert!(matches!(rows[2][0], CllCmavoListCell::Other { .. }));
         assert!(is_dictionary_word_link(cell(0), "coi", "coi"));
         assert!(is_dictionary_word_link(cell(1), "klama", "klama"));
         assert_eq!(cell(2), [CllInline::Text("coi".to_owned())]);
@@ -5048,9 +5058,12 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::cmavo_cell_plain_text(&rows[0][0]), "[jundi]");
+        assert_eq!(
+            crate::cmavo_cell_plain_text(rows[0][0].inlines()),
+            "[jundi]"
+        );
         assert!(matches!(
-            rows[0][0].as_slice(),
+            rows[0][0].inlines(),
             [
                 CllInline::Text(open),
                 CllInline::Link {
@@ -5078,14 +5091,15 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::inline_plain_text(&rows[0][0]), "coico'o");
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), "coico'o");
         assert_eq!(
-            rows[0][0],
-            vec![CllInline::Link {
+            rows[0][0].inlines(),
+            [CllInline::Link {
                 target: "coico'o".to_owned(),
                 inlines: vec![CllInline::Text("coico'o".to_owned())],
                 kind: CllLinkKind::Dictionary,
             }]
+            .as_slice()
         );
     }
 
@@ -5101,9 +5115,9 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::inline_plain_text(&rows[0][0]), ".ui");
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), ".ui");
         assert!(
-            is_dictionary_word_link(&rows[0][0], ".ui", "ui"),
+            is_dictionary_word_link(rows[0][0].inlines(), ".ui", "ui"),
             "got {:?}",
             rows[0][0]
         );
@@ -5123,17 +5137,19 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::inline_plain_text(&rows[0][0]), "coi.co'o");
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), "coi.co'o");
         assert_eq!(
-            rows[0][0],
-            vec![CllInline::LanguageSpan {
+            rows[0][0].inlines(),
+            [CllInline::LanguageSpan {
                 kind: CllLanguageSpanKind::JboPhrase,
                 language: Some("jbo".to_owned()),
                 inlines: vec![CllInline::Text("coi.co'o".to_owned())],
             }]
+            .as_slice()
         );
         assert!(
             !rows[0][0]
+                .inlines()
                 .iter()
                 .any(|inline| matches!(inline, CllInline::Link { .. }))
         );
@@ -5163,6 +5179,73 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_dot_valsi_outside_a_word_cell_stays_plain() {
+        for cell_xml in [
+            "<description><valsi>.</valsi></description>",
+            "<description>[<valsi>.</valsi>]</description>",
+            "<description><valsi>...</valsi></description>",
+            "<selmaho><valsi>.</valsi></selmaho>",
+        ] {
+            let xml = format!(
+                "<cmavo-list><cmavo-entry><cmavo>coi</cmavo>{cell_xml}</cmavo-entry></cmavo-list>"
+            );
+            let (blocks, _) = probe_blocks(&xml);
+            let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+                panic!("expected one cmavo list, got {blocks:?}");
+            };
+            assert!(
+                matches!(rows[0][0], CllCmavoListCell::Word { .. }),
+                "{cell_xml}"
+            );
+            assert!(
+                matches!(rows[0][1], CllCmavoListCell::Other { .. }),
+                "{cell_xml}"
+            );
+            let inlines = rows[0][1].inlines();
+            assert!(
+                crate::cmavo_word_cell(inlines).is_none(),
+                "{cell_xml} reached the word view: {inlines:?}"
+            );
+            let expected = if cell_xml.contains("[<valsi>") {
+                "[ . ]"
+            } else if cell_xml.contains("...") {
+                "..."
+            } else {
+                "."
+            };
+            assert_eq!(crate::inline_plain_text(inlines), expected, "{cell_xml}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_english_bracket_in_a_description_stays_an_ordinary_cell() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry><cmavo>coi</cmavo>",
+            "<description>[idiom]</description>",
+            "<description>[<valsi>klama</valsi>]</description>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert!(matches!(rows[0][1], CllCmavoListCell::Other { .. }));
+        assert_eq!(
+            rows[0][1].inlines(),
+            [CllInline::Text("[idiom]".to_owned())].as_slice()
+        );
+        // `[idiom]` has the bracket shape. The ordinary cell is what keeps
+        // the reader from treating that text as a word cell.
+        assert!(rows[0][1].word_inlines().is_none());
+        assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "[idiom]");
+        assert!(matches!(rows[0][2], CllCmavoListCell::Other { .. }));
+        assert_eq!(crate::inline_plain_text(rows[0][2].inlines()), "[ klama ]");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn a_paragraph_keeps_spaces_inside_a_bracketed_valsi() {
         let alone = paragraph_text("<para>[<valsi>klama</valsi>]</para>");
         let after_text = paragraph_text("<para>see [<valsi>klama</valsi>]</para>");
@@ -5179,11 +5262,11 @@ mod tests {
             panic!("expected one cmavo list, got {blocks:?}");
         };
         assert!(
-            is_unlinked_lojban_word(&rows[0][0], text),
+            is_unlinked_lojban_word(rows[0][0].inlines(), text),
             "got {:?}",
             rows[0][0]
         );
-        assert_eq!(crate::inline_plain_text(&rows[0][0]), text);
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), text);
     }
 
     #[requires(!xml.is_empty())]

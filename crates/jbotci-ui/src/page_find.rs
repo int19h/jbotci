@@ -495,7 +495,12 @@ fn render_page_find_text(page_find: &PageFindContext, text: &str) -> Element {
     if text.is_empty() {
         return rsx! {};
     }
-    let pieces = page_find_pieces_for(page_find, text);
+    let key = page_find.text_key(text);
+    let matches = page_find.matches_for_key(key);
+    if matches.is_empty() {
+        return rsx! { "{text}" };
+    }
+    let pieces = page_find_render_pieces(text, matches);
     render_page_find_pieces(page_find, &pieces)
 }
 
@@ -914,10 +919,13 @@ fn collect_cll_table_cell_page_find_entries(
 #[ensures(true)]
 fn collect_cmavo_cell_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
-    cell: &[CllInline],
+    cell: &CllCmavoListCell,
     script: GentufaScript,
 ) {
-    if let Some(word_cell) = cmavo_word_cell(cell) {
+    let inlines = cell.inlines();
+    if cell.word_inlines().is_some()
+        && let Some(word_cell) = cmavo_word_cell(inlines)
+    {
         if let Some((word, _)) = word_cell.bracket() {
             let shown = display_cmavo_word(script, word);
             push_page_find_entry(entries, format!("[{shown}]"));
@@ -928,7 +936,7 @@ fn collect_cmavo_cell_page_find_entries(
             return;
         }
     }
-    collect_cll_inlines_page_find_entries(entries, cell, script, false);
+    collect_cll_inlines_page_find_entries(entries, inlines, script, false);
 }
 
 #[requires(true)]

@@ -12,9 +12,10 @@ use super::*;
 
 /// One cmavo or gismu cell that holds a single dictionary word.
 ///
-/// The importer builds only these two shapes for a word cell. Paragraphs and
-/// other cells do not use this view. `target` is the dictionary headword when
-/// the word links. It is absent when the word stays plain.
+/// Only a `cmavo` cell or a `gismu` cell uses this view. A description cell
+/// and every other column keep their plain inlines. `target` is the dictionary
+/// headword when the word links. It is absent when the word stays plain. An
+/// empty target is not a word cell.
 #[invariant(::Bracket { word, target } => {
     is_dictionary_token(word) && target.as_ref().is_none_or(|target| !target.is_empty())
 })]
@@ -52,7 +53,7 @@ pub fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
             let [CllInline::Text(word)] = inner.as_slice() else {
                 return None;
             };
-            is_dictionary_token(word).then(|| {
+            (!target.is_empty() && is_dictionary_token(word)).then(|| {
                 new!(CllCmavoWordCell::Bracket {
                     word,
                     target: Some(target.as_str()),
@@ -71,7 +72,7 @@ pub fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
             let [CllInline::Text(text)] = inner.as_slice() else {
                 return None;
             };
-            is_dictionary_token(text).then(|| {
+            (!target.is_empty() && is_dictionary_token(text)).then(|| {
                 new!(CllCmavoWordCell::Token {
                     text,
                     target: Some(target.as_str()),
@@ -220,7 +221,8 @@ pub(crate) fn bracketed_dictionary_word(text: &str) -> Option<&str> {
 /// `target_for` returns the dictionary headword for one candidate. A bracketed
 /// word that links keeps the brackets as text outside the link. A bracketed
 /// word that does not link is one text node. A token that does not link is one
-/// Lojban span, so its script does not depend on the dictionary.
+/// Lojban span, so its script does not depend on the dictionary. An empty
+/// target is one text node for both shapes.
 #[requires(text == text.trim())]
 #[ensures(cmavo_cell_joined_text(&ret) == text)]
 #[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
@@ -247,17 +249,18 @@ pub(crate) fn cmavo_or_gismu_cell_inlines_from<'word>(
     }
     if let Some(word) = bracketed_dictionary_word(text) {
         return match target_for(word) {
-            Some(target) => vec![
+            Some(target) if !target.is_empty() => vec![
                 CllInline::Text("[".to_owned()),
                 dictionary_word_link(target, word),
                 CllInline::Text("]".to_owned()),
             ],
-            None => vec![CllInline::Text(text.to_owned())],
+            _ => vec![CllInline::Text(text.to_owned())],
         };
     }
     if is_dictionary_token(text) {
         return match target_for(text) {
-            Some(target) => vec![dictionary_word_link(target, text)],
+            Some(target) if !target.is_empty() => vec![dictionary_word_link(target, text)],
+            Some(_) => vec![CllInline::Text(text.to_owned())],
             None => vec![lojban_word_span(text)],
         };
     }
@@ -432,6 +435,53 @@ mod tests {
             panic_is_type_invariant(token),
             "an empty token target must fail the type invariant"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_link_target_is_not_a_word_cell() {
+        let single = vec![CllInline::Link {
+            target: String::new(),
+            inlines: vec![CllInline::Text("coi".to_owned())],
+            kind: CllLinkKind::Dictionary,
+        }];
+        assert!(cmavo_word_cell(&single).is_none());
+
+        let bracket = vec![
+            CllInline::Text("[".to_owned()),
+            CllInline::Link {
+                target: String::new(),
+                inlines: vec![CllInline::Text("coi".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            },
+            CllInline::Text("]".to_owned()),
+        ];
+        assert!(cmavo_word_cell(&bracket).is_none());
+
+        let dot = vec![CllInline::Link {
+            target: String::new(),
+            inlines: vec![CllInline::Text(".".to_owned())],
+            kind: CllLinkKind::Dictionary,
+        }];
+        assert!(cmavo_word_cell(&dot).is_none());
+
+        let dots = vec![CllInline::Link {
+            target: String::new(),
+            inlines: vec![CllInline::Text("...".to_owned())],
+            kind: CllLinkKind::Dictionary,
+        }];
+        assert!(cmavo_word_cell(&dots).is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_lookup_target_is_plain_text() {
+        let cell = |text| cmavo_or_gismu_cell_inlines_from(text, |_| Some(""));
+        assert_eq!(cell("coi"), vec![CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell("[jundi]"), vec![CllInline::Text("[jundi]".to_owned())]);
+        assert_eq!(cell("-----"), vec![CllInline::Text("-----".to_owned())]);
     }
 
     #[requires(true)]

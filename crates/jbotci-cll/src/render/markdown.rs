@@ -885,7 +885,7 @@ fn render_cmavo_list_markdown(
     site: &CllSite,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
@@ -903,7 +903,7 @@ fn render_cmavo_list_markdown(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
+                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
                 })
@@ -930,7 +930,7 @@ fn render_cmavo_list_markdown(
         row.iter()
             .map(|cell| {
                 markdown_table_cell_text(
-                    &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                    &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
                     &scope,
                 )
             })
@@ -951,7 +951,7 @@ fn render_cmavo_list_discord(
     site: &CllSite,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
@@ -969,7 +969,7 @@ fn render_cmavo_list_discord(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
+                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
                 })
@@ -990,7 +990,7 @@ fn render_cmavo_list_discord(
         .collect::<Vec<_>>();
     let body = rows.iter().map(|row| {
         row.iter()
-            .map(|cell| single_line(&cmavo_cell_plain_text_in_scope(cell, &scope), &scope))
+            .map(|cell| single_line(&cmavo_list_cell_plain_text_in_scope(cell, &scope), &scope))
             .collect::<Vec<_>>()
     });
     push_discord_rows(std::iter::once(header).chain(body), output);
