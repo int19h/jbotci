@@ -279,6 +279,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertNotIn("sudo apt-get", job)
         self.assertIn("shellcheck", job)
         self.assertIn("g++", job)
+        self.assertIn("jq", job)
 
     def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
         self.assertIn(
