@@ -903,9 +903,13 @@ fn render_cmavo_list_markdown(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
-                        .trim()
-                        .to_owned()
+                    if let Some(parts) = cell.word_parts() {
+                        render_github_cmavo_word_parts(site, &parts, link_mode, &scope)
+                    } else {
+                        render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
+                            .trim()
+                            .to_owned()
+                    }
                 })
                 .filter(|cell| !cell.is_empty())
                 .collect::<Vec<_>>();
@@ -929,10 +933,16 @@ fn render_cmavo_list_markdown(
     let rendered_rows = rows.iter().map(|row| {
         row.iter()
             .map(|cell| {
-                markdown_table_cell_text(
-                    &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
-                    &scope,
-                )
+                if let Some(parts) = cell.word_parts() {
+                    // Part text is already escaped, including `|`. The table
+                    // helper would escape that pipe a second time.
+                    render_github_cmavo_word_parts(site, &parts, link_mode, &scope)
+                } else {
+                    markdown_table_cell_text(
+                        &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
+                        &scope,
+                    )
+                }
             })
             .collect::<Vec<_>>()
     });
@@ -943,6 +953,77 @@ fn render_cmavo_list_markdown(
             .len()
             .max(rows.iter().map(Vec::len).max().unwrap_or(0)),
     );
+}
+
+/// Characters that GitHub Markdown can read as markup in ordinary text.
+///
+/// A backslash before one of these characters keeps that character as text.
+/// The set covers links, emphasis, code, raw HTML, autolinks, strike-through,
+/// math, images, addresses, and table pipes.
+const GITHUB_PART_ESCAPED: &[char] = &[
+    '\\', '`', '*', '_', '[', ']', '(', ')', '<', '>', '~', '$', ':', '|', '!', '.', '@',
+];
+
+/// `text` with GitHub markup characters escaped.
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
+#[ensures(scope.is_exceeded() || !ret.contains("]("))]
+#[ensures(scope.is_exceeded() || !ret.contains("https://"))]
+#[ensures(scope.is_exceeded() || !ret.contains("http://"))]
+fn escape_github_part_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut escaped = scope.buffer();
+    for character in text.chars() {
+        if GITHUB_PART_ESCAPED.contains(&character) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped.into_piece()
+}
+
+/// GitHub text for adjacent valsi parts, as one word.
+///
+/// A linked part stays a dictionary link. An unlinked part is escaped, so
+/// markup in that part stays plain text. Plain mode escapes every part and
+/// writes no link. No space is added between parts.
+#[requires(parts.len() >= 2)]
+#[requires(parts.iter().all(|(text, target)| {
+    !text.is_empty() && target.is_none_or(|target| !target.is_empty())
+}))]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+#[ensures(scope.is_exceeded() || !ret.contains("https://"))]
+#[ensures(scope.is_exceeded() || !ret.contains("http://"))]
+#[ensures(scope.is_exceeded() || link_mode != CllLinkRenderMode::Plain || !ret.contains("]("))]
+fn render_github_cmavo_word_parts(
+    site: &CllSite,
+    parts: &[(&str, Option<&str>)],
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    match link_mode {
+        CllLinkRenderMode::Plain => {
+            let mut word = scope.buffer();
+            for (text, _) in parts {
+                word.push_str(&escape_github_part_text(text, scope));
+            }
+            word.into_piece()
+        }
+        CllLinkRenderMode::Web => {
+            let mut output = scope.buffer();
+            for (text, target) in parts {
+                if let Some(target) = target {
+                    output.push_str(&scope.format(format_args!(
+                        "[{}]({})",
+                        markdown_link_label_text(text, scope),
+                        cll_link_href(site, CllLinkKind::Dictionary, target)
+                    )));
+                } else {
+                    output.push_str(&escape_github_part_text(text, scope));
+                }
+            }
+            output.into_piece()
+        }
+    }
 }
 
 #[requires(true)]

@@ -2549,9 +2549,10 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 ///
 /// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. When
 /// the cell is only adjacent `valsi` elements, each element gets that
-/// decision on its own and the parts stay side by side. The book leaves a
-/// cell unlinked when the cell has `glossary="false"`, `valid="false"` or
-/// `valid="maybe"`. The same mark on one part leaves that part unlinked.
+/// decision on its own and the parts stay side by side. An empty `valsi`
+/// element is skipped, and each remaining element keeps its own decision.
+/// The book leaves a cell unlinked when the cell has `glossary="false"`,
+/// `valid="false"` or `valid="maybe"`. The same mark on one part leaves that part unlinked.
 /// A cell that is not a run of adjacent valsi elements stays unlinked when
 /// the cell, or an element inside it, has one of those marks. Every other
 /// cell keeps the inline links that the rest of the book uses.
@@ -2624,8 +2625,9 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
 /// The valsi parts of a cell whose whole content is those elements.
 ///
 /// Two or more `valsi` elements qualify when no text sits between them or
-/// around them. Whitespace is text. An index term, an anchor, and a hidden
-/// subtree are not text. A mark on a part is recorded for that part alone.
+/// around them. Whitespace between elements is text. An empty element is not
+/// a part, so it is skipped. An index term, an anchor, and a hidden subtree
+/// are not text. A mark on a part is recorded for that part alone.
 #[requires(cell.is_element())]
 #[ensures(ret.as_ref().is_none_or(|parts| {
     parts.len() >= 2 && parts.iter().all(|(text, _)| !text.is_empty())
@@ -2654,8 +2656,10 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<(String, bool)>> {
         let mut raw = String::new();
         append_cmavo_or_gismu_cell_text(child, &mut raw);
         let text = normalized_plain_text(&raw);
+        // An empty element is still the rule-12 shape. Skip it so the other
+        // parts keep their own links.
         if text.is_empty() {
-            return None;
+            continue;
         }
         parts.push((text, cmavo_cell_opted_out(child)));
     }
@@ -5454,6 +5458,51 @@ mod tests {
                 format!("{}*nai*", md_link("roi")),
                 "roinai".to_owned(),
             ),
+            (
+                "markup",
+                "<cmavo><valsi>roi</valsi><valsi>[x](https://example.invalid)</valsi></cmavo>",
+                "roi[x](https://example.invalid)",
+                format!("{}{}", link("roi"), span("[x](https://example.invalid)")),
+                format!("roi{}", span("[x](https://example.invalid)")),
+                format!(
+                    "{}{}",
+                    md_link("roi"),
+                    r"\[x\]\(https\://example\.invalid\)"
+                ),
+                format!("roi{}", r"\[x\]\(https\://example\.invalid\)"),
+                format!(
+                    "{}*{}*",
+                    md_link("roi"),
+                    r"\[x\]\(https\://example.invalid\)"
+                ),
+                format!("roi{}", r"\[x\]\(https\://example.invalid\)"),
+            ),
+            (
+                "html tag",
+                "<cmavo><valsi>roi</valsi><valsi>&lt;a href=&quot;https://example.invalid&quot;&gt;</valsi></cmavo>",
+                "roi<a href=\"https://example.invalid\">",
+                format!(
+                    "{}{}",
+                    link("roi"),
+                    span("&lt;a href=&quot;https://example.invalid&quot;&gt;")
+                ),
+                format!(
+                    "roi{}",
+                    span("&lt;a href=&quot;https://example.invalid&quot;&gt;")
+                ),
+                format!(
+                    "{}{}",
+                    md_link("roi"),
+                    r#"\<a href="https\://example\.invalid"\>"#
+                ),
+                format!("roi{}", r#"\<a href="https\://example\.invalid"\>"#),
+                format!(
+                    "{}*{}*",
+                    md_link("roi"),
+                    r#"\<a href="https\://example.invalid"\>"#
+                ),
+                format!("roi{}", r#"\<a href="https\://example.invalid"\>"#),
+            ),
         ];
         for (
             name,
@@ -5527,7 +5576,9 @@ mod tests {
                     assert_eq!(discord_web_text, fenced, "{name} discord web header");
                     assert_eq!(discord_plain_text, fenced, "{name} discord plain header");
                     assert!(!fenced.contains('*'), "{name}");
-                    assert!(!fenced.contains("]("), "{name}");
+                    if !plain.contains("](") {
+                        assert!(!fenced.contains("]("), "{name}");
+                    }
                 } else {
                     assert_eq!(
                         discord_web_text,
@@ -5555,6 +5606,41 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_valsi_part_keeps_its_neighbors_separate() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cell = word_cell_from_inner("<valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi>");
+        let expected = [("na'e", Some("na'e")), ("bo", Some("bo"))];
+        assert_eq!(cell.word_parts().as_deref(), Some(expected.as_slice()));
+        assert!(cell.word_cell().is_none());
+        assert_eq!(crate::cmavo_cell_plain_text(cell.inlines()), "na'ebo");
+        assert!(
+            !cell.inlines().iter().any(|inline| {
+                matches!(inline, CllInline::Link { target, .. } if target == "na'ebo")
+            }),
+            "{cell:?}"
+        );
+        let blank = word_cell_from_inner("<valsi>na'e</valsi><valsi> </valsi><valsi>bo</valsi>");
+        assert_eq!(blank.word_parts().as_deref(), Some(expected.as_slice()));
+        let block = cmavo_list_with_gloss(
+            "<cmavo><valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi></cmavo>",
+            false,
+        );
+        let web = markdown_of(
+            &site,
+            &block,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(
+            web,
+            github_list(false, &format!("{}{}", md_link("na'e"), md_link("bo")))
+        );
+        assert!(!web.contains("](../vlacku/na'ebo)"), "{web}");
     }
 
     #[requires(!word.is_empty())]

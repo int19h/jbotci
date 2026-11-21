@@ -913,11 +913,20 @@ fn page_find_joins_every_rule_twelve_shape_without_a_space() {
             vec![dictionary_part("roi"), lojban_part("nai")],
             "roinai",
         ),
+        (
+            "markup",
+            vec![
+                dictionary_part("roi"),
+                lojban_part("[x](https://example.invalid)"),
+            ],
+            "roi[x](https://example.invalid)",
+        ),
     ];
     for (name, inlines, latin_text) in shapes {
         let parts: Vec<&str> = match name {
             "non-token" => vec!["roi", "nai", "mi,o"],
             "one linked part" => vec!["roi", "mi,o"],
+            "markup" => vec!["roi", "[x](https://example.invalid)"],
             _ => vec!["roi", "nai"],
         };
         let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word { inlines }]]);
@@ -1027,6 +1036,69 @@ fn adjacent_valsi_parts_render_side_by_side_in_the_reader() {
     );
     assert!(
         !html.contains("</span> <span class=\"dictionary-tooltip-host\""),
+        "{html}"
+    );
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn MarkupPartApp() -> Element {
+    let pending = use_signal(|| None);
+    let rows = vec![
+        vec![CllCmavoListCell::Word {
+            inlines: vec![
+                dictionary_part("roi"),
+                lojban_part("[x](https://example.invalid)"),
+            ],
+        }],
+        vec![CllCmavoListCell::Word {
+            inlines: vec![
+                dictionary_part("roi"),
+                lojban_part("<a href=\"https://example.invalid\">"),
+            ],
+        }],
+    ];
+    let index = build_page_find_index("", &[]);
+    let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
+    render_cll_cmavo_list(
+        None,
+        &[],
+        &[],
+        &rows,
+        pending,
+        "",
+        GentufaScript::Latin,
+        &page_find,
+    )
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn markup_in_a_valsi_part_stays_text_in_the_reader() {
+    let mut dom = VirtualDom::new(MarkupPartApp);
+    dom.rebuild_in_place();
+    let html = dioxus::ssr::render(&dom);
+    assert!(
+        html.contains(
+            "<span class=\"spa-cll-jbophrase\" lang=\"jbo\">[x](https://example.invalid)</span>"
+        ),
+        "{html}"
+    );
+    assert!(
+        html.contains(
+            "<span class=\"spa-cll-jbophrase\" lang=\"jbo\">&#60;a href=&#34;https://example.invalid&#34;&#62;</span>"
+        ),
+        "{html}"
+    );
+    assert!(!html.contains("href=\"https://example.invalid\""), "{html}");
+    assert!(
+        !html.contains("<a href=\"https://example.invalid\">"),
+        "{html}"
+    );
+    assert!(
+        !html.contains("</span> <span class=\"spa-cll-jbophrase\""),
         "{html}"
     );
 }
