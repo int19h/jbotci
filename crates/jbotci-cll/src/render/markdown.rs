@@ -1160,7 +1160,8 @@ fn push_github_line(
 ///
 /// This is the one GitHub escaper. Book prose does not use it, because the
 /// reviewed section text is copied as it is. A cmavo-part run does use it.
-/// If `text` begins a line, pass `at_line_start` as true. A dictionary token
+/// If `text` begins a line, pass `at_line_start` as true. A line ends at LF,
+/// CRLF, or a lone CR. The ending stays in the output. A dictionary token
 /// such as `.ui` is unchanged. A token that contains `www.` is the exception.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
@@ -1180,16 +1181,14 @@ fn escape_github_markdown_in_scope(
 ) -> String {
     let mut escaped = scope.buffer();
     let mut previous_has_text = false;
-    for (index, line) in text.split('\n').enumerate() {
-        if index > 0 {
-            escaped.push('\n');
-        }
+    for (index, (line, ending)) in super::commonmark_lines(text).into_iter().enumerate() {
         push_github_line(
             &mut escaped,
             line,
             at_line_start || index > 0,
             previous_has_text,
         );
+        escaped.push_str(ending);
         previous_has_text = line.chars().any(|character| !character.is_whitespace());
     }
     escaped.into_piece()
@@ -1607,5 +1606,11 @@ mod tests {
         assert_eq!(github("Title\n===", false), "Title\n\\===");
         assert_eq!(github("Title\n\n=", true), "Title\n\n=");
         assert_eq!(github("Title\n= =", true), "Title\n= =");
+        assert_eq!(github("---\r\n", true), "\\---\r\n");
+        assert_eq!(github("Title\r\n==\r\n", true), "Title\r\n\\==\r\n");
+        assert_eq!(github("#\r\n", true), "\\#\r\n");
+        assert_eq!(github("1.\r\n", true), "1\\.\r\n");
+        assert_eq!(github("Title\r==\r", true), "Title\r\\==\r");
+        assert_eq!(github("---\r", true), "\\---\r");
     }
 }

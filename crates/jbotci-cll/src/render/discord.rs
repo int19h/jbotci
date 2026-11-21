@@ -24,15 +24,21 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
 /// A heading (`#`), subtext (`-#`), bullet (`-`, `+`), or ordered list
 /// (`1.`) is syntax at the start of a line. A space, a tab, or the end of
 /// the line follows the marker. If `line` begins a line, pass `at_line_start`
-/// as true. Every other escape is unconditional.
+/// as true. If `line` contains a CR, that CR is a line ending. The CR stays
+/// in the output. Every other escape is unconditional.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || !at_line_start || discord_marker_byte(&ret).is_none())]
+#[ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().enumerate().all(|(index, (content, _))| {
+    (index == 0 && !at_line_start) || discord_marker_byte(content).is_none()
+}))]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
 pub(crate) fn escape_discord_markdown_line_at(
     line: &str,
     scope: &jbotci_budget::TextScope,
     at_line_start: bool,
 ) -> String {
+    if line.as_bytes().contains(&b'\r') {
+        return escape_discord_markdown_at(line, scope, at_line_start);
+    }
     let marker_at = at_line_start.then(|| discord_marker_byte(line)).flatten();
     let mut escaped = scope.buffer();
     for (index, character) in line.char_indices() {
@@ -95,7 +101,9 @@ fn discord_marker_terminator(rest: &str) -> bool {
 
 /// Escape one line that begins at column zero.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || discord_marker_byte(&ret).is_none())]
+#[ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().all(|(content, _)| {
+    discord_marker_byte(content).is_none()
+}))]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
 pub fn escape_discord_markdown_line_in_scope(
     line: &str,
@@ -107,11 +115,12 @@ pub fn escape_discord_markdown_line_in_scope(
 /// Escape arbitrary text, line by line, so Discord renders it verbatim.
 ///
 /// The first line uses `at_line_start`. Each later line begins a line of its own.
+/// A line ends at LF, CRLF, or a lone CR. The ending stays in the output.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
 #[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
-#[ensures(scope.is_exceeded() || ret.split('\n').enumerate().all(|(index, line)| {
-    (index == 0 && !at_line_start) || discord_marker_byte(line).is_none()
+#[ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().enumerate().all(|(index, (content, _))| {
+    (index == 0 && !at_line_start) || discord_marker_byte(content).is_none()
 }))]
 pub(crate) fn escape_discord_markdown_at(
     text: &str,
@@ -119,15 +128,13 @@ pub(crate) fn escape_discord_markdown_at(
     at_line_start: bool,
 ) -> String {
     let mut escaped = scope.buffer();
-    for (index, line) in text.split('\n').enumerate() {
-        if index > 0 {
-            escaped.push('\n');
-        }
+    for (index, (line, ending)) in super::commonmark_lines(text).into_iter().enumerate() {
         escaped.push_str(&escape_discord_markdown_line_at(
             line,
             scope,
             at_line_start || index > 0,
         ));
+        escaped.push_str(ending);
     }
     escaped.into_piece()
 }
@@ -325,6 +332,10 @@ mod tests {
             escape_discord_markdown_line(":x: [a](b)"),
             "\\:x\\: \\[a\\]\\(b\\)"
         );
+        assert_eq!(escape_discord_markdown("#\r\n"), "\\#\r\n");
+        assert_eq!(escape_discord_markdown("1.\r\n"), "1\\.\r\n");
+        assert_eq!(escape_discord_markdown("#\r"), "\\#\r");
+        assert_eq!(escape_discord_markdown("a\r# b"), "a\r\\# b");
     }
 
     #[test]
