@@ -22,6 +22,8 @@ VERSION = 1
 OLD_TIME_NS = 946684800_000000000
 HASH = re.compile(r"[0-9a-f]{64}")
 UNIT_HASH = re.compile(r"-([0-9a-f]{16})(?:\.|$)")
+UNIT_ID = re.compile(r"[0-9a-f]{16}")
+CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
 
 
 class InputError(Exception):
@@ -31,6 +33,18 @@ class InputError(Exception):
 class Kind(str, Enum):
     COMPILE = "compile"
     RUN = "run"
+
+
+class FingerprintShape(str, Enum):
+    """The directory shape that holds one Cargo unit fingerprint.
+
+    CLASSIC is `<profile>/.fingerprint/<package>-<16 hex>/`.
+    BUILD_UNIT is `<profile>/build/<package>/<16 hex>/fingerprint/`.
+    The hash file, the metadata file, and the encoded dep-info file inside both shapes match.
+    """
+
+    CLASSIC = "classic"
+    BUILD_UNIT = "build-unit"
 
 
 def canonical(value: Any) -> bytes:
@@ -94,7 +108,32 @@ class Layout:
         roots = self.profiles if self.profiles is not None else (self.target,)
         found: list[Path] = []
         for root in roots:
-            found.extend(root.rglob(".fingerprint"))
+            if root.exists():
+                found.extend(path for path in root.rglob(".fingerprint") if path.is_dir())
+        return found
+
+    def build_unit_fingerprints(self) -> list[Path]:
+        """Return fingerprint directories stored beside each build-unit output."""
+        roots = self.profiles if self.profiles is not None else (self.target,)
+        found: list[Path] = []
+        for root in roots:
+            if not root.exists():
+                continue
+            for build in root.rglob("build"):
+                if not build.is_dir():
+                    continue
+                for package in build.iterdir():
+                    if not package.is_dir():
+                        continue
+                    for unit_dir in package.iterdir():
+                        if not unit_dir.is_dir() or not UNIT_ID.fullmatch(unit_dir.name):
+                            continue
+                        fingerprint = unit_dir / "fingerprint"
+                        if not fingerprint.exists():
+                            continue
+                        if not fingerprint.is_dir():
+                            raise InputError(f"A build-unit fingerprint is not a directory: {fingerprint}")
+                        found.append(fingerprint)
         return found
 
 
@@ -106,14 +145,20 @@ class Unit:
     kind: Kind
     metadata: dict
     cargo_hash: int
+    shape: FingerprintShape = FingerprintShape.CLASSIC
 
     @property
     def profile(self) -> Path:
-        return self.directory.parent.parent
+        if self.shape is FingerprintShape.CLASSIC:
+            return self.directory.parent.parent
+        # fingerprint / unit id / package / build / profile
+        return self.directory.parents[3]
 
     @property
     def suffix(self) -> str:
-        return self.directory.name.rsplit("-", 1)[1]
+        if self.shape is FingerprintShape.CLASSIC:
+            return self.directory.name.rsplit("-", 1)[1]
+        return self.directory.parent.name
 
     def fingerprint_digest(self) -> str:
         return sha((self.directory / self.stem).read_bytes() + (self.directory / (self.stem + ".json")).read_bytes())
@@ -123,27 +168,42 @@ class Unit:
         return (self.directory / self.stem).stat().st_mtime_ns > marker_ns
 
 
+def read_unit(layout: Layout, directory: Path, shape: FingerprintShape) -> Unit:
+    metadata_paths = sorted(path for path in directory.glob("*.json") if path.name != RECORD)
+    if len(metadata_paths) != 1:
+        raise InputError(f"A fingerprint directory must contain one metadata file: {directory}")
+    path = metadata_paths[0]
+    try:
+        data = json.loads(path.read_text())
+        short = (directory / path.stem).read_text()
+    except (OSError, json.JSONDecodeError) as error:
+        raise InputError(f"A fingerprint directory is unreadable: {directory}") from error
+    if not isinstance(data, dict) or not isinstance(data.get("deps"), list):
+        raise InputError(f"A fingerprint metadata file has no dependency list: {path}")
+    if not re.fullmatch(r"[0-9a-f]{16}", short):
+        raise InputError(f"A fingerprint hash file must contain 16 hex characters: {directory / path.stem}")
+    value = int.from_bytes(bytes.fromhex(short), "little")
+    kind = Kind.RUN if path.stem.startswith("run-build-script-") else Kind.COMPILE
+    key = directory.relative_to(layout.target).as_posix()
+    return Unit(key, directory, path.stem, kind, data, value, shape)
+
+
 def inventory(layout: Layout) -> dict[str, Unit]:
+    """Read every fingerprint directory. An unknown shape is an error."""
     result: dict[str, Unit] = {}
+
+    def add(unit: Unit) -> None:
+        if unit.key in result:
+            raise InputError(f"Two fingerprint directories use one unit key: {unit.key}")
+        result[unit.key] = unit
+
     for fingerprints in layout.fingerprint_dirs():
-        for directory in fingerprints.iterdir():
-            if not directory.is_dir() or not re.search(r"-[0-9a-f]{16}$", directory.name):
-                continue
-            metadata = [path for path in directory.glob("*.json") if path.name != RECORD]
-            if len(metadata) != 1:
-                continue
-            try:
-                path = metadata[0]
-                data = json.loads(path.read_text())
-                short = (directory / path.stem).read_text()
-                if not re.fullmatch(r"[0-9a-f]{16}", short):
-                    continue
-                value = int.from_bytes(bytes.fromhex(short), "little")
-                kind = Kind.RUN if path.stem.startswith("run-build-script-") else Kind.COMPILE
-                key = directory.relative_to(layout.target).as_posix()
-                result[key] = Unit(key, directory, path.stem, kind, data, value)
-            except (OSError, ValueError):
-                continue
+        for entry in fingerprints.iterdir():
+            if not entry.is_dir() or not CLASSIC_DIR.search(entry.name):
+                raise InputError(f"Unknown fingerprint entry: {entry}")
+            add(read_unit(layout, entry, FingerprintShape.CLASSIC))
+    for directory in layout.build_unit_fingerprints():
+        add(read_unit(layout, directory, FingerprintShape.BUILD_UNIT))
     return result
 
 
@@ -333,43 +393,55 @@ def record_signature(record: dict) -> str:
     return sha(canonical(record))
 
 
-def evict_directory(fingerprint: Path) -> None:
-    profile = fingerprint.parent.parent
-    suffix = fingerprint.name.rsplit("-", 1)[-1]
-    for directory in (profile / "deps", profile / "examples"):
-        if directory.is_dir():
-            for artifact in directory.iterdir():
-                match = UNIT_HASH.search(artifact.name)
-                if match and match[1] == suffix:
-                    remove(artifact)
-    remove(profile / "build" / fingerprint.name)
+def evict_unit(unit: Unit) -> None:
+    profile = unit.profile
+    if unit.shape is FingerprintShape.CLASSIC:
+        for directory in (profile / "deps", profile / "examples"):
+            if directory.is_dir():
+                for artifact in directory.iterdir():
+                    match = UNIT_HASH.search(artifact.name)
+                    if match and match[1] == unit.suffix:
+                        remove(artifact)
+        remove(profile / "build" / unit.directory.name)
+        remove(unit.directory)
+    else:
+        # The build-unit directory holds the fingerprint, the compiler output, and the script output.
+        remove(unit.directory.parent)
     # Incremental directories have session hashes. CI disables and discards them.
     remove(profile / "incremental")
-    remove(fingerprint)
-
-
-def evict_unit(unit: Unit) -> None:
-    evict_directory(unit.directory)
 
 
 def discard_unrecorded(layout: Layout, retained: set[str]) -> None:
-    for fingerprints in layout.fingerprint_dirs():
-        valid_hashes = set()
-        for directory in list(fingerprints.iterdir()):
-            if directory.relative_to(layout.target).as_posix() not in retained:
-                evict_directory(directory)
-            else:
-                valid_hashes.add(directory.name.rsplit("-", 1)[-1])
-        for directory in (fingerprints.parent / "deps", fingerprints.parent / "examples", fingerprints.parent / "build"):
-            if directory.exists():
-                for path in directory.iterdir():
-                    match = UNIT_HASH.search(path.name)
-                    if match and match[1] not in valid_hashes:
-                        remove(path)
+    units = inventory(layout)
+    valid_hashes: set[str] = set()
+    profiles: set[Path] = set()
+    for key, unit in units.items():
+        profiles.add(unit.profile)
+        if key not in retained:
+            evict_unit(unit)
+        else:
+            valid_hashes.add(unit.suffix)
+    for profile in profiles:
+        for directory in (profile / "deps", profile / "examples", profile / "build"):
+            if not directory.is_dir():
+                continue
+            for path in list(directory.iterdir()):
+                match = UNIT_HASH.search(path.name)
+                if match and match[1] not in valid_hashes:
+                    remove(path)
+                    continue
+                if not path.is_dir():
+                    continue
+                for child in list(path.iterdir()):
+                    if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
+                        continue
+                    fingerprint = child / "fingerprint"
+                    key = fingerprint.relative_to(layout.target).as_posix() if fingerprint.is_dir() else None
+                    if key not in retained:
+                        remove(child)
 
 
-def scrub_outputs(layout: Layout) -> None:
-    profiles = {path.parent for path in layout.fingerprint_dirs()}
+def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
     for profile in profiles:
         for entry in profile.iterdir():
             if entry.name not in ("deps", "build", "examples", ".fingerprint", ".cargo-lock"):
@@ -434,6 +506,8 @@ def normalize_checkout(workspace: Path) -> None:
 
 def restore(layout: Layout, normalize: bool = True) -> dict[str, int]:
     units = inventory(layout)
+    profiles = {unit.profile for unit in units.values()}
+    profiles.update(path.parent for path in layout.fingerprint_dirs())
     records: dict[str, dict] = {}
     for key, unit in units.items():
         try:
@@ -445,7 +519,7 @@ def restore(layout: Layout, normalize: bool = True) -> dict[str, int]:
         evict_unit(units[key])
     discard_unrecorded(layout, set(units) - bad)
     # Direct execution must never find a stale uplifted binary or DX bundle.
-    scrub_outputs(layout)
+    scrub_outputs(layout, profiles)
     if normalize:
         normalize_checkout(layout.workspace)
     return {"retained": len(units) - len(bad), "invalidated": len(bad)}
@@ -489,6 +563,17 @@ def journals(session: Path) -> tuple[dict[str, dict], dict[str, set[str]], set[s
     return descriptors, reads, writes
 
 
+def build_script_output(unit: Unit) -> Path:
+    """Return the file that stores the build script instructions for one run unit."""
+    if unit.shape is FingerprintShape.CLASSIC:
+        path = unit.profile / "build" / unit.directory.name / "output"
+    else:
+        path = unit.directory.parent / "run" / "stdout"
+    if not path.is_file():
+        raise InputError(f"A build script unit has no output file: {unit.key}")
+    return path
+
+
 def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Path, dict] | None = None) -> dict:
     package = Path(descriptor["package"])
     paths: list[Path] = [package / "Cargo.toml"]
@@ -506,7 +591,7 @@ def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Pa
         paths.extend(source)
         cargo_env = encoded_environment(unit.directory / ("dep-" + unit.stem))
     else:
-        output = (unit.profile / "build" / unit.directory.name / "output").read_text()
+        output = build_script_output(unit).read_text()
         declared = [line.split("=", 1)[1] for line in output.splitlines()
                     if line.startswith(("cargo:rerun-if-changed=", "cargo::rerun-if-changed="))]
         package_default = not declared
@@ -617,7 +702,9 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
             atomic_json(units[key].directory / RECORD, {"data": record, "sha256": record_signature(record)})
     discard_unrecorded(layout, set(units) - bad)
     if scrub:
-        scrub_outputs(layout)
+        profiles = {unit.profile for unit in units.values()}
+        profiles.update(path.parent for path in layout.fingerprint_dirs())
+        scrub_outputs(layout, profiles)
     return {"built": len(built), "recorded": len(built - bad), "discarded": len(bad),
             "retained": len(units) - len(bad),
             "dx_units": sum(bool(descriptors.get(key, {}).get("via_dx")) for key in built - bad)}

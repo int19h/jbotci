@@ -322,6 +322,170 @@ class CargoUnitTests(unittest.TestCase):
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events[0]["pending"]["1"]["operation"], "execve")
 
+    def test_inventory_reads_both_fingerprint_shapes(self) -> None:
+        classic = self.layout.target / "debug/.fingerprint/demo-0123456789abcdef"
+        build_unit = self.layout.target / "opt/build/demo/fedcba9876543210/fingerprint"
+        self.write_fingerprint(classic, "bin-demo", 42)
+        self.write_fingerprint(build_unit, "run-build-script-build-script-build", 42)
+        units = c.inventory(self.layout)
+        classic_key = classic.relative_to(self.layout.target).as_posix()
+        build_key = build_unit.relative_to(self.layout.target).as_posix()
+        self.assertEqual(set(units), {classic_key, build_key})
+        self.assertEqual(units[classic_key].shape, c.FingerprintShape.CLASSIC)
+        self.assertEqual(units[classic_key].kind, c.Kind.COMPILE)
+        self.assertEqual(units[classic_key].cargo_hash, 42)
+        self.assertEqual(units[classic_key].suffix, "0123456789abcdef")
+        self.assertEqual(units[build_key].shape, c.FingerprintShape.BUILD_UNIT)
+        self.assertEqual(units[build_key].kind, c.Kind.RUN)
+        self.assertEqual(units[build_key].cargo_hash, 42)
+        self.assertEqual(units[build_key].suffix, "fedcba9876543210")
+        self.assertEqual(units[build_key].profile, self.layout.target / "opt")
+
+    def test_unknown_fingerprint_entry_fails_closed(self) -> None:
+        fingerprints = self.layout.target / "debug/.fingerprint"
+        fingerprints.mkdir(parents=True)
+        (fingerprints / "notes").write_text("not a unit")
+        with self.assertRaisesRegex(c.InputError, "Unknown fingerprint entry"):
+            c.inventory(self.layout)
+
+    def test_two_metadata_files_fail_closed(self) -> None:
+        directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
+        self.write_fingerprint(directory, "bin-demo", 7)
+        (directory / "other.json").write_text('{"deps":[]}')
+        with self.assertRaisesRegex(c.InputError, "one metadata file"):
+            c.inventory(self.layout)
+
+    def test_a_short_fingerprint_hash_fails_closed(self) -> None:
+        directory = self.layout.target / "debug/.fingerprint/demo-0123456789abcdef"
+        directory.mkdir(parents=True)
+        (directory / "bin-demo").write_text("2a")
+        (directory / "bin-demo.json").write_text('{"deps":[]}')
+        with self.assertRaisesRegex(c.InputError, "16 hex characters"):
+            c.inventory(self.layout)
+
+    def test_a_fingerprint_file_in_place_of_a_directory_fails_closed(self) -> None:
+        unit = self.layout.target / "debug/build/demo/0123456789abcdef"
+        unit.mkdir(parents=True)
+        (unit / "fingerprint").write_text("not a directory")
+        with self.assertRaisesRegex(c.InputError, "not a directory"):
+            c.inventory(self.layout)
+
+    def test_build_script_output_follows_the_fingerprint_shape(self) -> None:
+        classic_dir = self.layout.target / "debug/.fingerprint/demo-0123456789abcdef"
+        classic_dir.mkdir(parents=True)
+        classic_output = self.layout.target / "debug/build/demo-0123456789abcdef/output"
+        classic_output.parent.mkdir(parents=True)
+        classic_output.write_text("cargo:rerun-if-changed=build.rs\n")
+        classic = c.Unit(
+            "classic", classic_dir, "run-build-script-build-script-build",
+            c.Kind.RUN, {"deps": []}, 1, c.FingerprintShape.CLASSIC,
+        )
+        self.assertEqual(c.build_script_output(classic), classic_output)
+        build_dir = self.layout.target / "opt/build/demo/fedcba9876543210/fingerprint"
+        build_dir.mkdir(parents=True)
+        build_output = build_dir.parent / "run/stdout"
+        build_output.parent.mkdir(parents=True)
+        build_output.write_text("cargo:rerun-if-changed=version.txt\n")
+        build_unit = c.Unit(
+            "build-unit", build_dir, "run-build-script-build-script-build",
+            c.Kind.RUN, {"deps": []}, 1, c.FingerprintShape.BUILD_UNIT,
+        )
+        self.assertEqual(c.build_script_output(build_unit), build_output)
+        self.assertEqual(build_unit.profile, self.layout.target / "opt")
+
+    def test_encoded_dep_info_bytes_match_both_observed_shapes(self) -> None:
+        # Cargo 1.99.1 and Cargo 1.100.0 write these same bytes for src/main.rs.
+        path = self.root / "dep-bin"
+        path.write_bytes(bytes.fromhex(
+            "01000000ff0101000000000b0000007372632f6d61696e2e72730000000000"))
+        self.assertEqual(c.encoded_environment(path), {})
+
+    def test_trace_binds_both_compiler_layouts(self) -> None:
+        target = self.layout.target
+        classic = target / "debug/.fingerprint/demo-0123456789abcdef"
+        classic.mkdir(parents=True)
+        plain = target / "debug/build/demo/fedcba9876543210/fingerprint"
+        plain.mkdir(parents=True)
+        hashed = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        hashed.mkdir(parents=True)
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        environment = '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]'
+        classic_out = target / "debug/deps"
+        plain_out = target / "debug/build/demo/fedcba9876543210/out"
+        hashed_out = target / "debug/build/demo/0123456789abcdef/out"
+        classic_script_out = target / "debug/build/demo-0123456789abcdef/out"
+        parser.feed([
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{classic_out}", '
+                f'"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], {environment}) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{plain_out}", '
+                f'"-C", "metadata=aaaaaaaaaaaaaaaa"], {environment}) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{hashed_out}", '
+                f'"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], {environment}) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("/tmp/build-script-build", ["build-script-build"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={plain_out}"]) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("{hashed_out}/build_script_build", ["{hashed_out}/build_script_build"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={plain_out}"]) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("/tmp/build-script-build", ["build-script-build"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={classic_script_out}"]) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        units = [event for event in events if event["event"] == "unit"]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"], event["dep_info"]) for event in units],
+            [
+                ("compile", "debug/.fingerprint/demo-0123456789abcdef",
+                 str(classic_out / "demo-0123456789abcdef.d")),
+                ("compile", "debug/build/demo/fedcba9876543210/fingerprint",
+                 str(plain_out / "demo.d")),
+                ("compile", "debug/build/demo/0123456789abcdef/fingerprint",
+                 str(hashed_out / "demo-0123456789abcdef.d")),
+                ("run", "debug/build/demo/fedcba9876543210/fingerprint", None),
+                ("run", "debug/build/demo/fedcba9876543210/fingerprint", None),
+                ("run", "debug/.fingerprint/demo-0123456789abcdef", None),
+            ],
+        )
+
+    def test_trace_rejects_an_unknown_cargo_rustc_layout(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([(
+            '1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "/tmp/other", '
+            '"-C", "metadata=0123456789abcdef"], ["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+        ).encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 1)
+        self.assertEqual(events[1]["reason"], "Unknown rustc unit layout")
+
+    def test_trace_ignores_rustc_without_cargo_metadata(self) -> None:
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([(
+            '1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "/tmp/other"], '
+            '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+        ).encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
+
+    def write_fingerprint(self, directory: Path, stem: str, cargo_hash: int) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / stem).write_text(cargo_hash.to_bytes(8, "little").hex())
+        (directory / f"{stem}.json").write_text('{"deps":[]}')
+
 
 if __name__ == "__main__":
     unittest.main()
