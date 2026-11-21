@@ -72,6 +72,44 @@ fn commonmark_line_has_text(line: &str) -> bool {
     line.bytes().any(|byte| byte != b' ' && byte != b'\t')
 }
 
+/// Writes `text` as lines of a Markdown block quote.
+///
+/// A line ends at LF, CRLF, or a lone CR. Those ending bytes stay on the
+/// line. Each line starts with `> `, and a blank line does too. Pass
+/// `prefix_first` as false when the caller already wrote `> **` on the
+/// first line. `commonmark_lines` adds an empty piece after the last
+/// ending. That piece is not a line.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn push_markdown_quote_lines(
+    output: &mut jbotci_budget::TextBuffer,
+    text: &str,
+    prefix_first: bool,
+) {
+    for (index, (content, ending)) in commonmark_lines(text).into_iter().enumerate() {
+        if content.is_empty() && ending.is_empty() {
+            break;
+        }
+        if prefix_first || index > 0 {
+            output.push_str("> ");
+        }
+        output.push_str(content);
+        output.push_str(ending);
+    }
+}
+
+/// Writes a rule-status note as a labelled block quote.
+///
+/// `body` is already rendered in the target Markdown dialect.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn push_status_note_markdown(output: &mut jbotci_budget::TextBuffer, body: &str) {
+    output.push_str("> **");
+    output.push_str(CLL_STATUS_NOTE_LABEL);
+    output.push_str(".** ");
+    push_markdown_quote_lines(output, body, false);
+}
+
 /// Appends a rule-status note as a labelled block quote.
 ///
 /// A status note is the edition's own annotation about the standing of the rule
@@ -94,15 +132,7 @@ pub fn status_note_markdown(body: &str) -> String {
 #[ensures(scope.is_exceeded() || (ret.contains(CLL_STATUS_NOTE_LABEL) && ret.starts_with("> **")))]
 pub fn status_note_markdown_in_scope(body: &str, scope: &jbotci_budget::TextScope) -> String {
     let mut output = scope.buffer();
-    output.push_str("> **");
-    output.push_str(CLL_STATUS_NOTE_LABEL);
-    output.push_str(".** ");
-    for (index, line) in body.lines().enumerate() {
-        if index > 0 {
-            output.push_str("\n> ");
-        }
-        output.push_str(line);
-    }
+    push_status_note_markdown(&mut output, body);
     output.into_piece()
 }
 

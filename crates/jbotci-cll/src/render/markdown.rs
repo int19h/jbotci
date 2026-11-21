@@ -67,15 +67,7 @@ pub(crate) fn render_block_markdown_to(
                 ))
             };
             if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
-                output.push_str("> **");
-                output.push_str(CLL_STATUS_NOTE_LABEL);
-                output.push_str(".** ");
-                for (index, line) in body.lines().enumerate() {
-                    if index != 0 {
-                        output.push_str("\n> ");
-                    }
-                    output.push_str(line);
-                }
+                push_status_note_markdown(output, &body);
             } else {
                 output.push_str(&body);
             }
@@ -246,12 +238,15 @@ pub(crate) fn render_block_markdown_to(
             for block in blocks {
                 render_block_markdown_to(site, block, &mut inner, depth, link_mode, dialect);
             }
-            for line in inner.trim().lines() {
-                output.push_str("> ");
-                output.push_str(line);
+            // The inner blocks end with a blank line. trim removes it.
+            // The quote writes that blank line again after its own lines.
+            let quoted = inner.trim();
+            if quoted.is_empty() {
                 output.push('\n');
+            } else {
+                push_markdown_quote_lines(output, quoted, true);
+                output.push_str("\n\n");
             }
-            output.push('\n');
         }
         CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
             output.push_str(&render_inlines_markdown(
@@ -1848,5 +1843,82 @@ mod tests {
             web,
             "| p\\|q<br>r | c<br>d | e<br>f |\n| --- | --- | --- |\n| g<br>h | i\\|j<br>k | l<br>m |\n\n"
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_dialect(block: &CllBlock, dialect: CllMarkdownDialect) -> String {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let mut output = String::new();
+        render_block_markdown(site, block, &mut output, 0, CllLinkRenderMode::Web, dialect);
+        output
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prose_paragraph(text: &str, status_note: bool) -> CllBlock {
+        CllBlock::Paragraph {
+            anchor_id: None,
+            role: status_note.then(|| CllParagraphRole::parse("status-note").expect("status note")),
+            inlines: Vec::new(),
+            text: text.to_owned(),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_quote_prefixes_every_line_and_keeps_the_line_ending() {
+        // `quoted` is the text after the first `> `, with each later line
+        // already marked. A blank line keeps its `> `.
+        let cases = [
+            ("first\rsecond", "first\r> second"),
+            ("first\r\rsecond", "first\r> \r> second"),
+            ("first\r# second", "first\r> # second"),
+            ("first\r\nsecond", "first\r\n> second"),
+            ("first\r\n\r\nsecond", "first\r\n> \r\n> second"),
+            ("first\r\n# second", "first\r\n> # second"),
+        ];
+        for (text, quoted) in cases {
+            let note = format!("> **{CLL_STATUS_NOTE_LABEL}.** {quoted}");
+            assert_eq!(status_note_markdown(text), note, "{text:?}");
+            assert_eq!(
+                render_dialect(&prose_paragraph(text, true), CllMarkdownDialect::GitHub),
+                format!("{note}\n\n"),
+                "status {text:?}"
+            );
+            assert_eq!(
+                render_dialect(
+                    &CllBlock::BlockQuote {
+                        id: None,
+                        blocks: vec![prose_paragraph(text, false)],
+                    },
+                    CllMarkdownDialect::GitHub,
+                ),
+                format!("> {quoted}\n\n"),
+                "quote {text:?}"
+            );
+        }
+        // Discord escapes the heading before the quote prefix. GitHub copies
+        // the book text, so the same heading stays `#`.
+        for (text, ending) in [("first\r# second", "\r"), ("first\r\n# second", "\r\n")] {
+            let discord_quoted = format!("first{ending}> \\# second");
+            assert_eq!(
+                render_dialect(&prose_paragraph(text, true), CllMarkdownDialect::Discord),
+                format!("> **{CLL_STATUS_NOTE_LABEL}.** {discord_quoted}\n\n"),
+                "discord status {text:?}"
+            );
+            assert_eq!(
+                render_dialect(
+                    &CllBlock::BlockQuote {
+                        id: None,
+                        blocks: vec![prose_paragraph(text, false)],
+                    },
+                    CllMarkdownDialect::Discord,
+                ),
+                format!("> {discord_quoted}\n\n"),
+                "discord quote {text:?}"
+            );
+        }
     }
 }

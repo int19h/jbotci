@@ -805,15 +805,7 @@ pub(crate) fn render_search_output_in_scope(
                 let preview = truncate_preview(&item.chunk.text, 420);
                 let preview = render::dialect_text_in_scope(&preview, dialect, &scope);
                 if item.chunk.is_status_note() {
-                    rendered.push_str("> **");
-                    rendered.push_str(CLL_STATUS_NOTE_LABEL);
-                    rendered.push_str(".** ");
-                    for (index, line) in preview.lines().enumerate() {
-                        if index != 0 {
-                            rendered.push_str("\n> ");
-                        }
-                        rendered.push_str(line);
-                    }
+                    render::push_status_note_markdown(&mut rendered, &preview);
                 } else {
                     rendered.push_str(&preview);
                 }
