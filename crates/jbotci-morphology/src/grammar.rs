@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::rc::Rc;
 
 use bityzba::{data, invariant, new, requires};
@@ -10,8 +11,8 @@ use jbotci_source::{SourceId, SourceSpan};
 use crate::cmavo::QuoteOpenerKind;
 use crate::segment::{
     MorphologyRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
-    next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
-    text_chars,
+    next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_nucleus,
+    syllable_has_explicit_stress, text_chars,
 };
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
@@ -1324,20 +1325,14 @@ impl<'a> Segmenter<'a> {
             let data!(StreamingWordCandidate { end, .. }) = candidate.into_data();
             return Some(end);
         }
-        let lookahead_end = normalized.normalized_chars.len();
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
             let relative_end = end - start;
-            let cmavo_end = normalized.normalized_char_end(relative_end)?;
-            if crate::segment::parse_cmavo_form_with_lookahead(
-                &normalized.normalized_chars,
-                0,
-                cmavo_end,
-                lookahead_end,
-            )
-            .is_none()
+            if normalized
+                .stripped_cmavo_phonemes(0, relative_end)
+                .is_none()
             {
                 continue;
             }
@@ -1858,10 +1853,19 @@ impl<'a> Segmenter<'a> {
         if crate::segment::is_cmevla_text(full_candidate) || blocks_brivla {
             return Some(None);
         }
-        if full_candidate
-            .chars()
-            .all(|value| matches!(value, 'y' | 'ý'))
-            && let Some(phonemes) = crate::segment::parse_cmavo_form(&full_candidate)
+        let Some(stripped_prefix) = normalized.stripped_chars.get(..local_stripped_end) else {
+            return Some(None);
+        };
+        if !stripped_prefix.is_empty()
+            && stripped_prefix
+                .iter()
+                .all(|value| matches!(value, 'y' | 'ý'))
+            && let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
+                stripped_prefix,
+                0,
+                stripped_prefix.len(),
+                stripped_prefix.len(),
+            )
         {
             return Some(Some(new!(StreamingWordCandidate {
                 end: candidate_end,
@@ -1881,22 +1885,13 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        let lookahead_end = normalized.normalized_chars.len();
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
             let relative_end = end - start;
             // The cluster after a stressed final nucleus can start in the next word.
-            let Some(cmavo_end) = normalized.normalized_char_end(relative_end) else {
-                continue;
-            };
-            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
-                &normalized.normalized_chars,
-                0,
-                cmavo_end,
-                lookahead_end,
-            ) else {
+            let Some(phonemes) = normalized.stripped_cmavo_phonemes(0, relative_end) else {
                 continue;
             };
             let Some(normalized_prefix) = normalized.slice_to_source_end(relative_end) else {
@@ -2731,7 +2726,7 @@ impl<'a> Segmenter<'a> {
         }
         normalized
             .normalized_chars_source_range(index - prefix_start, candidate_end - prefix_start)
-            .is_some_and(|normalized| !starts_with_pause_required_nucleus(normalized, 0))
+            .is_some_and(|normalized| !starts_with_nucleus(normalized, 0))
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -2747,21 +2742,10 @@ impl<'a> Segmenter<'a> {
             return false;
         }
         let relative_start = index - prefix_start;
-        let Some(norm_start) = normalized.normalized_char_end(relative_start) else {
-            return false;
-        };
-        let lookahead_end = normalized.normalized_chars.len();
         ((index + 1)..=candidate_end).any(|end| {
             let relative_end = end - prefix_start;
-            let Some(norm_end) = normalized.normalized_char_end(relative_end) else {
-                return false;
-            };
-            let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
-                &normalized.normalized_chars,
-                norm_start,
-                norm_end,
-                lookahead_end,
-            ) else {
+            let Some(phonemes) = normalized.stripped_cmavo_phonemes(relative_start, relative_end)
+            else {
                 return false;
             };
             let Some(normalized_prefix) =
@@ -2798,9 +2782,7 @@ impl<'a> Segmenter<'a> {
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| {
-                starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
-            })
+            .is_some_and(|normalized| starts_with_nucleus(&text_chars(&normalized), 0))
     }
 
     #[requires(index <= self.chars.len())]
@@ -3476,6 +3458,23 @@ impl NormalizedCandidate {
     fn stripped_end_to_source_end(&self, relative_end: usize) -> Option<usize> {
         self.source_stripped_char_ends.get(relative_end).copied()
     }
+
+    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
+    #[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
+    fn stripped_cmavo_phonemes(
+        &self,
+        relative_start: usize,
+        relative_end: usize,
+    ) -> Option<String> {
+        let stripped_start = self.stripped_end_to_source_end(relative_start)?;
+        let stripped_end = self.stripped_end_to_source_end(relative_end)?;
+        crate::segment::parse_cmavo_form_with_lookahead(
+            &self.stripped_chars,
+            stripped_start,
+            stripped_end,
+            self.stripped_chars.len(),
+        )
+    }
 }
 
 #[requires(!ends.is_empty())]
@@ -3721,27 +3720,25 @@ fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
-    let nuclei = stressable_nucleus_starts(chars);
+    // A falling diphthong is one nucleus. An acute on either vowel marks it.
+    let nuclei = stressable_nucleus_spans(chars);
     let stressed = nuclei
         .iter()
-        .copied()
-        .filter(|index| {
-            chars
-                .get(*index)
-                .is_some_and(|value| is_explicit_brivla_stress_mark(*value))
-        })
+        .filter(|range| syllable_has_explicit_stress(chars, range.start, range.end))
+        .map(|range| range.start)
         .collect::<Vec<_>>();
     nuclei
         .iter()
         .rev()
         .nth(1)
-        .is_some_and(|penultimate| stressed.as_slice() == [*penultimate])
+        .map(|range| range.start)
+        .is_some_and(|penultimate| stressed.as_slice() == [penultimate])
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
-    let mut starts = Vec::new();
+#[ensures(ret.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+fn stressable_nucleus_spans(chars: &[char]) -> Vec<Range<usize>> {
+    let mut spans = Vec::new();
     let mut index = 0;
     while index < chars.len() {
         if chars[index] == ',' {
@@ -3750,14 +3747,14 @@ fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
         }
         if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
             if stressable {
-                starts.push(index);
+                spans.push(index..end);
             }
             index = end;
         } else {
             index += 1;
         }
     }
-    starts
+    spans
 }
 
 #[requires(index <= chars.len())]
