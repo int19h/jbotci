@@ -480,13 +480,16 @@ class Parser:
             dep_info = None
             resolved = normalized_path(executable, process.cwd)
             # A candidate comes from the operation position in the traced target.
-            # An executable under a profile `build` directory is a build-script candidate.
+            # When its name starts with `build-script-` or `build_script_`, an executable
+            # under a profile `build` directory is a build-script candidate.
+            # A test binary in a unit `out` directory does not have that name.
             # A rustc call with Cargo metadata is a unit candidate.
             # The environment does not make that decision.
             # When a candidate differs from a known Cargo layout, raise TraceError.
             # A missing environment value, a malformed id, or an unknown shape is that difference.
             # An operation outside those positions is not a unit.
-            if under_profile_build(self.target, resolved):
+            script_name = resolved.name.startswith(("build-script-", "build_script_"))
+            if under_profile_build(self.target, resolved) and script_name:
                 if not package or not manifest or not out:
                     raise TraceError("Unknown build script unit layout")
                 out_dir = normalized_path(out, process.cwd)

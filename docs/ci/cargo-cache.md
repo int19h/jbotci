@@ -68,7 +68,8 @@ The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
 When the executable is inside the traced target, a rejected operation also records that path.
 The trace decides a candidate from the operation position in the traced target.
-An executable under a profile `build` directory is a build-script candidate.
+When its name starts with `build-script-` or `build_script_`, an executable under a profile `build` directory is a build-script candidate.
+A test binary in a unit `out` directory does not have that name.
 A `rustc` call with Cargo metadata is a unit candidate.
 The trace does not use environment values for that decision.
 When a candidate differs from a known Cargo layout, the trace rejects the operation.

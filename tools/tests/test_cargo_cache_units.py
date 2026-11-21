@@ -559,6 +559,15 @@ class CargoUnitTests(unittest.TestCase):
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events[-1]["errors"], 0)
         self.assertFalse(any(event["event"] == "unit" for event in events))
+        test_binary = target / "release/build/bityzba/fc33c4b6d4589c22/out/bityzba-fc33c4b6d4589c22"
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([(
+            f'1 execve("{test_binary}", ["{test_binary}"], {environment}) = 0\n'
+        ).encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
         inside = out / "sub/build-script-build"
         self.assert_trace_layout_error(
             f'1 execve("{inside}", ["{inside}"], {environment}) = 0\n',
@@ -604,9 +613,8 @@ class CargoUnitTests(unittest.TestCase):
         executables = (
             target / "debug/build/demo-nothex/build-script-build",
             target / "debug/build/demo/nothex/out/build_script_build",
-            target / "debug/build/other-tool",
         )
-        outputs = (classic_out, unit_out, unit_out)
+        outputs = (classic_out, unit_out)
         for executable, script_out in zip(executables, outputs, strict=True):
             with self.subTest(executable=executable.relative_to(target).as_posix()):
                 self.assert_trace_layout_error(
