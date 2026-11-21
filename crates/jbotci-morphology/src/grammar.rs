@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::rc::Rc;
 
 use bityzba::{data, invariant, new, requires};
@@ -10,7 +11,7 @@ use jbotci_source::{SourceId, SourceSpan};
 use crate::cmavo::QuoteOpenerKind;
 use crate::segment::{
     MorphologyRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
-    next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
+    next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_nucleus,
     syllable_has_explicit_stress, text_chars,
 };
 use crate::{
@@ -2725,7 +2726,7 @@ impl<'a> Segmenter<'a> {
         }
         normalized
             .normalized_chars_source_range(index - prefix_start, candidate_end - prefix_start)
-            .is_some_and(|normalized| !starts_with_pause_required_nucleus(normalized, 0))
+            .is_some_and(|normalized| !starts_with_nucleus(normalized, 0))
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -2781,9 +2782,7 @@ impl<'a> Segmenter<'a> {
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| {
-                starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
-            })
+            .is_some_and(|normalized| starts_with_nucleus(&text_chars(&normalized), 0))
     }
 
     #[requires(index <= self.chars.len())]
@@ -3725,21 +3724,20 @@ pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
     let nuclei = stressable_nucleus_spans(chars);
     let stressed = nuclei
         .iter()
-        .copied()
-        .filter(|(start, end)| syllable_has_explicit_stress(chars, *start, *end))
-        .map(|(start, _)| start)
+        .filter(|range| syllable_has_explicit_stress(chars, range.start, range.end))
+        .map(|range| range.start)
         .collect::<Vec<_>>();
     nuclei
         .iter()
         .rev()
         .nth(1)
-        .map(|(start, _)| *start)
+        .map(|range| range.start)
         .is_some_and(|penultimate| stressed.as_slice() == [penultimate])
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|(start, end)| *start < *end && *end <= chars.len()))]
-fn stressable_nucleus_spans(chars: &[char]) -> Vec<(usize, usize)> {
+#[ensures(ret.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+fn stressable_nucleus_spans(chars: &[char]) -> Vec<Range<usize>> {
     let mut spans = Vec::new();
     let mut index = 0;
     while index < chars.len() {
@@ -3749,7 +3747,7 @@ fn stressable_nucleus_spans(chars: &[char]) -> Vec<(usize, usize)> {
         }
         if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
             if stressable {
-                spans.push((index, end));
+                spans.push(index..end);
             }
             index = end;
         } else {

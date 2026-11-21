@@ -367,8 +367,19 @@ pub(crate) fn first_morphology_violation(
                 .map(|range| (MorphologyErrorKind::ForbiddenConsonantPair, range))
         })
         .or_else(|| {
-            slinkuhi_slice(&values, 0, values.len())
-                .then_some((MorphologyErrorKind::Slinkuhi, 0..values.len()))
+            // Strip commas here. The cached recognizer reads letters only.
+            // The diagnostic still covers the whole word, commas included.
+            let matched = if values.contains(&',') {
+                let letters = values
+                    .iter()
+                    .copied()
+                    .filter(|value| *value != ',')
+                    .collect::<Vec<_>>();
+                slinkuhi_slice(&letters, 0, letters.len())
+            } else {
+                slinkuhi_slice(&values, 0, values.len())
+            };
+            matched.then_some((MorphologyErrorKind::Slinkuhi, 0..values.len()))
         });
     range.and_then(|(kind, range)| violation_from_normalized_range(chars, kind, range))
 }
@@ -1779,7 +1790,12 @@ pub(crate) fn text_chars(text: &str) -> Vec<char> {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
-    let chars = text_chars(text);
+    // A comma marks a syllable. Filter it once, while this list is built.
+    // The parser reads the letters only.
+    let chars = text
+        .chars()
+        .filter(|value| *value != ',')
+        .collect::<Vec<_>>();
     parse_cmavo_form_chars(&chars)
 }
 
@@ -1814,117 +1830,49 @@ pub(crate) fn parse_cmavo_form_with_lookahead(
 }
 
 #[requires(index <= limit && limit <= chars.len())]
-#[ensures(ret.is_none_or(|found| found >= index && found < limit && chars[found] != ','))]
-fn next_letter_before(chars: &[char], index: usize, limit: usize) -> Option<usize> {
-    // A comma marks a syllable. The cmavo letter is the next other character.
-    let found = next_non_comma_index(chars, index)?;
-    (found < limit).then_some(found)
-}
-
-#[requires(index < limit && limit <= chars.len())]
-#[ensures(ret.is_none_or(|(_, nucleus)| nucleus > index && nucleus < limit))]
-fn cmavo_span_glide(chars: &[char], index: usize, limit: usize) -> Option<(char, usize)> {
+#[ensures(ret.is_none_or(|(_, nucleus)| nucleus == index + 1 && nucleus < limit))]
+fn cmavo_span_glide_end(chars: &[char], index: usize, limit: usize) -> Option<(char, usize)> {
     // The glide check sees only the cmavo span. A vowel past `limit` is lookahead.
+    if index >= limit {
+        return None;
+    }
     let glide = match chars[index] {
         'i' | 'í' | 'ĭ' => 'ĭ',
         'u' | 'ú' | 'ŭ' => 'ŭ',
         _ => return None,
     };
-    let nucleus = next_letter_before(chars, index + 1, limit)?;
-    if !starts_with_nucleus(&chars[..limit], nucleus) {
+    let nucleus = index + 1;
+    if nucleus >= limit || !starts_with_nucleus(&chars[..limit], nucleus) {
         return None;
     }
     Some((glide, nucleus))
 }
 
-#[requires(first <= span_end && span_end <= chars.len())]
-#[requires(count <= 3)]
-#[ensures(ret.is_none_or(|nucleus| nucleus >= first && nucleus <= span_end))]
-fn append_cmavo_initial(
-    chars: &[char],
-    first: usize,
-    span_end: usize,
-    count: usize,
-    output: &mut Option<&mut String>,
-) -> Option<usize> {
-    // Consonant slots skip commas. A comma is not one of the three letters.
-    let mut consonants = ['\0'; 3];
-    let mut index = first;
-    for slot in 0..count {
-        let letter = next_letter_before(chars, index, span_end)?;
-        let value = chars[letter];
-        if !is_consonant(value) {
-            return None;
-        }
-        consonants[slot] = value;
-        index = letter + 1;
-    }
-    let shape_ok = match count {
-        0 => true,
-        1 => true,
-        2 => initial_pair_chars(consonants[0], consonants[1]),
-        3 => {
-            is_sibilant(consonants[0])
-                && initial_pair_chars(consonants[0], consonants[1])
-                && initial_pair_chars(consonants[1], consonants[2])
-                && is_liquid(consonants[2])
-        }
-        _ => false,
-    };
-    if !shape_ok {
+#[requires(start <= span_end && span_end <= chars.len())]
+#[ensures(ret.is_none_or(|nucleus| nucleus == start + 1 && nucleus <= span_end))]
+fn cmavo_consonant_nucleus(chars: &[char], start: usize, span_end: usize) -> Option<usize> {
+    // One consonant. `!cluster` already rejects two consonants and three consonants.
+    if start >= span_end || !is_consonant(chars[start]) {
         return None;
     }
-    let nucleus = if let Some(next) = next_letter_before(chars, index, span_end) {
-        // The consonant run stops before another consonant or a glide.
-        if is_consonant(chars[next]) || cmavo_span_glide(chars, next, span_end).is_some() {
-            return None;
-        }
-        next
-    } else {
-        // The onset consumed every letter in the span. The tail then fails.
-        span_end
-    };
-    for slot in 0..count {
-        append_cmavo_char(output, consonants[slot]);
+    let nucleus = start + 1;
+    if nucleus < span_end
+        && (is_consonant(chars[nucleus])
+            || cmavo_span_glide_end(chars, nucleus, span_end).is_some())
+    {
+        return None;
     }
     Some(nucleus)
 }
 
-#[requires(
-    nucleus_start < after_nucleus
-        && after_nucleus <= cmavo_end
-        && cmavo_end <= lookahead_end
-        && lookahead_end <= chars.len()
-)]
-#[ensures(true)]
-fn accept_cmavo_nucleus(
-    chars: &[char],
-    nucleus_start: usize,
-    after_nucleus: usize,
-    cmavo_end: usize,
-    lookahead_end: usize,
-    output: &mut Option<&mut String>,
-    append_nucleus: impl FnOnce(&mut Option<&mut String>),
-) -> Option<()> {
-    match next_letter_before(chars, after_nucleus, cmavo_end) {
-        None => {
-            // No letter remains in the span. Trailing commas are syllable marks.
-            if !last_cmavo_nucleus_is_allowed(chars, nucleus_start, after_nucleus, lookahead_end) {
-                return None;
-            }
-            append_nucleus(output);
-            Some(())
-        }
-        Some(at) if chars[at] == '\'' => with_cmavo_output_rollback(output, |output| {
-            append_nucleus(output);
-            append_cmavo_char(output, '\'');
-            parse_cmavo_form_tail_span_into(chars, at + 1, cmavo_end, lookahead_end, output)
-        }),
-        Some(_) => None,
-    }
-}
-
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[bityzba::expensive_requires(
+    start <= lookahead_end
+        && lookahead_end <= chars.len()
+        && chars[start..lookahead_end]
+            .iter()
+            .all(|value| *value != ',')
+)]
 #[ensures(true)]
 fn parse_cmavo_form_span_into(
     chars: &[char],
@@ -1933,50 +1881,34 @@ fn parse_cmavo_form_span_into(
     lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
+    // The caller strips commas before this call. This parser reads letters only.
     if start >= end {
         return None;
     }
-    // A comma marks a syllable. It is not a cmavo letter. Read the letters in
-    // place. A second character list would allocate on every comma.
-    let mut letter_count = 0usize;
-    let mut all_y = true;
-    let mut only_digit = None;
-    let mut index = start;
-    while let Some(letter) = next_letter_before(chars, index, end) {
-        let value = chars[letter];
-        letter_count += 1;
-        if !is_y(value) {
-            all_y = false;
-        }
-        if letter_count == 1 && value.is_ascii_digit() {
-            only_digit = Some(value);
-        } else {
-            only_digit = None;
-        }
-        index = letter + 1;
-    }
-    if letter_count == 0 {
-        return None;
-    }
+    let span = &chars[start..end];
     // `y+` and a single digit stay whole-span matches. The cluster rule
     // belongs to the nucleus alternative only.
-    // `y+` consumes every following y. A comma between them is not a break.
-    if all_y {
-        if next_letter_before(chars, end, lookahead_end).is_some_and(|next| is_y(chars[next])) {
+    // `y+` consumes every following y. The caller already removed commas.
+    if span.iter().all(|value| is_y(*value)) {
+        if end < lookahead_end && is_y(chars[end]) {
             return None;
         }
-        index = start;
-        while let Some(letter) = next_letter_before(chars, index, end) {
-            append_cmavo_char(output, chars[letter]);
-            index = letter + 1;
-        }
+        append_cmavo_chars(output, span);
         return Some(());
     }
-    if let Some(digit) = only_digit {
-        append_cmavo_str(output, digit_to_cmavo(digit)?);
+    if span.len() == 1 && span[0].is_ascii_digit() {
+        append_cmavo_str(output, digit_to_cmavo(span[0])?);
         return Some(());
     }
     parse_cmavo_form_main_span_into(chars, start, end, lookahead_end, output)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_chars(output: &mut Option<&mut String>, chars: &[char]) {
+    if let Some(text) = output.as_mut() {
+        text.extend(chars.iter().copied());
+    }
 }
 
 #[requires(true)]
@@ -2005,33 +1937,27 @@ fn parse_cmavo_form_main_span_into(
     output: &mut Option<&mut String>,
 ) -> Option<()> {
     // cmavo_form <- !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster)
-    // `!h` and the onset read letters. A comma before them is not a letter.
-    let Some(first) = next_letter_before(chars, start, end) else {
-        return None;
-    };
-    if chars[first] == '\'' || consonant_cluster_follows(chars, first, lookahead_end) {
+    // The buffer has no comma. `!cluster` already rejects two consonants.
+    if start >= end
+        || chars[start] == '\''
+        || consonant_cluster_follows(chars, start, lookahead_end)
+    {
         return None;
     }
-    if let Some((glide, nucleus)) = cmavo_span_glide(chars, first, end)
-        && with_cmavo_output_rollback(output, |output| {
+    if let Some((glide, nucleus)) = cmavo_span_glide_end(chars, start, end) {
+        return with_cmavo_output_rollback(output, |output| {
             append_cmavo_char(output, glide);
             parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
-        })
-        .is_some()
-    {
-        return Some(());
+        });
     }
-    for count in [3, 2, 1, 0] {
-        if with_cmavo_output_rollback(output, |output| {
-            let nucleus = append_cmavo_initial(chars, first, end, count, output)?;
+    if is_consonant(chars[start]) {
+        let nucleus = cmavo_consonant_nucleus(chars, start, end)?;
+        return with_cmavo_output_rollback(output, |output| {
+            append_cmavo_char(output, chars[start]);
             parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
-        })
-        .is_some()
-        {
-            return Some(());
-        }
+        });
     }
-    None
+    parse_cmavo_form_tail_span_into(chars, start, end, lookahead_end, output)
 }
 
 #[requires(index <= cmavo_end && cmavo_end <= lookahead_end && lookahead_end <= chars.len())]
@@ -2043,47 +1969,57 @@ fn parse_cmavo_form_tail_span_into(
     lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
-    // The nucleus starts on a letter. Commas before it are syllable marks.
     // The nucleus productions read through `lookahead_end`. Cutting the buffer
     // at `cmavo_end` would hide a following vowel, and `!nucleus` would succeed
     // on a letter that is still inside a diphthong.
-    let Some(index) = next_letter_before(chars, index, cmavo_end) else {
-        return None;
-    };
     let visible = &chars[..lookahead_end];
     if let Some((semivowel, after_nucleus)) = parse_diphthong_end(visible, index)
         && after_nucleus <= cmavo_end
-        && accept_cmavo_nucleus(
-            chars,
-            index,
-            after_nucleus,
-            cmavo_end,
-            lookahead_end,
-            output,
-            |output| {
-                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
-            },
-        )
-        .is_some()
     {
-        return Some(());
+        if after_nucleus == cmavo_end {
+            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
+                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
+                return Some(());
+            }
+        } else if chars.get(after_nucleus) == Some(&'\'')
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_span_into(
+                    chars,
+                    after_nucleus + 1,
+                    cmavo_end,
+                    lookahead_end,
+                    output,
+                )
+            })
+            .is_some()
+        {
+            return Some(());
+        }
     }
     if let Some(after_nucleus) = parse_single_vowel_end(visible, index)
         && after_nucleus <= cmavo_end
     {
         let value = chars[index];
-        if accept_cmavo_nucleus(
-            chars,
-            index,
-            after_nucleus,
-            cmavo_end,
-            lookahead_end,
-            output,
-            |output| {
+        if after_nucleus == cmavo_end {
+            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
                 append_cmavo_single_nucleus(output, value);
-            },
-        )
-        .is_some()
+                return Some(());
+            }
+        } else if chars.get(after_nucleus) == Some(&'\'')
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_single_nucleus(output, value);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_span_into(
+                    chars,
+                    after_nucleus + 1,
+                    cmavo_end,
+                    lookahead_end,
+                    output,
+                )
+            })
+            .is_some()
         {
             return Some(());
         }
@@ -2436,8 +2372,8 @@ fn invalid_apostrophe_range(chars: &[char]) -> Option<Range<usize>> {
         // A comma before the next vowel is a syllable mark. It does not break the apostrophe.
         let preceded = previous_non_comma(chars, index)
             .is_some_and(|(_, previous)| can_precede_apostrophe(previous));
-        let followed = next_non_comma_index(chars, index + 1)
-            .is_some_and(|next| starts_with_nucleus(chars, next));
+        // `starts_with_nucleus` reads past a comma. The comma is a syllable mark.
+        let followed = starts_with_nucleus(chars, index + 1);
         (!preceded || !followed).then_some(index..index + 1)
     })
 }
@@ -2655,7 +2591,7 @@ fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool
     let Some((_, previous)) = previous_non_comma(chars, index) else {
         return false;
     };
-    if next_starts_nucleus(chars, index + 1) {
+    if starts_with_nucleus(chars, index + 1) {
         return false;
     }
     matches!(
@@ -2670,16 +2606,7 @@ fn starts_glide(chars: &[char], index: usize) -> bool {
     matches!(
         chars.get(index).copied(),
         Some('i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ')
-    ) && next_starts_nucleus(chars, index + 1)
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn next_starts_nucleus(chars: &[char], mut index: usize) -> bool {
-    while chars.get(index) == Some(&',') {
-        index += 1;
-    }
-    starts_with_nucleus(chars, index)
+    ) && starts_with_nucleus(chars, index + 1)
 }
 
 #[requires(index <= chars.len())]
@@ -3537,7 +3464,7 @@ fn prefix_post_word_slice_with_cache(
     let result = match next_non_comma_index(chars, index) {
         None => true,
         Some(next) if next >= end || is_separator(chars[next]) => true,
-        Some(next) if starts_with_pause_required_nucleus(chars, next) => false,
+        Some(next) if starts_with_nucleus(chars, next) => false,
         Some(next) => prefix_lojban_word_slice_with_cache(chars, next, end, cache),
     };
     cache.record_prefix_post_word(index, end, result);
@@ -3614,17 +3541,8 @@ fn prefix_cmavo_post_word_before_end(
     end: usize,
     cache: &mut MorphologyRecognitionCache,
 ) -> bool {
-    // The next word starts on a non-comma. A nucleus there is not a valid follower.
-    let Some(index) = next_non_comma_index(chars, prefix_end) else {
-        return true;
-    };
-    if index >= end || is_separator(chars[index]) {
-        return true;
-    }
-    if starts_with_pause_required_nucleus(chars, index) {
-        return false;
-    }
-    prefix_lojban_word_slice_with_cache(chars, index, end, cache)
+    // The next word uses the cached post_word predicate.
+    prefix_post_word_slice_with_cache(chars, prefix_end, end, cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -4482,20 +4400,12 @@ fn slinkuhi_slice_with_cache(
     if let Some(result) = cache.slinkuhi(start, end) {
         return result;
     }
-    // A comma is not a letter. Slinku'i reads the same consonants with or without it.
-    let result = if chars[start..end].contains(&',') {
-        let stripped = chars[start..end]
-            .iter()
-            .copied()
-            .filter(|value| *value != ',')
-            .collect::<Vec<_>>();
-        slinkuhi_slice(&stripped, 0, stripped.len())
-    } else {
-        start < end
-            && !rafsi_string_starts_slice_with_cache(chars, start, end, cache)
-            && is_consonant(chars[start])
-            && rafsi_string_starts_slice_with_cache(chars, start + 1, end, cache)
-    };
+    // slinkuhi <- !rafsi_string consonant rafsi_string
+    // The caller strips commas. This recognizer reads letters only.
+    let result = start < end
+        && !rafsi_string_starts_slice_with_cache(chars, start, end, cache)
+        && is_consonant(chars[start])
+        && rafsi_string_starts_slice_with_cache(chars, start + 1, end, cache);
     cache.record_slinkuhi(start, end, result);
     result
 }
@@ -5047,7 +4957,7 @@ fn post_word_slice_with_cache(
         None => true,
         Some(next) => {
             next >= end
-                || (!starts_with_pause_required_nucleus(chars, next)
+                || (!starts_with_nucleus(chars, next)
                     && lojban_word_slice_with_cache(chars, next, end, cache))
         }
     };
@@ -5242,7 +5152,7 @@ fn optional_rafsi_h_end(chars: &[char], index: usize, limit: usize) -> usize {
     if apostrophe_at >= limit || chars[apostrophe_at] != '\'' {
         return index;
     }
-    if apostrophe_at + 1 <= limit && starts_with_nucleus(chars, apostrophe_at + 1) {
+    if starts_with_nucleus(chars, apostrophe_at + 1) {
         return apostrophe_at + 1;
     }
     index
@@ -5251,7 +5161,8 @@ fn optional_rafsi_h_end(chars: &[char], index: usize, limit: usize) -> usize {
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
-    // The first apostrophe belongs to `hy`. It does not need a nucleus before `y`.
+    // The first apostrophe of `hy` takes `y` as its nucleus. `klama'ybra` is the case.
+    // The second apostrophe still uses `optional_rafsi_h_end`.
     if chars.get(index) == Some(&'\'') && chars.get(index + 1).is_some_and(|value| is_y(*value)) {
         Some(optional_rafsi_h_end(chars, index + 2, chars.len()))
     } else {
@@ -5570,7 +5481,7 @@ fn cmavo_post_word_slice_with_cache(
         let result = match next_non_comma_index(chars, prefix_end) {
             None => true,
             Some(index) if index >= end => true,
-            Some(index) if starts_with_pause_required_nucleus(chars, index) => false,
+            Some(index) if starts_with_nucleus(chars, index) => false,
             Some(index) => lojban_word_slice_with_cache(chars, index, end, cache),
         };
         cache.record_cmavo_post_word(prefix_start, prefix_end, end, result);
@@ -5765,15 +5676,6 @@ fn is_cmevla_slice(chars: &[char], start: usize, end: usize) -> bool {
         && chars[end - 1].is_ascii_lowercase()
         && is_consonant(chars[end - 1])
         && !blocks_word_shape(&chars[start..end])
-}
-
-#[requires(start <= chars.len())]
-#[ensures(true)]
-pub(crate) fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
-    let Some(start) = next_non_comma_index(chars, start) else {
-        return false;
-    };
-    starts_with_nucleus(chars, start)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -7554,10 +7456,58 @@ mod tests {
         assert_eq!(parse_cmavo_form("í,a"), parse_cmavo_form("ía"));
         assert_eq!(parse_cmavo_form("i,á"), parse_cmavo_form("iá"));
         assert_eq!(parse_cmavo_form("c,c"), None);
-        // `y+` consumes the following y. The first y of `y,yy` is not a cmavo.
-        let yyy = text_chars("y,yy");
+        assert_eq!(parse_cmavo_form(",coi"), parse_cmavo_form("coi"));
+        assert_eq!(parse_cmavo_form("coi,"), parse_cmavo_form("coi"));
+        assert_eq!(parse_cmavo_form("m,,i"), parse_cmavo_form("mi"));
+        assert_eq!(parse_cmavo_form("b,a,'a"), parse_cmavo_form("ba'a"));
+        // The parser sees letters only. `parse_cmavo_form` strips the commas.
+        // `y+` consumes the following y. The first y of `yyy` is not a cmavo.
+        let yyy = text_chars("yyy");
         assert!(!super::is_cmavo_form_span(&yyy, 0, 1, yyy.len()));
         assert!(super::is_cmavo_form_span(&yyy, 0, yyy.len(), yyy.len()));
+        for word in comma_property_words() {
+            let Some(plain) = parse_cmavo_form(&word) else {
+                continue;
+            };
+            let chars: Vec<char> = word.chars().collect();
+            for at in 0..=chars.len() {
+                if !comma_insert_keeps_letters(&chars, at) {
+                    continue;
+                }
+                let (inserted, _) = insert_commas(&chars, &[at]);
+                assert_eq!(
+                    parse_cmavo_form(&inserted).as_deref(),
+                    Some(plain.as_str()),
+                    "comma in {word} at {at} gives {inserted}"
+                );
+                if at > 0 && at < chars.len() {
+                    let (doubled, _) = insert_commas(&chars, &[at, at]);
+                    assert_eq!(
+                        parse_cmavo_form(&doubled).as_deref(),
+                        Some(plain.as_str()),
+                        "doubled comma in {word} at {at} gives {doubled}"
+                    );
+                }
+            }
+            if chars.len() <= 6 && chars.iter().all(|value| !value.is_whitespace()) {
+                for left in 0..=chars.len() {
+                    if !comma_insert_keeps_letters(&chars, left) {
+                        continue;
+                    }
+                    for right in left..=chars.len() {
+                        if !comma_insert_keeps_letters(&chars, right) {
+                            continue;
+                        }
+                        let (inserted, _) = insert_commas(&chars, &[left, right]);
+                        assert_eq!(
+                            parse_cmavo_form(&inserted).as_deref(),
+                            Some(plain.as_str()),
+                            "commas in {word} at {left} and {right} give {inserted}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -7687,35 +7637,56 @@ mod tests {
             ("maii,an", "maiian"),
             ("ba'a,e", "ba'ae"),
             ("aii,a", "aiia"),
+            ("sli,nku'i", "slinku'i"),
         ] {
-            let comma_at = with_comma.chars().position(|value| value == ',');
+            let commas = comma_indexes_of(with_comma);
             assert_eq!(
-                segment_signature(with_comma, comma_at, true),
-                segment_signature(plain, None, true),
+                segment_signature(with_comma, &commas, true),
+                segment_signature(plain, &[], true),
                 "{with_comma} and {plain}"
             );
         }
         let words = comma_property_words();
         assert!(words.len() > 100, "the comma word set is too small");
         for word in words {
-            let base = segment_signature(&word, None, true);
+            let base = segment_signature(&word, &[], true);
             let chars: Vec<char> = word.chars().collect();
-            for at in 1..chars.len() {
-                if chars[at - 1].is_whitespace() || chars[at].is_whitespace() {
+            for at in 0..=chars.len() {
+                if !comma_insert_keeps_letters(&chars, at) {
                     continue;
                 }
-                let mut inserted = String::new();
-                for (index, value) in chars.iter().copied().enumerate() {
-                    if index == at {
-                        inserted.push(',');
-                    }
-                    inserted.push(value);
-                }
+                let (inserted, indexes) = insert_commas(&chars, &[at]);
                 assert_eq!(
-                    segment_signature(&inserted, Some(at), true),
+                    segment_signature(&inserted, &indexes, true),
                     base,
                     "comma in {word} at {at} gives {inserted}"
                 );
+                if at > 0 && at < chars.len() {
+                    let (doubled, doubled_indexes) = insert_commas(&chars, &[at, at]);
+                    assert_eq!(
+                        segment_signature(&doubled, &doubled_indexes, true),
+                        base,
+                        "doubled comma in {word} at {at} gives {doubled}"
+                    );
+                }
+            }
+            if chars.len() <= 6 && chars.iter().all(|value| !value.is_whitespace()) {
+                for left in 0..=chars.len() {
+                    if !comma_insert_keeps_letters(&chars, left) {
+                        continue;
+                    }
+                    for right in left..=chars.len() {
+                        if !comma_insert_keeps_letters(&chars, right) {
+                            continue;
+                        }
+                        let (inserted, indexes) = insert_commas(&chars, &[left, right]);
+                        assert_eq!(
+                            segment_signature(&inserted, &indexes, true),
+                            base,
+                            "commas in {word} at {left} and {right} give {inserted}"
+                        );
+                    }
+                }
             }
         }
     }
@@ -7740,7 +7711,7 @@ mod tests {
     fn acute_signature(source: &str) -> String {
         // A rejection quotes the source. The acute can sit on either vowel there.
         // Move that echo before the compare. Accepted phonemes stay as written.
-        let signature = segment_signature(source, None, false);
+        let signature = segment_signature(source, &[], false);
         if signature.starts_with("err:") {
             relocate_offglide_acute(&signature)
         } else {
@@ -7750,11 +7721,7 @@ mod tests {
 
     #[requires(!source.is_empty())]
     #[ensures(!ret.is_empty())]
-    fn segment_signature(
-        source: &str,
-        comma_at: Option<usize>,
-        allow_comma_warnings: bool,
-    ) -> String {
+    fn segment_signature(source: &str, comma_indexes: &[usize], strip_commas: bool) -> String {
         let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
             source,
             &crate::MorphologyOptions::default(),
@@ -7762,7 +7729,7 @@ mod tests {
         );
         let data = attempt.into_data();
         let render = |text: &str| {
-            if allow_comma_warnings {
+            if strip_commas {
                 strip_signature_commas(text)
             } else {
                 text.to_owned()
@@ -7775,17 +7742,17 @@ mod tests {
                 format!(
                     "{:?}:{}:{}:{}",
                     warning.kind,
-                    map_comma_pos(warning.char_start, comma_at),
-                    map_comma_pos(warning.char_end, comma_at),
+                    map_comma_pos(warning.char_start, comma_indexes),
+                    map_comma_pos(warning.char_end, comma_indexes),
                     render(&warning.text)
                 )
             })
             .collect::<Vec<_>>()
             .join(",");
         // Compare classes, character spans, and phonemes.
-        // A comma shifts later indexes by one. Byte spans differ when an acute is wider.
+        // Each inserted comma shifts later indexes. Byte spans differ when an acute is wider.
         let adjust_prefix_index = |prefix: &str, index: usize| {
-            if !allow_comma_warnings {
+            if !strip_commas {
                 return index;
             }
             let skipped = prefix
@@ -7846,8 +7813,8 @@ mod tests {
                         .map(|span| {
                             format!(
                                 "{}:{}",
-                                map_comma_pos(span.char_start, comma_at),
-                                map_comma_pos(span.char_end, comma_at)
+                                map_comma_pos(span.char_start, comma_indexes),
+                                map_comma_pos(span.char_end, comma_indexes)
                             )
                         })
                         .collect::<Vec<_>>()
@@ -7879,8 +7846,8 @@ mod tests {
                     ..
                 } => format!(
                     "err:{kind:?}:{}:{}:{}:{}",
-                    map_comma_pos(char_start, comma_at),
-                    map_comma_pos(char_end, comma_at),
+                    map_comma_pos(char_start, comma_indexes),
+                    map_comma_pos(char_end, comma_indexes),
                     render(&text),
                     format_detail(detail.as_ref())
                 ),
@@ -7890,7 +7857,7 @@ mod tests {
                     ..
                 } => format!(
                     "err:zoi:{}:{}",
-                    map_comma_pos(char_offset, comma_at),
+                    map_comma_pos(char_offset, comma_indexes),
                     render(&delimiter)
                 ),
                 other => format!("err:{other:?}"),
@@ -7901,11 +7868,50 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret <= pos)]
-    fn map_comma_pos(pos: usize, comma_at: Option<usize>) -> usize {
-        match comma_at {
-            Some(at) if pos > at => pos - 1,
-            _ => pos,
+    fn map_comma_pos(pos: usize, comma_indexes: &[usize]) -> usize {
+        pos - comma_indexes.iter().filter(|at| **at < pos).count()
+    }
+
+    #[requires(at <= chars.len())]
+    #[ensures(true)]
+    fn comma_insert_keeps_letters(chars: &[char], at: usize) -> bool {
+        at == 0
+            || at == chars.len()
+            || (!chars[at - 1].is_whitespace() && !chars[at].is_whitespace())
+    }
+
+    #[requires(positions.iter().all(|at| *at <= chars.len()))]
+    #[ensures(ret.1.len() == positions.len())]
+    fn insert_commas(chars: &[char], positions: &[usize]) -> (String, Vec<usize>) {
+        let mut pending = positions.to_vec();
+        pending.sort_unstable();
+        let mut text = String::new();
+        let mut indexes = Vec::new();
+        let mut cursor = 0;
+        for (index, value) in chars.iter().copied().enumerate() {
+            while cursor < pending.len() && pending[cursor] == index {
+                indexes.push(text.chars().count());
+                text.push(',');
+                cursor += 1;
+            }
+            text.push(value);
         }
+        while cursor < pending.len() {
+            indexes.push(text.chars().count());
+            text.push(',');
+            cursor += 1;
+        }
+        (text, indexes)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|index| text.chars().nth(*index) == Some(',')))]
+    fn comma_indexes_of(text: &str) -> Vec<usize> {
+        text.chars()
+            .enumerate()
+            .filter(|(_, value)| *value == ',')
+            .map(|(index, _)| index)
+            .collect()
     }
 
     #[requires(true)]
