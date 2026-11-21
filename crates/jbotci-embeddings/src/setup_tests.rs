@@ -138,6 +138,52 @@ fn write_pack_bytes(
     PackWrite::Done
 }
 
+/// Record that the response header write is about to start.
+/// The first record wakes a test that waits for it.
+#[requires(true)]
+#[ensures(true)]
+fn record_pack_response_start(started: &Mutex<bool>, wake: &Condvar) {
+    let mut guard = started
+        .lock()
+        .expect("the pack server response flag is open");
+    if !*guard {
+        *guard = true;
+        wake.notify_all();
+    }
+}
+
+/// Read bytes until the response header ends.
+/// The header ends at a blank line.
+/// The socket timeout is 100 milliseconds.
+/// A stall is tried again for 60 seconds.
+/// The failure text says that this limit only stops a hang.
+/// End of file returns the bytes read so far.
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
+    retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL)))
+        .expect("the pack client accepts a read timeout");
+    let mut bytes = Vec::new();
+    let mut buf = [0_u8; 1];
+    let started = std::time::Instant::now();
+    loop {
+        if started.elapsed() >= PACK_HANG_LIMIT {
+            panic!("this limit only stops a hang");
+        }
+        match retry_interrupted(|| std::io::Read::read(stream, &mut buf)) {
+            Ok(0) => return String::from_utf8_lossy(&bytes).into_owned(),
+            Ok(_) => {
+                bytes.push(buf[0]);
+                if bytes.ends_with(b"\r\n\r\n") {
+                    return String::from_utf8_lossy(&bytes).into_owned();
+                }
+            }
+            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(error) => panic!("the pack response header failed: {error}"),
+        }
+    }
+}
+
 #[invariant(true)]
 struct PackServer {
     address: std::net::SocketAddr,
@@ -145,6 +191,8 @@ struct PackServer {
     request_wake: Arc<Condvar>,
     accept_ready: Arc<Mutex<bool>>,
     accept_wake: Arc<Condvar>,
+    response_started: Arc<Mutex<bool>>,
+    response_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -163,11 +211,15 @@ impl PackServer {
         let request_wake = Arc::new(Condvar::new());
         let accept_ready = Arc::new(Mutex::new(false));
         let accept_wake = Arc::new(Condvar::new());
+        let response_started = Arc::new(Mutex::new(false));
+        let response_wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
         let worker_requests = Arc::clone(&requests);
         let worker_wake = Arc::clone(&request_wake);
         let worker_ready = Arc::clone(&accept_ready);
         let worker_ready_wake = Arc::clone(&accept_wake);
+        let worker_response = Arc::clone(&response_started);
+        let worker_response_wake = Arc::clone(&response_wake);
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
             // The listener does not block in accept.
@@ -238,6 +290,8 @@ impl PackServer {
                     // io::copy uses sendfile for a file and a socket.
                     // sendfile ignores the write timeout.
                     // Each chunk uses the 100 millisecond timeout.
+                    // The record is set immediately before the first header write.
+                    record_pack_response_start(&worker_response, &worker_response_wake);
                     match write_pack_bytes(&mut stream, header.as_bytes(), &worker_stop) {
                         PackWrite::Done => {}
                         PackWrite::Stopped => break,
@@ -274,6 +328,8 @@ impl PackServer {
             request_wake,
             accept_ready,
             accept_wake,
+            response_started,
+            response_wake,
             stop,
             worker: Some(worker),
         }
@@ -385,14 +441,38 @@ fn wait_for_pack_request(server: &PackServer) {
     }
 }
 
+/// Wait until the worker is about to write the response header.
+/// A wall clock of 60 seconds waits with the response flag.
+/// If the flag is true, a correct run returns.
+/// If the flag stays false, the clock fires.
+/// The failure text says that this limit only stops a hang.
+#[requires(true)]
+#[ensures(true)]
+fn wait_until_pack_response_starts(server: &PackServer) {
+    let guard = server
+        .response_started
+        .lock()
+        .expect("the pack server response flag is open");
+    let (guard, _status) = server
+        .response_wake
+        .wait_timeout_while(guard, PACK_HANG_LIMIT, |started| !*started)
+        .expect("the pack server response flag is open");
+    if !*guard {
+        panic!("this limit only stops a hang");
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn pack_server_shutdown_returns_during_a_blocked_write() {
     // The file length is 256 MiB.
-    // The client sends the request and does not read the response.
-    // The test waits until the worker records that request.
-    // The write fills the socket buffer and then blocks.
+    // The client sends the request and reads only the response header.
+    // The test waits until the worker is about to write that header.
+    // A missing record fails after 60 seconds.
+    // The failure text says that this limit only stops a hang.
+    // The client must receive the response header.
+    // The body fills the socket buffer and then blocks.
     // The short timeout returns.
     // The worker sees the stop flag.
     // Shutdown returns the worker result.
@@ -404,6 +484,16 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
     let mut client = std::net::TcpStream::connect(server.address).unwrap();
     client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     wait_for_pack_request(&server);
+    wait_until_pack_response_starts(&server);
+    let header = read_pack_response_header(&mut client);
+    assert!(
+        header.starts_with("HTTP/1.1 200 OK\r\n") && header.ends_with("\r\n\r\n"),
+        "the client received the response header"
+    );
+    eprintln!(
+        "PACK_RESPONSE_HEADER={}",
+        header.split("\r\n").next().unwrap_or("")
+    );
     let started = std::time::Instant::now();
     let result = server.shutdown();
     let elapsed = started.elapsed();
