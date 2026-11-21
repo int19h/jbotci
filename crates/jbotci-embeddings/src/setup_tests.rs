@@ -1,7 +1,7 @@
 //! Exercise installed-index updates through the same setup entry point as the CLI and desktop.
 
 use super::*;
-use std::io::{BufRead, Seek, SeekFrom};
+use std::io::{Seek, SeekFrom};
 use std::net::TcpListener;
 use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -29,11 +29,122 @@ fn setup_test_dir() -> tempfile::TempDir {
     tempfile::tempdir_in(root).unwrap()
 }
 
+const PACK_SOCKET_POLL: std::time::Duration = std::time::Duration::from_millis(100);
+const PACK_HANG_LIMIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// One read from the pack server socket.
+/// `Line` keeps the bytes through the newline, or through end of file.
+/// That text is not empty.
+/// `End` means the client closed the socket before the next byte.
+/// `Stopped` means the stop flag is true.
+/// `Broken` means the socket failed for a reason other than a stall.
+#[invariant(true)]
+#[invariant(::Line(text) => !text.is_empty())]
+enum PackRead {
+    Line(String),
+    End,
+    Stopped,
+    Broken,
+}
+
+/// One write to the pack server socket.
+/// `Done` means every byte was written.
+/// `Stopped` means the stop flag is true.
+/// `Broken` means the socket failed for a reason other than a stall.
+#[invariant(true)]
+enum PackWrite {
+    Done,
+    Stopped,
+    Broken,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn pack_io_is_a_stall(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::WouldBlock || error.kind() == std::io::ErrorKind::TimedOut
+}
+
+/// Read one request line.
+/// The socket timeout is 100 milliseconds.
+/// A stall is tried again while the stop flag is false.
+/// A stall of 60 seconds with a false stop flag fails the hang limit.
+/// The failure text says that this limit only stops a hang.
+/// A true stop flag ends the read.
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_line(stream: &mut std::net::TcpStream, stop: &AtomicBool) -> PackRead {
+    let mut line = Vec::new();
+    let mut byte = [0_u8; 1];
+    let mut progressed = std::time::Instant::now();
+    loop {
+        if stop.load(AtomicOrdering::Acquire) {
+            return new!(PackRead::Stopped);
+        }
+        if progressed.elapsed() >= PACK_HANG_LIMIT {
+            panic!("this limit only stops a hang");
+        }
+        match retry_interrupted(|| std::io::Read::read(stream, &mut byte)) {
+            Ok(0) => {
+                if line.is_empty() {
+                    return new!(PackRead::End);
+                }
+                return new!(PackRead::Line(String::from_utf8_lossy(&line).into_owned(),));
+            }
+            Ok(_) => {
+                progressed = std::time::Instant::now();
+                line.push(byte[0]);
+                if byte[0] == b'\n' {
+                    return new!(PackRead::Line(String::from_utf8_lossy(&line).into_owned(),));
+                }
+            }
+            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(_) => return new!(PackRead::Broken),
+        }
+    }
+}
+
+/// Write every byte.
+/// The socket timeout is 100 milliseconds.
+/// A stall is tried again while the stop flag is false.
+/// A stall of 60 seconds with a false stop flag fails the hang limit.
+/// The failure text says that this limit only stops a hang.
+/// A true stop flag ends the write.
+#[requires(true)]
+#[ensures(true)]
+fn write_pack_bytes(
+    stream: &mut std::net::TcpStream,
+    bytes: &[u8],
+    stop: &AtomicBool,
+) -> PackWrite {
+    let mut offset = 0;
+    let mut progressed = std::time::Instant::now();
+    while offset < bytes.len() {
+        if stop.load(AtomicOrdering::Acquire) {
+            return PackWrite::Stopped;
+        }
+        if progressed.elapsed() >= PACK_HANG_LIMIT {
+            panic!("this limit only stops a hang");
+        }
+        match retry_interrupted(|| std::io::Write::write(stream, &bytes[offset..])) {
+            Ok(0) => return PackWrite::Broken,
+            Ok(count) => {
+                offset += count;
+                progressed = std::time::Instant::now();
+            }
+            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(_) => return PackWrite::Broken,
+        }
+    }
+    PackWrite::Done
+}
+
 #[invariant(true)]
 struct PackServer {
     address: std::net::SocketAddr,
     requests: Arc<Mutex<Vec<String>>>,
     request_wake: Arc<Condvar>,
+    accept_ready: Arc<Mutex<bool>>,
+    accept_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -50,19 +161,33 @@ impl PackServer {
         let address = listener.local_addr().unwrap();
         let requests = Arc::new(Mutex::new(Vec::new()));
         let request_wake = Arc::new(Condvar::new());
+        let accept_ready = Arc::new(Mutex::new(false));
+        let accept_wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
         let worker_requests = Arc::clone(&requests);
         let worker_wake = Arc::clone(&request_wake);
+        let worker_ready = Arc::clone(&accept_ready);
+        let worker_ready_wake = Arc::clone(&accept_wake);
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
             // The listener does not block in accept.
+            // The first WouldBlock poll records that the accept loop is running.
             // Each pass reads the stop flag.
             // Shutdown can join without a wakeup connection.
             // An interrupted accept is tried again.
-            while !worker_stop.load(AtomicOrdering::Acquire) {
+            'accept: while !worker_stop.load(AtomicOrdering::Acquire) {
                 let (mut stream, _) = match retry_interrupted(|| listener.accept()) {
                     Ok(connection) => connection,
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        {
+                            let mut ready = worker_ready
+                                .lock()
+                                .expect("the pack server accept flag is open");
+                            if !*ready {
+                                *ready = true;
+                                worker_ready_wake.notify_all();
+                            }
+                        }
                         std::thread::sleep(std::time::Duration::from_millis(2));
                         continue;
                     }
@@ -73,17 +198,18 @@ impl PackServer {
                 // Set this socket to blocking mode before the read.
                 retry_interrupted(|| stream.set_nonblocking(false))
                     .expect("the pack server accepted socket accepts blocking mode");
-                // When a client stops reading, a write on this socket blocks.
-                // The write timeout is 10 seconds, the same limit as the read.
-                // That limit covers the header and the body.
-                // After the write returns, the worker reads the stop flag.
-                let socket_timeout = Some(std::time::Duration::from_secs(10));
-                stream.set_read_timeout(socket_timeout).unwrap();
-                retry_interrupted(|| stream.set_write_timeout(socket_timeout))
+                // The socket timeout is 100 milliseconds.
+                // A stall is tried again until the stop flag is true or the hang limit fires.
+                retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL)))
+                    .expect("the pack server accepted socket accepts a read timeout");
+                retry_interrupted(|| stream.set_write_timeout(Some(PACK_SOCKET_POLL)))
                     .expect("the pack server accepted socket accepts a write timeout");
-                let mut reader = BufReader::new(stream.try_clone().unwrap());
-                let mut line = String::new();
-                reader.read_line(&mut line).unwrap();
+                let line = match read_pack_line(&mut stream, &worker_stop).into_data() {
+                    data!(PackRead::Line(line)) => line,
+                    data!(PackRead::Stopped) => break,
+                    data!(PackRead::End) => continue,
+                    data!(PackRead::Broken) => continue,
+                };
                 let mut parts = line.split_whitespace();
                 assert_eq!(parts.next(), Some("GET"));
                 let relative = parts.next().unwrap().trim_start_matches('/').to_owned();
@@ -95,9 +221,12 @@ impl PackServer {
                     worker_wake.notify_one();
                 }
                 loop {
-                    line.clear();
-                    if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
-                        break;
+                    match read_pack_line(&mut stream, &worker_stop).into_data() {
+                        data!(PackRead::Stopped) => break 'accept,
+                        data!(PackRead::Broken) => continue 'accept,
+                        data!(PackRead::End) => break,
+                        data!(PackRead::Line(header)) if header == "\r\n" => break,
+                        data!(PackRead::Line(_)) => {}
                     }
                 }
                 let path = root.join(safe_pack_relative_path(&relative).unwrap());
@@ -108,9 +237,11 @@ impl PackServer {
                     );
                     // io::copy uses sendfile for a file and a socket.
                     // sendfile ignores the write timeout.
-                    // write_all uses that timeout for the header and for each body chunk.
-                    if retry_interrupted(|| stream.write_all(header.as_bytes())).is_err() {
-                        continue;
+                    // Each chunk uses the 100 millisecond timeout.
+                    match write_pack_bytes(&mut stream, header.as_bytes(), &worker_stop) {
+                        PackWrite::Done => {}
+                        PackWrite::Stopped => break,
+                        PackWrite::Broken => continue,
                     }
                     let mut buf = [0_u8; 64 * 1024];
                     loop {
@@ -119,16 +250,21 @@ impl PackServer {
                             Ok(count) => count,
                             Err(_) => break,
                         };
-                        if retry_interrupted(|| stream.write_all(&buf[..count])).is_err() {
-                            break;
+                        match write_pack_bytes(&mut stream, &buf[..count], &worker_stop) {
+                            PackWrite::Done => {}
+                            PackWrite::Stopped => break 'accept,
+                            PackWrite::Broken => break,
                         }
                     }
                 } else {
-                    let _ = retry_interrupted(|| {
-                        stream.write_all(
-                            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        )
-                    });
+                    match write_pack_bytes(
+                        &mut stream,
+                        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        &worker_stop,
+                    ) {
+                        PackWrite::Stopped => break,
+                        PackWrite::Done | PackWrite::Broken => {}
+                    }
                 }
             }
         });
@@ -136,6 +272,8 @@ impl PackServer {
             address,
             requests,
             request_wake,
+            accept_ready,
+            accept_wake,
             stop,
             worker: Some(worker),
         }
@@ -143,17 +281,34 @@ impl PackServer {
 
     /// Stop the worker and return its result.
     /// The accept loop reads the stop flag.
+    /// A side thread joins the worker.
+    /// If that join does not finish in 60 seconds, return an error.
+    /// The error says that this limit only stops a hang.
+    /// On that failure the side thread keeps waiting until the process exits.
     /// This path does not open a wakeup connection.
     #[requires(true)]
     #[ensures(self.worker.is_none())]
     fn shutdown(&mut self) -> Result<(), String> {
+        self.stop.store(true, AtomicOrdering::Release);
         let Some(worker) = self.worker.take() else {
             return Ok(());
         };
-        self.stop.store(true, AtomicOrdering::Release);
-        match worker.join() {
-            Ok(()) => Ok(()),
-            Err(payload) => Err(pack_server_panic_message(payload)),
+        let (result_tx, result_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let result = match worker.join() {
+                Ok(()) => Ok(()),
+                Err(payload) => Err(pack_server_panic_message(payload)),
+            };
+            let _ = result_tx.send(result);
+        });
+        match result_rx.recv_timeout(PACK_HANG_LIMIT) {
+            Ok(result) => result,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                Err("this limit only stops a hang".to_owned())
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                Err("the hang limit thread stopped".to_owned())
+            }
         }
     }
 }
@@ -175,13 +330,36 @@ fn pack_server_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 #[ensures(true)]
 fn pack_server_shutdown_joins_without_a_client() {
     // No client connects.
+    // The test waits until the accept loop records its first poll.
     // The accept loop reads the stop flag.
     // Shutdown returns without a wakeup connection.
     let root = setup_test_dir();
     let mut server = PackServer::start(root.path().to_owned());
+    wait_until_pack_accept_is_ready(&server);
     server
         .shutdown()
         .expect("the pack server thread finishes cleanly");
+}
+
+/// Wait until the accept loop records its first poll.
+/// A wall clock of 60 seconds waits with the ready flag.
+/// When the flag is true, a correct run returns.
+/// When the flag stays false, the clock fires.
+/// The failure text says that this limit only stops a hang.
+#[requires(true)]
+#[ensures(true)]
+fn wait_until_pack_accept_is_ready(server: &PackServer) {
+    let guard = server
+        .accept_ready
+        .lock()
+        .expect("the pack server accept flag is open");
+    let (guard, _status) = server
+        .accept_wake
+        .wait_timeout_while(guard, PACK_HANG_LIMIT, |ready| !*ready)
+        .expect("the pack server accept flag is open");
+    if !*guard {
+        panic!("this limit only stops a hang");
+    }
 }
 
 /// Wait until the worker records one request.
@@ -207,39 +385,6 @@ fn wait_for_pack_request(server: &PackServer) {
     }
 }
 
-/// Stop the worker and wait for its result.
-/// A side thread joins the worker.
-/// When that join does not finish in 60 seconds, fail the test.
-/// The failure text says that this limit only stops a hang.
-/// On that failure the side thread keeps waiting until the process exits.
-/// A correct run returns the worker result.
-#[requires(true)]
-#[ensures(server.worker.is_none())]
-fn finish_pack_server_within_hang_limit(server: &mut PackServer) -> Result<(), String> {
-    let Some(worker) = server.worker.take() else {
-        return Ok(());
-    };
-    let stop = Arc::clone(&server.stop);
-    let (result_tx, result_rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        stop.store(true, AtomicOrdering::Release);
-        let result = match worker.join() {
-            Ok(()) => Ok(()),
-            Err(payload) => Err(pack_server_panic_message(payload)),
-        };
-        let _ = result_tx.send(result);
-    });
-    match result_rx.recv_timeout(std::time::Duration::from_secs(60)) {
-        Ok(result) => result,
-        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-            panic!("this limit only stops a hang")
-        }
-        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-            panic!("the hang limit thread stopped")
-        }
-    }
-}
-
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -248,7 +393,8 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
     // The client sends the request and does not read the response.
     // The test waits until the worker records that request.
     // The write fills the socket buffer and then blocks.
-    // The write timeout ends that block.
+    // The short timeout returns.
+    // The worker sees the stop flag.
     // Shutdown returns the worker result.
     let root = setup_test_dir();
     let big = File::create(root.path().join("big")).unwrap();
@@ -259,7 +405,7 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
     client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     wait_for_pack_request(&server);
     let started = std::time::Instant::now();
-    let result = finish_pack_server_within_hang_limit(&mut server);
+    let result = server.shutdown();
     let elapsed = started.elapsed();
     drop(client);
     eprintln!(

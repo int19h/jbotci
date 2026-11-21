@@ -930,6 +930,12 @@ mod tests {
             }
         }
 
+        /// Stop the worker and return its result.
+        /// The accept loop reads the stop flag.
+        /// A side thread joins the worker.
+        /// If that join does not finish in 60 seconds, return an error.
+        /// The error says that this limit only stops a hang.
+        /// On that failure the side thread keeps waiting until the process exits.
         #[requires(true)]
         #[ensures(self.worker.is_none())]
         fn shutdown(&mut self) -> Result<(), String> {
@@ -937,10 +943,23 @@ mod tests {
             let Some(worker) = self.worker.take() else {
                 return Ok(());
             };
-            match worker.join() {
-                Ok(Ok(())) => Ok(()),
-                Ok(Err(error)) => Err(error),
-                Err(payload) => Err(thread_panic_message(payload)),
+            let (result_tx, result_rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let result = match worker.join() {
+                    Ok(Ok(())) => Ok(()),
+                    Ok(Err(error)) => Err(error),
+                    Err(payload) => Err(thread_panic_message(payload)),
+                };
+                let _ = result_tx.send(result);
+            });
+            match result_rx.recv_timeout(Duration::from_secs(60)) {
+                Ok(result) => result,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    Err("this limit only stops a hang".to_owned())
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    Err("the hang limit thread stopped".to_owned())
+                }
             }
         }
     }
