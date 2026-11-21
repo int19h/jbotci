@@ -698,12 +698,20 @@ where
     output.push('\n');
 }
 
-/// `text` with each CommonMark line ending written as `<br>`.
+/// One GitHub pipe-table cell.
 ///
-/// A line ending is LF, CRLF, or a lone CR. `|` stays as it is.
+/// Each line ending becomes `<br>`. A line ending is LF, CRLF, or a lone
+/// CR. CRLF is one ending. When `escape_pipe` is set, each `|` becomes
+/// `\|`. A word-part cell passes false. The GitHub escaper already wrote
+/// `\|` in that cell.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (!ret.contains('\n') && !ret.contains('\r')))]
-fn github_table_word_breaks(text: &str, scope: &jbotci_budget::TextScope) -> String {
+#[ensures(scope.is_exceeded() || ret.matches('\\').count() == text.matches('\\').count() + if escape_pipe { text.matches('|').count() } else { 0 })]
+fn github_pipe_cell_text(
+    text: &str,
+    scope: &jbotci_budget::TextScope,
+    escape_pipe: bool,
+) -> String {
     let mut output = scope.buffer();
     let bytes = text.as_bytes();
     let mut index = 0;
@@ -721,9 +729,18 @@ fn github_table_word_breaks(text: &str, scope: &jbotci_budget::TextScope) -> Str
             index += 1;
             continue;
         }
+        if escape_pipe && bytes[index] == b'|' {
+            output.push_str("\\|");
+            index += 1;
+            continue;
+        }
         let start = index;
         index += 1;
-        while index < bytes.len() && bytes[index] != b'\n' && bytes[index] != b'\r' {
+        while index < bytes.len()
+            && bytes[index] != b'\n'
+            && bytes[index] != b'\r'
+            && !(escape_pipe && bytes[index] == b'|')
+        {
             index += 1;
         }
         output.push_str(&text[start..index]);
@@ -731,18 +748,14 @@ fn github_table_word_breaks(text: &str, scope: &jbotci_budget::TextScope) -> Str
     output.into_piece()
 }
 
+/// A pipe-table cell that escapes each `|`.
+///
+/// Header cells and ordinary cells use this. Line endings go through
+/// `github_pipe_cell_text`.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(scope.is_exceeded() || (!ret.contains('\n') && !ret.contains('\r')))]
 fn markdown_table_cell_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
-    let mut output = scope.buffer();
-    for character in text.chars() {
-        match character {
-            '|' => output.push_str("\\|"),
-            '\n' => output.push_str("<br>"),
-            character => output.push(character),
-        }
-    }
-    output.into_piece()
+    github_pipe_cell_text(text, scope, true)
 }
 
 #[requires(true)]
@@ -973,12 +986,13 @@ fn render_cmavo_list_markdown(
             .map(|cell| {
                 if let Some(parts) = cell.word_parts() {
                     // The cell sits after `| `, so it does not start a line.
-                    // The GitHub escaper writes `|` as `\|`. A second escape
-                    // turns that into `\\|`. A line ending splits the row,
-                    // so each ending becomes `<br>`.
-                    github_table_word_breaks(
+                    // The GitHub escaper already wrote `\|`. Pass false so
+                    // the cell helper does not escape `|` again. Each line
+                    // ending becomes `<br>`.
+                    github_pipe_cell_text(
                         &render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false),
                         &scope,
+                        false,
                     )
                 } else {
                     markdown_table_cell_text(
@@ -1793,6 +1807,46 @@ mod tests {
         assert_eq!(
             web,
             "| cmavo | gloss |\n| --- | --- |\n| a\\|b<br>c<br>d<br>ez | never |\n\n"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_header_and_an_ordinary_cell_keep_each_line_ending_inside_the_row() {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: vec![
+                vec![CllInline::Text("p|q\nr".to_owned())],
+                vec![CllInline::Text("c\r\nd".to_owned())],
+                vec![CllInline::Text("e\rf".to_owned())],
+            ],
+            rows: vec![vec![
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("g\nh".to_owned())],
+                },
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("i|j\r\nk".to_owned())],
+                },
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("l\rm".to_owned())],
+                },
+            ]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(
+            web,
+            "| p\\|q<br>r | c<br>d | e<br>f |\n| --- | --- | --- |\n| g<br>h | i\\|j<br>k | l<br>m |\n\n"
         );
     }
 }
