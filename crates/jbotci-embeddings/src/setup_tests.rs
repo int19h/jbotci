@@ -106,6 +106,7 @@ fn read_pack_line(stream: &mut std::net::TcpStream, stop: &AtomicBool) -> PackRe
 /// Write every byte.
 /// The socket timeout is 100 milliseconds.
 /// A stall is tried again while the stop flag is false.
+/// The first stall before the stop flag records that the write blocked.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
 /// The failure text says that this limit only stops a hang.
 /// A true stop flag ends the write.
@@ -115,6 +116,8 @@ fn write_pack_bytes(
     stream: &mut std::net::TcpStream,
     bytes: &[u8],
     stop: &AtomicBool,
+    stalled: &Mutex<bool>,
+    stall_wake: &Condvar,
 ) -> PackWrite {
     let mut offset = 0;
     let mut progressed = std::time::Instant::now();
@@ -131,11 +134,28 @@ fn write_pack_bytes(
                 offset += count;
                 progressed = std::time::Instant::now();
             }
-            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(error) if pack_io_is_a_stall(&error) => {
+                if !stop.load(AtomicOrdering::Acquire) {
+                    record_pack_write_stall(stalled, stall_wake);
+                }
+                continue;
+            }
             Err(_) => return PackWrite::Broken,
         }
     }
     PackWrite::Done
+}
+
+/// Record that a write stalled before the stop flag.
+/// The first record wakes a test that waits for it.
+#[requires(true)]
+#[ensures(true)]
+fn record_pack_write_stall(stalled: &Mutex<bool>, wake: &Condvar) {
+    let mut guard = stalled.lock().expect("the pack server stall flag is open");
+    if !*guard {
+        *guard = true;
+        wake.notify_all();
+    }
 }
 
 /// Record that the response header write is about to start.
@@ -193,6 +213,8 @@ struct PackServer {
     accept_wake: Arc<Condvar>,
     response_started: Arc<Mutex<bool>>,
     response_wake: Arc<Condvar>,
+    write_stalled: Arc<Mutex<bool>>,
+    write_stall_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -213,6 +235,8 @@ impl PackServer {
         let accept_wake = Arc::new(Condvar::new());
         let response_started = Arc::new(Mutex::new(false));
         let response_wake = Arc::new(Condvar::new());
+        let write_stalled = Arc::new(Mutex::new(false));
+        let write_stall_wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
         let worker_requests = Arc::clone(&requests);
         let worker_wake = Arc::clone(&request_wake);
@@ -220,6 +244,8 @@ impl PackServer {
         let worker_ready_wake = Arc::clone(&accept_wake);
         let worker_response = Arc::clone(&response_started);
         let worker_response_wake = Arc::clone(&response_wake);
+        let worker_stalled = Arc::clone(&write_stalled);
+        let worker_stall_wake = Arc::clone(&write_stall_wake);
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
             // The listener does not block in accept.
@@ -292,7 +318,13 @@ impl PackServer {
                     // Each chunk uses the 100 millisecond timeout.
                     // The record is set immediately before the first header write.
                     record_pack_response_start(&worker_response, &worker_response_wake);
-                    match write_pack_bytes(&mut stream, header.as_bytes(), &worker_stop) {
+                    match write_pack_bytes(
+                        &mut stream,
+                        header.as_bytes(),
+                        &worker_stop,
+                        &worker_stalled,
+                        &worker_stall_wake,
+                    ) {
                         PackWrite::Done => {}
                         PackWrite::Stopped => break,
                         PackWrite::Broken => continue,
@@ -304,7 +336,13 @@ impl PackServer {
                             Ok(count) => count,
                             Err(_) => break,
                         };
-                        match write_pack_bytes(&mut stream, &buf[..count], &worker_stop) {
+                        match write_pack_bytes(
+                            &mut stream,
+                            &buf[..count],
+                            &worker_stop,
+                            &worker_stalled,
+                            &worker_stall_wake,
+                        ) {
                             PackWrite::Done => {}
                             PackWrite::Stopped => break 'accept,
                             PackWrite::Broken => break,
@@ -315,6 +353,8 @@ impl PackServer {
                         &mut stream,
                         b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
                         &worker_stop,
+                        &worker_stalled,
+                        &worker_stall_wake,
                     ) {
                         PackWrite::Stopped => break,
                         PackWrite::Done | PackWrite::Broken => {}
@@ -330,6 +370,8 @@ impl PackServer {
             accept_wake,
             response_started,
             response_wake,
+            write_stalled,
+            write_stall_wake,
             stop,
             worker: Some(worker),
         }
@@ -462,17 +504,37 @@ fn wait_until_pack_response_starts(server: &PackServer) {
     }
 }
 
+/// Wait until a write stalls before the stop flag.
+/// A wall clock of 60 seconds waits with the stall flag.
+/// If the flag is true, a correct run returns.
+/// If the flag stays false, the clock fires.
+/// The failure text says that this limit only stops a hang.
+#[requires(true)]
+#[ensures(true)]
+fn wait_until_pack_write_stalls(server: &PackServer) {
+    let guard = server
+        .write_stalled
+        .lock()
+        .expect("the pack server stall flag is open");
+    let (guard, _status) = server
+        .write_stall_wake
+        .wait_timeout_while(guard, PACK_HANG_LIMIT, |stalled| !*stalled)
+        .expect("the pack server stall flag is open");
+    if !*guard {
+        panic!("this limit only stops a hang");
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn pack_server_shutdown_returns_during_a_blocked_write() {
     // The file length is 256 MiB.
     // The client sends the request and reads only the response header.
-    // The test waits until the worker is about to write that header.
-    // A missing record fails after 60 seconds.
+    // The test waits until a write stalls.
+    // A missing stall fails after 60 seconds.
     // The failure text says that this limit only stops a hang.
     // The client must receive the response header.
-    // The body fills the socket buffer and then blocks.
     // The short timeout returns.
     // The worker sees the stop flag.
     // Shutdown returns the worker result.
@@ -494,6 +556,7 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
         "PACK_RESPONSE_HEADER={}",
         header.split("\r\n").next().unwrap_or("")
     );
+    wait_until_pack_write_stalls(&server);
     let started = std::time::Instant::now();
     let result = server.shutdown();
     let elapsed = started.elapsed();
