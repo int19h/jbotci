@@ -867,13 +867,14 @@ fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::Text
 }
 
 /// The letters of adjacent valsi parts, with no space added between parts.
+///
+/// Each part is a link or a Lojban span. A bare text node is not a part.
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_parts_plain_text(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
     let mut output = scope.buffer();
     for inline in inlines {
         match inline {
-            CllInline::Text(text) => output.push_str(text),
             CllInline::Link { inlines, .. } | CllInline::LanguageSpan { inlines, .. } => {
                 for child in inlines {
                     if let CllInline::Text(text) = child {

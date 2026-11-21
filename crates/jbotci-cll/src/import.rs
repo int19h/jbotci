@@ -5335,6 +5335,295 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn an_unlinked_valsi_part_stays_a_lojban_span_and_one_word() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let shapes = [
+            (
+                "<valsi>roi</valsi><valsi>nai</valsi><valsi>mi,o</valsi>",
+                "roinaimi,o",
+                &[("roi", Some("roi")), ("nai", Some("nai")), ("mi,o", None)]
+                    as &[(&str, Option<&str>)],
+            ),
+            (
+                "<valsi>roi</valsi><valsi>mi,o</valsi>",
+                "roimi,o",
+                &[("roi", Some("roi")), ("mi,o", None)],
+            ),
+        ];
+        for (inner, plain, expected) in shapes {
+            let cell = word_cell_from_inner(inner);
+            assert_eq!(cell.word_parts().as_deref(), Some(expected), "{inner}");
+            assert!(cell.word_cell().is_none(), "{inner}");
+            assert!(
+                cell.inlines()
+                    .iter()
+                    .all(|inline| !matches!(inline, CllInline::Text(_))),
+                "{inner}: {cell:?}"
+            );
+            assert!(
+                matches!(
+                    cell.inlines().last(),
+                    Some(CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::JboPhrase,
+                        language: Some(language),
+                        inlines,
+                    }) if language == "jbo"
+                        && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "mi,o")
+                ),
+                "{inner}: {cell:?}"
+            );
+            assert_eq!(
+                crate::cmavo_cell_plain_text(cell.inlines()),
+                plain,
+                "{inner}"
+            );
+            assert!(!plain.contains(' '), "{plain}");
+        }
+
+        let link = |word: &str| {
+            format!(
+                "<a href=\"../vlacku/{word}\" class=\"spa-cll-link spa-cll-link-dictionary\">{word}</a>"
+            )
+        };
+        let span =
+            |text: &str| format!("<span class=\"spa-cll-jbophrase\" lang=\"jbo\">{text}</span>");
+        let cases = [
+            (
+                "all linked",
+                "<cmavo><valsi>roi</valsi><valsi>nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), link("nai")),
+                "roinai".to_owned(),
+                format!("{}{}", md_link("roi"), md_link("nai")),
+                "roinai".to_owned(),
+                format!("{}{}", md_link("roi"), md_link("nai")),
+                "roinai".to_owned(),
+            ),
+            (
+                "all unlinked",
+                "<cmavo valid=\"false\"><valsi>roi</valsi><valsi>nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", span("roi"), span("nai")),
+                format!("{}{}", span("roi"), span("nai")),
+                "roinai".to_owned(),
+                "roinai".to_owned(),
+                "*roinai*".to_owned(),
+                "*roinai*".to_owned(),
+            ),
+            (
+                "mixed",
+                "<cmavo><valsi>roi</valsi><valsi valid=\"false\">nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), span("nai")),
+                format!("roi{}", span("nai")),
+                format!("{}nai", md_link("roi")),
+                "roinai".to_owned(),
+                format!("{}*nai*", md_link("roi")),
+                "roinai".to_owned(),
+            ),
+            (
+                "non-token",
+                "<cmavo><valsi>roi</valsi><valsi>nai</valsi><valsi>mi,o</valsi></cmavo>",
+                "roinaimi,o",
+                format!("{}{}{}", link("roi"), link("nai"), span("mi,o")),
+                format!("roinai{}", span("mi,o")),
+                format!("{}{}mi,o", md_link("roi"), md_link("nai")),
+                "roinaimi,o".to_owned(),
+                format!("{}{}*mi,o*", md_link("roi"), md_link("nai")),
+                "roinaimi,o".to_owned(),
+            ),
+            (
+                "one linked part",
+                "<cmavo><valsi>roi</valsi><valsi>mi,o</valsi></cmavo>",
+                "roimi,o",
+                format!("{}{}", link("roi"), span("mi,o")),
+                format!("roi{}", span("mi,o")),
+                format!("{}mi,o", md_link("roi")),
+                "roimi,o".to_owned(),
+                format!("{}*mi,o*", md_link("roi")),
+                "roimi,o".to_owned(),
+            ),
+            (
+                "marked",
+                "<cmavo><valsi>roi</valsi><valsi valid=\"maybe\">nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), span("nai")),
+                format!("roi{}", span("nai")),
+                format!("{}nai", md_link("roi")),
+                "roinai".to_owned(),
+                format!("{}*nai*", md_link("roi")),
+                "roinai".to_owned(),
+            ),
+        ];
+        for (
+            name,
+            cmavo,
+            plain,
+            html_web,
+            html_plain,
+            github_web,
+            github_plain,
+            discord_web,
+            discord_plain,
+        ) in cases
+        {
+            for header in [false, true] {
+                let block = cmavo_list_with_gloss(cmavo, header);
+                let CllBlock::CmavoList { rows, .. } = &block else {
+                    panic!("{name} should be a cmavo list");
+                };
+                assert_eq!(
+                    crate::cmavo_cell_plain_text(rows[0][0].inlines()),
+                    plain,
+                    "{name}"
+                );
+                assert!(
+                    rows[0][0]
+                        .inlines()
+                        .iter()
+                        .all(|inline| !matches!(inline, CllInline::Text(_))),
+                    "{name}"
+                );
+                let where_ = if header { "header" } else { "no header" };
+                let html_web_text = render::render_block_html(site, &block, CllLinkRenderMode::Web);
+                let html_plain_text =
+                    render::render_block_html(site, &block, CllLinkRenderMode::Plain);
+                assert_html_cell(&html_web_text, header, &html_web, name, where_);
+                assert_html_cell(&html_plain_text, header, &html_plain, name, where_);
+                assert_eq!(
+                    markdown_of(
+                        site,
+                        &block,
+                        CllLinkRenderMode::Web,
+                        CllMarkdownDialect::GitHub
+                    ),
+                    github_list(header, &github_web),
+                    "{name} github web {where_}"
+                );
+                assert_eq!(
+                    markdown_of(
+                        site,
+                        &block,
+                        CllLinkRenderMode::Plain,
+                        CllMarkdownDialect::GitHub
+                    ),
+                    github_list(header, &github_plain),
+                    "{name} github plain {where_}"
+                );
+                let discord_web_text = markdown_of(
+                    site,
+                    &block,
+                    CllLinkRenderMode::Web,
+                    CllMarkdownDialect::Discord,
+                );
+                let discord_plain_text = markdown_of(
+                    site,
+                    &block,
+                    CllLinkRenderMode::Plain,
+                    CllMarkdownDialect::Discord,
+                );
+                if header {
+                    let fenced = format!("```\ncmavo | gloss\n{plain} | never\n```\n\n");
+                    assert_eq!(discord_web_text, fenced, "{name} discord web header");
+                    assert_eq!(discord_plain_text, fenced, "{name} discord plain header");
+                    assert!(!fenced.contains('*'), "{name}");
+                    assert!(!fenced.contains("]("), "{name}");
+                } else {
+                    assert_eq!(
+                        discord_web_text,
+                        format!("{discord_web} · never\n\n"),
+                        "{name} discord web"
+                    );
+                    assert_eq!(
+                        discord_plain_text,
+                        format!("{discord_plain} · never\n\n"),
+                        "{name} discord plain"
+                    );
+                    assert!(
+                        !discord_web_text.contains("*roi**nai*"),
+                        "{discord_web_text}"
+                    );
+                    assert!(
+                        !discord_plain_text.contains("*roi**nai*"),
+                        "{discord_plain_text}"
+                    );
+                    assert!(!discord_web_text.contains("roi*nai*"), "{discord_web_text}");
+                    assert!(
+                        !discord_plain_text.contains("roi*nai*"),
+                        "{discord_plain_text}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(ret.contains(word))]
+    fn md_link(word: &str) -> String {
+        format!("[{word}](../vlacku/{word})")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_html_cell(html: &str, header: bool, cell: &str, name: &str, where_: &str) {
+        assert!(
+            html.contains("class=\"cll-cmavo-list\""),
+            "{name} html {where_}: {html}"
+        );
+        assert!(
+            html.contains(&format!("<td>{cell}</td><td>never</td>")),
+            "{name} html {where_}: {html}"
+        );
+        if header {
+            assert!(
+                html.contains("<th>cmavo</th><th>gloss</th>"),
+                "{name} html {where_}: {html}"
+            );
+        } else {
+            assert!(!html.contains("<th>"), "{name} html {where_}: {html}");
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.contains(cell))]
+    fn github_list(header: bool, cell: &str) -> String {
+        if header {
+            format!("| cmavo | gloss |\n| --- | --- |\n| {cell} | never |\n\n")
+        } else {
+            format!("{cell} | never\n\n")
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn markdown_of(
+        site: &CllSite,
+        block: &CllBlock,
+        link_mode: CllLinkRenderMode,
+        dialect: CllMarkdownDialect,
+    ) -> String {
+        let mut output = String::new();
+        render::render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
+        output
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(matches!(ret, CllBlock::CmavoList { .. }))]
+    fn cmavo_list_with_gloss(cmavo: &str, header: bool) -> CllBlock {
+        let head = if header {
+            "<cmavo-list-head><td>cmavo</td><td>gloss</td></cmavo-list-head>"
+        } else {
+            ""
+        };
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list>{head}<cmavo-entry>{cmavo}<description>never</description></cmavo-entry></cmavo-list>"
+        ));
+        blocks.into_iter().next().expect("one cmavo list")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn a_pause_dot_before_a_nested_valsi_stays_attached() {
         let (blocks, _) = probe_blocks(concat!(
             "<cmavo-list><cmavo-entry>",

@@ -969,9 +969,13 @@ fn render_cmavo_list_discord(
             let rendered_cells = row
                 .iter()
                 .map(|cell| {
-                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
-                        .trim()
-                        .to_owned()
+                    if let Some(parts) = cell.word_parts() {
+                        render_discord_cmavo_word_parts(site, &parts, link_mode, &scope)
+                    } else {
+                        render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
+                            .trim()
+                            .to_owned()
+                    }
                 })
                 .filter(|cell| !cell.is_empty())
                 .collect::<Vec<_>>();
@@ -994,6 +998,64 @@ fn render_cmavo_list_discord(
             .collect::<Vec<_>>()
     });
     push_discord_rows(std::iter::once(header).chain(body), output);
+}
+
+/// Discord text for adjacent valsi parts, as one word.
+///
+/// Plain mode joins the parts. It wraps that word in one italic span when
+/// every part is unlinked. Web mode prints each linked part as a link. It
+/// wraps each run of unlinked parts in one italic span. No space is added
+/// between parts.
+#[requires(parts.len() >= 2)]
+#[requires(parts.iter().all(|(text, target)| {
+    !text.is_empty() && target.is_none_or(|target| !target.is_empty())
+}))]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn render_discord_cmavo_word_parts(
+    site: &CllSite,
+    parts: &[(&str, Option<&str>)],
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    match link_mode {
+        CllLinkRenderMode::Plain => {
+            let mut word = scope.buffer();
+            for (text, _) in parts {
+                word.push_str(&escape_discord_markdown_in_scope(text, scope));
+            }
+            let word = word.into_piece();
+            if parts.iter().all(|(_, target)| target.is_none()) {
+                scope.format(format_args!("*{word}*"))
+            } else {
+                word
+            }
+        }
+        CllLinkRenderMode::Web => {
+            let mut output = scope.buffer();
+            let mut index = 0;
+            while index < parts.len() {
+                if let Some(target) = parts[index].1 {
+                    let escaped = escape_discord_markdown_in_scope(parts[index].0, scope);
+                    output.push_str(&scope.format(format_args!(
+                        "[{}]({})",
+                        markdown_link_label_text(&escaped, scope),
+                        cll_link_href(site, CllLinkKind::Dictionary, target)
+                    )));
+                    index += 1;
+                    continue;
+                }
+                let mut run = scope.buffer();
+                while index < parts.len() && parts[index].1.is_none() {
+                    run.push_str(&escape_discord_markdown_in_scope(parts[index].0, scope));
+                    index += 1;
+                }
+                output.push('*');
+                output.push_str(&run.into_piece());
+                output.push('*');
+            }
+            output.into_piece()
+        }
+    }
 }
 
 #[requires(true)]

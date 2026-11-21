@@ -761,6 +761,26 @@ fn unlinked_lojban_word_cell(word: &str) -> CllCmavoListCell {
     }
 }
 
+#[requires(!word.is_empty())]
+#[ensures(matches!(ret, CllInline::Link { kind: CllLinkKind::Dictionary, .. }))]
+fn dictionary_part(word: &str) -> CllInline {
+    CllInline::Link {
+        target: word.to_owned(),
+        inlines: vec![CllInline::Text(word.to_owned())],
+        kind: CllLinkKind::Dictionary,
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(matches!(ret, CllInline::LanguageSpan { kind: CllLanguageSpanKind::JboPhrase, .. }))]
+fn lojban_part(text: &str) -> CllInline {
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        language: Some("jbo".to_owned()),
+        inlines: vec![CllInline::Text(text.to_owned())],
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_list_of(rows: Vec<Vec<CllCmavoListCell>>) -> CllBlock {
@@ -827,18 +847,7 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
 #[ensures(true)]
 fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
     let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word {
-        inlines: vec![
-            CllInline::Link {
-                target: "roi".to_owned(),
-                inlines: vec![CllInline::Text("roi".to_owned())],
-                kind: CllLinkKind::Dictionary,
-            },
-            CllInline::Link {
-                target: "nai".to_owned(),
-                inlines: vec![CllInline::Text("nai".to_owned())],
-                kind: CllLinkKind::Dictionary,
-            },
-        ],
+        inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
     }]]);
     let mut latin = Vec::new();
     collect_cll_block_page_find_entries(&mut latin, None, &block, GentufaScript::Latin);
@@ -865,6 +874,73 @@ fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
     );
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_joins_every_rule_twelve_shape_without_a_space() {
+    let shapes = [
+        (
+            "all linked",
+            vec![dictionary_part("roi"), dictionary_part("nai")],
+            "roinai",
+        ),
+        (
+            "all unlinked",
+            vec![lojban_part("roi"), lojban_part("nai")],
+            "roinai",
+        ),
+        (
+            "mixed",
+            vec![dictionary_part("roi"), lojban_part("nai")],
+            "roinai",
+        ),
+        (
+            "non-token",
+            vec![
+                dictionary_part("roi"),
+                dictionary_part("nai"),
+                lojban_part("mi,o"),
+            ],
+            "roinaimi,o",
+        ),
+        (
+            "one linked part",
+            vec![dictionary_part("roi"), lojban_part("mi,o")],
+            "roimi,o",
+        ),
+        (
+            "marked",
+            vec![dictionary_part("roi"), lojban_part("nai")],
+            "roinai",
+        ),
+    ];
+    for (name, inlines, latin_text) in shapes {
+        let parts: Vec<&str> = match name {
+            "non-token" => vec!["roi", "nai", "mi,o"],
+            "one linked part" => vec!["roi", "mi,o"],
+            _ => vec!["roi", "nai"],
+        };
+        let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word { inlines }]]);
+        for script in [GentufaScript::Latin, GentufaScript::Zbalermorna] {
+            let mut entries = Vec::new();
+            collect_cll_block_page_find_entries(&mut entries, None, &block, script);
+            let expected: String = parts
+                .iter()
+                .map(|part| display_cmavo_word(script, part))
+                .collect();
+            assert_eq!(
+                page_find_entry_texts(&entries),
+                vec![expected.clone()],
+                "{name} {script:?}"
+            );
+            assert!(!expected.contains(' '), "{name} {script:?} {expected}");
+            if script == GentufaScript::Latin {
+                assert_eq!(expected, latin_text, "{name}");
+            }
+        }
+    }
+}
+
 #[invariant(true)]
 #[invariant(::CmavoPartsFindPage => true)]
 #[derive(Clone, PartialEq, Routable)]
@@ -885,20 +961,17 @@ fn CmavoPartsFindApp() -> Element {
 #[ensures(true)]
 fn CmavoPartsFindPage() -> Element {
     let pending = use_signal(|| None);
-    let rows = vec![vec![CllCmavoListCell::Word {
-        inlines: vec![
-            CllInline::Link {
-                target: "roi".to_owned(),
-                inlines: vec![CllInline::Text("roi".to_owned())],
-                kind: CllLinkKind::Dictionary,
-            },
-            CllInline::LanguageSpan {
-                kind: CllLanguageSpanKind::JboPhrase,
-                language: Some("jbo".to_owned()),
-                inlines: vec![CllInline::Text("zzzz".to_owned())],
-            },
-        ],
-    }]];
+    let rows = vec![
+        vec![CllCmavoListCell::Word {
+            inlines: vec![dictionary_part("roi"), lojban_part("zzzz")],
+        }],
+        vec![CllCmavoListCell::Word {
+            inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
+        }],
+        vec![CllCmavoListCell::Word {
+            inlines: vec![dictionary_part("roi"), lojban_part("mi,o")],
+        }],
+    ];
     let mut entries = Vec::new();
     collect_cmavo_cell_page_find_entries(&mut entries, &rows[0][0], GentufaScript::Zbalermorna);
     let roi = display_cmavo_word(GentufaScript::Zbalermorna, "roi");
@@ -925,14 +998,36 @@ fn adjacent_valsi_parts_render_side_by_side_in_the_reader() {
     dom.rebuild_in_place();
     let html = dioxus::ssr::render(&dom);
     let roi = display_cmavo_word(GentufaScript::Zbalermorna, "roi");
+    let nai = display_cmavo_word(GentufaScript::Zbalermorna, "nai");
     let missing = display_cmavo_word(GentufaScript::Zbalermorna, "zzzz");
+    let comma = display_cmavo_word(GentufaScript::Zbalermorna, "mi,o");
     assert!(html.contains("spa-cll-link-dictionary"), "{html}");
     assert!(html.contains("spa-cll-jbophrase"), "{html}");
     assert!(html.contains(&roi), "{html}");
+    assert!(html.contains(&nai), "{html}");
     assert!(html.contains(&missing), "{html}");
+    assert!(html.contains(&comma), "{html}");
     assert!(
-        html.contains("</a><span"),
-        "the unlinked part follows the link with no space: {html}"
+        html.contains("</span><span class=\"spa-cll-jbophrase\""),
+        "the unlinked part follows the link host with no space: {html}"
+    );
+    assert!(
+        html.contains("</span><span class=\"dictionary-tooltip-host\""),
+        "two linked parts meet with no space: {html}"
+    );
+    assert!(
+        html.contains(&format!(
+            "<span class=\"spa-cll-jbophrase\" lang=\"jbo\">{comma}</span>"
+        )),
+        "{html}"
+    );
+    assert!(
+        !html.contains("</span> <span class=\"spa-cll-jbophrase\""),
+        "{html}"
+    );
+    assert!(
+        !html.contains("</span> <span class=\"dictionary-tooltip-host\""),
+        "{html}"
     );
 }
 
