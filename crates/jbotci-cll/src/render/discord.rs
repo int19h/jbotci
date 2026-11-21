@@ -19,27 +19,33 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
     '\\', '*', '_', '~', '`', '|', '>', '[', ']', '(', ')', '<', ':', '@',
 ];
 
-/// Escape one line so Discord renders it verbatim. Heading (`#`), subtext
-/// (`-#`), bullet (`-`, `+`) and ordered-list (`1.`) syntax only triggers at
-/// the start of a line, so those characters are escaped only there; every
-/// other escape is unconditional.
+/// Escape one line so Discord renders it verbatim.
+///
+/// Heading (`#`), subtext (`-#`), bullet (`-`, `+`) and ordered-list (`1.`)
+/// syntax only triggers at the start of a line. Pass `at_line_start` when
+/// `line` begins a line. Every other escape is unconditional.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || (!ret.trim_start().starts_with(['-', '#', '+'])))]
+#[ensures(scope.is_exceeded() || !at_line_start || !ret.trim_start().starts_with(['-', '#', '+']))]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
-pub fn escape_discord_markdown_line_in_scope(
+pub(crate) fn escape_discord_markdown_line_at(
     line: &str,
     scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
 ) -> String {
     let indent = line.len() - line.trim_start().len();
     let mut escaped = scope.buffer();
     // True while only digits have followed the indent: a `.` there would
     // complete an ordered-list marker.
-    let mut in_ordered_prefix = true;
+    let mut in_ordered_prefix = at_line_start;
     for (index, character) in line.char_indices() {
         let after_indent = index >= indent;
         let escape = DISCORD_MARKDOWN_ESCAPED.contains(&character)
-            || (index == indent && matches!(character, '-' | '#' | '+'))
-            || (after_indent && index > indent && in_ordered_prefix && character == '.');
+            || (at_line_start && index == indent && matches!(character, '-' | '#' | '+'))
+            || (at_line_start
+                && after_indent
+                && index > indent
+                && in_ordered_prefix
+                && character == '.');
         if after_indent && !character.is_ascii_digit() {
             in_ordered_prefix = false;
         }
@@ -51,19 +57,48 @@ pub fn escape_discord_markdown_line_in_scope(
     escaped.into_piece()
 }
 
+/// Escape one line that begins at column zero.
+#[requires(!line.contains('\n'))]
+#[ensures(scope.is_exceeded() || (!ret.trim_start().starts_with(['-', '#', '+'])))]
+#[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
+pub fn escape_discord_markdown_line_in_scope(
+    line: &str,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    escape_discord_markdown_line_at(line, scope, true)
+}
+
 /// Escape arbitrary text, line by line, so Discord renders it verbatim.
+///
+/// The first line uses `at_line_start`. Each later line begins a line of its own.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
 #[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
-pub fn escape_discord_markdown_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
+pub(crate) fn escape_discord_markdown_at(
+    text: &str,
+    scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
+) -> String {
     let mut escaped = scope.buffer();
     for (index, line) in text.split('\n').enumerate() {
         if index > 0 {
             escaped.push('\n');
         }
-        escaped.push_str(&escape_discord_markdown_line_in_scope(line, scope));
+        escaped.push_str(&escape_discord_markdown_line_at(
+            line,
+            scope,
+            at_line_start || index > 0,
+        ));
     }
     escaped.into_piece()
+}
+
+/// Escape arbitrary text that begins at column zero.
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
+#[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
+pub fn escape_discord_markdown_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    escape_discord_markdown_at(text, scope, true)
 }
 
 /// The longest run of consecutive backticks in `text`.
@@ -222,6 +257,22 @@ mod tests {
             escape_discord_markdown_line("mi klama .i do"),
             "mi klama .i do"
         );
+        assert_eq!(escape_discord_markdown(".ui"), ".ui");
+        assert_eq!(escape_discord_markdown(".uinai"), ".uinai");
+        let scope = jbotci_budget::TextScope::new(
+            jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        );
+        assert_eq!(
+            escape_discord_markdown_at("roi-nai", &scope, true),
+            "roi-nai"
+        );
+        assert_eq!(escape_discord_markdown_at("-nai", &scope, false), "-nai");
+        assert_eq!(escape_discord_markdown_at("-nai", &scope, true), "\\-nai");
+        assert_eq!(
+            escape_discord_markdown_at("1. aroi", &scope, true),
+            "1\\. aroi"
+        );
+        assert_eq!(escape_discord_markdown_at("1. a", &scope, false), "1. a");
         assert_eq!(
             escape_discord_markdown_line(":x: [a](b)"),
             "\\:x\\: \\[a\\]\\(b\\)"

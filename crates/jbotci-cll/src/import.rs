@@ -5464,12 +5464,8 @@ mod tests {
                 "roi[x](https://example.invalid)",
                 format!("{}{}", link("roi"), span("[x](https://example.invalid)")),
                 format!("roi{}", span("[x](https://example.invalid)")),
-                format!(
-                    "{}{}",
-                    md_link("roi"),
-                    r"\[x\]\(https\://example\.invalid\)"
-                ),
-                format!("roi{}", r"\[x\]\(https\://example\.invalid\)"),
+                format!("{}{}", md_link("roi"), r"\[x\]\(https\://example.invalid\)"),
+                format!("roi{}", r"\[x\]\(https\://example.invalid\)"),
                 format!(
                     "{}*{}*",
                     md_link("roi"),
@@ -5493,9 +5489,9 @@ mod tests {
                 format!(
                     "{}{}",
                     md_link("roi"),
-                    r#"\<a href="https\://example\.invalid"\>"#
+                    r#"\<a href="https\://example.invalid"\>"#
                 ),
-                format!("roi{}", r#"\<a href="https\://example\.invalid"\>"#),
+                format!("roi{}", r#"\<a href="https\://example.invalid"\>"#),
                 format!(
                     "{}*{}*",
                     md_link("roi"),
@@ -5641,6 +5637,218 @@ mod tests {
             github_list(false, &format!("{}{}", md_link("na'e"), md_link("bo")))
         );
         assert!(!web.contains("](../vlacku/na'ebo)"), "{web}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_dictionary_token_stays_plain_and_line_start_markup_stays_text() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let ui = "[.ui](../vlacku/ui)";
+        let nai = md_link("nai");
+        let roi = md_link("roi");
+        let linked = format!("{ui}{nai}");
+        let cases = [
+            (
+                "linked pause",
+                "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                false,
+                ".uinai",
+                linked.clone(),
+                ".uinai".to_owned(),
+                linked.clone(),
+                ".uinai".to_owned(),
+            ),
+            (
+                "linked pause in a table",
+                "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                true,
+                ".uinai",
+                linked.clone(),
+                ".uinai".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "unlinked pause",
+                "<cmavo valid=\"false\"><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                false,
+                ".uinai",
+                ".uinai".to_owned(),
+                ".uinai".to_owned(),
+                "*.uinai*".to_owned(),
+                "*.uinai*".to_owned(),
+            ),
+            (
+                "unlinked pause in a table",
+                "<cmavo valid=\"false\"><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                true,
+                ".uinai",
+                ".uinai".to_owned(),
+                ".uinai".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "hash",
+                "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "# aroi",
+                format!("\\# a{roi}"),
+                r"\# aroi".to_owned(),
+                format!("*\\# a*{roi}"),
+                r"\# aroi".to_owned(),
+            ),
+            (
+                "hash in a table",
+                "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "# aroi",
+                format!("# a{roi}"),
+                "# aroi".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "bullet",
+                "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "- aroi",
+                format!("\\- a{roi}"),
+                r"\- aroi".to_owned(),
+                format!("*\\- a*{roi}"),
+                r"\- aroi".to_owned(),
+            ),
+            (
+                "bullet in a table",
+                "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "- aroi",
+                format!("- a{roi}"),
+                "- aroi".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "superscript",
+                "<cmavo><valsi>roi</valsi><valsi>^2^</valsi></cmavo>",
+                false,
+                "roi^2^",
+                format!("{roi}\\^2\\^"),
+                r"roi\^2\^".to_owned(),
+                format!("{roi}*^2^*"),
+                "roi^2^".to_owned(),
+            ),
+            (
+                "entity",
+                "<cmavo><valsi>roi</valsi><valsi>&amp;copy;</valsi></cmavo>",
+                false,
+                "roi&copy;",
+                format!("{roi}\\&copy;"),
+                r"roi\&copy;".to_owned(),
+                format!("{roi}*&copy;*"),
+                "roi&copy;".to_owned(),
+            ),
+            (
+                "ordered list",
+                "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "1. aroi",
+                format!("1\\. a{roi}"),
+                r"1\. aroi".to_owned(),
+                format!("*1\\. a*{roi}"),
+                r"1\. aroi".to_owned(),
+            ),
+            (
+                "ordered list in a table",
+                "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "1. aroi",
+                format!("1. a{roi}"),
+                "1. aroi".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "mid hyphen",
+                "<cmavo><valsi>roi</valsi><valsi>-nai</valsi></cmavo>",
+                false,
+                "roi-nai",
+                format!("{roi}-nai"),
+                "roi-nai".to_owned(),
+                format!("{roi}*-nai*"),
+                "roi-nai".to_owned(),
+            ),
+        ];
+        for (
+            name,
+            cmavo,
+            header,
+            plain_word,
+            github_web,
+            github_plain,
+            discord_web,
+            discord_plain,
+        ) in cases
+        {
+            let block = cmavo_list_with_gloss(cmavo, header);
+            assert_eq!(
+                crate::cmavo_cell_plain_text(match &block {
+                    CllBlock::CmavoList { rows, .. } => rows[0][0].inlines(),
+                    _ => panic!("{name} should be a cmavo list"),
+                }),
+                plain_word,
+                "{name}"
+            );
+            assert_eq!(
+                markdown_of(
+                    &site,
+                    &block,
+                    CllLinkRenderMode::Web,
+                    CllMarkdownDialect::GitHub
+                ),
+                github_list(header, &github_web),
+                "{name} github web"
+            );
+            assert_eq!(
+                markdown_of(
+                    &site,
+                    &block,
+                    CllLinkRenderMode::Plain,
+                    CllMarkdownDialect::GitHub
+                ),
+                github_list(header, &github_plain),
+                "{name} github plain"
+            );
+            let discord_web_text = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Web,
+                CllMarkdownDialect::Discord,
+            );
+            let discord_plain_text = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Plain,
+                CllMarkdownDialect::Discord,
+            );
+            if header {
+                let fenced = format!("```\ncmavo | gloss\n{plain_word} | never\n```\n\n");
+                assert_eq!(discord_web_text, fenced, "{name} discord web");
+                assert_eq!(discord_plain_text, fenced, "{name} discord plain");
+            } else {
+                assert_eq!(
+                    discord_web_text,
+                    format!("{discord_web} · never\n\n"),
+                    "{name} discord web"
+                );
+                assert_eq!(
+                    discord_plain_text,
+                    format!("{discord_plain} · never\n\n"),
+                    "{name} discord plain"
+                );
+            }
+        }
     }
 
     #[requires(!word.is_empty())]

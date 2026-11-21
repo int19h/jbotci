@@ -4,6 +4,7 @@ mod discord;
 mod html;
 mod markdown;
 
+pub(crate) use discord::escape_discord_markdown_at;
 pub use discord::{
     DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_code_block_in_scope, discord_inline_code,
     discord_inline_code_in_scope, escape_discord_markdown, escape_discord_markdown_in_scope,
