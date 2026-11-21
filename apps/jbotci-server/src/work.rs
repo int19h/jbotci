@@ -76,6 +76,9 @@ pub(crate) enum WorkError {
         lane: WorkLane,
     },
     /// No permit became free before the deadline.
+    /// Or a permit was taken, and the blocking pool started the closure late.
+    /// The closure then returns without calling the job.
+    /// The caller sees this error.
     WaitTimedOut {
         lane: WorkLane,
     },
@@ -386,120 +389,390 @@ impl WorkGovernor {
     }
 }
 
+/// A paused clock and one blocking thread.
+/// The drain task is correct only on that runtime.
+#[cfg(test)]
+pub(crate) mod paused_blocking {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, invariant, requires};
+
+    /// A paused current-thread runtime with one blocking thread.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn paused_runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .start_paused(true)
+            .max_blocking_threads(1)
+            .build()
+            .expect("runtime")
+    }
+
+    /// Run one empty blocking task.
+    /// The runtime has one blocking thread.
+    /// This task starts after the previous blocking task stored its result.
+    /// `wait_for_worker` stops a hang when that task never returns.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn drain_blocking_thread() {
+        wait_for_worker(tokio::task::spawn_blocking(|| ()))
+            .await
+            .expect("drain");
+    }
+
+    /// Poll `task` until it is finished.
+    /// Yield at most 1000 times.
+    /// Then abort `task` and fail the test.
+    /// A live blocking task keeps a paused clock still.
+    /// A refusal or a timeout that never comes fails here.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn join_ready<T>(task: tokio::task::JoinHandle<T>, message: &str) -> T {
+        for _ in 0..1000 {
+            if task.is_finished() {
+                return task.await.expect("task");
+            }
+            tokio::task::yield_now().await;
+        }
+        task.abort();
+        panic!("{message}");
+    }
+
+    /// Wall-clock bound for a wait on a blocking worker.
+    /// `std::time` is the operating-system clock.
+    /// The paused runtime clock does not move it.
+    const HANG_LIMIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+    /// Stop flag for the wall-clock thread.
+    #[invariant(true)]
+    struct HangFlag {
+        stop: std::sync::Mutex<bool>,
+        wake: std::sync::Condvar,
+    }
+
+    /// The wall-clock thread for one wait.
+    #[invariant(true)]
+    struct HangWatch {
+        flag: std::sync::Arc<HangFlag>,
+        thread: Option<std::thread::JoinHandle<()>>,
+    }
+
+    impl Drop for HangWatch {
+        #[requires(true)]
+        #[ensures(self.thread.is_none())]
+        fn drop(&mut self) {
+            if let Ok(mut stop) = self.flag.stop.lock() {
+                *stop = true;
+                self.flag.wake.notify_one();
+            }
+            if let Some(thread) = self.thread.take() {
+                let _ = thread.join();
+            }
+        }
+    }
+
+    /// Wait until `future` is ready.
+    /// A wall clock of 60 seconds runs on its own thread.
+    /// That clock is outside the paused runtime.
+    /// A live blocking task keeps the paused clock still.
+    /// When `future` is still pending after 60 seconds, fail the test.
+    /// The failure text says that this limit only stops a hang.
+    /// A correct run returns when `future` is ready.
+    /// The clock fires only when that return does not come.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn wait_for_worker<T>(future: impl std::future::Future<Output = T>) -> T {
+        let (timeout_tx, timeout_rx) = tokio::sync::oneshot::channel();
+        let flag = std::sync::Arc::new(HangFlag {
+            stop: std::sync::Mutex::new(false),
+            wake: std::sync::Condvar::new(),
+        });
+        let flag_for_thread = std::sync::Arc::clone(&flag);
+        let thread = std::thread::spawn(move || {
+            let Ok(mut stop) = flag_for_thread.stop.lock() else {
+                return;
+            };
+            let deadline = std::time::Instant::now() + HANG_LIMIT;
+            loop {
+                if *stop {
+                    return;
+                }
+                let now = std::time::Instant::now();
+                if now >= deadline {
+                    drop(stop);
+                    let _ = timeout_tx.send(());
+                    return;
+                }
+                match flag_for_thread.wake.wait_timeout(stop, deadline - now) {
+                    Ok((next, _)) => stop = next,
+                    Err(_) => return,
+                }
+            }
+        });
+        let _watch = HangWatch {
+            flag,
+            thread: Some(thread),
+        };
+        tokio::pin!(future);
+        tokio::select! {
+            biased;
+            value = &mut future => value,
+            result = timeout_rx => {
+                match result {
+                    Ok(()) => panic!("this limit only stops a hang"),
+                    Err(_) => panic!("the hang limit thread stopped"),
+                }
+            }
+        }
+    }
+
+    /// Run `future` on `runtime`.
+    /// When `future` panics, shut the runtime down in the background.
+    /// This path catches every panic, not only the hang panic.
+    /// Teardown then does not wait for a stuck blocking task.
+    /// A normal return drops the runtime in the normal way.
+    /// The background shutdown leaves the stuck worker thread running.
+    /// That thread stays until the test process exits.
+    /// The test has already failed.
+    /// The hang message belongs to the timeout case only.
+    /// A later test can meet that thread.
+    /// A normal runtime drop waits for the stuck thread.
+    /// That wait hangs.
+    /// This path keeps the background shutdown.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn block_on_hang_guard<T>(
+        runtime: tokio::runtime::Runtime,
+        future: impl std::future::Future<Output = T>,
+    ) -> T {
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| runtime.block_on(future)));
+        match result {
+            Ok(value) => value,
+            Err(payload) => {
+                runtime.shutdown_background();
+                std::panic::resume_unwind(payload);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::paused_blocking::{
+        block_on_hang_guard, drain_blocking_thread, join_ready, paused_runtime, wait_for_worker,
+    };
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;
+    use tokio::sync::oneshot;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    /// Lane for a test job that must enter its closure.
+    #[invariant(true)]
+    enum GatedLane {
+        Compute,
+        Fetch,
+    }
+
+    /// A submitted job plus the signal from the first line of its closure.
+    #[invariant(true)]
+    struct GatedJob<T> {
+        start_rx: oneshot::Receiver<()>,
+        task: tokio::task::JoinHandle<Result<T, WorkError>>,
+    }
+
+    /// Wait until the closure enters.
+    /// The paused clock stays still during the wait.
+    /// `wait_for_worker` stops a hang when the worker never enters the closure.
     #[requires(true)]
     #[ensures(true)]
-    async fn zero_queue_admits_idle_workers_and_refuses_backlog() {
-        let governor = governor(1, 0);
-        assert_eq!(
-            governor
-                .run_compute(Instant::now() + Duration::from_secs(1), |_| 1)
-                .await,
-            Ok(1)
-        );
-        let (release_tx, release_rx) = mpsc::channel::<()>();
-        let busy_governor = Arc::clone(&governor);
-        let busy = tokio::spawn(async move {
-            busy_governor
-                .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
-                    let _ = release_rx.recv();
-                    2
-                })
-                .await
-        });
-        for _ in 0..200 {
-            if governor.snapshot().compute_active == 1 {
-                break;
+    async fn until_started<T>(job: GatedJob<T>) -> tokio::task::JoinHandle<Result<T, WorkError>> {
+        let GatedJob { start_rx, task } = job;
+        wait_for_worker(start_rx)
+            .await
+            .expect("the worker starts before the deadline");
+        task
+    }
+
+    /// Wait for closure entry, then return the job result.
+    /// `wait_for_worker` stops a hang when the worker never returns.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn finish_gated<T>(job: GatedJob<T>) -> Result<T, WorkError> {
+        let task = until_started(job).await;
+        wait_for_worker(task).await.expect("the job task finishes")
+    }
+
+    /// A deadline far ahead of the paused clock.
+    /// Call this inside a paused runtime.
+    /// Advance time only for a timeout case.
+    #[requires(true)]
+    #[ensures(true)]
+    fn far_deadline() -> Instant {
+        Instant::now() + Duration::from_secs(3600)
+    }
+
+    /// Submit `body` and keep the start signal for the caller.
+    /// The signal is the first act of the closure.
+    #[requires(true)]
+    #[ensures(true)]
+    fn open_gated<T, F>(
+        governor: &Arc<WorkGovernor>,
+        lane: GatedLane,
+        deadline: Instant,
+        body: F,
+    ) -> GatedJob<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
+    {
+        let (start_tx, start_rx) = oneshot::channel();
+        let governor = Arc::clone(governor);
+        let task = tokio::spawn(async move {
+            let body = move |token| {
+                start_tx
+                    .send(())
+                    .expect("the test waits for the worker start");
+                body(token)
+            };
+            match lane {
+                GatedLane::Compute => governor.run_compute(deadline, body).await,
+                GatedLane::Fetch => governor.run_fetch(deadline, body).await,
             }
-            tokio::time::sleep(Duration::from_millis(5)).await;
+        });
+        GatedJob { start_rx, task }
+    }
+
+    /// Submit a compute job.
+    /// Call `until_started` or `finish_gated` to wait for closure entry.
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_compute<T, F>(governor: &Arc<WorkGovernor>, deadline: Instant, body: F) -> GatedJob<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
+    {
+        open_gated(governor, GatedLane::Compute, deadline, body)
+    }
+
+    /// Submit a fetch job.
+    /// Call `until_started` or `finish_gated` to wait for closure entry.
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_fetch<T, F>(governor: &Arc<WorkGovernor>, deadline: Instant, body: F) -> GatedJob<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(jbotci_interrupt::CancellationToken) -> T + Send + 'static,
+    {
+        open_gated(governor, GatedLane::Fetch, deadline, body)
+    }
+
+    /// Yield until `ready` is true.
+    /// Give up after 1000 yields.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn yield_until(mut ready: impl FnMut() -> bool) -> bool {
+        for _ in 0..1000 {
+            if ready() {
+                return true;
+            }
+            tokio::task::yield_now().await;
         }
-        assert_eq!(governor.snapshot().compute_active, 1);
-        assert_eq!(
-            governor
-                .run_compute(Instant::now() + Duration::from_secs(1), |_| 3)
+        ready()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zero_queue_admits_idle_workers_and_refuses_backlog() {
+        let governor = governor(1, 0);
+        block_on_hang_guard(paused_runtime(), async {
+            assert_eq!(
+                finish_gated(gate_compute(&governor, far_deadline(), |_| 1)).await,
+                Ok(1)
+            );
+            let (release_tx, release_rx) = mpsc::channel::<()>();
+            let busy = until_started(gate_compute(&governor, far_deadline(), move |_| {
+                let _ = release_rx.recv();
+                2
+            }))
+            .await;
+            assert_eq!(governor.snapshot().compute_active, 1);
+            let refused = {
+                let governor = Arc::clone(&governor);
+                tokio::spawn(async move { governor.run_compute(far_deadline(), |_| 3).await })
+            };
+            assert_eq!(
+                join_ready(
+                    refused,
+                    "backlog refusal parked instead of returning Overloaded",
+                )
                 .await,
-            Err(WorkError::Overloaded {
-                lane: WorkLane::Compute
-            }),
-            "no backlog is allowed once the only worker is busy"
-        );
-        release_tx.send(()).expect("worker waiting");
-        assert_eq!(busy.await.expect("task"), Ok(2));
+                Err(WorkError::Overloaded {
+                    lane: WorkLane::Compute
+                }),
+                "no backlog is allowed once the only worker is busy"
+            );
+            release_tx.send(()).expect("worker waiting");
+            assert_eq!(wait_for_worker(busy).await.expect("task"), Ok(2));
+        });
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn work_queued_past_its_deadline_never_starts() {
-        // One blocking thread, so the second job is stuck in the blocking
-        // pool's queue behind the first with no timing race: its caller times
-        // out while it waits there. When the thread frees, the job must not
-        // run, because its result can no longer reach anyone.
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .enable_all()
-            .max_blocking_threads(1)
-            .build()
-            .expect("runtime");
+        // One blocking thread holds the pool.
+        // The second job takes a permit and waits for that thread.
+        // The test then moves the paused clock past the second deadline.
+        // The caller times out.
+        // The freed thread later runs the closure.
+        // The closure returns and skips the job body.
+        let runtime = paused_runtime();
         let governor = governor(2, 4);
         let ran = Arc::new(AtomicUsize::new(0));
-        let started = Arc::new(AtomicUsize::new(0));
         let (release_tx, release_rx) = mpsc::channel::<()>();
-        runtime.block_on(async {
-            let occupied = {
+        block_on_hang_guard(runtime, async {
+            let occupied = until_started(gate_compute(&governor, far_deadline(), move |_| {
+                release_rx.recv().expect("release");
+                "occupied"
+            }))
+            .await;
+            let counter = Arc::clone(&ran);
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let queued = {
                 let governor = Arc::clone(&governor);
-                let started = Arc::clone(&started);
                 tokio::spawn(async move {
                     governor
-                        .run_compute(Instant::now() + Duration::from_secs(30), move |_| {
-                            started.fetch_add(1, Ordering::SeqCst);
-                            release_rx.recv().expect("release");
-                            "occupied"
+                        .run_compute(deadline, move |_| {
+                            counter.fetch_add(1, Ordering::SeqCst);
+                            "queued"
                         })
                         .await
                 })
             };
-            // Wait for the occupying job without blocking a worker thread.
-            for _ in 0..400 {
-                if started.load(Ordering::SeqCst) == 1 {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(5)).await;
-            }
-            assert_eq!(
-                started.load(Ordering::SeqCst),
-                1,
-                "the only blocking thread is taken"
+            assert!(
+                yield_until(|| governor.snapshot().compute_active == 2).await,
+                "the second permit is taken before its closure runs"
             );
-            let counter = Arc::clone(&ran);
-            let queued = governor
-                .run_compute(Instant::now() + Duration::from_millis(30), move |_| {
-                    counter.fetch_add(1, Ordering::SeqCst);
-                    "queued"
-                })
-                .await;
+            tokio::time::advance(Duration::from_secs(2)).await;
             assert_eq!(
-                queued,
+                join_ready(
+                    queued,
+                    "the queued caller parked instead of returning TimedOut",
+                )
+                .await,
                 Err(WorkError::TimedOut {
                     lane: WorkLane::Compute
                 }),
-                "the caller gives up while the job waits for a thread"
+                "the caller gives up during the wait for a thread"
             );
             release_tx.send(()).expect("worker waiting");
-            assert_eq!(occupied.await.expect("task"), Ok("occupied"));
-            // Let the freed thread pick up the abandoned job.
-            for _ in 0..200 {
-                if governor.snapshot().compute_active == 0 {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(5)).await;
-            }
+            assert_eq!(
+                wait_for_worker(occupied).await.expect("task"),
+                Ok("occupied")
+            );
+            drain_blocking_thread().await;
             assert_eq!(
                 governor.snapshot().compute_active,
                 0,
@@ -510,6 +783,96 @@ mod tests {
                 0,
                 "the expired job returned without doing its work"
             );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_job_dropped_before_its_closure_starts_reports_wait_timed_out() {
+        // A fresh paused runtime with one blocking thread.
+        // The second closure waits behind the holder.
+        // The clock passes the second deadline.
+        // The test leaves that caller unpolled.
+        // The holder exits.
+        // An empty blocking task then runs.
+        // That task starts only after the late closure stored its result.
+        // The caller task then polls once more.
+        // The caller observes WaitTimedOut.
+        // The job body does not run.
+        let runtime = paused_runtime();
+        let governor = governor(2, 4);
+        let ran = Arc::new(AtomicUsize::new(0));
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        block_on_hang_guard(runtime, async {
+            let occupied = until_started(gate_compute(&governor, far_deadline(), move |_| {
+                release_rx.recv().expect("release");
+                "occupied"
+            }))
+            .await;
+            let counter = Arc::clone(&ran);
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let governor_for_queued = Arc::clone(&governor);
+            let (parked_tx, parked_rx) = oneshot::channel();
+            let (poll_tx, poll_rx) = oneshot::channel();
+            let queued = tokio::spawn(async move {
+                let mut job =
+                    std::pin::pin!(governor_for_queued.run_compute(deadline, move |_| {
+                        counter.fetch_add(1, Ordering::SeqCst);
+                        "queued"
+                    }));
+                // Poll the caller until it parks on the deadline.
+                // The task then waits.
+                // The next poll of this caller waits for the late closure to return.
+                let mut parked = false;
+                for _ in 0..1000 {
+                    if parked {
+                        break;
+                    }
+                    tokio::select! {
+                        biased;
+                        _ = &mut job => panic!("the queued job finished before its deadline"),
+                        _ = tokio::task::yield_now() => {}
+                    }
+                    parked = governor_for_queued.snapshot().compute_active == 2;
+                }
+                let _ = parked_tx.send(parked);
+                poll_rx.await.expect("the test releases the final poll");
+                job.await
+            });
+            let parked = wait_for_worker(parked_rx)
+                .await
+                .expect("the queued caller reports that it parked");
+            assert!(
+                parked,
+                "the queued job parks after it takes the second permit"
+            );
+            tokio::time::advance(Duration::from_secs(2)).await;
+            release_tx.send(()).expect("worker waiting");
+            assert_eq!(
+                wait_for_worker(occupied).await.expect("task"),
+                Ok("occupied")
+            );
+            drain_blocking_thread().await;
+            assert_eq!(
+                governor.snapshot().compute_active,
+                0,
+                "the late closure returned its permit"
+            );
+            assert_eq!(ran.load(Ordering::SeqCst), 0);
+            poll_tx.send(()).expect("the final poll is waiting");
+            assert_eq!(
+                join_ready(
+                    queued,
+                    "the queued caller parked instead of returning WaitTimedOut",
+                )
+                .await,
+                Err(WorkError::WaitTimedOut {
+                    lane: WorkLane::Compute
+                }),
+                "the closure returns ahead of the caller poll"
+            );
+            assert_eq!(ran.load(Ordering::SeqCst), 0, "the job body stays at zero");
         });
     }
 
@@ -547,281 +910,232 @@ mod tests {
         })))
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    async fn a_timed_out_worker_keeps_its_permit_until_it_exits() {
+    fn a_timed_out_worker_keeps_its_permit_until_it_exits() {
+        // The worker blocks on a channel.
+        // The test sends on that channel after the caller returns.
+        // The flag is true while the worker still holds the permit.
+        // A late flag fails the test.
+        let runtime = paused_runtime();
         let governor = governor(1, 4);
-        // The worker sends only after it reads a set flag, then waits until
-        // the test releases it. A missing read never sends, so the receive
-        // times out. A sleep cannot show that, because a loaded box and a
-        // missing read can finish inside the same wall-clock bound.
-        let (saw_tx, saw_rx) = mpsc::channel();
-        let (release_tx, release_rx) = mpsc::channel();
-        let slow = governor.run_compute(
-            Instant::now() + Duration::from_millis(500),
-            move |cancellation| {
-                while !cancellation.is_cancelled() {
-                    std::thread::sleep(Duration::from_millis(5));
-                }
-                saw_tx.send(()).expect("the test receives the flag signal");
+        block_on_hang_guard(runtime, async {
+            let (start_tx, start_rx) = oneshot::channel();
+            let (check_tx, check_rx) = mpsc::channel();
+            let (flag_tx, flag_rx) = oneshot::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let deadline = Instant::now() + Duration::from_millis(500);
+            let slow = {
+                let governor = Arc::clone(&governor);
+                tokio::spawn(async move {
+                    governor
+                        .run_compute(deadline, move |cancellation| {
+                            start_tx
+                                .send(())
+                                .expect("the test waits for the worker start");
+                            check_rx.recv().expect("the test asks for the flag");
+                            flag_tx
+                                .send(cancellation.is_cancelled())
+                                .expect("the test reads the flag");
+                            let _ = release_rx.recv();
+                            "slow"
+                        })
+                        .await
+                })
+            };
+            wait_for_worker(start_rx)
+                .await
+                .expect("the worker starts before the deadline");
+            tokio::time::advance(Duration::from_secs(1)).await;
+            assert_eq!(
+                join_ready(
+                    slow,
+                    "the timed-out caller parked instead of returning TimedOut",
+                )
+                .await,
+                Err(WorkError::TimedOut {
+                    lane: WorkLane::Compute
+                })
+            );
+            assert_eq!(
+                governor.snapshot().compute_active,
+                1,
+                "the permit is still held before the flag check"
+            );
+            check_tx
+                .send(())
+                .expect("the worker is waiting for the flag check");
+            assert!(
+                flag_rx.await.expect("the worker sends the flag"),
+                "the flag is set before the worker returns the permit"
+            );
+            assert_eq!(
+                governor.snapshot().compute_active,
+                1,
+                "the permit is still held"
+            );
+
+            // The second job waits on the only permit.
+            // Its closure must not start.
+            // `finish_gated` waits for that start, so this job does not use it.
+            let blocked = gate_compute(&governor, far_deadline(), |_| "second");
+            assert!(
+                yield_until(|| governor.snapshot().compute_waiting == 1).await,
+                "the second job waits for the only permit"
+            );
+            tokio::time::advance(Duration::from_secs(3601)).await;
+            let GatedJob {
+                start_rx: mut blocked_start,
+                task: blocked_task,
+            } = blocked;
+            assert_eq!(
+                join_ready(
+                    blocked_task,
+                    "the waiting caller parked instead of returning WaitTimedOut",
+                )
+                .await,
+                Err(WorkError::WaitTimedOut {
+                    lane: WorkLane::Compute
+                })
+            );
+            assert!(
+                blocked_start.try_recv().is_err(),
+                "the waiting job does not enter its closure"
+            );
+
+            release_tx
+                .send(())
+                .expect("the worker is waiting for release");
+            drain_blocking_thread().await;
+            assert_eq!(governor.snapshot().compute_active, 0);
+            assert_eq!(
+                finish_gated(gate_compute(&governor, far_deadline(), |_| "third")).await,
+                Ok("third")
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_waiting_queue_is_bounded() {
+        let governor = governor(1, 1);
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        block_on_hang_guard(paused_runtime(), async {
+            let holder = until_started(gate_compute(&governor, far_deadline(), move |_| {
                 let _ = release_rx.recv();
-                "slow"
-            },
-        );
-        assert_eq!(
-            slow.await,
-            Err(WorkError::TimedOut {
-                lane: WorkLane::Compute
-            })
-        );
-        saw_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("the worker reads the flag before it keeps the permit");
-        assert_eq!(
-            governor.snapshot().compute_active,
-            1,
-            "the permit is still held"
-        );
-
-        // A second job cannot start while this worker still holds the only
-        // permit: it waits until its own deadline and reports that.
-        let blocked = governor
-            .run_compute(Instant::now() + Duration::from_secs(2), |_| "second")
+            }))
             .await;
-        assert_eq!(
-            blocked,
-            Err(WorkError::WaitTimedOut {
-                lane: WorkLane::Compute
-            })
-        );
-
-        release_tx
-            .send(())
-            .expect("the worker is waiting for release");
-        let mut released = false;
-        for _ in 0..100 {
-            if governor.snapshot().compute_active == 0 {
-                released = true;
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        assert!(
-            released,
-            "the permit comes back after the worker is released"
-        );
-        assert_eq!(
-            governor
-                .run_compute(Instant::now() + Duration::from_secs(5), |_| "third")
-                .await,
-            Ok("third")
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn a_cancelled_worker_returns_its_permit_shortly_after_the_deadline() {
-        let governor = governor(1, 4);
-        // The loop does not end on its own. The worker sends when it reads a
-        // set flag and then returns, which releases the permit. A missing
-        // read never sends, so this receive times out instead of waiting out
-        // a long sleep.
-        let (saw_tx, saw_rx) = mpsc::channel();
-        let result = governor.run_compute(
-            Instant::now() + Duration::from_millis(500),
-            move |cancellation| {
-                loop {
-                    if cancellation.is_cancelled() {
-                        saw_tx.send(()).expect("the test receives the flag signal");
-                        return "stopped";
-                    }
-                    std::thread::sleep(Duration::from_millis(5));
+            assert_eq!(governor.snapshot().compute_active, 1);
+            let waiter = gate_compute(&governor, far_deadline(), |_| "waited");
+            assert!(
+                yield_until(|| governor.snapshot().compute_waiting == 1).await,
+                "one caller waits for the only permit"
+            );
+            // The queue holds one waiter. The next arrival is refused at once.
+            let refused = {
+                let governor = Arc::clone(&governor);
+                tokio::spawn(
+                    async move { governor.run_compute(far_deadline(), |_| "refused").await },
+                )
+            };
+            let refused = join_ready(
+                refused,
+                "queue refusal parked instead of returning Overloaded",
+            )
+            .await;
+            assert_eq!(
+                refused,
+                Err(WorkError::Overloaded {
+                    lane: WorkLane::Compute
+                })
+            );
+            release_tx.send(()).expect("holder waiting");
+            assert_eq!(finish_gated(waiter).await, Ok("waited"));
+            wait_for_worker(holder)
+                .await
+                .expect("holder task")
+                .expect("holder ran");
+            assert_eq!(
+                governor.snapshot(),
+                WorkSnapshot {
+                    compute_active: 0,
+                    compute_waiting: 0,
+                    fetch_active: 0,
+                    fetch_waiting: 0,
                 }
-            },
-        );
-        assert_eq!(
-            result.await,
-            Err(WorkError::TimedOut {
-                lane: WorkLane::Compute
-            })
-        );
-        saw_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("the worker reads the flag and then returns the permit");
-        let mut released = false;
-        for _ in 0..100 {
-            if governor.snapshot().compute_active == 0 {
-                released = true;
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        assert!(
-            released,
-            "the permit comes back after the worker reads the flag"
-        );
-        assert_eq!(
-            governor
-                .run_compute(Instant::now() + Duration::from_secs(5), |_| "second")
-                .await,
-            Ok("second")
-        );
+            );
+        });
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    async fn the_waiting_queue_is_bounded() {
+    fn an_aborted_waiter_gives_its_queue_slot_back() {
         let governor = governor(1, 1);
         let (release_tx, release_rx) = mpsc::channel::<()>();
-        let holder = {
-            let governor = Arc::clone(&governor);
-            tokio::spawn(async move {
-                governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
-                        let _ = release_rx.recv();
-                    })
-                    .await
-            })
-        };
-        // Let the holder take the permit.
-        for _ in 0..50 {
-            if governor.snapshot().compute_active == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        assert_eq!(governor.snapshot().compute_active, 1);
-        let waiter = {
-            let governor = Arc::clone(&governor);
-            tokio::spawn(async move {
-                governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "waited")
-                    .await
-            })
-        };
-        for _ in 0..50 {
-            if governor.snapshot().compute_waiting == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        assert_eq!(governor.snapshot().compute_waiting, 1);
-        // The queue holds one waiter; the next arrival is refused at once.
-        let refused = governor
-            .run_compute(Instant::now() + Duration::from_secs(5), |_| "refused")
+        block_on_hang_guard(paused_runtime(), async {
+            let holder = until_started(gate_compute(&governor, far_deadline(), move |_| {
+                let _ = release_rx.recv();
+            }))
             .await;
-        assert_eq!(
-            refused,
-            Err(WorkError::Overloaded {
-                lane: WorkLane::Compute
-            })
-        );
-        release_tx.send(()).expect("holder waiting");
-        holder.await.expect("holder task").expect("holder ran");
-        assert_eq!(waiter.await.expect("waiter task"), Ok("waited"));
-        assert_eq!(
-            governor.snapshot(),
-            WorkSnapshot {
-                compute_active: 0,
-                compute_waiting: 0,
-                fetch_active: 0,
-                fetch_waiting: 0,
-            }
-        );
+            assert_eq!(governor.snapshot().compute_active, 1);
+            // This body stays out of the closure. The test aborts the waiter
+            // during the permit wait.
+            let waiter = {
+                let governor = Arc::clone(&governor);
+                tokio::spawn(async move { governor.run_compute(far_deadline(), |_| "never").await })
+            };
+            assert!(
+                yield_until(|| governor.snapshot().compute_waiting == 1).await,
+                "the waiter holds the only queue slot"
+            );
+            waiter.abort();
+            assert!(waiter.await.is_err(), "aborted task reports cancellation");
+            assert!(
+                yield_until(|| governor.snapshot().compute_waiting == 0).await,
+                "queue slot returned"
+            );
+            let next = gate_compute(&governor, far_deadline(), |_| "admitted");
+            // The next job sits in the queue before the holder leaves.
+            // A free permit skips the queue.
+            assert!(
+                yield_until(|| governor.snapshot().compute_waiting == 1).await,
+                "the next job waits in the queue"
+            );
+            release_tx.send(()).expect("holder waiting");
+            wait_for_worker(holder)
+                .await
+                .expect("holder task")
+                .expect("holder ran");
+            assert_eq!(finish_gated(next).await, Ok("admitted"));
+            assert_eq!(governor.snapshot().compute_active, 0);
+        });
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    async fn an_aborted_waiter_gives_its_queue_slot_back() {
+    fn panicking_workers_release_their_permit() {
         let governor = governor(1, 1);
-        let (release_tx, release_rx) = mpsc::channel::<()>();
-        let holder = {
-            let governor = Arc::clone(&governor);
-            tokio::spawn(async move {
-                governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), move |_| {
-                        let _ = release_rx.recv();
-                    })
-                    .await
-            })
-        };
-        for _ in 0..50 {
-            if governor.snapshot().compute_active == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        let waiter = {
-            let governor = Arc::clone(&governor);
-            tokio::spawn(async move {
-                governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "never")
-                    .await
-            })
-        };
-        for _ in 0..50 {
-            if governor.snapshot().compute_waiting == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        assert_eq!(governor.snapshot().compute_waiting, 1);
-        // Abort the waiter while it is blocked on the permit.
-        waiter.abort();
-        assert!(waiter.await.is_err(), "aborted task reports cancellation");
-        for _ in 0..50 {
-            if governor.snapshot().compute_waiting == 0 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        assert_eq!(
-            governor.snapshot().compute_waiting,
-            0,
-            "queue slot returned"
-        );
-        // The queue is free again for a new arrival.
-        let next = {
-            let governor = Arc::clone(&governor);
-            tokio::spawn(async move {
-                governor
-                    .run_compute(Instant::now() + Duration::from_secs(5), |_| "admitted")
-                    .await
-            })
-        };
-        release_tx.send(()).expect("holder waiting");
-        holder.await.expect("holder task").expect("holder ran");
-        assert_eq!(next.await.expect("next task"), Ok("admitted"));
-        assert_eq!(governor.snapshot().compute_active, 0);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn panicking_workers_release_their_permit() {
-        let governor = governor(1, 1);
-        let result = governor
-            .run_compute(Instant::now() + Duration::from_secs(5), |_| -> u8 {
+        block_on_hang_guard(paused_runtime(), async {
+            let result = finish_gated(gate_compute(&governor, far_deadline(), |_| -> u8 {
                 panic!("deterministic worker failure")
-            })
+            }))
             .await;
-        assert_eq!(
-            result,
-            Err(WorkError::Panicked {
-                lane: WorkLane::Compute
-            })
-        );
-        assert_eq!(governor.snapshot().compute_active, 0);
-        assert_eq!(
-            governor
-                .run_fetch(Instant::now() + Duration::from_secs(5), |_| 7)
-                .await,
-            Ok(7)
-        );
+            assert_eq!(
+                result,
+                Err(WorkError::Panicked {
+                    lane: WorkLane::Compute
+                })
+            );
+            assert_eq!(governor.snapshot().compute_active, 0);
+            assert_eq!(
+                finish_gated(gate_fetch(&governor, far_deadline(), |_| 7)).await,
+                Ok(7)
+            );
+        });
     }
 }
 
