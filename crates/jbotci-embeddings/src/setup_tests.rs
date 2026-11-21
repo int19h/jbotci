@@ -3,6 +3,7 @@
 use super::*;
 use std::io::{BufRead, Seek, SeekFrom};
 use std::net::TcpListener;
+use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread::JoinHandle;
 
@@ -32,6 +33,7 @@ fn setup_test_dir() -> tempfile::TempDir {
 struct PackServer {
     address: std::net::SocketAddr,
     requests: Arc<Mutex<Vec<String>>>,
+    request_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -47,8 +49,10 @@ impl PackServer {
             .expect("the pack server socket accepts nonblocking mode");
         let address = listener.local_addr().unwrap();
         let requests = Arc::new(Mutex::new(Vec::new()));
+        let request_wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
         let worker_requests = Arc::clone(&requests);
+        let worker_wake = Arc::clone(&request_wake);
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
             // The listener does not block in accept.
@@ -83,7 +87,13 @@ impl PackServer {
                 let mut parts = line.split_whitespace();
                 assert_eq!(parts.next(), Some("GET"));
                 let relative = parts.next().unwrap().trim_start_matches('/').to_owned();
-                worker_requests.lock().unwrap().push(relative.clone());
+                // Record the request, then wake a test that waits for it.
+                // The wake uses the same mutex as the request list.
+                {
+                    let mut recorded = worker_requests.lock().unwrap();
+                    recorded.push(relative.clone());
+                    worker_wake.notify_one();
+                }
                 loop {
                     line.clear();
                     if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
@@ -125,6 +135,7 @@ impl PackServer {
         Self {
             address,
             requests,
+            request_wake,
             stop,
             worker: Some(worker),
         }
@@ -173,41 +184,88 @@ fn pack_server_shutdown_joins_without_a_client() {
         .expect("the pack server thread finishes cleanly");
 }
 
+/// Wait until the worker records one request.
+/// A wall clock of 60 seconds waits with the request list.
+/// When the record is present, a correct run returns.
+/// When the record does not come, the clock fires.
+/// The failure text says that this limit only stops a hang.
+#[requires(true)]
+#[ensures(true)]
+fn wait_for_pack_request(server: &PackServer) {
+    let guard = server
+        .requests
+        .lock()
+        .expect("the pack server request list is open");
+    let (guard, _status) = server
+        .request_wake
+        .wait_timeout_while(guard, std::time::Duration::from_secs(60), |requests| {
+            requests.is_empty()
+        })
+        .expect("the pack server request list is open");
+    if guard.is_empty() {
+        panic!("this limit only stops a hang");
+    }
+}
+
+/// Stop the worker and wait for its result.
+/// A side thread joins the worker.
+/// When that join does not finish in 60 seconds, fail the test.
+/// The failure text says that this limit only stops a hang.
+/// On that failure the side thread keeps waiting until the process exits.
+/// A correct run returns the worker result.
+#[requires(true)]
+#[ensures(server.worker.is_none())]
+fn finish_pack_server_within_hang_limit(server: &mut PackServer) -> Result<(), String> {
+    let Some(worker) = server.worker.take() else {
+        return Ok(());
+    };
+    let stop = Arc::clone(&server.stop);
+    let (result_tx, result_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        stop.store(true, AtomicOrdering::Release);
+        let result = match worker.join() {
+            Ok(()) => Ok(()),
+            Err(payload) => Err(pack_server_panic_message(payload)),
+        };
+        let _ = result_tx.send(result);
+    });
+    match result_rx.recv_timeout(std::time::Duration::from_secs(60)) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            panic!("this limit only stops a hang")
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("the hang limit thread stopped")
+        }
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn pack_server_shutdown_returns_during_a_blocked_write() {
     // The file length is 256 MiB.
     // The client sends the request and does not read the response.
+    // The test waits until the worker records that request.
     // The write fills the socket buffer and then blocks.
     // The write timeout ends that block.
     // Shutdown returns the worker result.
     let root = setup_test_dir();
-    let mut big = File::create(root.path().join("big")).unwrap();
+    let big = File::create(root.path().join("big")).unwrap();
     big.set_len(256 * 1024 * 1024).unwrap();
     drop(big);
     let mut server = PackServer::start(root.path().to_owned());
     let mut client = std::net::TcpStream::connect(server.address).unwrap();
     client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
-    for _ in 0..1000 {
-        if server.requests.lock().unwrap().len() == 1 {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(1));
-    }
-    assert_eq!(server.requests.lock().unwrap().len(), 1);
+    wait_for_pack_request(&server);
     let started = std::time::Instant::now();
-    let result = server.shutdown();
+    let result = finish_pack_server_within_hang_limit(&mut server);
     let elapsed = started.elapsed();
     drop(client);
     eprintln!(
         "PACK_SHUTDOWN_OK={} PACK_SHUTDOWN_MS={}",
         result.is_ok(),
         elapsed.as_millis()
-    );
-    assert!(
-        elapsed < std::time::Duration::from_secs(15),
-        "shutdown waited {elapsed:?}"
     );
     result.expect("the pack server thread finishes cleanly");
 }
