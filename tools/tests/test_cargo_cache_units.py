@@ -532,16 +532,12 @@ class CargoUnitTests(unittest.TestCase):
         run.mkdir(parents=True)
         (run / "run-build-script-build-script-build").write_text("fedcba9876543210")
         out = run.parent / "out"
-        decoy = target / "debug/build/demo/4444444444444444/fingerprint"
-        decoy.mkdir(parents=True)
-        (decoy / "bin-build-script-build").write_text("4444444444444444")
         environment = f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]'
         cases = [
             "/tmp/build-script-build",
             str(target / "debug/build-script-build"),
             str(target / "debug/deps/build-script-build-0123456789abcdef"),
             str(out / "sub/build-script-build"),
-            str(decoy.parent / "out/build_script_build"),
         ]
         for executable in cases:
             with self.subTest(executable=executable):
@@ -614,7 +610,8 @@ class CargoUnitTests(unittest.TestCase):
                 parser = Parser(self.workspace, target, output)
                 parser.feed([(
                     f'1 execve("{executable}", ["{executable}"], '
-                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+                    f'"TARGET={triple}", "OUT_DIR={out}"]) = 0\n'
                 ).encode()])
                 events = [json.loads(line) for line in output.getvalue().splitlines()]
                 units = [event for event in events if event["event"] == "unit"]
@@ -622,6 +619,87 @@ class CargoUnitTests(unittest.TestCase):
                 self.assertEqual([(event["kind"], event["unit"]) for event in units], [
                     ("run", expected),
                 ])
+
+    def test_trace_rejects_a_build_script_for_a_different_target(self) -> None:
+        target = self.layout.target
+        requested = "x86_64-unknown-linux-gnu"
+        placed = "aarch64-unknown-linux-gnu"
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        unit_out = target / f"{placed}/debug/build/demo/fedcba9876543210/out"
+        (unit_out.parent / "fingerprint").mkdir(parents=True)
+        classic_out = target / f"{placed}/debug/build/demo-bbbbbbbbbbbbbbbb/out"
+        (target / f"{placed}/debug/.fingerprint/demo-bbbbbbbbbbbbbbbb").mkdir(parents=True)
+        executables = (
+            compile_dir.parent / "out/build_script_build",
+            target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build",
+        )
+        outputs = (unit_out, classic_out)
+        for executable, out in zip(executables, outputs, strict=True):
+            for target_value in (requested, None):
+                with self.subTest(executable=executable.name, target_value=target_value):
+                    fields = ["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", f"OUT_DIR={out}"]
+                    if target_value is not None:
+                        fields.append(f"TARGET={target_value}")
+                    environment = "[" + ", ".join(f'"{field}"' for field in fields) + "]"
+                    output = io.StringIO()
+                    parser = Parser(self.workspace, target, output)
+                    parser.feed([(
+                        f'1 execve("{executable}", ["{executable}"], {environment}) = 0\n'
+                    ).encode()])
+                    events = [json.loads(line) for line in output.getvalue().splitlines()]
+                    self.assertEqual(events[-1]["errors"], 1)
+                    self.assertEqual(events[1]["reason"], "Unknown build script unit layout")
+                    self.assertFalse(any(event["event"] == "unit" for event in events))
+
+    def test_trace_matches_a_short_target_name(self) -> None:
+        target = self.layout.target
+        triple = "wasm32-wasi"
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        unit_run = target / f"{triple}/debug/build/demo/fedcba9876543210/fingerprint"
+        unit_run.mkdir(parents=True)
+        classic_run = target / f"{triple}/debug/.fingerprint/demo-bbbbbbbbbbbbbbbb"
+        classic_run.mkdir(parents=True)
+        cases = (
+            (compile_dir.parent / "out/build_script_build", unit_run.parent / "out",
+             f"{triple}/debug/build/demo/fedcba9876543210/fingerprint"),
+            (target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build",
+             target / f"{triple}/debug/build/demo-bbbbbbbbbbbbbbbb/out",
+             f"{triple}/debug/.fingerprint/demo-bbbbbbbbbbbbbbbb"),
+        )
+        for executable, out, expected in cases:
+            with self.subTest(executable=executable.name):
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+                    f'"TARGET={triple}", "OUT_DIR={out}"]) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                units = [event for event in events if event["event"] == "unit"]
+                self.assertEqual(events[-1]["errors"], 0)
+                self.assertEqual([(event["kind"], event["unit"]) for event in units], [
+                    ("run", expected),
+                ])
+
+    def test_trace_rejects_a_build_unit_script_without_its_compile_marker(self) -> None:
+        target = self.layout.target
+        executable = target / "debug/build/demo/0123456789abcdef/out/build_script_build"
+        out = target / "debug/build/demo/fedcba9876543210/out"
+        (out.parent / "fingerprint").mkdir(parents=True)
+        script = (
+            f'1 execve("{executable}", ["{executable}"], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+        )
+        self.assert_trace_layout_error(script, "Unknown build script unit layout")
+        compile_dir = executable.parent.parent / "fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "bin-demo").write_text("0123456789abcdef")
+        self.assert_trace_layout_error(script, "Unknown build script unit layout")
 
     def test_trace_rejects_a_build_script_whose_profiles_do_not_match(self) -> None:
         target = self.layout.target

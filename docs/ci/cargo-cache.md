@@ -67,8 +67,12 @@ An unreadable input record for a workspace or vendored unit fails the contract c
 The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
 When the executable is inside the traced target, a rejected operation also records that path.
-A build script started with `--target` uses the host profile for its binary and the target triple for `OUT_DIR`.
+When Cargo passes `--target`, the build-script binary stays in the profile for the host.
+`OUT_DIR` is under the `TARGET` value from that build script.
+When `TARGET` is absent, the trace rejects that split layout.
+When `TARGET` differs from that directory, the trace rejects the script.
 The trace records the run unit next to `OUT_DIR`.
+When the executable matches the Cargo 1.100 build-script place, a missing compile fingerprint is an error.
 Strace's `-Y` option supplies process names, including names for short-lived threads.
 For an unknown PID, the reader also attempts a live `/proc` snapshot for diagnostics.
 Unavailable identity fields remain null. These snapshots never determine a Cargo unit's ownership.

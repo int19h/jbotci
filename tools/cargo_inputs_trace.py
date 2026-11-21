@@ -124,9 +124,6 @@ def extra_filename(arguments: list[str]) -> str | None:
 
 UNIT_ID = re.compile(r"[0-9a-f]{16}")
 CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
-# A Rust target triple has at least three hyphen-separated parts, such as
-# `x86_64-unknown-linux-gnu`. A profile name does not match this shape.
-TARGET_TRIPLE = re.compile(r"[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+){2,}")
 
 
 def cargo_rustc_metadata(arguments: list[str]) -> bool:
@@ -180,31 +177,35 @@ def profile_inside_target(target: Path, profile: Path) -> bool:
     return profile.is_relative_to(target) and profile != target
 
 
-def profiles_match(host_profile: Path, out_profile: Path) -> bool:
+def profiles_match(host_profile: Path, out_profile: Path, requested_target: str | None) -> bool:
     """Return true when both directories are one Cargo build's profiles.
 
     Without `--target`, the build script and `OUT_DIR` share one profile.
     With `--target`, Cargo writes the host script under `<root>/<profile>`
-    and `OUT_DIR` under `<root>/<triple>/<profile>`.
+    and `OUT_DIR` under `<root>/<TARGET>/<profile>`.
+    `TARGET` is the build-script environment value.
     `<root>` is the traced target, or a nested target directory inside it.
+    A split layout with no `TARGET`, or a different directory name, is not a match.
     """
     if out_profile == host_profile:
         return True
     if out_profile.name != host_profile.name:
         return False
-    triple = out_profile.parent
-    return triple.parent == host_profile.parent and TARGET_TRIPLE.fullmatch(triple.name) is not None
+    inserted = out_profile.parent
+    if inserted.parent != host_profile.parent:
+        return False
+    return requested_target is not None and inserted.name == requested_target
 
 
 def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
-                                      cargo_package: str) -> Path | None:
+                                      cargo_package: str, requested_target: str | None) -> Path | None:
     """Return the classic run fingerprint for one build-script executable.
 
     Cargo 1.99 runs `<profile>/build/<package>-<16 hex>/build-script-<stem>`.
     `OUT_DIR` is `<profile>/build/<package>-<16 hex>/out` for the run unit.
     Those two suffixes are different directories of one package.
     With `--target`, the script profile is `<root>/<profile>` and `OUT_DIR`
-    is under `<root>/<triple>/<profile>`. The run fingerprint follows `OUT_DIR`.
+    is under `<root>/<TARGET>/<profile>`. The run fingerprint follows `OUT_DIR`.
     The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
     """
@@ -226,7 +227,7 @@ def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Pa
         or out_package is None
         or out_package[0] != package
         or out_build.name != "build"
-        or not profiles_match(profile, out_profile)
+        or not profiles_match(profile, out_profile, requested_target)
         or not profile_inside_target(target, out_profile)
         or not out_dir.is_relative_to(target)
     ):
@@ -297,16 +298,17 @@ def fingerprint_ready(path: Path, run: bool) -> None:
 
 
 def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
-                                         cargo_package: str) -> Path | None:
+                                         cargo_package: str, requested_target: str | None) -> Path | None:
     """Return the build-unit run fingerprint for one build-script executable.
 
     Cargo 1.100 runs `<profile>/build/<package>/<compile id>/out/build_script_<stem>`.
     That compile unit's fingerprint holds a `build-script-*` file.
     `OUT_DIR` is `<profile>/build/<package>/<run id>/out` for a different id.
     With `--target`, the script profile is `<root>/<profile>` and `OUT_DIR`
-    is under `<root>/<triple>/<profile>`. The run fingerprint follows `OUT_DIR`.
+    is under `<root>/<TARGET>/<profile>`. The run fingerprint follows `OUT_DIR`.
     The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
+    Once that place matches, a missing compile fingerprint is an error.
     """
     if not executable.name.startswith("build_script_") or executable.name == "build_script_":
         return None
@@ -324,12 +326,8 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
     if not profile_inside_target(target, profile):
         raise TraceError("Unknown build script unit layout")
     compile_fingerprint = compile_dir / "fingerprint"
-    if not compile_fingerprint.exists():
-        return None
-    if not compile_fingerprint.is_dir():
-        raise TraceError("Unknown build script unit layout")
     if not fingerprint_names(compile_fingerprint, "build-script-"):
-        return None
+        raise TraceError("Unknown build script unit layout")
     run_id = out_dir.parent.name
     out_package = out_dir.parent.parent
     out_build = out_package.parent
@@ -340,7 +338,7 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
         or run_id == compile_dir.name
         or out_build.name != "build"
         or out_package.name != package_dir.name
-        or not profiles_match(profile, out_profile)
+        or not profiles_match(profile, out_profile, requested_target)
         or not profile_inside_target(target, out_profile)
         or not out_dir.is_relative_to(target)
     ):
@@ -461,6 +459,7 @@ class Parser:
             package = env.get("CARGO_PKG_NAME")
             manifest = env.get("CARGO_MANIFEST_DIR")
             out = env.get("OUT_DIR")
+            requested_target = env.get("TARGET") or None
             unit = None
             kind = None
             dep_info = None
@@ -477,9 +476,11 @@ class Parser:
                     if process.unit is None:
                         raise TraceError("A nested build has no outer unit")
                 else:
-                    fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir, package)
+                    fingerprint = classic_build_script_fingerprint(
+                        self.target, resolved, out_dir, package, requested_target)
                     if fingerprint is None:
-                        fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir, package)
+                        fingerprint = build_unit_build_script_fingerprint(
+                            self.target, resolved, out_dir, package, requested_target)
                     if fingerprint is not None:
                         if inside_unit_out(self.target, fingerprint):
                             if process.unit is None:
