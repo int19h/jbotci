@@ -2,9 +2,9 @@ use dioxus::core::Task;
 use dioxus::prelude::*;
 use dioxus::router::Navigator;
 use jbotci_cll::{
-    CllBlock, CllCmavoListCell, CllEbnfEntry, CllEbnfToken, CllEdition, CllInline,
-    CllInterlinearRow, CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine, CllLujvoPart,
-    CllSimpleListOrientation, CllTableCell, cll_link_href, embedded_cll_site,
+    CllBlock, CllCmavoListCell, CllCmavoWordPart, CllEbnfEntry, CllEbnfToken, CllEdition,
+    CllInline, CllInterlinearRow, CllLanguageSpanKind, CllLinkKind, CllLojbanizationLine,
+    CllLujvoPart, CllSimpleListOrientation, CllTableCell, cll_link_href, embedded_cll_site,
     wrap_ebnf_choice_lines,
 };
 use jbotci_diagnostics::{

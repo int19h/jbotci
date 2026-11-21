@@ -1179,7 +1179,7 @@ impl CllCmavoListCell {
         CllCmavoListCell::Other { .. } => ret.is_none(),
         CllCmavoListCell::Word { .. } => ret.as_ref().is_none_or(|parts| parts.len() >= 2),
     })]
-    pub fn word_parts(&self) -> Option<Vec<(&str, Option<&str>)>> {
+    pub fn word_parts(&self) -> Option<Vec<crate::cmavo_table::CllCmavoWordPart<'_>>> {
         match self {
             CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_parts(inlines),
             CllCmavoListCell::Other { .. } => None,

@@ -7,7 +7,7 @@
 //! part that does not link is one Lojban span. The span keeps the part text.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires, try_new};
 
 use super::*;
 
@@ -96,23 +96,33 @@ pub(crate) fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<
     }
 }
 
+/// One adjacent valsi part.
+///
+/// `text` is the spelling a reader sees. The spelling is not empty. It does
+/// not start or end with whitespace. It has no line ending. `target` is the
+/// dictionary headword when the part links. The spelling of a link is one
+/// dictionary token. An empty target is not a part.
+#[invariant(!text.is_empty())]
+#[invariant(!text.chars().next().is_some_and(char::is_whitespace))]
+#[invariant(!text.chars().next_back().is_some_and(char::is_whitespace))]
+#[invariant(!text.contains(['\n', '\r']))]
+#[invariant(target.as_ref().is_none_or(|link| {
+    !link.is_empty() && is_dictionary_token(text)
+}))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CllCmavoWordPart<'a> {
+    pub text: &'a str,
+    pub target: Option<&'a str>,
+}
+
 /// The separate valsi parts stored in `inlines`.
 ///
-/// A part is one dictionary link or one unlinked Lojban span. The shown text
-/// is not empty. A link's text is one dictionary token. The cell has at least
-/// two parts. A bracket cell and a one-word cell return none.
+/// A part is one dictionary link or one unlinked Lojban span. The part type
+/// holds the spelling rules. The cell has at least two parts. A bracket cell
+/// and a one-word cell return none.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|parts| {
-    parts.len() >= 2
-        && parts.iter().all(|(text, target)| {
-            !text.is_empty()
-                && match target {
-                    Some(target) => !target.is_empty() && is_dictionary_token(text),
-                    None => true,
-                }
-        })
-}))]
-pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<(&str, Option<&str>)>> {
+#[ensures(ret.as_ref().is_none_or(|parts| parts.len() >= 2))]
+pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<CllCmavoWordPart<'_>>> {
     if inlines.len() < 2 {
         return None;
     }
@@ -127,10 +137,13 @@ pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<(&str, Optio
                 let [CllInline::Text(text)] = inlines.as_slice() else {
                     return None;
                 };
-                if !is_dictionary_token(text) {
-                    return None;
-                }
-                parts.push((text.as_str(), Some(target.as_str())));
+                parts.push(
+                    try_new!(CllCmavoWordPart {
+                        text: text.as_str(),
+                        target: Some(target.as_str()),
+                    })
+                    .ok()?,
+                );
             }
             CllInline::LanguageSpan {
                 kind: CllLanguageSpanKind::JboPhrase,
@@ -140,10 +153,13 @@ pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<(&str, Optio
                 let [CllInline::Text(text)] = inlines.as_slice() else {
                     return None;
                 };
-                if text.is_empty() {
-                    return None;
-                }
-                parts.push((text.as_str(), None));
+                parts.push(
+                    try_new!(CllCmavoWordPart {
+                        text: text.as_str(),
+                        target: None,
+                    })
+                    .ok()?,
+                );
             }
             _ => return None,
         }
@@ -579,6 +595,72 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_part_rejects_outer_whitespace_and_a_line_ending() {
+        let rejected = ["", "    ", " a", "a ", "a  \nb", "a\nb", "\n==="];
+        for text in rejected {
+            let unlinked =
+                std::panic::catch_unwind(|| new!(CllCmavoWordPart { text, target: None }));
+            assert!(
+                panic_is_type_invariant(unlinked),
+                "part {text:?} must fail the type invariant"
+            );
+        }
+        let empty_target = std::panic::catch_unwind(|| {
+            new!(CllCmavoWordPart {
+                text: "coi",
+                target: Some(""),
+            })
+        });
+        assert!(panic_is_type_invariant(empty_target));
+        let not_a_token = std::panic::catch_unwind(|| {
+            new!(CllCmavoWordPart {
+                text: "mi,o",
+                target: Some("mi,o"),
+            })
+        });
+        assert!(panic_is_type_invariant(not_a_token));
+        let linked = new!(CllCmavoWordPart {
+            text: "roi",
+            target: Some("roi"),
+        });
+        assert_eq!(linked.text, "roi");
+        assert_eq!(linked.target, Some("roi"));
+        let plain = new!(CllCmavoWordPart {
+            text: "mi,o",
+            target: None,
+        });
+        assert_eq!(plain.text, "mi,o");
+        let spaced = vec![
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: None,
+                inlines: vec![CllInline::Text(" a".to_owned())],
+            },
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: None,
+                inlines: vec![CllInline::Text("nai".to_owned())],
+            },
+        ];
+        assert!(cmavo_word_parts(&spaced).is_none());
+        let broken = vec![
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: None,
+                inlines: vec![CllInline::Text("a  \nb".to_owned())],
+            },
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: None,
+                inlines: vec![CllInline::Text("z".to_owned())],
+            },
+        ];
+        assert!(cmavo_word_parts(&broken).is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn empty_lookup_target_is_plain_text() {
         let cell = |text| cmavo_or_gismu_cell_inlines_from(text, |_| Some(""));
         assert_eq!(cell("coi"), vec![CllInline::Text("coi".to_owned())]);
@@ -588,9 +670,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn panic_is_type_invariant(
-        result: Result<CllCmavoWordCell<'_>, Box<dyn std::any::Any + Send>>,
-    ) -> bool {
+    fn panic_is_type_invariant<T>(result: Result<T, Box<dyn std::any::Any + Send>>) -> bool {
         let Err(payload) = result else {
             return false;
         };

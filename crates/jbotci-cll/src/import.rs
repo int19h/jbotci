@@ -5186,27 +5186,28 @@ mod tests {
             (
                 "<valsi>roi</valsi><valsi>nai</valsi>",
                 "roinai",
-                &[("roi", Some("roi")), ("nai", Some("nai"))] as &[(&str, Option<&str>)],
+                &[word_part("roi", Some("roi")), word_part("nai", Some("nai"))]
+                    as &[CllCmavoWordPart],
             ),
             (
                 "<valsi>pi</valsi><valsi>no'o</valsi>",
                 "pino'o",
-                &[("pi", Some("pi")), ("no'o", Some("no'o"))],
+                &[word_part("pi", Some("pi")), word_part("no'o", Some("no'o"))],
             ),
             (
                 "<valsi>pi</valsi><valsi>rau</valsi>",
                 "pirau",
-                &[("pi", Some("pi")), ("rau", Some("rau"))],
+                &[word_part("pi", Some("pi")), word_part("rau", Some("rau"))],
             ),
             (
                 "<valsi>roi</valsi><valsi>zzzz</valsi>",
                 "roizzzz",
-                &[("roi", Some("roi")), ("zzzz", None)],
+                &[word_part("roi", Some("roi")), word_part("zzzz", None)],
             ),
             (
                 r#"<valsi>roi</valsi><valsi valid="false">nai</valsi>"#,
                 "roinai",
-                &[("roi", Some("roi")), ("nai", None)],
+                &[word_part("roi", Some("roi")), word_part("nai", None)],
             ),
         ];
         for (inner, plain, expected) in shapes {
@@ -5230,7 +5231,7 @@ mod tests {
         };
         assert_eq!(
             rows[0][0].word_parts().as_deref(),
-            Some([("roi", None), ("nai", None)].as_slice())
+            Some([word_part("roi", None), word_part("nai", None)].as_slice())
         );
         assert!(
             !rows[0][0]
@@ -5324,6 +5325,16 @@ mod tests {
         );
     }
 
+    #[requires(!text.is_empty())]
+    #[requires(!text.chars().next().is_some_and(char::is_whitespace))]
+    #[requires(!text.chars().next_back().is_some_and(char::is_whitespace))]
+    #[requires(!text.contains(['\n', '\r']))]
+    #[requires(target.is_none_or(|link| !link.is_empty() && crate::cmavo_table::is_dictionary_token(text)))]
+    #[ensures(ret.text == text && ret.target == target)]
+    fn word_part<'a>(text: &'a str, target: Option<&'a str>) -> CllCmavoWordPart<'a> {
+        new!(CllCmavoWordPart { text, target })
+    }
+
     #[requires(!inner.is_empty())]
     #[ensures(matches!(ret, CllCmavoListCell::Word { .. }))]
     fn word_cell_from_inner(inner: &str) -> CllCmavoListCell {
@@ -5345,13 +5356,16 @@ mod tests {
             (
                 "<valsi>roi</valsi><valsi>nai</valsi><valsi>mi,o</valsi>",
                 "roinaimi,o",
-                &[("roi", Some("roi")), ("nai", Some("nai")), ("mi,o", None)]
-                    as &[(&str, Option<&str>)],
+                &[
+                    word_part("roi", Some("roi")),
+                    word_part("nai", Some("nai")),
+                    word_part("mi,o", None),
+                ] as &[CllCmavoWordPart],
             ),
             (
                 "<valsi>roi</valsi><valsi>mi,o</valsi>",
                 "roimi,o",
-                &[("roi", Some("roi")), ("mi,o", None)],
+                &[word_part("roi", Some("roi")), word_part("mi,o", None)],
             ),
         ];
         for (inner, plain, expected) in shapes {
@@ -5464,8 +5478,8 @@ mod tests {
                 "roi[x](https://example.invalid)",
                 format!("{}{}", link("roi"), span("[x](https://example.invalid)")),
                 format!("roi{}", span("[x](https://example.invalid)")),
-                format!("{}{}", md_link("roi"), r"\[x\]\(https\://example.invalid\)"),
-                format!("roi{}", r"\[x\]\(https\://example.invalid\)"),
+                format!("{}{}", md_link("roi"), r"\[x\]\(https://example.invalid\)"),
+                format!("roi{}", r"\[x\]\(https://example.invalid\)"),
                 format!(
                     "{}*{}*",
                     md_link("roi"),
@@ -5489,9 +5503,9 @@ mod tests {
                 format!(
                     "{}{}",
                     md_link("roi"),
-                    r#"\<a href="https\://example.invalid"\>"#
+                    r#"\<a href="https://example.invalid"\>"#
                 ),
-                format!("roi{}", r#"\<a href="https\://example.invalid"\>"#),
+                format!("roi{}", r#"\<a href="https://example.invalid"\>"#),
                 format!(
                     "{}*{}*",
                     md_link("roi"),
@@ -5610,7 +5624,7 @@ mod tests {
     fn an_empty_valsi_part_keeps_its_neighbors_separate() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cell = word_cell_from_inner("<valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi>");
-        let expected = [("na'e", Some("na'e")), ("bo", Some("bo"))];
+        let expected = [word_part("na'e", Some("na'e")), word_part("bo", Some("bo"))];
         assert_eq!(cell.word_parts().as_deref(), Some(expected.as_slice()));
         assert!(cell.word_cell().is_none());
         assert_eq!(crate::cmavo_cell_plain_text(cell.inlines()), "na'ebo");

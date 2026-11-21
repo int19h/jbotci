@@ -1321,13 +1321,13 @@ mod tests {
         assert_eq!(escape_value_line("1.5 not a list"), "1.5 not a list");
         assert_eq!(escape_value_line("1.a"), "1.a");
         assert_eq!(escape_value_line("v1.5 not a list"), "v1.5 not a list");
-        assert_eq!(escape_value_line("+ plus"), "\\+ plus");
+        assert_eq!(escape_value_line("+ plus"), "+ plus");
         assert_eq!(escape_value_line("# a"), "\\# a");
         assert_eq!(escape_value_line("#a"), "#a");
         assert_eq!(escape_value_line("- a"), "\\- a");
         assert_eq!(escape_value_line("-nai"), "-nai");
         assert_eq!(escape_value_line("#\r"), "\\#\r");
-        assert_eq!(escape_value_line("1.\r"), "1\\.\r");
+        assert_eq!(escape_value_line("1.\r"), "1.\r");
         let mut crlf = String::new();
         for (index, line) in "#\r\n1.\r\n".split('\n').enumerate() {
             if index > 0 {
@@ -1335,7 +1335,7 @@ mod tests {
             }
             crlf.push_str(&escape_value_line(line));
         }
-        assert_eq!(crlf, "\\#\r\n1\\.\r\n");
+        assert_eq!(crlf, "\\#\r\n1.\r\n");
         assert_eq!(escape_value_line("a + b"), "a + b");
         assert_eq!(escape_value_line("mi klama .i do"), "mi klama .i do");
         assert_eq!(

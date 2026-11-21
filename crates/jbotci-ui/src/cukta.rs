@@ -2333,7 +2333,7 @@ fn render_cmavo_list_cell(
 #[requires(parts.len() >= 2)]
 #[ensures(true)]
 fn render_cmavo_word_parts(
-    parts: &[(&str, Option<&str>)],
+    parts: &[CllCmavoWordPart<'_>],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -2341,7 +2341,7 @@ fn render_cmavo_word_parts(
 ) -> Element {
     let shown_parts: Vec<String> = parts
         .iter()
-        .map(|(text, _)| display_cmavo_word(script, text))
+        .map(|part| display_cmavo_word(script, part.text))
         .collect();
     let full: String = shown_parts.concat();
     if full.is_empty() {
@@ -2350,13 +2350,13 @@ fn render_cmavo_word_parts(
     let pieces = page_find_pieces_for(page_find, &full);
     let mut cursor = 0usize;
     let mut children = Vec::new();
-    for ((_, target), shown) in parts.iter().zip(shown_parts.iter()) {
+    for (part, shown) in parts.iter().zip(shown_parts.iter()) {
         let start = cursor;
         let end = cursor + shown.len();
         cursor = end;
         let inner = clip_page_find_pieces(&pieces, start, end);
         let node = render_page_find_pieces(page_find, &inner);
-        let child = if let Some(target) = target {
+        let child = if let Some(target) = part.target {
             render_cll_link_with_child(
                 target,
                 CllLinkKind::Dictionary,

@@ -7,7 +7,9 @@
 #![recursion_limit = "512"]
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{
+    contract_trait, data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires,
+};
 #[cfg(test)]
 use roxmltree::Document;
 
@@ -56,7 +58,7 @@ mod math;
 use math::{CllMathDisplay, render_math_node};
 
 mod cmavo_table;
-pub use cmavo_table::CllCmavoWordCell;
+pub use cmavo_table::{CllCmavoWordCell, CllCmavoWordPart};
 mod links;
 use links::{
     AnchorMode, build_example_reference_index, build_index_entries, build_section_reference_index,
@@ -859,23 +861,15 @@ fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::Text
 }
 
 /// The letters of adjacent valsi parts, with no space added between parts.
-///
-/// Each part is a link or a Lojban span. A bare text node is not a part.
-#[requires(true)]
-#[ensures(true)]
-fn cmavo_parts_plain_text(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
+#[requires(!parts.is_empty())]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn cmavo_parts_plain_text(
+    parts: &[CllCmavoWordPart<'_>],
+    scope: &jbotci_budget::TextScope,
+) -> String {
     let mut output = scope.buffer();
-    for inline in inlines {
-        match inline {
-            CllInline::Link { inlines, .. } | CllInline::LanguageSpan { inlines, .. } => {
-                for child in inlines {
-                    if let CllInline::Text(text) = child {
-                        output.push_str(text);
-                    }
-                }
-            }
-            _ => {}
-        }
+    for part in parts {
+        output.push_str(part.text);
     }
     output.into_piece()
 }
@@ -894,8 +888,8 @@ fn cmavo_list_cell_plain_text_in_scope(
     if let Some((word, _)) = cell.word_cell().and_then(CllCmavoWordCell::bracket) {
         return scope.format(format_args!("[{word}]"));
     }
-    if cell.word_parts().is_some() {
-        return cmavo_parts_plain_text(cell.inlines(), scope);
+    if let Some(parts) = cell.word_parts() {
+        return cmavo_parts_plain_text(&parts, scope);
     }
     inline_plain_text_in_scope(cell.inlines(), scope)
 }

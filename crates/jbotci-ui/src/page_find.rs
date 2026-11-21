@@ -935,8 +935,8 @@ fn collect_cmavo_cell_page_find_entries(
     }
     if let Some(parts) = cell.word_parts() {
         let mut shown = String::new();
-        for (text, _) in parts {
-            shown.push_str(&display_cmavo_word(script, text));
+        for part in parts {
+            shown.push_str(&display_cmavo_word(script, part.text));
         }
         push_page_find_entry(entries, shown);
         return;
