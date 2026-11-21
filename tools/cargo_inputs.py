@@ -113,27 +113,26 @@ class Layout:
         return found
 
     def build_unit_fingerprints(self) -> list[Path]:
-        """Return fingerprint directories stored beside each build-unit output."""
+        """Return fingerprint directories stored beside each build-unit output.
+
+        A directory under `<profile>/build/<package>` that is not a 16-hex unit is an error.
+        A nested `build` directory inside an `OUT_DIR` is not a unit root.
+        """
         roots = self.profiles if self.profiles is not None else (self.target,)
         found: list[Path] = []
         for root in roots:
             if not root.exists():
                 continue
             for build in root.rglob("build"):
-                if not build.is_dir():
+                if not build.is_dir() or nested_out_build(root, build):
                     continue
                 for package in build.iterdir():
-                    if not package.is_dir():
+                    if not package.is_dir() or CLASSIC_DIR.search(package.name):
                         continue
-                    for unit_dir in package.iterdir():
-                        if not unit_dir.is_dir() or not UNIT_ID.fullmatch(unit_dir.name):
-                            continue
-                        fingerprint = unit_dir / "fingerprint"
-                        if not fingerprint.exists():
-                            continue
-                        if not fingerprint.is_dir():
-                            raise InputError(f"A build-unit fingerprint is not a directory: {fingerprint}")
-                        found.append(fingerprint)
+                    for child in package.iterdir():
+                        fingerprint = build_unit_child(child)
+                        if fingerprint is not None:
+                            found.append(fingerprint)
         return found
 
 
@@ -166,6 +165,31 @@ class Unit:
     def built_after(self, marker_ns: int) -> bool:
         # Only Cargo's committed fingerprint counts. Our record never counts.
         return (self.directory / self.stem).stat().st_mtime_ns > marker_ns
+
+
+def nested_out_build(root: Path, build: Path) -> bool:
+    """Return true when `build` is a directory nested inside an `OUT_DIR`."""
+    parts = build.relative_to(root).parts
+    try:
+        outer = parts.index("build")
+    except ValueError:
+        return True
+    return "out" in parts[outer + 1:-1]
+
+
+def build_unit_child(child: Path) -> Path | None:
+    """Return one build-unit fingerprint, or None when the unit has not run.
+
+    Raise InputError when `child` is not a 16-hex unit directory.
+    """
+    if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
+        raise InputError(f"Unknown build entry: {child}")
+    fingerprint = child / "fingerprint"
+    if not fingerprint.exists():
+        return None
+    if not fingerprint.is_dir():
+        raise InputError(f"A build-unit fingerprint is not a directory: {fingerprint}")
+    return fingerprint
 
 
 def read_unit(layout: Layout, directory: Path, shape: FingerprintShape) -> Unit:
@@ -255,7 +279,7 @@ def rustc_dep_info(path: Path, cwd: Path) -> tuple[list[Path], dict[str, str | N
 
 
 def encoded_environment(path: Path) -> dict[str, str | None]:
-    """Read Cargo 1.99's versioned dep-info, including its env filtering."""
+    """Read the versioned dep-info that Cargo 1.99 and Cargo 1.100 both write, including its env filtering."""
     data = memoryview(path.read_bytes())
     offset = 0
 
@@ -411,34 +435,62 @@ def evict_unit(unit: Unit) -> None:
     remove(profile / "incremental")
 
 
-def discard_unrecorded(layout: Layout, retained: set[str]) -> None:
+def profile_directories(layout: Layout, units: dict[str, Unit]) -> set[Path]:
+    """Return every profile directory that eviction must clean.
+
+    Compute this before `evict_unit`. A later inventory misses a profile after
+    its only build-unit directory is removed. An explicit profile with no
+    fingerprint is included when that directory exists.
+    """
+    profiles = {unit.profile for unit in units.values()}
+    profiles.update(path.parent for path in layout.fingerprint_dirs())
+    if layout.profiles is not None:
+        profiles.update(path for path in layout.profiles if path.is_dir())
+    return profiles
+
+
+def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) -> None:
     units = inventory(layout)
     valid_hashes: set[str] = set()
-    profiles: set[Path] = set()
     for key, unit in units.items():
-        profiles.add(unit.profile)
         if key not in retained:
             evict_unit(unit)
         else:
             valid_hashes.add(unit.suffix)
     for profile in profiles:
-        for directory in (profile / "deps", profile / "examples", profile / "build"):
-            if not directory.is_dir():
-                continue
-            for path in list(directory.iterdir()):
+        deps = profile / "deps"
+        if deps.is_dir():
+            for path in list(deps.iterdir()):
+                match = UNIT_HASH.search(path.name)
+                if match is None or match[1] not in valid_hashes:
+                    remove(path)
+        examples = profile / "examples"
+        if examples.is_dir():
+            for path in list(examples.iterdir()):
                 match = UNIT_HASH.search(path.name)
                 if match and match[1] not in valid_hashes:
                     remove(path)
-                    continue
-                if not path.is_dir():
-                    continue
-                for child in list(path.iterdir()):
-                    if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
-                        continue
+        build = profile / "build"
+        if not build.is_dir():
+            continue
+        for path in list(build.iterdir()):
+            match = UNIT_HASH.search(path.name)
+            if match:
+                if match[1] not in valid_hashes:
+                    remove(path)
+                continue
+            if not path.is_dir():
+                remove(path)
+                continue
+            for child in list(path.iterdir()):
+                kept = False
+                if child.is_dir() and UNIT_ID.fullmatch(child.name):
                     fingerprint = child / "fingerprint"
-                    key = fingerprint.relative_to(layout.target).as_posix() if fingerprint.is_dir() else None
-                    if key not in retained:
-                        remove(child)
+                    if fingerprint.is_dir():
+                        key = fingerprint.relative_to(layout.target).as_posix()
+                        kept = key in retained
+                if not kept:
+                    remove(child)
 
 
 def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
@@ -506,8 +558,7 @@ def normalize_checkout(workspace: Path) -> None:
 
 def restore(layout: Layout, normalize: bool = True) -> dict[str, int]:
     units = inventory(layout)
-    profiles = {unit.profile for unit in units.values()}
-    profiles.update(path.parent for path in layout.fingerprint_dirs())
+    profiles = profile_directories(layout, units)
     records: dict[str, dict] = {}
     for key, unit in units.items():
         try:
@@ -517,7 +568,7 @@ def restore(layout: Layout, normalize: bool = True) -> dict[str, int]:
     bad = validate_records(layout, units, records)
     for key in bad:
         evict_unit(units[key])
-    discard_unrecorded(layout, set(units) - bad)
+    discard_unrecorded(layout, set(units) - bad, profiles)
     # Direct execution must never find a stale uplifted binary or DX bundle.
     scrub_outputs(layout, profiles)
     if normalize:
@@ -643,6 +694,7 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
     if writes & tracked_paths:
         raise InputError("A build changed a tracked checkout input")
     units = inventory(layout)
+    profiles = profile_directories(layout, units)
     records: dict[str, dict] = {}
     built: set[str] = set()
     snapshots: dict[Path, dict] = {}
@@ -700,10 +752,8 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
     for key, record in records.items():
         if key not in bad and key in built:
             atomic_json(units[key].directory / RECORD, {"data": record, "sha256": record_signature(record)})
-    discard_unrecorded(layout, set(units) - bad)
+    discard_unrecorded(layout, set(units) - bad, profiles)
     if scrub:
-        profiles = {unit.profile for unit in units.values()}
-        profiles.update(path.parent for path in layout.fingerprint_dirs())
         scrub_outputs(layout, profiles)
     return {"built": len(built), "recorded": len(built - bad), "discarded": len(bad),
             "retained": len(units) - len(bad),

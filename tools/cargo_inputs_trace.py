@@ -152,6 +152,105 @@ def classic_fingerprint(target: Path, out_dir: Path, package: str, suffix: str) 
     return profile / ".fingerprint" / f"{package}-{suffix}"
 
 
+def normalized_path(value: str, cwd: str) -> Path:
+    """Join a trace path to the process directory without following a symlink."""
+    path = Path(value)
+    if not path.is_absolute():
+        path = Path(cwd) / path
+    return Path(os.path.normpath(path))
+
+
+def classic_package_dir(name: str) -> tuple[str, str] | None:
+    match = CLASSIC_DIR.search(name)
+    if match is None:
+        return None
+    package = name[:match.start()]
+    if not package:
+        return None
+    return package, name[match.start() + 1:]
+
+
+def profile_inside_target(target: Path, profile: Path) -> bool:
+    return profile.is_relative_to(target) and profile != target
+
+
+def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path) -> Path | None:
+    """Return the classic run fingerprint for one build-script executable.
+
+    Cargo 1.99 runs `<profile>/build/<package>-<16 hex>/build-script-<stem>`.
+    `OUT_DIR` is `<profile>/build/<package>-<16 hex>/out` for the run unit.
+    Those two suffixes are different directories of one package.
+    Return None when `executable` is not in that place.
+    """
+    if not executable.name.startswith("build-script-") or executable.name == "build-script-":
+        return None
+    script_dir = executable.parent
+    parsed = classic_package_dir(script_dir.name)
+    if parsed is None or script_dir.parent.name != "build":
+        return None
+    package, _compile_hash = parsed
+    profile = script_dir.parent.parent
+    if not profile_inside_target(target, profile):
+        raise TraceError("Unknown build script unit layout")
+    out_package = classic_package_dir(out_dir.parent.name)
+    if (
+        out_dir.name != "out"
+        or out_package is None
+        or out_package[0] != package
+        or out_dir.parent.parent != script_dir.parent
+        or not out_dir.is_relative_to(target)
+    ):
+        raise TraceError("Unknown build script unit layout")
+    return profile / ".fingerprint" / out_dir.parent.name
+
+
+def fingerprint_names(fingerprint: Path, prefix: str) -> bool:
+    if not fingerprint.is_dir():
+        return False
+    return any(entry.name.startswith(prefix) for entry in fingerprint.iterdir())
+
+
+def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir: Path) -> Path | None:
+    """Return the build-unit run fingerprint for one build-script executable.
+
+    Cargo 1.100 runs `<profile>/build/<package>/<compile id>/out/build_script_<stem>`.
+    That compile unit's fingerprint holds a `build-script-*` file.
+    `OUT_DIR` is `<profile>/build/<package>/<run id>/out` for a different id.
+    Return None when `executable` is not in that place.
+    """
+    if not executable.name.startswith("build_script_") or executable.name == "build_script_":
+        return None
+    if executable.parent.name != "out":
+        return None
+    compile_dir = executable.parent.parent
+    if not UNIT_ID.fullmatch(compile_dir.name):
+        return None
+    package_dir = compile_dir.parent
+    build_dir = package_dir.parent
+    if build_dir.name != "build" or CLASSIC_DIR.search(package_dir.name):
+        return None
+    profile = build_dir.parent
+    if not profile_inside_target(target, profile):
+        raise TraceError("Unknown build script unit layout")
+    compile_fingerprint = compile_dir / "fingerprint"
+    if not compile_fingerprint.exists():
+        return None
+    if not compile_fingerprint.is_dir():
+        raise TraceError("Unknown build script unit layout")
+    if not fingerprint_names(compile_fingerprint, "build-script-"):
+        return None
+    run_id = out_dir.parent.name
+    if (
+        out_dir.name != "out"
+        or not UNIT_ID.fullmatch(run_id)
+        or run_id == compile_dir.name
+        or out_dir.parent.parent != package_dir
+        or not out_dir.is_relative_to(target)
+    ):
+        raise TraceError("Unknown build script unit layout")
+    return out_dir.parent / "fingerprint"
+
+
 class Parser:
     def __init__(self, workspace: Path, target: Path, output,
                  inspect_process: Callable[[int], dict] | None = None):
@@ -265,51 +364,53 @@ class Parser:
             unit = None
             kind = None
             dep_info = None
-            # Cargo 1.99 execs a file named build-script-build.
-            # Cargo 1.100 execs the compiled file named build_script_build.
-            if package and manifest and out and Path(executable).name in ("build-script-build", "build_script_build"):
-                out_dir = Path(out)
-                fingerprint = build_unit_fingerprint(out_dir)
-                if (
-                    fingerprint is None
-                    and out_dir.name == "out"
-                    and out_dir.parent.parent.name == "build"
-                    and CLASSIC_DIR.search(out_dir.parent.name)
-                ):
-                    profile = out_dir.parent.parent.parent
-                    if profile.is_relative_to(self.target):
-                        fingerprint = profile / ".fingerprint" / out_dir.parent.name
-                if fingerprint is None or not fingerprint.is_relative_to(self.target):
-                    raise TraceError("Unknown build script unit layout")
-                if fingerprint.is_dir():
+            # Match a build script by its place in the target. A custom
+            # `package.build` stem still uses that place. A normal binary
+            # named build-script-build does not.
+            resolved = normalized_path(executable, process.cwd)
+            if package and manifest and out and resolved.is_relative_to(self.target):
+                out_dir = normalized_path(out, process.cwd)
+                fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir)
+                if fingerprint is None:
+                    fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir)
+                if fingerprint is not None and fingerprint.is_dir() and fingerprint.is_relative_to(self.target):
                     unit = fingerprint
                     kind = "run"
-            if package and manifest and Path(executable).name in ("rustc", "rustc.exe"):
+            # A rustc probe inherits Cargo's environment and can write into OUT_DIR.
+            # Only Cargo's own metadata hash makes the call a unit.
+            if package and manifest and Path(executable).name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
                 destination = flag(arguments, "--out-dir")
                 suffix = extra_filename(arguments)
                 crate = flag(arguments, "--crate-name")
-                if destination and crate:
-                    directory = Path(process.cwd) / destination
-                    fingerprint = build_unit_fingerprint(directory)
-                    hashed_suffix = bool(suffix and UNIT_ID.fullmatch(suffix))
-                    if fingerprint is not None:
-                        if not fingerprint.is_relative_to(self.target) or (suffix is not None and not hashed_suffix):
-                            raise TraceError("Unknown rustc unit layout")
-                        if fingerprint.is_dir():
-                            unit = fingerprint
-                            kind = "compile"
-                            dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
-                            dep_info = str(directory / dep_name)
-                    elif hashed_suffix:
-                        fingerprint = classic_fingerprint(self.target, directory, package, suffix)
-                        if fingerprint is None:
-                            raise TraceError("Unknown rustc unit layout")
-                        if fingerprint.is_dir():
-                            unit = fingerprint
-                            kind = "compile"
-                            dep_info = str(directory / f"{crate}-{suffix}.d")
-                    elif cargo_rustc_metadata(arguments):
+                hashed_suffix = bool(suffix and UNIT_ID.fullmatch(suffix))
+                if not destination or not crate:
+                    raise TraceError("Unknown rustc unit layout")
+                directory = normalized_path(destination, process.cwd)
+                fingerprint = build_unit_fingerprint(directory)
+                if fingerprint is not None:
+                    relative = str(fingerprint.relative_to(self.target)) if fingerprint.is_relative_to(self.target) else None
+                    if (
+                        relative is None
+                        or (suffix is not None and not hashed_suffix)
+                        or fingerprint_names(fingerprint, "run-build-script-")
+                        or process.unit == relative
+                    ):
                         raise TraceError("Unknown rustc unit layout")
+                    if fingerprint.is_dir():
+                        unit = fingerprint
+                        kind = "compile"
+                        dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
+                        dep_info = str(directory / dep_name)
+                elif hashed_suffix:
+                    fingerprint = classic_fingerprint(self.target, directory, package, suffix)
+                    if fingerprint is None:
+                        raise TraceError("Unknown rustc unit layout")
+                    if fingerprint.is_dir():
+                        unit = fingerprint
+                        kind = "compile"
+                        dep_info = str(directory / f"{crate}-{suffix}.d")
+                else:
+                    raise TraceError("Unknown rustc unit layout")
             if unit is not None and unit.is_dir():
                 process.unit = str(unit.relative_to(self.target))
                 self.emit({"event": "unit", "unit": process.unit, "kind": kind,

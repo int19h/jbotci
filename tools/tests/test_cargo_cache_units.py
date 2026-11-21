@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -408,12 +409,15 @@ class CargoUnitTests(unittest.TestCase):
         plain.mkdir(parents=True)
         hashed = target / "debug/build/demo/0123456789abcdef/fingerprint"
         hashed.mkdir(parents=True)
+        # The compile unit that produced the build script, not the run unit.
+        (hashed / "build-script-build-script-build").write_text("0123456789abcdef")
         output = io.StringIO()
         parser = Parser(self.workspace, target, output)
         environment = '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]'
         classic_out = target / "debug/deps"
         plain_out = target / "debug/build/demo/fedcba9876543210/out"
         hashed_out = target / "debug/build/demo/0123456789abcdef/out"
+        classic_script = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build"
         classic_script_out = target / "debug/build/demo-0123456789abcdef/out"
         parser.feed([
             (
@@ -429,15 +433,11 @@ class CargoUnitTests(unittest.TestCase):
                 f'"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], {environment}) = 0\n'
             ).encode(),
             (
-                f'1 execve("/tmp/build-script-build", ["build-script-build"], '
-                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={plain_out}"]) = 0\n'
-            ).encode(),
-            (
                 f'1 execve("{hashed_out}/build_script_build", ["{hashed_out}/build_script_build"], '
                 f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={plain_out}"]) = 0\n'
             ).encode(),
             (
-                f'1 execve("/tmp/build-script-build", ["build-script-build"], '
+                f'1 execve("{classic_script}", ["{classic_script}"], '
                 f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={classic_script_out}"]) = 0\n'
             ).encode(),
         ])
@@ -454,10 +454,330 @@ class CargoUnitTests(unittest.TestCase):
                 ("compile", "debug/build/demo/0123456789abcdef/fingerprint",
                  str(hashed_out / "demo-0123456789abcdef.d")),
                 ("run", "debug/build/demo/fedcba9876543210/fingerprint", None),
-                ("run", "debug/build/demo/fedcba9876543210/fingerprint", None),
                 ("run", "debug/.fingerprint/demo-0123456789abcdef", None),
             ],
         )
+
+    def test_trace_matches_custom_build_scripts_by_place(self) -> None:
+        target = self.layout.target
+        environment = '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]'
+        classic_configure = target / "debug/.fingerprint/demo-1111111111111111"
+        classic_main = target / "debug/.fingerprint/demo-2222222222222222"
+        classic_configure.mkdir(parents=True)
+        classic_main.mkdir(parents=True)
+        configure_compile = target / "debug/build/pkg/0123456789abcdef/fingerprint"
+        main_compile = target / "debug/build/pkg/3333333333333333/fingerprint"
+        configure_run = target / "debug/build/pkg/fedcba9876543210/fingerprint"
+        main_run = target / "debug/build/pkg/abcdefabcdefabcd/fingerprint"
+        for directory, marker in (
+            (configure_compile, "build-script-build-script-configure"),
+            (main_compile, "build-script-build-script-main"),
+        ):
+            directory.mkdir(parents=True)
+            (directory / marker).write_text("0123456789abcdef")
+        configure_run.mkdir(parents=True)
+        main_run.mkdir(parents=True)
+        classic_configure_exe = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-configure"
+        classic_main_exe = target / "debug/build/demo-bbbbbbbbbbbbbbbb/build-script-main"
+        configure_out = target / "debug/build/demo-1111111111111111/out"
+        main_out = target / "debug/build/demo-2222222222222222/out"
+        unit_configure_exe = configure_compile.parent / "out/build_script_configure"
+        unit_main_exe = main_compile.parent / "out/build_script_main"
+        unit_configure_out = configure_run.parent / "out"
+        unit_main_out = main_run.parent / "out"
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            f'1 chdir("{classic_configure_exe.parent}") = 0\n'.encode(),
+            (
+                '1 execve("build-script-configure", ["build-script-configure"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={configure_out}"]) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("{classic_main_exe}", ["{classic_main_exe}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={main_out}"]) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("{unit_configure_exe}", ["{unit_configure_exe}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={unit_configure_out}"]) = 0\n'
+            ).encode(),
+            (
+                f'1 execve("{unit_main_exe}", ["{unit_main_exe}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={unit_main_out}"]) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        units = [event for event in events if event["event"] == "unit"]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"]) for event in units],
+            [
+                ("run", "debug/.fingerprint/demo-1111111111111111"),
+                ("run", "debug/.fingerprint/demo-2222222222222222"),
+                ("run", "debug/build/pkg/fedcba9876543210/fingerprint"),
+                ("run", "debug/build/pkg/abcdefabcdefabcd/fingerprint"),
+            ],
+        )
+
+    def test_trace_does_not_treat_a_bin_named_build_script_as_a_run_unit(self) -> None:
+        target = self.layout.target
+        run = target / "debug/build/demo/fedcba9876543210/fingerprint"
+        run.mkdir(parents=True)
+        (run / "run-build-script-build-script-build").write_text("fedcba9876543210")
+        out = run.parent / "out"
+        decoy = target / "debug/build/demo/4444444444444444/fingerprint"
+        decoy.mkdir(parents=True)
+        (decoy / "bin-build-script-build").write_text("4444444444444444")
+        environment = f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]'
+        cases = [
+            "/tmp/build-script-build",
+            str(target / "debug/build-script-build"),
+            str(target / "debug/deps/build-script-build-0123456789abcdef"),
+            str(out / "sub/build-script-build"),
+            str(decoy.parent / "out/build_script_build"),
+        ]
+        for executable in cases:
+            with self.subTest(executable=executable):
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], {environment}) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 0)
+                self.assertFalse(any(event["event"] == "unit" for event in events))
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            f'1 chdir("{target}") = 0\n'.encode(),
+            (
+                f'1 execve("../build-script-build", ["../build-script-build"], {environment}) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
+
+    def test_trace_rejects_a_build_script_whose_out_dir_is_outside_its_unit(self) -> None:
+        target = self.layout.target
+        classic_exe = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-configure"
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        unit_exe = compile_dir.parent / "out/build_script_build"
+        for executable in (classic_exe, unit_exe):
+            with self.subTest(executable=executable.name):
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], '
+                    '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR=/tmp/out"]) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 1)
+                self.assertEqual(events[1]["reason"], "Unknown build script unit layout")
+
+    def test_trace_ignores_an_autocfg_probe_in_a_build_unit_out_dir(self) -> None:
+        target = self.layout.target
+        run = target / "debug/build/demo/fedcba9876543210/fingerprint"
+        run.mkdir(parents=True)
+        (run / "run-build-script-build-script-build").write_text("fedcba9876543210")
+        out = run.parent / "out"
+        environment = '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]'
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        script = compile_dir.parent / "out/build_script_build"
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            (
+                f'1 execve("{script}", ["{script}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+            ).encode(),
+            b'1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n',
+            (
+                f'2 execve("/usr/bin/rustc", ["rustc", "--crate-name", "autocfg_probe", "--crate-type=lib", '
+                f'"--out-dir", "{out}", "--emit=llvm-ir", "-"], {environment}) = 0\n'
+            ).encode(),
+            (
+                f'2 execve("/usr/bin/rustc", ["rustc", "--crate-name", "probe", "--crate-type=lib", '
+                f'"-C", "extra-filename=-probe", "--out-dir", "{out}", "--emit=llvm-ir", "-"], {environment}) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        units = [event for event in events if event["event"] == "unit"]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual([(event["kind"], event["unit"]) for event in units], [
+            ("run", "debug/build/demo/fedcba9876543210/fingerprint"),
+        ])
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            (
+                f'1 execve("{script}", ["{script}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+            ).encode(),
+            b'1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n',
+            (
+                f'2 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{out}", '
+                f'"-C", "metadata=0123456789abcdef"], {environment}) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 1)
+        self.assertEqual(
+            next(event["reason"] for event in events if event["event"] == "trace-error"),
+            "Unknown rustc unit layout",
+        )
+
+    def test_unknown_build_entry_fails_closed(self) -> None:
+        unknown = self.layout.target / "debug/build/demo/0123456789abcdef0123456789abcdef"
+        unknown.mkdir(parents=True)
+        with self.assertRaisesRegex(c.InputError, "Unknown build entry"):
+            c.inventory(self.layout)
+
+    def test_a_file_under_a_build_package_fails_closed(self) -> None:
+        directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
+        self.write_fingerprint(directory, "bin-demo", 1)
+        (directory.parent.parent / "notes.txt").write_text("x")
+        with self.assertRaisesRegex(c.InputError, "Unknown build entry"):
+            c.inventory(self.layout)
+
+    def test_a_build_directory_inside_out_dir_is_not_inventory(self) -> None:
+        nested = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
+        self.write_fingerprint(nested, "bin-demo", 1)
+        weird = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/not-a-unit"
+        weird.mkdir(parents=True)
+        (weird / "notes").write_text("x")
+        self.assertEqual(c.inventory(self.layout), {})
+
+    def test_an_unexecuted_build_unit_is_not_an_error(self) -> None:
+        (self.layout.target / "debug/build/demo/0123456789abcdef/out").mkdir(parents=True)
+        self.assertEqual(c.inventory(self.layout), {})
+
+    def test_a_classic_build_directory_is_not_a_build_unit_package(self) -> None:
+        classic = self.layout.target / "debug/build/demo-0123456789abcdef/out"
+        classic.mkdir(parents=True)
+        (classic / "generated.rs").write_text("fn generated() {}\n")
+        self.assertEqual(c.inventory(self.layout), {})
+
+    def test_restore_and_save_remove_unrecorded_artifacts_for_both_layouts(self) -> None:
+        self.ensure_git()
+        for shape in ("classic", "build-unit"):
+            for mode in ("restore", "save"):
+                with self.subTest(shape=shape, mode=mode):
+                    self.assert_recorded_unit_stays_and_stale_artifacts_go(shape, mode)
+        with self.subTest(shape="explicit-profile"):
+            self.assert_explicit_profile_without_fingerprints_is_scrubbed()
+
+    def assert_recorded_unit_stays_and_stale_artifacts_go(self, shape: str, mode: str) -> None:
+        good = "aaaaaaaaaaaaaaaa"
+        bad = "1111111111111111"
+        stale = "2222222222222222"
+        target = self.root / f"{mode}-{shape}"
+        profile = target / "release"
+        layout = c.Layout(self.workspace, target)
+        if shape == "classic":
+            good_dir = profile / f".fingerprint/app-{good}"
+            bad_dir = profile / f".fingerprint/app-{bad}"
+            good_artifact = profile / f"build/app-{good}/output"
+            bad_artifact = profile / f"build/app-{bad}/out/stale"
+            stale_build = profile / f"build/other-{stale}/out/lib.rlib"
+            fingerprint_shape = c.FingerprintShape.CLASSIC
+        else:
+            good_dir = profile / f"build/app/{good}/fingerprint"
+            bad_dir = profile / f"build/app/{bad}/fingerprint"
+            good_artifact = profile / f"build/app/{good}/out/libapp.rlib"
+            bad_artifact = profile / f"build/app/{bad}/out/stale"
+            stale_build = profile / f"build/other/{stale}/out/libother.rlib"
+            fingerprint_shape = c.FingerprintShape.BUILD_UNIT
+        self.write_record(layout, good_dir, "bin-app", fingerprint_shape)
+        self.write_fingerprint(bad_dir, "bin-bad", 9)
+        stale_deps = profile / f"deps/libother-{stale}.rlib"
+        good_deps = profile / f"deps/libapp-{good}.rlib"
+        unhashed_deps = profile / "deps/unhashed.rlib"
+        stale_example = profile / f"examples/demo-{stale}"
+        good_example = profile / f"examples/demo-{good}"
+        unhashed_example = profile / "examples/alias"
+        uplifted = profile / "stale-binary"
+        stray = profile / "build/stray.txt"
+        unexecuted = profile / f"build/app/{'c' * 16}/out/probe"
+        paths = [
+            good_artifact, bad_artifact, stale_build, stale_deps, good_deps, unhashed_deps,
+            stale_example, good_example, unhashed_example, uplifted,
+        ]
+        if shape == "build-unit":
+            paths.extend((stray, unexecuted))
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("data")
+        if mode == "restore":
+            stats = c.restore(layout, normalize=False)
+            self.assertEqual(stats, {"retained": 1, "invalidated": 1})
+        else:
+            session = self.root / f"session-{shape}"
+            c.begin(layout, session)
+            marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
+            os.utime(good_dir / "bin-app", ns=(marker_ns - 1_000_000, marker_ns - 1_000_000))
+            stats = c.save(layout, session)
+            self.assertEqual(stats["retained"], 1)
+            self.assertEqual(stats["discarded"], 1)
+            self.assertEqual(stats["recorded"], 0)
+        self.assertTrue(good_dir.is_dir())
+        self.assertTrue(good_artifact.is_file())
+        self.assertTrue(good_deps.is_file())
+        self.assertTrue(good_example.is_file())
+        self.assertFalse(bad_dir.exists())
+        self.assertFalse(bad_artifact.exists())
+        self.assertFalse(stale_build.exists())
+        self.assertFalse(stale_deps.exists())
+        self.assertFalse(unhashed_deps.exists())
+        self.assertFalse(stale_example.exists())
+        self.assertFalse(unhashed_example.exists())
+        self.assertFalse(uplifted.exists())
+        if shape == "build-unit":
+            self.assertFalse(stray.exists())
+            self.assertFalse((profile / "build/app" / bad).exists())
+            self.assertFalse(unexecuted.exists())
+
+    def assert_explicit_profile_without_fingerprints_is_scrubbed(self) -> None:
+        target = self.root / "explicit-target"
+        profile = target / "custom"
+        uplifted = profile / "stale-binary"
+        stale_build = profile / "build/other/2222222222222222/out/file"
+        for path in (uplifted, stale_build):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("stale")
+        layout = c.Layout(self.workspace, target, (profile,))
+        stats = c.restore(layout, normalize=False)
+        self.assertEqual(stats, {"retained": 0, "invalidated": 0})
+        self.assertFalse(uplifted.exists())
+        self.assertFalse(stale_build.exists())
+
+    def ensure_git(self) -> None:
+        if (self.workspace / ".git").exists():
+            return
+        subprocess.run(["git", "init", "-q", "--initial-branch=main"], cwd=self.workspace, check=True)
+        subprocess.run(["git", "config", "user.email", "cache@example.invalid"], cwd=self.workspace, check=True)
+        subprocess.run(["git", "config", "user.name", "Cache Test"], cwd=self.workspace, check=True)
+
+    def write_record(self, layout: c.Layout, directory: Path, stem: str, shape: c.FingerprintShape) -> None:
+        self.write_fingerprint(directory, stem, 7)
+        unit = c.read_unit(layout, directory, shape)
+        data = {
+            "version": c.VERSION,
+            "unit": unit.key,
+            "kind": unit.kind.value,
+            "cargo": unit.fingerprint_digest(),
+            "package": "workspace:.",
+            "files": {},
+            "directories": {},
+            "env": {},
+            "cargo_env": {},
+            "dependencies": {},
+        }
+        c.atomic_json(directory / c.RECORD, {"data": data, "sha256": c.record_signature(data)})
 
     def test_trace_rejects_an_unknown_cargo_rustc_layout(self) -> None:
         output = io.StringIO()
