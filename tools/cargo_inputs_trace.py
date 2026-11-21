@@ -150,7 +150,7 @@ def classic_fingerprint(target: Path, out_dir: Path, package: str, suffix: str) 
             raise TraceError(f"The target package {named[0]} does not match CARGO_PKG_NAME {package}")
     else:
         return None
-    if not profile.is_relative_to(target):
+    if not profile_inside_target(target, profile):
         return None
     return profile / ".fingerprint" / f"{package}-{suffix}"
 
@@ -437,15 +437,26 @@ class Parser:
             resolved = normalized_path(executable, process.cwd)
             if package and manifest and out and resolved.is_relative_to(self.target):
                 out_dir = normalized_path(out, process.cwd)
-                fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir, package)
-                if fingerprint is None:
-                    fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir, package)
-                if fingerprint is not None:
-                    if not fingerprint.is_relative_to(self.target):
-                        raise TraceError("Unknown build script unit layout")
-                    fingerprint_ready(fingerprint, run=True)
-                    unit = fingerprint
-                    kind = "run"
+                # A nested Cargo target lives inside the outer run unit's OUT_DIR.
+                # The 1.100 build-script executable also sits in a compile unit `out`
+                # directory, so the executable path alone is not the nested check.
+                if inside_unit_out(self.target, out_dir):
+                    if process.unit is None:
+                        raise TraceError("A nested build has no outer unit")
+                else:
+                    fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir, package)
+                    if fingerprint is None:
+                        fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir, package)
+                    if fingerprint is not None:
+                        if inside_unit_out(self.target, fingerprint):
+                            if process.unit is None:
+                                raise TraceError("A nested build has no outer unit")
+                        elif not fingerprint.is_relative_to(self.target):
+                            raise TraceError("Unknown build script unit layout")
+                        else:
+                            fingerprint_ready(fingerprint, run=True)
+                            unit = fingerprint
+                            kind = "run"
             # A rustc probe inherits Cargo's environment and can write into OUT_DIR.
             # Only Cargo's own metadata hash makes the call a unit.
             if package and manifest and Path(executable).name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
@@ -456,30 +467,40 @@ class Parser:
                 if not destination or not crate:
                     raise TraceError("Unknown rustc unit layout")
                 directory = normalized_path(destination, process.cwd)
-                fingerprint = build_unit_fingerprint(directory)
-                if fingerprint is not None:
-                    path_package = directory.parents[1].name
-                    if path_package != package:
-                        raise TraceError(
-                            f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
-                    relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
-                    if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
-                        raise TraceError("Unknown rustc unit layout")
-                    fingerprint_ready(fingerprint, run=False)
-                    unit = fingerprint
-                    kind = "compile"
-                    dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
-                    dep_info = str(directory / dep_name)
-                elif hashed_suffix:
-                    fingerprint = classic_fingerprint(self.target, directory, package, suffix)
-                    if fingerprint is None or not fingerprint.is_relative_to(self.target):
-                        raise TraceError("Unknown rustc unit layout")
-                    fingerprint_ready(fingerprint, run=False)
-                    unit = fingerprint
-                    kind = "compile"
-                    dep_info = str(directory / f"{crate}-{suffix}.d")
+                if inside_unit_out(self.target, directory):
+                    if process.unit is None:
+                        raise TraceError("A nested build has no outer unit")
                 else:
-                    raise TraceError("Unknown rustc unit layout")
+                    fingerprint = build_unit_fingerprint(directory)
+                    if fingerprint is not None:
+                        path_package = directory.parents[1].name
+                        if path_package != package:
+                            raise TraceError(
+                                f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
+                        if not profile_inside_target(self.target, fingerprint.parents[3]):
+                            raise TraceError("Unknown rustc unit layout")
+                        relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
+                        if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
+                            raise TraceError("Unknown rustc unit layout")
+                        fingerprint_ready(fingerprint, run=False)
+                        unit = fingerprint
+                        kind = "compile"
+                        dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
+                        dep_info = str(directory / dep_name)
+                    elif hashed_suffix:
+                        fingerprint = classic_fingerprint(self.target, directory, package, suffix)
+                        if fingerprint is not None and inside_unit_out(self.target, fingerprint):
+                            if process.unit is None:
+                                raise TraceError("A nested build has no outer unit")
+                        elif fingerprint is None or not fingerprint.is_relative_to(self.target):
+                            raise TraceError("Unknown rustc unit layout")
+                        else:
+                            fingerprint_ready(fingerprint, run=False)
+                            unit = fingerprint
+                            kind = "compile"
+                            dep_info = str(directory / f"{crate}-{suffix}.d")
+                    else:
+                        raise TraceError("Unknown rustc unit layout")
             if unit is not None:
                 process.unit = unit.relative_to(self.target).as_posix()
                 self.emit({"event": "unit", "unit": process.unit, "kind": kind,

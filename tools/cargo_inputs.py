@@ -12,11 +12,12 @@ import re
 import shutil
 import struct
 import subprocess
+import tomllib
 from typing import Any
 from uuid import uuid4
 
 from tools.cargo_inputs_trace import (
-    TraceError, classic_package_dir, has_unit_id_child, inside_unit_out, trace)
+    TraceError, classic_package_dir, has_unit_id_child, inside_unit_out, profile_inside_target, trace)
 
 RECORD = "jbotci-inputs-v1.json"
 VERSION = 1
@@ -110,17 +111,20 @@ class Layout:
         found: list[Path] = []
         for root in roots:
             if root.exists():
-                found.extend(path for path in root.rglob(".fingerprint") if path.is_dir())
+                found.extend(
+                    path for path in root.rglob(".fingerprint")
+                    if path.is_dir() and not inside_unit_out(self.target, path))
         return found
 
     def build_unit_fingerprints(self) -> list[Path]:
         """Return every 1.100 fingerprint directory under the selected roots.
 
+        Walk `<profile>/build` one level.
+        A package named `build` stays a package.
         A package name can end in 16 hex characters.
         A directory with a 16-hex child is a package.
         A 1.99 output directory has no 16-hex child.
-        A fingerprint inside a unit `out` directory is included.
-        An unrecognized child there is skipped.
+        A fingerprint inside a unit `out` directory is not included.
         An unrecognized child of a top-level package is an error.
         """
         roots = self.profiles if self.profiles is not None else (self.target,)
@@ -128,17 +132,23 @@ class Layout:
         for root in roots:
             if not root.exists():
                 continue
-            for build in root.rglob("build"):
-                if not build.is_dir():
+            if self.profiles is not None:
+                # An explicit profile that is the target, or that sits inside a unit
+                # out directory, is not a Cargo profile. Do not emit its units.
+                if not profile_inside_target(self.target, root) or inside_unit_out(self.target, root):
                     continue
-                nested = inside_unit_out(self.target, build)
+                build = root / "build"
+                builds = [build] if build.is_dir() and not inside_unit_out(self.target, build) else []
+            else:
+                builds = [path for path in root.rglob("build") if is_profile_build_directory(self.target, path)]
+            for build in builds:
                 for package in build.iterdir():
                     if not package.is_dir():
                         continue
                     if CLASSIC_DIR.search(package.name) and not has_unit_id_child(package):
                         continue
                     for child in package.iterdir():
-                        fingerprint = build_unit_child(child, strict=not nested)
+                        fingerprint = build_unit_child(child, strict=True)
                         if fingerprint is not None:
                             found.append(fingerprint)
         return found
@@ -175,12 +185,100 @@ class Unit:
         return (self.directory / self.stem).stat().st_mtime_ns > marker_ns
 
 
+def is_build_unit_package(path: Path) -> bool:
+    """Return true when `path` is one Cargo 1.100 package directory.
+
+    A package directory contains a 16-hex unit directory.
+    That unit directory does not contain another 16-hex directory.
+    A package whose name is 16 hex characters still contains the unit directory.
+    """
+    if not path.is_dir():
+        return False
+    saw_unit = False
+    for child in path.iterdir():
+        if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
+            continue
+        if has_unit_id_child(child):
+            return False
+        saw_unit = True
+    return saw_unit
+
+
+def contains_cargo_package(path: Path) -> bool:
+    """Return true when a direct child is a 1.100 package or a 1.99 output directory."""
+    if not path.is_dir():
+        return False
+    for child in path.iterdir():
+        if not child.is_dir():
+            continue
+        if is_build_unit_package(child):
+            return True
+        if CLASSIC_DIR.search(child.name) and not has_unit_id_child(child):
+            return True
+    return False
+
+
+def is_profile_build_directory(target: Path, path: Path) -> bool:
+    """Return true for `<profile>/build`.
+
+    A package named `build` is not that directory.
+    A profile named `build` is not that directory.
+    A directory inside a unit `out` directory is not that directory.
+    """
+    if not path.is_dir() or path.name != "build":
+        return False
+    if inside_unit_out(target, path) or is_build_unit_package(path):
+        return False
+    inner = path / "build"
+    if (
+        inner.is_dir()
+        and not inside_unit_out(target, inner)
+        and not is_build_unit_package(inner)
+        and contains_cargo_package(inner)
+    ):
+        return False
+    return True
+
+
+def fingerprint_commitment(directory: Path) -> str:
+    """Return `unit` or `uncommitted`.
+
+    An uncommitted directory has no metadata file.
+    Its other files are `invoked.timestamp`, the input record, `dep-*`, or `output-*`.
+    Two metadata files are an error.
+    An unknown entry with no metadata file is an error.
+    """
+    metadata: list[Path] = []
+    unknown: list[Path] = []
+    for entry in directory.iterdir():
+        name = entry.name
+        if name.endswith(".json") and name != RECORD:
+            metadata.append(entry)
+            continue
+        if name in ("invoked.timestamp", RECORD) or name.startswith(("dep-", "output-")):
+            continue
+        unknown.append(entry)
+    if len(metadata) > 1:
+        raise InputError(f"A fingerprint directory must contain one metadata file: {directory}")
+    if len(metadata) == 1:
+        return "unit"
+    if unknown:
+        raise InputError(f"Unknown fingerprint entry: {unknown[0]}")
+    return "uncommitted"
+
+
+def fingerprint_profile(directory: Path) -> Path:
+    """Return the profile directory that owns one fingerprint directory."""
+    if directory.parent.name == ".fingerprint":
+        return directory.parent.parent
+    return directory.parents[3]
+
+
 def build_unit_child(child: Path, *, strict: bool) -> Path | None:
     """Return one build-unit fingerprint.
 
     If the unit has no fingerprint directory, return None.
     When `strict` is true, a child that is not a 16-hex directory is an error.
-    Inside a unit `out` directory, that child is output and `strict` is false.
     A `fingerprint` path that exists and is not a directory is an error.
     """
     if not child.is_dir() or not UNIT_ID.fullmatch(child.name):
@@ -221,25 +319,39 @@ def inventory(layout: Layout) -> dict[str, Unit]:
     A unit is one Cargo fingerprint directory.
     Cargo 1.99 stores that directory at `profile/.fingerprint/<package>-<16 hex>/`.
     Cargo 1.100 stores that directory at `profile/build/<package>/<16 hex>/fingerprint/`.
+    Inventory reads `<profile>/build` one level deep.
+    A package named `build` stays a package.
     The package name can end in 16 hex characters.
     If a directory under `profile/build` contains a 16-hex child, that directory is a 1.100 package.
     If its name ends in `-` and 16 hex characters, and it has no 16-hex child, that directory is a 1.99 output directory.
-    If that fingerprint has either shape, inventory records it inside a unit `out` directory.
-    The trace emits that same unit.
-    Save checks the reads of that unit.
+    A fingerprint inside a unit `out` directory is not a unit.
+    The trace emits no unit for a build inside that directory.
+    Reads there stay on the outer run unit.
+    If that call has no outer unit, the trace rejects it.
+    Cleanup does not change files inside a unit `out` directory of a retained unit.
     An unrecognized entry inside that `out` directory is output.
     An unrecognized entry under a top-level `profile/build/<package>` is an error.
+    A fingerprint directory with no metadata file is uncommitted when its other files are
+    `invoked.timestamp`, the input record, `dep-*`, or `output-*`.
+    Inventory skips an uncommitted directory.
+    Save accepts a trace descriptor for that directory.
+    Cleanup deletes the uncommitted directory and its outputs.
+    Two metadata files are an error.
+    An unknown entry in a directory with no metadata file is an error.
     Cargo creates the fingerprint directory before it starts rustc or the build script.
     Cargo writes the hash file and the `run-build-script` file after that process exits.
     At the start of the process, the trace requires the fingerprint directory to exist.
     A directory that holds a marker of the other kind is an error.
     A missing directory is an error.
+    A profile directory must stay inside the target directory.
+    An explicit profile inside a unit `out` directory is not walked.
     Cleanup uses the retained hashes of one profile for that profile only.
     Cleanup skips a profile directory that eviction removed.
-    Save rejects a trace unit that inventory does not return.
+    Save rejects a trace unit that inventory does not return, except an uncommitted directory.
     If a unit was built in this session, save requires the trace kind to equal the fingerprint kind.
     If the package name in a target path differs from CARGO_PKG_NAME, the trace rejects that unit.
-    If the manifest name differs from the package name in the unit path, save rejects that unit.
+    Save requires `Cargo.toml` at `CARGO_MANIFEST_DIR`.
+    If that file is missing, or its package name differs from the package name in the unit path, save rejects that unit.
     Save uses `cwd`, `dep_info`, and `via_dx` from the trace.
     Inventory does not store those fields.
     """
@@ -254,8 +366,12 @@ def inventory(layout: Layout) -> dict[str, Unit]:
         for entry in fingerprints.iterdir():
             if not entry.is_dir() or not CLASSIC_DIR.search(entry.name):
                 raise InputError(f"Unknown fingerprint entry: {entry}")
+            if fingerprint_commitment(entry) == "uncommitted":
+                continue
             add(read_unit(layout, entry, FingerprintShape.CLASSIC))
     for directory in layout.build_unit_fingerprints():
+        if fingerprint_commitment(directory) == "uncommitted":
+            continue
         add(read_unit(layout, directory, FingerprintShape.BUILD_UNIT))
     return result
 
@@ -464,17 +580,68 @@ def evict_unit(unit: Unit) -> None:
     remove(profile / "incremental")
 
 
+def uncommitted_fingerprints(layout: Layout) -> list[Path]:
+    """Return fingerprint directories that Cargo left without a metadata file."""
+    found: list[Path] = []
+    for fingerprints in layout.fingerprint_dirs():
+        for entry in fingerprints.iterdir():
+            if not entry.is_dir() or not CLASSIC_DIR.search(entry.name):
+                continue
+            if fingerprint_commitment(entry) == "uncommitted":
+                found.append(entry)
+    for directory in layout.build_unit_fingerprints():
+        if fingerprint_commitment(directory) == "uncommitted":
+            found.append(directory)
+    return found
+
+
+def remove_uncommitted_units(layout: Layout) -> None:
+    """Delete an uncommitted fingerprint directory and the outputs of that unit."""
+    for directory in uncommitted_fingerprints(layout):
+        if inside_unit_out(layout.target, directory):
+            continue
+        profile = fingerprint_profile(directory)
+        if not profile_inside_target(layout.target, profile):
+            continue
+        if directory.parent.name == ".fingerprint":
+            parsed = classic_package_dir(directory.name)
+            if parsed is None:
+                continue
+            suffix = parsed[1]
+            for folder_name in ("deps", "examples"):
+                folder = profile / folder_name
+                if not folder.is_dir():
+                    continue
+                for artifact in list(folder.iterdir()):
+                    match = UNIT_HASH.search(artifact.name)
+                    if match and match[1] == suffix:
+                        remove(artifact)
+            remove(profile / "build" / directory.name)
+            remove(directory)
+        else:
+            remove(directory.parent)
+        remove(profile / "incremental")
+
+
 def profile_directories(layout: Layout, units: dict[str, Unit]) -> set[Path]:
     """Return every profile directory that eviction must clean.
 
     Compute this before `evict_unit`. A later inventory misses a profile after
     its only build-unit directory is removed. An explicit profile with no
     fingerprint is included when that directory exists.
+    An uncommitted fingerprint still names its profile.
+    A directory inside a unit `out` directory is not a profile.
     """
     profiles = {unit.profile for unit in units.values()}
     profiles.update(path.parent for path in layout.fingerprint_dirs())
+    for directory in uncommitted_fingerprints(layout):
+        profile = fingerprint_profile(directory)
+        if profile_inside_target(layout.target, profile) and not inside_unit_out(layout.target, directory):
+            profiles.add(profile)
     if layout.profiles is not None:
-        profiles.update(path for path in layout.profiles if path.is_dir())
+        profiles.update(
+            path for path in layout.profiles
+            if path.is_dir() and profile_inside_target(layout.target, path) and not inside_unit_out(layout.target, path))
     return profiles
 
 
@@ -485,6 +652,7 @@ def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) 
     If its unit is retained, a package directory that contains a 16-hex child keeps that child.
     """
     units = inventory(layout)
+    remove_uncommitted_units(layout)
     hashes_by_profile: dict[Path, set[str]] = {}
     for key, unit in units.items():
         if key not in retained:
@@ -492,7 +660,9 @@ def discard_unrecorded(layout: Layout, retained: set[str], profiles: set[Path]) 
         else:
             hashes_by_profile.setdefault(unit.profile, set()).add(unit.suffix)
     for profile in profiles:
-        if not profile.is_dir():
+        if not profile.is_dir() or not profile_inside_target(layout.target, profile):
+            continue
+        if inside_unit_out(layout.target, profile):
             continue
         valid_hashes = hashes_by_profile.get(profile, set())
         deps = profile / "deps"
@@ -540,7 +710,9 @@ def retain_build_unit_children(layout: Layout, package: Path, retained: set[str]
 
 def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
     for profile in profiles:
-        if not profile.is_dir():
+        if not profile.is_dir() or not profile_inside_target(layout.target, profile):
+            continue
+        if inside_unit_out(layout.target, profile):
             continue
         for entry in profile.iterdir():
             if entry.name not in ("deps", "build", "examples", ".fingerprint", ".cargo-lock"):
@@ -685,27 +857,14 @@ def unit_package_name(unit: Unit) -> str:
 def manifest_package_name(path: Path) -> str:
     """Return the package name from one Cargo.toml."""
     try:
-        text = path.read_text()
-    except OSError as error:
+        data = tomllib.loads(path.read_text())
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
         raise InputError(f"A unit manifest is unreadable: {path}") from error
-    in_package = False
-    for raw in text.splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            in_package = line == "[package]"
-            continue
-        if not in_package:
-            continue
-        match = re.fullmatch(r"""name\s*=\s*(?:"([^"]*)"|'([^']*)')""", line)
-        if match is None:
-            continue
-        name = match[1] if match[1] is not None else match[2]
-        if not name:
-            raise InputError(f"A unit manifest has no package name: {path}")
-        return name
-    raise InputError(f"A unit manifest has no package name: {path}")
+    package = data.get("package") if isinstance(data, dict) else None
+    name = package.get("name") if isinstance(package, dict) else None
+    if not isinstance(name, str) or not name:
+        raise InputError(f"A unit manifest has no package name: {path}")
+    return name
 
 
 def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Path, dict] | None = None) -> dict:
@@ -779,6 +938,9 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
     units = inventory(layout)
     for key in descriptors:
         if key not in units:
+            directory = layout.target / key
+            if directory.is_dir() and not inside_unit_out(layout.target, directory) and fingerprint_commitment(directory) == "uncommitted":
+                continue
             raise InputError(f"The trace recorded a unit that inventory did not: {key}")
     profiles = profile_directories(layout, units)
     records: dict[str, dict] = {}
@@ -796,12 +958,11 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
                 raise InputError(
                     f"The trace kind {trace_kind} does not match the fingerprint kind {unit.kind.value}: {key}")
             manifest = Path(descriptor["package"]) / "Cargo.toml"
-            if manifest.is_file():
-                manifest_name = manifest_package_name(manifest)
-                path_name = unit_package_name(unit)
-                if manifest_name != path_name:
-                    raise InputError(
-                        f"The manifest package {manifest_name} does not match the target package {path_name}: {key}")
+            manifest_name = manifest_package_name(manifest)
+            path_name = unit_package_name(unit)
+            if manifest_name != path_name:
+                raise InputError(
+                    f"The manifest package {manifest_name} does not match the target package {path_name}: {key}")
             try:
                 record = make_record(layout, unit, descriptor, snapshots)
             except (OSError, KeyError, ValueError, StopIteration, InputError) as error:

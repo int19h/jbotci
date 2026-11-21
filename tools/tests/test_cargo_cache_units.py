@@ -644,21 +644,21 @@ class CargoUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(c.InputError, "Unknown build entry"):
             c.inventory(self.layout)
 
-    def test_a_build_directory_inside_out_dir_records_a_real_unit(self) -> None:
+    def test_a_build_directory_inside_out_dir_is_not_a_unit(self) -> None:
         nested = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
         self.write_fingerprint(nested, "bin-demo", 1)
         weird = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/not-a-unit"
         weird.mkdir(parents=True)
         (weird / "notes").write_text("x")
-        key = nested.relative_to(self.layout.target).as_posix()
-        self.assertEqual(set(c.inventory(self.layout)), {key})
+        self.assertEqual(c.inventory(self.layout), {})
+        self.assertTrue((weird / "notes").is_file())
 
-    def test_a_fingerprint_file_inside_out_dir_fails_closed(self) -> None:
+    def test_a_fingerprint_file_inside_out_dir_is_output(self) -> None:
         fingerprint = self.layout.target / "debug/build/demo/0123456789abcdef/out/build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
         fingerprint.parent.mkdir(parents=True)
         fingerprint.write_text("not a directory")
-        with self.assertRaisesRegex(c.InputError, "not a directory"):
-            c.inventory(self.layout)
+        self.assertEqual(c.inventory(self.layout), {})
+        self.assertTrue(fingerprint.is_file())
 
     def test_an_unexecuted_build_unit_is_not_an_error(self) -> None:
         (self.layout.target / "debug/build/demo/0123456789abcdef/out").mkdir(parents=True)
@@ -749,6 +749,22 @@ class CargoUnitTests(unittest.TestCase):
             self.assertFalse((profile / "build/app" / bad).exists())
             self.assertFalse(unexecuted.exists())
 
+    def test_an_explicit_profile_inside_out_dir_is_not_a_unit(self) -> None:
+        target = self.layout.target
+        outer = target / "debug/build/demo/0123456789abcdef"
+        nested_profile = outer / "out/guest-target/debug"
+        nested = nested_profile / "build/pkg/aaaaaaaaaaaaaaaa/fingerprint"
+        self.write_fingerprint(nested, "bin-pkg", 1)
+        note = outer / "out/bindings.rs"
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_text("keep")
+        layout = c.Layout(self.workspace, target, (nested_profile,))
+        self.assertEqual(c.inventory(layout), {})
+        stats = c.restore(layout, normalize=False)
+        self.assertEqual(stats, {"retained": 0, "invalidated": 0})
+        self.assertTrue(nested.is_dir())
+        self.assertTrue(note.is_file())
+
     def assert_explicit_profile_without_fingerprints_is_scrubbed(self) -> None:
         target = self.root / "explicit-target"
         profile = target / "custom"
@@ -834,20 +850,24 @@ class CargoUnitTests(unittest.TestCase):
 
     def test_a_profile_or_package_named_out_keeps_its_build_unit(self) -> None:
         target = self.layout.target
-        named_profile = target / "out/build/demo/0123456789abcdef/fingerprint"
-        named_package = target / "debug/build/out/fedcba9876543210/fingerprint"
-        self.write_fingerprint(named_profile, "bin-demo", 1)
-        self.write_fingerprint(named_package, "bin-demo", 2)
-        keys = {path.relative_to(target).as_posix() for path in (named_profile, named_package)}
+        paths = (
+            target / "out/build/demo/0123456789abcdef/fingerprint",
+            target / "debug/build/out/fedcba9876543210/fingerprint",
+            target / "build/build/demo/0123456789abcdef/fingerprint",
+            target / "debug/build/build/fedcba9876543210/fingerprint",
+        )
+        for index, path in enumerate(paths, start=1):
+            self.write_fingerprint(path, "bin-demo", index)
+        keys = {path.relative_to(target).as_posix() for path in paths}
         self.assertEqual(set(c.inventory(self.layout)), keys)
 
-    def test_a_classic_fingerprint_inside_out_dir_is_a_unit(self) -> None:
+    def test_a_classic_fingerprint_inside_out_dir_is_not_a_unit(self) -> None:
         fingerprint = self.layout.target / (
             "debug/build/demo/0123456789abcdef/out/nested-target/debug/.fingerprint/child-aaaaaaaaaaaaaaaa"
         )
         self.write_fingerprint(fingerprint, "bin-child", 1)
-        key = fingerprint.relative_to(self.layout.target).as_posix()
-        self.assertIn(key, c.inventory(self.layout))
+        self.assertEqual(c.inventory(self.layout), {})
+        self.assertTrue(fingerprint.is_dir())
 
     def test_cleanup_keeps_hashes_inside_one_profile(self) -> None:
         target = self.layout.target
@@ -880,7 +900,7 @@ class CargoUnitTests(unittest.TestCase):
         (outer / "run-build-script-build-script-build.json").write_text('{"deps":[],"local":[]}')
         self.write_fingerprint(nested, "bin-child", 2)
         stats = c.restore(self.layout, normalize=False)
-        self.assertEqual(stats, {"retained": 0, "invalidated": 2})
+        self.assertEqual(stats, {"retained": 0, "invalidated": 1})
         self.assertFalse(outer.exists())
         self.assertFalse(nested.exists())
 
@@ -953,47 +973,53 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(events[1]["reason"], reason)
         self.assertFalse(any(event["event"] == "unit" for event in events))
 
-    def test_an_undeclared_read_through_a_nested_unit_fails(self) -> None:
-        self.ensure_git()
-        (self.workspace / "Cargo.toml").write_text('[package]\nname = "child"\nversion = "0.1.0"\nedition = "2021"\n')
-        (self.workspace / "src").mkdir()
-        (self.workspace / "src/lib.rs").write_text("pub fn demo() {}\n")
-        secret = self.workspace / "secret.txt"
-        secret.write_text("secret\n")
-        subprocess.run(["git", "add", "."], cwd=self.workspace, check=True)
-        subprocess.run(["git", "commit", "-qm", "Add the nested unit fixture"], cwd=self.workspace, check=True)
+    def test_an_undeclared_read_inside_out_dir_stays_on_the_outer_run_unit(self) -> None:
+        self.commit_demo_package()
+        guest = self.workspace / "guest/src/main.rs"
+        guest.parent.mkdir(parents=True)
+        guest.write_text('fn main() { print!("guest-v1"); }\n')
+        subprocess.run(["git", "add", "guest"], cwd=self.workspace, check=True)
+        subprocess.run(["git", "commit", "-qm", "Add the guest source"], cwd=self.workspace, check=True)
         target = self.layout.target
-        fingerprint = target / (
-            "release/build/demo/0123456789abcdef/out/nested-target/debug/build/child/fedcba9876543210/fingerprint"
-        )
-        session = self.root / "session-nested"
-        c.begin(self.layout, session)
-        self.write_fingerprint(fingerprint, "lib-child", 4)
-        marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
-        os.utime(fingerprint / "lib-child", ns=(marker_ns + 1_000_000_000, marker_ns + 1_000_000_000))
+        compile_dir = target / "debug/build/demo/aaaaaaaaaaaaaaaa/fingerprint"
+        self.write_fingerprint(compile_dir, "build-script-build-script-build", 1)
+        fingerprint = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        fingerprint.mkdir(parents=True)
         out = fingerprint.parent / "out"
-        out.mkdir(parents=True)
-        (out / "child-fedcba9876543210.d").write_text("out: src/lib.rs\n")
-        (fingerprint / "dep-lib-child").write_bytes(bytes.fromhex("01000000ff010000000000000000"))
-        key = fingerprint.relative_to(target).as_posix()
-        self.assertIn(key, c.inventory(self.layout))
-        with (session / "trace-nested.jsonl").open("w") as journal:
+        nested_out = out / "guest-target/debug/deps"
+        nested_out.mkdir(parents=True)
+        stdout = fingerprint.parent / "run/stdout"
+        stdout.parent.mkdir(parents=True)
+        stdout.write_text("cargo:rerun-if-changed=build.rs\n")
+        executable = compile_dir.parent / "out/build_script_build"
+        session = self.root / "session-nested-read"
+        c.begin(self.layout, session)
+        with (session / "trace-nested-read.jsonl").open("w") as journal:
             parser = Parser(self.workspace, target, journal)
             parser.feed([
                 (
-                    f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "child", "--out-dir", "{out}", '
-                    f'"-C", "extra-filename=-fedcba9876543210", "-C", "metadata=fedcba9876543210"], '
-                    f'["CARGO_PKG_NAME=child", "CARGO_MANIFEST_DIR={self.workspace}"]) = 0\n'
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
                 ).encode(),
-                f'1 openat(AT_FDCWD, "{secret}", O_RDONLY) = 3<{secret}>\n'.encode(),
+                b"1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+                (
+                    f'2 execve("/usr/bin/rustc", ["rustc", "--crate-name", "guest", "--out-dir", "{nested_out}", '
+                    f'"-C", "extra-filename=-fedcba9876543210", "-C", "metadata=fedcba9876543210"], '
+                    f'["CARGO_PKG_NAME=guest", "CARGO_MANIFEST_DIR={self.workspace / "guest"}"]) = 0\n'
+                ).encode(),
+                f'2 openat(AT_FDCWD, "{guest}", O_RDONLY) = 3<{guest}>\n'.encode(),
             ])
-        with (session / "trace-nested.jsonl").open() as journal:
+        with (session / "trace-nested-read.jsonl").open() as journal:
             events = [json.loads(line) for line in journal]
         units = [event for event in events if event["event"] == "unit"]
+        key = fingerprint.relative_to(target).as_posix()
         self.assertEqual(events[-1]["errors"], 0)
-        self.assertEqual([(event["kind"], event["unit"]) for event in units], [("compile", key)])
-        with self.assertRaisesRegex(c.InputError, "Undeclared input.*secret.txt"):
+        self.assertEqual([(event["kind"], event["unit"]) for event in units], [("run", key)])
+        self.assertFalse(any("guest-target" in key for key in c.inventory(self.layout)))
+        self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+        with self.assertRaisesRegex(c.InputError, "Undeclared input.*guest/src/main.rs"):
             c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
 
     def test_save_rejects_a_trace_unit_missing_from_inventory(self) -> None:
         self.ensure_git()
@@ -1207,6 +1233,173 @@ class CargoUnitTests(unittest.TestCase):
         marker.write_text(unit_hash)
         (fingerprint / f"{marker.name}.json").write_text('{"deps":[],"local":[]}')
         self.touch_after_marker(session, marker)
+
+    def test_an_edit_to_a_nested_source_invalidates_the_outer_run_unit(self) -> None:
+        self.commit_demo_package()
+        guest = self.workspace / "guest/src/main.rs"
+        guest.parent.mkdir(parents=True)
+        guest.write_text('fn main() { print!("guest-v1"); }\n')
+        subprocess.run(["git", "add", "guest"], cwd=self.workspace, check=True)
+        subprocess.run(["git", "commit", "-qm", "Add the guest source"], cwd=self.workspace, check=True)
+        target = self.layout.target
+        compile_dir = target / "debug/build/demo/aaaaaaaaaaaaaaaa/fingerprint"
+        self.write_fingerprint(compile_dir, "build-script-build-script-build", 1)
+        fingerprint = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        fingerprint.mkdir(parents=True)
+        out = fingerprint.parent / "out"
+        kept = out / "embedded.txt"
+        kept.parent.mkdir(parents=True)
+        kept.write_text("guest-v1\n")
+        nested = out / "guest-target/debug/guest"
+        nested.parent.mkdir(parents=True)
+        nested.write_text("guest-binary")
+        stdout = fingerprint.parent / "run/stdout"
+        stdout.parent.mkdir(parents=True)
+        stdout.write_text("cargo:rerun-if-changed=build.rs\ncargo:rerun-if-changed=guest/src/main.rs\n")
+        executable = compile_dir.parent / "out/build_script_build"
+        session = self.root / "session-nested-edit"
+        c.begin(self.layout, session)
+        with (session / "trace-nested-edit.jsonl").open("w") as journal:
+            parser = Parser(self.workspace, target, journal)
+            parser.feed([
+                (
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
+                ).encode(),
+                f'1 openat(AT_FDCWD, "{guest}", O_RDONLY) = 3<{guest}>\n'.encode(),
+            ])
+        self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+        saved = c.save(self.layout, session, scrub=False)
+        self.assertEqual(saved["recorded"], 1)
+        self.assertTrue(kept.is_file())
+        self.assertTrue(nested.is_file())
+        guest.write_text('fn main() { print!("guest-v2"); }\n')
+        stats = c.restore(self.layout, normalize=False)
+        self.assertEqual(stats["invalidated"], 1)
+        self.assertFalse(fingerprint.exists())
+        self.assertFalse(kept.exists())
+
+    def test_save_deletes_an_uncommitted_compile_on_both_layouts(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        cases = {
+            "build-unit": (
+                target / "debug/build/demo/0123456789abcdef/fingerprint",
+                target / "debug/build/demo/0123456789abcdef/out",
+                target / "debug/build/demo/0123456789abcdef/out/libdemo.rlib",
+                '"-C", "metadata=aaaaaaaaaaaaaaaa"',
+            ),
+            "classic": (
+                target / "debug/.fingerprint/demo-0123456789abcdef",
+                target / "debug/deps",
+                target / "debug/deps/libdemo-0123456789abcdef.rlib",
+                '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"',
+            ),
+        }
+        for name, (fingerprint, out, artifact, flags) in cases.items():
+            with self.subTest(name=name):
+                fingerprint.mkdir(parents=True)
+                (fingerprint / "invoked.timestamp").write_text("1")
+                (fingerprint / "output-bin-demo").write_text("failed")
+                artifact.parent.mkdir(parents=True, exist_ok=True)
+                artifact.write_text("stale")
+                session = self.root / f"session-uncommitted-{name}"
+                c.begin(self.layout, session)
+                line = (
+                    f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{out}", '
+                    f'{flags}], ["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={self.workspace}"]) = 0\n'
+                )
+                self.write_trace(session, name, line)
+                stats = c.save(self.layout, session, scrub=False)
+                self.assertEqual(stats["recorded"], 0)
+                self.assertFalse(fingerprint.exists())
+                self.assertFalse(artifact.exists())
+
+    def test_an_unknown_file_in_an_uncommitted_fingerprint_fails(self) -> None:
+        directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
+        directory.mkdir(parents=True)
+        (directory / "invoked.timestamp").write_text("1")
+        (directory / "notes").write_text("x")
+        with self.assertRaisesRegex(c.InputError, "Unknown fingerprint entry"):
+            c.inventory(self.layout)
+
+    def test_save_rejects_a_missing_manifest_outside_the_workspace(self) -> None:
+        self.commit_demo_package()
+        secret = self.workspace / "secret.txt"
+        secret.write_text("secret\n")
+        target = self.layout.target
+        compile_dir = target / "debug/build/demo/aaaaaaaaaaaaaaaa/fingerprint"
+        self.write_fingerprint(compile_dir, "build-script-build-script-build", 1)
+        fingerprint = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        fingerprint.mkdir(parents=True)
+        stdout = fingerprint.parent / "run/stdout"
+        stdout.parent.mkdir(parents=True)
+        stdout.write_text("cargo:rerun-if-changed=build.rs\n")
+        executable = compile_dir.parent / "out/build_script_build"
+        out = fingerprint.parent / "out"
+        missing = self.root / "outside-missing-dir"
+        session = self.root / "session-missing-manifest"
+        c.begin(self.layout, session)
+        with (session / "trace-missing-manifest.jsonl").open("w") as journal:
+            parser = Parser(self.workspace, target, journal)
+            parser.feed([
+                (
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={missing}", "OUT_DIR={out}"]) = 0\n'
+                ).encode(),
+                f'1 openat(AT_FDCWD, "{secret}", O_RDONLY) = 3<{secret}>\n'.encode(),
+            ])
+        self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+        with self.assertRaisesRegex(c.InputError, r"^A unit manifest is unreadable:"):
+            c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def test_manifest_package_name_reads_toml_forms(self) -> None:
+        cases = {
+            "spaced_header": '[ package ]\nname = "demo"\nversion = "0.1.0"\n',
+            "dotted_key": 'package.name = "demo"\npackage.version = "0.1.0"\n',
+            "multiline_brackets": '[package]\ndescription = """\n[notes]\n"""\nname = "demo"\nversion = "0.1.0"\n',
+        }
+        for name, text in cases.items():
+            with self.subTest(name=name):
+                path = self.root / f"{name}.toml"
+                path.write_text(text)
+                self.assertEqual(c.manifest_package_name(path), "demo")
+
+    def test_trace_rejects_a_profile_that_is_the_target_root(self) -> None:
+        target = self.layout.target
+        (target / ".fingerprint/demo-0123456789abcdef").mkdir(parents=True)
+        (target / "build/demo/fedcba9876543210/fingerprint").mkdir(parents=True)
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{target / "deps"}", '
+                '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], '
+                '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ),
+            "Unknown rustc unit layout",
+        )
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", '
+                f'"{target / "build/demo/fedcba9876543210/out"}", "-C", "metadata=fedcba9876543210"], '
+                '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ),
+            "Unknown rustc unit layout",
+        )
+
+    def test_a_nested_rustc_without_an_outer_unit_fails_closed(self) -> None:
+        target = self.layout.target
+        out = target / "debug/build/demo/0123456789abcdef/out"
+        nested_out = out / "guest-target/debug/deps"
+        nested_out.mkdir(parents=True)
+        self.assert_trace_layout_error(
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "guest", "--out-dir", "{nested_out}", '
+                '"-C", "extra-filename=-aaaaaaaaaaaaaaaa", "-C", "metadata=aaaaaaaaaaaaaaaa"], '
+                '["CARGO_PKG_NAME=guest", "CARGO_MANIFEST_DIR=/src/guest"]) = 0\n'
+            ),
+            "A nested build has no outer unit",
+        )
 
     def write_rejected_trace(self, session: Path, name: str, line: str, reason: str) -> None:
         with (session / f"trace-{name}.jsonl").open("w") as journal:
