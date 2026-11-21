@@ -69,9 +69,14 @@ impl PackServer {
                 // Set this socket to blocking mode before the read.
                 retry_interrupted(|| stream.set_nonblocking(false))
                     .expect("the pack server accepted socket accepts blocking mode");
-                stream
-                    .set_read_timeout(Some(std::time::Duration::from_secs(10)))
-                    .unwrap();
+                // When a client stops reading, a write on this socket blocks.
+                // The write timeout is 10 seconds, the same limit as the read.
+                // That limit covers the header and the body.
+                // After the write returns, the worker reads the stop flag.
+                let socket_timeout = Some(std::time::Duration::from_secs(10));
+                stream.set_read_timeout(socket_timeout).unwrap();
+                retry_interrupted(|| stream.set_write_timeout(socket_timeout))
+                    .expect("the pack server accepted socket accepts a write timeout");
                 let mut reader = BufReader::new(stream.try_clone().unwrap());
                 let mut line = String::new();
                 reader.read_line(&mut line).unwrap();
@@ -87,16 +92,33 @@ impl PackServer {
                 }
                 let path = root.join(safe_pack_relative_path(&relative).unwrap());
                 if let Ok(mut file) = File::open(path) {
-                    write!(
-                        stream,
+                    let header = format!(
                         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                         file.metadata().unwrap().len()
-                    )
-                    .unwrap();
-                    // Broken clients can stop reading after an error. The server must still stop on drop.
-                    let _ = std::io::copy(&mut file, &mut stream);
+                    );
+                    // io::copy uses sendfile for a file and a socket.
+                    // sendfile ignores the write timeout.
+                    // write_all uses that timeout for the header and for each body chunk.
+                    if retry_interrupted(|| stream.write_all(header.as_bytes())).is_err() {
+                        continue;
+                    }
+                    let mut buf = [0_u8; 64 * 1024];
+                    loop {
+                        let count = match retry_interrupted(|| file.read(&mut buf)) {
+                            Ok(0) => break,
+                            Ok(count) => count,
+                            Err(_) => break,
+                        };
+                        if retry_interrupted(|| stream.write_all(&buf[..count])).is_err() {
+                            break;
+                        }
+                    }
                 } else {
-                    stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                    let _ = retry_interrupted(|| {
+                        stream.write_all(
+                            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        )
+                    });
                 }
             }
         });
@@ -149,6 +171,45 @@ fn pack_server_shutdown_joins_without_a_client() {
     server
         .shutdown()
         .expect("the pack server thread finishes cleanly");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_server_shutdown_returns_during_a_blocked_write() {
+    // The file length is 256 MiB.
+    // The client sends the request and does not read the response.
+    // The write fills the socket buffer and then blocks.
+    // The write timeout ends that block.
+    // Shutdown returns the worker result.
+    let root = setup_test_dir();
+    let mut big = File::create(root.path().join("big")).unwrap();
+    big.set_len(256 * 1024 * 1024).unwrap();
+    drop(big);
+    let mut server = PackServer::start(root.path().to_owned());
+    let mut client = std::net::TcpStream::connect(server.address).unwrap();
+    client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
+    for _ in 0..1000 {
+        if server.requests.lock().unwrap().len() == 1 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+    let started = std::time::Instant::now();
+    let result = server.shutdown();
+    let elapsed = started.elapsed();
+    drop(client);
+    eprintln!(
+        "PACK_SHUTDOWN_OK={} PACK_SHUTDOWN_MS={}",
+        result.is_ok(),
+        elapsed.as_millis()
+    );
+    assert!(
+        elapsed < std::time::Duration::from_secs(15),
+        "shutdown waited {elapsed:?}"
+    );
+    result.expect("the pack server thread finishes cleanly");
 }
 
 impl Drop for PackServer {
