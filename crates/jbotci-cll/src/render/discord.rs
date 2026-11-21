@@ -23,9 +23,11 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
 ///
 /// A heading (`#`), subtext (`-#`), bullet (`-`), or ordered list (`1.`) is
 /// syntax at the start of a line. The character after the marker is the one
-/// Discord's own rule accepts. If `line` begins a line, pass `at_line_start`
-/// as true. If `line` contains a CR, that CR is a line ending. The CR stays
-/// in the output. Every other escape is unconditional.
+/// Discord's own rule accepts. The end of the piece also ends a list marker
+/// and a subtext marker, because more text can follow on the same line. If
+/// `line` begins a line, pass `at_line_start` as true. If `line` contains a
+/// CR, that CR is a line ending. The CR stays in the output. Every other
+/// escape is unconditional.
 #[requires(!line.contains('\n'))]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
 #[expensive_ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().enumerate().all(|(index, (content, _))| {
@@ -53,10 +55,10 @@ pub(crate) fn escape_discord_markdown_line_at(
 /// Byte index of the one character that starts a Discord line marker.
 ///
 /// A heading is one to three `#` characters. Discord then accepts JavaScript
-/// whitespace, and it also accepts the end of the line. Subtext is `-#` and
-/// then an ASCII space. A bullet is `-`. An ordered list is digits and then
-/// `.`. Those two accept an ASCII space. A tab does not count. `+` is not a
-/// marker.
+/// whitespace, and it also accepts the end of the line. Subtext is `-#`. A
+/// bullet is `-`. An ordered list is digits and then `.`. Those three accept
+/// an ASCII space, and they accept the end of the piece. A tab does not
+/// count. `+` is not a marker.
 #[requires(true)]
 #[ensures(ret.is_none_or(|index| {
     line.is_char_boundary(index)
@@ -82,10 +84,10 @@ fn discord_marker_byte(line: &str) -> Option<usize> {
     }
     if bytes[0] == b'-' {
         let rest = &tail[1..];
-        if rest.starts_with('#') && discord_subtext_separator(&rest[1..]) {
+        if rest.starts_with('#') && discord_space_separator(&rest[1..]) {
             return Some(indent);
         }
-        if discord_list_separator(rest) {
+        if discord_space_separator(rest) {
             return Some(indent);
         }
     }
@@ -95,7 +97,7 @@ fn discord_marker_byte(line: &str) -> Option<usize> {
         .count();
     if digits >= 1
         && bytes.get(digits) == Some(&b'.')
-        && discord_list_separator(&tail[digits + 1..])
+        && discord_space_separator(&tail[digits + 1..])
     {
         return Some(indent + digits);
     }
@@ -105,15 +107,10 @@ fn discord_marker_byte(line: &str) -> Option<usize> {
 /// True for a character in JavaScript `\s`.
 ///
 /// Discord's heading rule uses that set after one to three `#` characters.
+/// The set is every character Rust calls whitespace, plus U+FEFF, except
+/// U+0085.
 #[requires(true)]
-#[ensures(ret == (
-    matches!(
-        character,
-        '\t' | '\n' | '\u{000b}' | '\u{000c}' | '\r' | ' '
-            | '\u{00a0}' | '\u{1680}' | '\u{2028}' | '\u{2029}' | '\u{202f}'
-            | '\u{205f}' | '\u{3000}' | '\u{feff}'
-    ) || ('\u{2000}'..='\u{200a}').contains(&character)
-))]
+#[ensures(ret == (character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}')))]
 fn discord_js_whitespace(character: char) -> bool {
     matches!(
         character,
@@ -144,27 +141,17 @@ fn discord_heading_separator(rest: &str) -> bool {
     rest.is_empty() || rest.chars().next().is_some_and(discord_js_whitespace)
 }
 
-/// True when `rest` can end a `-#` marker.
+/// True when `rest` can end a `-` bullet, an `N.` list, or a `-#` marker.
 ///
-/// Discord accepts one or more ASCII spaces and then text on the same line.
-/// A tab does not count. U+3000 does not count. A lone space also counts
-/// here. The Discord input block uses `-# ` as a header, so that prefix
-/// stays escaped.
+/// Discord accepts one ASCII space and then more text on the same line.
+/// The end of this piece also counts. A later cell can follow on the same
+/// line. A tab does not count. U+3000 does not count. A lone space after
+/// `-#` counts. The Discord input block uses `-# ` as a header, so that
+/// prefix stays escaped. `+` is not a bullet.
 #[requires(true)]
-#[ensures(ret == rest.starts_with(' '))]
-fn discord_subtext_separator(rest: &str) -> bool {
-    rest.starts_with(' ')
-}
-
-/// True when `rest` can end a `-` bullet or an `N.` list.
-///
-/// Discord accepts one ASCII space and then more text. The line ending
-/// counts as that text. A tab does not count. U+3000 does not count. `+`
-/// is not a bullet.
-#[requires(true)]
-#[ensures(ret == rest.starts_with(' '))]
-fn discord_list_separator(rest: &str) -> bool {
-    rest.starts_with(' ')
+#[ensures(ret == (rest.is_empty() || rest.starts_with(' ')))]
+fn discord_space_separator(rest: &str) -> bool {
+    rest.is_empty() || rest.starts_with(' ')
 }
 
 /// Escape one line that begins at column zero.
@@ -388,7 +375,8 @@ mod tests {
         assert_eq!(escape_discord_markdown_line("-nai"), "-nai");
         assert_eq!(escape_discord_markdown_line("- a"), "\\- a");
         assert_eq!(escape_discord_markdown_line("1.a"), "1.a");
-        assert_eq!(escape_discord_markdown_line("1."), "1.");
+        assert_eq!(escape_discord_markdown_line("1."), "1\\.");
+        assert_eq!(escape_discord_markdown_line("-"), "\\-");
         assert_eq!(escape_discord_markdown_line("-# sub"), "\\-# sub");
         assert_eq!(escape_discord_markdown_line("-#sub"), "-#sub");
         assert_eq!(
@@ -401,7 +389,8 @@ mod tests {
             "\\:x\\: \\[a\\]\\(b\\)"
         );
         assert_eq!(escape_discord_markdown("#\r\n"), "\\#\r\n");
-        assert_eq!(escape_discord_markdown("1.\r\n"), "1.\r\n");
+        assert_eq!(escape_discord_markdown("1.\r\n"), "1\\.\r\n");
+        assert_eq!(escape_discord_markdown("1.\r"), "1\\.\r");
         assert_eq!(
             escape_discord_markdown_line("#\u{3000}title"),
             "\\#\u{3000}title"
@@ -419,7 +408,7 @@ mod tests {
             "#\u{0085}title"
         );
         assert_eq!(escape_discord_markdown_line("#### a"), "#### a");
-        assert_eq!(escape_discord_markdown_line("-#"), "-#");
+        assert_eq!(escape_discord_markdown_line("-#"), "\\-#");
         assert_eq!(escape_discord_markdown_line("-# "), "\\-# ");
         assert_eq!(
             escape_discord_markdown_line("-#\u{3000}title"),
@@ -444,6 +433,24 @@ mod tests {
         assert_eq!(escape_discord_markdown("a\r# b"), "a\r\\# b");
         assert_eq!(escape_discord_markdown("\u{00a0}# a"), "\u{00a0}# a");
         assert_eq!(escape_discord_markdown("  # a"), "  \\# a");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn javascript_whitespace_matches_rust_whitespace_except_two_points() {
+        for code in 0..=0x10FFFF {
+            let Some(character) = char::from_u32(code) else {
+                continue;
+            };
+            let javascript_space =
+                character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}');
+            assert_eq!(
+                discord_js_whitespace(character),
+                javascript_space,
+                "U+{code:04X}"
+            );
+        }
     }
 
     #[test]

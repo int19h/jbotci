@@ -982,8 +982,8 @@ fn render_cmavo_list_markdown(
                 if let Some(parts) = cell.word_parts() {
                     // The cell sits after `| `, so it does not start a line.
                     // The GitHub escaper already wrote `\|`. Pass false so
-                    // the cell helper does not escape `|` again. Each line
-                    // ending becomes `<br>`.
+                    // the cell helper does not escape `|` again. A part has
+                    // no line ending, so this text has none.
                     github_pipe_cell_text(
                         &render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false),
                         &scope,
@@ -1011,13 +1011,28 @@ fn render_cmavo_list_markdown(
 ///
 /// A pause dot is not in this set. `.ui` stays `.ui`. A dot is escaped only
 /// when it completes an ordered-list marker at the start of a line. `!` is
-/// not in this set. `[` is always escaped, so `!` cannot start an image.
+/// in this set. Web mode can write a link directly after this text. A `!`
+/// at the end of the text would turn that link into an image.
 #[requires(true)]
 #[ensures(true)]
 fn github_inline_escape(character: char) -> bool {
     matches!(
         character,
-        '\\' | '`' | '*' | '_' | '[' | ']' | '(' | ')' | '<' | '>' | '~' | '$' | '^' | '&' | '|'
+        '\\' | '`'
+            | '*'
+            | '_'
+            | '['
+            | ']'
+            | '('
+            | ')'
+            | '<'
+            | '>'
+            | '!'
+            | '~'
+            | '$'
+            | '^'
+            | '&'
+            | '|'
     )
 }
 
@@ -1091,7 +1106,9 @@ fn github_thematic_break_bytes(tail: &str) -> Option<usize> {
 ///
 /// The caller has skipped up to three leading spaces. The line is one or more
 /// `=` characters, or one or more `-` characters, and then only spaces or tabs.
-/// If the previous line has text, the caller uses this.
+/// A vertical tab and a form feed do not count. GitHub accepts only a space
+/// or a tab after that underline. If the previous line has text, the caller
+/// uses this.
 #[requires(true)]
 #[ensures(!ret || tail.starts_with(['=', '-']))]
 fn github_setext_underline(tail: &str) -> bool {
@@ -1112,10 +1129,11 @@ fn github_setext_underline(tail: &str) -> bool {
 /// True when `tail` is a one-column table delimiter.
 ///
 /// The caller has skipped up to three leading spaces. The line starts with
-/// `:` or `-`. It holds only those two characters, spaces, and tabs. It has
-/// at least one `-`. If the previous line has text, the caller uses this.
-/// A line of only `-` is also a setext underline. Both rules escape the
-/// first character.
+/// `:` or `-`. It holds only those two characters, spaces, tabs, vertical
+/// tabs, and form feeds. It has at least one `-`. GitHub accepts a vertical
+/// tab and a form feed as a space in a delimiter line. If the previous line
+/// has text, the caller uses this. A line of only `-` is also a setext
+/// underline. Both rules escape the first character.
 #[requires(true)]
 #[ensures(!ret || (tail.starts_with([':', '-']) && tail.contains('-')))]
 fn github_one_column_delimiter(tail: &str) -> bool {
@@ -1124,7 +1142,7 @@ fn github_one_column_delimiter(tail: &str) -> bool {
         && bytes.contains(&b'-')
         && bytes
             .iter()
-            .all(|byte| matches!(*byte, b':' | b'-' | b' ' | b'\t'))
+            .all(|byte| matches!(*byte, b':' | b'-' | b' ' | b'\t' | b'\x0b' | b'\x0c'))
 }
 
 /// Writes `marker` so GitHub does not treat it as a heading, a bullet, or a list.
@@ -1248,6 +1266,39 @@ fn push_github_line(
     push_github_inline(output, rest);
 }
 
+/// True when escaped `text` has no live GitHub line marker.
+///
+/// A line that starts the text is checked when `at_line_start` is set. Each
+/// later line starts a line. Up to three leading spaces are indent. A fourth
+/// space is an indented code line, so it is not a marker. A setext underline
+/// and a one-column delimiter count only when the previous line has text.
+#[requires(true)]
+#[ensures(true)]
+fn github_escaped_lines_stay_text(text: &str, at_line_start: bool) -> bool {
+    let mut previous_has_text = false;
+    for (index, (line, _)) in super::commonmark_lines(text).into_iter().enumerate() {
+        let starts_line = at_line_start || index > 0;
+        if starts_line {
+            let bytes = line.as_bytes();
+            let mut indent = 0;
+            while indent < bytes.len() && indent < 3 && bytes[indent] == b' ' {
+                indent += 1;
+            }
+            if bytes.get(indent) != Some(&b' ') {
+                let tail = &line[indent..];
+                if github_line_marker_bytes(tail).is_some()
+                    || (previous_has_text
+                        && (github_setext_underline(tail) || github_one_column_delimiter(tail)))
+                {
+                    return false;
+                }
+            }
+        }
+        previous_has_text = (index == 0 && !at_line_start) || super::commonmark_line_has_text(line);
+    }
+    true
+}
+
 /// `text` as literal GitHub Markdown.
 ///
 /// This is the one GitHub escaper. Book prose does not use it, because the
@@ -1263,6 +1314,9 @@ fn push_github_line(
     scope.is_exceeded()
         || !crate::cmavo_table::is_dictionary_token(text)
         || ret == text
+)]
+#[expensive_ensures(
+    scope.is_exceeded() || github_escaped_lines_stay_text(&ret, at_line_start)
 )]
 fn escape_github_markdown_in_scope(
     text: &str,
@@ -1662,7 +1716,7 @@ mod tests {
         assert_eq!(github("`code`", false), r"\`code\`");
         assert_eq!(github("^2^", false), r"\^2\^");
         assert_eq!(github("a|b", false), r"a\|b");
-        assert_eq!(github("![alt](x)", false), r"!\[alt\]\(x\)");
+        assert_eq!(github("![alt](x)", false), r"\!\[alt\]\(x\)");
 
         assert_eq!(github("---", true), r"\---");
         assert_eq!(github("---", false), "---");
@@ -1708,13 +1762,120 @@ mod tests {
         assert_eq!(github(":-", true), ":-");
         assert_eq!(github("Title\n:", true), "Title\n:");
         assert_eq!(github("Title\n:::", true), "Title\n:::");
+        assert_eq!(github("Title\n:-\u{000b}", true), "Title\n\\:-\u{000b}");
+        assert_eq!(github("Title\n:-\u{000c}", true), "Title\n\\:-\u{000c}");
+        assert_eq!(github("Title\n:- \u{000c}", true), "Title\n\\:- \u{000c}");
+        assert_eq!(github("Title\n-\u{000c}", true), "Title\n\\-\u{000c}");
+        assert_eq!(github("Title\n=\u{000b}", true), "Title\n=\u{000b}");
+        assert_eq!(github("Title\n=\u{000c}", true), "Title\n=\u{000c}");
+        assert!(github_escaped_lines_stay_text(
+            &github("Title\n:-", true),
+            true
+        ));
+        assert!(github_escaped_lines_stay_text(
+            &github("Title\n:-\u{000c}", true),
+            true
+        ));
+        assert!(github_escaped_lines_stay_text(&github(":-", true), true));
+        assert!(github_escaped_lines_stay_text(
+            &github("Title\n\n=", true),
+            true
+        ));
+        assert!(github_escaped_lines_stay_text(&github("# a", false), false));
+        assert!(!github_escaped_lines_stay_text("Title\n:-", true));
+        assert!(!github_escaped_lines_stay_text("# a", true));
+        assert!(github_escaped_lines_stay_text(":-", true));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_headered_word_cell_keeps_a_line_break_inside_the_row() {
+    fn a_bang_before_the_next_link_stays_text() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let word = CllCmavoListCell::Word {
+            inlines: vec![
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("ui!".to_owned())],
+                },
+                CllInline::Link {
+                    target: "roi".to_owned(),
+                    inlines: vec![CllInline::Text("roi".to_owned())],
+                    kind: CllLinkKind::Dictionary,
+                },
+            ],
+        };
+        assert!(word.word_parts().is_some());
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![
+                word,
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("never".to_owned())],
+                },
+            ]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(web, "ui\\![roi](../vlacku/roi) | never\n\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_headerless_discord_row_escapes_a_marker_at_the_end_of_a_cell() {
+        for (cell, escaped) in [("-", "\\-"), ("1.", "1\\."), ("-#", "\\-#")] {
+            let block = CllBlock::CmavoList {
+                id: None,
+                titles: Vec::new(),
+                headers: Vec::new(),
+                rows: vec![vec![
+                    CllCmavoListCell::Word {
+                        inlines: vec![CllInline::Text(cell.to_owned())],
+                    },
+                    CllCmavoListCell::Other {
+                        inlines: vec![CllInline::Text("none".to_owned())],
+                    },
+                ]],
+            };
+            assert_eq!(
+                render_dialect(&block, CllMarkdownDialect::Discord),
+                format!("{escaped} · none\n\n"),
+                "{cell:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_headered_word_cell_escapes_a_pipe_inside_a_part() {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let word = CllCmavoListCell::Word {
+            inlines: vec![
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("a|b".to_owned())],
+                },
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("z".to_owned())],
+                },
+            ],
+        };
+        assert!(word.word_parts().is_some());
         let block = CllBlock::CmavoList {
             id: None,
             titles: Vec::new(),
@@ -1723,20 +1884,56 @@ mod tests {
                 vec![CllInline::Text("gloss".to_owned())],
             ],
             rows: vec![vec![
-                CllCmavoListCell::Word {
-                    inlines: vec![
-                        CllInline::LanguageSpan {
-                            kind: CllLanguageSpanKind::JboPhrase,
-                            language: None,
-                            inlines: vec![CllInline::Text("a|b\r\nc\nd\re".to_owned())],
-                        },
-                        CllInline::LanguageSpan {
-                            kind: CllLanguageSpanKind::JboPhrase,
-                            language: None,
-                            inlines: vec![CllInline::Text("z".to_owned())],
-                        },
-                    ],
+                word,
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("never".to_owned())],
                 },
+            ]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(
+            web,
+            "| cmavo | gloss |\n| --- | --- |\n| a\\|bz | never |\n\n"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_cell_with_a_line_ending_uses_the_ordinary_cell() {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let word = CllCmavoListCell::Word {
+            inlines: vec![
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("a|b\r\nc\nd\re".to_owned())],
+                },
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("z".to_owned())],
+                },
+            ],
+        };
+        assert!(word.word_parts().is_none());
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: vec![
+                vec![CllInline::Text("cmavo".to_owned())],
+                vec![CllInline::Text("gloss".to_owned())],
+            ],
+            rows: vec![vec![
+                word,
                 CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("never".to_owned())],
                 },

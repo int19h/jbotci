@@ -2603,9 +2603,7 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
             let cell_opt_out = element_opts_out_of_cmavo_link(cell);
             let inlines = parts
                 .iter()
-                .map(|(text, part_opt_out)| {
-                    cmavo_valsi_part_inline(text, !cell_opt_out && !part_opt_out)
-                })
+                .map(|part| cmavo_valsi_part_inline(&part.text, !cell_opt_out && !part.opted_out))
                 .collect();
             return CllCmavoListCell::Word { inlines };
         }
@@ -2622,6 +2620,17 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     }
 }
 
+/// One valsi element inside a cell of adjacent parts.
+///
+/// `text` is the spelling after whitespace is collapsed and trimmed.
+/// `opted_out` is true when this element asks to stay unlinked.
+#[invariant(!text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AdjacentValsiPart {
+    text: String,
+    opted_out: bool,
+}
+
 /// The valsi parts of a cell whose whole content is those elements.
 ///
 /// Two or more `valsi` elements qualify when no text sits between them or
@@ -2630,9 +2639,9 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
 /// are not text. A mark on a part is recorded for that part alone.
 #[requires(cell.is_element())]
 #[ensures(ret.as_ref().is_none_or(|parts| {
-    parts.len() >= 2 && parts.iter().all(|(text, _)| !text.is_empty())
+    parts.len() >= 2 && parts.iter().all(|part| !part.text.is_empty())
 }))]
-fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<(String, bool)>> {
+fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
     let mut parts = Vec::new();
     for child in cell.children() {
         if child.is_text() {
@@ -2661,7 +2670,10 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<(String, bool)>> {
         if text.is_empty() {
             continue;
         }
-        parts.push((text, cmavo_cell_opted_out(child)));
+        parts.push(new!(AdjacentValsiPart {
+            text,
+            opted_out: cmavo_cell_opted_out(child),
+        }));
     }
     (parts.len() >= 2).then_some(parts)
 }
