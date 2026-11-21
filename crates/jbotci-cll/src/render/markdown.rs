@@ -1120,10 +1120,44 @@ fn push_github_inline(output: &mut jbotci_budget::TextBuffer, text: &str) {
     }
 }
 
+/// The first indent byte when `line` is an indented code block.
+///
+/// A space counts as one column. A tab moves to the next column that is a
+/// multiple of four. The result is that first byte when the indent reaches
+/// four columns and a later character is not a space or a tab. A blank line
+/// returns nothing. This function does not look at the previous line.
+#[requires(true)]
+#[ensures(ret.is_none_or(|byte| {
+    (byte == b' ' || byte == b'\t') && line.as_bytes().first() == Some(&byte)
+}))]
+fn github_indented_code_byte(line: &str) -> Option<u8> {
+    let bytes = line.as_bytes();
+    let mut column = 0usize;
+    for (index, byte) in bytes.iter().enumerate() {
+        column = match *byte {
+            b' ' => column + 1,
+            b'\t' => column + 4 - (column % 4),
+            _ => return None,
+        };
+        if column >= 4 {
+            let rest_is_blank = bytes[index + 1..]
+                .iter()
+                .all(|later| *later == b' ' || *later == b'\t');
+            if rest_is_blank {
+                return None;
+            }
+            return Some(bytes[0]);
+        }
+    }
+    None
+}
+
 /// Writes one GitHub line.
 ///
 /// If `at_line_start` is set, a heading, a list, or a thematic break on this
 /// line stays text. If `under_text` is also set, a setext underline stays text.
+/// An indented code block stays text when the line starts the text or follows
+/// a blank line.
 #[requires(!line.contains('\n'))]
 #[ensures(true)]
 fn push_github_line(
@@ -1132,6 +1166,20 @@ fn push_github_line(
     at_line_start: bool,
     under_text: bool,
 ) {
+    // An indented code block is a non-blank line whose indent reaches four
+    // columns. It opens when the line starts the text or follows a blank line.
+    // A space is one column. A tab moves to the next multiple of four. A
+    // backslash before a space is not an escape. `&#32;` or `&#9;` is ordinary
+    // text, so the indent is gone. The other characters stay in place. Marker
+    // rules do not run on this line, so `    ---` does not become a thematic
+    // break.
+    if at_line_start && !under_text {
+        if let Some(indent) = github_indented_code_byte(line) {
+            output.push_str(if indent == b' ' { "&#32;" } else { "&#9;" });
+            push_github_inline(output, &line[1..]);
+            return;
+        }
+    }
     let mut rest = line;
     if at_line_start {
         let bytes = line.as_bytes();
@@ -1593,7 +1641,12 @@ mod tests {
         assert_eq!(github("---\t", true), "\\---\t");
         assert_eq!(github("- - -", true), r"\- - -");
         assert_eq!(github("   ---", true), r"   \---");
-        assert_eq!(github("    ---", true), "    ---");
+        assert_eq!(github("    ---\n", true), "&#32;   ---\n");
+        assert_eq!(github("    ---\r\n", true), "&#32;   ---\r\n");
+        assert_eq!(github("    ---\r", true), "&#32;   ---\r");
+        assert_eq!(github("\t---\n", true), "&#9;---\n");
+        assert_eq!(github("\t---\r\n", true), "&#9;---\r\n");
+        assert_eq!(github("\t---\r", true), "&#9;---\r");
         assert_eq!(github("***", true), r"\*\*\*");
         assert_eq!(github("___", true), r"\_\_\_");
         assert_eq!(github("* * *", true), r"\* \* \*");
