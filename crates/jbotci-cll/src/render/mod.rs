@@ -62,6 +62,16 @@ fn commonmark_lines(text: &str) -> Vec<(&str, &str)> {
     lines
 }
 
+/// True when `line` is not a CommonMark blank line.
+///
+/// A blank line is empty, or it holds only spaces and tabs. A no-break
+/// space is text.
+#[requires(true)]
+#[ensures(ret == line.bytes().any(|byte| byte != b' ' && byte != b'\t'))]
+fn commonmark_line_has_text(line: &str) -> bool {
+    line.bytes().any(|byte| byte != b' ' && byte != b'\t')
+}
+
 /// Appends a rule-status note as a labelled block quote.
 ///
 /// A status note is the edition's own annotation about the standing of the rule

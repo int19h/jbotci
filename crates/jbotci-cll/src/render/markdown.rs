@@ -698,6 +698,39 @@ where
     output.push('\n');
 }
 
+/// `text` with each CommonMark line ending written as `<br>`.
+///
+/// A line ending is LF, CRLF, or a lone CR. `|` stays as it is.
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (!ret.contains('\n') && !ret.contains('\r')))]
+fn github_table_word_breaks(text: &str, scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'\r' {
+            output.push_str("<br>");
+            index += 1;
+            if bytes.get(index) == Some(&b'\n') {
+                index += 1;
+            }
+            continue;
+        }
+        if bytes[index] == b'\n' {
+            output.push_str("<br>");
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        while index < bytes.len() && bytes[index] != b'\n' && bytes[index] != b'\r' {
+            index += 1;
+        }
+        output.push_str(&text[start..index]);
+    }
+    output.into_piece()
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn markdown_table_cell_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
@@ -940,9 +973,13 @@ fn render_cmavo_list_markdown(
             .map(|cell| {
                 if let Some(parts) = cell.word_parts() {
                     // The cell sits after `| `, so it does not start a line.
-                    // The escaper already treats `|` as text. The table helper
-                    // would escape that pipe a second time.
-                    render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false)
+                    // The GitHub escaper writes `|` as `\|`. A second escape
+                    // turns that into `\\|`. A line ending splits the row,
+                    // so each ending becomes `<br>`.
+                    github_table_word_breaks(
+                        &render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false),
+                        &scope,
+                    )
                 } else {
                     markdown_table_cell_text(
                         &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
@@ -1237,7 +1274,11 @@ fn escape_github_markdown_in_scope(
             previous_has_text,
         );
         escaped.push_str(ending);
-        previous_has_text = line.chars().any(|character| !character.is_whitespace());
+        // Line zero of a run that continues earlier text already has text
+        // before it. A blank line there still counts as text. Every later
+        // line uses the CommonMark blank-line rule: only a space or a tab
+        // is blank. A no-break space is text.
+        previous_has_text = (index == 0 && !at_line_start) || super::commonmark_line_has_text(line);
     }
     escaped.into_piece()
 }
@@ -1665,5 +1706,93 @@ mod tests {
         assert_eq!(github("1.\r\n", true), "1\\.\r\n");
         assert_eq!(github("Title\r==\r", true), "Title\r\\==\r");
         assert_eq!(github("---\r", true), "\\---\r");
+        assert_eq!(github("\n===", false), "\n\\===");
+        assert_eq!(github("   \n--", false), "   \n\\--");
+        assert_eq!(github("\n\n===", false), "\n\n===");
+        assert_eq!(github("\n    code", false), "\n    code");
+        assert_eq!(github("\u{00a0}\n===", true), "\u{00a0}\n\\===");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_headerless_cmavo_cell_escapes_a_setext_line_after_a_link() {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![CllCmavoListCell::Word {
+                inlines: vec![
+                    CllInline::Link {
+                        target: "roi".to_owned(),
+                        inlines: vec![CllInline::Text("roi".to_owned())],
+                        kind: CllLinkKind::Dictionary,
+                    },
+                    CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::JboPhrase,
+                        language: None,
+                        inlines: vec![CllInline::Text("\n===".to_owned())],
+                    },
+                ],
+            }]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(web, "[roi](../vlacku/roi)\n\\===\n\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_headered_word_cell_keeps_a_line_break_inside_the_row() {
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: vec![
+                vec![CllInline::Text("cmavo".to_owned())],
+                vec![CllInline::Text("gloss".to_owned())],
+            ],
+            rows: vec![vec![
+                CllCmavoListCell::Word {
+                    inlines: vec![
+                        CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::JboPhrase,
+                            language: None,
+                            inlines: vec![CllInline::Text("a|b\r\nc\nd\re".to_owned())],
+                        },
+                        CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::JboPhrase,
+                            language: None,
+                            inlines: vec![CllInline::Text("z".to_owned())],
+                        },
+                    ],
+                },
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("never".to_owned())],
+                },
+            ]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(
+            web,
+            "| cmavo | gloss |\n| --- | --- |\n| a\\|b<br>c<br>d<br>ez | never |\n\n"
+        );
     }
 }

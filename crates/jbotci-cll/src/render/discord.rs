@@ -61,7 +61,12 @@ pub(crate) fn escape_discord_markdown_line_at(
         && matches!(line.as_bytes()[index], b'#' | b'-' | b'+' | b'.')
 }))]
 fn discord_marker_byte(line: &str) -> Option<usize> {
-    let indent = line.len() - line.trim_start().len();
+    // The indent is a space or a tab, the same characters CommonMark uses
+    // for a blank line. A no-break space is not an indent.
+    let indent = line
+        .bytes()
+        .take_while(|byte| *byte == b' ' || *byte == b'\t')
+        .count();
     let tail = &line[indent..];
     let bytes = tail.as_bytes();
     if bytes.is_empty() {
@@ -336,6 +341,8 @@ mod tests {
         assert_eq!(escape_discord_markdown("1.\r\n"), "1\\.\r\n");
         assert_eq!(escape_discord_markdown("#\r"), "\\#\r");
         assert_eq!(escape_discord_markdown("a\r# b"), "a\r\\# b");
+        assert_eq!(escape_discord_markdown("\u{00a0}# a"), "\u{00a0}# a");
+        assert_eq!(escape_discord_markdown("  # a"), "  \\# a");
     }
 
     #[test]
