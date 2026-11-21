@@ -499,11 +499,11 @@ class CargoUnitTests(unittest.TestCase):
             ).encode(),
             (
                 f'1 execve("{unit_configure_exe}", ["{unit_configure_exe}"], '
-                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={unit_configure_out}"]) = 0\n'
+                f'["CARGO_PKG_NAME=pkg", "CARGO_MANIFEST_DIR=/src/pkg", "OUT_DIR={unit_configure_out}"]) = 0\n'
             ).encode(),
             (
                 f'1 execve("{unit_main_exe}", ["{unit_main_exe}"], '
-                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={unit_main_out}"]) = 0\n'
+                f'["CARGO_PKG_NAME=pkg", "CARGO_MANIFEST_DIR=/src/pkg", "OUT_DIR={unit_main_out}"]) = 0\n'
             ).encode(),
         ])
         events = [json.loads(line) for line in output.getvalue().splitlines()]
@@ -955,7 +955,7 @@ class CargoUnitTests(unittest.TestCase):
 
     def test_an_undeclared_read_through_a_nested_unit_fails(self) -> None:
         self.ensure_git()
-        (self.workspace / "Cargo.toml").write_text('[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n')
+        (self.workspace / "Cargo.toml").write_text('[package]\nname = "child"\nversion = "0.1.0"\nedition = "2021"\n')
         (self.workspace / "src").mkdir()
         (self.workspace / "src/lib.rs").write_text("pub fn demo() {}\n")
         secret = self.workspace / "secret.txt"
@@ -1084,6 +1084,139 @@ class CargoUnitTests(unittest.TestCase):
     def touch_after_marker(self, session: Path, path: Path) -> None:
         marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
         os.utime(path, ns=(marker_ns + 2_000_000_000, marker_ns + 2_000_000_000))
+
+    def test_save_rejects_a_classic_run_whose_path_package_differs(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        fingerprint = target / "debug/.fingerprint/foo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        output = target / "debug/build/foo-0123456789abcdef/output"
+        output.parent.mkdir(parents=True)
+        output.write_text("cargo:rerun-if-changed=build.rs\n")
+        executable = target / "debug/build/foo-aaaaaaaaaaaaaaaa/build-script-build"
+        out = target / "debug/build/foo-0123456789abcdef/out"
+        session = self.root / "session-classic-package"
+        c.begin(self.layout, session)
+        line = (
+            f'1 execve("{executable}", ["{executable}"], '
+            f'["CARGO_PKG_NAME=other", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
+        )
+        self.write_rejected_trace(session, "classic-package", line, "target package foo")
+        self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+        with self.assertRaisesRegex(c.InputError, "did not finish without errors"):
+            c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def test_save_rejects_a_build_unit_run_whose_path_package_differs(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        compile_dir = target / "debug/build/foo/aaaaaaaaaaaaaaaa/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("aaaaaaaaaaaaaaaa")
+        fingerprint = target / "debug/build/foo/0123456789abcdef/fingerprint"
+        fingerprint.mkdir(parents=True)
+        stdout = fingerprint.parent / "run/stdout"
+        stdout.parent.mkdir(parents=True)
+        stdout.write_text("cargo:rerun-if-changed=build.rs\n")
+        executable = compile_dir.parent / "out/build_script_build"
+        out = fingerprint.parent / "out"
+        session = self.root / "session-build-unit-package"
+        c.begin(self.layout, session)
+        line = (
+            f'1 execve("{executable}", ["{executable}"], '
+            f'["CARGO_PKG_NAME=other", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
+        )
+        self.write_rejected_trace(session, "build-unit-package", line, "target package foo")
+        self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+        with self.assertRaisesRegex(c.InputError, "did not finish without errors"):
+            c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def test_save_rejects_a_compile_unit_whose_path_package_differs(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        cases = {
+            "build-unit": (
+                target / "debug/build/foo/0123456789abcdef/fingerprint",
+                target / "debug/build/foo/0123456789abcdef/out",
+                '"-C", "metadata=aaaaaaaaaaaaaaaa"',
+            ),
+            "classic": (
+                target / "debug/.fingerprint/other-0123456789abcdef",
+                target / "debug/build/foo-aaaaaaaaaaaaaaaa",
+                '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"',
+            ),
+        }
+        for name, (fingerprint, out, flags) in cases.items():
+            with self.subTest(name=name):
+                fingerprint.mkdir(parents=True, exist_ok=True)
+                session = self.root / f"session-compile-package-{name}"
+                c.begin(self.layout, session)
+                line = (
+                    f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{out}", '
+                    f'{flags}], ["CARGO_PKG_NAME=other", "CARGO_MANIFEST_DIR={self.workspace}"]) = 0\n'
+                )
+                self.write_rejected_trace(session, name, line, "target package foo")
+                marker = fingerprint / "bin-demo"
+                marker.write_text("0123456789abcdef")
+                (fingerprint / "bin-demo.json").write_text('{"deps":[]}')
+                (fingerprint / "dep-bin-demo").write_bytes(bytes.fromhex("01000000ff010000000000000000"))
+                (out / "demo-0123456789abcdef.d").parent.mkdir(parents=True, exist_ok=True)
+                (out / "demo.d").write_text("out: src/lib.rs\n")
+                (out / "demo-0123456789abcdef.d").write_text("out: src/lib.rs\n")
+                self.touch_after_marker(session, marker)
+                with self.assertRaisesRegex(c.InputError, "did not finish without errors"):
+                    c.save(self.layout, session, scrub=False)
+                self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def test_save_rejects_a_manifest_name_that_differs_from_the_unit_path(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        classic = target / "debug/.fingerprint/foo-0123456789abcdef"
+        build_unit = target / "debug/build/foo/0123456789abcdef/fingerprint"
+        for name, fingerprint in (("classic", classic), ("build-unit", build_unit)):
+            with self.subTest(name=name):
+                fingerprint.mkdir(parents=True)
+                if name == "classic":
+                    output = target / "debug/build/foo-0123456789abcdef/output"
+                    executable = target / "debug/build/foo-aaaaaaaaaaaaaaaa/build-script-build"
+                    out = target / "debug/build/foo-0123456789abcdef/out"
+                else:
+                    compile_dir = target / "debug/build/foo/aaaaaaaaaaaaaaaa/fingerprint"
+                    self.write_fingerprint(compile_dir, "build-script-build-script-build", 1)
+                    output = fingerprint.parent / "run/stdout"
+                    executable = compile_dir.parent / "out/build_script_build"
+                    out = fingerprint.parent / "out"
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text("cargo:rerun-if-changed=build.rs\n")
+                session = self.root / f"session-manifest-{name}"
+                c.begin(self.layout, session)
+                line = (
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=foo", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
+                )
+                self.write_trace(session, name, line)
+                self.finish_run_fingerprint(session, fingerprint, "0123456789abcdef")
+                with self.assertRaisesRegex(
+                        c.InputError, r"^The manifest package demo does not match the target package foo:"):
+                    c.save(self.layout, session, scrub=False)
+                self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def finish_run_fingerprint(self, session: Path, fingerprint: Path, unit_hash: str) -> None:
+        marker = fingerprint / "run-build-script-build-script-build"
+        marker.write_text(unit_hash)
+        (fingerprint / f"{marker.name}.json").write_text('{"deps":[],"local":[]}')
+        self.touch_after_marker(session, marker)
+
+    def write_rejected_trace(self, session: Path, name: str, line: str, reason: str) -> None:
+        with (session / f"trace-{name}.jsonl").open("w") as journal:
+            parser = Parser(self.workspace, self.layout.target, journal)
+            parser.feed([line.encode()])
+        with (session / f"trace-{name}.jsonl").open() as journal:
+            events = [json.loads(item) for item in journal]
+        self.assertGreater(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
+        self.assertIn(reason, next(event["reason"] for event in events if event["event"] == "trace-error"))
 
 
 if __name__ == "__main__":

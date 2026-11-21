@@ -15,7 +15,8 @@ import subprocess
 from typing import Any
 from uuid import uuid4
 
-from tools.cargo_inputs_trace import TraceError, has_unit_id_child, inside_unit_out, trace
+from tools.cargo_inputs_trace import (
+    TraceError, classic_package_dir, has_unit_id_child, inside_unit_out, trace)
 
 RECORD = "jbotci-inputs-v1.json"
 VERSION = 1
@@ -237,7 +238,9 @@ def inventory(layout: Layout) -> dict[str, Unit]:
     Cleanup skips a profile directory that eviction removed.
     Save rejects a trace unit that inventory does not return.
     If a unit was built in this session, save requires the trace kind to equal the fingerprint kind.
-    Save uses `package`, `cwd`, `dep_info`, and `via_dx` from the trace.
+    If the package name in a target path differs from CARGO_PKG_NAME, the trace rejects that unit.
+    If the manifest name differs from the package name in the unit path, save rejects that unit.
+    Save uses `cwd`, `dep_info`, and `via_dx` from the trace.
     Inventory does not store those fields.
     """
     result: dict[str, Unit] = {}
@@ -669,6 +672,42 @@ def build_script_output(unit: Unit) -> Path:
     return path
 
 
+def unit_package_name(unit: Unit) -> str:
+    """Return the package name stored in one unit path."""
+    if unit.shape is FingerprintShape.CLASSIC:
+        parsed = classic_package_dir(unit.directory.name)
+        if parsed is None:
+            raise InputError(f"A fingerprint directory has no package name: {unit.directory}")
+        return parsed[0]
+    return unit.directory.parent.parent.name
+
+
+def manifest_package_name(path: Path) -> str:
+    """Return the package name from one Cargo.toml."""
+    try:
+        text = path.read_text()
+    except OSError as error:
+        raise InputError(f"A unit manifest is unreadable: {path}") from error
+    in_package = False
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            in_package = line == "[package]"
+            continue
+        if not in_package:
+            continue
+        match = re.fullmatch(r"""name\s*=\s*(?:"([^"]*)"|'([^']*)')""", line)
+        if match is None:
+            continue
+        name = match[1] if match[1] is not None else match[2]
+        if not name:
+            raise InputError(f"A unit manifest has no package name: {path}")
+        return name
+    raise InputError(f"A unit manifest has no package name: {path}")
+
+
 def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Path, dict] | None = None) -> dict:
     package = Path(descriptor["package"])
     paths: list[Path] = [package / "Cargo.toml"]
@@ -756,6 +795,13 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
             if trace_kind != unit.kind.value:
                 raise InputError(
                     f"The trace kind {trace_kind} does not match the fingerprint kind {unit.kind.value}: {key}")
+            manifest = Path(descriptor["package"]) / "Cargo.toml"
+            if manifest.is_file():
+                manifest_name = manifest_package_name(manifest)
+                path_name = unit_package_name(unit)
+                if manifest_name != path_name:
+                    raise InputError(
+                        f"The manifest package {manifest_name} does not match the target package {path_name}: {key}")
             try:
                 record = make_record(layout, unit, descriptor, snapshots)
             except (OSError, KeyError, ValueError, StopIteration, InputError) as error:

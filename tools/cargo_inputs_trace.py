@@ -145,6 +145,9 @@ def classic_fingerprint(target: Path, out_dir: Path, package: str, suffix: str) 
         profile = out_dir.parent
     elif out_dir.parent.name == "build":
         profile = out_dir.parent.parent
+        named = classic_package_dir(out_dir.name)
+        if named is not None and named[0] != package:
+            raise TraceError(f"The target package {named[0]} does not match CARGO_PKG_NAME {package}")
     else:
         return None
     if not profile.is_relative_to(target):
@@ -174,12 +177,14 @@ def profile_inside_target(target: Path, profile: Path) -> bool:
     return profile.is_relative_to(target) and profile != target
 
 
-def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path) -> Path | None:
+def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
+                                      cargo_package: str) -> Path | None:
     """Return the classic run fingerprint for one build-script executable.
 
     Cargo 1.99 runs `<profile>/build/<package>-<16 hex>/build-script-<stem>`.
     `OUT_DIR` is `<profile>/build/<package>-<16 hex>/out` for the run unit.
     Those two suffixes are different directories of one package.
+    The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
     """
     if not executable.name.startswith("build-script-") or executable.name == "build-script-":
@@ -201,6 +206,8 @@ def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Pa
         or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
+    if package != cargo_package:
+        raise TraceError(f"The target package {package} does not match CARGO_PKG_NAME {cargo_package}")
     return profile / ".fingerprint" / out_dir.parent.name
 
 
@@ -264,12 +271,14 @@ def fingerprint_ready(path: Path, run: bool) -> None:
             raise TraceError(reason)
 
 
-def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir: Path) -> Path | None:
+def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
+                                         cargo_package: str) -> Path | None:
     """Return the build-unit run fingerprint for one build-script executable.
 
     Cargo 1.100 runs `<profile>/build/<package>/<compile id>/out/build_script_<stem>`.
     That compile unit's fingerprint holds a `build-script-*` file.
     `OUT_DIR` is `<profile>/build/<package>/<run id>/out` for a different id.
+    The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
     """
     if not executable.name.startswith("build_script_") or executable.name == "build_script_":
@@ -303,6 +312,9 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
         or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
+    if package_dir.name != cargo_package:
+        raise TraceError(
+            f"The target package {package_dir.name} does not match CARGO_PKG_NAME {cargo_package}")
     return out_dir.parent / "fingerprint"
 
 
@@ -425,9 +437,9 @@ class Parser:
             resolved = normalized_path(executable, process.cwd)
             if package and manifest and out and resolved.is_relative_to(self.target):
                 out_dir = normalized_path(out, process.cwd)
-                fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir)
+                fingerprint = classic_build_script_fingerprint(self.target, resolved, out_dir, package)
                 if fingerprint is None:
-                    fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir)
+                    fingerprint = build_unit_build_script_fingerprint(self.target, resolved, out_dir, package)
                 if fingerprint is not None:
                     if not fingerprint.is_relative_to(self.target):
                         raise TraceError("Unknown build script unit layout")
@@ -446,6 +458,10 @@ class Parser:
                 directory = normalized_path(destination, process.cwd)
                 fingerprint = build_unit_fingerprint(directory)
                 if fingerprint is not None:
+                    path_package = directory.parents[1].name
+                    if path_package != package:
+                        raise TraceError(
+                            f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
                     relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
                     if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
                         raise TraceError("Unknown rustc unit layout")
