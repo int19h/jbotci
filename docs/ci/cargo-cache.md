@@ -67,6 +67,13 @@ An unreadable input record for a workspace or vendored unit fails the contract c
 The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
 When the executable is inside the traced target, a rejected operation also records that path.
+The trace decides a candidate from the operation position in the traced target.
+An executable under a profile `build` directory is a build-script candidate.
+A `rustc` call with Cargo metadata is a unit candidate.
+The trace does not use environment values for that decision.
+When a candidate differs from a known Cargo layout, the trace rejects the operation.
+A missing environment value, a malformed id, or an unknown shape is a rejection.
+When an operation is outside those positions, the trace does not make it a unit.
 When Cargo passes `--target`, the build-script binary stays in the profile for the host.
 `OUT_DIR` is under the `TARGET` value from that build script.
 When `TARGET` is absent, the trace rejects that split layout.

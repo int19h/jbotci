@@ -537,7 +537,6 @@ class CargoUnitTests(unittest.TestCase):
             "/tmp/build-script-build",
             str(target / "debug/build-script-build"),
             str(target / "debug/deps/build-script-build-0123456789abcdef"),
-            str(out / "sub/build-script-build"),
         ]
         for executable in cases:
             with self.subTest(executable=executable):
@@ -560,6 +559,85 @@ class CargoUnitTests(unittest.TestCase):
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events[-1]["errors"], 0)
         self.assertFalse(any(event["event"] == "unit" for event in events))
+        inside = out / "sub/build-script-build"
+        self.assert_trace_layout_error(
+            f'1 execve("{inside}", ["{inside}"], {environment}) = 0\n',
+            "Unknown build script unit layout",
+        )
+
+    def test_trace_rejects_a_build_script_candidate_without_its_environment(self) -> None:
+        target = self.layout.target
+        classic_executable = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build"
+        classic_out = target / "debug/build/demo-0123456789abcdef/out"
+        (target / "debug/.fingerprint/demo-0123456789abcdef").mkdir(parents=True)
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        unit_executable = compile_dir.parent / "out/build_script_build"
+        unit_out = target / "debug/build/demo/fedcba9876543210/out"
+        (unit_out.parent / "fingerprint").mkdir(parents=True)
+        executables = (
+            (classic_executable, classic_out),
+            (unit_executable, unit_out),
+        )
+        for executable, script_out in executables:
+            for name in ("CARGO_PKG_NAME", "CARGO_MANIFEST_DIR", "OUT_DIR"):
+                with self.subTest(executable=executable.name, omitted=name):
+                    fields = {
+                        "CARGO_PKG_NAME": "demo",
+                        "CARGO_MANIFEST_DIR": "/src/demo",
+                        "OUT_DIR": str(script_out),
+                    }
+                    del fields[name]
+                    environment = "[" + ", ".join(f'"{key}={value}"' for key, value in fields.items()) + "]"
+                    self.assert_trace_layout_error(
+                        f'1 execve("{executable}", ["{executable}"], {environment}) = 0\n',
+                        "Unknown build script unit layout",
+                    )
+
+    def test_trace_rejects_a_malformed_id_under_a_profile_build_directory(self) -> None:
+        target = self.layout.target
+        classic_out = target / "debug/build/demo-bbbbbbbbbbbbbbbb/out"
+        (target / "debug/.fingerprint/demo-bbbbbbbbbbbbbbbb").mkdir(parents=True)
+        unit_out = target / "debug/build/demo/fedcba9876543210/out"
+        (unit_out.parent / "fingerprint").mkdir(parents=True)
+        executables = (
+            target / "debug/build/demo-nothex/build-script-build",
+            target / "debug/build/demo/nothex/out/build_script_build",
+            target / "debug/build/other-tool",
+        )
+        outputs = (classic_out, unit_out, unit_out)
+        for executable, script_out in zip(executables, outputs, strict=True):
+            with self.subTest(executable=executable.relative_to(target).as_posix()):
+                self.assert_trace_layout_error(
+                    (
+                        f'1 execve("{executable}", ["{executable}"], '
+                        f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={script_out}"]) = 0\n'
+                    ),
+                    "Unknown build script unit layout",
+                )
+
+    def test_trace_rejects_a_rustc_candidate_without_package_or_manifest(self) -> None:
+        target = self.layout.target
+        (target / "debug/.fingerprint/demo-0123456789abcdef").mkdir(parents=True)
+        out = target / "debug/deps"
+        arguments = (
+            f'"--out-dir", "{out}", "-C", "extra-filename=-0123456789abcdef", '
+            '"-C", "metadata=0123456789abcdef"'
+        )
+        environments = (
+            '["CARGO_MANIFEST_DIR=/src/demo"]',
+            '["CARGO_PKG_NAME=demo"]',
+        )
+        for environment in environments:
+            with self.subTest(environment=environment):
+                self.assert_trace_layout_error(
+                    (
+                        '1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", '
+                        f'{arguments}], {environment}) = 0\n'
+                    ),
+                    "Unknown rustc unit layout",
+                )
 
     def test_trace_rejects_a_build_script_whose_out_dir_is_outside_its_unit(self) -> None:
         target = self.layout.target

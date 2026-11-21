@@ -177,6 +177,21 @@ def profile_inside_target(target: Path, profile: Path) -> bool:
     return profile.is_relative_to(target) and profile != target
 
 
+def under_profile_build(target: Path, executable: Path) -> bool:
+    """Return true when `executable` is under a profile `build` directory."""
+    if not executable.is_relative_to(target) or executable == target:
+        return False
+    current = executable.parent
+    while current.is_relative_to(target) and current != target:
+        if current.name == "build" and profile_inside_target(target, current.parent):
+            return True
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return False
+
+
 def profiles_match(host_profile: Path, out_profile: Path, requested_target: str | None) -> bool:
     """Return true when both directories are one Cargo build's profiles.
 
@@ -463,11 +478,17 @@ class Parser:
             unit = None
             kind = None
             dep_info = None
-            # Match a build script by its place in the target. A custom
-            # `package.build` stem still uses that place. A normal binary
-            # named build-script-build does not.
             resolved = normalized_path(executable, process.cwd)
-            if package and manifest and out and resolved.is_relative_to(self.target):
+            # A candidate comes from the operation position in the traced target.
+            # An executable under a profile `build` directory is a build-script candidate.
+            # A rustc call with Cargo metadata is a unit candidate.
+            # The environment does not make that decision.
+            # When a candidate differs from a known Cargo layout, raise TraceError.
+            # A missing environment value, a malformed id, or an unknown shape is that difference.
+            # An operation outside those positions is not a unit.
+            if under_profile_build(self.target, resolved):
+                if not package or not manifest or not out:
+                    raise TraceError("Unknown build script unit layout")
                 out_dir = normalized_path(out, process.cwd)
                 # A nested Cargo target lives inside the outer run unit's OUT_DIR.
                 # The 1.100 build-script executable also sits in a compile unit `out`
@@ -481,19 +502,20 @@ class Parser:
                     if fingerprint is None:
                         fingerprint = build_unit_build_script_fingerprint(
                             self.target, resolved, out_dir, package, requested_target)
-                    if fingerprint is not None:
-                        if inside_unit_out(self.target, fingerprint):
-                            if process.unit is None:
-                                raise TraceError("A nested build has no outer unit")
-                        elif not fingerprint.is_relative_to(self.target):
-                            raise TraceError("Unknown build script unit layout")
-                        else:
-                            fingerprint_ready(fingerprint, run=True)
-                            unit = fingerprint
-                            kind = "run"
-            # A rustc probe inherits Cargo's environment and can write into OUT_DIR.
-            # Only Cargo's own metadata hash makes the call a unit.
-            if package and manifest and Path(executable).name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
+                    if fingerprint is None:
+                        raise TraceError("Unknown build script unit layout")
+                    if inside_unit_out(self.target, fingerprint):
+                        if process.unit is None:
+                            raise TraceError("A nested build has no outer unit")
+                    elif not fingerprint.is_relative_to(self.target):
+                        raise TraceError("Unknown build script unit layout")
+                    else:
+                        fingerprint_ready(fingerprint, run=True)
+                        unit = fingerprint
+                        kind = "run"
+            if Path(executable).name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
+                if not package or not manifest:
+                    raise TraceError("Unknown rustc unit layout")
                 destination = flag(arguments, "--out-dir")
                 suffix = extra_filename(arguments)
                 crate = flag(arguments, "--crate-name")
