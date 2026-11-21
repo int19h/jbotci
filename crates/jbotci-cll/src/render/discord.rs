@@ -53,9 +53,10 @@ pub(crate) fn escape_discord_markdown_line_at(
 /// Byte index of the one character that starts a Discord line marker.
 ///
 /// A heading is one to three `#` characters. Discord then accepts JavaScript
-/// whitespace, and it also accepts the end of the line. Subtext is `-#`. A
-/// bullet is `-`. An ordered list is digits and then `.`. Those three accept
-/// an ASCII space and one more character, or a tab. `+` is not a marker.
+/// whitespace, and it also accepts the end of the line. Subtext is `-#` and
+/// then an ASCII space. A bullet is `-`. An ordered list is digits and then
+/// `.`. Those two accept an ASCII space. A tab does not count. `+` is not a
+/// marker.
 #[requires(true)]
 #[ensures(ret.is_none_or(|index| {
     line.is_char_boundary(index)
@@ -145,37 +146,25 @@ fn discord_heading_separator(rest: &str) -> bool {
 
 /// True when `rest` can end a `-#` marker.
 ///
-/// Discord accepts an ASCII space and then more text. A tab counts because
-/// Discord turns each tab into spaces before the rule runs. A lone space
-/// also counts. The Discord input block uses `-# ` as a header, so that
-/// prefix stays escaped.
+/// Discord accepts one or more ASCII spaces and then text on the same line.
+/// A tab does not count. U+3000 does not count. A lone space also counts
+/// here. The Discord input block uses `-# ` as a header, so that prefix
+/// stays escaped.
 #[requires(true)]
-#[ensures(ret == rest.starts_with([' ', '\t']))]
+#[ensures(ret == rest.starts_with(' '))]
 fn discord_subtext_separator(rest: &str) -> bool {
-    rest.starts_with([' ', '\t'])
+    rest.starts_with(' ')
 }
 
 /// True when `rest` can end a `-` bullet or an `N.` list.
 ///
-/// Discord accepts an ASCII space and then more text. A tab counts because
-/// Discord turns each tab into spaces before the rule runs. The end of the
-/// line does not count. U+3000 does not count. `+` is not a bullet.
+/// Discord accepts one ASCII space and then more text. The line ending
+/// counts as that text. A tab does not count. U+3000 does not count. `+`
+/// is not a bullet.
 #[requires(true)]
-#[ensures(ret == {
-    let mut characters = rest.chars();
-    match characters.next() {
-        Some('\t') => true,
-        Some(' ') => characters.next().is_some(),
-        _ => false,
-    }
-})]
+#[ensures(ret == rest.starts_with(' '))]
 fn discord_list_separator(rest: &str) -> bool {
-    let mut characters = rest.chars();
-    match characters.next() {
-        Some('\t') => true,
-        Some(' ') => characters.next().is_some(),
-        _ => false,
-    }
+    rest.starts_with(' ')
 }
 
 /// Escape one line that begins at column zero.
@@ -436,14 +425,16 @@ mod tests {
             escape_discord_markdown_line("-#\u{3000}title"),
             "-#\u{3000}title"
         );
-        assert_eq!(escape_discord_markdown_line("- "), "- ");
+        assert_eq!(escape_discord_markdown_line("- "), "\\- ");
         assert_eq!(escape_discord_markdown_line("-  x"), "\\-  x");
-        assert_eq!(escape_discord_markdown_line("-\titem"), "\\-\titem");
+        assert_eq!(escape_discord_markdown_line("-\titem"), "-\titem");
+        assert_eq!(escape_discord_markdown_line("#\ttitle"), "\\#\ttitle");
+        assert_eq!(escape_discord_markdown_line("-#\ttitle"), "-#\ttitle");
         assert_eq!(
             escape_discord_markdown_line("-\u{3000}item"),
             "-\u{3000}item"
         );
-        assert_eq!(escape_discord_markdown_line("1. "), "1. ");
+        assert_eq!(escape_discord_markdown_line("1. "), "1\\. ");
         assert_eq!(escape_discord_markdown_line("1.  "), "1\\.  ");
         assert_eq!(
             escape_discord_markdown_line("1.\u{3000}item"),
