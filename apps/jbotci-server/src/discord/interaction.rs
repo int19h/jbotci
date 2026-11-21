@@ -2101,7 +2101,9 @@ mod tests {
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
     use crate::discord::request::PageNumber;
-    use crate::work::paused_blocking::{drain_blocking_thread, join_ready, paused_runtime};
+    use crate::work::paused_blocking::{
+        block_on_hang_guard, drain_blocking_thread, join_ready, paused_runtime, wait_for_worker,
+    };
     use crate::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
@@ -4857,7 +4859,7 @@ mod tests {
         // The caller can stop waiting.
         // The lock stays until the closure returns.
         let runtime = paused_runtime();
-        runtime.block_on(async {
+        block_on_hang_guard(runtime, async {
             let locks = Arc::new(MessageLocks::new(4, 4));
             let governor = WorkGovernor::new(Default::default());
             let recent = Arc::new(RecentInteractions::new(4));
@@ -4887,7 +4889,7 @@ mod tests {
                     })
                     .await
             });
-            start_rx
+            wait_for_worker(start_rx)
                 .await
                 .expect("the write starts before the deadline");
             tokio::time::advance(Duration::from_secs(2)).await;
@@ -4943,7 +4945,7 @@ mod tests {
         // The worker blocks on a channel until the test has read that fact.
         // A late flag fails the test.
         let runtime = paused_runtime();
-        runtime.block_on(async {
+        block_on_hang_guard(runtime, async {
             let recent = Arc::new(RecentInteractions::new(4));
             let governor = WorkGovernor::new(Default::default());
             let id = Snowflake::parse("123456789012345678").expect("snowflake");
@@ -4970,7 +4972,9 @@ mod tests {
                     })
                     .await
             });
-            start_rx.await.expect("the work starts before the deadline");
+            wait_for_worker(start_rx)
+                .await
+                .expect("the work starts before the deadline");
             tokio::time::advance(Duration::from_secs(2)).await;
             assert!(
                 matches!(
