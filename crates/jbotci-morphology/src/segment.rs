@@ -936,7 +936,9 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
-    let chars = text_chars(text);
+    // A comma marks a syllable. Filter it once, while this list is built.
+    // The recognizers read letters only.
+    let chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
     if chars.is_empty() {
         return crate::ValsiLujvoRafsiKind::Unknown;
     }
@@ -981,7 +983,9 @@ pub(crate) fn is_lujvo_rafsi_fragment(text: &str) -> bool {
         return true;
     }
 
-    let mut chars = text_chars(text);
+    // The class check above already drops commas. This trial buffer must too.
+    // `is_fuhivla_shape_slice` reads letters only.
+    let mut chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
     if chars.is_empty() {
         return false;
     }
@@ -1008,7 +1012,9 @@ pub(crate) fn is_lujvo_rafsi_fragment(text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn classify_fuhivla_stage(text: &str) -> crate::ValsiFuhivlaStage {
-    let chars = text_chars(text);
+    // A comma marks a syllable. Filter it once, while this list is built.
+    // The recognizers read letters only.
+    let chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
     if chars.is_empty() || !is_fuhivla_shape_slice(&chars, 0, chars.len()) {
         return crate::ValsiFuhivlaStage::Unknown;
     }

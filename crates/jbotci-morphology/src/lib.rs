@@ -1160,7 +1160,12 @@ impl LujvoPart {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Rafsi(_))) || ret.is_err())]
     pub fn parse_bare_rafsi(text: &str) -> Result<Self, LujvoFragmentError> {
-        let folded = fold_lojban_diacritics(text);
+        // A comma marks a syllable. Filter it once, before the rafsi check.
+        // The recognizer reads letters only, and the phoneme text keeps no comma.
+        let folded: String = fold_lojban_diacritics(text)
+            .chars()
+            .filter(|value| *value != ',')
+            .collect();
         if !segment::is_lujvo_rafsi_fragment(&folded) {
             return Err(LujvoFragmentError::InvalidRafsi);
         }
@@ -1172,7 +1177,12 @@ impl LujvoPart {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Hyphen(_))) || ret.is_err())]
     pub fn parse_bonding_hyphen(text: &str) -> Result<Self, LujvoFragmentError> {
-        let folded = fold_lojban_diacritics(text);
+        // A comma marks a syllable. Filter it once, before the hyphen check.
+        // The match reads letters only, and the phoneme text keeps no comma.
+        let folded: String = fold_lojban_diacritics(text)
+            .chars()
+            .filter(|value| *value != ',')
+            .collect();
         if !is_bonding_hyphen(&folded) {
             return Err(LujvoFragmentError::InvalidBondingHyphen);
         }
@@ -3852,6 +3862,57 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn comma_in_a_rafsi_or_hyphen_matches_the_comma_free_form() {
+        for (with_comma, without_comma) in [
+            ("zba,iklam", "zbaiklam"),
+            ("zba,iklama", "zbaiklama"),
+            ("spag,et", "spaget"),
+            ("b,ro", "bro"),
+        ] {
+            assert_eq!(
+                LujvoPart::parse_bare_rafsi(with_comma),
+                LujvoPart::parse_bare_rafsi(without_comma),
+                "{with_comma}"
+            );
+            assert_eq!(
+                segment::classify_lujvo_rafsi(with_comma),
+                segment::classify_lujvo_rafsi(without_comma),
+                "{with_comma}"
+            );
+        }
+        assert_eq!(
+            LujvoPart::parse_bare_rafsi("zbaiklam"),
+            Err(LujvoFragmentError::InvalidRafsi)
+        );
+        assert_eq!(
+            LujvoPart::parse_bare_rafsi("zbaiklama"),
+            Err(LujvoFragmentError::InvalidRafsi)
+        );
+        assert!(matches!(
+            LujvoPart::parse_bare_rafsi("spaget"),
+            Ok(LujvoPart::Rafsi(_))
+        ));
+        assert!(matches!(
+            LujvoPart::parse_bare_rafsi("bro"),
+            Ok(LujvoPart::Rafsi(_))
+        ));
+        assert_eq!(
+            LujvoPart::parse_bonding_hyphen("',y"),
+            LujvoPart::parse_bonding_hyphen("'y")
+        );
+        assert!(matches!(
+            LujvoPart::parse_bonding_hyphen("'y"),
+            Ok(LujvoPart::Hyphen(_))
+        ));
+        assert_eq!(
+            segment::classify_fuhivla_stage("spag,eti"),
+            segment::classify_fuhivla_stage("spageti")
+        );
     }
 
     #[test]
