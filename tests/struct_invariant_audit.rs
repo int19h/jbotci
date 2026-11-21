@@ -392,6 +392,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Every start receiver and task handle is a valid submitted test job.",
     ),
     (
+        "apps/jbotci-server/src/work.rs:HangFlag",
+        "The stop flag and the wake condvar have no further relation. Either stop value is a valid state.",
+    ),
+    (
+        "apps/jbotci-server/src/work.rs:HangWatch",
+        "The watch holds the stop flag and an optional wall-clock thread. A missing thread is a valid stopped state.",
+    ),
+    (
         "apps/jbotci-server/src/work.rs:QueueSlot",
         "RAII handle over a lane's waiting counter; it carries no data of its own",
     ),
