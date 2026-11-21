@@ -2,9 +2,22 @@
 
 use super::*;
 use std::io::{BufRead, Seek, SeekFrom};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread::JoinHandle;
+
+/// Retry a socket call that a signal interrupts.
+/// When the error is not an interrupt, return that error.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
+fn retry_interrupted<T>(mut operation: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    loop {
+        match operation() {
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            result => return result,
+        }
+    }
+}
 
 #[requires(true)]
 #[ensures(true)]
@@ -30,30 +43,32 @@ impl PackServer {
         let listener = (18800..18900)
             .find_map(|port| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).ok())
             .expect("a test server port in 18800..18900");
+        retry_interrupted(|| listener.set_nonblocking(true))
+            .expect("the pack server socket accepts nonblocking mode");
         let address = listener.local_addr().unwrap();
         let requests = Arc::new(Mutex::new(Vec::new()));
         let stop = Arc::new(AtomicBool::new(false));
         let worker_requests = Arc::clone(&requests);
         let worker_stop = Arc::clone(&stop);
         let worker = std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                // The stop flag is read before the stream is unwrapped.
-                // A wakeup connection can fail.
-                // An interrupted accept is tried again.
-                if let Err(error) = &stream {
-                    if error.kind() == std::io::ErrorKind::Interrupted {
-                        if worker_stop.load(AtomicOrdering::Acquire) {
-                            break;
-                        }
+            // The listener does not block in accept.
+            // Each pass reads the stop flag.
+            // Shutdown can join without a wakeup connection.
+            // An interrupted accept is tried again.
+            while !worker_stop.load(AtomicOrdering::Acquire) {
+                let (mut stream, _) = match retry_interrupted(|| listener.accept()) {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(std::time::Duration::from_millis(2));
                         continue;
                     }
-                }
-                if worker_stop.load(AtomicOrdering::Acquire) {
-                    break;
-                }
-                let mut stream = stream.unwrap_or_else(|error| {
-                    panic!("the pack server accept failed: {error}");
-                });
+                    Err(error) => panic!("the pack server accept failed: {error}"),
+                };
+                // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
+                // A nonblocking read returns WouldBlock.
+                // Set this socket to blocking mode before the read.
+                retry_interrupted(|| stream.set_nonblocking(false))
+                    .expect("the pack server accepted socket accepts blocking mode");
                 stream
                     .set_read_timeout(Some(std::time::Duration::from_secs(10)))
                     .unwrap();
@@ -93,6 +108,9 @@ impl PackServer {
         }
     }
 
+    /// Stop the worker and return its result.
+    /// The accept loop reads the stop flag.
+    /// This path does not open a wakeup connection.
     #[requires(true)]
     #[ensures(self.worker.is_none())]
     fn shutdown(&mut self) -> Result<(), String> {
@@ -100,7 +118,6 @@ impl PackServer {
             return Ok(());
         };
         self.stop.store(true, AtomicOrdering::Release);
-        let _ = TcpStream::connect(self.address);
         match worker.join() {
             Ok(()) => Ok(()),
             Err(payload) => Err(pack_server_panic_message(payload)),
@@ -118,6 +135,20 @@ fn pack_server_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
         return format!("the pack server thread panicked: {message}");
     }
     "the pack server thread panicked".to_owned()
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_server_shutdown_joins_without_a_client() {
+    // No client connects.
+    // The accept loop reads the stop flag.
+    // Shutdown returns without a wakeup connection.
+    let root = setup_test_dir();
+    let mut server = PackServer::start(root.path().to_owned());
+    server
+        .shutdown()
+        .expect("the pack server thread finishes cleanly");
 }
 
 impl Drop for PackServer {
