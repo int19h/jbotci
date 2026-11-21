@@ -2,7 +2,9 @@
 //!
 //! GitHub-flavoured Markdown is what the CLI and the MCP tool emit: pipe
 //! tables, `$…$` math, sub- and superscript markers and the book's text
-//! verbatim. Discord's dialect has none of those, escapes ordinary text so the
+//! verbatim. A joined run of cmavo parts is not book prose. That run uses one
+//! GitHub escaper so markup in the run stays text. Discord's dialect has none
+//! of those, escapes ordinary text so the
 //! client cannot misread it as formatting, and folds tabular content into code
 //! blocks. Everything that is book semantics rather than syntax (which link
 //! kinds survive a route-free rendering, how a rule-status note is labelled,
@@ -885,7 +887,7 @@ fn render_cmavo_list_markdown(
     site: &CllSite,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
@@ -900,15 +902,22 @@ fn render_cmavo_list_markdown(
     }
     if headers.is_empty() {
         for row in rows {
-            let rendered_cells = row
-                .iter()
-                .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
+            let mut rendered_cells = Vec::new();
+            let mut at_line_start = true;
+            for cell in row {
+                let rendered = if let Some(parts) = cell.word_parts() {
+                    render_github_cmavo_word_parts(site, &parts, link_mode, &scope, at_line_start)
+                } else {
+                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
-                })
-                .filter(|cell| !cell.is_empty())
-                .collect::<Vec<_>>();
+                };
+                if rendered.is_empty() {
+                    continue;
+                }
+                rendered_cells.push(rendered);
+                at_line_start = false;
+            }
             if rendered_cells.is_empty() {
                 continue;
             }
@@ -929,10 +938,17 @@ fn render_cmavo_list_markdown(
     let rendered_rows = rows.iter().map(|row| {
         row.iter()
             .map(|cell| {
-                markdown_table_cell_text(
-                    &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
-                    &scope,
-                )
+                if let Some(parts) = cell.word_parts() {
+                    // The cell sits after `| `, so it does not start a line.
+                    // The escaper already treats `|` as text. The table helper
+                    // would escape that pipe a second time.
+                    render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false)
+                } else {
+                    markdown_table_cell_text(
+                        &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
+                        &scope,
+                    )
+                }
             })
             .collect::<Vec<_>>()
     });
@@ -945,13 +961,360 @@ fn render_cmavo_list_markdown(
     );
 }
 
+/// True when `character` starts GitHub inline markup at any position.
+///
+/// A pause dot is not in this set. `.ui` stays `.ui`. A dot is escaped only
+/// when it completes `www.` or an ordered-list marker at the start of a line.
+#[requires(true)]
+#[ensures(true)]
+fn github_inline_escape(character: char) -> bool {
+    matches!(
+        character,
+        '\\' | '`'
+            | '*'
+            | '_'
+            | '['
+            | ']'
+            | '('
+            | ')'
+            | '<'
+            | '>'
+            | '~'
+            | '$'
+            | '^'
+            | '&'
+            | '|'
+            | '!'
+            | '@'
+    )
+}
+
+/// Bytes of a heading, bullet, ordered list, or thematic break at the start of `tail`.
+///
+/// The caller has already skipped up to three leading spaces. A heading is one
+/// to six `#` characters and then a space, a tab, or the end of the line. A
+/// bullet is `-` or `+` and then a space, a tab, or the end of the line. An
+/// ordered list is one to nine digits, a `.`, and then a space, a tab, or the
+/// end of the line. A thematic break is three or more of the same `-`, `*`, or
+/// `_`, with spaces or tabs between them and nothing else on the line.
+#[requires(true)]
+#[ensures(ret.is_none_or(|skip| skip > 0 && skip <= tail.len()))]
+fn github_line_marker_bytes(tail: &str) -> Option<usize> {
+    let bytes = tail.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let hashes = bytes.iter().take_while(|byte| **byte == b'#').count();
+    if (1..=6).contains(&hashes) {
+        let after = bytes.get(hashes).copied();
+        if after.is_none_or(|byte| byte == b' ' || byte == b'\t') {
+            return Some(1);
+        }
+    }
+    if bytes[0] == b'-' || bytes[0] == b'+' {
+        let after = bytes.get(1).copied();
+        if after.is_none_or(|byte| byte == b' ' || byte == b'\t') {
+            return Some(1);
+        }
+    }
+    let digits = bytes
+        .iter()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if (1..=9).contains(&digits) && bytes.get(digits) == Some(&b'.') {
+        let after = bytes.get(digits + 1).copied();
+        if after.is_none_or(|byte| byte == b' ' || byte == b'\t') {
+            return Some(digits + 1);
+        }
+    }
+    github_thematic_break_bytes(tail)
+}
+
+/// One when `tail` is a thematic break, so the caller escapes its first byte.
+///
+/// The line is three or more of the same `-`, `*`, or `_`. Spaces or tabs may
+/// sit between those characters. No other character is present.
+#[requires(true)]
+#[ensures(ret.is_none_or(|skip| skip == 1 && skip <= tail.len()))]
+fn github_thematic_break_bytes(tail: &str) -> Option<usize> {
+    let bytes = tail.as_bytes();
+    let Some(&marker) = bytes.first() else {
+        return None;
+    };
+    if !matches!(marker, b'-' | b'*' | b'_') {
+        return None;
+    }
+    let mut count = 0;
+    for byte in bytes {
+        if *byte == marker {
+            count += 1;
+        } else if *byte != b' ' && *byte != b'\t' {
+            return None;
+        }
+    }
+    (count >= 3).then_some(1)
+}
+
+/// True when `tail` is a setext heading underline.
+///
+/// The caller has skipped up to three leading spaces. The line is one or more
+/// `=` characters, or one or more `-` characters, and then only spaces or tabs.
+/// If the previous line has text, the caller uses this.
+#[requires(true)]
+#[ensures(!ret || tail.starts_with(['=', '-']))]
+fn github_setext_underline(tail: &str) -> bool {
+    let bytes = tail.as_bytes();
+    let Some(&marker) = bytes.first() else {
+        return false;
+    };
+    if marker != b'=' && marker != b'-' {
+        return false;
+    }
+    let count = bytes.iter().take_while(|byte| **byte == marker).count();
+    count >= 1
+        && bytes[count..]
+            .iter()
+            .all(|byte| *byte == b' ' || *byte == b'\t')
+}
+
+/// Writes `marker` so GitHub does not treat it as a heading, a bullet, or a list.
+#[requires(!marker.is_empty())]
+#[ensures(true)]
+fn push_github_marker(output: &mut jbotci_budget::TextBuffer, marker: &str) {
+    if let Some(digits) = marker.strip_suffix('.') {
+        output.push_str(digits);
+        output.push('\\');
+        output.push('.');
+        return;
+    }
+    output.push('\\');
+    output.push(marker.chars().next().expect("marker is not empty"));
+}
+
+/// Writes inline GitHub text. `www.`, `mailto:` and `://` stay literal.
+#[requires(true)]
+#[ensures(true)]
+fn push_github_inline(output: &mut jbotci_budget::TextBuffer, text: &str) {
+    let mut rest = text;
+    while let Some(character) = rest.chars().next() {
+        if let Some(stripped) = rest.strip_prefix("www.") {
+            output.push_str("www\\.");
+            rest = stripped;
+            continue;
+        }
+        if let Some(stripped) = rest.strip_prefix("mailto:") {
+            output.push_str("mailto\\:");
+            rest = stripped;
+            continue;
+        }
+        if let Some(stripped) = rest.strip_prefix("://") {
+            output.push_str("\\://");
+            rest = stripped;
+            continue;
+        }
+        if github_inline_escape(character) {
+            output.push('\\');
+        }
+        output.push(character);
+        rest = &rest[character.len_utf8()..];
+    }
+}
+
+/// The first indent byte when `line` is an indented code block.
+///
+/// A space counts as one column. A tab moves to the next column that is a
+/// multiple of four. The result is that first byte when the indent reaches
+/// four columns and a later character is not a space or a tab. A blank line
+/// returns nothing. This function does not look at the previous line.
+#[requires(true)]
+#[ensures(ret.is_none_or(|byte| {
+    (byte == b' ' || byte == b'\t') && line.as_bytes().first() == Some(&byte)
+}))]
+fn github_indented_code_byte(line: &str) -> Option<u8> {
+    let bytes = line.as_bytes();
+    let mut column = 0usize;
+    for (index, byte) in bytes.iter().enumerate() {
+        column = match *byte {
+            b' ' => column + 1,
+            b'\t' => column + 4 - (column % 4),
+            _ => return None,
+        };
+        if column >= 4 {
+            let rest_is_blank = bytes[index + 1..]
+                .iter()
+                .all(|later| *later == b' ' || *later == b'\t');
+            if rest_is_blank {
+                return None;
+            }
+            return Some(bytes[0]);
+        }
+    }
+    None
+}
+
+/// Writes one GitHub line.
+///
+/// If `at_line_start` is set, a heading, a list, or a thematic break on this
+/// line stays text. If `under_text` is also set, a setext underline stays text.
+/// An indented code block stays text when the line starts the text or follows
+/// a blank line.
+#[requires(!line.contains('\n'))]
+#[ensures(true)]
+fn push_github_line(
+    output: &mut jbotci_budget::TextBuffer,
+    line: &str,
+    at_line_start: bool,
+    under_text: bool,
+) {
+    // An indented code block is a non-blank line whose indent reaches four
+    // columns. It opens when the line starts the text or follows a blank line.
+    // A space is one column. A tab moves to the next multiple of four. A
+    // backslash before a space is not an escape. `&#32;` or `&#9;` is ordinary
+    // text, so the indent is gone. The other characters stay in place. Marker
+    // rules do not run on this line, so `    ---` does not become a thematic
+    // break.
+    if at_line_start && !under_text {
+        if let Some(indent) = github_indented_code_byte(line) {
+            output.push_str(if indent == b' ' { "&#32;" } else { "&#9;" });
+            push_github_inline(output, &line[1..]);
+            return;
+        }
+    }
+    let mut rest = line;
+    if at_line_start {
+        let bytes = line.as_bytes();
+        let mut indent = 0;
+        while indent < bytes.len() && indent < 3 && bytes[indent] == b' ' {
+            indent += 1;
+        }
+        let indented_code = bytes.get(indent) == Some(&b' ');
+        if !indented_code {
+            let tail = &line[indent..];
+            let skip = github_line_marker_bytes(tail)
+                .or_else(|| (under_text && github_setext_underline(tail)).then_some(1));
+            if let Some(skip) = skip {
+                for _ in 0..indent {
+                    output.push(' ');
+                }
+                push_github_marker(output, &tail[..skip]);
+                rest = &tail[skip..];
+            }
+        }
+    }
+    push_github_inline(output, rest);
+}
+
+/// `text` as literal GitHub Markdown.
+///
+/// This is the one GitHub escaper. Book prose does not use it, because the
+/// reviewed section text is copied as it is. A cmavo-part run does use it.
+/// If `text` begins a line, pass `at_line_start` as true. A line ends at LF,
+/// CRLF, or a lone CR. The ending stays in the output. A dictionary token
+/// such as `.ui` is unchanged. A token that contains `www.` is the exception.
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
+#[ensures(scope.is_exceeded() || !ret.contains("]("))]
+#[ensures(scope.is_exceeded() || !ret.contains("https://"))]
+#[ensures(scope.is_exceeded() || !ret.contains("http://"))]
+#[ensures(
+    scope.is_exceeded()
+        || !crate::cmavo_table::is_dictionary_token(text)
+        || text.contains("www.")
+        || ret == text
+)]
+fn escape_github_markdown_in_scope(
+    text: &str,
+    scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
+) -> String {
+    let mut escaped = scope.buffer();
+    let mut previous_has_text = false;
+    for (index, (line, ending)) in super::commonmark_lines(text).into_iter().enumerate() {
+        push_github_line(
+            &mut escaped,
+            line,
+            at_line_start || index > 0,
+            previous_has_text,
+        );
+        escaped.push_str(ending);
+        previous_has_text = line.chars().any(|character| !character.is_whitespace());
+    }
+    escaped.into_piece()
+}
+
+/// Joins part text with no added space.
+#[requires(!parts.is_empty())]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn join_part_text(parts: &[(&str, Option<&str>)], scope: &jbotci_budget::TextScope) -> String {
+    let mut word = scope.buffer();
+    for (text, _) in parts {
+        word.push_str(text);
+    }
+    word.into_piece()
+}
+
+/// GitHub text for adjacent valsi parts, as one word.
+///
+/// Plain mode joins every part, then escapes that word once. Web mode writes
+/// each linked part as a dictionary link. It joins each run of unlinked parts
+/// and escapes that run once. If the run starts the line, a heading, a list,
+/// or a thematic break in that run stays text. No space is added between
+/// parts. A dictionary token such as `.ui` is written as it is.
+#[requires(parts.len() >= 2)]
+#[requires(parts.iter().all(|(text, target)| {
+    !text.is_empty() && target.is_none_or(|target| !target.is_empty())
+}))]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+#[ensures(scope.is_exceeded() || !ret.contains("https://"))]
+#[ensures(scope.is_exceeded() || !ret.contains("http://"))]
+#[ensures(scope.is_exceeded() || link_mode != CllLinkRenderMode::Plain || !ret.contains("]("))]
+fn render_github_cmavo_word_parts(
+    site: &CllSite,
+    parts: &[(&str, Option<&str>)],
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
+) -> String {
+    match link_mode {
+        CllLinkRenderMode::Plain => {
+            let word = join_part_text(parts, scope);
+            escape_github_markdown_in_scope(&word, scope, at_line_start)
+        }
+        CllLinkRenderMode::Web => {
+            let mut output = scope.buffer();
+            let mut index = 0;
+            let mut at_start = at_line_start;
+            while index < parts.len() {
+                if let Some(target) = parts[index].1 {
+                    output.push_str(&scope.format(format_args!(
+                        "[{}]({})",
+                        markdown_link_label_text(parts[index].0, scope),
+                        cll_link_href(site, CllLinkKind::Dictionary, target)
+                    )));
+                    index += 1;
+                    at_start = false;
+                    continue;
+                }
+                let start = index;
+                while index < parts.len() && parts[index].1.is_none() {
+                    index += 1;
+                }
+                let run = join_part_text(&parts[start..index], scope);
+                output.push_str(&escape_github_markdown_in_scope(&run, scope, at_start));
+                at_start = false;
+            }
+            output.into_piece()
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_cmavo_list_discord(
     site: &CllSite,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
     link_mode: CllLinkRenderMode,
 ) {
@@ -966,15 +1329,22 @@ fn render_cmavo_list_discord(
     }
     if headers.is_empty() {
         for row in rows {
-            let rendered_cells = row
-                .iter()
-                .map(|cell| {
-                    render_inlines_markdown(site, cell, link_mode, dialect, &scope)
+            let mut rendered_cells = Vec::new();
+            let mut at_line_start = true;
+            for cell in row {
+                let rendered = if let Some(parts) = cell.word_parts() {
+                    render_discord_cmavo_word_parts(site, &parts, link_mode, &scope, at_line_start)
+                } else {
+                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
                         .trim()
                         .to_owned()
-                })
-                .filter(|cell| !cell.is_empty())
-                .collect::<Vec<_>>();
+                };
+                if rendered.is_empty() {
+                    continue;
+                }
+                rendered_cells.push(rendered);
+                at_line_start = false;
+            }
             if rendered_cells.is_empty() {
                 continue;
             }
@@ -990,10 +1360,72 @@ fn render_cmavo_list_discord(
         .collect::<Vec<_>>();
     let body = rows.iter().map(|row| {
         row.iter()
-            .map(|cell| single_line(&inline_plain_text_in_scope(cell, &scope), &scope))
+            .map(|cell| single_line(&cmavo_list_cell_plain_text_in_scope(cell, &scope), &scope))
             .collect::<Vec<_>>()
     });
     push_discord_rows(std::iter::once(header).chain(body), output);
+}
+
+/// Discord text for adjacent valsi parts, as one word.
+///
+/// Plain mode joins the parts, then escapes that word once. It wraps the word
+/// in one italic span when every part is unlinked. Web mode prints each linked
+/// part as a link. It joins each run of unlinked parts, escapes that run once,
+/// and wraps the run in one italic span. If the run starts the line, a heading
+/// or a list in that run stays text. No space is added between parts. A
+/// dictionary token such as `.ui` is written as it is.
+#[requires(parts.len() >= 2)]
+#[requires(parts.iter().all(|(text, target)| {
+    !text.is_empty() && target.is_none_or(|target| !target.is_empty())
+}))]
+#[ensures(scope.is_exceeded() || !ret.is_empty())]
+fn render_discord_cmavo_word_parts(
+    site: &CllSite,
+    parts: &[(&str, Option<&str>)],
+    link_mode: CllLinkRenderMode,
+    scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
+) -> String {
+    match link_mode {
+        CllLinkRenderMode::Plain => {
+            let word = join_part_text(parts, scope);
+            let word = escape_discord_markdown_at(&word, scope, at_line_start);
+            if parts.iter().all(|(_, target)| target.is_none()) {
+                scope.format(format_args!("*{word}*"))
+            } else {
+                word
+            }
+        }
+        CllLinkRenderMode::Web => {
+            let mut output = scope.buffer();
+            let mut index = 0;
+            let mut at_start = at_line_start;
+            while index < parts.len() {
+                if let Some(target) = parts[index].1 {
+                    let label = escape_discord_markdown_at(parts[index].0, scope, false);
+                    output.push_str(&scope.format(format_args!(
+                        "[{}]({})",
+                        markdown_link_label_text(&label, scope),
+                        cll_link_href(site, CllLinkKind::Dictionary, target)
+                    )));
+                    index += 1;
+                    at_start = false;
+                    continue;
+                }
+                let start = index;
+                while index < parts.len() && parts[index].1.is_none() {
+                    index += 1;
+                }
+                let run = join_part_text(&parts[start..index], scope);
+                let run = escape_discord_markdown_at(&run, scope, at_start);
+                output.push('*');
+                output.push_str(&run);
+                output.push('*');
+                at_start = false;
+            }
+            output.into_piece()
+        }
+    }
 }
 
 #[requires(true)]
@@ -1148,4 +1580,90 @@ pub(crate) fn render_block_markdown(
             .finish(bounded.into_piece())
             .expect("unrestricted Markdown rendering"),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn github(text: &str, at_line_start: bool) -> String {
+        let scope = jbotci_budget::TextScope::new(
+            jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        );
+        escape_github_markdown_in_scope(text, &scope, at_line_start)
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn github_escaper_makes_markup_literal_and_keeps_a_dictionary_token() {
+        assert_eq!(github(".ui", true), ".ui");
+        assert_eq!(github(".uinai", true), ".uinai");
+        assert_eq!(github(".ui", false), ".ui");
+        assert_eq!(github("www.example.com", false), r"www\.example.com");
+
+        assert_eq!(github("# a", true), r"\# a");
+        assert_eq!(github("## a", true), r"\## a");
+        assert_eq!(github("#a", true), "#a");
+        assert_eq!(github("# a", false), "# a");
+        assert_eq!(github("- a", true), r"\- a");
+        assert_eq!(github("+ a", true), r"\+ a");
+        assert_eq!(github("roi-nai", true), "roi-nai");
+        assert_eq!(github("-nai", false), "-nai");
+        assert_eq!(github("a + b", true), "a + b");
+        assert_eq!(github("> quote", true), r"\> quote");
+        assert_eq!(github("1. aroi", true), r"1\. aroi");
+        assert_eq!(github("1. aroi", false), "1. aroi");
+        assert_eq!(github("1.5", true), "1.5");
+        assert_eq!(github("*a* _b_", false), r"\*a\* \_b\_");
+        assert_eq!(github("[a](b)", false), r"\[a\]\(b\)");
+        assert_eq!(
+            github("https://example.invalid", false),
+            r"https\://example.invalid"
+        );
+        assert_eq!(
+            github("http://www.lojban.org", false),
+            r"http\://www\.lojban.org"
+        );
+        assert_eq!(github("user@example.com", false), r"user\@example.com");
+        assert_eq!(github("&copy;", false), r"\&copy;");
+        assert_eq!(github("<em>", false), r"\<em\>");
+        assert_eq!(github("`code`", false), r"\`code\`");
+        assert_eq!(github("^2^", false), r"\^2\^");
+        assert_eq!(github("a|b", false), r"a\|b");
+        assert_eq!(github("![alt](x)", false), r"\!\[alt\]\(x\)");
+
+        assert_eq!(github("---", true), r"\---");
+        assert_eq!(github("---", false), "---");
+        assert_eq!(github("----", true), r"\----");
+        assert_eq!(github("---\t", true), "\\---\t");
+        assert_eq!(github("- - -", true), r"\- - -");
+        assert_eq!(github("   ---", true), r"   \---");
+        assert_eq!(github("    ---\n", true), "&#32;   ---\n");
+        assert_eq!(github("    ---\r\n", true), "&#32;   ---\r\n");
+        assert_eq!(github("    ---\r", true), "&#32;   ---\r");
+        assert_eq!(github("\t---\n", true), "&#9;---\n");
+        assert_eq!(github("\t---\r\n", true), "&#9;---\r\n");
+        assert_eq!(github("\t---\r", true), "&#9;---\r");
+        assert_eq!(github("***", true), r"\*\*\*");
+        assert_eq!(github("___", true), r"\_\_\_");
+        assert_eq!(github("* * *", true), r"\* \* \*");
+        assert_eq!(github("--", true), "--");
+        assert_eq!(github("---a", true), "---a");
+        assert_eq!(github("===", true), "===");
+        assert_eq!(github("Title\n---", true), "Title\n\\---");
+        assert_eq!(github("Title\n--", true), "Title\n\\--");
+        assert_eq!(github("Title\n=", true), "Title\n\\=");
+        assert_eq!(github("Title\n===", false), "Title\n\\===");
+        assert_eq!(github("Title\n\n=", true), "Title\n\n=");
+        assert_eq!(github("Title\n= =", true), "Title\n= =");
+        assert_eq!(github("---\r\n", true), "\\---\r\n");
+        assert_eq!(github("Title\r\n==\r\n", true), "Title\r\n\\==\r\n");
+        assert_eq!(github("#\r\n", true), "\\#\r\n");
+        assert_eq!(github("1.\r\n", true), "1\\.\r\n");
+        assert_eq!(github("Title\r==\r", true), "Title\r\\==\r");
+        assert_eq!(github("---\r", true), "\\---\r");
+    }
 }

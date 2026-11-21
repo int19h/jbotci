@@ -136,7 +136,7 @@ pub(crate) fn walk_block<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block: &C
                 visitor.visit_inline_run(line);
             }
             for cell in rows.iter().flatten() {
-                visitor.visit_inline_run(cell);
+                visitor.visit_inline_run(cell.inlines());
             }
         }
         CllBlock::Lojbanization { lines, .. } => {
@@ -290,7 +290,7 @@ pub(crate) fn walk_block_mut<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block
                 visitor.visit_inline_run_mut(title);
             }
             for cell in rows.iter_mut().flatten() {
-                visitor.visit_inline_run_mut(cell);
+                visitor.visit_inline_run_mut(cell.inlines_mut());
             }
         }
         CllBlock::Lojbanization { lines, .. } => {

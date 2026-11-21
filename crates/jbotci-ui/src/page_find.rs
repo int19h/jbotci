@@ -501,6 +501,51 @@ fn render_page_find_text(page_find: &PageFindContext, text: &str) -> Element {
         return rsx! { "{text}" };
     }
     let pieces = page_find_render_pieces(text, matches);
+    render_page_find_pieces(page_find, &pieces)
+}
+
+/// One page-find string, counted once, split into marked and plain pieces.
+#[requires(!text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn page_find_pieces_for(page_find: &PageFindContext, text: &str) -> Vec<PageFindRenderPiece> {
+    let key = page_find.text_key(text);
+    let matches = page_find.matches_for_key(key);
+    page_find_render_pieces(text, matches)
+}
+
+/// The pieces whose bytes fall inside `start..end` of the original string.
+///
+/// A match that crosses the cut is split, and both parts keep the match index.
+#[requires(start <= end)]
+#[ensures(ret.iter().all(|piece| !piece.text.is_empty()))]
+fn clip_page_find_pieces(
+    pieces: &[PageFindRenderPiece],
+    start: usize,
+    end: usize,
+) -> Vec<PageFindRenderPiece> {
+    let mut clipped = Vec::new();
+    let mut cursor = 0usize;
+    for piece in pieces {
+        let piece_end = cursor + piece.text.len();
+        let from = start.max(cursor);
+        let to = end.min(piece_end);
+        if from < to {
+            let text = piece.text[from - cursor..to - cursor].to_owned();
+            if !text.is_empty() {
+                clipped.push(new!(PageFindRenderPiece {
+                    text,
+                    match_index: piece.match_index,
+                }));
+            }
+        }
+        cursor = piece_end;
+    }
+    clipped
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_page_find_pieces(page_find: &PageFindContext, pieces: &[PageFindRenderPiece]) -> Element {
     rsx! {
         for piece in pieces.iter() {
             if let Some(match_index) = piece.match_index {
@@ -827,7 +872,7 @@ fn collect_cll_block_page_find_entries(
             }
             for row in rows {
                 for cell in row {
-                    collect_cll_inlines_page_find_entries(entries, cell, script, false);
+                    collect_cmavo_cell_page_find_entries(entries, cell, script);
                 }
             }
         }
@@ -872,6 +917,35 @@ fn collect_cll_table_cell_page_find_entries(
 
 #[requires(true)]
 #[ensures(true)]
+fn collect_cmavo_cell_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    cell: &CllCmavoListCell,
+    script: GentufaScript,
+) {
+    if let Some(word_cell) = cell.word_cell() {
+        if let Some((word, _)) = word_cell.bracket() {
+            let shown = display_cmavo_word(script, word);
+            push_page_find_entry(entries, format!("[{shown}]"));
+            return;
+        }
+        if let Some(text) = word_cell.unlinked_token() {
+            push_page_find_entry(entries, display_cmavo_word(script, text));
+            return;
+        }
+    }
+    if let Some(parts) = cell.word_parts() {
+        let mut shown = String::new();
+        for (text, _) in parts {
+            shown.push_str(&display_cmavo_word(script, text));
+        }
+        push_page_find_entry(entries, shown);
+        return;
+    }
+    collect_cll_inlines_page_find_entries(entries, cell.inlines(), script, false);
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn collect_cll_inlines_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
     inlines: &[CllInline],
@@ -912,9 +986,12 @@ fn collect_cll_inline_page_find_entries(
         }
         CllInline::CiteTitle { inlines }
         | CllInline::Subscript { inlines }
-        | CllInline::Superscript { inlines }
-        | CllInline::Link { inlines, .. } => {
+        | CllInline::Superscript { inlines } => {
             collect_cll_inlines_page_find_entries(entries, inlines, script, lojban_context);
+        }
+        CllInline::Link { kind, inlines, .. } => {
+            let child_context = lojban_context || cll_link_text_is_lojban(*kind);
+            collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
         }
         CllInline::Code(text) => push_page_find_entry(entries, text.clone()),
         CllInline::Elidable { shown, inlines, .. } => {

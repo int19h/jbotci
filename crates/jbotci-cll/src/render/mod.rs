@@ -4,6 +4,7 @@ mod discord;
 mod html;
 mod markdown;
 
+pub(crate) use discord::escape_discord_markdown_at;
 pub use discord::{
     DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_code_block_in_scope, discord_inline_code,
     discord_inline_code_in_scope, escape_discord_markdown, escape_discord_markdown_in_scope,
@@ -17,6 +18,49 @@ pub(crate) use markdown::render_block_markdown;
 pub(crate) use markdown::{
     dialect_text_in_scope, render_block_markdown_to, render_example_markdown_to,
 };
+
+/// Splits `text` on a CommonMark line ending.
+///
+/// A line ending is LF, CRLF, or a lone CR. The ending bytes stay with that
+/// line. The line content has no CR and no LF.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+#[ensures(ret.last().is_some_and(|(_, ending)| ending.is_empty()))]
+#[ensures(ret.iter().all(|(content, ending)| {
+    !content.bytes().any(|byte| byte == b'\n' || byte == b'\r')
+        && (ending.is_empty() || *ending == "\n" || *ending == "\r" || *ending == "\r\n")
+}))]
+#[ensures(
+    ret.iter()
+        .fold(0usize, |len, (content, ending)| len + content.len() + ending.len())
+        == text.len()
+)]
+fn commonmark_lines(text: &str) -> Vec<(&str, &str)> {
+    let bytes = text.as_bytes();
+    let mut lines = Vec::new();
+    let mut start = 0;
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'\n' {
+            lines.push((&text[start..index], "\n"));
+            index += 1;
+            start = index;
+        } else if bytes[index] == b'\r' {
+            if bytes.get(index + 1) == Some(&b'\n') {
+                lines.push((&text[start..index], "\r\n"));
+                index += 2;
+            } else {
+                lines.push((&text[start..index], "\r"));
+                index += 1;
+            }
+            start = index;
+        } else {
+            index += 1;
+        }
+    }
+    lines.push((&text[start..], ""));
+    lines
+}
 
 /// Appends a rule-status note as a labelled block quote.
 ///

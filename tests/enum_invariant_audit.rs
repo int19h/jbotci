@@ -1032,6 +1032,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
+        "crates/jbotci-cll/src/model.rs:CllCmavoListCell::Other",
+        "the variant records an ordinary cmavo-list column, and the inlines carry the cell text",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllCmavoListCell::Word",
+        "the variant records a cmavo or gismu cell, and the inlines carry the cell text",
+    ),
+    (
         "crates/jbotci-cll/src/model.rs:CllDivision::Appendix",
         "an appendix is designated by its title alone, so the variant deliberately carries no number",
     ),
@@ -2666,6 +2674,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/compound_dom_tests.rs:CompoundDomRoute::CompoundDomPage",
         "the DOM test router has one payload-free page and no route parameters to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/tests.rs:CmavoBracketFindRoute::CmavoBracketFindPage",
+        "the page-find test router has one payload-free page and no route parameters to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/tests.rs:CmavoPartsFindRoute::CmavoPartsFindPage",
+        "the adjacent-valsi page-find test router has one payload-free page and no route parameters to constrain",
     ),
     (
         "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Context",

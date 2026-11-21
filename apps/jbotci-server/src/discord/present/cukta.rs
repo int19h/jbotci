@@ -319,7 +319,7 @@ mod tests {
         );
         assert_eq!(rendered.status.text, "cukta · section");
         assert!(
-            rendered.body[0].starts_with("## 4\\.6. rafsi"),
+            rendered.body[0].starts_with("## 4.6. rafsi"),
             "{}",
             rendered.body[0]
         );
