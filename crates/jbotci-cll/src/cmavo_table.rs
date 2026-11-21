@@ -6,7 +6,7 @@
 //! Every host reads that result from the loaded book.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
 use super::*;
 
@@ -39,7 +39,7 @@ pub enum CllCmavoWordCell<'a> {
 /// The word cell stored in `inlines`, when the importer built one.
 #[requires(true)]
 #[ensures(true)]
-pub fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
+pub(crate) fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
     match inlines {
         [
             CllInline::Text(open),
@@ -93,6 +93,56 @@ pub fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<'_>> {
         }
         _ => None,
     }
+}
+
+/// The separate valsi parts stored in `inlines`.
+///
+/// A part is one dictionary link or one unlinked Lojban word. The cell has
+/// at least two parts. A bracket cell and a one-word cell return none.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| {
+    parts.len() >= 2
+        && parts.iter().all(|(text, target)| {
+            is_dictionary_token(text) && target.is_none_or(|target| !target.is_empty())
+        })
+}))]
+pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<(&str, Option<&str>)>> {
+    if inlines.len() < 2 {
+        return None;
+    }
+    let mut parts = Vec::with_capacity(inlines.len());
+    for inline in inlines {
+        match inline {
+            CllInline::Link {
+                target,
+                inlines,
+                kind: CllLinkKind::Dictionary,
+            } if !target.is_empty() => {
+                let [CllInline::Text(text)] = inlines.as_slice() else {
+                    return None;
+                };
+                if !is_dictionary_token(text) {
+                    return None;
+                }
+                parts.push((text.as_str(), Some(target.as_str())));
+            }
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                inlines,
+                ..
+            } => {
+                let [CllInline::Text(text)] = inlines.as_slice() else {
+                    return None;
+                };
+                if !is_dictionary_token(text) {
+                    return None;
+                }
+                parts.push((text.as_str(), None));
+            }
+            _ => return None,
+        }
+    }
+    Some(parts)
 }
 
 impl<'a> CllCmavoWordCell<'a> {
@@ -224,7 +274,7 @@ pub(crate) fn bracketed_dictionary_word(text: &str) -> Option<&str> {
 /// Lojban span, so its script does not depend on the dictionary. An empty
 /// target is one text node for both shapes.
 #[requires(text == text.trim())]
-#[ensures(cmavo_cell_joined_text(&ret) == text)]
+#[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
 #[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
 #[ensures(ret.iter().all(|inline| match inline {
     CllInline::Text(_) => true,
@@ -269,7 +319,7 @@ pub(crate) fn cmavo_or_gismu_cell_inlines_from<'word>(
 
 /// The inlines for one cmavo or gismu cell in the shipped dictionary.
 #[requires(text == text.trim())]
-#[ensures(cmavo_cell_joined_text(&ret) == text)]
+#[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
 pub(crate) fn cmavo_or_gismu_cell_inlines(text: &str) -> Vec<CllInline> {
     cmavo_or_gismu_cell_inlines_from(text, |candidate| shipped_dictionary_link_target(candidate))
 }
@@ -299,6 +349,43 @@ fn lojban_word_span(text: &str) -> CllInline {
         language: Some("jbo".to_owned()),
         inlines: vec![CllInline::Text(text.to_owned())],
     }
+}
+
+/// One part of a cell made of adjacent valsi elements.
+///
+/// `link` is false when the cell or this part opts out. A dictionary hit
+/// becomes one link. A token that does not link becomes one Lojban span.
+/// Any other text stays one text node.
+#[requires(true)]
+#[ensures(match &ret {
+    CllInline::Link {
+        kind: CllLinkKind::Dictionary,
+        target,
+        inlines,
+    } => {
+        !target.is_empty()
+            && matches!(inlines.as_slice(), [CllInline::Text(shown)] if is_dictionary_token(shown))
+    }
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::JboPhrase,
+        inlines,
+        ..
+    } => matches!(inlines.as_slice(), [CllInline::Text(shown)] if is_dictionary_token(shown)),
+    CllInline::Text(shown) => !is_dictionary_token(shown),
+    _ => false,
+})]
+pub(crate) fn cmavo_valsi_part_inline(text: &str, link: bool) -> CllInline {
+    if link
+        && let Some(target) = shipped_dictionary_link_target(text)
+        && !target.is_empty()
+        && is_dictionary_token(text)
+    {
+        return dictionary_word_link(target, text);
+    }
+    if is_dictionary_token(text) {
+        return lojban_word_span(text);
+    }
+    CllInline::Text(text.to_owned())
 }
 
 /// The characters a reader sees in one cmavo cell, with no added spaces.

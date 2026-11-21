@@ -2295,10 +2295,7 @@ fn render_cmavo_list_cell(
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    let inlines = cell.inlines();
-    if cell.word_inlines().is_some()
-        && let Some(word_cell) = cmavo_word_cell(inlines)
-    {
+    if let Some(word_cell) = cell.word_cell() {
         if let Some((word, target)) = word_cell.bracket() {
             return render_cmavo_bracket_cell(
                 word,
@@ -2318,9 +2315,68 @@ fn render_cmavo_list_cell(
             };
         }
     }
+    if let Some(parts) = cell.word_parts() {
+        return render_cmavo_word_parts(&parts, pending_cukta_scroll, base_path, script, page_find);
+    }
+    let inlines = cell.inlines();
     rsx! {
         for inline in inlines.iter() {
             { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
+        }
+    }
+}
+
+/// Adjacent valsi parts as one page-find string, drawn side by side.
+///
+/// Each part keeps its own link or Lojban span. A search for the whole
+/// spelling, such as `roinai`, matches the cell once.
+#[requires(parts.len() >= 2)]
+#[ensures(true)]
+fn render_cmavo_word_parts(
+    parts: &[(&str, Option<&str>)],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    let shown_parts: Vec<String> = parts
+        .iter()
+        .map(|(text, _)| display_cmavo_word(script, text))
+        .collect();
+    let full: String = shown_parts.concat();
+    if full.is_empty() {
+        return rsx! {};
+    }
+    let pieces = page_find_pieces_for(page_find, &full);
+    let mut cursor = 0usize;
+    let mut children = Vec::new();
+    for ((_, target), shown) in parts.iter().zip(shown_parts.iter()) {
+        let start = cursor;
+        let end = cursor + shown.len();
+        cursor = end;
+        let inner = clip_page_find_pieces(&pieces, start, end);
+        let node = render_page_find_pieces(page_find, &inner);
+        let child = if let Some(target) = target {
+            render_cll_link_with_child(
+                target,
+                CllLinkKind::Dictionary,
+                pending_cukta_scroll,
+                base_path,
+                script,
+                node,
+            )
+        } else {
+            rsx! {
+                span { class: "spa-cll-jbophrase", lang: "jbo",
+                    { node }
+                }
+            }
+        };
+        children.push(child);
+    }
+    rsx! {
+        for child in children {
+            { child }
         }
     }
 }

@@ -1131,11 +1131,16 @@ impl CllCmavoListCell {
     }
 
     /// The inlines stored in this cell, for a visitor that rewrites links.
+    ///
+    /// The result is a slice, so a visitor cannot push another inline into a
+    /// word cell.
     #[requires(true)]
     #[ensures(true)]
-    pub fn inlines_mut(&mut self) -> &mut Vec<CllInline> {
+    pub fn inlines_mut(&mut self) -> &mut [CllInline] {
         match self {
-            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => inlines,
+            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => {
+                inlines.as_mut_slice()
+            }
         }
     }
 
@@ -1145,6 +1150,38 @@ impl CllCmavoListCell {
     pub fn word_inlines(&self) -> Option<&[CllInline]> {
         match self {
             CllCmavoListCell::Word { inlines } => Some(inlines),
+            CllCmavoListCell::Other { .. } => None,
+        }
+    }
+
+    /// The single-word view of this cell.
+    ///
+    /// An ordinary cell returns none, even when its text has a bracket shape.
+    /// A cell of several adjacent valsi parts also returns none.
+    #[requires(true)]
+    #[ensures(match self {
+        CllCmavoListCell::Other { .. } => ret.is_none(),
+        CllCmavoListCell::Word { .. } => true,
+    })]
+    pub fn word_cell(&self) -> Option<crate::cmavo_table::CllCmavoWordCell<'_>> {
+        match self {
+            CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_cell(inlines),
+            CllCmavoListCell::Other { .. } => None,
+        }
+    }
+
+    /// The adjacent valsi parts of this cell.
+    ///
+    /// Each part is the shown text and the dictionary target when that part
+    /// links. An ordinary cell returns none. A one-word cell returns none.
+    #[requires(true)]
+    #[ensures(match self {
+        CllCmavoListCell::Other { .. } => ret.is_none(),
+        CllCmavoListCell::Word { .. } => ret.as_ref().is_none_or(|parts| parts.len() >= 2),
+    })]
+    pub fn word_parts(&self) -> Option<Vec<(&str, Option<&str>)>> {
+        match self {
+            CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_parts(inlines),
             CllCmavoListCell::Other { .. } => None,
         }
     }

@@ -2680,6 +2680,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the page-find test router has one payload-free page and no route parameters to constrain",
     ),
     (
+        "crates/jbotci-ui/src/tests.rs:CmavoPartsFindRoute::CmavoPartsFindPage",
+        "the adjacent-valsi page-find test router has one payload-free page and no route parameters to constrain",
+    ),
+    (
         "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Context",
         "diagnostic hover context target validity depends on the current diagnostics and is guarded at use sites",
     ),

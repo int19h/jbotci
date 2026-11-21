@@ -922,10 +922,7 @@ fn collect_cmavo_cell_page_find_entries(
     cell: &CllCmavoListCell,
     script: GentufaScript,
 ) {
-    let inlines = cell.inlines();
-    if cell.word_inlines().is_some()
-        && let Some(word_cell) = cmavo_word_cell(inlines)
-    {
+    if let Some(word_cell) = cell.word_cell() {
         if let Some((word, _)) = word_cell.bracket() {
             let shown = display_cmavo_word(script, word);
             push_page_find_entry(entries, format!("[{shown}]"));
@@ -936,7 +933,15 @@ fn collect_cmavo_cell_page_find_entries(
             return;
         }
     }
-    collect_cll_inlines_page_find_entries(entries, inlines, script, false);
+    if let Some(parts) = cell.word_parts() {
+        let mut shown = String::new();
+        for (text, _) in parts {
+            shown.push_str(&display_cmavo_word(script, text));
+        }
+        push_page_find_entry(entries, shown);
+        return;
+    }
+    collect_cll_inlines_page_find_entries(entries, cell.inlines(), script, false);
 }
 
 #[requires(true)]

@@ -9,7 +9,9 @@ use roxmltree::{Document, Node};
 use sha2::{Digest, Sha256};
 
 use super::*;
-use crate::cmavo_table::{cmavo_or_gismu_cell_inlines, cmavo_or_gismu_cell_inlines_from};
+use crate::cmavo_table::{
+    cmavo_or_gismu_cell_inlines, cmavo_or_gismu_cell_inlines_from, cmavo_valsi_part_inline,
+};
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
@@ -1878,7 +1880,28 @@ fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
                         inlines.push(CllInline::Superscript { inlines: nested });
                     }
                 }
-                "valsi" | "cmavo" | "gismu" | "cmevla" | "rafsi" => {
+                "valsi" => {
+                    let text = visible_text(*child);
+                    if !text.is_empty() {
+                        // The CLL build leaves valid="false" and valid="maybe"
+                        // unlinked in the whole book. A title and an index term
+                        // keep the handling they already have.
+                        if matches!(attr_value(*child, "valid"), Some("false" | "maybe")) {
+                            inlines.push(CllInline::LanguageSpan {
+                                kind: CllLanguageSpanKind::JboPhrase,
+                                language: Some("jbo".to_owned()),
+                                inlines: vec![CllInline::Text(text)],
+                            });
+                        } else {
+                            inlines.push(CllInline::Link {
+                                target: normalize_valsis_query(&text),
+                                inlines: vec![CllInline::Text(text)],
+                                kind: CllLinkKind::Dictionary,
+                            });
+                        }
+                    }
+                }
+                "cmavo" | "gismu" | "cmevla" | "rafsi" => {
                     let text = visible_text(*child);
                     if !text.is_empty() {
                         let is_rafsi = child.has_tag_name("rafsi");
@@ -2493,15 +2516,20 @@ fn collect_interlinear_cell(
 /// pads each child, so `<gismu>[<valsi>jundi</valsi>]</gismu>` would become
 /// `[ jundi ]`. This helper keeps `[jundi]`.
 #[requires(cell.is_element())]
-#[ensures(ret == normalized_plain_text(&ret))]
+#[bityzba::expensive_ensures(ret == normalized_plain_text(&ret))]
 pub(crate) fn cmavo_or_gismu_cell_text(cell: Node<'_, '_>) -> String {
-    normalized_plain_text(&cmavo_or_gismu_cell_text_raw(cell))
+    let mut text = String::new();
+    append_cmavo_or_gismu_cell_text(cell, &mut text);
+    normalized_plain_text(&text)
 }
 
+/// Append the cell text into `text`.
+///
+/// Child elements add their text with no extra string of their own. Index
+/// terms, anchors, and hidden subtrees add nothing.
 #[requires(node.is_element())]
-#[ensures(true)]
-fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
-    let mut text = String::new();
+#[ensures(text.len() >= old(text.len()))]
+fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
     for child in node.children() {
         if child.is_text() {
             text.push_str(child.text().unwrap_or_default());
@@ -2512,27 +2540,25 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
             {
                 continue;
             }
-            text.push_str(&cmavo_or_gismu_cell_text_raw(child));
+            append_cmavo_or_gismu_cell_text(child, text);
         }
     }
-    text
 }
 
 /// One cell of a cmavo entry.
 ///
-/// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. The book
-/// leaves a cell unlinked when the cell, or an element inside it, has
-/// `glossary="false"`, `valid="false"` or `valid="maybe"`. Every other cell
-/// keeps the inline links that the rest of the book uses.
+/// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. When
+/// the cell is only adjacent `valsi` elements, each element gets that
+/// decision on its own and the parts stay side by side. The book leaves a
+/// cell unlinked when the cell has `glossary="false"`, `valid="false"` or
+/// `valid="maybe"`. The same mark on one part leaves that part unlinked.
+/// A cell that is not a run of adjacent valsi elements stays unlinked when
+/// the cell, or an element inside it, has one of those marks. Every other
+/// cell keeps the inline links that the rest of the book uses.
 #[requires(cell.is_element())]
 #[ensures(match &ret {
     CllCmavoListCell::Word { inlines } => {
         (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
-            && inlines
-                .iter()
-                .filter(|inline| matches!(inline, CllInline::Link { .. }))
-                .count()
-                <= 1
             && inlines.iter().all(|inline| match inline {
                 CllInline::Text(_) => true,
                 CllInline::Link {
@@ -2547,6 +2573,24 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
                 } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
                 _ => false,
             })
+            && (inlines
+                .iter()
+                .filter(|inline| matches!(inline, CllInline::Link { .. }))
+                .count()
+                <= 1
+                || (inlines.len() >= 2
+                    && inlines.iter().all(|inline| {
+                        matches!(
+                            inline,
+                            CllInline::Link {
+                                kind: CllLinkKind::Dictionary,
+                                ..
+                            } | CllInline::LanguageSpan {
+                                kind: CllLanguageSpanKind::JboPhrase,
+                                ..
+                            }
+                        )
+                    })))
     }
     CllCmavoListCell::Other { .. } => {
         !(cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
@@ -2554,6 +2598,16 @@ fn cmavo_or_gismu_cell_text_raw(node: Node<'_, '_>) -> String {
 })]
 fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
+        if let Some(parts) = adjacent_valsi_parts(cell) {
+            let cell_opt_out = element_opts_out_of_cmavo_link(cell);
+            let inlines = parts
+                .iter()
+                .map(|(text, part_opt_out)| {
+                    cmavo_valsi_part_inline(text, !cell_opt_out && !part_opt_out)
+                })
+                .collect();
+            return CllCmavoListCell::Word { inlines };
+        }
         let text = cmavo_or_gismu_cell_text(cell);
         let inlines = if cmavo_cell_opted_out(cell) {
             cmavo_or_gismu_cell_inlines_from(&text, |_| None)
@@ -2565,6 +2619,47 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     CllCmavoListCell::Other {
         inlines: trim_inline_runs(parse_inlines(cell)),
     }
+}
+
+/// The valsi parts of a cell whose whole content is those elements.
+///
+/// Two or more `valsi` elements qualify when no text sits between them or
+/// around them. Whitespace is text. An index term, an anchor, and a hidden
+/// subtree are not text. A mark on a part is recorded for that part alone.
+#[requires(cell.is_element())]
+#[ensures(ret.as_ref().is_none_or(|parts| {
+    parts.len() >= 2 && parts.iter().all(|(text, _)| !text.is_empty())
+}))]
+fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<(String, bool)>> {
+    let mut parts = Vec::new();
+    for child in cell.children() {
+        if child.is_text() {
+            if !child.text().unwrap_or_default().is_empty() {
+                return None;
+            }
+            continue;
+        }
+        if !child.is_element() {
+            continue;
+        }
+        if child.has_tag_name("indexterm")
+            || child.has_tag_name("anchor")
+            || is_display_none_element(child)
+        {
+            continue;
+        }
+        if !child.has_tag_name("valsi") {
+            return None;
+        }
+        let mut raw = String::new();
+        append_cmavo_or_gismu_cell_text(child, &mut raw);
+        let text = normalized_plain_text(&raw);
+        if text.is_empty() {
+            return None;
+        }
+        parts.push((text, cmavo_cell_opted_out(child)));
+    }
+    (parts.len() >= 2).then_some(parts)
 }
 
 /// The CLL build leaves this cell out of the cmavo-list glossary links.
@@ -5082,25 +5177,159 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn adjacent_valsi_in_one_cmavo_cell_join_without_a_space() {
+    fn adjacent_valsi_link_separately_and_a_space_keeps_one_candidate() {
+        let shapes = [
+            (
+                "<valsi>roi</valsi><valsi>nai</valsi>",
+                "roinai",
+                &[("roi", Some("roi")), ("nai", Some("nai"))] as &[(&str, Option<&str>)],
+            ),
+            (
+                "<valsi>pi</valsi><valsi>no'o</valsi>",
+                "pino'o",
+                &[("pi", Some("pi")), ("no'o", Some("no'o"))],
+            ),
+            (
+                "<valsi>pi</valsi><valsi>rau</valsi>",
+                "pirau",
+                &[("pi", Some("pi")), ("rau", Some("rau"))],
+            ),
+            (
+                "<valsi>roi</valsi><valsi>zzzz</valsi>",
+                "roizzzz",
+                &[("roi", Some("roi")), ("zzzz", None)],
+            ),
+            (
+                r#"<valsi>roi</valsi><valsi valid="false">nai</valsi>"#,
+                "roinai",
+                &[("roi", Some("roi")), ("nai", None)],
+            ),
+        ];
+        for (inner, plain, expected) in shapes {
+            let cell = word_cell_from_inner(inner);
+            assert_eq!(cell.word_parts().as_deref(), Some(expected), "{inner}");
+            assert!(cell.word_cell().is_none(), "{inner}");
+            assert_eq!(
+                crate::cmavo_cell_plain_text(cell.inlines()),
+                plain,
+                "{inner}"
+            );
+        }
+
         let (blocks, _) = probe_blocks(concat!(
             "<cmavo-list><cmavo-entry>",
-            "<cmavo><valsi>coi</valsi><valsi>co'o</valsi></cmavo>",
+            r#"<cmavo valid="false"><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
             "</cmavo-entry></cmavo-list>",
         ));
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), "coico'o");
         assert_eq!(
-            rows[0][0].inlines(),
-            [CllInline::Link {
-                target: "coico'o".to_owned(),
-                inlines: vec![CllInline::Text("coico'o".to_owned())],
-                kind: CllLinkKind::Dictionary,
-            }]
-            .as_slice()
+            rows[0][0].word_parts().as_deref(),
+            Some([("roi", None), ("nai", None)].as_slice())
         );
+        assert!(
+            !rows[0][0]
+                .inlines()
+                .iter()
+                .any(|inline| matches!(inline, CllInline::Link { .. }))
+        );
+        assert_eq!(crate::cmavo_cell_plain_text(rows[0][0].inlines()), "roinai");
+
+        let spaced = word_cell_from_inner("<valsi>roi</valsi> <valsi>nai</valsi>");
+        assert!(spaced.word_parts().is_none());
+        assert_eq!(spaced.inlines(), [CllInline::Text("roi nai".to_owned())]);
+        assert_eq!(crate::cmavo_cell_plain_text(spaced.inlines()), "roi nai");
+
+        let compound = word_cell_from_inner("coico'o");
+        assert!(compound.word_parts().is_none());
+        assert!(
+            is_dictionary_word_link(compound.inlines(), "coico'o", "coico'o"),
+            "a plain compound still links as one word, got {compound:?}"
+        );
+
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-list-head><td>cmavo</td></cmavo-list-head>",
+            "<cmavo-entry><cmavo><valsi>roi</valsi><valsi>nai</valsi></cmavo></cmavo-entry>",
+            "</cmavo-list>",
+        ));
+        let block = &blocks[0];
+        let html = render::render_block_html(site, block, CllLinkRenderMode::Web);
+        assert!(
+            html.contains(
+                "<a href=\"../vlacku/roi\" class=\"spa-cll-link spa-cll-link-dictionary\">roi</a><a href=\"../vlacku/nai\" class=\"spa-cll-link spa-cll-link-dictionary\">nai</a>"
+            ),
+            "{html}"
+        );
+        let html_plain = render::render_block_html(site, block, CllLinkRenderMode::Plain);
+        assert!(html_plain.contains("roinai"), "{html_plain}");
+        assert!(!html_plain.contains("<a "), "{html_plain}");
+        assert!(!html_plain.contains("roi nai"), "{html_plain}");
+
+        let mut web = String::new();
+        render::render_block_markdown(
+            site,
+            block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
+        );
+        assert!(
+            web.contains("[roi](../vlacku/roi)[nai](../vlacku/nai)"),
+            "{web}"
+        );
+        let mut plain = String::new();
+        render::render_block_markdown(
+            site,
+            block,
+            &mut plain,
+            0,
+            CllLinkRenderMode::Plain,
+            CllMarkdownDialect::GitHub,
+        );
+        assert!(plain.contains("roinai"), "{plain}");
+        assert!(!plain.contains("]("), "{plain}");
+        assert!(!plain.contains("roi nai"), "{plain}");
+
+        let mut discord = String::new();
+        render::render_block_markdown(
+            site,
+            block,
+            &mut discord,
+            0,
+            CllLinkRenderMode::Plain,
+            CllMarkdownDialect::Discord,
+        );
+        assert!(discord.contains("roinai"), "{discord}");
+        assert!(!discord.contains("]("), "{discord}");
+
+        let (apostrophe, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry>",
+            "<cmavo><valsi>pi</valsi><valsi>no'o</valsi></cmavo>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let apostrophe_html =
+            render::render_block_html(site, &apostrophe[0], CllLinkRenderMode::Web);
+        assert!(
+            apostrophe_html.contains(
+                "<a href=\"../vlacku/pi\" class=\"spa-cll-link spa-cll-link-dictionary\">pi</a><a href=\"../vlacku/no'o\" class=\"spa-cll-link spa-cll-link-dictionary\">no'o</a>"
+            ),
+            "{apostrophe_html}"
+        );
+    }
+
+    #[requires(!inner.is_empty())]
+    #[ensures(matches!(ret, CllCmavoListCell::Word { .. }))]
+    fn word_cell_from_inner(inner: &str) -> CllCmavoListCell {
+        let xml =
+            format!("<cmavo-list><cmavo-entry><cmavo>{inner}</cmavo></cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { mut rows, .. } = blocks.into_iter().next().unwrap() else {
+            panic!("expected one cmavo list");
+        };
+        rows.remove(0).remove(0)
     }
 
     #[test]
@@ -5203,7 +5432,7 @@ mod tests {
             );
             let inlines = rows[0][1].inlines();
             assert!(
-                crate::cmavo_word_cell(inlines).is_none(),
+                rows[0][1].word_cell().is_none(),
                 "{cell_xml} reached the word view: {inlines:?}"
             );
             let expected = if cell_xml.contains("[<valsi>") {
@@ -5241,6 +5470,64 @@ mod tests {
         assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "[idiom]");
         assert!(matches!(rows[0][2], CllCmavoListCell::Other { .. }));
         assert_eq!(crate::inline_plain_text(rows[0][2].inlines()), "[ klama ]");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_valsi_stays_an_unlinked_lojban_span() {
+        for valid in ["false", "maybe"] {
+            let xml = format!(
+                "<cmavo-list><cmavo-entry><cmavo>coi</cmavo><description><valsi valid=\"{valid}\">coi</valsi></description></cmavo-entry></cmavo-list>"
+            );
+            let (blocks, _) = probe_blocks(&xml);
+            let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+                panic!("expected one cmavo list, got {blocks:?}");
+            };
+            assert!(
+                is_unlinked_lojban_word(rows[0][1].inlines(), "coi"),
+                "valid={valid}: {:?}",
+                rows[0][1]
+            );
+            assert!(rows[0][1].word_cell().is_none());
+            assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "coi");
+
+            let paragraph = format!("<para><valsi valid=\"{valid}\">coi</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_unlinked_lojban_word(&outside, "coi"),
+                "valid={valid} outside a table: {outside:?}"
+            );
+            assert_eq!(paragraph_text(&paragraph), "coi");
+        }
+        let spaced = probe_inlines("<para>see <valsi valid=\"false\">coi ro</valsi> now</para>");
+        assert!(
+            matches!(
+                spaced.as_slice(),
+                [
+                    CllInline::Text(lead),
+                    CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::JboPhrase,
+                        language: Some(language),
+                        inlines,
+                    },
+                    CllInline::Text(tail),
+                ] if lead == "see "
+                    && tail == " now"
+                    && language == "jbo"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "coi ro")
+            ),
+            "{spaced:?}"
+        );
+        assert_eq!(
+            paragraph_text("<para>see <valsi valid=\"false\">coi ro</valsi> now</para>"),
+            "see coi ro now"
+        );
+        let still_linked = probe_inlines("<para><valsi valid=\"true\">coi</valsi></para>");
+        assert!(
+            is_dictionary_word_link(&still_linked, "coi", "coi"),
+            "valid=true still links, got {still_linked:?}"
+        );
     }
 
     #[test]

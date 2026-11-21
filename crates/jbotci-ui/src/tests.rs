@@ -825,6 +825,120 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
+    let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word {
+        inlines: vec![
+            CllInline::Link {
+                target: "roi".to_owned(),
+                inlines: vec![CllInline::Text("roi".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            },
+            CllInline::Link {
+                target: "nai".to_owned(),
+                inlines: vec![CllInline::Text("nai".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            },
+        ],
+    }]]);
+    let mut latin = Vec::new();
+    collect_cll_block_page_find_entries(&mut latin, None, &block, GentufaScript::Latin);
+    assert_eq!(page_find_entry_texts(&latin), vec!["roinai".to_owned()]);
+    assert!(!build_page_find_index("roinai", &latin).matches.is_empty());
+
+    let roi = display_cmavo_word(GentufaScript::Zbalermorna, "roi");
+    let nai = display_cmavo_word(GentufaScript::Zbalermorna, "nai");
+    let whole = format!("{roi}{nai}");
+    assert_ne!(roi, "roi");
+    assert_ne!(nai, "nai");
+    let mut zbalermorna = Vec::new();
+    collect_cll_block_page_find_entries(&mut zbalermorna, None, &block, GentufaScript::Zbalermorna);
+    assert_eq!(page_find_entry_texts(&zbalermorna), vec![whole.clone()]);
+    assert!(
+        !build_page_find_index(&whole, &zbalermorna)
+            .matches
+            .is_empty()
+    );
+    assert!(
+        build_page_find_index("roinai", &zbalermorna)
+            .matches
+            .is_empty()
+    );
+}
+
+#[invariant(true)]
+#[invariant(::CmavoPartsFindPage => true)]
+#[derive(Clone, PartialEq, Routable)]
+enum CmavoPartsFindRoute {
+    #[route("/")]
+    CmavoPartsFindPage {},
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CmavoPartsFindApp() -> Element {
+    rsx! { Router::<CmavoPartsFindRoute> {} }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CmavoPartsFindPage() -> Element {
+    let pending = use_signal(|| None);
+    let rows = vec![vec![CllCmavoListCell::Word {
+        inlines: vec![
+            CllInline::Link {
+                target: "roi".to_owned(),
+                inlines: vec![CllInline::Text("roi".to_owned())],
+                kind: CllLinkKind::Dictionary,
+            },
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: Some("jbo".to_owned()),
+                inlines: vec![CllInline::Text("zzzz".to_owned())],
+            },
+        ],
+    }]];
+    let mut entries = Vec::new();
+    collect_cmavo_cell_page_find_entries(&mut entries, &rows[0][0], GentufaScript::Zbalermorna);
+    let roi = display_cmavo_word(GentufaScript::Zbalermorna, "roi");
+    let missing = display_cmavo_word(GentufaScript::Zbalermorna, "zzzz");
+    let index = build_page_find_index(&format!("{roi}{missing}"), &entries);
+    let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
+    render_cll_cmavo_list(
+        None,
+        &[],
+        &[],
+        &rows,
+        pending,
+        "",
+        GentufaScript::Zbalermorna,
+        &page_find,
+    )
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn adjacent_valsi_parts_render_side_by_side_in_the_reader() {
+    let mut dom = VirtualDom::new(CmavoPartsFindApp);
+    dom.rebuild_in_place();
+    let html = dioxus::ssr::render(&dom);
+    let roi = display_cmavo_word(GentufaScript::Zbalermorna, "roi");
+    let missing = display_cmavo_word(GentufaScript::Zbalermorna, "zzzz");
+    assert!(html.contains("spa-cll-link-dictionary"), "{html}");
+    assert!(html.contains("spa-cll-jbophrase"), "{html}");
+    assert!(html.contains(&roi), "{html}");
+    assert!(html.contains(&missing), "{html}");
+    assert!(
+        html.contains("</a><span"),
+        "the unlinked part follows the link with no space: {html}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn page_find_keeps_an_english_bracket_in_latin() {
     let block = cmavo_list_of(vec![vec![CllCmavoListCell::Other {
         inlines: vec![CllInline::Text("[idiom]".to_owned())],

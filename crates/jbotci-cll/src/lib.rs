@@ -56,7 +56,7 @@ mod math;
 use math::{CllMathDisplay, render_math_node};
 
 mod cmavo_table;
-pub use cmavo_table::{CllCmavoWordCell, cmavo_word_cell};
+pub use cmavo_table::CllCmavoWordCell;
 mod links;
 use links::{
     AnchorMode, build_example_reference_index, build_index_entries, build_section_reference_index,
@@ -866,36 +866,45 @@ fn inline_plain_text_in_scope(inlines: &[CllInline], scope: &jbotci_budget::Text
     scope.join(visitor.output.split_whitespace(), " ")
 }
 
-/// Plain text of one cmavo or gismu cell.
-///
-/// A bracketed word keeps `[word]` with no spaces. Call this only for a word
-/// cell. An ordinary cell uses `inline_plain_text_in_scope`.
+/// The letters of adjacent valsi parts, with no space added between parts.
 #[requires(true)]
 #[ensures(true)]
-fn cmavo_cell_plain_text_in_scope(
-    inlines: &[CllInline],
-    scope: &jbotci_budget::TextScope,
-) -> String {
-    if let Some((word, _)) = cmavo_word_cell(inlines).and_then(CllCmavoWordCell::bracket) {
-        return scope.format(format_args!("[{word}]"));
+fn cmavo_parts_plain_text(inlines: &[CllInline], scope: &jbotci_budget::TextScope) -> String {
+    let mut output = scope.buffer();
+    for inline in inlines {
+        match inline {
+            CllInline::Text(text) => output.push_str(text),
+            CllInline::Link { inlines, .. } | CllInline::LanguageSpan { inlines, .. } => {
+                for child in inlines {
+                    if let CllInline::Text(text) = child {
+                        output.push_str(text);
+                    }
+                }
+            }
+            _ => {}
+        }
     }
-    inline_plain_text_in_scope(inlines, scope)
+    output.into_piece()
 }
 
 /// Plain text of one cmavo-list body cell.
 ///
-/// A word cell keeps a bracketed word as `[word]`. An ordinary cell uses the
-/// same walk as a paragraph, so `[ klama ]` keeps its spaces.
+/// A word cell keeps a bracketed word as `[word]`. Adjacent valsi parts stay
+/// side by side, so `roi` and `nai` read as `roinai`. An ordinary cell uses
+/// the same walk as a paragraph, so `[ klama ]` keeps its spaces.
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_list_cell_plain_text_in_scope(
     cell: &CllCmavoListCell,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match cell {
-        CllCmavoListCell::Word { inlines } => cmavo_cell_plain_text_in_scope(inlines, scope),
-        CllCmavoListCell::Other { inlines } => inline_plain_text_in_scope(inlines, scope),
+    if let Some((word, _)) = cell.word_cell().and_then(CllCmavoWordCell::bracket) {
+        return scope.format(format_args!("[{word}]"));
     }
+    if cell.word_parts().is_some() {
+        return cmavo_parts_plain_text(cell.inlines(), scope);
+    }
+    inline_plain_text_in_scope(cell.inlines(), scope)
 }
 
 #[invariant(true)]
@@ -4863,11 +4872,14 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn cmavo_cell_plain_text(inlines: &[CllInline]) -> String {
+    let cell = CllCmavoListCell::Word {
+        inlines: inlines.to_vec(),
+    };
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(cmavo_cell_plain_text_in_scope(inlines, &scope))
+        .finish(cmavo_list_cell_plain_text_in_scope(&cell, &scope))
         .expect("unrestricted plain text")
 }
 #[requires(true)]

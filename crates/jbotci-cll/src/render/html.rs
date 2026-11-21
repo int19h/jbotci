@@ -665,9 +665,7 @@ fn render_cmavo_list_cell_html(
     link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    if let Some(inlines) = cell.word_inlines()
-        && let Some((word, None)) = cmavo_word_cell(inlines).and_then(CllCmavoWordCell::bracket)
-    {
+    if let Some((word, None)) = cell.word_cell().and_then(CllCmavoWordCell::bracket) {
         let mut output = scope.buffer();
         output.push('[');
         output.push_str("<span class=\"spa-cll-jbophrase\" lang=\"jbo\">");
