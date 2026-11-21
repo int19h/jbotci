@@ -989,12 +989,14 @@ fn github_inline_escape(character: char) -> bool {
     )
 }
 
-/// Bytes of a heading, bullet, or ordered-list marker at the start of `tail`.
+/// Bytes of a heading, bullet, ordered list, or thematic break at the start of `tail`.
 ///
 /// The caller has already skipped up to three leading spaces. A heading is one
-/// to six `#` characters and then a space or the end of the line. A bullet is
-/// `-` or `+` and then a space or the end of the line. An ordered list is one
-/// to nine digits, a `.`, and then a space or the end of the line.
+/// to six `#` characters and then a space, a tab, or the end of the line. A
+/// bullet is `-` or `+` and then a space, a tab, or the end of the line. An
+/// ordered list is one to nine digits, a `.`, and then a space, a tab, or the
+/// end of the line. A thematic break is three or more of the same `-`, `*`, or
+/// `_`, with spaces or tabs between them and nothing else on the line.
 #[requires(true)]
 #[ensures(ret.is_none_or(|skip| skip > 0 && skip <= tail.len()))]
 fn github_line_marker_bytes(tail: &str) -> Option<usize> {
@@ -1025,7 +1027,54 @@ fn github_line_marker_bytes(tail: &str) -> Option<usize> {
             return Some(digits + 1);
         }
     }
-    None
+    github_thematic_break_bytes(tail)
+}
+
+/// One when `tail` is a thematic break, so the caller escapes its first byte.
+///
+/// The line is three or more of the same `-`, `*`, or `_`. Spaces or tabs may
+/// sit between those characters. No other character is present.
+#[requires(true)]
+#[ensures(ret.is_none_or(|skip| skip == 1 && skip <= tail.len()))]
+fn github_thematic_break_bytes(tail: &str) -> Option<usize> {
+    let bytes = tail.as_bytes();
+    let Some(&marker) = bytes.first() else {
+        return None;
+    };
+    if !matches!(marker, b'-' | b'*' | b'_') {
+        return None;
+    }
+    let mut count = 0;
+    for byte in bytes {
+        if *byte == marker {
+            count += 1;
+        } else if *byte != b' ' && *byte != b'\t' {
+            return None;
+        }
+    }
+    (count >= 3).then_some(1)
+}
+
+/// True when `tail` is a setext heading underline.
+///
+/// The caller has skipped up to three leading spaces. The line is one or more
+/// `=` characters, or one or more `-` characters, and then only spaces or tabs.
+/// If the previous line has text, the caller uses this.
+#[requires(true)]
+#[ensures(!ret || tail.starts_with(['=', '-']))]
+fn github_setext_underline(tail: &str) -> bool {
+    let bytes = tail.as_bytes();
+    let Some(&marker) = bytes.first() else {
+        return false;
+    };
+    if marker != b'=' && marker != b'-' {
+        return false;
+    }
+    let count = bytes.iter().take_while(|byte| **byte == marker).count();
+    count >= 1
+        && bytes[count..]
+            .iter()
+            .all(|byte| *byte == b' ' || *byte == b'\t')
 }
 
 /// Writes `marker` so GitHub does not treat it as a heading, a bullet, or a list.
@@ -1071,10 +1120,18 @@ fn push_github_inline(output: &mut jbotci_budget::TextBuffer, text: &str) {
     }
 }
 
-/// Writes one GitHub line. Line-start markers are escaped only when `at_line_start` is set.
+/// Writes one GitHub line.
+///
+/// If `at_line_start` is set, a heading, a list, or a thematic break on this
+/// line stays text. If `under_text` is also set, a setext underline stays text.
 #[requires(!line.contains('\n'))]
 #[ensures(true)]
-fn push_github_line(output: &mut jbotci_budget::TextBuffer, line: &str, at_line_start: bool) {
+fn push_github_line(
+    output: &mut jbotci_budget::TextBuffer,
+    line: &str,
+    at_line_start: bool,
+    under_text: bool,
+) {
     let mut rest = line;
     if at_line_start {
         let bytes = line.as_bytes();
@@ -1085,7 +1142,9 @@ fn push_github_line(output: &mut jbotci_budget::TextBuffer, line: &str, at_line_
         let indented_code = bytes.get(indent) == Some(&b' ');
         if !indented_code {
             let tail = &line[indent..];
-            if let Some(skip) = github_line_marker_bytes(tail) {
+            let skip = github_line_marker_bytes(tail)
+                .or_else(|| (under_text && github_setext_underline(tail)).then_some(1));
+            if let Some(skip) = skip {
                 for _ in 0..indent {
                     output.push(' ');
                 }
@@ -1101,8 +1160,8 @@ fn push_github_line(output: &mut jbotci_budget::TextBuffer, line: &str, at_line_
 ///
 /// This is the one GitHub escaper. Book prose does not use it, because the
 /// reviewed section text is copied as it is. A cmavo-part run does use it.
-/// Pass `at_line_start` only when `text` begins a line. A dictionary token
-/// such as `.ui` is unchanged, unless the token contains `www.`.
+/// If `text` begins a line, pass `at_line_start` as true. A dictionary token
+/// such as `.ui` is unchanged. A token that contains `www.` is the exception.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
 #[ensures(scope.is_exceeded() || !ret.contains("]("))]
@@ -1120,11 +1179,18 @@ fn escape_github_markdown_in_scope(
     at_line_start: bool,
 ) -> String {
     let mut escaped = scope.buffer();
+    let mut previous_has_text = false;
     for (index, line) in text.split('\n').enumerate() {
         if index > 0 {
             escaped.push('\n');
         }
-        push_github_line(&mut escaped, line, at_line_start || index > 0);
+        push_github_line(
+            &mut escaped,
+            line,
+            at_line_start || index > 0,
+            previous_has_text,
+        );
+        previous_has_text = line.chars().any(|character| !character.is_whitespace());
     }
     escaped.into_piece()
 }
@@ -1144,9 +1210,9 @@ fn join_part_text(parts: &[(&str, Option<&str>)], scope: &jbotci_budget::TextSco
 ///
 /// Plain mode joins every part, then escapes that word once. Web mode writes
 /// each linked part as a dictionary link. It joins each run of unlinked parts
-/// and escapes that run once. A line-start escape is used only when the run
-/// starts the line. No space is added between parts. A dictionary token such
-/// as `.ui` is written as it is.
+/// and escapes that run once. If the run starts the line, a heading, a list,
+/// or a thematic break in that run stays text. No space is added between
+/// parts. A dictionary token such as `.ui` is written as it is.
 #[requires(parts.len() >= 2)]
 #[requires(parts.iter().all(|(text, target)| {
     !text.is_empty() && target.is_none_or(|target| !target.is_empty())
@@ -1258,9 +1324,9 @@ fn render_cmavo_list_discord(
 /// Plain mode joins the parts, then escapes that word once. It wraps the word
 /// in one italic span when every part is unlinked. Web mode prints each linked
 /// part as a link. It joins each run of unlinked parts, escapes that run once,
-/// and wraps the run in one italic span. A line-start escape is used only when
-/// the run starts the line. No space is added between parts. A dictionary
-/// token such as `.ui` is written as it is.
+/// and wraps the run in one italic span. If the run starts the line, a heading
+/// or a list in that run stays text. No space is added between parts. A
+/// dictionary token such as `.ui` is written as it is.
 #[requires(parts.len() >= 2)]
 #[requires(parts.iter().all(|(text, target)| {
     !text.is_empty() && target.is_none_or(|target| !target.is_empty())
@@ -1521,5 +1587,25 @@ mod tests {
         assert_eq!(github("^2^", false), r"\^2\^");
         assert_eq!(github("a|b", false), r"a\|b");
         assert_eq!(github("![alt](x)", false), r"\!\[alt\]\(x\)");
+
+        assert_eq!(github("---", true), r"\---");
+        assert_eq!(github("---", false), "---");
+        assert_eq!(github("----", true), r"\----");
+        assert_eq!(github("---\t", true), "\\---\t");
+        assert_eq!(github("- - -", true), r"\- - -");
+        assert_eq!(github("   ---", true), r"   \---");
+        assert_eq!(github("    ---", true), "    ---");
+        assert_eq!(github("***", true), r"\*\*\*");
+        assert_eq!(github("___", true), r"\_\_\_");
+        assert_eq!(github("* * *", true), r"\* \* \*");
+        assert_eq!(github("--", true), "--");
+        assert_eq!(github("---a", true), "---a");
+        assert_eq!(github("===", true), "===");
+        assert_eq!(github("Title\n---", true), "Title\n\\---");
+        assert_eq!(github("Title\n--", true), "Title\n\\--");
+        assert_eq!(github("Title\n=", true), "Title\n\\=");
+        assert_eq!(github("Title\n===", false), "Title\n\\===");
+        assert_eq!(github("Title\n\n=", true), "Title\n\n=");
+        assert_eq!(github("Title\n= =", true), "Title\n= =");
     }
 }

@@ -21,35 +21,22 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
 
 /// Escape one line so Discord renders it verbatim.
 ///
-/// Heading (`#`), subtext (`-#`), bullet (`-`, `+`) and ordered-list (`1.`)
-/// syntax only triggers at the start of a line. Pass `at_line_start` when
-/// `line` begins a line. Every other escape is unconditional.
+/// A heading (`#`), subtext (`-#`), bullet (`-`, `+`), or ordered list
+/// (`1.`) is syntax at the start of a line. A space, a tab, or the end of
+/// the line follows the marker. If `line` begins a line, pass `at_line_start`
+/// as true. Every other escape is unconditional.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || !at_line_start || !ret.trim_start().starts_with(['-', '#', '+']))]
+#[ensures(scope.is_exceeded() || !at_line_start || discord_marker_byte(&ret).is_none())]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
 pub(crate) fn escape_discord_markdown_line_at(
     line: &str,
     scope: &jbotci_budget::TextScope,
     at_line_start: bool,
 ) -> String {
-    let indent = line.len() - line.trim_start().len();
+    let marker_at = at_line_start.then(|| discord_marker_byte(line)).flatten();
     let mut escaped = scope.buffer();
-    // True while only digits have followed the indent: a `.` there would
-    // complete an ordered-list marker.
-    let mut in_ordered_prefix = at_line_start;
     for (index, character) in line.char_indices() {
-        let after_indent = index >= indent;
-        let escape = DISCORD_MARKDOWN_ESCAPED.contains(&character)
-            || (at_line_start && index == indent && matches!(character, '-' | '#' | '+'))
-            || (at_line_start
-                && after_indent
-                && index > indent
-                && in_ordered_prefix
-                && character == '.');
-        if after_indent && !character.is_ascii_digit() {
-            in_ordered_prefix = false;
-        }
-        if escape {
+        if DISCORD_MARKDOWN_ESCAPED.contains(&character) || marker_at == Some(index) {
             escaped.push('\\');
         }
         escaped.push(character);
@@ -57,9 +44,58 @@ pub(crate) fn escape_discord_markdown_line_at(
     escaped.into_piece()
 }
 
+/// Byte index of the one character that starts a Discord line marker.
+///
+/// The marker is one to six `#` characters, `-#`, `-`, `+`, or digits
+/// followed by `.`. A space, a tab, or the end of the line follows it.
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| {
+    line.is_char_boundary(index)
+        && index < line.len()
+        && matches!(line.as_bytes()[index], b'#' | b'-' | b'+' | b'.')
+}))]
+fn discord_marker_byte(line: &str) -> Option<usize> {
+    let indent = line.len() - line.trim_start().len();
+    let tail = &line[indent..];
+    let bytes = tail.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let hashes = bytes.iter().take_while(|byte| **byte == b'#').count();
+    if (1..=6).contains(&hashes) && discord_marker_terminator(&tail[hashes..]) {
+        return Some(indent);
+    }
+    if bytes[0] == b'-' || bytes[0] == b'+' {
+        let rest = &tail[1..];
+        let subtext =
+            bytes[0] == b'-' && rest.starts_with('#') && discord_marker_terminator(&rest[1..]);
+        if subtext || discord_marker_terminator(rest) {
+            return Some(indent);
+        }
+    }
+    let digits = bytes
+        .iter()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digits >= 1
+        && bytes.get(digits) == Some(&b'.')
+        && discord_marker_terminator(&tail[digits + 1..])
+    {
+        return Some(indent + digits);
+    }
+    None
+}
+
+/// True when `rest` can end a Discord line marker.
+#[requires(true)]
+#[ensures(ret == (rest.is_empty() || rest.starts_with([' ', '\t'])))]
+fn discord_marker_terminator(rest: &str) -> bool {
+    rest.is_empty() || rest.starts_with([' ', '\t'])
+}
+
 /// Escape one line that begins at column zero.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || (!ret.trim_start().starts_with(['-', '#', '+'])))]
+#[ensures(scope.is_exceeded() || discord_marker_byte(&ret).is_none())]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
 pub fn escape_discord_markdown_line_in_scope(
     line: &str,
@@ -74,6 +110,9 @@ pub fn escape_discord_markdown_line_in_scope(
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
 #[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
+#[ensures(scope.is_exceeded() || ret.split('\n').enumerate().all(|(index, line)| {
+    (index == 0 && !at_line_start) || discord_marker_byte(line).is_none()
+}))]
 pub(crate) fn escape_discord_markdown_at(
     text: &str,
     scope: &jbotci_budget::TextScope,
@@ -245,7 +284,7 @@ mod tests {
         assert_eq!(escape_discord_markdown_line("1. one"), "1\\. one");
         assert_eq!(
             escape_discord_markdown_line("1.5 not a list"),
-            "1\\.5 not a list"
+            "1.5 not a list"
         );
         assert_eq!(
             escape_discord_markdown_line("v1.5 not a list"),
@@ -267,7 +306,16 @@ mod tests {
             "roi-nai"
         );
         assert_eq!(escape_discord_markdown_at("-nai", &scope, false), "-nai");
-        assert_eq!(escape_discord_markdown_at("-nai", &scope, true), "\\-nai");
+        assert_eq!(escape_discord_markdown_at("-nai", &scope, true), "-nai");
+        assert_eq!(escape_discord_markdown_line("#a"), "#a");
+        assert_eq!(escape_discord_markdown_line("# a"), "\\# a");
+        assert_eq!(escape_discord_markdown_line("## a"), "\\## a");
+        assert_eq!(escape_discord_markdown_line("-nai"), "-nai");
+        assert_eq!(escape_discord_markdown_line("- a"), "\\- a");
+        assert_eq!(escape_discord_markdown_line("1.a"), "1.a");
+        assert_eq!(escape_discord_markdown_line("1."), "1\\.");
+        assert_eq!(escape_discord_markdown_line("-# sub"), "\\-# sub");
+        assert_eq!(escape_discord_markdown_line("-#sub"), "-#sub");
         assert_eq!(
             escape_discord_markdown_at("1. aroi", &scope, true),
             "1\\. aroi"

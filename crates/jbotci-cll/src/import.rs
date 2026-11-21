@@ -5779,6 +5779,56 @@ mod tests {
                 format!("{roi}*-nai*"),
                 "roi-nai".to_owned(),
             ),
+            (
+                "thematic break",
+                "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>",
+                false,
+                "---",
+                r"\---".to_owned(),
+                r"\---".to_owned(),
+                "*---*".to_owned(),
+                "*---*".to_owned(),
+            ),
+            (
+                "thematic break in a table",
+                "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>",
+                true,
+                "---",
+                "---".to_owned(),
+                "---".to_owned(),
+                String::new(),
+                String::new(),
+            ),
+            (
+                "hash word",
+                "<cmavo><valsi>#a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "#aroi",
+                format!("#a{roi}"),
+                "#aroi".to_owned(),
+                format!("*#a*{roi}"),
+                "#aroi".to_owned(),
+            ),
+            (
+                "hyphen word",
+                "<cmavo><valsi>-nai</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "-nairoi",
+                format!("-nai{roi}"),
+                "-nairoi".to_owned(),
+                format!("*-nai*{roi}"),
+                "-nairoi".to_owned(),
+            ),
+            (
+                "ordered word",
+                "<cmavo><valsi>1</valsi><valsi valid=\"false\">.a</valsi></cmavo>",
+                false,
+                "1.a",
+                "1.a".to_owned(),
+                "1.a".to_owned(),
+                "*1.a*".to_owned(),
+                "*1.a*".to_owned(),
+            ),
         ];
         for (
             name,
@@ -5849,6 +5899,99 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_thematic_break_without_a_description_stays_text() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cmavo = "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>";
+        for header in [false, true] {
+            let block = cmavo_list_cell_only(cmavo, header);
+            let github_web = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Web,
+                CllMarkdownDialect::GitHub,
+            );
+            let github_plain = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Plain,
+                CllMarkdownDialect::GitHub,
+            );
+            let discord_web = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Web,
+                CllMarkdownDialect::Discord,
+            );
+            let discord_plain = markdown_of(
+                &site,
+                &block,
+                CllLinkRenderMode::Plain,
+                CllMarkdownDialect::Discord,
+            );
+            if header {
+                assert_eq!(github_web, "| cmavo |\n| --- |\n| --- |\n\n");
+                assert_eq!(github_plain, "| cmavo |\n| --- |\n| --- |\n\n");
+                let fenced = "```\ncmavo\n---\n```\n\n";
+                assert_eq!(discord_web, fenced);
+                assert_eq!(discord_plain, fenced);
+            } else {
+                assert_eq!(github_web, "\\---\n\n");
+                assert_eq!(github_plain, "\\---\n\n");
+                assert_eq!(discord_web, "*---*\n\n");
+                assert_eq!(discord_plain, "*---*\n\n");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_newline_in_a_valsi_does_not_form_a_setext_heading() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let block = cmavo_list_with_gloss(
+            "<cmavo><valsi>Title\n=</valsi><valsi>=</valsi></cmavo>",
+            false,
+        );
+        assert_eq!(
+            crate::cmavo_cell_plain_text(match &block {
+                CllBlock::CmavoList { rows, .. } => rows[0][0].inlines(),
+                _ => panic!("expected a cmavo list"),
+            }),
+            "Title =="
+        );
+        let github = markdown_of(
+            &site,
+            &block,
+            CllLinkRenderMode::Plain,
+            CllMarkdownDialect::GitHub,
+        );
+        assert_eq!(github, "Title == | never\n\n");
+        let discord = markdown_of(
+            &site,
+            &block,
+            CllLinkRenderMode::Plain,
+            CllMarkdownDialect::Discord,
+        );
+        assert_eq!(discord, "*Title ==* · never\n\n");
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(matches!(ret, CllBlock::CmavoList { .. }))]
+    fn cmavo_list_cell_only(cmavo: &str, header: bool) -> CllBlock {
+        let head = if header {
+            "<cmavo-list-head><td>cmavo</td></cmavo-list-head>"
+        } else {
+            ""
+        };
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list>{head}<cmavo-entry>{cmavo}</cmavo-entry></cmavo-list>"
+        ));
+        blocks.into_iter().next().expect("one cmavo list")
     }
 
     #[requires(!word.is_empty())]
